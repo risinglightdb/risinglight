@@ -1,7 +1,7 @@
 use crate::storage::block::Block;
 use byteorder::LittleEndian;
 use positioned_io_preview::{ReadBytesAtExt, WriteBytesAtExt};
-const PAGE_SIZE: usize = 4096;
+pub const PAGE_SIZE: usize = 4096;
 
 pub struct Page {
     content: [u8; PAGE_SIZE],
@@ -15,7 +15,15 @@ impl Page {
             block: blk,
         }
     }
-
+    pub fn get_block(&self) -> &Block {
+        &self.block
+    }
+    pub fn get_mut_content(&mut self) -> &mut [u8] {
+        &mut self.content
+    }
+    pub fn get_content(&self) -> &[u8] {
+        &self.content
+    }
     pub fn set_int(&mut self, offset: u64, val: i32) {
         self.content
             .as_mut()
@@ -34,12 +42,14 @@ impl Page {
         let size = val.chars().count();
         self.content
             .as_mut()
-            .write_u64_at::<LittleEndian>(offset, size as u64);
+            .write_u64_at::<LittleEndian>(offset, size as u64)
+            .unwrap();
         let vec = val.as_bytes();
         for i in 0..size {
             self.content
                 .as_mut()
-                .write_u8_at(offset + 8 + (i as u64), vec[i]);
+                .write_u8_at(offset + 8 + (i as u64), vec[i])
+                .unwrap();
         }
     }
 
