@@ -19,7 +19,8 @@ impl FileManager {
         let block = page.get_block();
         let mut file = OpenOptions::new().read(true).open(&block.name).unwrap();
 
-        file.seek(SeekFrom::Start((block.id * PAGE_SIZE).try_into().unwrap()));
+        file.seek(SeekFrom::Start((block.id * PAGE_SIZE).try_into().unwrap()))
+            .unwrap();
         file.read(page.get_mut_content()).unwrap();
     }
 
@@ -35,9 +36,10 @@ impl FileManager {
             .create(true)
             .open(&block.name)
             .unwrap();
-        file.seek(SeekFrom::Start((block.id * PAGE_SIZE).try_into().unwrap()));
+        file.seek(SeekFrom::Start((block.id * PAGE_SIZE).try_into().unwrap()))
+            .unwrap();
         file.write(page.get_content()).unwrap();
-        file.flush();
+        file.flush().unwrap();
     }
 }
 
@@ -46,7 +48,7 @@ mod file_manager_tests {
     use super::*;
 
     #[test]
-    fn test_file_rw() {
+    fn test_file_rw_int() {
         let mut file_mgr = FileManager::new();
         let mut page = Page::new(Block {
             name: "lightdb.bin".to_string(),
@@ -62,5 +64,24 @@ mod file_manager_tests {
         file_mgr.read(&mut new_page);
         let val = new_page.get_int(10);
         assert_eq!(val, 20);
+    }
+
+    #[test]
+    fn test_file_rw_string() {
+        let mut file_mgr = FileManager::new();
+        let mut page = Page::new(Block {
+            name: "lightdb.bin".to_string(),
+            id: 0,
+        });
+        page.set_string(30, String::from("abcde"));
+        file_mgr.write(&page);
+        let mut new_page = Page::new(Block {
+            name: "lightdb.bin".to_string(),
+            id: 0,
+        });
+
+        file_mgr.read(&mut new_page);
+        let string = new_page.get_string(30);
+        assert_eq!(string, String::from("abcde"));
     }
 }
