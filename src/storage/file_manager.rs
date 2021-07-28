@@ -41,6 +41,24 @@ impl FileManager {
         file.write(page.get_content()).unwrap();
         file.flush().unwrap();
     }
+
+    pub fn append(&self, filename: &String) -> Block {
+        let mut file = OpenOptions::new().write(true).open(filename).unwrap();
+        let metadata = file.metadata().unwrap();
+        let length = metadata.len();
+        let id = length / PAGE_SIZE as u64;
+        let buf: [u8; PAGE_SIZE] = [0; PAGE_SIZE];
+
+        file.seek(SeekFrom::Start(
+            (id as usize * PAGE_SIZE).try_into().unwrap(),
+        ));
+        file.write(&buf).unwrap();
+        file.sync_all().unwrap();
+        Block {
+            name: filename.clone(),
+            id: id as usize,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -71,17 +89,25 @@ mod file_manager_tests {
         let mut file_mgr = FileManager::new();
         let mut page = Page::new(Block {
             name: "lightdb.bin".to_string(),
-            id: 0,
+            id: 1,
         });
         page.set_string(30, String::from("abcde"));
         file_mgr.write(&page);
         let mut new_page = Page::new(Block {
             name: "lightdb.bin".to_string(),
-            id: 0,
+            id: 1,
         });
 
         file_mgr.read(&mut new_page);
         let string = new_page.get_string(30);
         assert_eq!(string, String::from("abcde"));
+    }
+
+    #[test]
+    fn test_append_file() {
+        let mut file_mgr = FileManager::new();
+        let b1 = file_mgr.append(&String::from("lightdb.bin"));
+        let b2 = file_mgr.append(&String::from("lightdb.bin"));
+        assert_eq!(b1.id + 1, b2.id);
     }
 }
