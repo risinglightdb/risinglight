@@ -28,7 +28,6 @@ impl LogManager {
                     id: lsn as usize,
                 });
                 file_mgr.lock().as_mut().unwrap().read(&mut page);
-                File::create(&name).unwrap();
                 let last_log_end_pos = page.get_u64(0);
 
                 LogManager {
