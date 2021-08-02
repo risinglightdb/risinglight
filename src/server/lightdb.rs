@@ -1,17 +1,23 @@
-use crate::storage::FileManager;
-use crate::log::LogManager
-use std::sync::Arc;
-pub struct LightdbServer {
-    file_manager: Arc<Mutex<FileManager>> 
-    log_manager: Arc<Mutex<LogManager>>
+use crate::log::log_manager::LogManager;
+use crate::storage::block::Block;
+use crate::storage::file_manager::FileManager;
+use crate::storage::page::Page;
+use std::sync::{Arc, Mutex};
+
+pub struct LightDB {
+    file_manager: Arc<Mutex<FileManager>>,
+    log_manager: Arc<Mutex<LogManager>>,
 }
 
-impl LightdbServer {
-    pub fn new() -> LightdbServer {
+impl LightDB {
+    pub fn new() -> LightDB {
         let file_mgr = Arc::new(Mutex::new(FileManager::new()));
-        LightdbServer {
+        LightDB {
             file_manager: file_mgr.clone(),
-            log_manager: LogManager::new("log.bin")
+            log_manager: Arc::new(Mutex::new(LogManager::new(
+                String::from("log.bin"),
+                file_mgr.clone(),
+            ))),
         }
     }
 }
@@ -22,6 +28,6 @@ mod server_test {
 
     #[test]
     fn db_server_test() {
-        let db = LightdbServer::new();
+        let db = LightDB::new();
     }
 }

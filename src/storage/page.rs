@@ -38,6 +38,20 @@ impl Page {
             .unwrap()
     }
 
+    pub fn set_u64(&mut self, offset: u64, val: u64) {
+        self.content
+            .as_mut()
+            .write_u64_at::<LittleEndian>(offset, val)
+            .unwrap();
+    }
+
+    pub fn get_u64(&self, offset: u64) -> u64 {
+        self.content
+            .as_ref()
+            .read_u64_at::<LittleEndian>(offset)
+            .unwrap()
+    }
+
     pub fn set_string(&mut self, offset: u64, val: String) {
         let size = val.chars().count();
         self.content
@@ -69,6 +83,15 @@ impl Page {
             );
         }
         String::from_utf8_lossy(&vec).to_string()
+    }
+
+    pub fn write_u8_vec(&mut self, offset: u64, vec: &Vec<u8>) {
+        for i in 0..vec.len() {
+            self.content
+                .as_mut()
+                .write_u8_at(offset + i as u64, vec[i])
+                .unwrap();
+        }
     }
 }
 
