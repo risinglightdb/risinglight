@@ -6,12 +6,13 @@ use std::vec::Vec;
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, IntEnum)]
-enum LogType {
+pub enum LogType {
     NONE = 0,
     START = 1,
     COMMIT = 2,
 }
 
+// TODO: Add deserialize method
 pub trait Log {
     fn serialize(&self) -> Vec<u8>;
 }
@@ -37,7 +38,7 @@ impl Log for StartTxnLog {
 }
 
 impl StartTxnLog {
-    fn new(txn_id: u64) -> StartTxnLog {
+    pub fn new(txn_id: u64) -> StartTxnLog {
         StartTxnLog {
             log_type: LogType::START,
             txn_id: txn_id,

@@ -43,7 +43,11 @@ impl FileManager {
     }
 
     pub fn append(&self, filename: &String) -> Block {
-        let mut file = OpenOptions::new().write(true).open(filename).unwrap();
+        let mut file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(filename)
+            .unwrap();
         let metadata = file.metadata().unwrap();
         let length = metadata.len();
         let id = length / PAGE_SIZE as u64;
@@ -67,6 +71,7 @@ mod file_manager_tests {
 
     #[test]
     fn test_file_rw_int() {
+        std::fs::remove_file("light.bin");
         let mut file_mgr = FileManager::new();
         let mut page = Page::new(Block {
             name: "lightdb.bin".to_string(),
@@ -86,6 +91,7 @@ mod file_manager_tests {
 
     #[test]
     fn test_file_rw_string() {
+        std::fs::remove_file("light.bin");
         let mut file_mgr = FileManager::new();
         let mut page = Page::new(Block {
             name: "lightdb.bin".to_string(),
@@ -104,7 +110,8 @@ mod file_manager_tests {
     }
 
     #[test]
-    fn test_append_file() {
+    fn test_file_append() {
+        std::fs::remove_file("light.bin");
         let mut file_mgr = FileManager::new();
         let b1 = file_mgr.append(&String::from("lightdb.bin"));
         let b2 = file_mgr.append(&String::from("lightdb.bin"));

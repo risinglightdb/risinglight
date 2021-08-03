@@ -93,6 +93,12 @@ impl Page {
                 .unwrap();
         }
     }
+
+    pub fn read_u8_vec(&self, start_pos: u64, stop_pos: u64, vec: &mut Vec<u8>) {
+        for i in start_pos..stop_pos {
+            vec.push(self.content.as_ref().read_u8_at(i).unwrap());
+        }
+    }
 }
 
 #[cfg(test)]
@@ -106,9 +112,20 @@ mod page_tests {
             id: 0,
         });
         page.set_int(10, 20);
-        let val = page.get_int(10);
+        let val = page.get_u64(10);
         assert_eq!(val, 20);
     }
+
+    fn u64_read_write() {
+        let mut page = Page::new(Block {
+            name: "lightdb.bin".to_string(),
+            id: 0,
+        });
+        page.set_u64(0, 20);
+        let val = page.get_u64(0);
+        assert_eq!(val, 20);
+    }
+
 
     #[test]
     fn string_read_write() {
