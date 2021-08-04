@@ -16,7 +16,7 @@ impl FileManager {
         FileManager { is_new: true }
     }
     pub fn read(&mut self, page: &mut Page) {
-        let block = page.get_block();
+        let block = page.get_block().unwrap();
         let mut file = OpenOptions::new().read(true).open(&block.name).unwrap();
 
         file.seek(SeekFrom::Start((block.id * PAGE_SIZE).try_into().unwrap()))
@@ -29,7 +29,7 @@ impl FileManager {
     }
 
     pub fn write(&mut self, page: &Page) {
-        let block = page.get_block();
+        let block = page.get_block().unwrap();
         let mut file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -50,17 +50,17 @@ impl FileManager {
             .unwrap();
         let metadata = file.metadata().unwrap();
         let length = metadata.len();
-        let id = length / PAGE_SIZE as u64;
+        let next_idx = length / PAGE_SIZE as u64;
         let buf: [u8; PAGE_SIZE] = [0; PAGE_SIZE];
 
         file.seek(SeekFrom::Start(
-            (id as usize * PAGE_SIZE).try_into().unwrap(),
+            (next_idx as usize * PAGE_SIZE).try_into().unwrap(),
         ));
         file.write(&buf).unwrap();
         file.sync_all().unwrap();
         Block {
             name: filename.clone(),
-            id: id as usize,
+            id: next_idx as usize,
         }
     }
 }
@@ -73,16 +73,16 @@ mod file_manager_tests {
     fn test_file_rw_int() {
         std::fs::remove_file("light.bin");
         let mut file_mgr = FileManager::new();
-        let mut page = Page::new(Block {
+        let mut page = Page::new(Some(Block {
             name: "lightdb.bin".to_string(),
             id: 0,
-        });
+        }));
         page.set_int(10, 20);
         file_mgr.write(&page);
-        let mut new_page = Page::new(Block {
+        let mut new_page = Page::new(Some(Block {
             name: "lightdb.bin".to_string(),
             id: 0,
-        });
+        }));
 
         file_mgr.read(&mut new_page);
         let val = new_page.get_int(10);
@@ -93,16 +93,16 @@ mod file_manager_tests {
     fn test_file_rw_string() {
         std::fs::remove_file("light.bin");
         let mut file_mgr = FileManager::new();
-        let mut page = Page::new(Block {
+        let mut page = Page::new(Some(Block {
             name: "lightdb.bin".to_string(),
             id: 1,
-        });
+        }));
         page.set_string(30, String::from("abcde"));
         file_mgr.write(&page);
-        let mut new_page = Page::new(Block {
+        let mut new_page = Page::new(Some(Block {
             name: "lightdb.bin".to_string(),
             id: 1,
-        });
+        }));
 
         file_mgr.read(&mut new_page);
         let string = new_page.get_string(30);
@@ -111,10 +111,11 @@ mod file_manager_tests {
 
     #[test]
     fn test_file_append() {
-        std::fs::remove_file("light.bin");
+        std::fs::remove_file("lightdb.bin");
         let mut file_mgr = FileManager::new();
         let b1 = file_mgr.append(&String::from("lightdb.bin"));
         let b2 = file_mgr.append(&String::from("lightdb.bin"));
-        assert_eq!(b1.id + 1, b2.id);
+        assert_eq!(b1.id, 0);
+        assert_eq!(b2.id, 1);
     }
 }

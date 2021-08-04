@@ -1,9 +1,9 @@
-use crate::log::log_record::{Log, StartTxnLog, LogType};
-use int_enum::IntEnum;
+use crate::log::log_record::{Log, LogType, StartTxnLog};
 use crate::storage::block::Block;
 use crate::storage::file_manager::FileManager;
 use crate::storage::page::{Page, PAGE_SIZE};
 use byteorder::{ByteOrder, LittleEndian};
+use int_enum::IntEnum;
 
 use std::fs::OpenOptions;
 use std::fs::*;
@@ -26,10 +26,10 @@ impl LogManager {
         match f {
             Ok(meta) => {
                 let mut lsn: u64 = (meta.len() / PAGE_SIZE as u64) - 1;
-                let mut page = Page::new(Block {
+                let mut page = Page::new(Some(Block {
                     name: name.clone(),
                     id: lsn as usize,
-                });
+                }));
                 file_mgr.lock().as_mut().unwrap().read(&mut page);
                 let last_log_end_pos = page.get_u64(0);
 
@@ -42,10 +42,10 @@ impl LogManager {
                 }
             }
             Err(_) => {
-                let mut page = Page::new(Block {
+                let mut page = Page::new(Some(Block {
                     name: name.clone(),
                     id: 0,
-                });
+                }));
                 page.set_u64(0, 0);
                 file_mgr.lock().unwrap().write(&page);
 
@@ -66,10 +66,10 @@ impl LogManager {
         if write_len + self.current_offset > PAGE_SIZE as u64 {
             self.flush();
             self.current_lsn += 1;
-            let mut page = Page::new(Block {
+            let mut page = Page::new(Some(Block {
                 name: self.file_name.clone(),
                 id: self.current_lsn as usize,
-            });
+            }));
             page.set_u64(0, 0);
             self.current_offset = size_of::<u64>() as u64;
             self.current_page = page;
@@ -96,7 +96,7 @@ impl LogManager {
     pub fn get_iterator(&self) -> LogIterator {
         self.flush();
         LogIterator::new(
-            self.current_page.get_block().clone(),
+            self.current_page.get_block().unwrap().clone(),
             self.file_manager.clone(),
         )
     }
@@ -112,12 +112,12 @@ struct LogIterator {
 
 impl LogIterator {
     pub fn new(block: Block, file_manager: Arc<Mutex<FileManager>>) -> LogIterator {
-        let mut page = Page::new(block);
+        let mut page = Page::new(Some(block));
         file_manager.lock().unwrap().read(&mut page);
         let offset = page.get_u64(0);
         LogIterator {
-            file_name: page.get_block().name.clone(),
-            current_lsn: page.get_block().id as u64,
+            file_name: page.get_block().unwrap().name.clone(),
+            current_lsn: page.get_block().unwrap().id as u64,
             current_offset: offset,
             page: page,
             file_manager: file_manager,
@@ -135,17 +135,20 @@ impl LogIterator {
         let end_pos = self.current_offset;
         self.current_offset = self.page.get_u64(self.current_offset);
         let mut vec = Vec::new();
-        self.page
-            .read_u8_vec(self.current_offset + size_of::<u64>() as u64, end_pos, &mut vec);
+        self.page.read_u8_vec(
+            self.current_offset + size_of::<u64>() as u64,
+            end_pos,
+            &mut vec,
+        );
         vec
     }
 
     fn move_to_next(&mut self) {
         self.current_lsn -= 1;
-        self.page = Page::new(Block {
+        self.page = Page::new(Some(Block {
             name: self.file_name.clone(),
             id: self.current_lsn as usize,
-        });
+        }));
         self.file_manager.lock().unwrap().read(&mut self.page);
         self.current_offset = self.page.get_u64(0);
     }

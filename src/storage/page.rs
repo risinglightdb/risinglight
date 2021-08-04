@@ -5,18 +5,18 @@ pub const PAGE_SIZE: usize = 4096;
 
 pub struct Page {
     content: [u8; PAGE_SIZE],
-    block: Block,
+    block: Option<Block>,
 }
 
 impl Page {
-    pub fn new(blk: Block) -> Page {
+    pub fn new(blk: Option<Block>) -> Page {
         Page {
             content: [0; 4096],
             block: blk,
         }
     }
-    pub fn get_block(&self) -> &Block {
-        &self.block
+    pub fn get_block(&self) -> Option<Block> {
+        self.block.clone()
     }
     pub fn get_mut_content(&mut self) -> &mut [u8] {
         &mut self.content
@@ -107,32 +107,31 @@ mod page_tests {
 
     #[test]
     fn int_read_write() {
-        let mut page = Page::new(Block {
+        let mut page = Page::new(Some(Block {
             name: "lightdb.bin".to_string(),
             id: 0,
-        });
+        }));
         page.set_int(10, 20);
         let val = page.get_u64(10);
         assert_eq!(val, 20);
     }
 
     fn u64_read_write() {
-        let mut page = Page::new(Block {
+        let mut page = Page::new(Some(Block {
             name: "lightdb.bin".to_string(),
             id: 0,
-        });
+        }));
         page.set_u64(0, 20);
         let val = page.get_u64(0);
         assert_eq!(val, 20);
     }
 
-
     #[test]
     fn string_read_write() {
-        let mut page = Page::new(Block {
+        let mut page = Page::new(Some(Block {
             name: "lightdb.bin".to_string(),
             id: 0,
-        });
+        }));
         page.set_string(10, String::from("abcde"));
         let string = page.get_string(10);
         assert_eq!(string, String::from("abcde"));
