@@ -102,7 +102,7 @@ impl LogManager {
     }
 }
 
-struct LogIterator {
+pub struct LogIterator {
     file_name: String,
     current_lsn: u64,
     current_offset: u64,

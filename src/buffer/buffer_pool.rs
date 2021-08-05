@@ -41,6 +41,13 @@ impl BufferPool for NaiveBufferPool {
                 let blk = self.file_mgr.lock().unwrap().append(file_name);
                 let mut page = Page::new(Some(blk));
                 self.file_mgr.lock().unwrap().read(&mut page);
+                let modifited_by = buf.read().unwrap().get_modified_by();
+                if let Some(_) = modifited_by {
+                    self.file_mgr
+                        .lock()
+                        .unwrap()
+                        .write(buf.read().unwrap().get_page());
+                }
                 buf.write().unwrap().set_page(page);
                 self.available -= 1;
                 buf.write().unwrap().pin();
@@ -48,7 +55,6 @@ impl BufferPool for NaiveBufferPool {
             }
             None => return None,
         }
-        None
     }
 
     fn pin(&mut self, blk: Block) -> Option<Arc<RwLock<Buffer>>> {
@@ -65,6 +71,15 @@ impl BufferPool for NaiveBufferPool {
                 Some(buf) => {
                     let mut page = Page::new(Some(blk));
                     self.file_mgr.lock().unwrap().read(&mut page);
+
+                    let modifited_by = buf.read().unwrap().get_modified_by();
+                    if let Some(_) = modifited_by {
+                        self.file_mgr
+                            .lock()
+                            .unwrap()
+                            .write(buf.read().unwrap().get_page());
+                    }
+
                     buf.write().unwrap().set_page(page);
                     if !buf.write().unwrap().is_pinned() {
                         self.available -= 1;
@@ -88,7 +103,19 @@ impl BufferPool for NaiveBufferPool {
         self.available
     }
 
-    fn flush_all(&self, txn_id: u64) {}
+    fn flush_all(&self, txn_id: u64) {
+        for buf in self.buffers.iter() {
+            let modified_by = buf.read().unwrap().get_modified_by();
+            if let Some(id) =  modified_by {
+                if id == txn_id {
+                self.file_mgr
+                    .lock()
+                    .unwrap()
+                    .write(buf.read().unwrap().get_page());
+                }
+            }
+        }
+    }
 }
 
 impl NaiveBufferPool {
@@ -119,6 +146,7 @@ mod buffer_pool_test {
 
     #[test]
     fn test_space_count() {
+        std::fs::remove_file("lightdb.bin");
         let file_mgr = Arc::new(Mutex::new(FileManager::new()));
         let file_name = String::from("lightdb.bin");
         for i in 0..10 {
@@ -178,7 +206,7 @@ mod buffer_pool_test {
 
         let buf3 = buffer_pool.pin(Block {
             name: String::from("lightdb.bin"),
-            id: 3
+            id: 3,
         });
         if let Some(buf) = buf3 {
             panic!();
@@ -188,5 +216,50 @@ mod buffer_pool_test {
         buffer_pool.unpin(buf1);
         buffer_pool.unpin(buf0_another);
         assert_eq!(buffer_pool.get_available(), 3);
+    }
+
+    #[test]
+    fn test_buffer_rw() {
+        std::fs::remove_file("lightdb.bin");
+        let file_mgr = Arc::new(Mutex::new(FileManager::new()));
+        let file_name = String::from("lightdb.bin");
+
+        let mut buffer_pool = NaiveBufferPool::new(3, file_mgr.clone());
+        let buf0 = buffer_pool.pin_new(&file_name).unwrap();
+        let str_val = String::from("whoisyoudaddy");
+        buf0.write().unwrap().set_int(0, 100, 1);
+        buf0.write().unwrap().set_string(20, str_val.clone(), 1);
+       
+        buffer_pool.unpin(buf0);
+        
+        let buf0_read0 = buffer_pool.pin(Block{
+            name: String::from("lightdb.bin"),
+            id: 0
+        }).unwrap();
+        let int_val0 = buf0_read0.read().unwrap().get_int(0);
+        let str_val0 = buf0_read0.read().unwrap().get_string(20);
+        assert_eq!(int_val0, 100);
+        assert_eq!(str_val0, str_val);
+        
+        let buf0_read1 = buffer_pool.pin(Block{
+            name: String::from("lightdb.bin"),
+            id: 0
+        }).unwrap();
+        let int_val1 = buf0_read1.read().unwrap().get_int(0);
+        let str_val1 = buf0_read1.read().unwrap().get_string(20);
+        assert_eq!(int_val1, 100);
+        assert_eq!(str_val0, str_val);
+        // Verifiying on-disk file
+        let mut page = Page::new(Some(Block{
+            name: String::from("lightdb.bin"),
+            id: 0
+        }));
+
+        buffer_pool.flush_all(1);
+        file_mgr.lock().unwrap().read(&mut page);
+        let int_val2 = page.get_int(0);
+        let str_val2 = page.get_string(20);
+        assert_eq!(int_val1, 100);
+        assert_eq!(str_val0, str_val);
     }
 }
