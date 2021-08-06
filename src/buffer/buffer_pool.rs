@@ -11,6 +11,7 @@ pub trait BufferPool {
     fn get_available(&self) -> u32;
     fn flush_all(&self, txn_id: u64);
     fn pin_new(&mut self, file_name: &String) -> Option<Arc<RwLock<Buffer>>>;
+    fn flush_buffer(&self, buffer: &Arc<RwLock<Buffer>>);
 }
 
 //TODO: implement a LRU buffer pool
@@ -41,13 +42,7 @@ impl BufferPool for NaiveBufferPool {
                 let blk = self.file_mgr.lock().unwrap().append(file_name);
                 let mut page = Page::new(Some(blk));
                 self.file_mgr.lock().unwrap().read(&mut page);
-                let modifited_by = buf.read().unwrap().get_modified_by();
-                if let Some(_) = modifited_by {
-                    self.file_mgr
-                        .lock()
-                        .unwrap()
-                        .write(buf.read().unwrap().get_page());
-                }
+                self.flush_buffer(&buf);
                 buf.write().unwrap().set_page(page);
                 self.available -= 1;
                 buf.write().unwrap().pin();
@@ -71,15 +66,7 @@ impl BufferPool for NaiveBufferPool {
                 Some(buf) => {
                     let mut page = Page::new(Some(blk));
                     self.file_mgr.lock().unwrap().read(&mut page);
-
-                    let modifited_by = buf.read().unwrap().get_modified_by();
-                    if let Some(_) = modifited_by {
-                        self.file_mgr
-                            .lock()
-                            .unwrap()
-                            .write(buf.read().unwrap().get_page());
-                    }
-
+                    self.flush_buffer(&buf);
                     buf.write().unwrap().set_page(page);
                     if !buf.write().unwrap().is_pinned() {
                         self.available -= 1;
@@ -114,6 +101,16 @@ impl BufferPool for NaiveBufferPool {
                     .write(buf.read().unwrap().get_page());
                 }
             }
+        }
+    }
+
+    fn flush_buffer(&self, buffer: &Arc<RwLock<Buffer>>) {
+        let modifited_by = buffer.read().unwrap().get_modified_by();
+        if let Some(_) = modifited_by {
+            self.file_mgr
+                .lock()
+                .unwrap()
+                .write(buffer.write().unwrap().get_page());
         }
     }
 }

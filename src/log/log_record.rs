@@ -3,6 +3,7 @@ use int_enum::IntEnum;
 use positioned_io_preview::{ReadBytesAtExt, WriteBytesAtExt};
 use std::mem::size_of;
 use std::vec::Vec;
+use crate::transaction::txn::Transaction;
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, IntEnum)]
@@ -10,11 +11,14 @@ pub enum LogType {
     NONE = 0,
     START = 1,
     COMMIT = 2,
+    ROLLBACK = 3
 }
 
 // TODO: Add deserialize method
 pub trait Log {
     fn serialize(&self) -> Vec<u8>;
+    fn undo(&self, txn: &Transaction);
+    fn redo(&self, txn: &Transaction);
 }
 
 pub struct StartTxnLog {
@@ -35,6 +39,14 @@ impl Log for StartTxnLog {
         buffer.extend_from_slice(&buf);
         buffer
     }
+
+    fn undo(&self, txn: &Transaction) {
+
+    }
+
+    fn redo(&self, txn: &Transaction) {
+
+    }
 }
 
 impl StartTxnLog {
@@ -45,6 +57,45 @@ impl StartTxnLog {
         }
     }
 }
+
+pub struct CommitTxnLog {
+    log_type: LogType,
+    txn_id: u64,
+}
+
+impl Log for CommitTxnLog {
+    fn serialize(&self) -> Vec<u8> {
+        let mut buffer: Vec<u8> = Vec::new();
+        let mut buf = [0u8; size_of::<u8>() + size_of::<u64>()];
+        buf.as_mut()
+            .write_u8_at(0, self.log_type.int_value())
+            .unwrap();
+        buf.as_mut()
+            .write_u64_at::<LittleEndian>(1, self.txn_id)
+            .unwrap();
+        buffer.extend_from_slice(&buf);
+        buffer
+    }
+
+    fn undo(&self, txn: &Transaction) {
+
+    }
+
+    fn redo(&self, txn: &Transaction) {
+
+    }
+}
+
+impl CommitTxnLog {
+    pub fn new(txn_id: u64) -> CommitTxnLog {
+        CommitTxnLog {
+            log_type: LogType::COMMIT,
+            txn_id: txn_id,
+        }
+    }
+}
+
+
 
 #[cfg(test)]
 mod log_tests {
