@@ -1,9 +1,9 @@
 # lightdb
-LightDB is a OLTP database system for educational purpose
+LightDB is an OLAP database system for educational purpose.
 
 ### Quick Start
 
 ```
-make test
+make deps
 
 ```

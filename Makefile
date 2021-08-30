@@ -1,3 +1,4 @@
-.PHONY: test
-test:
-	cargo test -- --test-threads 1 --nocapture
+.PHONY: deps
+
+deps:
+	sudo apt install build-essential clang llvm make curl
