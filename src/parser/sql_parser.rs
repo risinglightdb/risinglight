@@ -1,8 +1,6 @@
-use postgres_parser::{parse_query, PgParserError, Node};
+use postgres_parser::{parse_query, Node, PgParserError};
 
-struct Parser {
-
-}
+struct Parser {}
 
 impl Parser {
     fn parse_sql(query: &String) -> Result<Vec<Node>, PgParserError> {
