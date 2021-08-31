@@ -11,11 +11,11 @@ impl DataType for Int32Type {
         self.nullable
     }
 
-    fn get_type() -> DataTypeEnum {
+    fn get_type(&self) -> DataTypeEnum {
         DataTypeEnum::Int32
     }
 
-    fn get_data_len() -> u32 {
+    fn get_data_len(&self) -> u32 {
         4
     }
 

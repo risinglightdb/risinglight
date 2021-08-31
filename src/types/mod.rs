@@ -20,8 +20,8 @@ pub(crate) enum DataTypeEnum {
 
 pub(crate) trait DataType {
     fn is_nullable(&self) -> bool;
-    fn get_type() -> DataTypeEnum;
-    fn get_data_len() -> u32;
+    fn get_type(&self) -> DataTypeEnum;
+    fn get_data_len(&self) -> u32;
     fn as_any(&self) -> &dyn Any;
 }
 
