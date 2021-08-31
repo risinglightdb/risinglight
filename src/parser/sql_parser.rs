@@ -10,3 +10,14 @@ impl Parser {
     }
 }
 
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_select() {
+        let sql = String::from("select a from t1");
+        Parser::parse_sql(&sql).unwrap();
+    }
+}
