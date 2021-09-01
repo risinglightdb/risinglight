@@ -26,6 +26,12 @@ pub(crate) trait DataType {
 }
 
 pub(crate) type DataTypeRef = Arc<dyn DataType>;
+pub(crate) type database_id_t = u32;
+pub(crate) type schema_id_t = u32;
+pub(crate) type table_id_t = u32;
+pub(crate) type column_id_t = u32;
 
 mod numeric_types;
 pub(crate) use numeric_types::*;
+mod bool_type;
+pub(crate) use bool_type::*;
