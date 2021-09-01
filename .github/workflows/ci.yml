@@ -8,7 +8,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check:
+  fmt:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
@@ -16,16 +16,12 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
-          components: rustfmt, clippy
+          components: rustfmt
       - name: Check code format
         uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check
-      - name: Clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
 
   build:
     runs-on: ubuntu-20.04
@@ -35,7 +31,8 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
-      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: make deps
       - name: Build
         uses: actions-rs/cargo@v1
         with:
@@ -49,7 +46,8 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
-      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: make deps
       - name: Test
         uses: actions-rs/cargo@v1
         with:
