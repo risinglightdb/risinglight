@@ -3,7 +3,7 @@ use std::any::Any;
 use std::sync::Arc;
 
 pub(crate) struct Int32Type {
-    nullable: bool
+    nullable: bool,
 }
 
 impl DataType for Int32Type {

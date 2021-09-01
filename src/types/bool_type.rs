@@ -3,7 +3,7 @@ use std::any::Any;
 use std::sync::Arc;
 
 pub(crate) struct BoolType {
-    nullable: bool
+    nullable: bool,
 }
 
 impl DataType for BoolType {
@@ -12,7 +12,7 @@ impl DataType for BoolType {
     }
 
     fn get_type(&self) -> DataTypeEnum {
-        DataTypeEnum::Int32
+        DataTypeEnum::Bool
     }
 
     fn get_data_len(&self) -> u32 {
