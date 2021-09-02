@@ -29,11 +29,13 @@ impl DatabaseCatalog {
         }
     }
 
-    pub(crate) fn delete_schema(&mut self, schema_name: &String) -> Option<SchemaCatalogRef> {
-        let schema_id = self.schema_idxs.remove(schema_name);
-        match schema_id {
-            Some(v) => self.schemas.remove(&v),
-            None => None,
+    pub(crate) fn delete_schema(&mut self, schema_name: &String) -> Result<(), String> {
+        if self.schema_idxs.contains_key(schema_name) {
+            let id = self.schema_idxs.remove(schema_name).unwrap();
+            self.schemas.remove(&id);
+            Ok(())
+        } else {
+            Err(String::from("Schema does not exist: ") + schema_name)
         }
     }
 

@@ -27,11 +27,13 @@ impl RootCatalog {
         }
     }
 
-    pub(crate) fn delete_database(&mut self, database_name: &String) -> Option<DatabaseCatalogRef> {
-        let database_id = self.database_idxs.remove(database_name);
-        match database_id {
-            Some(v) => self.databases.remove(&v),
-            None => None,
+    pub(crate) fn delete_database(&mut self, database_name: &String) -> Result<(), String> {
+        if self.database_idxs.contains_key(database_name) {
+            let id = self.database_idxs.remove(database_name).unwrap();
+            self.databases.remove(&id);
+            Ok(())
+        } else {
+            Err(String::from("Database does not exist: ") + database_name)
         }
     }
 

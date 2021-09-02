@@ -29,11 +29,13 @@ impl SchemaCatalog {
         }
     }
 
-    pub(crate) fn delete_table(&mut self, table_name: &String) -> Option<TableCatalogRef> {
-        let table_id = self.table_idxs.remove(table_name);
-        match table_id {
-            Some(v) => self.tables.remove(&v),
-            None => None,
+    pub(crate) fn delete_table(&mut self, table_name: &String) -> Result<(), String> {
+        if self.table_idxs.contains_key(table_name) {
+            let id = self.table_idxs.remove(table_name).unwrap();
+            self.tables.remove(&id);
+            Ok(())
+        } else {
+            Err(String::from("Table does not exist: ") + table_name)
         }
     }
 
