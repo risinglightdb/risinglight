@@ -1,16 +1,17 @@
-use crate::types::{ColumnId, DataType, DataTypeRef};
-use std::sync::Arc;
+use crate::types::{ColumnId, DataType};
 
 pub(crate) struct ColumnDesc {
-    datatype: DataTypeRef,
+    datatype: DataType,
     is_primary: bool,
+    is_nullable: bool,
 }
 
 impl ColumnDesc {
-    pub(crate) fn new(datatype: impl DataType, is_primary: bool) -> ColumnDesc {
+    pub(crate) fn new(datatype: DataType, is_primary: bool, is_nullable: bool) -> Self {
         ColumnDesc {
-            datatype: Arc::new(datatype),
+            datatype,
             is_primary,
+            is_nullable,
         }
     }
 
@@ -23,11 +24,11 @@ impl ColumnDesc {
     }
 
     pub(crate) fn is_nullable(&self) -> bool {
-        self.datatype.is_nullable()
+        self.is_nullable
     }
 
-    pub(crate) fn get_datatype(&self) -> DataTypeRef {
-        self.datatype.clone()
+    pub(crate) fn datatype(&self) -> DataType {
+        self.datatype
     }
 }
 
@@ -50,8 +51,8 @@ impl ColumnCatalog {
         &self.name
     }
 
-    pub(crate) fn datatype(&self) -> &DataTypeRef {
-        &self.desc.datatype
+    pub(crate) fn datatype(&self) -> DataType {
+        self.desc.datatype
     }
 
     pub(crate) fn set_primary(&mut self, is_primary: bool) {
@@ -70,14 +71,14 @@ impl ColumnCatalog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::Int32Type;
 
     #[test]
     fn test_column_catalog() {
-        let col_desc = ColumnDesc::new(Int32Type { nullable: false }, false);
+        let col_desc = ColumnDesc::new(DataType::Int32, false, false);
         let mut col_catalog = ColumnCatalog::new(0, "grade".into(), col_desc);
         assert_eq!(col_catalog.id(), 0);
         assert_eq!(col_catalog.is_primary(), false);
+        assert_eq!(col_catalog.is_nullable(), false);
         assert_eq!(col_catalog.datatype().data_len(), 4);
         assert_eq!(col_catalog.name(), "grade");
         col_catalog.set_primary(true);

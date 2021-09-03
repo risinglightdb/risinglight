@@ -1,5 +1,5 @@
 use crate::catalog::{ColumnCatalog, ColumnCatalogRef, ColumnDesc};
-use crate::types::{BoolType, ColumnId, DataTypeEnum, DataTypeRef, Int32Type, TableId};
+use crate::types::{ColumnId, DataType, TableId};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
@@ -94,8 +94,8 @@ mod tests {
     use super::*;
     #[test]
     fn test_table_catalog() {
-        let col0 = ColumnDesc::new(Int32Type { nullable: false }, true);
-        let col1 = ColumnDesc::new(BoolType { nullable: false }, false);
+        let col0 = ColumnDesc::new(DataType::Int32, true, false);
+        let col1 = ColumnDesc::new(DataType::Bool, false, false);
 
         let col_names = vec![String::from("a"), String::from("b")];
         let col_descs = vec![col0, col1];
@@ -110,10 +110,10 @@ mod tests {
         let col0_catalog = table_catalog.get_column_by_id(0).unwrap();
 
         assert_eq!(col0_catalog.name(), "a");
-        assert_eq!(col0_catalog.datatype().get_type(), DataTypeEnum::Int32);
+        assert_eq!(col0_catalog.datatype(), DataType::Int32);
 
         let col1_catalog = table_catalog.get_column_by_id(1).unwrap();
         assert_eq!(col1_catalog.name(), "b");
-        assert_eq!(col1_catalog.datatype().get_type(), DataTypeEnum::Bool);
+        assert_eq!(col1_catalog.datatype(), DataType::Bool);
     }
 }

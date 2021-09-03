@@ -1,5 +1,5 @@
 use crate::catalog::{TableCatalog, TableCatalogRef};
-use crate::types::{BoolType, DataTypeEnum, DataTypeRef, Int32Type, SchemaId, TableId};
+use crate::types::{DataType, SchemaId, TableId};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
