@@ -22,11 +22,11 @@ impl Binder {
     }
 
     pub(crate) fn bind(&self, stmt: &mut SQLStatement) -> Result<(), BindError> {
-        match &stmt.statement {
+        match &mut stmt.statement {
             SQLStatementEnum::CreateTableStatment(create_stmt) => {
-                self.bind_create_table_stmt(&create_stmt)
+                self.bind_create_table_stmt(create_stmt)
             }
-            SQLStatementEnum::InsertStatement(insert_stmt) => self.bind_insert_stmt(&insert_stmt),
+            SQLStatementEnum::InsertStatement(insert_stmt) => self.bind_insert_stmt(insert_stmt),
             _ => Err(BindError::InvalidStmt),
         }
     }
