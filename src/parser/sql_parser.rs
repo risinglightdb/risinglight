@@ -14,6 +14,10 @@ mod tests {
 
     #[test]
     fn test_select() {
-        Parser::parse_sql("select a from t1").unwrap();
+        // let sql = "select a from t1";
+        let sql = "create table t1 (v1 int not null, v2 int not null)";
+        println!("{}", sql);
+        let nodes = Parser::parse_sql(sql).unwrap();
+        println!("{:#?}", nodes);
     }
 }

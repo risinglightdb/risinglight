@@ -1,5 +1,6 @@
 use crate::types::{ColumnId, DataType};
 
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct ColumnDesc {
     datatype: DataType,
     is_primary: bool,
@@ -32,6 +33,7 @@ impl ColumnDesc {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct ColumnCatalog {
     id: ColumnId,
     name: String,
