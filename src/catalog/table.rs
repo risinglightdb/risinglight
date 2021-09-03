@@ -1,7 +1,7 @@
 use crate::catalog::{ColumnCatalog, ColumnCatalogRef, ColumnDesc};
 use crate::types::{ColumnId, DataType, TableId};
 use std::collections::{BTreeMap, HashMap};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub(crate) struct TableCatalog {
     table_id: TableId,
@@ -24,11 +24,11 @@ impl TableCatalog {
         }
         let column_id = self.next_column_id;
         self.next_column_id += 1;
-        let col_catalog = Arc::new(ColumnCatalog::new(
+        let col_catalog = Arc::new(Mutex::new(ColumnCatalog::new(
             column_id,
             column_name.clone(),
             column_desc,
-        ));
+        )));
         self.column_idxs.insert(column_name, column_id);
         self.columns.insert(column_id, col_catalog);
         Ok(column_id)
@@ -107,12 +107,13 @@ mod tests {
 
         assert_eq!(table_catalog.get_column_id_by_name("a"), Some(0));
         assert_eq!(table_catalog.get_column_id_by_name("b"), Some(1));
-        let col0_catalog = table_catalog.get_column_by_id(0).unwrap();
+        let arc_col0 = table_catalog.get_column_by_id(0).unwrap();
+        let col0_catalog = &arc_col0.as_ref().lock().unwrap();
 
         assert_eq!(col0_catalog.name(), "a");
         assert_eq!(col0_catalog.datatype(), DataType::Int32);
-
-        let col1_catalog = table_catalog.get_column_by_id(1).unwrap();
+        let arc_col1 = table_catalog.get_column_by_id(1).unwrap();
+        let col1_catalog = &arc_col1.as_ref().lock().unwrap();
         assert_eq!(col1_catalog.name(), "b");
         assert_eq!(col1_catalog.datatype(), DataType::Bool);
     }

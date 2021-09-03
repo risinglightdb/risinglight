@@ -1,7 +1,7 @@
-use crate::catalog::{SchemaCatalog, SchemaCatalogRef};
+use crate::catalog::{SchemaCatalog, SchemaCatalogRef, DEFAULT_SCHEMA_NAME};
 use crate::types::{DataType, DatabaseId, SchemaId};
 use std::collections::{BTreeMap, HashMap};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub(crate) struct DatabaseCatalog {
     database_id: DatabaseId,
@@ -12,17 +12,16 @@ pub(crate) struct DatabaseCatalog {
 }
 
 impl DatabaseCatalog {
-    pub(crate) fn add_schema(
-        &mut self,
-        schema_name: String,
-        schema_catalog: SchemaCatalog,
-    ) -> Result<SchemaId, String> {
+    pub(crate) fn add_schema(&mut self, schema_name: String) -> Result<SchemaId, String> {
         if self.schema_idxs.contains_key(&schema_name) {
             Err(String::from("Duplicated schema name!"))
         } else {
             let schema_id = self.next_schema_id;
             self.next_schema_id += 1;
-            let schema_catalog = Arc::new(schema_catalog);
+            let schema_catalog = Arc::new(Mutex::new(SchemaCatalog::new(
+                schema_id,
+                schema_name.clone(),
+            )));
             self.schema_idxs.insert(schema_name, schema_id);
             self.schemas.insert(schema_id, schema_catalog);
             Ok(schema_id)
@@ -67,12 +66,14 @@ impl DatabaseCatalog {
     }
 
     pub(crate) fn new(database_id: DatabaseId, database_name: String) -> DatabaseCatalog {
-        DatabaseCatalog {
+        let mut db_catalog = DatabaseCatalog {
             database_id: database_id,
             database_name: database_name,
             schema_idxs: HashMap::new(),
             schemas: BTreeMap::new(),
             next_schema_id: 0,
-        }
+        };
+        db_catalog.add_schema(DEFAULT_SCHEMA_NAME.to_string());
+        db_catalog
     }
 }

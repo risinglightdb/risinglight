@@ -13,6 +13,7 @@ mod statement;
 mod table_ref;
 
 pub(crate) use sql_parser::*;
+pub(crate) use statement::*;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ParseError {

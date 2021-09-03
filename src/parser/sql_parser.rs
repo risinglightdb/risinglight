@@ -3,7 +3,7 @@ use postgres_parser::{parse_query, Node, PgParserError};
 pub(crate) struct Parser {}
 
 impl Parser {
-    fn parse_sql(query: &str) -> Result<Vec<Node>, PgParserError> {
+    pub(crate) fn parse_sql(query: &str) -> Result<Vec<Node>, PgParserError> {
         parse_query(query)
     }
 }
