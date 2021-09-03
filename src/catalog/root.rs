@@ -1,7 +1,9 @@
-use crate::catalog::{DatabaseCatalog, DatabaseCatalogRef};
+use crate::catalog::{
+    DatabaseCatalog, DatabaseCatalogRef, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME,
+};
 use crate::types::{DataType, DatabaseId};
 use std::collections::{BTreeMap, HashMap};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub(crate) struct RootCatalog {
     database_idxs: HashMap<String, DatabaseId>,
@@ -10,17 +12,21 @@ pub(crate) struct RootCatalog {
 }
 
 impl RootCatalog {
-    pub(crate) fn add_database(
-        &mut self,
-        database_name: String,
-        database_catalog: DatabaseCatalog,
-    ) -> Result<DatabaseId, String> {
+    pub(crate) fn add_database(&mut self, database_name: String) -> Result<DatabaseId, String> {
         if self.database_idxs.contains_key(&database_name) {
             Err(String::from("Duplicated database name!"))
         } else {
             let database_id = self.next_database_id;
             self.next_database_id += 1;
-            let database_catalog = Arc::new(database_catalog);
+            let database_catalog = Arc::new(Mutex::new(DatabaseCatalog::new(
+                database_id,
+                database_name.clone(),
+            )));
+            database_catalog
+                .as_ref()
+                .lock()
+                .unwrap()
+                .add_schema(DEFAULT_SCHEMA_NAME.to_string());
             self.database_idxs.insert(database_name, database_id);
             self.databases.insert(database_id, database_catalog);
             Ok(database_id)
@@ -57,10 +63,12 @@ impl RootCatalog {
     }
 
     pub(crate) fn new() -> RootCatalog {
-        RootCatalog {
+        let mut root_catalog = RootCatalog {
             database_idxs: HashMap::new(),
             databases: BTreeMap::new(),
             next_database_id: 0,
-        }
+        };
+        root_catalog.add_database(DEFAULT_DATABASE_NAME.to_string());
+        root_catalog
     }
 }

@@ -1,7 +1,7 @@
 mod catalog;
 mod parser;
 use parser::*;
-mod types;
 mod binder;
+mod types;
 
 fn main() {}

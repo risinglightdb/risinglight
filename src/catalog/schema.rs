@@ -1,7 +1,7 @@
-use crate::catalog::{TableCatalog, TableCatalogRef};
+use crate::catalog::{ColumnDesc, TableCatalog, TableCatalogRef};
 use crate::types::{DataType, SchemaId, TableId};
 use std::collections::{BTreeMap, HashMap};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub(crate) struct SchemaCatalog {
     schema_id: SchemaId,
@@ -15,14 +15,22 @@ impl SchemaCatalog {
     pub(crate) fn add_table(
         &mut self,
         table_name: String,
-        table_catalog: TableCatalog,
+        column_names: Vec<String>,
+        columns: Vec<ColumnDesc>,
+        is_materialized_view: bool,
     ) -> Result<TableId, String> {
         if self.table_idxs.contains_key(&table_name) {
             Err(String::from("Duplicated table name!"))
         } else {
             let table_id = self.next_table_id;
             self.next_table_id += 1;
-            let table_catalog = Arc::new(table_catalog);
+            let table_catalog = Arc::new(Mutex::new(TableCatalog::new(
+                table_id,
+                table_name.clone(),
+                column_names,
+                columns,
+                is_materialized_view,
+            )));
             self.table_idxs.insert(table_name, table_id);
             self.tables.insert(table_id, table_catalog);
             Ok(table_id)

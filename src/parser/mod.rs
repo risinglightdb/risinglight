@@ -9,11 +9,11 @@ macro_rules! try_match {
 
 mod expression;
 mod sql_parser;
-mod table_ref;
 mod statement;
+mod table_ref;
 
-pub(crate) use statement::*;
 pub(crate) use sql_parser::*;
+pub(crate) use statement::*;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ParseError {
