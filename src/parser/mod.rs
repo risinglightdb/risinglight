@@ -9,9 +9,10 @@ macro_rules! try_match {
 
 mod expression;
 mod sql_parser;
-mod statement;
 mod table_ref;
+mod statement;
 
+pub(crate) use statement::*;
 pub(crate) use sql_parser::*;
 
 #[derive(thiserror::Error, Debug)]
