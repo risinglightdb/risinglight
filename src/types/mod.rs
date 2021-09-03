@@ -27,7 +27,7 @@ impl FromStr for DataType {
             "int" | "int4" | "signed" | "integer" | "intergral" | "int32" => Ok(Self::Int32),
             "bool" | "boolean" | "logical" => Ok(Self::Bool),
             "double" | "float8" => Ok(Self::Float64),
-            "cahr" | "bpchar" => Ok(Self::Char),
+            "char" | "bpchar" => Ok(Self::Char),
             _ => todo!("parse datatype"),
         }
     }
@@ -60,3 +60,12 @@ pub(crate) type DatabaseId = u32;
 pub(crate) type SchemaId = u32;
 pub(crate) type TableId = u32;
 pub(crate) type ColumnId = u32;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DataValue {
+    Null,
+    Bool(bool),
+    Int32(i32),
+    Float64(f64),
+    String(String),
+}
