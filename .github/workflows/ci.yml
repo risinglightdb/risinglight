@@ -15,7 +15,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly-2021-07-28
           components: rustfmt
       - name: Check code format
         uses: actions-rs/cargo@v1
@@ -30,7 +30,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly-2021-07-28
       - name: Install dependencies
         run: make deps
       - name: Build
@@ -45,7 +45,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly-2021-07-28
       - name: Install dependencies
         run: make deps
       - name: Test

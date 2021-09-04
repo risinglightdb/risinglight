@@ -32,6 +32,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "autocfg"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
+
+[[package]]
 name = "bindgen"
 version = "0.57.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -205,6 +211,7 @@ dependencies = [
  "byteorder",
  "int-enum",
  "lazy_static",
+ "num-traits",
  "positioned-io-preview",
  "postgres-parser",
  "thiserror",
@@ -233,6 +240,15 @@ checksum = "ffb4262d26ed83a1c0a33a38fe2bb15797329c85770da05e6b828ddb782627af"
 dependencies = [
  "memchr",
  "version_check",
+]
+
+[[package]]
+name = "num-traits"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a64b1ec5cda2586e284722486d802acf1f7dbdc623e2bfc57e65ca1cd099290"
+dependencies = [
+ "autocfg",
 ]
 
 [[package]]

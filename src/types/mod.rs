@@ -1,5 +1,8 @@
 use std::str::FromStr;
 
+mod native;
+pub(crate) use native::*;
+
 /// PostgreSQL DataType
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum PgSQLDataTypeEnum {
