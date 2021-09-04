@@ -20,10 +20,7 @@ pub struct DataType {
 
 impl DataType {
     pub fn new(typeinfo: DataTypeEnum, nullable: bool) -> DataType {
-        DataType {
-            typeinfo,
-            nullable,
-        }
+        DataType { typeinfo, nullable }
     }
 
     pub fn is_nullable(&self) -> bool {

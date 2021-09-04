@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-
 pub trait NativeType:
     PartialOrd + PartialEq + Debug + Copy + Send + Sync + Sized + Default + 'static
 {

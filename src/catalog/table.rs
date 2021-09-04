@@ -1,7 +1,6 @@
 use super::*;
-use crate::types::{ColumnId, TableId, DataType, DataTypeEnum};
+use crate::types::{ColumnId, DataType, DataTypeEnum, TableId};
 use std::collections::HashMap;
-
 
 pub(crate) struct TableCatalog {
     table_id: TableId,

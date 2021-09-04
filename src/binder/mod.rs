@@ -25,6 +25,8 @@ pub enum BindError {
     DuplicatedColumn(String),
     #[error("invalid expression")]
     InvalidExpression,
+    #[error("not nullable column")]
+    NotNullableColumn,
 }
 
 // TODO
