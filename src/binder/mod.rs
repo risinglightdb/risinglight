@@ -15,10 +15,18 @@ pub enum BindError {
     InvalidDatabase(String),
     #[error("invalid schema {0}")]
     InvalidSchema(String),
+    #[error("invalid table {0}")]
+    InvalidTable(String),
+    #[error("invalid column {0}")]
+    InvalidColumn(String),
     #[error("duplicated table {0}")]
     DuplicatedTable(String),
     #[error("duplicated column {0}")]
     DuplicatedColumn(String),
+    #[error("invalid expression")]
+    InvalidExpression,
+    #[error("not nullable column")]
+    NotNullableColumn,
 }
 
 // TODO

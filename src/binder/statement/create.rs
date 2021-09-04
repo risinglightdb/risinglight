@@ -8,7 +8,7 @@ impl Bind for CreateTableStmt {
             .get_or_insert_with(|| DEFAULT_DATABASE_NAME.into());
         let database_id = self.database_id.get_or_insert(0);
 
-        let schema_name = self
+        let _schema_name = self
             .schema_name
             .get_or_insert_with(|| DEFAULT_SCHEMA_NAME.into());
         let schema_id = self.schema_id.get_or_insert(0);
@@ -42,7 +42,7 @@ mod tests {
     use super::*;
     use crate::catalog::{ColumnDesc, RootCatalog, TableCatalog};
     use crate::parser::*;
-    use crate::types::DataType;
+    use crate::types::{DataType, DataTypeEnum};
     use std::convert::TryFrom;
     use std::sync::{Arc, Mutex};
 
@@ -69,8 +69,8 @@ mod tests {
             Err(BindError::DuplicatedColumn("a".into()))
         );
 
-        let col0 = ColumnDesc::new(DataType::Int32, true, false);
-        let col1 = ColumnDesc::new(DataType::Bool, false, false);
+        let col0 = ColumnDesc::new(DataType::new(DataTypeEnum::Int32, false), true);
+        let col1 = ColumnDesc::new(DataType::new(DataTypeEnum::Bool, false), false);
 
         let col_names = vec!["a".into(), "b".into()];
         let col_descs = vec![col0, col1];

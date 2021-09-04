@@ -1,14 +1,13 @@
 use super::*;
-use crate::types::{ColumnId, DataType, TableId};
+use crate::types::{ColumnId, DataType, DataTypeEnum, TableId};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 
 pub(crate) struct TableCatalog {
     table_id: TableId,
     table_name: String,
     /// Mapping from column names to column ids
     column_idxs: HashMap<String, ColumnId>,
-    columns: HashMap<ColumnId, ColumnCatalogRef>,
+    columns: HashMap<ColumnId, ColumnCatalog>,
     is_materialized_view: bool,
     next_column_id: ColumnId,
 }
@@ -24,11 +23,7 @@ impl TableCatalog {
         }
         let column_id = self.next_column_id;
         self.next_column_id += 1;
-        let col_catalog = Arc::new(Mutex::new(ColumnCatalog::new(
-            column_id,
-            column_name.clone(),
-            column_desc,
-        )));
+        let col_catalog = ColumnCatalog::new(column_id, column_name.clone(), column_desc);
         self.column_idxs.insert(column_name, column_id);
         self.columns.insert(column_id, col_catalog);
         Ok(column_id)
@@ -38,7 +33,7 @@ impl TableCatalog {
         self.column_idxs.contains_key(name)
     }
 
-    pub(crate) fn all_columns(&self) -> &HashMap<TableId, ColumnCatalogRef> {
+    pub(crate) fn all_columns(&self) -> &HashMap<TableId, ColumnCatalog> {
         &self.columns
     }
 
@@ -46,11 +41,11 @@ impl TableCatalog {
         self.column_idxs.get(name).cloned()
     }
 
-    pub(crate) fn get_column_by_id(&self, table_id: TableId) -> Option<ColumnCatalogRef> {
-        self.columns.get(&table_id).cloned()
+    pub(crate) fn get_column_by_id(&self, table_id: TableId) -> Option<&ColumnCatalog> {
+        self.columns.get(&table_id)
     }
 
-    pub(crate) fn get_column_by_name(&self, name: &str) -> Option<ColumnCatalogRef> {
+    pub(crate) fn get_column_by_name(&self, name: &str) -> Option<&ColumnCatalog> {
         match self.get_column_id_by_name(name) {
             Some(v) => self.get_column_by_id(v),
             None => None,
@@ -94,8 +89,8 @@ mod tests {
     use super::*;
     #[test]
     fn test_table_catalog() {
-        let col0 = ColumnDesc::new(DataType::Int32, true, false);
-        let col1 = ColumnDesc::new(DataType::Bool, false, false);
+        let col0 = ColumnDesc::new(DataType::new(DataTypeEnum::Int32, false), false);
+        let col1 = ColumnDesc::new(DataType::new(DataTypeEnum::Bool, false), false);
 
         let col_names = vec![String::from("a"), String::from("b")];
         let col_descs = vec![col0, col1];
@@ -107,14 +102,16 @@ mod tests {
 
         assert_eq!(table_catalog.get_column_id_by_name("a"), Some(0));
         assert_eq!(table_catalog.get_column_id_by_name("b"), Some(1));
-        let arc_col0 = table_catalog.get_column_by_id(0).unwrap();
-        let col0_catalog = &arc_col0.as_ref().lock().unwrap();
 
+        let col0_catalog = table_catalog.get_column_by_id(0).unwrap();
         assert_eq!(col0_catalog.name(), "a");
-        assert_eq!(col0_catalog.datatype(), DataType::Int32);
-        let arc_col1 = table_catalog.get_column_by_id(1).unwrap();
-        let col1_catalog = &arc_col1.as_ref().lock().unwrap();
+        assert_eq!(
+            col0_catalog.datatype().data_type_info(),
+            DataTypeEnum::Int32
+        );
+
+        let col1_catalog = table_catalog.get_column_by_id(1).unwrap();
         assert_eq!(col1_catalog.name(), "b");
-        assert_eq!(col1_catalog.datatype(), DataType::Bool);
+        assert_eq!(col1_catalog.datatype().data_type_info(), DataTypeEnum::Bool);
     }
 }

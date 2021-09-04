@@ -1,20 +1,26 @@
 use super::*;
 use crate::parser::{expression::Expression, table_ref::BaseTableRef};
+use crate::types::{ColumnId, DataType};
 use postgres_parser as pg;
 use std::convert::TryFrom;
 
 #[derive(Debug, Default, PartialEq)]
 pub struct InsertStmt {
     /// The database name of the entry.
-    database_name: Option<String>,
+    pub database_name: Option<String>,
     /// The schema name of the entry.
-    schema_name: Option<String>,
+    pub schema_name: Option<String>,
     /// Name of the table we want to insert.
-    table_name: String,
+    pub table_name: String,
     /// The name of the columns to insert.
-    column_names: Vec<String>,
+    pub column_names: Vec<String>,
     /// List of values to insert.
-    values: Vec<Vec<Expression>>,
+    pub values: Vec<Vec<Expression>>,
+
+    /// The following values will be set by binder
+    pub column_ids: Vec<ColumnId>,
+    pub column_types: Vec<DataType>,
+    pub column_nullables: Vec<bool>,
 }
 
 impl TryFrom<&pg::Node> for InsertStmt {
@@ -44,6 +50,9 @@ impl TryFrom<&pg::Node> for InsertStmt {
             table_name: ref_.table_name,
             column_names,
             values,
+            column_ids: Vec::new(),
+            column_types: Vec::new(),
+            column_nullables: Vec::new(),
         })
     }
 }
@@ -122,6 +131,9 @@ mod tests {
                         Expression::constant(DataValue::Int32(6)),
                     ],
                 ],
+                column_ids: Vec::new(),
+                column_types: Vec::new(),
+                column_nullables: Vec::new()
             }
         );
     }

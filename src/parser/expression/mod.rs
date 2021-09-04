@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::DataValue;
+use crate::types::{DataType, DataValue};
 use postgres_parser as pg;
 use std::convert::{TryFrom, TryInto};
 
@@ -7,6 +7,7 @@ use std::convert::{TryFrom, TryInto};
 pub struct Expression {
     pub(crate) alias: Option<String>,
     pub(crate) data: ExprData,
+    pub(crate) return_type: Option<DataType>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -25,27 +26,31 @@ pub enum ExprData {
 }
 
 impl Expression {
-    pub const fn constant(value: DataValue) -> Self {
+    pub fn constant(value: DataValue) -> Self {
+        let return_type = value.data_type();
         Expression {
             alias: None,
             data: ExprData::Constant(value),
+            return_type,
         }
     }
 
-    pub const fn star() -> Self {
+    pub fn star() -> Self {
         Expression {
             alias: None,
             data: ExprData::Star,
+            return_type: None,
         }
     }
 
-    pub const fn column_ref(column_name: String, table_name: Option<String>) -> Self {
+    pub fn column_ref(column_name: String, table_name: Option<String>) -> Self {
         Expression {
             alias: None,
             data: ExprData::ColumnRef {
                 table_name,
                 column_name,
             },
+            return_type: None,
         }
     }
 }

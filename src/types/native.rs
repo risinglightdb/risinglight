@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::io::Write;
 
 pub trait NativeType:
     PartialOrd + PartialEq + Debug + Copy + Send + Sync + Sized + Default + 'static
