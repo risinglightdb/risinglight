@@ -1,5 +1,6 @@
 // Author: Alex Chi (iskyzh@gmail.com)
-use super::{Array, ArrayBuilder, ArrayIterator};
+use super::{Array, ArrayBuilder};
+use std::iter::FromIterator;
 
 /// `UTF8Array` is a collection of Rust UTF8 `String`s.
 pub struct UTF8Array {
@@ -9,11 +10,10 @@ pub struct UTF8Array {
 }
 
 impl Array for UTF8Array {
+    type Item = str;
     type Builder = UTF8ArrayBuilder;
-    type RefItem<'a> = &'a str;
-    type Iter<'a> = ArrayIterator<'a, Self>;
 
-    fn value_at(&self, idx: usize) -> Option<&str> {
+    fn get(&self, idx: usize) -> Option<&str> {
         if self.bitmap[idx] {
             let data_slice = &self.data[self.offset[idx]..self.offset[idx + 1]];
             Some(unsafe { std::str::from_utf8_unchecked(data_slice) })
@@ -25,10 +25,6 @@ impl Array for UTF8Array {
     fn len(&self) -> usize {
         self.bitmap.len()
     }
-
-    fn iter(&self) -> ArrayIterator<'_, Self> {
-        ArrayIterator::new(self)
-    }
 }
 
 /// `UTF8ArrayBuilder` use `&str` to build an `UTF8Array`.
@@ -39,7 +35,7 @@ pub struct UTF8ArrayBuilder {
 }
 
 impl ArrayBuilder for UTF8ArrayBuilder {
-    type ArrayType = UTF8Array;
+    type Array = UTF8Array;
 
     fn new(capacity: usize) -> Self {
         let mut offset = Vec::with_capacity(capacity + 1);
@@ -51,7 +47,7 @@ impl ArrayBuilder for UTF8ArrayBuilder {
         }
     }
 
-    fn append<'a>(&'a mut self, value: Option<&'a str>) {
+    fn push(&mut self, value: Option<&str>) {
         match value {
             Some(x) => {
                 self.bitmap.push(true);
@@ -65,7 +61,7 @@ impl ArrayBuilder for UTF8ArrayBuilder {
         }
     }
 
-    fn append_array(&mut self, other: &UTF8Array) {
+    fn append(&mut self, other: &UTF8Array) {
         self.bitmap.extend_from_slice(&other.bitmap);
         self.data.extend_from_slice(&other.data);
         let start = *self.offset.last().unwrap();
@@ -83,6 +79,17 @@ impl ArrayBuilder for UTF8ArrayBuilder {
     }
 }
 
+impl<'a> FromIterator<Option<&'a str>> for UTF8Array {
+    fn from_iter<I: IntoIterator<Item = Option<&'a str>>>(iter: I) -> Self {
+        let iter = iter.into_iter();
+        let mut builder = <Self as Array>::Builder::new(iter.size_hint().0);
+        for e in iter {
+            builder.push(e);
+        }
+        builder.finish()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -91,9 +98,9 @@ mod tests {
         let mut builder = UTF8ArrayBuilder::new(0);
         for i in 0..100 {
             if i % 2 == 0 {
-                builder.append(Some(&format!("{}", i)));
+                builder.push(Some(&format!("{}", i)));
             } else {
-                builder.append(None);
+                builder.push(None);
             }
         }
         builder.finish();
