@@ -14,7 +14,7 @@ pub enum ExprData {
 }
 
 impl Expression {
-    pub(crate) fn constant(value: DataValue) -> Self {
+    pub fn constant(value: DataValue) -> Self {
         Expression {
             data: ExprData::Constant(value),
         }

@@ -1,6 +1,6 @@
-use crate::catalog::{ColumnCatalog, ColumnCatalogRef, ColumnDesc};
+use super::*;
 use crate::types::{ColumnId, DataType, TableId};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 pub(crate) struct TableCatalog {
@@ -8,7 +8,7 @@ pub(crate) struct TableCatalog {
     table_name: String,
     /// Mapping from column names to column ids
     column_idxs: HashMap<String, ColumnId>,
-    columns: BTreeMap<ColumnId, ColumnCatalogRef>,
+    columns: HashMap<ColumnId, ColumnCatalogRef>,
     is_materialized_view: bool,
     next_column_id: ColumnId,
 }
@@ -18,9 +18,9 @@ impl TableCatalog {
         &mut self,
         column_name: String,
         column_desc: ColumnDesc,
-    ) -> Result<ColumnId, String> {
+    ) -> Result<ColumnId, CatalogError> {
         if self.column_idxs.contains_key(&column_name) {
-            return Err(String::from("Duplicated column names!"));
+            return Err(CatalogError::Duplicated("column", column_name));
         }
         let column_id = self.next_column_id;
         self.next_column_id += 1;
@@ -38,7 +38,7 @@ impl TableCatalog {
         self.column_idxs.contains_key(name)
     }
 
-    pub(crate) fn all_columns(&self) -> &BTreeMap<TableId, ColumnCatalogRef> {
+    pub(crate) fn all_columns(&self) -> &HashMap<TableId, ColumnCatalogRef> {
         &self.columns
     }
 
@@ -76,7 +76,7 @@ impl TableCatalog {
             table_id,
             table_name,
             column_idxs: HashMap::new(),
-            columns: BTreeMap::new(),
+            columns: HashMap::new(),
             is_materialized_view,
             next_column_id: 0,
         };

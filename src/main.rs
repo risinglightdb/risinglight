@@ -4,3 +4,5 @@ mod binder;
 mod catalog;
 mod parser;
 mod types;
+
+fn main() {}

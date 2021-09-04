@@ -1,48 +1,43 @@
-use crate::catalog::{SchemaCatalog, SchemaCatalogRef, DEFAULT_SCHEMA_NAME};
+use super::*;
 use crate::types::{DataType, DatabaseId, SchemaId};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 pub(crate) struct DatabaseCatalog {
     database_id: DatabaseId,
     database_name: String,
     schema_idxs: HashMap<String, SchemaId>,
-    schemas: BTreeMap<SchemaId, SchemaCatalogRef>,
+    schemas: HashMap<SchemaId, SchemaCatalogRef>,
     next_schema_id: SchemaId,
 }
 
 impl DatabaseCatalog {
-    pub(crate) fn add_schema(&mut self, schema_name: String) -> Result<SchemaId, String> {
-        if self.schema_idxs.contains_key(&schema_name) {
-            Err(String::from("Duplicated schema name!"))
-        } else {
-            let schema_id = self.next_schema_id;
-            self.next_schema_id += 1;
-            let schema_catalog = Arc::new(Mutex::new(SchemaCatalog::new(
-                schema_id,
-                schema_name.clone(),
-            )));
-            self.schema_idxs.insert(schema_name, schema_id);
-            self.schemas.insert(schema_id, schema_catalog);
-            Ok(schema_id)
+    pub(crate) fn add_schema(&mut self, name: String) -> Result<SchemaId, CatalogError> {
+        if self.schema_idxs.contains_key(&name) {
+            return Err(CatalogError::Duplicated("schema", name));
         }
+        let schema_id = self.next_schema_id;
+        self.next_schema_id += 1;
+        let schema_catalog = Arc::new(Mutex::new(SchemaCatalog::new(schema_id, name.clone())));
+        self.schema_idxs.insert(name, schema_id);
+        self.schemas.insert(schema_id, schema_catalog);
+        Ok(schema_id)
     }
 
-    pub(crate) fn delete_schema(&mut self, schema_name: &String) -> Result<(), String> {
-        if self.schema_idxs.contains_key(schema_name) {
-            let id = self.schema_idxs.remove(schema_name).unwrap();
-            self.schemas.remove(&id);
-            Ok(())
-        } else {
-            Err(String::from("Schema does not exist: ") + schema_name)
-        }
+    pub(crate) fn delete_schema(&mut self, name: &str) -> Result<(), CatalogError> {
+        let id = self
+            .schema_idxs
+            .remove(name)
+            .ok_or_else(|| CatalogError::NotFound("schema", name.into()))?;
+        self.schemas.remove(&id);
+        Ok(())
     }
 
-    pub(crate) fn get_all_schemas(&self) -> &BTreeMap<SchemaId, SchemaCatalogRef> {
+    pub(crate) fn get_all_schemas(&self) -> &HashMap<SchemaId, SchemaCatalogRef> {
         &self.schemas
     }
 
-    pub(crate) fn get_schema_id_by_name(&self, name: &String) -> Option<SchemaId> {
+    pub(crate) fn get_schema_id_by_name(&self, name: &str) -> Option<SchemaId> {
         self.schema_idxs.get(name).cloned()
     }
 
@@ -50,7 +45,7 @@ impl DatabaseCatalog {
         self.schemas.get(&schema_id).cloned()
     }
 
-    pub(crate) fn get_schema_by_name(&self, name: &String) -> Option<SchemaCatalogRef> {
+    pub(crate) fn get_schema_by_name(&self, name: &str) -> Option<SchemaCatalogRef> {
         match self.get_schema_id_by_name(name) {
             Some(v) => self.get_schema_by_id(v),
             None => None,
@@ -70,7 +65,7 @@ impl DatabaseCatalog {
             database_id: database_id,
             database_name: database_name,
             schema_idxs: HashMap::new(),
-            schemas: BTreeMap::new(),
+            schemas: HashMap::new(),
             next_schema_id: 0,
         };
         db_catalog

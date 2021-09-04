@@ -46,12 +46,13 @@ impl ToString for DataType {
 }
 
 impl DataType {
-    pub fn data_len(&self) -> usize {
+    pub const fn data_len(&self) -> usize {
+        use std::mem::size_of;
         match self {
-            Self::Int32 => 4,
-            Self::Bool => 1,
-            Self::Float64 => 8,
-            Self::Char => 1,
+            Self::Int32 => size_of::<i32>(),
+            Self::Bool => size_of::<bool>(),
+            Self::Float64 => size_of::<f64>(),
+            Self::Char => size_of::<u8>(),
         }
     }
 }
