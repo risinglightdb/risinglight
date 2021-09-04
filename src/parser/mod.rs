@@ -8,12 +8,11 @@ macro_rules! try_match {
 }
 
 mod expression;
-mod sql_parser;
 mod statement;
 mod table_ref;
 
-pub(crate) use sql_parser::*;
-pub(crate) use statement::*;
+pub(crate) use self::statement::*;
+pub use postgres_parser::parse_query as parse;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ParseError {

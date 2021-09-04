@@ -1,11 +1,11 @@
 use super::*;
-use crate::types::{DatabaseId, SchemaId};
 use crate::{
     catalog::{ColumnCatalog, ColumnDesc},
-    types::DataType,
+    types::{DataType, DatabaseId, SchemaId},
 };
 use postgres_parser as pg;
 use std::convert::TryFrom;
+
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct CreateTableStmt {
     /// The database name of the entry.
@@ -17,7 +17,8 @@ pub struct CreateTableStmt {
     /// List of columns descriptors in the table. If it's not provided at
     /// transformation time, then we must set it at binding time.
     pub column_descs: Vec<ColumnCatalog>,
-    /// Binder will fill the following values
+
+    // Binder will fill the following values
     pub database_id: Option<DatabaseId>,
     pub schema_id: Option<SchemaId>,
 }
@@ -30,7 +31,7 @@ impl TryFrom<&pg::Node> for CreateTableStmt {
         let relation = try_match!(stmt.relation, Some(x) => &**x, "relation");
         let table_name = try_match!(relation.relname, Some(s) => s.clone(), "table name");
         let schema_name = relation.schemaname.clone();
-        let catalog_name = relation.catalogname.clone();
+        let database_name = relation.catalogname.clone();
 
         let columns = try_match!(stmt.tableElts, Some(v) => v, "column");
         let mut column_descs = vec![];
@@ -55,7 +56,7 @@ impl TryFrom<&pg::Node> for CreateTableStmt {
             }
         }
         Ok(CreateTableStmt {
-            database_name: None,
+            database_name,
             schema_name,
             table_name,
             column_descs,

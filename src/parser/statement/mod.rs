@@ -2,6 +2,7 @@ use super::*;
 
 mod create;
 mod insert;
+mod select;
 
 pub(crate) use create::*;
 pub(crate) use insert::*;

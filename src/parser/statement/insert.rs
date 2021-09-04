@@ -48,7 +48,7 @@ impl TryFrom<&pg::Node> for InsertStmt {
     }
 }
 
-/// Get column names from statment.
+/// Get column names from statement.
 fn get_columns(stmt: &pg::nodes::InsertStmt) -> Result<Vec<String>, ParseError> {
     let mut column_names = vec![];
     if let Some(cols) = &stmt.cols {

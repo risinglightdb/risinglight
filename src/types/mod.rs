@@ -70,3 +70,13 @@ pub enum DataValue {
     Float64(f64),
     String(String),
 }
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum JoinType {
+    Left,
+    Right,
+    Inner,
+    Outer,
+    Semi,
+}

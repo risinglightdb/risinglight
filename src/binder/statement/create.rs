@@ -54,7 +54,7 @@ mod tests {
                     create table t2 (a int not null, a int not null);
                     create table t3 (v1 int not null);";
         println!("{}", sql);
-        let nodes = Parser::parse_sql(sql).unwrap();
+        let nodes = parse(sql).unwrap();
         let mut stmt = CreateTableStmt::try_from(&nodes[0]).unwrap();
 
         stmt.bind(&mut binder).unwrap();
@@ -75,18 +75,9 @@ mod tests {
         let col_names = vec!["a".into(), "b".into()];
         let col_descs = vec![col0, col1];
 
-        catalog
-            .as_ref()
-            .lock()
-            .unwrap()
-            .get_database_by_id(0)
-            .unwrap()
-            .as_ref()
-            .lock()
-            .unwrap()
-            .get_schema_by_id(0)
-            .unwrap()
-            .as_ref()
+        let database = catalog.lock().unwrap().get_database_by_id(0).unwrap();
+        let schema = database.lock().unwrap().get_schema_by_id(0).unwrap();
+        schema
             .lock()
             .unwrap()
             .add_table("t3".into(), col_names, col_descs, false)
