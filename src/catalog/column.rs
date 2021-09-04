@@ -34,7 +34,7 @@ impl ColumnDesc {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct ColumnCatalog {
+pub struct ColumnCatalog {
     id: ColumnId,
     name: String,
     desc: ColumnDesc,

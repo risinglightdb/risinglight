@@ -1,22 +1,25 @@
 use super::*;
+use crate::types::{DatabaseId, SchemaId};
 use crate::{
     catalog::{ColumnCatalog, ColumnDesc},
     types::DataType,
 };
 use postgres_parser as pg;
 use std::convert::TryFrom;
-
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct CreateTableStmt {
     /// The database name of the entry.
-    database_name: Option<String>,
+    pub database_name: Option<String>,
     /// The schema name of the entry.
-    schema_name: Option<String>,
+    pub schema_name: Option<String>,
     /// Name of the table we want to create.
-    table_name: String,
+    pub table_name: String,
     /// List of columns descriptors in the table. If it's not provided at
     /// transformation time, then we must set it at binding time.
-    column_descs: Vec<ColumnCatalog>,
+    pub column_descs: Vec<ColumnCatalog>,
+    /// Binder will fill the following values
+    pub database_id: Option<DatabaseId>,
+    pub schema_id: Option<SchemaId>,
 }
 
 impl TryFrom<&pg::Node> for CreateTableStmt {
@@ -56,6 +59,8 @@ impl TryFrom<&pg::Node> for CreateTableStmt {
             schema_name,
             table_name,
             column_descs,
+            database_id: None,
+            schema_id: None,
         })
     }
 }
@@ -127,6 +132,8 @@ mod tests {
                         ColumnDesc::new(DataType::Float64, false, true)
                     ),
                 ],
+                database_id: None,
+                schema_id: None
             }
         );
     }
