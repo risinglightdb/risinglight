@@ -42,7 +42,7 @@ mod tests {
     use super::*;
     use crate::catalog::{ColumnDesc, RootCatalog, TableCatalog};
     use crate::parser::*;
-    use crate::types::DataType;
+    use crate::types::{DataType, DataTypeEnum};
     use std::convert::TryFrom;
     use std::sync::{Arc, Mutex};
 
@@ -69,8 +69,8 @@ mod tests {
             Err(BindError::DuplicatedColumn("a".into()))
         );
 
-        let col0 = ColumnDesc::new(DataType::Int32, true, false);
-        let col1 = ColumnDesc::new(DataType::Bool, false, false);
+        let col0 = ColumnDesc::new(DataType::new(DataTypeEnum::Int32, false), true);
+        let col1 = ColumnDesc::new(DataType::new(DataTypeEnum::Bool, false), false);
 
         let col_names = vec!["a".into(), "b".into()];
         let col_descs = vec![col0, col1];

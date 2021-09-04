@@ -1,18 +1,16 @@
-use crate::types::{ColumnId, DataType};
+use crate::types::{ColumnId, DataType, DataTypeEnum};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct ColumnDesc {
     datatype: DataType,
     is_primary: bool,
-    is_nullable: bool,
 }
 
 impl ColumnDesc {
-    pub(crate) fn new(datatype: DataType, is_primary: bool, is_nullable: bool) -> Self {
+    pub(crate) fn new(datatype: DataType, is_primary: bool) -> Self {
         ColumnDesc {
             datatype,
-            is_primary,
-            is_nullable,
+            is_primary
         }
     }
 
@@ -25,7 +23,7 @@ impl ColumnDesc {
     }
 
     pub(crate) fn is_nullable(&self) -> bool {
-        self.is_nullable
+        self.datatype.is_nullable()
     }
 
     pub(crate) fn datatype(&self) -> DataType {
@@ -76,12 +74,13 @@ mod tests {
 
     #[test]
     fn test_column_catalog() {
-        let col_desc = ColumnDesc::new(DataType::Int32, false, false);
+        let data_type = DataType::new(DataTypeEnum::Int32, false);
+        let col_desc = ColumnDesc::new(data_type, false);
         let mut col_catalog = ColumnCatalog::new(0, "grade".into(), col_desc);
         assert_eq!(col_catalog.id(), 0);
         assert_eq!(col_catalog.is_primary(), false);
         assert_eq!(col_catalog.is_nullable(), false);
-        assert_eq!(col_catalog.datatype().data_len(), 4);
+        assert_eq!(col_catalog.datatype().data_type_info().data_len(), 4);
         assert_eq!(col_catalog.name(), "grade");
         col_catalog.set_primary(true);
         assert_eq!(col_catalog.is_primary(), true);

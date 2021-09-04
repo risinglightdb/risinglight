@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::DataValue;
+use crate::types::{DataTypeEnum, DataValue};
 use postgres_parser as pg;
 use std::convert::{TryFrom, TryInto};
 

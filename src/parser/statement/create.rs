@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     catalog::{ColumnCatalog, ColumnDesc},
-    types::{DataType, DatabaseId, SchemaId},
+    types::{DataType, DataTypeEnum, DatabaseId, SchemaId},
 };
 use postgres_parser as pg;
 use std::convert::TryFrom;
@@ -78,7 +78,7 @@ impl TryFrom<&pg::nodes::ColumnDef> for ColumnCatalog {
             try_match!(type_name.names, Some(ns) => ns.last().unwrap(), "datatype name");
         let datatype_name = try_match!(datatype_node, pg::Node::Value(v) => v.string.clone().unwrap(), "datatype name");
         let datatype = datatype_name
-            .parse::<DataType>()
+            .parse::<DataTypeEnum>()
             .map_err(|_| ParseError::InvalidInput("datatype"))?;
 
         let mut is_nullable = false;
@@ -101,7 +101,7 @@ impl TryFrom<&pg::nodes::ColumnDef> for ColumnCatalog {
         Ok(ColumnCatalog::new(
             0, // TODO: id?
             col_name,
-            ColumnDesc::new(datatype, is_primary, is_nullable),
+            ColumnDesc::new(DataType::new(datatype, is_nullable), is_primary ),
         ))
     }
 }
@@ -125,12 +125,12 @@ mod tests {
                     ColumnCatalog::new(
                         0,
                         "v1".into(),
-                        ColumnDesc::new(DataType::Int32, false, false)
+                        ColumnDesc::new(DataType::new(DataTypeEnum::Int32, false), false)
                     ),
                     ColumnCatalog::new(
                         0,
                         "v2".into(),
-                        ColumnDesc::new(DataType::Float64, false, true)
+                        ColumnDesc::new(DataType::new(DataTypeEnum::Float64, true), false)
                     ),
                 ],
                 database_id: None,
