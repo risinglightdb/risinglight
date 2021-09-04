@@ -1,6 +1,8 @@
 // Author: Alex Chi (iskyzh@gmail.com)
-use super::{Array, ArrayBuilder, ArrayIterator};
+
+use super::{Array, ArrayBuilder};
 use crate::types::NativeType;
+use std::iter::FromIterator;
 
 /// `PrimitiveArray` is a collection of primitive types, such as `i32`, `f32`.
 pub struct PrimitiveArray<T: NativeType> {
@@ -8,24 +10,24 @@ pub struct PrimitiveArray<T: NativeType> {
     data: Vec<T>,
 }
 
-impl<T: NativeType> PrimitiveArray<T> {
-    pub fn from_slice(data: &[Option<T>]) -> Self {
-        let mut builder = <Self as Array>::Builder::new(data.len());
-        for i in data {
-            builder.append(*i);
+impl<T: NativeType> FromIterator<Option<T>> for PrimitiveArray<T> {
+    fn from_iter<I: IntoIterator<Item = Option<T>>>(iter: I) -> Self {
+        let iter = iter.into_iter();
+        let mut builder = <Self as Array>::Builder::new(iter.size_hint().0);
+        for e in iter {
+            builder.push(e.as_ref());
         }
         builder.finish()
     }
 }
 
 impl<T: NativeType> Array for PrimitiveArray<T> {
+    type Item = T;
     type Builder = PrimitiveArrayBuilder<T>;
-    type RefItem<'a> = T;
-    type Iter<'a> = ArrayIterator<'a, Self>;
 
-    fn value_at(&self, idx: usize) -> Option<T> {
+    fn get(&self, idx: usize) -> Option<&T> {
         if self.bitmap[idx] {
-            Some(self.data[idx])
+            Some(&self.data[idx])
         } else {
             None
         }
@@ -33,10 +35,6 @@ impl<T: NativeType> Array for PrimitiveArray<T> {
 
     fn len(&self) -> usize {
         self.bitmap.len()
-    }
-
-    fn iter(&self) -> Self::Iter<'_> {
-        ArrayIterator::new(self)
     }
 }
 
@@ -47,7 +45,7 @@ pub struct PrimitiveArrayBuilder<T: NativeType> {
 }
 
 impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
-    type ArrayType = PrimitiveArray<T>;
+    type Array = PrimitiveArray<T>;
 
     fn new(capacity: usize) -> Self {
         Self {
@@ -56,11 +54,11 @@ impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
         }
     }
 
-    fn append(&mut self, value: Option<T>) {
+    fn push(&mut self, value: Option<&T>) {
         match value {
             Some(x) => {
                 self.bitmap.push(true);
-                self.data.push(x);
+                self.data.push(*x);
             }
             None => {
                 self.bitmap.push(false);
@@ -69,7 +67,7 @@ impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
         }
     }
 
-    fn append_array(&mut self, other: &PrimitiveArray<T>) {
+    fn append(&mut self, other: &PrimitiveArray<T>) {
         self.bitmap.extend_from_slice(&other.bitmap);
         self.data.extend_from_slice(&other.data);
     }
@@ -85,66 +83,39 @@ impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use num_traits::cast::FromPrimitive;
 
-    fn helper_test_builder<T: NativeType>(data: Vec<Option<T>>) -> PrimitiveArray<T> {
-        let mut builder = PrimitiveArrayBuilder::<T>::new(data.len());
-        for d in data {
-            builder.append(d);
-        }
-        builder.finish()
-    }
-
-    #[test]
-    fn test_i16_builder() {
-        helper_test_builder::<i16>(
-            (0..1000)
-                .map(|x| if x % 2 == 0 { None } else { Some(x) })
-                .collect(),
+    fn test_builder<T: FromPrimitive + NativeType>() {
+        let iter = (0..1000).map(|x| if x % 2 == 0 { None } else { T::from_usize(x) });
+        let array = iter.clone().collect::<PrimitiveArray<T>>();
+        assert_eq!(
+            array.iter().map(|x| x.cloned()).collect::<Vec<_>>(),
+            iter.clone().collect::<Vec<_>>()
         );
     }
 
     #[test]
-    fn test_i32_builder() {
-        helper_test_builder::<i32>(
-            (0..1000)
-                .map(|x| if x % 2 == 0 { None } else { Some(x) })
-                .collect(),
-        );
+    fn test_builder_i16() {
+        test_builder::<i16>();
     }
 
     #[test]
-    fn test_i64_builder() {
-        helper_test_builder::<i64>(
-            (0..1000)
-                .map(|x| if x % 2 == 0 { None } else { Some(x) })
-                .collect(),
-        );
+    fn test_builder_i32() {
+        test_builder::<i32>();
     }
 
     #[test]
-    fn test_f32_builder() {
-        helper_test_builder::<f32>(
-            (0..1000)
-                .map(|x| if x % 2 == 0 { None } else { Some(x as f32) })
-                .collect(),
-        );
+    fn test_builder_i64() {
+        test_builder::<i64>();
     }
 
     #[test]
-    fn test_f64_builder() {
-        helper_test_builder::<f64>(
-            (0..1000)
-                .map(|x| if x % 2 == 0 { None } else { Some(x as f64) })
-                .collect(),
-        );
+    fn test_builder_f32() {
+        test_builder::<f32>();
     }
 
     #[test]
-    fn test_bool_builder() {
-        helper_test_builder::<bool>(
-            (0..1000)
-                .map(|x| if x % 2 == 0 { Some(true) } else { Some(false) })
-                .collect(),
-        );
+    fn test_builder_f64() {
+        test_builder::<f64>();
     }
 }

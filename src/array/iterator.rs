@@ -20,12 +20,13 @@ impl<'a, A: Array> ArrayIterator<'a, A> {
 }
 
 impl<'a, A: Array> Iterator for ArrayIterator<'a, A> {
-    type Item = Option<A::RefItem<'a>>;
+    type Item = Option<&'a A::Item>;
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.pos >= self.data.len() {
             None
         } else {
-            let item = self.data.value_at(self.pos);
+            let item = self.data.get(self.pos);
             self.pos += 1;
             Some(item)
         }

@@ -1,73 +1,70 @@
 // Author: Alex Chi (iskyzh@gmail.com)
+
 mod iterator;
 mod primitive_array;
 mod utf8_array;
-pub use iterator::ArrayIterator;
-pub use primitive_array::*;
-pub use utf8_array::*;
+
+pub use self::iterator::ArrayIterator;
+pub use self::primitive_array::*;
+pub use self::utf8_array::*;
+
 /// A trait over all array builders.
 ///
 /// `ArrayBuilder` is a trait over all builders. You could build an array with
-/// `append` with the help of `ArrayBuilder` trait. The `append` function always
-/// accepts reference to an element if it is not primitive. e.g. for `PrimitiveArray`,
-/// you could do `builder.append(Some(1))`. For `UTF8Array`, you must do
-/// `builder.append(Some("xxx"))`. Note that you don't need to construct a `String`.
+/// `push` with the help of `ArrayBuilder` trait. The `push` function always
+/// accepts reference to an element. e.g. for `PrimitiveArray`,
+/// you must do `builder.push(Some(&1))`. For `UTF8Array`, you must do
+/// `builder.push(Some("xxx"))`. Note that you don't need to construct a `String`.
 ///
-/// The associated type `ArrayType` is the type of the corresponding array. It is the
+/// The associated type `Array` is the type of the corresponding array. It is the
 /// return type of `finish`.
 pub trait ArrayBuilder {
     /// Corresponding `Array` of this builder
-    type ArrayType: Array<Builder = Self>;
+    type Array: Array<Builder = Self>;
 
     /// Create a new builder with `capacity`.
     fn new(capacity: usize) -> Self;
 
     /// Append a value to builder.
-    fn append(&mut self, value: Option<<<Self as ArrayBuilder>::ArrayType as Array>::RefItem<'_>>);
+    fn push(&mut self, value: Option<&<Self::Array as Array>::Item>);
 
     /// Append an array to builder.
-    fn append_array(&mut self, other: &Self::ArrayType);
+    fn append(&mut self, other: &Self::Array);
 
     /// Finish build and return a new array.
-    fn finish(self) -> Self::ArrayType;
+    fn finish(self) -> Self::Array;
 }
 
 /// A trait over all array.
 ///
 /// `Array` must be built with an `ArrayBuilder`. The array trait provides several
-/// unified interface on an array, like `len`, `value_at` and `iter`.
+/// unified interface on an array, like `len`, `get` and `iter`.
 ///
-/// The `Builder` associated type is the builder for this array. The `Iter` associated
-/// type is the iterator of this array. And the `RefItem` is the item you could
-/// retrieve from this array.
+/// The `Builder` associated type is the builder for this array.
+/// The `Item` is the item you could retrieve from this array.
 ///
-/// For example, `PrimitiveArray` could return an `Option<u32>`, and `UTF8Array` will
+/// For example, `PrimitiveArray` could return an `Option<&u32>`, and `UTF8Array` will
 /// return an `Option<&str>`.
-pub trait Array {
-    /// A reference to item in array, as well as return type of `value_at`.
-    type RefItem<'a>
-    where
-        Self: 'a;
-
+pub trait Array: Sized {
     /// Corresponding builder of this array.
-    type Builder: ArrayBuilder<ArrayType = Self>;
+    type Builder: ArrayBuilder<Array = Self>;
 
-    /// Iterator type of this array.
-    type Iter<'a>: Iterator<Item = Option<Self::RefItem<'a>>>
-    where
-        Self: 'a;
+    /// Type of element in the array.
+    type Item: ?Sized;
 
     /// Retrieve a reference to value.
-    fn value_at(&self, idx: usize) -> Option<Self::RefItem<'_>>;
+    fn get(&self, idx: usize) -> Option<&Self::Item>;
 
     /// Number of items of array.
     fn len(&self) -> usize;
 
     /// Get iterator of current array.
-    fn iter(&self) -> Self::Iter<'_>;
+    fn iter(&self) -> ArrayIterator<'_, Self> {
+        ArrayIterator::new(self)
+    }
 }
 
-/// `ArrayCollection` embeds all possible array in `arary` module.
+/// `ArrayCollection` embeds all possible array in `array` module.
 pub enum ArrayImpl {
     Int16(PrimitiveArray<i16>),
     Int32(PrimitiveArray<i32>),
@@ -97,28 +94,18 @@ impl_into! { UTF8Array, UTF8 }
 mod tests {
     use super::*;
 
-    fn filter<'a, A, F>(data: &'a A, pred: F) -> A
-    where
-        A: Array + 'a,
-        F: Fn(Option<A::RefItem<'a>>) -> bool,
-    {
-        let mut builder = A::Builder::new(data.len());
-        for i in 0..data.len() {
-            if pred(data.value_at(i)) {
-                builder.append(data.value_at(i));
-            }
-        }
-        builder.finish()
-    }
-
     #[test]
     fn test_filter() {
-        let mut builder = PrimitiveArrayBuilder::<i32>::new(0);
-        for i in 0..=60 {
-            builder.append(Some(i as i32));
-        }
-        let array = filter(&builder.finish(), |x| x.unwrap_or(0) >= 60);
-        assert_eq!(array.iter().collect::<Vec<Option<i32>>>(), vec![Some(60)]);
+        let array: PrimitiveArray<i32> = (0..=60).map(|i| Some(i)).collect();
+        let array: PrimitiveArray<i32> = array
+            .iter()
+            .filter(|x| *x.unwrap_or(&0) >= 60)
+            .map(|x| x.cloned())
+            .collect();
+        assert_eq!(
+            array.iter().map(|x| x.cloned()).collect::<Vec<_>>(),
+            vec![Some(60)]
+        );
     }
 
     use crate::types::NativeType;
@@ -132,36 +119,24 @@ mod tests {
         T3: NativeType + CheckedAdd,
     {
         assert_eq!(a.len(), b.len());
-        let mut builder = PrimitiveArrayBuilder::<T3>::new(a.len());
-        for (a, b) in a.iter().zip(b.iter()) {
-            let item = match (a, b) {
+        a.iter()
+            .zip(b.iter())
+            .map(|(a, b)| match (a, b) {
                 (Some(a), Some(b)) => Some(a.as_() + b.as_()),
                 _ => None,
-            };
-            builder.append(item);
-        }
-        builder.finish()
+            })
+            .collect()
     }
 
     #[test]
     fn test_vectorized_add() {
-        let mut builder = PrimitiveArrayBuilder::<i32>::new(0);
-        for i in 0..=60 {
-            builder.append(Some(i as i32));
-        }
-        let array1 = builder.finish();
-
-        let mut builder = PrimitiveArrayBuilder::<i16>::new(0);
-        for i in 0..=60 {
-            builder.append(Some(i as i16));
-        }
-        let array2 = builder.finish();
+        let array1 = (0i32..=60).map(|i| Some(i)).collect();
+        let array2 = (0i16..=60).map(|i| Some(i)).collect();
 
         let final_array = vec_add(&array1, &array2) as PrimitiveArray<i64>;
-
-        assert_eq!(final_array.len(), array1.len());
-        for (idx, data) in final_array.iter().enumerate() {
-            assert_eq!(data, Some(idx as i64 * 2));
-        }
+        assert_eq!(
+            final_array.iter().map(|x| x.cloned()).collect::<Vec<_>>(),
+            (0i64..=60).map(|i| Some(i * 2)).collect::<Vec<_>>()
+        );
     }
 }
