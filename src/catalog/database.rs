@@ -73,7 +73,9 @@ impl DatabaseCatalog {
             schemas: BTreeMap::new(),
             next_schema_id: 0,
         };
-        db_catalog.add_schema(DEFAULT_SCHEMA_NAME.to_string());
+        db_catalog
+            .add_schema(DEFAULT_SCHEMA_NAME.to_string())
+            .unwrap();
         db_catalog
     }
 }

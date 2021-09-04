@@ -26,7 +26,8 @@ impl RootCatalog {
                 .as_ref()
                 .lock()
                 .unwrap()
-                .add_schema(DEFAULT_SCHEMA_NAME.to_string());
+                .add_schema(DEFAULT_SCHEMA_NAME.to_string())
+                .unwrap();
             self.database_idxs.insert(database_name, database_id);
             self.databases.insert(database_id, database_catalog);
             Ok(database_id)
@@ -68,7 +69,9 @@ impl RootCatalog {
             databases: BTreeMap::new(),
             next_database_id: 0,
         };
-        root_catalog.add_database(DEFAULT_DATABASE_NAME.to_string());
+        root_catalog
+            .add_database(DEFAULT_DATABASE_NAME.to_string())
+            .unwrap();
         root_catalog
     }
 }
