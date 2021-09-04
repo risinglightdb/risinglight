@@ -97,6 +97,17 @@ pub enum DataValue {
     String(String),
 }
 
+impl DataValue {
+    pub fn data_type(&self) -> Option<DataType> {
+        match self {
+            Self::Bool(_) => Some(DataType::new(DataTypeEnum::Bool, false)),
+            Self::Int32(_) => Some(DataType::new(DataTypeEnum::Int32, false)),
+            Self::Float64(_) => Some(DataType::new(DataTypeEnum::Float64, false)),
+            _ => None,
+        }
+    }
+}
+
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum JoinType {

@@ -1,6 +1,6 @@
 use super::*;
 use crate::parser::{ExprData, Expression, InsertStmt};
-use crate::types::{DataType, ColumnId, DataTypeEnum};
+use crate::types::{ColumnId, DataType, DataTypeEnum};
 impl Bind for InsertStmt {
     fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError> {
         let database_name = self
@@ -59,7 +59,23 @@ impl Bind for InsertStmt {
         for vals in self.values.iter() {
             for (idx, val) in vals.iter().enumerate() {
                 match &val.data {
-                    ExprData::Constant(const_val) => {}
+                    ExprData::Constant(const_val) => {
+                        // TODO: support valid type cast
+                        // table t1(a float, b float)
+                        // for example: insert into values (1, 1);
+                        // 1 should be casted to float
+                        let data_type = const_val.data_type();
+                        match data_type {
+                            Some(t) => {
+                                if t != self.column_types[idx] {
+                                    return Err(BindError::InvalidExpression);
+                                }
+                            }
+                            None => {
+                                return Err(BindError::InvalidExpression);
+                            }
+                        };
+                    }
                     _ => {
                         return Err(BindError::InvalidExpression);
                     }

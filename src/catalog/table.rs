@@ -106,7 +106,10 @@ mod tests {
 
         let col0_catalog = table_catalog.get_column_by_id(0).unwrap();
         assert_eq!(col0_catalog.name(), "a");
-        assert_eq!(col0_catalog.datatype().data_type_info(), DataTypeEnum::Int32);
+        assert_eq!(
+            col0_catalog.datatype().data_type_info(),
+            DataTypeEnum::Int32
+        );
 
         let col1_catalog = table_catalog.get_column_by_id(1).unwrap();
         assert_eq!(col1_catalog.name(), "b");

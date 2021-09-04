@@ -101,7 +101,7 @@ impl TryFrom<&pg::nodes::ColumnDef> for ColumnCatalog {
         Ok(ColumnCatalog::new(
             0, // TODO: id?
             col_name,
-            ColumnDesc::new(DataType::new(datatype, is_nullable), is_primary ),
+            ColumnDesc::new(DataType::new(datatype, is_nullable), is_primary),
         ))
     }
 }

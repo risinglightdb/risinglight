@@ -10,7 +10,7 @@ impl ColumnDesc {
     pub(crate) fn new(datatype: DataType, is_primary: bool) -> Self {
         ColumnDesc {
             datatype,
-            is_primary
+            is_primary,
         }
     }
 
