@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::{DataTypeEnum, DatabaseId};
+use crate::types::{DatabaseId};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

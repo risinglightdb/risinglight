@@ -8,7 +8,7 @@ impl Bind for CreateTableStmt {
             .get_or_insert_with(|| DEFAULT_DATABASE_NAME.into());
         let database_id = self.database_id.get_or_insert(0);
 
-        let schema_name = self
+        let _schema_name = self
             .schema_name
             .get_or_insert_with(|| DEFAULT_SCHEMA_NAME.into());
         let schema_id = self.schema_id.get_or_insert(0);

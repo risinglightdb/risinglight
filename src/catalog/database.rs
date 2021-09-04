@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::{DataTypeEnum, DatabaseId, SchemaId};
+use crate::types::{DatabaseId, SchemaId};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -62,8 +62,8 @@ impl DatabaseCatalog {
 
     pub(crate) fn new(database_id: DatabaseId, database_name: String) -> DatabaseCatalog {
         let mut db_catalog = DatabaseCatalog {
-            database_id: database_id,
-            database_name: database_name,
+            database_id,
+            database_name,
             schema_idxs: HashMap::new(),
             schemas: HashMap::new(),
             next_schema_id: 0,

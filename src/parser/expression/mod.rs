@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::{DataType, DataTypeEnum, DataValue};
+use crate::types::{DataType, DataValue};
 use postgres_parser as pg;
 use std::convert::{TryFrom, TryInto};
 
@@ -31,7 +31,7 @@ impl Expression {
         Expression {
             alias: None,
             data: ExprData::Constant(value),
-            return_type: return_type,
+            return_type,
         }
     }
 

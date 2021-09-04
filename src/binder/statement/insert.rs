@@ -1,6 +1,6 @@
 use super::*;
-use crate::parser::{ExprData, Expression, InsertStmt};
-use crate::types::{ColumnId, DataType, DataTypeEnum};
+use crate::parser::{ExprData, InsertStmt};
+use crate::types::{ColumnId, DataType};
 impl Bind for InsertStmt {
     fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError> {
         let database_name = self
@@ -27,7 +27,7 @@ impl Bind for InsertStmt {
 
         let table = table_arc.as_ref().lock().unwrap();
         // If the query does not provide column information, get all columns info.
-        if self.column_names.len() == 0 {
+        if self.column_names.is_empty() {
             for (id, col) in table.all_columns().iter() {
                 self.column_names.push(col.name().to_string());
                 self.column_ids.push(*id);
@@ -43,7 +43,7 @@ impl Bind for InsertStmt {
 
             for col_name in self.column_names.iter() {
                 let col = table
-                    .get_column_by_name(&col_name)
+                    .get_column_by_name(col_name)
                     .ok_or_else(|| BindError::InvalidColumn(col_name.clone()))?;
 
                 column_ids.push(col.id());

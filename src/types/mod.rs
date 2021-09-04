@@ -21,8 +21,8 @@ pub struct DataType {
 impl DataType {
     pub fn new(typeinfo: DataTypeEnum, nullable: bool) -> DataType {
         DataType {
-            typeinfo: typeinfo,
-            nullable: nullable,
+            typeinfo,
+            nullable,
         }
     }
 

@@ -1,6 +1,6 @@
 use super::*;
 use crate::parser::{expression::Expression, table_ref::BaseTableRef};
-use crate::types::{ColumnId, DataType, DataTypeEnum};
+use crate::types::{ColumnId, DataType};
 use postgres_parser as pg;
 use std::convert::TryFrom;
 

@@ -1,5 +1,5 @@
 use super::{CatalogError, ColumnDesc, TableCatalog, TableCatalogRef};
-use crate::types::{DataTypeEnum, SchemaId, TableId};
+use crate::types::{SchemaId, TableId};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
