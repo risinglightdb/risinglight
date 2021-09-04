@@ -15,6 +15,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+          override: true
           toolchain: nightly-2021-07-28
           components: rustfmt
       - name: Check code format
@@ -30,6 +31,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+          override: true
           toolchain: nightly-2021-07-28
       - name: Install dependencies
         run: make deps
@@ -45,6 +47,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+          override: true
           toolchain: nightly-2021-07-28
       - name: Install dependencies
         run: make deps
