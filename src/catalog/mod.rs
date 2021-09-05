@@ -22,6 +22,15 @@ pub struct TableRefId {
     table_id: TableId,
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+pub struct ColumnRefId {
+    database_id: DatabaseId,
+    schema_id: SchemaId,
+    table_id: TableId,
+    column_id: ColumnId
+}
+
+
 #[derive(thiserror::Error, Debug)]
 pub enum CatalogError {
     #[error("{0} not found: {1}")]

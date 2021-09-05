@@ -12,7 +12,7 @@ impl Bind for ExprData {
         match self {
             // Binding constant is not necessary
             ExprData::Constant(_) => { Ok(())},
-            ExprData::ColumnRef{table_name, column_name} => {
+            ExprData::ColumnRef{table_name, column_name, column_ref_id, column_index} => {
                 match table_name {
                     Some(name) => { Ok(())}
                     None => ( Ok(()))
