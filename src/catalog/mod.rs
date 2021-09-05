@@ -13,6 +13,24 @@ mod root;
 mod schema;
 mod table;
 
+use crate::types::*;
+
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+pub struct TableRefId {
+    database_id: DatabaseId,
+    schema_id: SchemaId,
+    table_id: TableId,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+pub struct ColumnRefId {
+    database_id: DatabaseId,
+    schema_id: SchemaId,
+    table_id: TableId,
+    column_id: ColumnId
+}
+
+
 #[derive(thiserror::Error, Debug)]
 pub enum CatalogError {
     #[error("{0} not found: {1}")]

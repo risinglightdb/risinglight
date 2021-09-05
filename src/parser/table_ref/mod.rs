@@ -21,6 +21,7 @@ impl TableRef {
             database_name: None,
             schema_name: None,
             alias: None,
+            table_ref_id: None
         })
     }
 }

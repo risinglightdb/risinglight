@@ -3,6 +3,7 @@ use crate::parser::SQLStatement;
 
 mod create;
 mod insert;
+mod select;
 
 impl Bind for SQLStatement {
     fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError> {

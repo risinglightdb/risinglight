@@ -1,5 +1,6 @@
 use super::*;
-use crate::types::{DataType, DataValue};
+use crate::catalog::{ColumnRefId};
+use crate::types::{DataType, DataValue, ColumnId};
 use postgres_parser as pg;
 use std::convert::{TryFrom, TryInto};
 
@@ -20,6 +21,8 @@ pub enum ExprData {
         /// Column name.
         column_name: String,
         // TODO: binder variables
+        column_ref_id: Option<ColumnRefId>,
+        column_index: Option<ColumnId>
     },
     /// A (*) in the SELECT clause.
     Star,
@@ -47,8 +50,10 @@ impl Expression {
         Expression {
             alias: None,
             data: ExprData::ColumnRef {
-                table_name,
-                column_name,
+                table_name: table_name,
+                column_name: column_name,
+                column_ref_id: None,
+                column_index: None
             },
             return_type: None,
         }
