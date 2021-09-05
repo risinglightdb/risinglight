@@ -39,28 +39,27 @@ impl Bind for CreateTableStmt {
 mod tests {
     use super::*;
     use crate::catalog::RootCatalog;
-    use crate::parser::*;
-    use std::convert::TryFrom;
+    use crate::parser::SQLStatement;
     use std::sync::Arc;
 
     #[test]
     fn bind_create_table() {
         let catalog = Arc::new(RootCatalog::new());
         let mut binder = Binder::new(catalog.clone());
-        let sql = "create table t1 (v1 int not null, v2 int not null); 
-                    create table t2 (a int not null, a int not null);
-                    create table t3 (v1 int not null);";
-        println!("{}", sql);
-        let nodes = parse(sql).unwrap();
-        let mut stmt = CreateTableStmt::try_from(&nodes[0]).unwrap();
+        let sql = "
+            create table t1 (v1 int not null, v2 int not null); 
+            create table t2 (a int not null, a int not null);
+            create table t3 (v1 int not null);";
+        let mut stmts = SQLStatement::parse(sql).unwrap();
 
+        let stmt = stmts[0].as_create_table();
         stmt.bind(&mut binder).unwrap();
         assert_eq!(stmt.database_id, Some(0));
         assert_eq!(stmt.schema_id, Some(0));
         assert_eq!(stmt.database_name, Some(DEFAULT_DATABASE_NAME.into()));
         assert_eq!(stmt.schema_name, Some(DEFAULT_SCHEMA_NAME.into()));
 
-        let mut stmt2 = CreateTableStmt::try_from(&nodes[1]).unwrap();
+        let stmt2 = stmts[1].as_create_table();
         assert_eq!(
             stmt2.bind(&mut binder),
             Err(BindError::DuplicatedColumn("a".into()))
@@ -72,10 +71,19 @@ mod tests {
             .add_table("t3".into(), vec![], vec![], false)
             .unwrap();
 
-        let mut stmt3 = CreateTableStmt::try_from(&nodes[2]).unwrap();
+        let stmt3 = stmts[2].as_create_table();
         assert_eq!(
             stmt3.bind(&mut binder),
             Err(BindError::DuplicatedTable("t3".into()))
         );
+    }
+
+    impl SQLStatement {
+        fn as_create_table(&mut self) -> &mut CreateTableStmt {
+            match self {
+                SQLStatement::CreateTable(stmt) => stmt,
+                _ => panic!("wrong statement type"),
+            }
+        }
     }
 }

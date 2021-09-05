@@ -13,7 +13,7 @@ mod table_ref;
 
 pub(crate) use self::statement::*;
 pub use expression::*;
-pub use postgres_parser::parse_query as parse;
+pub use postgres_parser::PgParserError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ParseError {
@@ -23,6 +23,12 @@ pub enum ParseError {
     InvalidInput(&'static str),
     #[error("duplicate {0}")]
     Duplicate(&'static str),
+    #[error("postgres parser error: {0:?}")]
+    Pg(PgParserError),
 }
 
-impl ParseError {}
+impl From<PgParserError> for ParseError {
+    fn from(pg: PgParserError) -> Self {
+        Self::Pg(pg)
+    }
+}

@@ -100,41 +100,43 @@ impl Bind for InsertStmt {
 mod tests {
     use super::*;
     use crate::catalog::{ColumnDesc, RootCatalog};
-    use crate::parser::*;
+    use crate::parser::SQLStatement;
     use crate::types::{DataType, DataTypeKind};
-    use std::convert::TryFrom;
     use std::sync::Arc;
 
     #[test]
-    fn bind_create_table() {
+    fn bind_insert() {
         let catalog = Arc::new(RootCatalog::new());
         let mut binder = Binder::new(catalog.clone());
-
-        let col0 = ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false);
-        let col1 = ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false);
-
-        let col_names = vec!["a".into(), "b".into()];
-        let col_descs = vec![col0, col1];
 
         let database = catalog.get_database_by_id(0).unwrap();
         let schema = database.get_schema_by_id(0).unwrap();
         schema
-            .add_table("t".into(), col_names, col_descs, false)
+            .add_table(
+                "t".into(),
+                vec!["a".into(), "b".into()],
+                vec![
+                    ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                    ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                ],
+                false,
+            )
             .unwrap();
 
-        let sql =
-            "insert into t values (1, 1); insert into t (a) values (1); insert into t values (1);";
-        let nodes = parse(sql).unwrap();
-        let mut stmt0 = InsertStmt::try_from(&nodes[0]).unwrap();
+        let sql = "
+            insert into t values (1, 1);
+            insert into t (a) values (1); 
+            insert into t values (1);";
+        let mut stmts = SQLStatement::parse(sql).unwrap();
 
-        stmt0.bind(&mut binder).unwrap();
-
-        let mut stmt1 = InsertStmt::try_from(&nodes[1]).unwrap();
-
-        assert_eq!(stmt1.bind(&mut binder), Err(BindError::NotNullableColumn));
-
-        let mut stmt2 = InsertStmt::try_from(&nodes[2]).unwrap();
-
-        assert_eq!(stmt2.bind(&mut binder), Err(BindError::InvalidExpression));
+        stmts[0].bind(&mut binder).unwrap();
+        assert_eq!(
+            stmts[1].bind(&mut binder),
+            Err(BindError::NotNullableColumn)
+        );
+        assert_eq!(
+            stmts[2].bind(&mut binder),
+            Err(BindError::InvalidExpression)
+        );
     }
 }
