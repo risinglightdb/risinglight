@@ -1,7 +1,7 @@
 use super::*;
 use postgres_parser as pg;
 use std::convert::{TryFrom, TryInto};
-
+use std::sync::Arc;
 mod base;
 mod join;
 
@@ -15,13 +15,14 @@ pub enum TableRef {
 }
 
 impl TableRef {
-    pub const fn base(table_name: String) -> Self {
+    pub  fn base(table_name: String) -> Self {
         TableRef::Base(BaseTableRef {
             table_name,
             database_name: None,
             schema_name: None,
             alias: None,
-            table_ref_id: None
+            table_ref_id: None,
+            column_ids: Arc::new(Vec::new())
         })
     }
 }

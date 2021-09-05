@@ -36,8 +36,10 @@ impl Bind for TableRef {
 
                 match table_ref_id_opt {
                     Some(id) => {
-                        binder.context.regular_tables.insert(table_name, id);
+                        binder.context.regular_tables.insert(table_name.clone(), id);
                         base_ref.table_ref_id = Some(id);
+                        binder.context.column_names.insert(table_name.clone(), HashSet::new());
+                        binder.context.column_indexs.insert(table_name.clone(), base_ref.column_ids.clone());
                         Ok(())
                     }
                     None => Err(BindError::InvalidTable(table_name.clone())),
