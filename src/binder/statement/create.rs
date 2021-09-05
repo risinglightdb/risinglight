@@ -6,32 +6,30 @@ impl Bind for CreateTableStmt {
         let database_name = self
             .database_name
             .get_or_insert_with(|| DEFAULT_DATABASE_NAME.into());
-        let database_id = self.database_id.get_or_insert(0);
 
-        let _schema_name = self
+        let schema_name = self
             .schema_name
             .get_or_insert_with(|| DEFAULT_SCHEMA_NAME.into());
-        let schema_id = self.schema_id.get_or_insert(0);
 
-        let root_lock = binder.catalog.as_ref().lock().unwrap();
+        let db = binder
+            .catalog
+            .get_database_by_name(database_name)
+            .ok_or_else(|| BindError::InvalidDatabase(database_name.clone()))?;
+        self.database_id = Some(db.id());
 
-        let db_arc = root_lock
-            .get_database_by_id(*database_id)
-            .ok_or_else(|| BindError::InvalidDatabase(database_name.clone()))?;
-        let db = db_arc.as_ref().lock().unwrap();
-        let schema_arc = db
-            .get_schema_by_id(*schema_id)
-            .ok_or_else(|| BindError::InvalidDatabase(database_name.clone()))?;
-        let schema = schema_arc.as_ref().lock().unwrap();
+        let schema = db
+            .get_schema_by_name(schema_name)
+            .ok_or_else(|| BindError::InvalidSchema(schema_name.clone()))?;
+        self.schema_id = Some(schema.id());
+
         if schema.get_table_by_name(&self.table_name).is_some() {
             return Err(BindError::DuplicatedTable(self.table_name.clone()));
         }
         let mut set = HashSet::new();
         for col in self.column_descs.iter() {
-            if set.contains(col.name()) {
+            if !set.insert(col.name().to_string()) {
                 return Err(BindError::DuplicatedColumn(col.name().to_string()));
             }
-            set.insert(col.name().to_string());
         }
         Ok(())
     }
@@ -40,15 +38,14 @@ impl Bind for CreateTableStmt {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::catalog::{ColumnDesc, RootCatalog, TableCatalog};
+    use crate::catalog::RootCatalog;
     use crate::parser::*;
-    use crate::types::{DataType, DataTypeEnum};
     use std::convert::TryFrom;
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
 
     #[test]
     fn bind_create_table() {
-        let catalog = Arc::new(Mutex::new(RootCatalog::new()));
+        let catalog = Arc::new(RootCatalog::new());
         let mut binder = Binder::new(catalog.clone());
         let sql = "create table t1 (v1 int not null, v2 int not null); 
                     create table t2 (a int not null, a int not null);
@@ -69,18 +66,10 @@ mod tests {
             Err(BindError::DuplicatedColumn("a".into()))
         );
 
-        let col0 = ColumnDesc::new(DataType::new(DataTypeEnum::Int32, false), true);
-        let col1 = ColumnDesc::new(DataType::new(DataTypeEnum::Bool, false), false);
-
-        let col_names = vec!["a".into(), "b".into()];
-        let col_descs = vec![col0, col1];
-
-        let database = catalog.lock().unwrap().get_database_by_id(0).unwrap();
-        let schema = database.lock().unwrap().get_schema_by_id(0).unwrap();
+        let database = catalog.get_database_by_id(0).unwrap();
+        let schema = database.get_schema_by_id(0).unwrap();
         schema
-            .lock()
-            .unwrap()
-            .add_table("t3".into(), col_names, col_descs, false)
+            .add_table("t3".into(), vec![], vec![], false)
             .unwrap();
 
         let mut stmt3 = CreateTableStmt::try_from(&nodes[2]).unwrap();

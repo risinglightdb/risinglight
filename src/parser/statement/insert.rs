@@ -20,7 +20,6 @@ pub struct InsertStmt {
     /// The following values will be set by binder
     pub column_ids: Vec<ColumnId>,
     pub column_types: Vec<DataType>,
-    pub column_nullables: Vec<bool>,
 }
 
 impl TryFrom<&pg::Node> for InsertStmt {
@@ -52,7 +51,6 @@ impl TryFrom<&pg::Node> for InsertStmt {
             values,
             column_ids: Vec::new(),
             column_types: Vec::new(),
-            column_nullables: Vec::new(),
         })
     }
 }
@@ -133,7 +131,6 @@ mod tests {
                 ],
                 column_ids: Vec::new(),
                 column_types: Vec::new(),
-                column_nullables: Vec::new()
             }
         );
     }

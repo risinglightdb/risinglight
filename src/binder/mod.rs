@@ -1,5 +1,5 @@
-use crate::catalog::{RootCatalogRef, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
-use std::collections::HashSet;
+use crate::catalog::{RootCatalog, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
+use std::{collections::HashSet, sync::Arc};
 
 mod statement;
 
@@ -33,12 +33,12 @@ pub enum BindError {
 struct BinderContext {}
 
 pub(crate) struct Binder {
-    catalog: RootCatalogRef,
+    catalog: Arc<RootCatalog>,
     context: BinderContext,
 }
 
 impl Binder {
-    pub(crate) fn new(catalog: RootCatalogRef) -> Self {
+    pub(crate) fn new(catalog: Arc<RootCatalog>) -> Self {
         Binder {
             catalog,
             context: BinderContext {},

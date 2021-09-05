@@ -14,35 +14,36 @@ pub(crate) enum PgSQLDataTypeEnumEnum {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DataType {
-    typeinfo: DataTypeEnum,
+    kind: DataTypeKind,
     nullable: bool,
 }
 
 impl DataType {
-    pub fn new(typeinfo: DataTypeEnum, nullable: bool) -> DataType {
-        DataType { typeinfo, nullable }
+    pub fn new(kind: DataTypeKind, nullable: bool) -> DataType {
+        DataType { kind, nullable }
     }
 
     pub fn is_nullable(&self) -> bool {
         self.nullable
     }
 
-    pub fn data_type_info(&self) -> DataTypeEnum {
-        self.typeinfo
+    pub fn kind(&self) -> DataTypeKind {
+        self.kind
     }
 }
 
 /// Inner data type
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum DataTypeEnum {
+pub enum DataTypeKind {
     Int32,
     Bool,
     Float64,
     Char,
+    Varchar,
 }
 
-impl FromStr for DataTypeEnum {
+impl FromStr for DataTypeKind {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -51,24 +52,26 @@ impl FromStr for DataTypeEnum {
             "bool" | "boolean" | "logical" => Ok(Self::Bool),
             "double" | "float8" => Ok(Self::Float64),
             "char" | "bpchar" => Ok(Self::Char),
+            "varchar" => Ok(Self::Varchar),
             _ => todo!("parse datatype"),
         }
     }
 }
 
-impl ToString for DataTypeEnum {
+impl ToString for DataTypeKind {
     fn to_string(&self) -> String {
         match self {
             Self::Int32 => "INTEGER",
             Self::Bool => "BOOLEAN",
             Self::Float64 => "DOUBLE",
             Self::Char => "CHAR",
+            Self::Varchar => "VARCHAR",
         }
         .into()
     }
 }
 
-impl DataTypeEnum {
+impl DataTypeKind {
     pub const fn data_len(&self) -> usize {
         use std::mem::size_of;
         match self {
@@ -76,6 +79,7 @@ impl DataTypeEnum {
             Self::Bool => size_of::<bool>(),
             Self::Float64 => size_of::<f64>(),
             Self::Char => size_of::<u8>(),
+            Self::Varchar => size_of::<u8>(),
         }
     }
 }
@@ -97,9 +101,10 @@ pub enum DataValue {
 impl DataValue {
     pub fn data_type(&self) -> Option<DataType> {
         match self {
-            Self::Bool(_) => Some(DataType::new(DataTypeEnum::Bool, false)),
-            Self::Int32(_) => Some(DataType::new(DataTypeEnum::Int32, false)),
-            Self::Float64(_) => Some(DataType::new(DataTypeEnum::Float64, false)),
+            Self::Bool(_) => Some(DataType::new(DataTypeKind::Bool, false)),
+            Self::Int32(_) => Some(DataType::new(DataTypeKind::Int32, false)),
+            Self::Float64(_) => Some(DataType::new(DataTypeKind::Float64, false)),
+            Self::String(_) => Some(DataType::new(DataTypeKind::Varchar, false)),
             _ => None,
         }
     }
