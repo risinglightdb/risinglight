@@ -1,7 +1,7 @@
 use super::*;
-use crate::parser::{ExprData, SelectStmt, TableRef};
-use crate::types::{ColumnId, DataType};
 use crate::catalog::{DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
+use crate::parser::{ExprData, Expression, SelectStmt, TableRef};
+use crate::types::{ColumnId, DataType};
 
 impl Bind for SelectStmt {
     fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError> {
@@ -11,27 +11,10 @@ impl Bind for SelectStmt {
         }
         // TODO: process where, order by, group-by, limit and offset
 
-        // Bind select list
+        // Bind select list, we only support column reference now
+        for select_elem in self.select_list.iter_mut() {
+            select_elem.bind(binder)?;
+        }
         Ok(())
     }
 }
-
-impl Bind for TableRef {
-    fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError> {
-        match self {
-            TableRef::Base(base_ref) => {
-                if base_ref.database_name.is_none()  {
-                    base_ref.database_name = Some(DEFAULT_DATABASE_NAME.to_string());
-                }
-
-                if base_ref.schema_name.is_none() {
-                    base_ref.schema_name = Some(DEFAULT_SCHEMA_NAME.to_string());
-                }
-
-                
-            },
-            _ => todo!(),
-        }
-    }
-}
-

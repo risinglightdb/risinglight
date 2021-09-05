@@ -1,7 +1,13 @@
-use crate::catalog::{RootCatalog, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
-use std::{collections::HashSet, sync::Arc};
+use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 mod statement;
+mod table_ref;
+mod expression;
+
 
 trait Bind {
     fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError>;
@@ -21,6 +27,8 @@ pub enum BindError {
     InvalidColumn(String),
     #[error("duplicated table {0}")]
     DuplicatedTable(String),
+    #[error("duplicated table name {0}")]
+    DuplicatedTableName(String),
     #[error("duplicated column {0}")]
     DuplicatedColumn(String),
     #[error("invalid expression")]
@@ -31,19 +39,23 @@ pub enum BindError {
 
 // TODO
 struct BinderContext {
-    pub regular_tables : HashSet<String, TableId>
+    pub upper_context: Option<Box<BinderContext>>,
+    pub regular_tables: HashMap<String, TableRefId>,
 }
 
 pub(crate) struct Binder {
     catalog: Arc<RootCatalog>,
-    context: BinderContext,
+    context: Box<BinderContext>,
 }
 
 impl Binder {
     pub(crate) fn new(catalog: Arc<RootCatalog>) -> Self {
         Binder {
             catalog,
-            context: BinderContext {},
+            context: Box::new(BinderContext {
+                upper_context: None,
+                regular_tables: HashMap::new(),
+            }),
         }
     }
 }

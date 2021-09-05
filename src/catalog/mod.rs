@@ -19,7 +19,7 @@ use crate::types::*;
 pub struct TableRefId {
     database_id: DatabaseId,
     schema_id: SchemaId,
-    table_id: TableId    
+    table_id: TableId,
 }
 
 #[derive(thiserror::Error, Debug)]

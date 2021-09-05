@@ -51,13 +51,16 @@ impl Bind for InsertStmt {
 
         // Handle 'insert into .. values ..' case.
         // Check inserted values, we only support inserting values now.
-        for vals in self.values.iter() {
-            for (idx, val) in vals.iter().enumerate() {
-                let val = match &val.data {
+        for exprs in self.values.iter_mut() {
+            for (idx, expr) in exprs.iter_mut().enumerate() {
+                // Bind expression
+                expr.bind(binder)?;
+
+                let expr = match &expr.data {
                     ExprData::Constant(v) => v,
                     _ => return Err(BindError::InvalidExpression),
                 };
-                let data_type = val.data_type();
+                let data_type = expr.data_type();
                 match data_type {
                     Some(t) => {
                         // TODO: support valid type cast

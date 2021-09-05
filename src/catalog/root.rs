@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::{TableId, DatabaseId};
+use crate::types::{DatabaseId, TableId};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -72,35 +72,42 @@ impl RootCatalog {
             .cloned()
     }
 
-    pub fn get_table_id(&self, database_name: &str, schema_name: &str, table_name: &str) -> Option<TableId> {
-     
-        let db_opt = self.
-            .get_database_by_name(database_name);
-        
+    pub fn get_table_id(
+        &self,
+        database_name: &str,
+        schema_name: &str,
+        table_name: &str,
+    ) -> Option<TableRefId> {
+        let db_opt = self.get_database_by_name(database_name);
+
         if db_opt.is_none() {
             return None;
         }
-        let db = db_opt.unwrap().as_ref();
+        let db = db_opt.unwrap();
 
-        let database_id = Some(db.id());
+        let database_id = db.id();
 
-        let schema_opt = db
-            .get_schema_by_name(schema_name);
-        
+        let schema_opt = db.get_schema_by_name(schema_name);
+
         if schema_opt.is_none() {
             return None;
         }
-        
-        let schema = schema_opt.unwrap().as_ref();
-        let schema_id = Some(schema.id());
 
-        let table = schema.get_table_by_name(table_name);
+        let schema = schema_opt.unwrap();
+        let schema_id = schema.id();
 
-        if table.is_none() {
+        let table_opt = schema.get_table_by_name(table_name);
+
+        if table_opt.is_none() {
             return None;
         }
 
-        
-        Some(TableRefId{})
+        let table_id = table_opt.unwrap().as_ref().id();
+
+        Some(TableRefId {
+            database_id: database_id,
+            schema_id: schema_id,
+            table_id: table_id,
+        })
     }
 }
