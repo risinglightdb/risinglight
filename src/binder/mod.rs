@@ -30,7 +30,9 @@ pub enum BindError {
 }
 
 // TODO
-struct BinderContext {}
+struct BinderContext {
+    pub regular_tables : HashSet<String, TableId>
+}
 
 pub(crate) struct Binder {
     catalog: Arc<RootCatalog>,

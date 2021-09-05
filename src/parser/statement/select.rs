@@ -5,15 +5,15 @@ use std::convert::TryFrom;
 
 #[derive(Debug, PartialEq)]
 pub struct SelectStmt {
-    select_list: Vec<Expression>,
+    pub select_list: Vec<Expression>,
     // TODO: aggregates: Vec<Expression>,
-    from_table: Option<TableRef>,
-    where_clause: Option<Expression>,
-    select_distinct: bool,
+    pub from_table: Option<TableRef>,
+    pub where_clause: Option<Expression>,
+    pub select_distinct: bool,
     // TODO: groupby
     // TODO: orderby
-    limit: Option<Expression>,
-    offset: Option<Expression>,
+    pub limit: Option<Expression>,
+    pub offset: Option<Expression>,
 }
 
 impl TryFrom<&pg::Node> for SelectStmt {

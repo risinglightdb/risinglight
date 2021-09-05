@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::DatabaseId;
+use crate::types::{TableId, DatabaseId};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -70,5 +70,37 @@ impl RootCatalog {
             .get(name)
             .and_then(|id| inner.databases.get(id))
             .cloned()
+    }
+
+    pub fn get_table_id(&self, database_name: &str, schema_name: &str, table_name: &str) -> Option<TableId> {
+     
+        let db_opt = self.
+            .get_database_by_name(database_name);
+        
+        if db_opt.is_none() {
+            return None;
+        }
+        let db = db_opt.unwrap().as_ref();
+
+        let database_id = Some(db.id());
+
+        let schema_opt = db
+            .get_schema_by_name(schema_name);
+        
+        if schema_opt.is_none() {
+            return None;
+        }
+        
+        let schema = schema_opt.unwrap().as_ref();
+        let schema_id = Some(schema.id());
+
+        let table = schema.get_table_by_name(table_name);
+
+        if table.is_none() {
+            return None;
+        }
+
+        
+        Some(TableRefId{})
     }
 }
