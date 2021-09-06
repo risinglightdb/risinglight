@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::{DatabaseId};
+use crate::types::{DatabaseId, TableId};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -84,28 +84,34 @@ impl RootCatalog {
     ) -> Option<TableRefId> {
         let db_opt = self.get_database_by_name(database_name);
 
-        db_opt.as_ref()?;
+        if db_opt.is_none() {
+            return None;
+        }
         let db = db_opt.unwrap();
 
         let database_id = db.id();
 
         let schema_opt = db.get_schema_by_name(schema_name);
 
-        schema_opt.as_ref()?;
+        if schema_opt.is_none() {
+            return None;
+        }
 
         let schema = schema_opt.unwrap();
         let schema_id = schema.id();
 
         let table_opt = schema.get_table_by_name(table_name);
 
-        table_opt.as_ref()?;
+        if table_opt.is_none() {
+            return None;
+        }
 
         let table_id = table_opt.unwrap().as_ref().id();
 
         Some(TableRefId {
-            database_id,
-            schema_id,
-            table_id,
+            database_id: database_id,
+            schema_id: schema_id,
+            table_id: table_id,
         })
     }
 }

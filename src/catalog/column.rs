@@ -1,4 +1,4 @@
-use crate::types::{ColumnId, DataType};
+use crate::types::{ColumnId, DataType, DataTypeKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ColumnDesc {

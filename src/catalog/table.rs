@@ -1,7 +1,7 @@
 use super::*;
-use crate::types::{ColumnId, TableId};
+use crate::types::{ColumnId, DataType, DataTypeKind, TableId};
 use std::collections::HashMap;
-use std::sync::{Mutex};
+use std::sync::{Arc, Mutex};
 
 pub struct TableCatalog {
     id: TableId,
