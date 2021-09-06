@@ -8,7 +8,7 @@ mod join;
 pub use self::base::BaseTableRef;
 pub use self::join::JoinRef;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TableRef {
     Base(BaseTableRef),
     Join(JoinRef),
@@ -22,7 +22,7 @@ impl TableRef {
             schema_name: None,
             alias: None,
             table_ref_id: None,
-            column_ids: Arc::new(Mutex::new(Vec::new())),
+            column_ids: Vec::new(),
         })
     }
 }

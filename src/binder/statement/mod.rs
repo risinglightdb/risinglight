@@ -10,7 +10,7 @@ impl Bind for SQLStatement {
         match self {
             Self::CreateTable(stmt) => stmt.bind(binder),
             Self::Insert(stmt) => stmt.bind(binder),
-            Self::Select(stmt) => todo!(),
+            Self::Select(stmt) => stmt.bind(binder),
         }
     }
 }

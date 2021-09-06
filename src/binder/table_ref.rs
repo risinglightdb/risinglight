@@ -45,7 +45,7 @@ impl Bind for TableRef {
                         binder
                             .context
                             .column_ids
-                            .insert(table_name.clone(), base_ref.column_ids.clone());
+                            .insert(table_name.clone(), Vec::new());
                         Ok(())
                     }
                     None => Err(BindError::InvalidTable(table_name.clone())),

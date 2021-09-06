@@ -1,5 +1,6 @@
 use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
 use crate::types::ColumnId;
+
 use std::{
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
@@ -47,7 +48,7 @@ struct BinderContext {
     // Mapping the table name to column names
     pub column_names: HashMap<String, HashSet<String>>,
     // Mapping table name to its column ids
-    pub column_ids: HashMap<String, Arc<Mutex<Vec<ColumnId>>>>,
+    pub column_ids: HashMap<String, Vec<ColumnId>>,
 }
 
 pub struct Binder {

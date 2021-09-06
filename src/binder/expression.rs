@@ -4,7 +4,7 @@ use crate::parser::{ExprData, Expression};
 
 impl Bind for Expression {
     fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError> {
-        Ok(())
+        self.data.bind(binder)
     }
 }
 
@@ -20,6 +20,7 @@ impl Bind for ExprData {
                 column_index,
             } => match table_name {
                 Some(name) => {
+                    assert_eq!(false, true);
                     if !binder.context.regular_tables.contains_key(name) {
                         return Err(BindError::InvalidTable(name.clone()));
                     }
@@ -47,6 +48,7 @@ impl Bind for ExprData {
                     Ok(())
                 }
                 None => {
+                    println!("Binding expression");
                     let mut is_matched: bool = false;
                     for (name, ref_id) in binder.context.regular_tables.iter() {
                         let table = binder.catalog.get_table(ref_id);
@@ -98,14 +100,12 @@ pub fn record_regular_table_column(
         let idx = names.len() as u32;
         names.insert(col_name.to_string());
         let idxs = binder.context.column_ids.get_mut(table_name).unwrap();
-        idxs.lock().unwrap().push(column_id);
+        idxs.push(column_id);
+        assert_eq!(idxs.len() > 0, true);
         idx
     } else {
         let idxs = binder.context.column_ids.get_mut(table_name).unwrap();
-        idxs.lock()
-            .unwrap()
-            .iter()
-            .position(|&r| r == column_id)
-            .unwrap() as u32
+        assert_eq!(idxs.len() > 0, true);
+        idxs.iter().position(|&r| r == column_id).unwrap() as u32
     }
 }

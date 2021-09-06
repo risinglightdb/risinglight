@@ -10,7 +10,7 @@ pub use self::create::*;
 pub use self::insert::*;
 pub use self::select::*;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum SQLStatement {
     CreateTable(CreateTableStmt),
     Insert(InsertStmt),
