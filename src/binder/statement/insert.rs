@@ -21,6 +21,17 @@ impl Bind for InsertStmt {
             .get_table_by_name(&self.table_name)
             .ok_or_else(|| BindError::InvalidTable(self.table_name.clone()))?;
 
+        let table_ref_id = binder
+            .catalog
+            .get_table_id(
+                &self.database_name.as_ref().unwrap(),
+                &self.schema_name.as_ref().unwrap(),
+                &table.name(),
+            )
+            .unwrap();
+
+        self.table_ref_id = Some(table_ref_id);
+
         assert!(self.column_ids.is_empty(), "already bind");
         assert!(self.column_types.is_empty(), "already bind");
         // If the query does not provide column information, get all columns info.

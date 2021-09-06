@@ -4,14 +4,14 @@ use crate::types::{ColumnId, DataType, DataValue};
 use postgres_parser as pg;
 use std::convert::{TryFrom, TryInto};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Expression {
     pub(crate) alias: Option<String>,
     pub(crate) data: ExprData,
     pub(crate) return_type: Option<DataType>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ExprData {
     Constant(DataValue),
     ColumnRef {
