@@ -43,7 +43,6 @@ pub enum BindError {
 
 // TODO
 struct BinderContext {
-    pub upper_context: Option<Box<BinderContext>>,
     pub regular_tables: HashMap<String, TableRefId>,
     // Mapping the table name to column names
     pub column_names: HashMap<String, HashSet<String>>,
@@ -51,21 +50,38 @@ struct BinderContext {
     pub column_ids: HashMap<String, Vec<ColumnId>>,
 }
 
+impl BinderContext {
+    pub fn new() -> BinderContext {
+        BinderContext {
+            regular_tables: HashMap::new(),
+            column_names: HashMap::new(),
+            column_ids: HashMap::new(),
+        }
+    }
+}
+
 pub struct Binder {
     catalog: Arc<RootCatalog>,
-    context: Box<BinderContext>,
+    context: BinderContext,
+    upper_contexts: Vec<BinderContext>,
 }
 
 impl Binder {
     pub fn new(catalog: Arc<RootCatalog>) -> Self {
         Binder {
-            catalog,
-            context: Box::new(BinderContext {
-                upper_context: None,
-                regular_tables: HashMap::new(),
-                column_names: HashMap::new(),
-                column_ids: HashMap::new(),
-            }),
+            catalog: catalog,
+            upper_contexts: Vec::new(),
+            context: BinderContext::new(),
         }
+    }
+
+    pub fn push_context(&mut self) {
+        let new_context = std::mem::replace(&mut self.context, BinderContext::new());
+        self.upper_contexts.push(new_context);
+    }
+
+    pub fn pop_context(&mut self) {
+        let old_context = self.upper_contexts.pop();
+        let used = std::mem::replace(&mut self.context, old_context.unwrap());
     }
 }
