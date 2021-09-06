@@ -6,6 +6,7 @@ use crate::types::{ColumnId, DataType};
 impl Bind for SelectStmt {
     fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError> {
         // Bind table ref
+        binder.push_context();
         if self.from_table.is_some() {
             self.from_table.as_mut().unwrap().bind(binder)?;
         }
@@ -31,6 +32,7 @@ impl Bind for SelectStmt {
                 _ => {}
             }
         }
+        binder.pop_context();
         Ok(())
     }
 }
@@ -81,13 +83,6 @@ mod tests {
             }
         );
         assert_eq!(table_ref.column_ids, vec![0, 1]);
-        // TODO: Implement recursive binder context.
-        binder.context = Box::new(BinderContext {
-            upper_context: None,
-            regular_tables: HashMap::new(),
-            column_names: HashMap::new(),
-            column_ids: HashMap::new(),
-        });
 
         assert_eq!(
             stmts[1].bind(&mut binder),
