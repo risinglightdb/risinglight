@@ -26,7 +26,7 @@ impl Bind for ExprData {
                     }
 
                     let table_ref_id = binder.context.regular_tables.get(name).unwrap();
-                    let table = binder.catalog.get_table(&table_ref_id);
+                    let table = binder.catalog.get_table(table_ref_id);
                     let col_opt = table.get_column_by_name(column_name);
                     if col_opt.is_none() {
                         return Err(BindError::InvalidColumn(column_name.clone()));
@@ -50,7 +50,7 @@ impl Bind for ExprData {
                 None => {
                     println!("Binding expression");
                     let mut is_matched: bool = false;
-                    for (name, ref_id) in binder.context.regular_tables.iter() {
+                    for (_name, ref_id) in binder.context.regular_tables.iter() {
                         let table = binder.catalog.get_table(ref_id);
                         let col_opt = table.get_column_by_name(column_name);
                         if col_opt.is_some() {
@@ -95,17 +95,17 @@ pub fn record_regular_table_column(
     col_name: &str,
     column_id: ColumnId,
 ) -> ColumnId {
-    let mut names = binder.context.column_names.get_mut(table_name).unwrap();
+    let names = binder.context.column_names.get_mut(table_name).unwrap();
     if !names.contains(col_name) {
         let idx = names.len() as u32;
         names.insert(col_name.to_string());
         let idxs = binder.context.column_ids.get_mut(table_name).unwrap();
         idxs.push(column_id);
-        assert_eq!(idxs.len() > 0, true);
+        assert_eq!(!idxs.is_empty(), true);
         idx
     } else {
         let idxs = binder.context.column_ids.get_mut(table_name).unwrap();
-        assert_eq!(idxs.len() > 0, true);
+        assert_eq!(!idxs.is_empty(), true);
         idxs.iter().position(|&r| r == column_id).unwrap() as u32
     }
 }

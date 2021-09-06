@@ -50,8 +50,8 @@ impl Expression {
         Expression {
             alias: None,
             data: ExprData::ColumnRef {
-                table_name: table_name,
-                column_name: column_name,
+                table_name,
+                column_name,
                 column_ref_id: None,
                 column_index: None,
             },

@@ -90,7 +90,7 @@ mod tests {
         let array = iter.clone().collect::<PrimitiveArray<T>>();
         assert_eq!(
             array.iter().map(|x| x.cloned()).collect::<Vec<_>>(),
-            iter.clone().collect::<Vec<_>>()
+            iter.collect::<Vec<_>>()
         );
     }
 

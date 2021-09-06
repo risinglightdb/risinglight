@@ -1,7 +1,7 @@
 use super::*;
 use crate::catalog::{DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
-use crate::parser::{ExprData, SelectStmt, TableRef};
-use crate::types::{ColumnId, DataType};
+use crate::parser::{TableRef};
+
 
 impl Bind for TableRef {
     fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError> {
@@ -25,7 +25,7 @@ impl Bind for TableRef {
                 }
 
                 if binder.context.regular_tables.contains_key(&table_name) {
-                    return Err(BindError::DuplicatedTableName(table_name.clone()));
+                    return Err(BindError::DuplicatedTableName(table_name));
                 }
 
                 let table_ref_id_opt = binder.catalog.get_table_id(
@@ -45,10 +45,10 @@ impl Bind for TableRef {
                         binder
                             .context
                             .column_ids
-                            .insert(table_name.clone(), Vec::new());
+                            .insert(table_name, Vec::new());
                         Ok(())
                     }
-                    None => Err(BindError::InvalidTable(table_name.clone())),
+                    None => Err(BindError::InvalidTable(table_name)),
                 }
             }
             _ => todo!(),

@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn test_filter() {
-        let array: PrimitiveArray<i32> = (0..=60).map(|i| Some(i)).collect();
+        let array: PrimitiveArray<i32> = (0..=60).map(Some).collect();
         let array: PrimitiveArray<i32> = array
             .iter()
             .filter(|x| *x.unwrap_or(&0) >= 60)
@@ -130,8 +130,8 @@ mod tests {
 
     #[test]
     fn test_vectorized_add() {
-        let array1 = (0i32..=60).map(|i| Some(i)).collect();
-        let array2 = (0i16..=60).map(|i| Some(i)).collect();
+        let array1 = (0i32..=60).map(Some).collect();
+        let array2 = (0i16..=60).map(Some).collect();
 
         let final_array = vec_add(&array1, &array2) as PrimitiveArray<i64>;
         assert_eq!(

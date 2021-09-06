@@ -2,7 +2,7 @@ use crate::catalog::TableRefId;
 use crate::types::ColumnId;
 use postgres_parser as pg;
 use std::cmp::PartialEq;
-use std::sync::{Arc, Mutex};
+
 use std::vec::Vec;
 
 #[derive(Debug, Default, PartialEq, Eq)]

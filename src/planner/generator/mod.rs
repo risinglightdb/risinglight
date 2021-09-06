@@ -11,7 +11,7 @@ impl PlanGenerator {
 
         }
     }
-    pub fn generate_plan(&self, sql:& SQLStatement) -> Result<Plan, PlanError> {
+    pub fn generate_plan(&self, _sql:& SQLStatement) -> Result<Plan, PlanError> {
         Err(PlanError::InvalidSQL)
     }
 }

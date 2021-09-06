@@ -1,7 +1,7 @@
 use super::*;
-use crate::catalog::{DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
-use crate::parser::{ExprData, Expression, SelectStmt, TableRef};
-use crate::types::{ColumnId, DataType};
+
+use crate::parser::{SelectStmt, TableRef};
+
 
 impl Bind for SelectStmt {
     fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError> {
