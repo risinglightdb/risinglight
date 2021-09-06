@@ -17,7 +17,7 @@ struct Inner {
 
 impl DatabaseCatalog {
     pub fn new(id: DatabaseId, name: String) -> Self {
-        let mut db_catalog = DatabaseCatalog {
+        let db_catalog = DatabaseCatalog {
             id,
             inner: Mutex::new(Inner {
                 name,

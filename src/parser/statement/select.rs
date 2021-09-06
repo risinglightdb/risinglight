@@ -3,7 +3,7 @@ use crate::parser::{expression::Expression, table_ref::TableRef};
 use postgres_parser as pg;
 use std::convert::TryFrom;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct SelectStmt {
     pub select_list: Vec<Expression>,
     // TODO: aggregates: Vec<Expression>,

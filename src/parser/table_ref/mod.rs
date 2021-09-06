@@ -1,28 +1,28 @@
 use super::*;
 use postgres_parser as pg;
 use std::convert::{TryFrom, TryInto};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 mod base;
 mod join;
 
 pub use self::base::BaseTableRef;
 pub use self::join::JoinRef;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum TableRef {
     Base(BaseTableRef),
     Join(JoinRef),
 }
 
 impl TableRef {
-    pub  fn base(table_name: String) -> Self {
+    pub fn base(table_name: String) -> Self {
         TableRef::Base(BaseTableRef {
             table_name,
             database_name: None,
             schema_name: None,
             alias: None,
             table_ref_id: None,
-            column_ids: Arc::new(Vec::new())
+            column_ids: Arc::new(Mutex::new(Vec::new())),
         })
     }
 }

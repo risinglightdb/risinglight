@@ -17,19 +17,18 @@ use crate::types::*;
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct TableRefId {
-    database_id: DatabaseId,
-    schema_id: SchemaId,
-    table_id: TableId,
+    pub database_id: DatabaseId,
+    pub schema_id: SchemaId,
+    pub table_id: TableId,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct ColumnRefId {
-    database_id: DatabaseId,
-    schema_id: SchemaId,
-    table_id: TableId,
-    column_id: ColumnId
+    pub database_id: DatabaseId,
+    pub schema_id: SchemaId,
+    pub table_id: TableId,
+    pub column_id: ColumnId,
 }
-
 
 #[derive(thiserror::Error, Debug)]
 pub enum CatalogError {

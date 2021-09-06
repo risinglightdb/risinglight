@@ -3,7 +3,7 @@ use crate::{parser::expression::Expression, types::JoinType};
 use postgres_parser as pg;
 use std::convert::TryFrom;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct JoinRef {
     pub left: Box<TableRef>,
     pub right: Box<TableRef>,

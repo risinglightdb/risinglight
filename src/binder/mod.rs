@@ -1,15 +1,14 @@
 use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
-use crate::types::{ColumnId};
+use crate::types::ColumnId;
 use std::{
     collections::{HashMap, HashSet},
-    vec::{Vec},
-    sync::Arc,
+    sync::{Arc, Mutex},
+    vec::Vec,
 };
 
+mod expression;
 mod statement;
 mod table_ref;
-mod expression;
-
 
 trait Bind {
     fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError>;
@@ -37,6 +36,8 @@ pub enum BindError {
     InvalidExpression,
     #[error("not nullable column")]
     NotNullableColumn,
+    #[error("ambiguous column")]
+    AmbiguousColumn,
 }
 
 // TODO
@@ -46,23 +47,23 @@ struct BinderContext {
     // Mapping the table name to column names
     pub column_names: HashMap<String, HashSet<String>>,
     // Mapping table name to its column ids
-    pub column_indexs: HashMap<String, Arc<Vec<ColumnId>>>
+    pub column_ids: HashMap<String, Arc<Mutex<Vec<ColumnId>>>>,
 }
 
-pub(crate) struct Binder {
+pub struct Binder {
     catalog: Arc<RootCatalog>,
     context: Box<BinderContext>,
 }
 
 impl Binder {
-    pub(crate) fn new(catalog: Arc<RootCatalog>) -> Self {
+    pub fn new(catalog: Arc<RootCatalog>) -> Self {
         Binder {
             catalog,
             context: Box::new(BinderContext {
                 upper_context: None,
                 regular_tables: HashMap::new(),
                 column_names: HashMap::new(),
-                column_indexs: HashMap::new()
+                column_ids: HashMap::new(),
             }),
         }
     }

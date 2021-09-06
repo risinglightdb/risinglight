@@ -1,16 +1,16 @@
-use postgres_parser as pg;
 use crate::catalog::TableRefId;
-use crate::types::{ColumnId};
-use std::sync::Arc;
+use crate::types::ColumnId;
+use postgres_parser as pg;
+use std::sync::{Arc, Mutex};
 use std::vec;
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default)]
 pub struct BaseTableRef {
     pub database_name: Option<String>,
     pub schema_name: Option<String>,
     pub table_name: String,
     pub alias: Option<String>,
     pub table_ref_id: Option<TableRefId>,
-    pub column_ids: Arc<Vec<ColumnId>>
+    pub column_ids: Arc<Mutex<Vec<ColumnId>>>,
 }
 
 impl From<&pg::nodes::RangeVar> for BaseTableRef {
@@ -21,7 +21,7 @@ impl From<&pg::nodes::RangeVar> for BaseTableRef {
             table_name: root.relname.as_ref().map(|s| s.to_lowercase()).unwrap(),
             alias: root.alias.as_ref().map(|a| a.aliasname.clone().unwrap()),
             table_ref_id: None,
-            column_ids: Arc::new(Vec::new())
+            column_ids: Arc::new(Mutex::new(Vec::new())),
         }
     }
 }

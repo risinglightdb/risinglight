@@ -16,7 +16,7 @@ struct Inner {
 
 impl RootCatalog {
     pub fn new() -> RootCatalog {
-        let mut root_catalog = RootCatalog {
+        let root_catalog = RootCatalog {
             inner: Mutex::new(Inner::default()),
         };
         root_catalog
@@ -71,7 +71,11 @@ impl RootCatalog {
             .and_then(|id| inner.databases.get(id))
             .cloned()
     }
-
+    pub fn get_table(&self, table_ref_id: &TableRefId) -> Arc<TableCatalog> {
+        let db = self.get_database_by_id(table_ref_id.database_id).unwrap();
+        let schema = db.get_schema_by_id(table_ref_id.schema_id).unwrap();
+        schema.get_table_by_id(table_ref_id.table_id).unwrap()
+    }
     pub fn get_table_id(
         &self,
         database_name: &str,
