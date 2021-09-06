@@ -4,8 +4,8 @@ use crate::types::ColumnId;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SeqScanPlan {
-    table_ref_id: TableRefId,
-    column_ids: Vec<ColumnId>,
+    pub table_ref_id: TableRefId,
+    pub column_ids: Vec<ColumnId>,
 }
 
 impl SeqScanPlan {

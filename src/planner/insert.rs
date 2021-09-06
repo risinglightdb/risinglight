@@ -6,9 +6,9 @@ use std::convert::TryFrom;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct InsertPlan {
-    table_ref_id: TableRefId,
-    column_ids: Vec<ColumnId>,
-    values_: Vec<Vec<Expression>>,
+    pub table_ref_id: TableRefId,
+    pub column_ids: Vec<ColumnId>,
+    pub values_: Vec<Vec<Expression>>,
 }
 
 impl TryFrom<&InsertStmt> for InsertPlan {
