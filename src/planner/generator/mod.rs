@@ -98,8 +98,8 @@ impl PlanGenerator {
 mod tests {
     use super::*;
     use crate::binder::{Bind, Binder};
-    use crate::catalog::{ColumnDesc, RootCatalog, TableRefId, ColumnRefId};
-    use crate::parser::{BaseTableRef, SQLStatement, ExprData, Expression};
+    use crate::catalog::{ColumnDesc, ColumnRefId, RootCatalog, TableRefId};
+    use crate::parser::{BaseTableRef, ExprData, Expression, SQLStatement};
     use crate::types::{DataType, DataTypeKind};
 
     use std::sync::Arc;
@@ -136,10 +136,15 @@ mod tests {
                         alias: None,
                         // TODO: add return type when binder expression!
                         return_type: None,
-                        data: ExprData::ColumnRef{
-                            table_name: Some("t".to_string()), 
-                            column_name: "a".to_string(), 
-                            column_ref_id: Some(ColumnRefId { database_id: 0, schema_id: 0, table_id: 0, column_id: 0 }), 
+                        data: ExprData::ColumnRef {
+                            table_name: Some("t".to_string()),
+                            column_name: "a".to_string(),
+                            column_ref_id: Some(ColumnRefId {
+                                database_id: 0,
+                                schema_id: 0,
+                                table_id: 0,
+                                column_id: 0
+                            }),
                             column_index: Some(0)
                         }
                     },
@@ -147,10 +152,15 @@ mod tests {
                         alias: None,
                         // TODO: add return type when binder expression!
                         return_type: None,
-                        data: ExprData::ColumnRef{
-                            table_name: Some("t".to_string()), 
-                            column_name: "b".to_string(), 
-                            column_ref_id: Some(ColumnRefId { database_id: 0, schema_id: 0, table_id: 0, column_id: 1 }), 
+                        data: ExprData::ColumnRef {
+                            table_name: Some("t".to_string()),
+                            column_name: "b".to_string(),
+                            column_ref_id: Some(ColumnRefId {
+                                database_id: 0,
+                                schema_id: 0,
+                                table_id: 0,
+                                column_id: 1
+                            }),
                             column_index: Some(1)
                         }
                     }
