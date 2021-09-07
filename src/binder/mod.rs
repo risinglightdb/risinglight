@@ -7,11 +7,15 @@ use std::{
     vec::Vec,
 };
 
-mod expression;
-mod statement;
-mod table_ref;
+pub mod expression;
+pub mod statement;
+pub mod table_ref;
 
-trait Bind {
+pub use expression::*;
+pub use statement::*;
+pub use table_ref::*;
+
+pub trait Bind {
     fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError>;
 }
 

@@ -1,6 +1,6 @@
 use super::*;
+use crate::parser::Expression;
 use crate::parser::{CreateTableStmt, InsertStmt, SQLStatement, SelectStmt, TableRef};
-use crate::parser::{Expression};
 use std::convert::TryFrom;
 use std::sync::Arc;
 
@@ -64,7 +64,7 @@ impl PlanGenerator {
         assert_eq!(select_stmt.limit, None);
         assert_eq!(select_stmt.offset, None);
         assert_eq!(select_stmt.select_distinct, false);
-        
+
         if select_stmt.select_list.len() > 0 {
             plan = self.generate_projection_plan(&select_stmt.select_list, plan)?;
         }
@@ -82,10 +82,88 @@ impl PlanGenerator {
         }
     }
 
-    pub fn generate_projection_plan(&self, exprs: &Vec<Expression>, plan: Plan) -> Result<Plan, PlanError> {
-        Ok(Plan::Projection(ProjectionPlan{
+    pub fn generate_projection_plan(
+        &self,
+        exprs: &Vec<Expression>,
+        plan: Plan,
+    ) -> Result<Plan, PlanError> {
+        Ok(Plan::Projection(ProjectionPlan {
             project_expressions: exprs.to_vec(),
-            child: Arc::new(plan)
+            child: Arc::new(plan),
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::binder::{Bind, Binder};
+    use crate::catalog::{ColumnDesc, RootCatalog, TableRefId, ColumnRefId};
+    use crate::parser::{BaseTableRef, SQLStatement, ExprData, Expression};
+    use crate::types::{DataType, DataTypeKind};
+
+    use std::sync::Arc;
+
+    #[test]
+    fn generate_select() {
+        let catalog = Arc::new(RootCatalog::new());
+        let mut binder = Binder::new(catalog.clone());
+
+        let database = catalog.get_database_by_id(0).unwrap();
+        let schema = database.get_schema_by_id(0).unwrap();
+        schema
+            .add_table(
+                "t".into(),
+                vec!["a".into(), "b".into()],
+                vec![
+                    ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                    ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                ],
+                false,
+            )
+            .unwrap();
+
+        let sql = "select a, b from t; ";
+        let mut stmts = SQLStatement::parse(sql).unwrap();
+        stmts[0].bind(&mut binder).unwrap();
+        let planner = PlanGenerator::new();
+        let plan = planner.generate_plan(&stmts[0]).unwrap();
+        assert_eq!(
+            plan,
+            Plan::Projection(ProjectionPlan {
+                project_expressions: vec![
+                    Expression {
+                        alias: None,
+                        // TODO: add return type when binder expression!
+                        return_type: None,
+                        data: ExprData::ColumnRef{
+                            table_name: Some("t".to_string()), 
+                            column_name: "a".to_string(), 
+                            column_ref_id: Some(ColumnRefId { database_id: 0, schema_id: 0, table_id: 0, column_id: 0 }), 
+                            column_index: Some(0)
+                        }
+                    },
+                    Expression {
+                        alias: None,
+                        // TODO: add return type when binder expression!
+                        return_type: None,
+                        data: ExprData::ColumnRef{
+                            table_name: Some("t".to_string()), 
+                            column_name: "b".to_string(), 
+                            column_ref_id: Some(ColumnRefId { database_id: 0, schema_id: 0, table_id: 0, column_id: 1 }), 
+                            column_index: Some(1)
+                        }
+                    }
+                ],
+                child: Arc::new(Plan::SeqScan(SeqScanPlan::new(
+                    &TableRefId {
+                        database_id: 0,
+                        schema_id: 0,
+                        table_id: 0
+                    },
+                    &vec![0, 1]
+                )))
+            })
+        )
     }
 }
