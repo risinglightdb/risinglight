@@ -1,16 +1,13 @@
-
 mod table;
 
 pub use table::*;
 
+use crate::types::{ColumnId, DatabaseId, SchemaId, TableId};
 use std::collections::HashMap;
-use crate::types::{DatabaseId, ColumnId, SchemaId, TableId};
 
-
-pub type TableMap = HashMap<TableId, TableRef>; 
+pub type TableMap = HashMap<TableId, TableRef>;
 pub type DatabaseMap = HashMap<SchemaId, TableMap>;
 
 pub struct Storage {
-    store: DatabaseMap
+    store: DatabaseMap,
 }
-
