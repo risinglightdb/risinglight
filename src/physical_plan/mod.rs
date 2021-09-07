@@ -1,9 +1,11 @@
 mod create;
+mod generator;
 mod insert;
 mod projection;
 mod seq_scan;
 
 pub use create::*;
+pub use generator::*;
 pub use insert::*;
 pub use projection::*;
 pub use seq_scan::*;

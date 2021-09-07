@@ -17,15 +17,15 @@ impl LogicalPlanGenerator {
     ) -> Result<LogicalPlan, LogicalPlanError> {
         match sql {
             SQLStatement::CreateTable(create_table_stmt) => {
-                self.generate_create_table_plan(create_table_stmt)
+                self.generate_create_table_logical_plan(create_table_stmt)
             }
-            SQLStatement::Insert(insert_stmt) => self.generate_insert_plan(insert_stmt),
-            SQLStatement::Select(select_stmt) => self.generate_select_plan(select_stmt),
+            SQLStatement::Insert(insert_stmt) => self.generate_insert_logical_plan(insert_stmt),
+            SQLStatement::Select(select_stmt) => self.generate_select_logical_plan(select_stmt),
             _ => Err(LogicalPlanError::InvalidSQL),
         }
     }
 
-    pub fn generate_create_table_plan(
+    pub fn generate_create_table_logical_plan(
         &self,
         stmt: &CreateTableStmt,
     ) -> Result<LogicalPlan, LogicalPlanError> {
@@ -38,16 +38,22 @@ impl LogicalPlanGenerator {
         Ok(LogicalPlan::CreateTable(plan))
     }
 
-    pub fn generate_insert_plan(&self, stmt: &InsertStmt) -> Result<LogicalPlan, LogicalPlanError> {
+    pub fn generate_insert_logical_plan(
+        &self,
+        stmt: &InsertStmt,
+    ) -> Result<LogicalPlan, LogicalPlanError> {
         let plan = InsertLogicalPlan {
             table_ref_id: stmt.table_ref_id.unwrap(),
             column_ids: stmt.column_ids.clone(),
-            values_: stmt.values.clone(),
+            values: stmt.values.clone(),
         };
         Ok(LogicalPlan::Insert(plan))
     }
 
-    pub fn generate_select_plan(&self, stmt: &SelectStmt) -> Result<LogicalPlan, LogicalPlanError> {
+    pub fn generate_select_logical_plan(
+        &self,
+        stmt: &SelectStmt,
+    ) -> Result<LogicalPlan, LogicalPlanError> {
         let mut plan = LogicalPlan::Dummy;
         if stmt.from_table.is_some() {
             plan = self.generate_table_ref_plan(stmt.from_table.as_ref().unwrap())?;
@@ -61,6 +67,9 @@ impl LogicalPlanGenerator {
 
         if stmt.select_list.len() > 0 {
             plan = self.generate_projection_plan(&stmt.select_list, plan)?;
+        }
+        if plan == LogicalPlan::Dummy {
+            return Err(LogicalPlanError::InvalidSQL);
         }
 
         Ok(plan)

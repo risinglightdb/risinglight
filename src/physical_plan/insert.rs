@@ -8,7 +8,7 @@ use std::convert::TryFrom;
 pub struct InsertPhysicalPlan {
     pub table_ref_id: TableRefId,
     pub column_ids: Vec<ColumnId>,
-    pub values_: Vec<Vec<Expression>>,
+    pub values: Vec<Vec<Expression>>,
 }
 
 impl TryFrom<&InsertStmt> for InsertPhysicalPlan {
@@ -18,11 +18,11 @@ impl TryFrom<&InsertStmt> for InsertPhysicalPlan {
         let mut plan = InsertPhysicalPlan {
             table_ref_id: insert_stmt.table_ref_id.unwrap(),
             column_ids: insert_stmt.column_ids.clone(),
-            values_: vec![],
+            values: vec![],
         };
 
         for val in insert_stmt.values.iter() {
-            plan.values_.push(val.to_vec());
+            plan.values.push(val.to_vec());
         }
 
         Ok(plan)
