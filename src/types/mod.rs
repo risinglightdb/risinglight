@@ -19,7 +19,7 @@ pub struct DataType {
 }
 
 impl DataType {
-    pub fn new(kind: DataTypeKind, nullable: bool) -> DataType {
+    pub const fn new(kind: DataTypeKind, nullable: bool) -> DataType {
         DataType { kind, nullable }
     }
 
@@ -99,7 +99,7 @@ pub enum DataValue {
 }
 
 impl DataValue {
-    pub fn data_type(&self) -> Option<DataType> {
+    pub const fn data_type(&self) -> Option<DataType> {
         match self {
             Self::Bool(_) => Some(DataType::new(DataTypeKind::Bool, false)),
             Self::Int32(_) => Some(DataType::new(DataTypeKind::Int32, false)),

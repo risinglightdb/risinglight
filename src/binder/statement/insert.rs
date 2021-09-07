@@ -1,5 +1,5 @@
 use super::*;
-use crate::parser::{ExprData, InsertStmt};
+use crate::parser::{ExprKind, InsertStmt};
 use crate::types::{ColumnId, DataType};
 
 impl Bind for InsertStmt {
@@ -67,8 +67,8 @@ impl Bind for InsertStmt {
                 // Bind expression
                 expr.bind(binder)?;
 
-                let expr = match &expr.data {
-                    ExprData::Constant(v) => v,
+                let expr = match &expr.kind {
+                    ExprKind::Constant(v) => v,
                     _ => return Err(BindError::InvalidExpression),
                 };
                 let data_type = expr.data_type();

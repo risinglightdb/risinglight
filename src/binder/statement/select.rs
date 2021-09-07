@@ -1,6 +1,6 @@
 use super::*;
 use crate::catalog::{DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
-use crate::parser::{ExprData, Expression, SelectStmt, TableRef};
+use crate::parser::{ExprKind, Expression, SelectStmt, TableRef};
 use crate::types::{ColumnId, DataType};
 
 impl Bind for SelectStmt {

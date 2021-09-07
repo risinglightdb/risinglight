@@ -10,6 +10,7 @@ impl PlanGenerator {
     pub fn new() -> PlanGenerator {
         PlanGenerator {}
     }
+
     pub fn generate_plan(&self, sql: &SQLStatement) -> Result<Plan, PlanError> {
         match sql {
             SQLStatement::CreateTable(create_table_stmt) => {
@@ -21,52 +22,39 @@ impl PlanGenerator {
         }
     }
 
-    pub fn generate_create_table_plan(
-        &self,
-        create_table_stmt: &CreateTableStmt,
-    ) -> Result<Plan, PlanError> {
-        let mut plan = CreateTablePlan {
-            database_id: create_table_stmt.database_id.unwrap(),
-            schema_id: create_table_stmt.schema_id.unwrap(),
-            table_name: create_table_stmt.table_name.clone(),
-            column_descs: vec![],
+    pub fn generate_create_table_plan(&self, stmt: &CreateTableStmt) -> Result<Plan, PlanError> {
+        let plan = CreateTablePlan {
+            database_id: stmt.database_id.unwrap(),
+            schema_id: stmt.schema_id.unwrap(),
+            table_name: stmt.table_name.clone(),
+            column_descs: stmt.column_descs.clone(),
         };
-
-        for desc in create_table_stmt.column_descs.iter() {
-            plan.column_descs.push(desc.clone());
-        }
-
         Ok(Plan::CreateTable(plan))
     }
 
-    pub fn generate_insert_plan(&self, insert_stmt: &InsertStmt) -> Result<Plan, PlanError> {
-        let mut plan = InsertPlan {
-            table_ref_id: insert_stmt.table_ref_id.unwrap(),
-            column_ids: insert_stmt.column_ids.clone(),
-            values_: vec![],
+    pub fn generate_insert_plan(&self, stmt: &InsertStmt) -> Result<Plan, PlanError> {
+        let plan = InsertPlan {
+            table_ref_id: stmt.table_ref_id.unwrap(),
+            column_ids: stmt.column_ids.clone(),
+            values_: stmt.values.clone(),
         };
-
-        for val in insert_stmt.values.iter() {
-            plan.values_.push(val.to_vec());
-        }
-
         Ok(Plan::Insert(plan))
     }
 
-    pub fn generate_select_plan(&self, select_stmt: &SelectStmt) -> Result<Plan, PlanError> {
+    pub fn generate_select_plan(&self, stmt: &SelectStmt) -> Result<Plan, PlanError> {
         let mut plan = Plan::Dummy;
-        if select_stmt.from_table.is_some() {
-            plan = self.generate_table_ref_plan(select_stmt.from_table.as_ref().unwrap())?;
+        if stmt.from_table.is_some() {
+            plan = self.generate_table_ref_plan(stmt.from_table.as_ref().unwrap())?;
         }
 
         // TODO: support the following clauses
-        assert_eq!(select_stmt.where_clause, None);
-        assert_eq!(select_stmt.limit, None);
-        assert_eq!(select_stmt.offset, None);
-        assert_eq!(select_stmt.select_distinct, false);
+        assert_eq!(stmt.where_clause, None);
+        assert_eq!(stmt.limit, None);
+        assert_eq!(stmt.offset, None);
+        assert_eq!(stmt.select_distinct, false);
 
-        if select_stmt.select_list.len() > 0 {
-            plan = self.generate_projection_plan(&select_stmt.select_list, plan)?;
+        if stmt.select_list.len() > 0 {
+            plan = self.generate_projection_plan(&stmt.select_list, plan)?;
         }
 
         Ok(plan)
@@ -99,7 +87,7 @@ mod tests {
     use super::*;
     use crate::binder::{Bind, Binder};
     use crate::catalog::{ColumnDesc, ColumnRefId, RootCatalog, TableRefId};
-    use crate::parser::{BaseTableRef, ExprData, Expression, SQLStatement};
+    use crate::parser::{BaseTableRef, ColumnRef, ExprKind, Expression, SQLStatement};
     use crate::types::{DataType, DataTypeKind};
 
     use std::sync::Arc;
@@ -136,7 +124,7 @@ mod tests {
                         alias: None,
                         // TODO: add return type when binding expression!
                         return_type: None,
-                        data: ExprData::ColumnRef {
+                        kind: ExprKind::ColumnRef(ColumnRef {
                             table_name: Some("t".to_string()),
                             column_name: "a".to_string(),
                             column_ref_id: Some(ColumnRefId {
@@ -146,13 +134,13 @@ mod tests {
                                 column_id: 0
                             }),
                             column_index: Some(0)
-                        }
+                        }),
                     },
                     Expression {
                         alias: None,
                         // TODO: add return type when binding expression!
                         return_type: None,
-                        data: ExprData::ColumnRef {
+                        kind: ExprKind::ColumnRef(ColumnRef {
                             table_name: Some("t".to_string()),
                             column_name: "b".to_string(),
                             column_ref_id: Some(ColumnRefId {
@@ -162,7 +150,7 @@ mod tests {
                                 column_id: 1
                             }),
                             column_index: Some(1)
-                        }
+                        }),
                     }
                 ],
                 child: Arc::new(Plan::SeqScan(SeqScanPlan::new(
