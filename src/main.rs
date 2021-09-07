@@ -3,8 +3,9 @@
 mod array;
 mod binder;
 mod catalog;
-mod parser;
 mod logical_plan;
+mod parser;
+mod physical_plan;
 mod types;
 
 fn main() {}
