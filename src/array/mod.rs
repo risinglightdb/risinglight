@@ -1,13 +1,34 @@
 // Author: Alex Chi (iskyzh@gmail.com)
 
+mod alloc;
+mod bit_util;
+mod bitmap;
+mod buffer;
+mod data_chunk;
 mod iterator;
 mod primitive_array;
 mod utf8_array;
 
+pub use self::alloc::*;
+pub use self::bit_util::*;
+pub use self::bitmap::*;
+pub use self::buffer::*;
+pub use self::data_chunk::*;
 pub use self::iterator::ArrayIterator;
 pub use self::primitive_array::*;
 pub use self::utf8_array::*;
 
+#[derive(thiserror::Error, Debug, PartialEq)]
+pub enum ArrayError {
+    #[error("failed to allocate memory")]
+    MemoryError,
+    #[error("failed to do bitwise and: {0}")]
+    BitAndError(String),
+    #[error("failed to do bitwise or: {0}")]
+    BitOrError(String),
+    #[error("index out of boundary")]
+    IndexOutOfBoundary,
+}
 /// A trait over all array builders.
 ///
 /// `ArrayBuilder` is a trait over all builders. You could build an array with
