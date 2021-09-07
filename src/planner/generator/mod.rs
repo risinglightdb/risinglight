@@ -134,7 +134,7 @@ mod tests {
                 project_expressions: vec![
                     Expression {
                         alias: None,
-                        // TODO: add return type when binder expression!
+                        // TODO: add return type when binding expression!
                         return_type: None,
                         data: ExprData::ColumnRef {
                             table_name: Some("t".to_string()),
@@ -150,7 +150,7 @@ mod tests {
                     },
                     Expression {
                         alias: None,
-                        // TODO: add return type when binder expression!
+                        // TODO: add return type when binding expression!
                         return_type: None,
                         data: ExprData::ColumnRef {
                             table_name: Some("t".to_string()),
