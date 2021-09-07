@@ -4,45 +4,45 @@ use crate::parser::{CreateTableStmt, InsertStmt, SQLStatement, SelectStmt, Table
 use std::convert::TryFrom;
 use std::sync::Arc;
 
-pub struct PlanGenerator {}
+pub struct LogicalPlanGenerator {}
 
-impl PlanGenerator {
-    pub fn new() -> PlanGenerator {
-        PlanGenerator {}
+impl LogicalPlanGenerator {
+    pub fn new() -> LogicalPlanGenerator {
+        LogicalPlanGenerator {}
     }
 
-    pub fn generate_plan(&self, sql: &SQLStatement) -> Result<Plan, PlanError> {
+    pub fn generate_plan(&self, sql: &SQLStatement) -> Result<LogicalPlan, LogicalPlanError> {
         match sql {
             SQLStatement::CreateTable(create_table_stmt) => {
                 self.generate_create_table_plan(create_table_stmt)
             }
             SQLStatement::Insert(insert_stmt) => self.generate_insert_plan(insert_stmt),
             SQLStatement::Select(select_stmt) => self.generate_select_plan(select_stmt),
-            _ => Err(PlanError::InvalidSQL),
+            _ => Err(LogicalPlanError::InvalidSQL),
         }
     }
 
-    pub fn generate_create_table_plan(&self, stmt: &CreateTableStmt) -> Result<Plan, PlanError> {
-        let plan = CreateTablePlan {
+    pub fn generate_create_table_plan(&self, stmt: &CreateTableStmt) -> Result<LogicalPlan, LogicalPlanError> {
+        let plan = CreateTableLogicalPlan {
             database_id: stmt.database_id.unwrap(),
             schema_id: stmt.schema_id.unwrap(),
             table_name: stmt.table_name.clone(),
             column_descs: stmt.column_descs.clone(),
         };
-        Ok(Plan::CreateTable(plan))
+        Ok(LogicalPlan::CreateTable(plan))
     }
 
-    pub fn generate_insert_plan(&self, stmt: &InsertStmt) -> Result<Plan, PlanError> {
-        let plan = InsertPlan {
+    pub fn generate_insert_plan(&self, stmt: &InsertStmt) -> Result<LogicalPlan, LogicalPlanError> {
+        let plan = InsertLogicalPlan {
             table_ref_id: stmt.table_ref_id.unwrap(),
             column_ids: stmt.column_ids.clone(),
             values_: stmt.values.clone(),
         };
-        Ok(Plan::Insert(plan))
+        Ok(LogicalPlan::Insert(plan))
     }
 
-    pub fn generate_select_plan(&self, stmt: &SelectStmt) -> Result<Plan, PlanError> {
-        let mut plan = Plan::Dummy;
+    pub fn generate_select_plan(&self, stmt: &SelectStmt) -> Result<LogicalPlan, LogicalPlanError> {
+        let mut plan = LogicalPlan::Dummy;
         if stmt.from_table.is_some() {
             plan = self.generate_table_ref_plan(stmt.from_table.as_ref().unwrap())?;
         }
@@ -60,22 +60,22 @@ impl PlanGenerator {
         Ok(plan)
     }
 
-    pub fn generate_table_ref_plan(&self, table_ref: &TableRef) -> Result<Plan, PlanError> {
+    pub fn generate_table_ref_plan(&self, table_ref: &TableRef) -> Result<LogicalPlan, LogicalPlanError> {
         match table_ref {
-            TableRef::Base(base_ref) => Ok(Plan::SeqScan(SeqScanPlan::new(
+            TableRef::Base(base_ref) => Ok(LogicalPlan::SeqScan(SeqScanLogicalPlan::new(
                 base_ref.table_ref_id.as_ref().unwrap(),
                 &base_ref.column_ids,
             ))),
-            _ => Err(PlanError::InvalidSQL),
+            _ => Err(LogicalPlanError::InvalidSQL),
         }
     }
 
     pub fn generate_projection_plan(
         &self,
         exprs: &Vec<Expression>,
-        plan: Plan,
-    ) -> Result<Plan, PlanError> {
-        Ok(Plan::Projection(ProjectionPlan {
+        plan: LogicalPlan,
+    ) -> Result<LogicalPlan, LogicalPlanError> {
+        Ok(LogicalPlan::Projection(ProjectionLogicalPlan {
             project_expressions: exprs.to_vec(),
             child: Arc::new(plan),
         }))
@@ -114,11 +114,11 @@ mod tests {
         let sql = "select a, b from t; ";
         let mut stmts = SQLStatement::parse(sql).unwrap();
         stmts[0].bind(&mut binder).unwrap();
-        let planner = PlanGenerator::new();
+        let planner = LogicalPlanGenerator::new();
         let plan = planner.generate_plan(&stmts[0]).unwrap();
         assert_eq!(
             plan,
-            Plan::Projection(ProjectionPlan {
+            LogicalPlan::Projection(ProjectionLogicalPlan {
                 project_expressions: vec![
                     Expression {
                         alias: None,
@@ -153,7 +153,7 @@ mod tests {
                         }),
                     }
                 ],
-                child: Arc::new(Plan::SeqScan(SeqScanPlan::new(
+                child: Arc::new(LogicalPlan::SeqScan(SeqScanLogicalPlan::new(
                     &TableRefId {
                         database_id: 0,
                         schema_id: 0,

@@ -4,7 +4,7 @@ mod array;
 mod binder;
 mod catalog;
 mod parser;
-mod planner;
+mod logical_plan;
 mod types;
 
 fn main() {}

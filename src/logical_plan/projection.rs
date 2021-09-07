@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ProjectionPlan {
+pub struct ProjectionLogicalPlan {
     pub project_expressions: Vec<Expression>,
-    pub child: Arc<Plan>,
+    pub child: Arc<LogicalPlan>,
 }
