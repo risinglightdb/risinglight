@@ -11,7 +11,10 @@ impl LogicalPlanGenerator {
         LogicalPlanGenerator {}
     }
 
-    pub fn generate_plan(&self, sql: &SQLStatement) -> Result<LogicalPlan, LogicalPlanError> {
+    pub fn generate_logical_plan(
+        &self,
+        sql: &SQLStatement,
+    ) -> Result<LogicalPlan, LogicalPlanError> {
         match sql {
             SQLStatement::CreateTable(create_table_stmt) => {
                 self.generate_create_table_plan(create_table_stmt)
@@ -22,7 +25,10 @@ impl LogicalPlanGenerator {
         }
     }
 
-    pub fn generate_create_table_plan(&self, stmt: &CreateTableStmt) -> Result<LogicalPlan, LogicalPlanError> {
+    pub fn generate_create_table_plan(
+        &self,
+        stmt: &CreateTableStmt,
+    ) -> Result<LogicalPlan, LogicalPlanError> {
         let plan = CreateTableLogicalPlan {
             database_id: stmt.database_id.unwrap(),
             schema_id: stmt.schema_id.unwrap(),
@@ -60,7 +66,10 @@ impl LogicalPlanGenerator {
         Ok(plan)
     }
 
-    pub fn generate_table_ref_plan(&self, table_ref: &TableRef) -> Result<LogicalPlan, LogicalPlanError> {
+    pub fn generate_table_ref_plan(
+        &self,
+        table_ref: &TableRef,
+    ) -> Result<LogicalPlan, LogicalPlanError> {
         match table_ref {
             TableRef::Base(base_ref) => Ok(LogicalPlan::SeqScan(SeqScanLogicalPlan::new(
                 base_ref.table_ref_id.as_ref().unwrap(),
@@ -77,7 +86,7 @@ impl LogicalPlanGenerator {
     ) -> Result<LogicalPlan, LogicalPlanError> {
         Ok(LogicalPlan::Projection(ProjectionLogicalPlan {
             project_expressions: exprs.to_vec(),
-            child: Arc::new(plan),
+            child: Box::new(plan),
         }))
     }
 }
@@ -115,7 +124,7 @@ mod tests {
         let mut stmts = SQLStatement::parse(sql).unwrap();
         stmts[0].bind(&mut binder).unwrap();
         let planner = LogicalPlanGenerator::new();
-        let plan = planner.generate_plan(&stmts[0]).unwrap();
+        let plan = planner.generate_logical_plan(&stmts[0]).unwrap();
         assert_eq!(
             plan,
             LogicalPlan::Projection(ProjectionLogicalPlan {
@@ -153,7 +162,7 @@ mod tests {
                         }),
                     }
                 ],
-                child: Arc::new(LogicalPlan::SeqScan(SeqScanLogicalPlan::new(
+                child: Box::new(LogicalPlan::SeqScan(SeqScanLogicalPlan::new(
                     &TableRefId {
                         database_id: 0,
                         schema_id: 0,
