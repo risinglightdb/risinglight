@@ -11,7 +11,7 @@ mod expression;
 mod statement;
 mod table_ref;
 
-pub(crate) use self::statement::*;
+pub use self::statement::*;
 pub use expression::*;
 pub use postgres_parser::PgParserError;
 pub use table_ref::*;

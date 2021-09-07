@@ -1,9 +1,14 @@
 use super::*;
+
 use crate::parser::SQLStatement;
 
-mod create;
-mod insert;
-mod select;
+pub mod create;
+pub mod insert;
+pub mod select;
+
+pub use create::*;
+pub use insert::*;
+pub use select::*;
 
 impl Bind for SQLStatement {
     fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError> {

@@ -1,4 +1,5 @@
 use super::*;
+use crate::catalog::TableRefId;
 use crate::parser::{expression::Expression, table_ref::BaseTableRef};
 use crate::types::{ColumnId, DataType};
 use postgres_parser as pg;
@@ -20,6 +21,7 @@ pub struct InsertStmt {
     /// The following values will be set by binder
     pub column_ids: Vec<ColumnId>,
     pub column_types: Vec<DataType>,
+    pub table_ref_id: Option<TableRefId>,
 }
 
 impl TryFrom<&pg::Node> for InsertStmt {
@@ -51,6 +53,7 @@ impl TryFrom<&pg::Node> for InsertStmt {
             values,
             column_ids: Vec::new(),
             column_types: Vec::new(),
+            table_ref_id: None,
         })
     }
 }
@@ -131,6 +134,7 @@ mod tests {
                 ],
                 column_ids: Vec::new(),
                 column_types: Vec::new(),
+                table_ref_id: None
             }
         );
     }
