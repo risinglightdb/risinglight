@@ -112,7 +112,32 @@ mod tests {
 
     #[test]
     fn parse_create_table() {
-        let sql = "create table t1 (v1 int not null, v2 double null)";
+        let sql = "create table mydatabase.myschema.orders(v1 int not null, v2 double null)";
+        let nodes = pg::parse_query(sql).unwrap();
+        let stmt = CreateTableStmt::try_from(&nodes[0]).unwrap();
+        assert_eq!(
+            stmt,
+            CreateTableStmt {
+                database_name: Some("mydatabase".into()),
+                schema_name: Some("myschema".into()),
+                table_name: "orders".into(),
+                column_descs: vec![
+                    ColumnCatalog::new(0, "v1".into(), DataTypeKind::Int32.not_null().to_column()),
+                    ColumnCatalog::new(
+                        0,
+                        "v2".into(),
+                        DataTypeKind::Float64.nullable().to_column(),
+                    ),
+                ],
+                database_id: None,
+                schema_id: None,
+            }
+        );
+    }
+
+    #[test]
+    fn parse_create_table_primary_key() {
+        let sql = "create table t1(v1 int primary key, v2 int)";
         let nodes = pg::parse_query(sql).unwrap();
         let stmt = CreateTableStmt::try_from(&nodes[0]).unwrap();
         assert_eq!(
@@ -125,16 +150,12 @@ mod tests {
                     ColumnCatalog::new(
                         0,
                         "v1".into(),
-                        ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false)
+                        DataTypeKind::Int32.not_null().to_column_primary_key()
                     ),
-                    ColumnCatalog::new(
-                        0,
-                        "v2".into(),
-                        ColumnDesc::new(DataType::new(DataTypeKind::Float64, true), false)
-                    ),
+                    ColumnCatalog::new(0, "v2".into(), DataTypeKind::Int32.not_null().to_column()),
                 ],
                 database_id: None,
-                schema_id: None
+                schema_id: None,
             }
         );
     }

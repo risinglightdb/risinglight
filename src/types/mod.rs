@@ -82,6 +82,14 @@ impl DataTypeKind {
             Self::Varchar => size_of::<u8>(),
         }
     }
+
+    pub const fn nullable(self) -> DataType {
+        DataType::new(self, true)
+    }
+
+    pub const fn not_null(self) -> DataType {
+        DataType::new(self, false)
+    }
 }
 
 pub(crate) type DatabaseId = u32;
