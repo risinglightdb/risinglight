@@ -39,9 +39,12 @@ pub enum DataTypeKind {
     Int32,
     Bool,
     Float64,
-    Char,
-    Varchar,
+    Char(u32),
+    Varchar(u32),
 }
+
+const CHAR_DEFAULT_LEN: u32 = 1;
+const VARCHAR_DEFAULT_LEN: u32 = 256;
 
 impl FromStr for DataTypeKind {
     type Err = ();
@@ -51,8 +54,8 @@ impl FromStr for DataTypeKind {
             "int" | "int4" | "signed" | "integer" | "intergral" | "int32" => Ok(Self::Int32),
             "bool" | "boolean" | "logical" => Ok(Self::Bool),
             "double" | "float8" => Ok(Self::Float64),
-            "char" | "bpchar" => Ok(Self::Char),
-            "varchar" => Ok(Self::Varchar),
+            "char" | "bpchar" => Ok(Self::Char(CHAR_DEFAULT_LEN)),
+            "varchar" | "text" | "string" => Ok(Self::Varchar(VARCHAR_DEFAULT_LEN)),
             _ => todo!("parse datatype"),
         }
     }
@@ -64,8 +67,8 @@ impl ToString for DataTypeKind {
             Self::Int32 => "INTEGER",
             Self::Bool => "BOOLEAN",
             Self::Float64 => "DOUBLE",
-            Self::Char => "CHAR",
-            Self::Varchar => "VARCHAR",
+            Self::Char(_) => "CHAR",
+            Self::Varchar(_) => "VARCHAR",
         }
         .into()
     }
@@ -78,8 +81,8 @@ impl DataTypeKind {
             Self::Int32 => size_of::<i32>(),
             Self::Bool => size_of::<bool>(),
             Self::Float64 => size_of::<f64>(),
-            Self::Char => size_of::<u8>(),
-            Self::Varchar => size_of::<u8>(),
+            Self::Char(len) => *len as _,
+            Self::Varchar(len) => *len as _,
         }
     }
 
@@ -89,6 +92,14 @@ impl DataTypeKind {
 
     pub const fn not_null(self) -> DataType {
         DataType::new(self, false)
+    }
+
+    pub fn set_len(&mut self, len: u32) {
+        match self {
+            Self::Char(l) => *l = len,
+            Self::Varchar(l) => *l = len,
+            _ => {}
+        }
     }
 }
 
@@ -109,10 +120,10 @@ pub enum DataValue {
 impl DataValue {
     pub const fn data_type(&self) -> Option<DataType> {
         match self {
-            Self::Bool(_) => Some(DataType::new(DataTypeKind::Bool, false)),
-            Self::Int32(_) => Some(DataType::new(DataTypeKind::Int32, false)),
-            Self::Float64(_) => Some(DataType::new(DataTypeKind::Float64, false)),
-            Self::String(_) => Some(DataType::new(DataTypeKind::Varchar, false)),
+            Self::Bool(_) => Some(DataTypeKind::Bool.not_null()),
+            Self::Int32(_) => Some(DataTypeKind::Int32.not_null()),
+            Self::Float64(_) => Some(DataTypeKind::Float64.not_null()),
+            Self::String(_) => Some(DataTypeKind::Varchar(VARCHAR_DEFAULT_LEN).not_null()),
             _ => None,
         }
     }

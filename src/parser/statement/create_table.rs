@@ -71,17 +71,19 @@ impl TryFrom<&pg::nodes::ColumnDef> for ColumnCatalog {
 
     fn try_from(cdef: &pg::nodes::ColumnDef) -> Result<Self, Self::Error> {
         let type_name = try_match!(cdef.typeName, Some(t) => &**t, "type name");
-        if type_name.typmods.is_some() {
-            todo!("parse typmods");
-        }
         let datatype_node =
             try_match!(type_name.names, Some(ns) => ns.last().unwrap(), "datatype name");
         let datatype_name = try_match!(datatype_node, pg::Node::Value(v) => v.string.clone().unwrap(), "datatype name");
-        let datatype = datatype_name
+        let mut datatype = datatype_name
             .parse::<DataTypeKind>()
             .map_err(|_| ParseError::InvalidInput("datatype"))?;
+        if let Some(typmods) = &type_name.typmods {
+            let c = try_match!(typmods[0], pg::Node::A_Const(c) => c, "const in typmods");
+            let varlen = try_match!(c.val.int, Some(i) => *i as u32, "int value");
+            datatype.set_len(varlen);
+        }
 
-        let mut is_nullable = false;
+        let mut is_nullable = true;
         let mut is_primary = false;
         let mut is_unique = false;
         for cons in cdef.constraints.iter().flatten() {
@@ -152,7 +154,46 @@ mod tests {
                         "v1".into(),
                         DataTypeKind::Int32.not_null().to_column_primary_key()
                     ),
-                    ColumnCatalog::new(0, "v2".into(), DataTypeKind::Int32.not_null().to_column()),
+                    ColumnCatalog::new(0, "v2".into(), DataTypeKind::Int32.nullable().to_column()),
+                ],
+                database_id: None,
+                schema_id: None,
+            }
+        );
+    }
+
+    #[test]
+    fn parse_create_table_char() {
+        let sql = "create table t(v1 char, v2 char(2), v3 varchar, v4 varchar(20))";
+        let nodes = pg::parse_query(sql).unwrap();
+        let stmt = CreateTableStmt::try_from(&nodes[0]).unwrap();
+        assert_eq!(
+            stmt,
+            CreateTableStmt {
+                database_name: None,
+                schema_name: None,
+                table_name: "t".into(),
+                column_descs: vec![
+                    ColumnCatalog::new(
+                        0,
+                        "v1".into(),
+                        DataTypeKind::Char(1).nullable().to_column(),
+                    ),
+                    ColumnCatalog::new(
+                        0,
+                        "v2".into(),
+                        DataTypeKind::Char(2).nullable().to_column(),
+                    ),
+                    ColumnCatalog::new(
+                        0,
+                        "v3".into(),
+                        DataTypeKind::Varchar(256).nullable().to_column(),
+                    ),
+                    ColumnCatalog::new(
+                        0,
+                        "v4".into(),
+                        DataTypeKind::Varchar(20).nullable().to_column(),
+                    ),
                 ],
                 database_id: None,
                 schema_id: None,
