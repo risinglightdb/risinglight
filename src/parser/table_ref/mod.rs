@@ -1,30 +1,20 @@
 use super::*;
 use postgres_parser as pg;
 use std::convert::{TryFrom, TryInto};
-use std::sync::{Arc, Mutex};
+
 mod base;
 mod join;
+mod subquery;
 
 pub use self::base::BaseTableRef;
 pub use self::join::JoinRef;
+pub use self::subquery::SubqueryRef;
 
 #[derive(Debug, PartialEq)]
 pub enum TableRef {
     Base(BaseTableRef),
     Join(JoinRef),
-}
-
-impl TableRef {
-    pub fn base(table_name: String) -> Self {
-        TableRef::Base(BaseTableRef {
-            table_name,
-            database_name: None,
-            schema_name: None,
-            alias: None,
-            table_ref_id: None,
-            column_ids: Vec::new(),
-        })
-    }
+    Subquery(SubqueryRef),
 }
 
 impl TryFrom<&pg::Node> for TableRef {
@@ -34,6 +24,7 @@ impl TryFrom<&pg::Node> for TableRef {
         match root {
             pg::Node::RangeVar(root) => Ok(Self::Base(root.into())),
             pg::Node::JoinExpr(root) => Ok(Self::Join(root.try_into()?)),
+            pg::Node::RangeSubselect(root) => Ok(Self::Subquery(root.try_into()?)),
             _ => todo!("unsupported FROM type"),
         }
     }

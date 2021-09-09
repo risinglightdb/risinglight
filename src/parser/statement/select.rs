@@ -79,6 +79,7 @@ fn get_from_list(list: &[pg::Node]) -> Result<TableRef, ParseError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::DataValue;
 
     fn parse(sql: &str) -> Result<SelectStmt, ParseError> {
         let nodes = pg::parse_query(sql).unwrap();
@@ -86,16 +87,79 @@ mod tests {
     }
 
     #[test]
-    fn parse_select() {
+    fn column_ref() {
         assert_eq!(
-            parse("select v1, t1.v2, * from t1").unwrap(),
+            parse("select v1, t.v2, * from t").unwrap(),
             SelectStmt {
                 select_list: vec![
                     Expression::column_ref("v1".into(), None),
-                    Expression::column_ref("v2".into(), Some("t1".into())),
+                    Expression::column_ref("v2".into(), Some("t".into())),
                     Expression::star(),
                 ],
-                from_table: Some(TableRef::base("t1".into())),
+                from_table: Some(TableRef::base("t".into())),
+                where_clause: None,
+                select_distinct: false,
+                limit: None,
+                offset: None,
+            }
+        );
+    }
+
+    #[test]
+    fn constant() {
+        assert_eq!(
+            parse("select 1, 1.1 from t").unwrap(),
+            SelectStmt {
+                select_list: vec![
+                    Expression::constant(DataValue::Int32(1)),
+                    Expression::constant(DataValue::Float64(1.1)),
+                ],
+                from_table: Some(TableRef::base("t".into())),
+                where_clause: None,
+                select_distinct: false,
+                limit: None,
+                offset: None,
+            }
+        );
+    }
+
+    #[test]
+    fn no_from() {
+        let stmt = parse("select 1").unwrap();
+        assert!(stmt.from_table.is_none());
+    }
+
+    #[test]
+    fn no_select_list() {
+        let stmt = parse("select from t").unwrap();
+        assert!(stmt.select_list.is_empty());
+
+        let stmt = parse("select").unwrap();
+        assert!(stmt.select_list.is_empty());
+    }
+
+    #[test]
+    fn from_subquery() {
+        // The query should fail at binding time. The transformer is unaware of the error.
+        assert_eq!(
+            parse("select v1, v2 from (select v1 from t) as foo(a, b)").unwrap(),
+            SelectStmt {
+                select_list: vec![
+                    Expression::column_ref("v1".into(), None),
+                    Expression::column_ref("v2".into(), None),
+                ],
+                from_table: Some(TableRef::Subquery(SubqueryRef {
+                    subquery: Box::new(SelectStmt {
+                        select_list: vec![Expression::column_ref("v1".into(), None)],
+                        from_table: Some(TableRef::base("t".into())),
+                        where_clause: None,
+                        select_distinct: false,
+                        limit: None,
+                        offset: None,
+                    }),
+                    alias: Some("foo".into()),
+                    column_alias: vec!["a".into(), "b".into()],
+                })),
                 where_clause: None,
                 select_distinct: false,
                 limit: None,

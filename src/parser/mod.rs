@@ -11,10 +11,10 @@ mod expression;
 mod statement;
 mod table_ref;
 
+pub use self::expression::*;
 pub use self::statement::*;
-pub use expression::*;
+pub use self::table_ref::*;
 pub use postgres_parser::PgParserError;
-pub use table_ref::*;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ParseError {

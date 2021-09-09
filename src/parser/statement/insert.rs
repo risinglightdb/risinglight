@@ -110,37 +110,54 @@ mod tests {
     }
 
     #[test]
-    fn parse_insert() {
+    fn simple() {
         assert_eq!(
-            parse("insert into t1 (col1, col2) values (1,2), (3,4), (5,6)").unwrap(),
+            parse("insert into a.b.t values(1, 2)").unwrap(),
             InsertStmt {
-                database_name: None,
-                schema_name: None,
-                table_name: "t1".into(),
-                column_names: vec!["col1".into(), "col2".into()],
-                values: vec![
-                    vec![
-                        Expression::constant(DataValue::Int32(1)),
-                        Expression::constant(DataValue::Int32(2)),
-                    ],
-                    vec![
-                        Expression::constant(DataValue::Int32(3)),
-                        Expression::constant(DataValue::Int32(4)),
-                    ],
-                    vec![
-                        Expression::constant(DataValue::Int32(5)),
-                        Expression::constant(DataValue::Int32(6)),
-                    ],
-                ],
-                column_ids: Vec::new(),
-                column_types: Vec::new(),
+                database_name: Some("a".into()),
+                schema_name: Some("b".into()),
+                table_name: "t".into(),
+                column_names: vec![],
+                values: vec![vec![
+                    DataValue::Int32(1).to_expr(),
+                    DataValue::Int32(2).to_expr(),
+                ]],
+                column_ids: vec![],
+                column_types: vec![],
                 table_ref_id: None
             }
         );
     }
 
     #[test]
-    fn parse_insert_length_mismatch() {
+    fn column_name() {
+        assert_eq!(
+            parse("insert into t(a, b) values (1,2), (3,4), (5,6)").unwrap(),
+            InsertStmt {
+                database_name: None,
+                schema_name: None,
+                table_name: "t".into(),
+                column_names: vec!["a".into(), "b".into()],
+                values: vec![
+                    vec![DataValue::Int32(1).to_expr(), DataValue::Int32(2).to_expr()],
+                    vec![DataValue::Int32(3).to_expr(), DataValue::Int32(4).to_expr()],
+                    vec![DataValue::Int32(5).to_expr(), DataValue::Int32(6).to_expr()],
+                ],
+                column_ids: vec![],
+                column_types: vec![],
+                table_ref_id: None
+            }
+        );
+    }
+
+    #[test]
+    fn duplicate_column_name() {
+        let ret = parse("insert into t(a, a) values (1,2)");
+        assert!(matches!(ret, Err(ParseError::Duplicate(_))));
+    }
+
+    #[test]
+    fn mismatch() {
         let ret = parse("insert into t1 values (1,2), (3,4,5)");
         assert!(matches!(ret, Err(ParseError::InvalidInput(_))));
 

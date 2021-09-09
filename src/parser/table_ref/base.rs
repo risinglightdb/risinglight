@@ -1,9 +1,7 @@
+use super::*;
 use crate::catalog::TableRefId;
 use crate::types::ColumnId;
 use postgres_parser as pg;
-use std::cmp::PartialEq;
-use std::sync::{Arc, Mutex};
-use std::vec::Vec;
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct BaseTableRef {
@@ -13,6 +11,19 @@ pub struct BaseTableRef {
     pub alias: Option<String>,
     pub table_ref_id: Option<TableRefId>,
     pub column_ids: Vec<ColumnId>,
+}
+
+impl TableRef {
+    pub const fn base(table_name: String) -> Self {
+        TableRef::Base(BaseTableRef {
+            table_name,
+            database_name: None,
+            schema_name: None,
+            alias: None,
+            table_ref_id: None,
+            column_ids: Vec::new(),
+        })
+    }
 }
 
 impl From<&pg::nodes::RangeVar> for BaseTableRef {

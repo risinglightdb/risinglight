@@ -11,6 +11,12 @@ impl Expression {
     }
 }
 
+impl DataValue {
+    pub const fn to_expr(self) -> Expression {
+        Expression::constant(self)
+    }
+}
+
 impl TryFrom<&pg::nodes::A_Const> for Expression {
     type Error = ParseError;
 
