@@ -3,6 +3,7 @@
 mod array;
 mod binder;
 mod catalog;
+mod executor;
 mod logical_plan;
 mod parser;
 mod physical_plan;

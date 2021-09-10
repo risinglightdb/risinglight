@@ -74,7 +74,7 @@ fn record_regular_table_column(
     col_name: &str,
     column_id: ColumnId,
 ) -> ColumnId {
-    let mut names = binder.context.column_names.get_mut(table_name).unwrap();
+    let names = binder.context.column_names.get_mut(table_name).unwrap();
     if !names.contains(col_name) {
         let idx = names.len() as u32;
         names.insert(col_name.to_string());
