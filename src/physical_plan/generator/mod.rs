@@ -125,8 +125,7 @@ mod tests {
                 project_expressions: vec![
                     Expression {
                         alias: None,
-                        // TODO: add return type when binding expression!
-                        return_type: None,
+                        return_type: Some(DataType::new(DataTypeKind::Int32, false)),
                         kind: ExprKind::ColumnRef(ColumnRef {
                             table_name: Some("t".to_string()),
                             column_name: "a".to_string(),
@@ -141,8 +140,7 @@ mod tests {
                     },
                     Expression {
                         alias: None,
-                        // TODO: add return type when binding expression!
-                        return_type: None,
+                        return_type: Some(DataType::new(DataTypeKind::Int32, false)),
                         kind: ExprKind::ColumnRef(ColumnRef {
                             table_name: Some("t".to_string()),
                             column_name: "b".to_string(),

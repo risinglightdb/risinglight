@@ -15,6 +15,8 @@ impl Bind for SelectStmt {
         // Bind select list, we only support column reference now
         for select_elem in self.select_list.iter_mut() {
             select_elem.bind(binder)?;
+            self.return_names.push(select_elem.get_name());
+            self.return_types.push(select_elem.return_type);
         }
 
         // Add referred columns for base table reference
@@ -27,7 +29,6 @@ impl Bind for SelectStmt {
                         .get(&base_ref.table_name)
                         .unwrap()
                         .to_vec();
-                    //  assert_eq!(binder.context.column_ids.get(&base_ref.table_name).unwrap().len(), 2);
                 }
                 _ => {}
             }
@@ -82,6 +83,15 @@ mod tests {
                 table_id: 0
             }
         );
+
+        assert_eq!(
+            select_stmt.return_types,
+            vec![
+                Some(DataType::new(DataTypeKind::Int32, false)),
+                Some(DataType::new(DataTypeKind::Int32, false))
+            ]
+        );
+
         assert_eq!(table_ref.column_ids, vec![0, 1]);
 
         assert_eq!(
