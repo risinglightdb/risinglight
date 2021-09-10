@@ -167,4 +167,26 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn where_clause() {
+        assert_eq!(
+            parse("select v1, v2 from s where v3 = 1").unwrap(),
+            SelectStmt {
+                select_list: vec![
+                    Expression::column_ref("v1".into(), None),
+                    Expression::column_ref("v2".into(), None),
+                ],
+                from_table: Some(TableRef::base("s".into())),
+                where_clause: Some(Expression::comparison(
+                    ComparisonKind::Equal,
+                    Expression::column_ref("v3".into(), None),
+                    Expression::constant(DataValue::Int32(1)),
+                )),
+                select_distinct: false,
+                limit: None,
+                offset: None,
+            }
+        );
+    }
 }
