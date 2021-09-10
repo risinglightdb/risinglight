@@ -79,7 +79,7 @@ fn get_from_list(list: &[pg::Node]) -> Result<TableRef, ParseError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::DataValue;
+    use crate::types::{DataTypeKind, DataValue};
 
     fn parse(sql: &str) -> Result<SelectStmt, ParseError> {
         let nodes = pg::parse_query(sql).unwrap();
@@ -160,6 +160,52 @@ mod tests {
                     alias: Some("foo".into()),
                     column_alias: vec!["a".into(), "b".into()],
                 })),
+                where_clause: None,
+                select_distinct: false,
+                limit: None,
+                offset: None,
+            }
+        );
+    }
+
+    #[test]
+    fn where_clause() {
+        assert_eq!(
+            parse("select v1, v2 from s where v3 = 1").unwrap(),
+            SelectStmt {
+                select_list: vec![
+                    Expression::column_ref("v1".into(), None),
+                    Expression::column_ref("v2".into(), None),
+                ],
+                from_table: Some(TableRef::base("s".into())),
+                where_clause: Some(Expression::comparison(
+                    ComparisonKind::Equal,
+                    Expression::column_ref("v3".into(), None),
+                    Expression::constant(DataValue::Int32(1)),
+                )),
+                select_distinct: false,
+                limit: None,
+                offset: None,
+            }
+        );
+    }
+
+    #[test]
+    fn type_cast() {
+        assert_eq!(
+            parse("select v1::DOUBLE, cast(v2 as INTEGER) from s").unwrap(),
+            SelectStmt {
+                select_list: vec![
+                    Expression::typecast(
+                        DataTypeKind::Float64,
+                        Expression::column_ref("v1".into(), None)
+                    ),
+                    Expression::typecast(
+                        DataTypeKind::Int32,
+                        Expression::column_ref("v2".into(), None)
+                    ),
+                ],
+                from_table: Some(TableRef::base("s".into())),
                 where_clause: None,
                 select_distinct: false,
                 limit: None,
