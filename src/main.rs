@@ -7,6 +7,7 @@ mod executor;
 mod logical_plan;
 mod parser;
 mod physical_plan;
+mod server;
 mod storage;
 mod types;
 
