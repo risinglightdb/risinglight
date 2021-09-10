@@ -8,6 +8,9 @@ use typed_builder::TypedBuilder;
 pub struct DataChunk {
     #[builder(default)]
     arrays: SmallVec<[ArrayImpl; 16]>,
+    #[builder(default)]
+    dimension: usize,
+    #[builder(default)]
     cardinality: usize,
     #[builder(default, setter(strip_option))]
     visibility: Option<Bitmap>,
@@ -36,6 +39,7 @@ impl Default for DataChunk {
     fn default() -> Self {
         DataChunk {
             arrays: smallvec![],
+            dimension: 0,
             cardinality: 0,
             visibility: None,
         }
