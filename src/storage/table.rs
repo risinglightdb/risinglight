@@ -1,6 +1,6 @@
 use super::*;
 use crate::array::DataChunkRef;
-use crate::catalog::ColumnDesc;
+use crate::catalog::ColumnCatalog;
 use crate::catalog::TableRefId;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::vec::Vec;
@@ -13,12 +13,12 @@ pub enum Table {
 pub type TableRef = Arc<BaseTable>;
 
 pub struct BaseTableInner {
-    column_descs: Vec<ColumnDesc>,
+    column_descs: Vec<ColumnCatalog>,
     chunks: Vec<DataChunkRef>,
 }
 
 impl BaseTableInner {
-    fn new(column_descs: &Vec<ColumnDesc>) -> BaseTableInner {
+    fn new(column_descs: &Vec<ColumnCatalog>) -> BaseTableInner {
         BaseTableInner {
             column_descs: column_descs.to_vec(),
             chunks: vec![],
@@ -32,7 +32,7 @@ pub struct BaseTable {
 }
 
 impl BaseTable {
-    pub fn new(table_ref_id: &TableRefId, column_descs: &Vec<ColumnDesc>) -> BaseTable {
+    pub fn new(table_ref_id: &TableRefId, column_descs: &Vec<ColumnCatalog>) -> BaseTable {
         BaseTable {
             table_ref_id: *table_ref_id,
             inner: RwLock::new(BaseTableInner::new(column_descs)),
