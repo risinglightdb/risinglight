@@ -52,14 +52,12 @@ impl BaseTable {
     }
 
     pub fn get_reader(&self) -> Result<RwLockReadGuard<BaseTableInner>, StorageError> {
-        self.inner.read().map_err(|e| {
-            StorageError::ReadTableError
-          })
+        self.inner.read().map_err(|e| StorageError::ReadTableError)
     }
 
     pub fn get_writer(&self) -> Result<RwLockWriteGuard<BaseTableInner>, StorageError> {
-        self.inner.write().map_err(|e| {
-            StorageError::WriteTableError
-          })
+        self.inner
+            .write()
+            .map_err(|e| StorageError::WriteTableError)
     }
 }

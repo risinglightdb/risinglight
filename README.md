@@ -1,8 +1,8 @@
-# lightdb
+# RisingLight
 
-[![CI](https://github.com/singularity-data/lightdb/workflows/CI/badge.svg?branch=main)](https://github.com/singularity-data/lightdb/actions)
+[![CI](https://github.com/singularity-data/risinglight/workflows/CI/badge.svg?branch=main)](https://github.com/singularity-data/risinglight/actions)
 
-LightDB is an OLAP database system for educational purpose.
+RisingLight is an OLAP database system for educational purpose.
 
 ### Quick Start
 
