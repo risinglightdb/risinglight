@@ -1,5 +1,6 @@
 use super::*;
 use crate::parser::{expression::Expression, table_ref::TableRef};
+use crate::types::DataType;
 use postgres_parser as pg;
 use std::convert::TryFrom;
 
@@ -10,6 +11,8 @@ pub struct SelectStmt {
     pub from_table: Option<TableRef>,
     pub where_clause: Option<Expression>,
     pub select_distinct: bool,
+    pub return_names: Vec<String>,
+    pub return_types: Vec<Option<DataType>>,
     // TODO: groupby
     // TODO: orderby
     pub limit: Option<Expression>,
@@ -33,6 +36,8 @@ impl TryFrom<&pg::Node> for SelectStmt {
         };
         let where_clause = parse_expr(&stmt.whereClause)?;
         let select_distinct = stmt.distinctClause.is_some();
+        let return_types = vec![];
+        let return_names = vec![];
         let limit = parse_expr(&stmt.limitCount)?;
         let offset = parse_expr(&stmt.limitOffset)?;
 
@@ -40,6 +45,8 @@ impl TryFrom<&pg::Node> for SelectStmt {
             select_list,
             from_table,
             where_clause,
+            return_names,
+            return_types,
             select_distinct,
             limit,
             offset,
@@ -98,6 +105,8 @@ mod tests {
                 ],
                 from_table: Some(TableRef::base("t".into())),
                 where_clause: None,
+                return_types: vec![],
+                return_names: vec![],
                 select_distinct: false,
                 limit: None,
                 offset: None,
@@ -116,6 +125,8 @@ mod tests {
                 ],
                 from_table: Some(TableRef::base("t".into())),
                 where_clause: None,
+                return_types: vec![],
+                return_names: vec![],
                 select_distinct: false,
                 limit: None,
                 offset: None,
@@ -154,12 +165,16 @@ mod tests {
                         from_table: Some(TableRef::base("t".into())),
                         where_clause: None,
                         select_distinct: false,
+                        return_names: vec![],
+                        return_types: vec![],
                         limit: None,
                         offset: None,
                     }),
                     alias: Some("foo".into()),
                     column_alias: vec!["a".into(), "b".into()],
                 })),
+                return_names: vec![],
+                return_types: vec![],
                 where_clause: None,
                 select_distinct: false,
                 limit: None,
@@ -183,6 +198,8 @@ mod tests {
                     Expression::column_ref("v3".into(), None),
                     Expression::constant(DataValue::Int32(1)),
                 )),
+                return_names: vec![],
+                return_types: vec![],
                 select_distinct: false,
                 limit: None,
                 offset: None,
@@ -206,6 +223,8 @@ mod tests {
                     ),
                 ],
                 from_table: Some(TableRef::base("s".into())),
+                return_names: vec![],
+                return_types: vec![],
                 where_clause: None,
                 select_distinct: false,
                 limit: None,

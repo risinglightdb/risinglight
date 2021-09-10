@@ -1,8 +1,10 @@
 use super::*;
-use crate::parser::ColumnRef;
 
-impl Bind for ColumnRef {
-    fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError> {
+use crate::parser::ColumnRef;
+use crate::types::{DataType, DataTypeKind};
+
+impl ColumnRef {
+    pub fn bind(&mut self, binder: &mut Binder) -> Result<DataType, BindError> {
         match &self.table_name {
             Some(name) => {
                 if !binder.context.regular_tables.contains_key(name) {
@@ -22,17 +24,16 @@ impl Bind for ColumnRef {
                     table_id: table_ref_id.table_id,
                     column_id: col.id(),
                 });
-
                 self.column_index = Some(record_regular_table_column(
                     binder,
                     name,
                     &self.column_name,
                     col.id(),
                 ));
-                Ok(())
+                Ok(col.datatype())
             }
             None => {
-                println!("Binding expression");
+                let mut data_type: Option<DataType> = None;
                 let mut is_matched: bool = false;
                 for (name, ref_id) in binder.context.regular_tables.iter() {
                     let table = binder.catalog.get_table(ref_id);
@@ -48,6 +49,7 @@ impl Bind for ColumnRef {
                             table_id: ref_id.table_id,
                             column_id: col.id(),
                         });
+                        data_type = Some(col.datatype());
                         self.table_name = Some(table.name().clone());
                     }
                 }
@@ -55,6 +57,7 @@ impl Bind for ColumnRef {
                 if !is_matched {
                     return Err(BindError::InvalidColumn(self.column_name.clone()));
                 }
+
                 self.column_index = Some(record_regular_table_column(
                     binder,
                     self.table_name.as_ref().unwrap(),
@@ -62,7 +65,7 @@ impl Bind for ColumnRef {
                     self.column_ref_id.unwrap().column_id,
                 ));
 
-                Ok(())
+                Ok(data_type.unwrap())
             }
         }
     }

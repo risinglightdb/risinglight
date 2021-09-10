@@ -20,6 +20,21 @@ pub struct Expression {
     pub(crate) return_type: Option<DataType>,
 }
 
+impl Expression {
+    pub fn get_name(&self) -> String {
+        match &self.alias {
+            Some(string) => string.clone(),
+            None => match &self.kind {
+                ExprKind::Constant(_) => "CONSTANT".to_string(),
+                ExprKind::ColumnRef(col_ref) => col_ref.column_name.clone(),
+                ExprKind::Star => "STAR".to_string(),
+                ExprKind::Comparison(comp) => "COMPARISION".to_string(),
+                ExprKind::TypeCast(type_cast) => "TYPECAST".to_string(),
+            },
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum ExprKind {
     Constant(DataValue),
