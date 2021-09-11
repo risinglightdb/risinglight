@@ -4,14 +4,20 @@ use crate::types::{ColumnId, DataType, DataValue};
 use postgres_parser as pg;
 use std::convert::{TryFrom, TryInto};
 
+mod aggregate;
 mod column_ref;
 mod comparison;
+mod conjunction;
 mod constant;
+mod operator;
 mod typecast;
 
-pub use self::column_ref::ColumnRef;
+pub use self::aggregate::*;
+pub use self::column_ref::*;
 pub use self::comparison::*;
-pub use self::typecast::TypeCast;
+pub use self::conjunction::*;
+pub use self::operator::*;
+pub use self::typecast::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Expression {
@@ -28,8 +34,11 @@ impl Expression {
                 ExprKind::Constant(_) => "CONSTANT".to_string(),
                 ExprKind::ColumnRef(col_ref) => col_ref.column_name.clone(),
                 ExprKind::Star => "STAR".to_string(),
-                ExprKind::Comparison(comp) => "COMPARISION".to_string(),
-                ExprKind::TypeCast(type_cast) => "TYPECAST".to_string(),
+                ExprKind::Comparison(_) => "COMPARISION".to_string(),
+                ExprKind::Operator(_) => "OPERATOR".to_string(),
+                ExprKind::TypeCast(_) => "TYPECAST".to_string(),
+                ExprKind::Aggregate(_) => "AGGREGATE".to_string(),
+                ExprKind::Conjunction(_) => "CONJUNCTION".to_string(),
             },
         }
     }
@@ -42,7 +51,10 @@ pub enum ExprKind {
     /// A (*) in the SELECT clause.
     Star,
     Comparison(Comparison),
+    Operator(Operator),
     TypeCast(TypeCast),
+    Aggregate(Aggregate),
+    Conjunction(Conjunction),
 }
 
 impl TryFrom<&pg::Node> for Expression {
@@ -54,7 +66,15 @@ impl TryFrom<&pg::Node> for Expression {
             pg::Node::A_Const(node) => node.try_into(),
             pg::Node::A_Expr(node) => node.try_into(),
             pg::Node::TypeCast(node) => node.try_into(),
-            _ => todo!("expression type"),
+            pg::Node::FuncCall(node) => node.try_into(),
+            pg::Node::BoolExpr(node) => node.try_into(),
+            _ => todo!("parse expression: {:#?}", node),
         }
     }
+}
+
+fn node_to_string(node: &pg::Node) -> Result<&String, ParseError> {
+    let v = try_match!(node, pg::Node::Value(v) => v, "value");
+    let s = try_match!(v.string, Some(s) => s, "string value");
+    Ok(s)
 }

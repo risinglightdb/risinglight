@@ -13,10 +13,23 @@ pub struct ColumnRef {
 }
 
 impl Expression {
-    pub const fn column_ref(column_name: String, table_name: Option<String>) -> Self {
+    pub const fn column_ref(column_name: String) -> Self {
         Expression {
             kind: ExprKind::ColumnRef(ColumnRef {
-                table_name,
+                column_name,
+                table_name: None,
+                column_ref_id: None,
+                column_index: None,
+            }),
+            alias: None,
+            return_type: None,
+        }
+    }
+
+    pub const fn column_ref2(column_name: String, table_name: String) -> Self {
+        Expression {
+            kind: ExprKind::ColumnRef(ColumnRef {
+                table_name: Some(table_name),
                 column_name,
                 column_ref_id: None,
                 column_index: None,
@@ -42,13 +55,13 @@ impl TryFrom<&pg::nodes::ColumnRef> for Expression {
         match node.fields.as_ref().unwrap().as_slice() {
             [pg::Node::A_Star(_)] => Ok(Self::star()),
             [pg::Node::Value(v)] => {
-                let column_name = v.string.as_ref().map(|s| s.to_lowercase()).unwrap();
-                Ok(Self::column_ref(column_name, None))
+                let column_name = v.string.as_ref().unwrap().to_lowercase();
+                Ok(Self::column_ref(column_name))
             }
             [pg::Node::Value(v1), pg::Node::Value(v2)] => {
-                let table_name = v1.string.as_ref().map(|s| s.to_lowercase());
-                let column_name = v2.string.as_ref().map(|s| s.to_lowercase()).unwrap();
-                Ok(Self::column_ref(column_name, table_name))
+                let table_name = v1.string.as_ref().unwrap().to_lowercase();
+                let column_name = v2.string.as_ref().unwrap().to_lowercase();
+                Ok(Self::column_ref2(column_name, table_name))
             }
             _ => todo!("unsupported column type"),
         }

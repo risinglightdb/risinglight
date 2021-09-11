@@ -24,10 +24,8 @@ impl TryFrom<&pg::nodes::TypeCast> for Expression {
     type Error = ParseError;
 
     fn try_from(node: &pg::nodes::TypeCast) -> Result<Self, Self::Error> {
-        let typename = node.typeName.as_ref().unwrap();
-        let names = typename.names.as_ref().unwrap();
-        let value = try_match!(names.last().unwrap(), pg::Node::Value(v) => v, "name");
-        let name = value.string.clone().unwrap();
+        let names = node.typeName.as_ref().unwrap().names.as_ref().unwrap();
+        let name = node_to_string(names.last().unwrap())?;
         let type_ = name
             .parse::<DataTypeKind>()
             .map_err(|_| ParseError::InvalidInput("type"))?;

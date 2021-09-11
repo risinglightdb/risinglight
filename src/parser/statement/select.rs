@@ -4,19 +4,19 @@ use crate::types::DataType;
 use postgres_parser as pg;
 use std::convert::TryFrom;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct SelectStmt {
     pub select_list: Vec<Expression>,
     // TODO: aggregates: Vec<Expression>,
     pub from_table: Option<TableRef>,
     pub where_clause: Option<Expression>,
     pub select_distinct: bool,
-    pub return_names: Vec<String>,
-    pub return_types: Vec<Option<DataType>>,
-    // TODO: groupby
-    // TODO: orderby
+    pub groupby: Option<GroupBy>,
+    pub orderby: Option<OrderBy>,
     pub limit: Option<Expression>,
     pub offset: Option<Expression>,
+    pub return_names: Vec<String>,
+    pub return_types: Vec<Option<DataType>>,
 }
 
 impl TryFrom<&pg::Node> for SelectStmt {
@@ -36,8 +36,14 @@ impl TryFrom<&pg::Node> for SelectStmt {
         };
         let where_clause = parse_expr(&stmt.whereClause)?;
         let select_distinct = stmt.distinctClause.is_some();
-        let return_types = vec![];
-        let return_names = vec![];
+        let groupby = match &stmt.groupClause {
+            Some(list) => Some(GroupBy::parse(list, &stmt.havingClause)?),
+            None => None,
+        };
+        let orderby = match &stmt.sortClause {
+            Some(list) => Some(OrderBy::try_from(list.as_slice())?),
+            None => None,
+        };
         let limit = parse_expr(&stmt.limitCount)?;
         let offset = parse_expr(&stmt.limitOffset)?;
 
@@ -45,11 +51,13 @@ impl TryFrom<&pg::Node> for SelectStmt {
             select_list,
             from_table,
             where_clause,
-            return_names,
-            return_types,
             select_distinct,
+            groupby,
+            orderby,
             limit,
             offset,
+            return_names: vec![],
+            return_types: vec![],
         })
     }
 }
@@ -83,6 +91,61 @@ fn get_from_list(list: &[pg::Node]) -> Result<TableRef, ParseError> {
     TableRef::try_from(&list[0])
 }
 
+#[derive(Debug, PartialEq)]
+pub struct GroupBy {
+    pub groups: Vec<Expression>,
+    pub having: Option<Expression>,
+}
+
+impl GroupBy {
+    fn parse(list: &[pg::Node], having: &Option<Box<pg::Node>>) -> Result<GroupBy, ParseError> {
+        let groups = list
+            .iter()
+            .map(Expression::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+        let having = parse_expr(having)?;
+        Ok(GroupBy { groups, having })
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct OrderBy {
+    pub list: Vec<(OrderByKind, Expression)>,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum OrderByKind {
+    Ascending,
+    Descending,
+}
+
+impl From<pg::sys::SortByDir> for OrderByKind {
+    fn from(sort: pg::sys::SortByDir) -> Self {
+        use pg::sys::SortByDir as Sort;
+        match sort {
+            Sort::SORTBY_DESC => Self::Descending,
+            Sort::SORTBY_ASC | Sort::SORTBY_DEFAULT => Self::Ascending,
+            _ => todo!("unsupported order by"),
+        }
+    }
+}
+
+impl TryFrom<&[pg::Node]> for OrderBy {
+    type Error = ParseError;
+
+    fn try_from(list: &[pg::Node]) -> Result<Self, Self::Error> {
+        let mut ret = vec![];
+        ret.reserve(list.len());
+        for node in list {
+            let sort = try_match!(node, pg::Node::SortBy(s) => s, "sort by");
+            let kind = OrderByKind::from(sort.sortby_dir);
+            let expr = Expression::try_from(sort.node.as_ref().unwrap().as_ref())?;
+            ret.push((kind, expr));
+        }
+        Ok(OrderBy { list: ret })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -99,17 +162,12 @@ mod tests {
             parse("select v1, t.v2, * from t").unwrap(),
             SelectStmt {
                 select_list: vec![
-                    Expression::column_ref("v1".into(), None),
-                    Expression::column_ref("v2".into(), Some("t".into())),
+                    Expression::column_ref("v1".into()),
+                    Expression::column_ref2("v2".into(), "t".into()),
                     Expression::star(),
                 ],
                 from_table: Some(TableRef::base("t".into())),
-                where_clause: None,
-                return_types: vec![],
-                return_names: vec![],
-                select_distinct: false,
-                limit: None,
-                offset: None,
+                ..Default::default()
             }
         );
     }
@@ -124,12 +182,7 @@ mod tests {
                     Expression::constant(DataValue::Float64(1.1)),
                 ],
                 from_table: Some(TableRef::base("t".into())),
-                where_clause: None,
-                return_types: vec![],
-                return_names: vec![],
-                select_distinct: false,
-                limit: None,
-                offset: None,
+                ..Default::default()
             }
         );
     }
@@ -156,29 +209,19 @@ mod tests {
             parse("select v1, v2 from (select v1 from t) as foo(a, b)").unwrap(),
             SelectStmt {
                 select_list: vec![
-                    Expression::column_ref("v1".into(), None),
-                    Expression::column_ref("v2".into(), None),
+                    Expression::column_ref("v1".into()),
+                    Expression::column_ref("v2".into()),
                 ],
                 from_table: Some(TableRef::Subquery(SubqueryRef {
                     subquery: Box::new(SelectStmt {
-                        select_list: vec![Expression::column_ref("v1".into(), None)],
+                        select_list: vec![Expression::column_ref("v1".into())],
                         from_table: Some(TableRef::base("t".into())),
-                        where_clause: None,
-                        select_distinct: false,
-                        return_names: vec![],
-                        return_types: vec![],
-                        limit: None,
-                        offset: None,
+                        ..Default::default()
                     }),
                     alias: Some("foo".into()),
                     column_alias: vec!["a".into(), "b".into()],
                 })),
-                return_names: vec![],
-                return_types: vec![],
-                where_clause: None,
-                select_distinct: false,
-                limit: None,
-                offset: None,
+                ..Default::default()
             }
         );
     }
@@ -189,20 +232,16 @@ mod tests {
             parse("select v1, v2 from s where v3 = 1").unwrap(),
             SelectStmt {
                 select_list: vec![
-                    Expression::column_ref("v1".into(), None),
-                    Expression::column_ref("v2".into(), None),
+                    Expression::column_ref("v1".into()),
+                    Expression::column_ref("v2".into()),
                 ],
                 from_table: Some(TableRef::base("s".into())),
                 where_clause: Some(Expression::comparison(
-                    ComparisonKind::Equal,
-                    Expression::column_ref("v3".into(), None),
+                    CmpKind::Equal,
+                    Expression::column_ref("v3".into()),
                     Expression::constant(DataValue::Int32(1)),
                 )),
-                return_names: vec![],
-                return_types: vec![],
-                select_distinct: false,
-                limit: None,
-                offset: None,
+                ..Default::default()
             }
         );
     }
@@ -215,20 +254,133 @@ mod tests {
                 select_list: vec![
                     Expression::typecast(
                         DataTypeKind::Float64,
-                        Expression::column_ref("v1".into(), None)
+                        Expression::column_ref("v1".into())
                     ),
-                    Expression::typecast(
-                        DataTypeKind::Int32,
-                        Expression::column_ref("v2".into(), None)
-                    ),
+                    Expression::typecast(DataTypeKind::Int32, Expression::column_ref("v2".into())),
                 ],
                 from_table: Some(TableRef::base("s".into())),
-                return_names: vec![],
-                return_types: vec![],
-                where_clause: None,
-                select_distinct: false,
-                limit: None,
-                offset: None,
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn aggregate() {
+        assert_eq!(
+            parse("select min(v1) from s").unwrap(),
+            SelectStmt {
+                select_list: vec![Expression::aggregate(
+                    AggregateKind::Min,
+                    Expression::column_ref("v1".into()),
+                )],
+                from_table: Some(TableRef::base("s".into())),
+                ..Default::default()
+            }
+        );
+        assert_eq!(
+            parse("select count(*) from s").unwrap(),
+            SelectStmt {
+                select_list: vec![Expression::aggregate(
+                    AggregateKind::Count,
+                    Expression::star(),
+                )],
+                from_table: Some(TableRef::base("s".into())),
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn groupby() {
+        assert_eq!(
+            parse("select v1 from s group by v1").unwrap(),
+            SelectStmt {
+                select_list: vec![Expression::column_ref("v1".into())],
+                from_table: Some(TableRef::base("s".into())),
+                groupby: Some(GroupBy {
+                    groups: vec![Expression::column_ref("v1".into())],
+                    having: None,
+                }),
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn orderby() {
+        assert_eq!(
+            parse("select v1 from s order by v1").unwrap(),
+            SelectStmt {
+                select_list: vec![Expression::column_ref("v1".into())],
+                from_table: Some(TableRef::base("s".into())),
+                orderby: Some(OrderBy {
+                    list: vec![(OrderByKind::Ascending, Expression::column_ref("v1".into()))],
+                }),
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn between() {
+        assert_eq!(
+            parse("select v from t where v between 3 and 10").unwrap(),
+            SelectStmt {
+                select_list: vec![Expression::column_ref("v".into())],
+                from_table: Some(TableRef::base("t".into())),
+                where_clause: Some(Expression::and(
+                    Expression::comparison(
+                        CmpKind::GreaterThanOrEqual,
+                        Expression::column_ref("v".into()),
+                        Expression::constant(DataValue::Int32(3)),
+                    ),
+                    Expression::comparison(
+                        CmpKind::LessThanOrEqual,
+                        Expression::column_ref("v".into()),
+                        Expression::constant(DataValue::Int32(10)),
+                    ),
+                )),
+                ..Default::default()
+            }
+        );
+        assert_eq!(
+            parse("select v from t where v not between 3 and 10").unwrap(),
+            SelectStmt {
+                select_list: vec![Expression::column_ref("v".into())],
+                from_table: Some(TableRef::base("t".into())),
+                where_clause: Some(Expression::not(Expression::and(
+                    Expression::comparison(
+                        CmpKind::GreaterThanOrEqual,
+                        Expression::column_ref("v".into()),
+                        Expression::constant(DataValue::Int32(3)),
+                    ),
+                    Expression::comparison(
+                        CmpKind::LessThanOrEqual,
+                        Expression::column_ref("v".into()),
+                        Expression::constant(DataValue::Int32(10)),
+                    ),
+                ))),
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn operator() {
+        assert_eq!(
+            parse("select v1 + v2 * v3 from s").unwrap(),
+            SelectStmt {
+                select_list: vec![Expression::operator(
+                    OpKind::Add,
+                    Expression::column_ref("v1".into()),
+                    Expression::operator(
+                        OpKind::Mul,
+                        Expression::column_ref("v2".into()),
+                        Expression::column_ref("v3".into())
+                    )
+                )],
+                from_table: Some(TableRef::base("s".into())),
+                ..Default::default()
             }
         );
     }
