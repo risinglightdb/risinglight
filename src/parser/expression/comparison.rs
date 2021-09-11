@@ -60,9 +60,7 @@ impl TryFrom<&pg::nodes::A_Expr> for Expression {
     type Error = ParseError;
 
     fn try_from(node: &pg::nodes::A_Expr) -> Result<Self, Self::Error> {
-        let value =
-            try_match!(node.name.as_ref().unwrap()[0], pg::Node::Value(v) => v, "expr name");
-        let name = value.string.clone().unwrap();
+        let name = node_to_string(&node.name.as_ref().unwrap()[0])?;
         use pg::sys::A_Expr_Kind as Kind;
         match &node.kind {
             Kind::AEXPR_DISTINCT => Ok(Expression::comparison(

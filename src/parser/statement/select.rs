@@ -4,7 +4,7 @@ use crate::types::DataType;
 use postgres_parser as pg;
 use std::convert::TryFrom;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct SelectStmt {
     pub select_list: Vec<Expression>,
     // TODO: aggregates: Vec<Expression>,
@@ -104,12 +104,7 @@ mod tests {
                     Expression::star(),
                 ],
                 from_table: Some(TableRef::base("t".into())),
-                where_clause: None,
-                return_types: vec![],
-                return_names: vec![],
-                select_distinct: false,
-                limit: None,
-                offset: None,
+                ..Default::default()
             }
         );
     }
@@ -124,12 +119,7 @@ mod tests {
                     Expression::constant(DataValue::Float64(1.1)),
                 ],
                 from_table: Some(TableRef::base("t".into())),
-                where_clause: None,
-                return_types: vec![],
-                return_names: vec![],
-                select_distinct: false,
-                limit: None,
-                offset: None,
+                ..Default::default()
             }
         );
     }
@@ -163,22 +153,12 @@ mod tests {
                     subquery: Box::new(SelectStmt {
                         select_list: vec![Expression::column_ref("v1".into(), None)],
                         from_table: Some(TableRef::base("t".into())),
-                        where_clause: None,
-                        select_distinct: false,
-                        return_names: vec![],
-                        return_types: vec![],
-                        limit: None,
-                        offset: None,
+                        ..Default::default()
                     }),
                     alias: Some("foo".into()),
                     column_alias: vec!["a".into(), "b".into()],
                 })),
-                return_names: vec![],
-                return_types: vec![],
-                where_clause: None,
-                select_distinct: false,
-                limit: None,
-                offset: None,
+                ..Default::default()
             }
         );
     }
@@ -198,11 +178,7 @@ mod tests {
                     Expression::column_ref("v3".into(), None),
                     Expression::constant(DataValue::Int32(1)),
                 )),
-                return_names: vec![],
-                return_types: vec![],
-                select_distinct: false,
-                limit: None,
-                offset: None,
+                ..Default::default()
             }
         );
     }
@@ -223,12 +199,33 @@ mod tests {
                     ),
                 ],
                 from_table: Some(TableRef::base("s".into())),
-                return_names: vec![],
-                return_types: vec![],
-                where_clause: None,
-                select_distinct: false,
-                limit: None,
-                offset: None,
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn aggregate() {
+        assert_eq!(
+            parse("select min(v1) from s").unwrap(),
+            SelectStmt {
+                select_list: vec![Expression::aggregate(
+                    AggregateKind::Min,
+                    Expression::column_ref("v1".into(), None),
+                )],
+                from_table: Some(TableRef::base("s".into())),
+                ..Default::default()
+            }
+        );
+        assert_eq!(
+            parse("select count(*) from s").unwrap(),
+            SelectStmt {
+                select_list: vec![Expression::aggregate(
+                    AggregateKind::Count,
+                    Expression::star(),
+                )],
+                from_table: Some(TableRef::base("s".into())),
+                ..Default::default()
             }
         );
     }
