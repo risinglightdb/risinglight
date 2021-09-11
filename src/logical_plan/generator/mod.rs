@@ -105,7 +105,6 @@ mod tests {
     use crate::catalog::{ColumnCatalog, ColumnDesc, ColumnRefId, RootCatalog, TableRefId};
     use crate::parser::{ColumnRef, ExprKind, Expression, SQLStatement};
     use crate::types::{DataType, DataTypeKind};
-
     use std::sync::Arc;
 
     #[test]
