@@ -7,12 +7,14 @@ use std::convert::{TryFrom, TryInto};
 mod aggregate;
 mod column_ref;
 mod comparison;
+mod conjunction;
 mod constant;
 mod typecast;
 
 pub use self::aggregate::*;
 pub use self::column_ref::*;
 pub use self::comparison::*;
+pub use self::conjunction::*;
 pub use self::typecast::*;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -33,6 +35,7 @@ impl Expression {
                 ExprKind::Comparison(_) => "COMPARISION".to_string(),
                 ExprKind::TypeCast(_) => "TYPECAST".to_string(),
                 ExprKind::Aggregate(_) => "AGGREGATE".to_string(),
+                ExprKind::Conjunction(_) => "CONJUNCTION".to_string(),
             },
         }
     }
@@ -47,6 +50,7 @@ pub enum ExprKind {
     Comparison(Comparison),
     TypeCast(TypeCast),
     Aggregate(Aggregate),
+    Conjunction(Conjunction),
 }
 
 impl TryFrom<&pg::Node> for Expression {
@@ -59,6 +63,7 @@ impl TryFrom<&pg::Node> for Expression {
             pg::Node::A_Expr(node) => node.try_into(),
             pg::Node::TypeCast(node) => node.try_into(),
             pg::Node::FuncCall(node) => node.try_into(),
+            pg::Node::BoolExpr(node) => node.try_into(),
             _ => todo!("expression type"),
         }
     }

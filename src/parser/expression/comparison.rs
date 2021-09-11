@@ -6,13 +6,13 @@ use super::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Comparison {
-    pub kind: ComparisonKind,
+    pub kind: CmpKind,
     pub left: Box<Expression>,
     pub right: Box<Expression>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum ComparisonKind {
+pub enum CmpKind {
     Equal,
     NotEqual,
     LessThan,
@@ -24,7 +24,7 @@ pub enum ComparisonKind {
     IsDistinctFrom,
 }
 
-impl FromStr for ComparisonKind {
+impl FromStr for CmpKind {
     type Err = ParseError;
 
     fn from_str(op: &str) -> Result<Self, Self::Err> {
@@ -43,7 +43,7 @@ impl FromStr for ComparisonKind {
 }
 
 impl Expression {
-    pub fn comparison(kind: ComparisonKind, left: Expression, right: Expression) -> Self {
+    pub fn comparison(kind: CmpKind, left: Expression, right: Expression) -> Self {
         Expression {
             kind: ExprKind::Comparison(Comparison {
                 kind,
@@ -53,6 +53,12 @@ impl Expression {
             alias: None,
             return_type: Some(DataTypeKind::Bool.not_null()),
         }
+    }
+
+    pub fn between(value: Expression, left: Expression, right: Expression) -> Self {
+        let l_comp = Expression::comparison(CmpKind::GreaterThanOrEqual, value.clone(), left);
+        let r_comp = Expression::comparison(CmpKind::LessThanOrEqual, value, right);
+        Expression::and(l_comp, r_comp)
     }
 }
 
@@ -64,16 +70,30 @@ impl TryFrom<&pg::nodes::A_Expr> for Expression {
         use pg::sys::A_Expr_Kind as Kind;
         match &node.kind {
             Kind::AEXPR_DISTINCT => Ok(Expression::comparison(
-                ComparisonKind::IsDistinctFrom,
+                CmpKind::IsDistinctFrom,
                 Expression::try_from(node.lexpr.as_ref().unwrap().as_ref())?,
                 Expression::try_from(node.rexpr.as_ref().unwrap().as_ref())?,
             )),
             Kind::AEXPR_IN => todo!("in"),
-            Kind::AEXPR_BETWEEN | Kind::AEXPR_NOT_BETWEEN => todo!("between"),
+            Kind::AEXPR_BETWEEN | Kind::AEXPR_NOT_BETWEEN => {
+                let args = try_match!(node.rexpr.as_ref().unwrap().as_ref(), pg::Node::List(l) => l, "between list");
+                let (left, right) = match args.as_slice() {
+                    [l, r] => (l, r),
+                    _ => return Err(ParseError::InvalidInput("between need 2 args")),
+                };
+                let value = Expression::try_from(node.lexpr.as_ref().unwrap().as_ref())?;
+                let left = Expression::try_from(left)?;
+                let right = Expression::try_from(right)?;
+                let comp = Expression::between(value, left, right);
+                if node.kind == Kind::AEXPR_BETWEEN {
+                    return Ok(comp);
+                }
+                return Ok(Expression::not(comp));
+            }
             _ => {
                 let left = Expression::try_from(node.lexpr.as_ref().unwrap().as_ref())?;
                 let right = Expression::try_from(node.rexpr.as_ref().unwrap().as_ref())?;
-                if let Ok(kind) = name.parse::<ComparisonKind>() {
+                if let Ok(kind) = name.parse::<CmpKind>() {
                     return Ok(Expression::comparison(kind, left, right));
                 }
                 todo!("operator");

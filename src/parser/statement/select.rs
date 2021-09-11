@@ -237,7 +237,7 @@ mod tests {
                 ],
                 from_table: Some(TableRef::base("s".into())),
                 where_clause: Some(Expression::comparison(
-                    ComparisonKind::Equal,
+                    CmpKind::Equal,
                     Expression::column_ref("v3".into(), None),
                     Expression::constant(DataValue::Int32(1)),
                 )),
@@ -322,6 +322,50 @@ mod tests {
                         Expression::column_ref("v1".into(), None),
                     )],
                 }),
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn between() {
+        assert_eq!(
+            parse("select v from t where v between 3 and 10").unwrap(),
+            SelectStmt {
+                select_list: vec![Expression::column_ref("v".into(), None)],
+                from_table: Some(TableRef::base("t".into())),
+                where_clause: Some(Expression::and(
+                    Expression::comparison(
+                        CmpKind::GreaterThanOrEqual,
+                        Expression::column_ref("v".into(), None),
+                        Expression::constant(DataValue::Int32(3)),
+                    ),
+                    Expression::comparison(
+                        CmpKind::LessThanOrEqual,
+                        Expression::column_ref("v".into(), None),
+                        Expression::constant(DataValue::Int32(10)),
+                    ),
+                )),
+                ..Default::default()
+            }
+        );
+        assert_eq!(
+            parse("select v from t where v not between 3 and 10").unwrap(),
+            SelectStmt {
+                select_list: vec![Expression::column_ref("v".into(), None)],
+                from_table: Some(TableRef::base("t".into())),
+                where_clause: Some(Expression::not(Expression::and(
+                    Expression::comparison(
+                        CmpKind::GreaterThanOrEqual,
+                        Expression::column_ref("v".into(), None),
+                        Expression::constant(DataValue::Int32(3)),
+                    ),
+                    Expression::comparison(
+                        CmpKind::LessThanOrEqual,
+                        Expression::column_ref("v".into(), None),
+                        Expression::constant(DataValue::Int32(10)),
+                    ),
+                ))),
                 ..Default::default()
             }
         );
