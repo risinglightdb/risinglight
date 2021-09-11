@@ -162,8 +162,8 @@ mod tests {
             parse("select v1, t.v2, * from t").unwrap(),
             SelectStmt {
                 select_list: vec![
-                    Expression::column_ref("v1".into(), None),
-                    Expression::column_ref("v2".into(), Some("t".into())),
+                    Expression::column_ref("v1".into()),
+                    Expression::column_ref2("v2".into(), "t".into()),
                     Expression::star(),
                 ],
                 from_table: Some(TableRef::base("t".into())),
@@ -209,12 +209,12 @@ mod tests {
             parse("select v1, v2 from (select v1 from t) as foo(a, b)").unwrap(),
             SelectStmt {
                 select_list: vec![
-                    Expression::column_ref("v1".into(), None),
-                    Expression::column_ref("v2".into(), None),
+                    Expression::column_ref("v1".into()),
+                    Expression::column_ref("v2".into()),
                 ],
                 from_table: Some(TableRef::Subquery(SubqueryRef {
                     subquery: Box::new(SelectStmt {
-                        select_list: vec![Expression::column_ref("v1".into(), None)],
+                        select_list: vec![Expression::column_ref("v1".into())],
                         from_table: Some(TableRef::base("t".into())),
                         ..Default::default()
                     }),
@@ -232,13 +232,13 @@ mod tests {
             parse("select v1, v2 from s where v3 = 1").unwrap(),
             SelectStmt {
                 select_list: vec![
-                    Expression::column_ref("v1".into(), None),
-                    Expression::column_ref("v2".into(), None),
+                    Expression::column_ref("v1".into()),
+                    Expression::column_ref("v2".into()),
                 ],
                 from_table: Some(TableRef::base("s".into())),
                 where_clause: Some(Expression::comparison(
                     CmpKind::Equal,
-                    Expression::column_ref("v3".into(), None),
+                    Expression::column_ref("v3".into()),
                     Expression::constant(DataValue::Int32(1)),
                 )),
                 ..Default::default()
@@ -254,12 +254,9 @@ mod tests {
                 select_list: vec![
                     Expression::typecast(
                         DataTypeKind::Float64,
-                        Expression::column_ref("v1".into(), None)
+                        Expression::column_ref("v1".into())
                     ),
-                    Expression::typecast(
-                        DataTypeKind::Int32,
-                        Expression::column_ref("v2".into(), None)
-                    ),
+                    Expression::typecast(DataTypeKind::Int32, Expression::column_ref("v2".into())),
                 ],
                 from_table: Some(TableRef::base("s".into())),
                 ..Default::default()
@@ -274,7 +271,7 @@ mod tests {
             SelectStmt {
                 select_list: vec![Expression::aggregate(
                     AggregateKind::Min,
-                    Expression::column_ref("v1".into(), None),
+                    Expression::column_ref("v1".into()),
                 )],
                 from_table: Some(TableRef::base("s".into())),
                 ..Default::default()
@@ -298,10 +295,10 @@ mod tests {
         assert_eq!(
             parse("select v1 from s group by v1").unwrap(),
             SelectStmt {
-                select_list: vec![Expression::column_ref("v1".into(), None)],
+                select_list: vec![Expression::column_ref("v1".into())],
                 from_table: Some(TableRef::base("s".into())),
                 groupby: Some(GroupBy {
-                    groups: vec![Expression::column_ref("v1".into(), None)],
+                    groups: vec![Expression::column_ref("v1".into())],
                     having: None,
                 }),
                 ..Default::default()
@@ -314,13 +311,10 @@ mod tests {
         assert_eq!(
             parse("select v1 from s order by v1").unwrap(),
             SelectStmt {
-                select_list: vec![Expression::column_ref("v1".into(), None)],
+                select_list: vec![Expression::column_ref("v1".into())],
                 from_table: Some(TableRef::base("s".into())),
                 orderby: Some(OrderBy {
-                    list: vec![(
-                        OrderByKind::Ascending,
-                        Expression::column_ref("v1".into(), None),
-                    )],
+                    list: vec![(OrderByKind::Ascending, Expression::column_ref("v1".into()))],
                 }),
                 ..Default::default()
             }
@@ -332,17 +326,17 @@ mod tests {
         assert_eq!(
             parse("select v from t where v between 3 and 10").unwrap(),
             SelectStmt {
-                select_list: vec![Expression::column_ref("v".into(), None)],
+                select_list: vec![Expression::column_ref("v".into())],
                 from_table: Some(TableRef::base("t".into())),
                 where_clause: Some(Expression::and(
                     Expression::comparison(
                         CmpKind::GreaterThanOrEqual,
-                        Expression::column_ref("v".into(), None),
+                        Expression::column_ref("v".into()),
                         Expression::constant(DataValue::Int32(3)),
                     ),
                     Expression::comparison(
                         CmpKind::LessThanOrEqual,
-                        Expression::column_ref("v".into(), None),
+                        Expression::column_ref("v".into()),
                         Expression::constant(DataValue::Int32(10)),
                     ),
                 )),
@@ -352,17 +346,17 @@ mod tests {
         assert_eq!(
             parse("select v from t where v not between 3 and 10").unwrap(),
             SelectStmt {
-                select_list: vec![Expression::column_ref("v".into(), None)],
+                select_list: vec![Expression::column_ref("v".into())],
                 from_table: Some(TableRef::base("t".into())),
                 where_clause: Some(Expression::not(Expression::and(
                     Expression::comparison(
                         CmpKind::GreaterThanOrEqual,
-                        Expression::column_ref("v".into(), None),
+                        Expression::column_ref("v".into()),
                         Expression::constant(DataValue::Int32(3)),
                     ),
                     Expression::comparison(
                         CmpKind::LessThanOrEqual,
-                        Expression::column_ref("v".into(), None),
+                        Expression::column_ref("v".into()),
                         Expression::constant(DataValue::Int32(10)),
                     ),
                 ))),
