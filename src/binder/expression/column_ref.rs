@@ -1,7 +1,7 @@
 use super::*;
 
 use crate::parser::ColumnRef;
-use crate::types::{DataType, DataTypeKind};
+use crate::types::DataType;
 
 impl ColumnRef {
     pub fn bind(&mut self, binder: &mut Binder) -> Result<DataType, BindError> {

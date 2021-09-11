@@ -9,11 +9,11 @@ pub struct PhysicalPlanGenerator {}
 // We build the physical plan by copying content from logical plan,
 // we may implment moving content in the future.
 impl PhysicalPlanGenerator {
-    fn new() -> PhysicalPlanGenerator {
+    pub fn new() -> PhysicalPlanGenerator {
         PhysicalPlanGenerator {}
     }
 
-    fn generate_physical_plan(
+    pub fn generate_physical_plan(
         &self,
         plan: &LogicalPlan,
     ) -> Result<PhysicalPlan, PhysicalPlanError> {
@@ -28,7 +28,7 @@ impl PhysicalPlanGenerator {
         }
     }
 
-    fn generate_create_table_physical_plan(
+    pub fn generate_create_table_physical_plan(
         &self,
         plan: &CreateTableLogicalPlan,
     ) -> Result<PhysicalPlan, PhysicalPlanError> {
@@ -40,7 +40,7 @@ impl PhysicalPlanGenerator {
         }))
     }
 
-    fn generate_insert_physical_plan(
+    pub fn generate_insert_physical_plan(
         &self,
         plan: &InsertLogicalPlan,
     ) -> Result<PhysicalPlan, PhysicalPlanError> {
@@ -57,7 +57,7 @@ impl PhysicalPlanGenerator {
         Ok(PhysicalPlan::Insert(insert_plan))
     }
 
-    fn generate_projection_plan(
+    pub fn generate_projection_plan(
         &self,
         plan: &ProjectionLogicalPlan,
     ) -> Result<PhysicalPlan, PhysicalPlanError> {
@@ -71,7 +71,7 @@ impl PhysicalPlanGenerator {
         Ok(PhysicalPlan::Projection(proj_plan))
     }
 
-    fn generate_seq_scan_physical_plan(
+    pub fn generate_seq_scan_physical_plan(
         &self,
         plan: &SeqScanLogicalPlan,
     ) -> Result<PhysicalPlan, PhysicalPlanError> {
@@ -86,7 +86,7 @@ impl PhysicalPlanGenerator {
 mod tests {
     use super::*;
     use crate::binder::{Bind, Binder};
-    use crate::catalog::{ColumnDesc, ColumnRefId, RootCatalog, TableRefId};
+    use crate::catalog::{ColumnCatalog, ColumnDesc, ColumnRefId, RootCatalog, TableRefId};
     use crate::logical_plan::LogicalPlanGenerator;
     use crate::parser::{BaseTableRef, ColumnRef, ExprKind, Expression, SQLStatement};
     use crate::physical_plan::PhysicalPlanGenerator;
@@ -103,10 +103,17 @@ mod tests {
         schema
             .add_table(
                 "t".into(),
-                vec!["a".into(), "b".into()],
                 vec![
-                    ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
-                    ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                    ColumnCatalog::new(
+                        0,
+                        "a".into(),
+                        ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                    ),
+                    ColumnCatalog::new(
+                        1,
+                        "b".into(),
+                        ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                    ),
                 ],
                 false,
             )

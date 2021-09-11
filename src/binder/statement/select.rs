@@ -1,7 +1,6 @@
 use super::*;
 use crate::catalog::{DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
-use crate::parser::{ExprKind, Expression, SelectStmt, TableRef};
-use crate::types::{ColumnId, DataType};
+use crate::parser::{SelectStmt, TableRef};
 
 impl Bind for SelectStmt {
     fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError> {
@@ -41,7 +40,7 @@ impl Bind for SelectStmt {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::catalog::{ColumnDesc, RootCatalog};
+    use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog};
     use crate::parser::{BaseTableRef, SQLStatement};
     use crate::types::{DataType, DataTypeKind};
     use std::sync::Arc;
@@ -56,10 +55,17 @@ mod tests {
         schema
             .add_table(
                 "t".into(),
-                vec!["a".into(), "b".into()],
                 vec![
-                    ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
-                    ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                    ColumnCatalog::new(
+                        0,
+                        "a".into(),
+                        ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                    ),
+                    ColumnCatalog::new(
+                        1,
+                        "b".into(),
+                        ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                    ),
                 ],
                 false,
             )

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 pub use self::column::*;
 pub use self::database::*;
 pub use self::root::*;
@@ -13,6 +15,7 @@ mod root;
 mod schema;
 mod table;
 
+pub type RootCatalogRef = Arc<RootCatalog>;
 use crate::types::*;
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]

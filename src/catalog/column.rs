@@ -57,6 +57,10 @@ impl ColumnCatalog {
         self.id
     }
 
+    pub fn set_id(&mut self, id: ColumnId) {
+        self.id = id
+    }
+
     pub fn name(&self) -> &str {
         &self.name
     }

@@ -1,7 +1,7 @@
 use super::*;
 use crate::types::{ColumnId, DataType, DataTypeKind, TableId};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 pub struct TableCatalog {
     id: TableId,
@@ -21,11 +21,9 @@ impl TableCatalog {
     pub fn new(
         id: TableId,
         name: String,
-        column_names: Vec<String>,
-        columns: Vec<ColumnDesc>,
+        columns: Vec<ColumnCatalog>,
         is_materialized_view: bool,
     ) -> TableCatalog {
-        assert_eq!(column_names.len(), columns.len());
         let table_catalog = TableCatalog {
             id,
             inner: Mutex::new(Inner {
@@ -36,23 +34,27 @@ impl TableCatalog {
                 next_column_id: 0,
             }),
         };
-        for (name, desc) in column_names.into_iter().zip(columns.into_iter()) {
-            table_catalog.add_column(name, desc).unwrap();
+        for col_catalog in columns.into_iter() {
+            table_catalog.add_column(col_catalog).unwrap();
         }
         table_catalog
     }
 
-    pub fn add_column(&self, name: String, desc: ColumnDesc) -> Result<ColumnId, CatalogError> {
+    pub fn add_column(&self, col_catalog: ColumnCatalog) -> Result<ColumnId, CatalogError> {
         let mut inner = self.inner.lock().unwrap();
-        if inner.column_idxs.contains_key(&name) {
-            return Err(CatalogError::Duplicated("column", name));
+        if inner.column_idxs.contains_key(col_catalog.name()) {
+            return Err(CatalogError::Duplicated(
+                "column",
+                col_catalog.name().into(),
+            ));
         }
-        let column_id = inner.next_column_id;
         inner.next_column_id += 1;
-        let col_catalog = ColumnCatalog::new(column_id, name.clone(), desc);
-        inner.column_idxs.insert(name, column_id);
-        inner.columns.insert(column_id, col_catalog);
-        Ok(column_id)
+        let id = col_catalog.id();
+        inner
+            .column_idxs
+            .insert(col_catalog.name().to_string(), col_catalog.id());
+        inner.columns.insert(id, col_catalog);
+        Ok(id)
     }
 
     pub fn contains_column(&self, name: &str) -> bool {
@@ -99,12 +101,19 @@ mod tests {
     use super::*;
     #[test]
     fn test_table_catalog() {
-        let col0 = ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false);
-        let col1 = ColumnDesc::new(DataType::new(DataTypeKind::Bool, false), false);
+        let col0 = ColumnCatalog::new(
+            0,
+            "a".into(),
+            ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+        );
+        let col1 = ColumnCatalog::new(
+            1,
+            "b".into(),
+            ColumnDesc::new(DataType::new(DataTypeKind::Bool, false), false),
+        );
 
-        let col_names = vec![String::from("a"), String::from("b")];
-        let col_descs = vec![col0, col1];
-        let table_catalog = TableCatalog::new(0, String::from("t"), col_names, col_descs, false);
+        let col_catalogs = vec![col0, col1];
+        let table_catalog = TableCatalog::new(0, String::from("t"), col_catalogs, false);
 
         assert_eq!(table_catalog.contains_column("c"), false);
         assert_eq!(table_catalog.contains_column("a"), true);

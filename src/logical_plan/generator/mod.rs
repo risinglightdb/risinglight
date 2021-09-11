@@ -1,8 +1,6 @@
 use super::*;
 use crate::parser::Expression;
 use crate::parser::{CreateTableStmt, InsertStmt, SQLStatement, SelectStmt, TableRef};
-use std::convert::TryFrom;
-use std::sync::Arc;
 
 pub struct LogicalPlanGenerator {}
 
@@ -104,8 +102,8 @@ impl LogicalPlanGenerator {
 mod tests {
     use super::*;
     use crate::binder::{Bind, Binder};
-    use crate::catalog::{ColumnDesc, ColumnRefId, RootCatalog, TableRefId};
-    use crate::parser::{BaseTableRef, ColumnRef, ExprKind, Expression, SQLStatement};
+    use crate::catalog::{ColumnCatalog, ColumnDesc, ColumnRefId, RootCatalog, TableRefId};
+    use crate::parser::{ColumnRef, ExprKind, Expression, SQLStatement};
     use crate::types::{DataType, DataTypeKind};
 
     use std::sync::Arc;
@@ -120,10 +118,17 @@ mod tests {
         schema
             .add_table(
                 "t".into(),
-                vec!["a".into(), "b".into()],
                 vec![
-                    ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
-                    ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                    ColumnCatalog::new(
+                        0,
+                        "a".into(),
+                        ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                    ),
+                    ColumnCatalog::new(
+                        1,
+                        "b".into(),
+                        ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                    ),
                 ],
                 false,
             )

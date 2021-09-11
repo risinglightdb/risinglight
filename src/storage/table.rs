@@ -18,7 +18,7 @@ pub struct BaseTableInner {
 }
 
 impl BaseTableInner {
-    fn new(column_descs: &Vec<ColumnCatalog>) -> BaseTableInner {
+    fn new(column_descs: &[ColumnCatalog]) -> BaseTableInner {
         BaseTableInner {
             column_descs: column_descs.to_vec(),
             chunks: vec![],
@@ -32,7 +32,7 @@ pub struct BaseTable {
 }
 
 impl BaseTable {
-    pub fn new(table_ref_id: &TableRefId, column_descs: &Vec<ColumnCatalog>) -> BaseTable {
+    pub fn new(table_ref_id: &TableRefId, column_descs: &[ColumnCatalog]) -> BaseTable {
         BaseTable {
             table_ref_id: *table_ref_id,
             inner: RwLock::new(BaseTableInner::new(column_descs)),

@@ -3,7 +3,7 @@ use crate::types::ColumnId;
 
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
+    sync::Arc,
     vec::Vec,
 };
 

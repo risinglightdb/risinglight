@@ -1,4 +1,4 @@
-use super::{CatalogError, ColumnDesc, TableCatalog};
+use super::{CatalogError, ColumnCatalog, TableCatalog};
 use crate::types::{SchemaId, TableId};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -31,8 +31,7 @@ impl SchemaCatalog {
     pub fn add_table(
         &self,
         name: String,
-        column_names: Vec<String>,
-        columns: Vec<ColumnDesc>,
+        columns: Vec<ColumnCatalog>,
         is_materialized_view: bool,
     ) -> Result<TableId, CatalogError> {
         let mut inner = self.inner.lock().unwrap();
@@ -44,7 +43,6 @@ impl SchemaCatalog {
         let table_catalog = Arc::new(TableCatalog::new(
             table_id,
             name.clone(),
-            column_names,
             columns,
             is_materialized_view,
         ));
