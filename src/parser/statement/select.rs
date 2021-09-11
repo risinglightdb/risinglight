@@ -11,12 +11,12 @@ pub struct SelectStmt {
     pub from_table: Option<TableRef>,
     pub where_clause: Option<Expression>,
     pub select_distinct: bool,
-    pub return_names: Vec<String>,
-    pub return_types: Vec<Option<DataType>>,
-    // TODO: groupby
-    // TODO: orderby
+    pub groupby: Option<GroupBy>,
+    pub orderby: Option<OrderBy>,
     pub limit: Option<Expression>,
     pub offset: Option<Expression>,
+    pub return_names: Vec<String>,
+    pub return_types: Vec<Option<DataType>>,
 }
 
 impl TryFrom<&pg::Node> for SelectStmt {
@@ -36,8 +36,14 @@ impl TryFrom<&pg::Node> for SelectStmt {
         };
         let where_clause = parse_expr(&stmt.whereClause)?;
         let select_distinct = stmt.distinctClause.is_some();
-        let return_types = vec![];
-        let return_names = vec![];
+        let groupby = match &stmt.groupClause {
+            Some(list) => Some(GroupBy::parse(list, &stmt.havingClause)?),
+            None => None,
+        };
+        let orderby = match &stmt.sortClause {
+            Some(list) => Some(OrderBy::try_from(list.as_slice())?),
+            None => None,
+        };
         let limit = parse_expr(&stmt.limitCount)?;
         let offset = parse_expr(&stmt.limitOffset)?;
 
@@ -45,11 +51,13 @@ impl TryFrom<&pg::Node> for SelectStmt {
             select_list,
             from_table,
             where_clause,
-            return_names,
-            return_types,
             select_distinct,
+            groupby,
+            orderby,
             limit,
             offset,
+            return_names: vec![],
+            return_types: vec![],
         })
     }
 }
@@ -81,6 +89,61 @@ fn get_target_list(list: &[pg::Node]) -> Result<Vec<Expression>, ParseError> {
 fn get_from_list(list: &[pg::Node]) -> Result<TableRef, ParseError> {
     assert!(list.len() == 1, "TODO: cross product not supported");
     TableRef::try_from(&list[0])
+}
+
+#[derive(Debug, PartialEq)]
+pub struct GroupBy {
+    pub groups: Vec<Expression>,
+    pub having: Option<Expression>,
+}
+
+impl GroupBy {
+    fn parse(list: &[pg::Node], having: &Option<Box<pg::Node>>) -> Result<GroupBy, ParseError> {
+        let groups = list
+            .iter()
+            .map(Expression::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+        let having = parse_expr(having)?;
+        Ok(GroupBy { groups, having })
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct OrderBy {
+    pub list: Vec<(OrderByKind, Expression)>,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum OrderByKind {
+    Ascending,
+    Descending,
+}
+
+impl From<pg::sys::SortByDir> for OrderByKind {
+    fn from(sort: pg::sys::SortByDir) -> Self {
+        use pg::sys::SortByDir as Sort;
+        match sort {
+            Sort::SORTBY_DESC => Self::Descending,
+            Sort::SORTBY_ASC | Sort::SORTBY_DEFAULT => Self::Ascending,
+            _ => todo!("unsupported order by"),
+        }
+    }
+}
+
+impl TryFrom<&[pg::Node]> for OrderBy {
+    type Error = ParseError;
+
+    fn try_from(list: &[pg::Node]) -> Result<Self, Self::Error> {
+        let mut ret = vec![];
+        ret.reserve(list.len());
+        for node in list {
+            let sort = try_match!(node, pg::Node::SortBy(s) => s, "sort by");
+            let kind = OrderByKind::from(sort.sortby_dir);
+            let expr = Expression::try_from(sort.node.as_ref().unwrap().as_ref())?;
+            ret.push((kind, expr));
+        }
+        Ok(OrderBy { list: ret })
+    }
 }
 
 #[cfg(test)]
@@ -225,6 +288,40 @@ mod tests {
                     Expression::star(),
                 )],
                 from_table: Some(TableRef::base("s".into())),
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn groupby() {
+        assert_eq!(
+            parse("select v1 from s group by v1").unwrap(),
+            SelectStmt {
+                select_list: vec![Expression::column_ref("v1".into(), None)],
+                from_table: Some(TableRef::base("s".into())),
+                groupby: Some(GroupBy {
+                    groups: vec![Expression::column_ref("v1".into(), None)],
+                    having: None,
+                }),
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn orderby() {
+        assert_eq!(
+            parse("select v1 from s order by v1").unwrap(),
+            SelectStmt {
+                select_list: vec![Expression::column_ref("v1".into(), None)],
+                from_table: Some(TableRef::base("s".into())),
+                orderby: Some(OrderBy {
+                    list: vec![(
+                        OrderByKind::Ascending,
+                        Expression::column_ref("v1".into(), None),
+                    )],
+                }),
                 ..Default::default()
             }
         );
