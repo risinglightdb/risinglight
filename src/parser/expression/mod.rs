@@ -9,12 +9,14 @@ mod column_ref;
 mod comparison;
 mod conjunction;
 mod constant;
+mod operator;
 mod typecast;
 
 pub use self::aggregate::*;
 pub use self::column_ref::*;
 pub use self::comparison::*;
 pub use self::conjunction::*;
+pub use self::operator::*;
 pub use self::typecast::*;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -33,6 +35,7 @@ impl Expression {
                 ExprKind::ColumnRef(col_ref) => col_ref.column_name.clone(),
                 ExprKind::Star => "STAR".to_string(),
                 ExprKind::Comparison(_) => "COMPARISION".to_string(),
+                ExprKind::Operator(_) => "OPERATOR".to_string(),
                 ExprKind::TypeCast(_) => "TYPECAST".to_string(),
                 ExprKind::Aggregate(_) => "AGGREGATE".to_string(),
                 ExprKind::Conjunction(_) => "CONJUNCTION".to_string(),
@@ -48,6 +51,7 @@ pub enum ExprKind {
     /// A (*) in the SELECT clause.
     Star,
     Comparison(Comparison),
+    Operator(Operator),
     TypeCast(TypeCast),
     Aggregate(Aggregate),
     Conjunction(Conjunction),
@@ -64,7 +68,7 @@ impl TryFrom<&pg::Node> for Expression {
             pg::Node::TypeCast(node) => node.try_into(),
             pg::Node::FuncCall(node) => node.try_into(),
             pg::Node::BoolExpr(node) => node.try_into(),
-            _ => todo!("expression type"),
+            _ => todo!("parse expression: {:#?}", node),
         }
     }
 }

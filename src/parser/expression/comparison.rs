@@ -25,7 +25,7 @@ pub enum CmpKind {
 }
 
 impl FromStr for CmpKind {
-    type Err = ParseError;
+    type Err = ();
 
     fn from_str(op: &str) -> Result<Self, Self::Err> {
         match op {
@@ -37,7 +37,7 @@ impl FromStr for CmpKind {
             ">=" => Ok(Self::GreaterThanOrEqual),
             "~~" => Ok(Self::Like),
             "!~~" => Ok(Self::NotLike),
-            _ => Err(ParseError::InvalidInput("operator")),
+            _ => Err(()),
         }
     }
 }
@@ -95,6 +95,9 @@ impl TryFrom<&pg::nodes::A_Expr> for Expression {
                 let right = Expression::try_from(node.rexpr.as_ref().unwrap().as_ref())?;
                 if let Ok(kind) = name.parse::<CmpKind>() {
                     return Ok(Expression::comparison(kind, left, right));
+                }
+                if let Ok(kind) = name.parse::<OpKind>() {
+                    return Ok(Expression::operator(kind, left, right));
                 }
                 todo!("operator");
             }

@@ -364,4 +364,24 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn operator() {
+        assert_eq!(
+            parse("select v1 + v2 * v3 from s").unwrap(),
+            SelectStmt {
+                select_list: vec![Expression::operator(
+                    OpKind::Add,
+                    Expression::column_ref("v1".into()),
+                    Expression::operator(
+                        OpKind::Mul,
+                        Expression::column_ref("v2".into()),
+                        Expression::column_ref("v3".into())
+                    )
+                )],
+                from_table: Some(TableRef::base("s".into())),
+                ..Default::default()
+            }
+        );
+    }
 }
