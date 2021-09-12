@@ -1,55 +1,23 @@
 use super::*;
-use crate::catalog::ColumnCatalog;
-use crate::storage::StorageManagerRef;
-use crate::types::{DatabaseId, SchemaId};
+use crate::physical_plan::CreateTablePhysicalPlan;
+use crate::server::GlobalEnvRef;
 
 pub struct CreateTableExecutor {
-    storage_ref: StorageManagerRef,
-    database_id: DatabaseId,
-    schema_id: SchemaId,
-    table_name: String,
-    column_catalogs: Vec<ColumnCatalog>,
+    pub plan: CreateTablePhysicalPlan,
+    pub env: GlobalEnvRef,
 }
 
 impl CreateTableExecutor {
-    pub fn new(
-        storage_ref: StorageManagerRef,
-        database_id: &DatabaseId,
-        schema_id: &SchemaId,
-        table_name: &String,
-        column_catalogs: &[ColumnCatalog],
-    ) -> Self {
-        CreateTableExecutor {
-            storage_ref: storage_ref,
-            database_id: *database_id,
-            schema_id: *schema_id,
-            table_name: table_name.clone(),
-            column_catalogs: column_catalogs.to_vec(),
-        }
-    }
-}
-
-impl Executor for CreateTableExecutor {
-    fn init(&mut self) -> Result<(), ExecutorError> {
-        Ok(())
-    }
-    fn execute(&mut self, chunk: ExecutionResult) -> Result<ExecutionResult, ExecutorError> {
-        if self
-            .storage_ref
+    pub async fn execute(self) -> Result<(), ExecutorError> {
+        self.env
+            .storage
             .create_table(
-                &self.database_id,
-                &self.schema_id,
-                &self.table_name,
-                &self.column_catalogs,
+                &self.plan.database_id,
+                &self.plan.schema_id,
+                &self.plan.table_name,
+                &self.plan.column_descs,
             )
-            .is_err()
-        {
-            Err(ExecutorError::CreateTableError)
-        } else {
-            Ok(ExecutionResult::Done)
-        }
-    }
-    fn finish(&mut self) -> Result<(), ExecutorError> {
+            .map_err(|_| ExecutorError::CreateTableError)?;
         Ok(())
     }
 }
@@ -58,24 +26,22 @@ impl Executor for CreateTableExecutor {
 mod tests {
     use super::*;
     use crate::binder::{Bind, Binder};
-    use crate::catalog::{
-        ColumnCatalog, ColumnDesc, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME,
-    };
-    use crate::executor::{ExecutionResult, ExecutorBuilder};
+    use crate::catalog::{ColumnCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
     use crate::logical_plan::LogicalPlanGenerator;
     use crate::parser::SQLStatement;
     use crate::physical_plan::PhysicalPlanGenerator;
-    use crate::server::GlobalVariables;
+    use crate::server::GlobalEnv;
     use crate::storage::InMemoryStorageManager;
-    use crate::types::{DataType, DataTypeKind};
+    use crate::types::DataTypeKind;
     use std::sync::Arc;
+
     #[test]
     fn test_create() {
         let storage_mgr = InMemoryStorageManager::new();
         let catalog = storage_mgr.get_catalog();
         let mut binder = Binder::new(storage_mgr.get_catalog());
-        let global_env = Arc::new(GlobalVariables {
-            storage_mgr_ref: Arc::new(storage_mgr),
+        let global_env = Arc::new(GlobalEnv {
+            storage: Arc::new(storage_mgr),
         });
         let sql = "create table t (v1 int not null, v2 int not null); ";
         let mut stmts = SQLStatement::parse(sql).unwrap();
@@ -86,11 +52,10 @@ mod tests {
         let physical_plan = physical_planner
             .generate_physical_plan(&logical_plan)
             .unwrap();
-        let executor_builder = ExecutorBuilder::new(&physical_plan, global_env);
-        let mut executors = executor_builder.build_plan().unwrap();
-        executors.init().unwrap();
-        executors.execute(ExecutionResult::Done).unwrap();
-        executors.finish().unwrap();
+        let executor_builder = ExecutorBuilder::new(global_env.clone());
+        let executor = executor_builder.build(physical_plan).unwrap();
+        futures::executor::block_on(executor).unwrap();
+
         let id = TableRefId {
             database_id: 0,
             schema_id: 0,
@@ -110,19 +75,11 @@ mod tests {
         let col1 = table_ref.get_column_by_id(1).unwrap();
         assert_eq!(
             col0,
-            ColumnCatalog::new(
-                0,
-                "v1".into(),
-                ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
-            )
+            ColumnCatalog::new(0, "v1".into(), DataTypeKind::Int32.not_null().to_column())
         );
         assert_eq!(
             col1,
-            ColumnCatalog::new(
-                1,
-                "v2".into(),
-                ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
-            )
+            ColumnCatalog::new(1, "v2".into(), DataTypeKind::Int32.not_null().to_column())
         );
     }
 }
