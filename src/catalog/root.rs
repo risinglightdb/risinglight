@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::{DatabaseId, TableId};
+use crate::types::DatabaseId;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

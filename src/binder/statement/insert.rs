@@ -1,6 +1,6 @@
 use super::*;
 use crate::parser::{ExprKind, InsertStmt};
-use crate::types::{ColumnId, DataType};
+use crate::types::ColumnId;
 
 impl Bind for InsertStmt {
     fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError> {
@@ -113,7 +113,7 @@ impl Bind for InsertStmt {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::catalog::{ColumnDesc, RootCatalog};
+    use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog};
     use crate::parser::SQLStatement;
     use crate::types::{DataType, DataTypeKind};
     use std::sync::Arc;
@@ -128,10 +128,17 @@ mod tests {
         schema
             .add_table(
                 "t".into(),
-                vec!["a".into(), "b".into()],
                 vec![
-                    ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
-                    ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                    ColumnCatalog::new(
+                        0,
+                        "a".into(),
+                        ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                    ),
+                    ColumnCatalog::new(
+                        1,
+                        "b".into(),
+                        ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
+                    ),
                 ],
                 false,
             )

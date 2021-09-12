@@ -26,10 +26,11 @@ impl Bind for CreateTableStmt {
             return Err(BindError::DuplicatedTable(self.table_name.clone()));
         }
         let mut set = HashSet::new();
-        for col in self.column_descs.iter() {
+        for (idx, col) in self.column_descs.iter_mut().enumerate() {
             if !set.insert(col.name().to_string()) {
                 return Err(BindError::DuplicatedColumn(col.name().to_string()));
             }
+            col.set_id(idx as ColumnId);
         }
         Ok(())
     }
@@ -67,9 +68,7 @@ mod tests {
 
         let database = catalog.get_database_by_id(0).unwrap();
         let schema = database.get_schema_by_id(0).unwrap();
-        schema
-            .add_table("t3".into(), vec![], vec![], false)
-            .unwrap();
+        schema.add_table("t3".into(), vec![], false).unwrap();
 
         let stmt3 = stmts[2].as_create_table();
         assert_eq!(

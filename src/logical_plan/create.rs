@@ -1,7 +1,6 @@
-use super::*;
 use crate::catalog::ColumnCatalog;
-use crate::parser::CreateTableStmt;
-use crate::types::{ColumnId, DatabaseId, SchemaId, TableId};
+
+use crate::types::{DatabaseId, SchemaId};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CreateTableLogicalPlan {
