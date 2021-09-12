@@ -1,18 +1,10 @@
 // Author: Alex Chi (iskyzh@gmail.com)
 
-mod alloc;
-mod bit_util;
-mod bitmap;
-mod buffer;
 mod data_chunk;
 mod iterator;
 mod primitive_array;
 mod utf8_array;
 
-pub use self::alloc::*;
-pub use self::bit_util::*;
-pub use self::bitmap::*;
-pub use self::buffer::*;
 pub use self::data_chunk::*;
 pub use self::iterator::ArrayIterator;
 pub use self::primitive_array::*;
