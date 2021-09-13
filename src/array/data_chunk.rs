@@ -1,12 +1,13 @@
 use super::*;
 
 use bitvec::vec::BitVec;
+use serde::{Deserialize, Serialize};
 use smallvec::{smallvec, SmallVec};
 use std::sync::Arc;
 use typed_builder::TypedBuilder;
 
 /// `DataChunk` is a collection of arrays with visibility mask.
-#[derive(TypedBuilder)]
+#[derive(TypedBuilder, Serialize, Deserialize)]
 pub struct DataChunk {
     #[builder(default)]
     arrays: SmallVec<[ArrayImpl; 16]>,
