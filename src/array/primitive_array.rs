@@ -2,9 +2,11 @@
 
 use super::{Array, ArrayBuilder};
 use crate::types::NativeType;
+use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
 /// `PrimitiveArray` is a collection of primitive types, such as `i32`, `f32`.
+#[derive(Serialize, Deserialize)]
 pub struct PrimitiveArray<T: NativeType> {
     bitmap: Vec<bool>,
     data: Vec<T>,

@@ -1,5 +1,7 @@
 // Author: Alex Chi (iskyzh@gmail.com)
 
+use serde::{Deserialize, Serialize};
+
 mod data_chunk;
 mod iterator;
 mod primitive_array;
@@ -78,6 +80,7 @@ pub trait Array: Sized {
 }
 
 /// `ArrayCollection` embeds all possible array in `array` module.
+#[derive(Serialize, Deserialize)]
 pub enum ArrayImpl {
     Int16(PrimitiveArray<i16>),
     Int32(PrimitiveArray<i32>),

@@ -1,8 +1,10 @@
 // Author: Alex Chi (iskyzh@gmail.com)
 use super::{Array, ArrayBuilder};
+use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
 /// `UTF8Array` is a collection of Rust UTF8 `String`s.
+#[derive(Serialize, Deserialize)]
 pub struct UTF8Array {
     offset: Vec<usize>,
     bitmap: Vec<bool>,
