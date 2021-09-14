@@ -17,3 +17,4 @@ typed-builder = "0.9.1"
 smallvec = { version = "1.6.1", features = ["serde"] }
 bitvec = { version = "0.22", features = ["serde"] }
 serde = "1.0"
+futures = "0.3"
