@@ -17,6 +17,8 @@ pub enum StorageError {
     NotFound(&'static str, u32),
     #[error("duplicated {0}: {1}")]
     Duplicated(&'static str, String),
+    #[error("invalid column id: {0}")]
+    InvalidColumn(ColumnId),
 }
 
 pub trait Storage: Sync + Send {
@@ -78,7 +80,7 @@ impl Storage for InMemoryStorage {
             schema_id,
             table_id,
         };
-        let table = BaseTable::new(id);
+        let table = BaseTable::new(id, column_descs);
         self.tables.lock().unwrap().insert(id, Arc::new(table));
         Ok(())
     }

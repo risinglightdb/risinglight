@@ -36,11 +36,18 @@ impl DataType {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DataTypeKind {
-    Int32,
+    Null,
     Bool,
+    Int32,
     Float64,
     Char(u32),
     Varchar(u32),
+}
+
+impl DataTypeKind {
+    pub const fn is_null(&self) -> bool {
+        matches!(self, Self::Null)
+    }
 }
 
 const CHAR_DEFAULT_LEN: u32 = 1;
@@ -64,6 +71,7 @@ impl FromStr for DataTypeKind {
 impl ToString for DataTypeKind {
     fn to_string(&self) -> String {
         match self {
+            Self::Null => "NULL",
             Self::Int32 => "INTEGER",
             Self::Bool => "BOOLEAN",
             Self::Float64 => "DOUBLE",
@@ -78,6 +86,7 @@ impl DataTypeKind {
     pub const fn data_len(&self) -> usize {
         use std::mem::size_of;
         match self {
+            Self::Null => size_of::<()>(),
             Self::Int32 => size_of::<i32>(),
             Self::Bool => size_of::<bool>(),
             Self::Float64 => size_of::<f64>(),
@@ -118,13 +127,13 @@ pub enum DataValue {
 }
 
 impl DataValue {
-    pub const fn data_type(&self) -> Option<DataType> {
+    pub const fn data_type(&self) -> DataType {
         match self {
-            Self::Bool(_) => Some(DataTypeKind::Bool.not_null()),
-            Self::Int32(_) => Some(DataTypeKind::Int32.not_null()),
-            Self::Float64(_) => Some(DataTypeKind::Float64.not_null()),
-            Self::String(_) => Some(DataTypeKind::Varchar(VARCHAR_DEFAULT_LEN).not_null()),
-            _ => None,
+            Self::Bool(_) => DataTypeKind::Bool.not_null(),
+            Self::Int32(_) => DataTypeKind::Int32.not_null(),
+            Self::Float64(_) => DataTypeKind::Float64.not_null(),
+            Self::String(_) => DataTypeKind::Varchar(VARCHAR_DEFAULT_LEN).not_null(),
+            Self::Null => DataTypeKind::Null.nullable(),
         }
     }
 }

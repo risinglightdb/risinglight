@@ -1,10 +1,12 @@
 use crate::physical_plan::PhysicalPlan;
 use crate::server::GlobalEnvRef;
+use crate::storage::StorageError;
 use futures::FutureExt;
 use std::future::Future;
 use std::pin::Pin;
 
 mod create;
+mod evaluator;
 mod insert;
 
 pub use self::create::*;
@@ -16,8 +18,8 @@ pub enum ExecutorError {
     InitializationError,
     #[error("failed to build executors from the physical plan")]
     BuildingPlanError,
-    #[error("failed to create table")]
-    CreateTableError,
+    #[error("storage error: {0}")]
+    Storage(#[from] StorageError),
 }
 
 pub type BoxedExecutor = Pin<Box<dyn Future<Output = Result<(), ExecutorError>>>>;
@@ -36,6 +38,12 @@ impl ExecutorBuilder {
             PhysicalPlan::CreateTable(plan) => Ok(CreateTableExecutor {
                 plan,
                 env: self.env.clone(),
+            }
+            .execute()
+            .boxed()),
+            PhysicalPlan::Insert(plan) => Ok(InsertExecutor {
+                plan,
+                storage: self.env.storage.clone(),
             }
             .execute()
             .boxed()),

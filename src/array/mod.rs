@@ -1,5 +1,7 @@
 // Author: Alex Chi (iskyzh@gmail.com)
 
+use crate::types::DataValue;
+use crate::types::{DataType, DataTypeKind};
 use serde::{Deserialize, Serialize};
 
 mod data_chunk;
@@ -82,20 +84,22 @@ pub trait Array: Sized {
 /// `ArrayCollection` embeds all possible array in `array` module.
 #[derive(Serialize, Deserialize)]
 pub enum ArrayImpl {
-    Int16(PrimitiveArray<i16>),
+    Bool(PrimitiveArray<bool>),
+    // Int16(PrimitiveArray<i16>),
     Int32(PrimitiveArray<i32>),
-    Int64(PrimitiveArray<i64>),
-    Float32(PrimitiveArray<f32>),
+    // Int64(PrimitiveArray<i64>),
+    // Float32(PrimitiveArray<f32>),
     Float64(PrimitiveArray<f64>),
     UTF8(UTF8Array),
 }
 
 /// Embeds all possible array builders in `array` module.
 pub enum ArrayBuilderImpl {
-    Int16(PrimitiveArrayBuilder<i16>),
+    Bool(PrimitiveArrayBuilder<bool>),
+    // Int16(PrimitiveArrayBuilder<i16>),
     Int32(PrimitiveArrayBuilder<i32>),
-    Int64(PrimitiveArrayBuilder<i64>),
-    Float32(PrimitiveArrayBuilder<f32>),
+    // Int64(PrimitiveArrayBuilder<i64>),
+    // Float32(PrimitiveArrayBuilder<f32>),
     Float64(PrimitiveArrayBuilder<f64>),
     UTF8(UTF8ArrayBuilder),
 }
@@ -109,12 +113,52 @@ macro_rules! impl_into {
         }
     };
 }
-impl_into! { PrimitiveArray<i16>, Int16 }
+impl_into! { PrimitiveArray<bool>, Bool }
+// impl_into! { PrimitiveArray<i16>, Int16 }
 impl_into! { PrimitiveArray<i32>, Int32 }
-impl_into! { PrimitiveArray<i64>, Int64 }
-impl_into! { PrimitiveArray<f32>, Float32 }
+// impl_into! { PrimitiveArray<i64>, Int64 }
+// impl_into! { PrimitiveArray<f32>, Float32 }
 impl_into! { PrimitiveArray<f64>, Float64 }
 impl_into! { UTF8Array, UTF8 }
+
+impl ArrayBuilderImpl {
+    /// Create a new array builder from data type.
+    pub fn new(ty: DataType) -> Self {
+        match ty.kind() {
+            DataTypeKind::Bool => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
+            DataTypeKind::Int32 => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
+            DataTypeKind::Float64 => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
+            DataTypeKind::Char(_) => Self::UTF8(UTF8ArrayBuilder::new(0)),
+            DataTypeKind::Varchar(_) => Self::UTF8(UTF8ArrayBuilder::new(0)),
+            DataTypeKind::Null => panic!("can not build array from NULL type"),
+        }
+    }
+
+    /// Appends an element to the back of array.
+    pub fn push(&mut self, v: &DataValue) {
+        match (self, v) {
+            (Self::Bool(a), DataValue::Bool(v)) => a.push(Some(v)),
+            (Self::Int32(a), DataValue::Int32(v)) => a.push(Some(v)),
+            (Self::Float64(a), DataValue::Float64(v)) => a.push(Some(v)),
+            (Self::UTF8(a), DataValue::String(v)) => a.push(Some(v)),
+            (Self::Bool(a), DataValue::Null) => a.push(None),
+            (Self::Int32(a), DataValue::Null) => a.push(None),
+            (Self::Float64(a), DataValue::Null) => a.push(None),
+            (Self::UTF8(a), DataValue::Null) => a.push(None),
+            _ => panic!("failed to push value: type mismatch"),
+        }
+    }
+
+    /// Finish build and return a new array.
+    pub fn finish(self) -> ArrayImpl {
+        match self {
+            Self::Bool(a) => ArrayImpl::Bool(a.finish()),
+            Self::Int32(a) => ArrayImpl::Int32(a.finish()),
+            Self::Float64(a) => ArrayImpl::Float64(a.finish()),
+            Self::UTF8(a) => ArrayImpl::UTF8(a.finish()),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

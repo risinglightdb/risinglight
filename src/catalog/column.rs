@@ -65,6 +65,10 @@ impl ColumnCatalog {
         &self.name
     }
 
+    pub fn desc(&self) -> &ColumnDesc {
+        &self.desc
+    }
+
     pub fn datatype(&self) -> DataType {
         self.desc.datatype
     }

@@ -72,22 +72,16 @@ impl Bind for InsertStmt {
                     _ => return Err(BindError::InvalidExpression),
                 };
                 let data_type = expr.data_type();
-                match data_type {
-                    Some(t) => {
-                        // TODO: support valid type cast
-                        // table t1(a float, b float)
-                        // for example: insert into values (1, 1);
-                        // 1 should be casted to float.
-                        if t != self.column_types[idx] {
-                            return Err(BindError::InvalidExpression);
-                        }
-                    }
-                    None => {
-                        // If the data value is null, the column must be nullable.
-                        if !self.column_types[idx].is_nullable() {
-                            return Err(BindError::InvalidExpression);
-                        }
-                    }
+                // TODO: support valid type cast
+                // table t1(a float, b float)
+                // for example: insert into values (1, 1);
+                // 1 should be casted to float.
+                if data_type != self.column_types[idx] {
+                    return Err(BindError::InvalidExpression);
+                }
+                // If the data value is null, the column must be nullable.
+                if data_type.kind().is_null() && !self.column_types[idx].is_nullable() {
+                    return Err(BindError::InvalidExpression);
                 }
             }
         }

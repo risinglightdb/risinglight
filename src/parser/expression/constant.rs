@@ -6,7 +6,7 @@ impl Expression {
         Expression {
             alias: None,
             kind: ExprKind::Constant(value),
-            return_type,
+            return_type: Some(return_type),
         }
     }
 }
