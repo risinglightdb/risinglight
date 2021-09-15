@@ -2,12 +2,12 @@ use super::*;
 
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
-use smallvec::{smallvec, SmallVec};
+use smallvec::SmallVec;
 use std::sync::Arc;
 use typed_builder::TypedBuilder;
 
 /// `DataChunk` is a collection of arrays with visibility mask.
-#[derive(TypedBuilder, Serialize, Deserialize)]
+#[derive(TypedBuilder, Default, Serialize, Deserialize)]
 pub struct DataChunk {
     #[builder(default)]
     arrays: SmallVec<[ArrayImpl; 16]>,
@@ -34,18 +34,6 @@ impl DataChunk {
 
     pub fn array_at(&self, idx: usize) -> &ArrayImpl {
         &self.arrays[idx]
-    }
-}
-
-/// Create an empty data chunk
-impl Default for DataChunk {
-    fn default() -> Self {
-        DataChunk {
-            arrays: smallvec![],
-            dimension: 0,
-            cardinality: 0,
-            visibility: None,
-        }
     }
 }
 

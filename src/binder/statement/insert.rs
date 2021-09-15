@@ -40,7 +40,11 @@ impl Bind for InsertStmt {
             let return_size = self.values[0].len();
             let columns = table.all_columns();
             if return_size != columns.len() {
-                return Err(BindError::InvalidExpression);
+                return Err(BindError::InvalidExpression(format!(
+                    "Column length mismatched. Expected: {}, Actual: {}",
+                    columns.len(),
+                    return_size
+                )));
             }
             for (id, col) in columns.iter() {
                 self.column_names.push(col.name().to_string());
@@ -67,27 +71,20 @@ impl Bind for InsertStmt {
                 // Bind expression
                 expr.bind(binder)?;
 
-                let expr = match &expr.kind {
-                    ExprKind::Constant(v) => v,
-                    _ => return Err(BindError::InvalidExpression),
-                };
-                let data_type = expr.data_type();
-                match data_type {
-                    Some(t) => {
-                        // TODO: support valid type cast
-                        // table t1(a float, b float)
-                        // for example: insert into values (1, 1);
-                        // 1 should be casted to float.
-                        if t != self.column_types[idx] {
-                            return Err(BindError::InvalidExpression);
-                        }
-                    }
-                    None => {
-                        // If the data value is null, the column must be nullable.
-                        if !self.column_types[idx].is_nullable() {
-                            return Err(BindError::InvalidExpression);
-                        }
-                    }
+                let data_type = expr.return_type.unwrap();
+                // TODO: support valid type cast
+                // table t1(a float, b float)
+                // for example: insert into values (1, 1);
+                // 1 should be casted to float.
+                if data_type.kind() != self.column_types[idx].kind() && !data_type.kind().is_null()
+                {
+                    todo!("type cast");
+                }
+                // If the data value is null, the column must be nullable.
+                if data_type.kind().is_null() && !self.column_types[idx].is_nullable() {
+                    return Err(BindError::InvalidExpression(
+                        "Can not insert null to non null column".into(),
+                    ));
                 }
             }
         }
@@ -102,7 +99,7 @@ impl Bind for InsertStmt {
 
         for (id, col) in table.all_columns().iter() {
             if !col_set.contains(id) && !col.is_nullable() {
-                return Err(BindError::NotNullableColumn);
+                return Err(BindError::NotNullableColumn(col.name().into()));
             }
         }
 
@@ -151,13 +148,13 @@ mod tests {
         let mut stmts = SQLStatement::parse(sql).unwrap();
 
         stmts[0].bind(&mut binder).unwrap();
-        assert_eq!(
+        assert!(matches!(
             stmts[1].bind(&mut binder),
-            Err(BindError::NotNullableColumn)
-        );
-        assert_eq!(
+            Err(BindError::NotNullableColumn(_))
+        ));
+        assert!(matches!(
             stmts[2].bind(&mut binder),
-            Err(BindError::InvalidExpression)
-        );
+            Err(BindError::InvalidExpression(_))
+        ));
     }
 }

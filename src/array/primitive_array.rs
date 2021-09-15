@@ -2,13 +2,14 @@
 
 use super::{Array, ArrayBuilder};
 use crate::types::NativeType;
+use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
 /// `PrimitiveArray` is a collection of primitive types, such as `i32`, `f32`.
 #[derive(Serialize, Deserialize)]
 pub struct PrimitiveArray<T: NativeType> {
-    bitmap: Vec<bool>,
+    valid: BitVec,
     data: Vec<T>,
 }
 
@@ -28,21 +29,17 @@ impl<T: NativeType> Array for PrimitiveArray<T> {
     type Builder = PrimitiveArrayBuilder<T>;
 
     fn get(&self, idx: usize) -> Option<&T> {
-        if self.bitmap[idx] {
-            Some(&self.data[idx])
-        } else {
-            None
-        }
+        self.valid[idx].then(|| &self.data[idx])
     }
 
     fn len(&self) -> usize {
-        self.bitmap.len()
+        self.valid.len()
     }
 }
 
 /// `PrimitiveArrayBuilder` constructs a `PrimitiveArray` from `Option<Primitive>`.
 pub struct PrimitiveArrayBuilder<T: NativeType> {
-    bitmap: Vec<bool>,
+    valid: BitVec,
     data: Vec<T>,
 }
 
@@ -51,32 +48,24 @@ impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
 
     fn new(capacity: usize) -> Self {
         Self {
-            bitmap: Vec::with_capacity(capacity),
+            valid: BitVec::with_capacity(capacity),
             data: Vec::with_capacity(capacity),
         }
     }
 
     fn push(&mut self, value: Option<&T>) {
-        match value {
-            Some(x) => {
-                self.bitmap.push(true);
-                self.data.push(*x);
-            }
-            None => {
-                self.bitmap.push(false);
-                self.data.push(T::default());
-            }
-        }
+        self.valid.push(value.is_some());
+        self.data.push(value.cloned().unwrap_or_default());
     }
 
     fn append(&mut self, other: &PrimitiveArray<T>) {
-        self.bitmap.extend_from_slice(&other.bitmap);
+        self.valid.extend_from_bitslice(&other.valid);
         self.data.extend_from_slice(&other.data);
     }
 
     fn finish(self) -> PrimitiveArray<T> {
         PrimitiveArray {
-            bitmap: self.bitmap,
+            valid: self.valid,
             data: self.data,
         }
     }

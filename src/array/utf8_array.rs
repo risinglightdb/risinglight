@@ -1,5 +1,6 @@
 // Author: Alex Chi (iskyzh@gmail.com)
 use super::{Array, ArrayBuilder};
+use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
@@ -7,7 +8,7 @@ use std::iter::FromIterator;
 #[derive(Serialize, Deserialize)]
 pub struct UTF8Array {
     offset: Vec<usize>,
-    bitmap: Vec<bool>,
+    valid: BitVec,
     data: Vec<u8>,
 }
 
@@ -16,7 +17,7 @@ impl Array for UTF8Array {
     type Builder = UTF8ArrayBuilder;
 
     fn get(&self, idx: usize) -> Option<&str> {
-        if self.bitmap[idx] {
+        if self.valid[idx] {
             let data_slice = &self.data[self.offset[idx]..self.offset[idx + 1]];
             Some(unsafe { std::str::from_utf8_unchecked(data_slice) })
         } else {
@@ -25,14 +26,14 @@ impl Array for UTF8Array {
     }
 
     fn len(&self) -> usize {
-        self.bitmap.len()
+        self.valid.len()
     }
 }
 
 /// `UTF8ArrayBuilder` use `&str` to build an `UTF8Array`.
 pub struct UTF8ArrayBuilder {
     offset: Vec<usize>,
-    bitmap: Vec<bool>,
+    valid: BitVec,
     data: Vec<u8>,
 }
 
@@ -45,26 +46,20 @@ impl ArrayBuilder for UTF8ArrayBuilder {
         Self {
             offset,
             data: Vec::with_capacity(capacity),
-            bitmap: Vec::with_capacity(capacity),
+            valid: BitVec::with_capacity(capacity),
         }
     }
 
     fn push(&mut self, value: Option<&str>) {
-        match value {
-            Some(x) => {
-                self.bitmap.push(true);
-                self.data.extend_from_slice(x.as_bytes());
-                self.offset.push(self.data.len())
-            }
-            None => {
-                self.bitmap.push(false);
-                self.offset.push(self.data.len())
-            }
+        self.valid.push(value.is_some());
+        if let Some(x) = value {
+            self.data.extend_from_slice(x.as_bytes());
         }
+        self.offset.push(self.data.len());
     }
 
     fn append(&mut self, other: &UTF8Array) {
-        self.bitmap.extend_from_slice(&other.bitmap);
+        self.valid.extend_from_bitslice(&other.valid);
         self.data.extend_from_slice(&other.data);
         let start = *self.offset.last().unwrap();
         for other_offset in &other.offset[1..] {
@@ -74,7 +69,7 @@ impl ArrayBuilder for UTF8ArrayBuilder {
 
     fn finish(self) -> UTF8Array {
         UTF8Array {
-            bitmap: self.bitmap,
+            valid: self.valid,
             data: self.data,
             offset: self.offset,
         }

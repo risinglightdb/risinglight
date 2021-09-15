@@ -5,6 +5,7 @@ pub use self::database::*;
 pub use self::root::*;
 pub use self::schema::*;
 pub use self::table::*;
+use crate::types::*;
 
 pub static DEFAULT_DATABASE_NAME: &str = "postgres";
 pub static DEFAULT_SCHEMA_NAME: &str = "postgres";
@@ -16,7 +17,6 @@ mod schema;
 mod table;
 
 pub type RootCatalogRef = Arc<RootCatalog>;
-use crate::types::*;
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct TableRefId {

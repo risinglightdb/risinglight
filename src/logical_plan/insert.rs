@@ -15,16 +15,11 @@ impl TryFrom<&InsertStmt> for InsertLogicalPlan {
     type Error = LogicalPlanError;
 
     fn try_from(insert_stmt: &InsertStmt) -> Result<InsertLogicalPlan, LogicalPlanError> {
-        let mut plan = InsertLogicalPlan {
+        let plan = InsertLogicalPlan {
             table_ref_id: insert_stmt.table_ref_id.unwrap(),
             column_ids: insert_stmt.column_ids.clone(),
-            values: vec![],
+            values: insert_stmt.values.clone(),
         };
-
-        for val in insert_stmt.values.iter() {
-            plan.values.push(val.to_vec());
-        }
-
         Ok(plan)
     }
 }
