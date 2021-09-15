@@ -1,9 +1,9 @@
 use crate::physical_plan::PhysicalPlan;
-use crate::server::GlobalEnvRef;
-use crate::storage::StorageError;
+use crate::storage::{StorageError, StorageRef};
 use futures::FutureExt;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::Arc;
 
 mod create;
 mod evaluator;
@@ -14,12 +14,19 @@ pub use self::insert::*;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum ExecutorError {
-    #[error("failed to initialize the executor")]
-    InitializationError,
     #[error("failed to build executors from the physical plan")]
     BuildingPlanError,
     #[error("storage error: {0}")]
     Storage(#[from] StorageError),
+}
+
+pub type GlobalEnvRef = Arc<GlobalEnv>;
+
+/// The global environment for task execution.
+/// The instance will be shared by every task.
+#[derive(Clone)]
+pub struct GlobalEnv {
+    pub storage: StorageRef,
 }
 
 pub type BoxedExecutor = Pin<Box<dyn Future<Output = Result<(), ExecutorError>>>>;

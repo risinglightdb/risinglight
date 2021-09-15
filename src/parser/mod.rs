@@ -16,7 +16,7 @@ pub use self::statement::*;
 pub use self::table_ref::*;
 pub use postgres_parser::PgParserError;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum ParseError {
     #[error("unexpected statement, expected: {0}")]
     NotFound(&'static str),

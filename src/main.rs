@@ -1,14 +1,14 @@
-#![deny(unused_must_use)]
+use risinglight::Database;
+use std::io::Write;
 
-mod array;
-mod binder;
-mod catalog;
-mod executor;
-mod logical_plan;
-mod parser;
-mod physical_plan;
-mod server;
-mod storage;
-mod types;
-
-fn main() {}
+fn main() {
+    let db = Database::new();
+    loop {
+        print!("> ");
+        std::io::stdout().lock().flush().unwrap();
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input).unwrap();
+        let ret = db.run(&input);
+        println!("{:?}", ret);
+    }
+}

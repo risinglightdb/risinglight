@@ -1,6 +1,5 @@
 use super::*;
 use crate::physical_plan::CreateTablePhysicalPlan;
-use crate::server::GlobalEnvRef;
 
 pub struct CreateTableExecutor {
     pub plan: CreateTablePhysicalPlan,
@@ -22,12 +21,7 @@ impl CreateTableExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::binder::{Bind, Binder};
     use crate::catalog::{ColumnCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
-    use crate::logical_plan::LogicalPlanGenerator;
-    use crate::parser::SQLStatement;
-    use crate::physical_plan::PhysicalPlanGenerator;
-    use crate::server::GlobalEnv;
     use crate::storage::InMemoryStorage;
     use crate::types::DataTypeKind;
     use std::sync::Arc;
@@ -36,22 +30,23 @@ mod tests {
     fn test_create() {
         let storage = InMemoryStorage::new();
         let catalog = storage.catalog().clone();
-        let mut binder = Binder::new(catalog.clone());
-        let global_env = Arc::new(GlobalEnv {
+        let env = Arc::new(GlobalEnv {
             storage: Arc::new(storage),
         });
-        let sql = "create table t (v1 int not null, v2 int not null); ";
-        let mut stmts = SQLStatement::parse(sql).unwrap();
-        stmts[0].bind(&mut binder).unwrap();
-        let logical_planner = LogicalPlanGenerator::new();
-        let physical_planner = PhysicalPlanGenerator::new();
-        let logical_plan = logical_planner.generate_logical_plan(&stmts[0]).unwrap();
-        let physical_plan = physical_planner
-            .generate_physical_plan(&logical_plan)
-            .unwrap();
-        let executor_builder = ExecutorBuilder::new(global_env.clone());
-        let executor = executor_builder.build(physical_plan).unwrap();
-        futures::executor::block_on(executor).unwrap();
+        let plan = CreateTablePhysicalPlan {
+            database_id: 0,
+            schema_id: 0,
+            table_name: "t".into(),
+            column_descs: vec![
+                ColumnCatalog::new(0, "v1".into(), DataTypeKind::Int32.not_null().to_column()),
+                ColumnCatalog::new(1, "v2".into(), DataTypeKind::Int32.not_null().to_column()),
+            ],
+        };
+        let executor = CreateTableExecutor {
+            plan,
+            env: env.clone(),
+        };
+        futures::executor::block_on(executor.execute()).unwrap();
 
         let id = TableRefId {
             database_id: 0,

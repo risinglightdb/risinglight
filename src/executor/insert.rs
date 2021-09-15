@@ -43,9 +43,9 @@ mod tests {
     use super::*;
     use crate::catalog::{ColumnCatalog, TableRefId};
     use crate::executor::CreateTableExecutor;
+    use crate::executor::{GlobalEnv, GlobalEnvRef};
     use crate::parser::Expression;
     use crate::physical_plan::CreateTablePhysicalPlan;
-    use crate::server::{GlobalEnv, GlobalEnvRef};
     use crate::storage::InMemoryStorage;
     use crate::types::{DataTypeKind, DataValue};
     use std::sync::Arc;

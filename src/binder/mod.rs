@@ -37,10 +37,10 @@ pub enum BindError {
     DuplicatedTableName(String),
     #[error("duplicated column {0}")]
     DuplicatedColumn(String),
-    #[error("invalid expression")]
-    InvalidExpression,
-    #[error("not nullable column")]
-    NotNullableColumn,
+    #[error("invalid expression: {0}")]
+    InvalidExpression(String),
+    #[error("not nullable column: {0}")]
+    NotNullableColumn(String),
     #[error("ambiguous column")]
     AmbiguousColumn,
 }
