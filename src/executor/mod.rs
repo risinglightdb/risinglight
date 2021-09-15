@@ -5,8 +5,10 @@ use std::future::Future;
 use std::pin::Pin;
 
 mod create;
+mod insert;
 
 pub use self::create::*;
+pub use self::insert::*;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum ExecutorError {

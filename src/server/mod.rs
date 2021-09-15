@@ -1,4 +1,4 @@
-use crate::storage::StorageManagerRef;
+use crate::storage::StorageRef;
 use std::sync::Arc;
 
 pub type GlobalEnvRef = Arc<GlobalEnv>;
@@ -7,5 +7,5 @@ pub type GlobalEnvRef = Arc<GlobalEnv>;
 /// The instance will be shared by every task.
 #[derive(Clone)]
 pub struct GlobalEnv {
-    pub storage: StorageManagerRef,
+    pub storage: StorageRef,
 }

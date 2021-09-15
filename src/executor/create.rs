@@ -12,8 +12,8 @@ impl CreateTableExecutor {
         self.env
             .storage
             .create_table(
-                &self.plan.database_id,
-                &self.plan.schema_id,
+                self.plan.database_id,
+                self.plan.schema_id,
                 &self.plan.table_name,
                 &self.plan.column_descs,
             )
@@ -31,17 +31,17 @@ mod tests {
     use crate::parser::SQLStatement;
     use crate::physical_plan::PhysicalPlanGenerator;
     use crate::server::GlobalEnv;
-    use crate::storage::InMemoryStorageManager;
+    use crate::storage::InMemoryStorage;
     use crate::types::DataTypeKind;
     use std::sync::Arc;
 
     #[test]
     fn test_create() {
-        let storage_mgr = InMemoryStorageManager::new();
-        let catalog = storage_mgr.get_catalog();
-        let mut binder = Binder::new(storage_mgr.get_catalog());
+        let storage = InMemoryStorage::new();
+        let catalog = storage.catalog().clone();
+        let mut binder = Binder::new(catalog.clone());
         let global_env = Arc::new(GlobalEnv {
-            storage: Arc::new(storage_mgr),
+            storage: Arc::new(storage),
         });
         let sql = "create table t (v1 int not null, v2 int not null); ";
         let mut stmts = SQLStatement::parse(sql).unwrap();

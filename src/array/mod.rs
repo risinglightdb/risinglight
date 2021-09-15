@@ -90,6 +90,16 @@ pub enum ArrayImpl {
     UTF8(UTF8Array),
 }
 
+/// Embeds all possible array builders in `array` module.
+pub enum ArrayBuilderImpl {
+    Int16(PrimitiveArrayBuilder<i16>),
+    Int32(PrimitiveArrayBuilder<i32>),
+    Int64(PrimitiveArrayBuilder<i64>),
+    Float32(PrimitiveArrayBuilder<f32>),
+    Float64(PrimitiveArrayBuilder<f64>),
+    UTF8(UTF8ArrayBuilder),
+}
+
 macro_rules! impl_into {
     ($x:ty, $y:ident) => {
         impl From<$x> for ArrayImpl {
