@@ -19,30 +19,13 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          override: true
-          toolchain: nightly-2021-07-28
+          toolchain: stable
           components: rustfmt
       - name: Check code format
         uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check
-
-  build:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          override: true
-          toolchain: nightly-2021-07-28
-      - name: Install dependencies
-        run: make deps
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
 
   test:
     runs-on: ubuntu-20.04
@@ -51,12 +34,11 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          override: true
-          toolchain: nightly-2021-07-28
+          toolchain: stable
       - name: Install dependencies
         run: make deps
       - name: Test
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --release --no-fail-fast
+          args: --release --no-fail-fast --all-features
