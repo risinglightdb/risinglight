@@ -88,7 +88,7 @@ mod tests {
     use crate::binder::{Bind, Binder};
     use crate::catalog::{ColumnCatalog, ColumnDesc, ColumnRefId, RootCatalog, TableRefId};
     use crate::logical_plan::LogicalPlanGenerator;
-    use crate::parser::{BaseTableRef, ColumnRef, ExprKind, Expression, SQLStatement};
+    use crate::parser::{ColumnRef, ExprKind, Expression, SQLStatement};
     use crate::physical_plan::PhysicalPlanGenerator;
     use crate::types::{DataType, DataTypeKind};
     use std::sync::Arc;

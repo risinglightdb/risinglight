@@ -12,7 +12,7 @@ impl Bind for BaseTableRef {
         let table_name = self.alias.as_ref().unwrap_or(&self.table_name).clone();
 
         if binder.context.regular_tables.contains_key(&table_name) {
-            return Err(BindError::DuplicatedTableName(table_name.clone()));
+            return Err(BindError::DuplicatedTableName(table_name));
         }
 
         let table_ref_id_opt = binder.catalog.get_table_id(
@@ -28,10 +28,7 @@ impl Bind for BaseTableRef {
             .context
             .column_names
             .insert(table_name.clone(), HashSet::new());
-        binder
-            .context
-            .column_ids
-            .insert(table_name.clone(), Vec::new());
+        binder.context.column_ids.insert(table_name, Vec::new());
         Ok(())
     }
 }

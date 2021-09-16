@@ -1,5 +1,5 @@
 use super::*;
-use crate::catalog::{DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
+
 use crate::parser::{SelectStmt, TableRef};
 
 impl Bind for SelectStmt {

@@ -42,10 +42,7 @@ mod tests {
                 ColumnCatalog::new(1, "v2".into(), DataTypeKind::Int32.not_null().to_column()),
             ],
         };
-        let executor = CreateTableExecutor {
-            plan,
-            env: env.clone(),
-        };
+        let executor = CreateTableExecutor { plan, env: env };
         futures::executor::block_on(executor.execute()).unwrap();
 
         let id = TableRefId {
@@ -54,11 +51,7 @@ mod tests {
             table_id: 0,
         };
         assert_eq!(
-            catalog.get_table_id(
-                DEFAULT_DATABASE_NAME.into(),
-                DEFAULT_SCHEMA_NAME.into(),
-                "t".into()
-            ),
+            catalog.get_table_id(DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME, "t"),
             Some(id)
         );
 

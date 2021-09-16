@@ -2,7 +2,6 @@ use super::*;
 use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunk};
 use crate::physical_plan::SeqScanPhysicalPlan;
 use crate::storage::StorageRef;
-use crate::storage::Table;
 
 pub struct SeqScanExecutor {
     pub plan: SeqScanPhysicalPlan,

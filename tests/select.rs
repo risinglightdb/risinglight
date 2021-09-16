@@ -1,4 +1,4 @@
-use risinglight::{Database, Error};
+use risinglight::Database;
 
 #[test]
 fn simple_select1() {

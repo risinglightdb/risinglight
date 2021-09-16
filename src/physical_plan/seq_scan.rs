@@ -1,4 +1,3 @@
-use super::*;
 use crate::catalog::TableRefId;
 use crate::types::ColumnId;
 

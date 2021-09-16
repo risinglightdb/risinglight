@@ -88,7 +88,7 @@ impl TryFrom<&pg::nodes::A_Expr> for Expression {
                 if node.kind == Kind::AEXPR_BETWEEN {
                     return Ok(comp);
                 }
-                return Ok(Expression::not(comp));
+                Ok(Expression::not(comp))
             }
             _ => {
                 let left = Expression::try_from(node.lexpr.as_ref().unwrap().as_ref())?;

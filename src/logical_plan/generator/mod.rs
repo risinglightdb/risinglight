@@ -63,7 +63,7 @@ impl LogicalPlanGenerator {
         assert_eq!(stmt.offset, None);
         assert_eq!(stmt.select_distinct, false);
 
-        if stmt.select_list.len() > 0 {
+        if !stmt.select_list.is_empty() {
             plan = self.generate_projection_plan(&stmt.select_list, plan)?;
         }
         if plan == LogicalPlan::Dummy {
