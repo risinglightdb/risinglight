@@ -15,6 +15,7 @@ pub use self::insert::*;
 pub use self::select::*;
 
 #[derive(Debug, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum SQLStatement {
     CreateDatabase(CreateDatabaseStmt),
     CreateSchema(CreateSchemaStmt),

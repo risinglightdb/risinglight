@@ -25,6 +25,7 @@ impl Expression {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn not(expr: Expression) -> Self {
         Expression {
             kind: ExprKind::Conjunction(Conjunction::Not(Box::new(expr))),

@@ -14,6 +14,12 @@ struct Inner {
     next_database_id: DatabaseId,
 }
 
+impl Default for RootCatalog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RootCatalog {
     pub fn new() -> RootCatalog {
         let root_catalog = RootCatalog {

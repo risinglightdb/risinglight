@@ -14,6 +14,12 @@ pub struct Database {
     catalog: RootCatalogRef,
 }
 
+impl Default for Database {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Database {
     /// Create a new Database instance.
     pub fn new() -> Self {

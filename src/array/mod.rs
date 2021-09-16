@@ -79,6 +79,11 @@ pub trait Array: Sized {
     fn iter(&self) -> ArrayIterator<'_, Self> {
         ArrayIterator::new(self)
     }
+
+    /// check if `Array` is empty
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 /// `ArrayCollection` embeds all possible array in `array` module.

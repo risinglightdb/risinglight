@@ -93,7 +93,7 @@ impl Bind for InsertStmt {
 
         let mut col_set: HashSet<ColumnId> = HashSet::new();
         for id in self.column_ids.iter() {
-            assert_eq!(col_set.contains(id), false);
+            assert!(!col_set.contains(id));
             col_set.insert(*id);
         }
 

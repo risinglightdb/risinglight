@@ -4,6 +4,12 @@ use crate::parser::{CreateTableStmt, InsertStmt, SQLStatement, SelectStmt, Table
 
 pub struct LogicalPlanGenerator {}
 
+impl Default for LogicalPlanGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LogicalPlanGenerator {
     pub fn new() -> LogicalPlanGenerator {
         LogicalPlanGenerator {}
@@ -61,7 +67,7 @@ impl LogicalPlanGenerator {
         assert_eq!(stmt.where_clause, None);
         assert_eq!(stmt.limit, None);
         assert_eq!(stmt.offset, None);
-        assert_eq!(stmt.select_distinct, false);
+        assert!(!stmt.select_distinct);
 
         if !stmt.select_list.is_empty() {
             plan = self.generate_projection_plan(&stmt.select_list, plan)?;
@@ -88,7 +94,7 @@ impl LogicalPlanGenerator {
 
     pub fn generate_projection_plan(
         &self,
-        exprs: &Vec<Expression>,
+        exprs: &[Expression],
         plan: LogicalPlan,
     ) -> Result<LogicalPlan, LogicalPlanError> {
         Ok(LogicalPlan::Projection(ProjectionLogicalPlan {

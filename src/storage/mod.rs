@@ -40,6 +40,12 @@ pub struct InMemoryStorage {
     tables: Mutex<HashMap<TableRefId, TableRef>>,
 }
 
+impl Default for InMemoryStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InMemoryStorage {
     pub fn new() -> Self {
         InMemoryStorage {
@@ -99,6 +105,5 @@ impl Storage for InMemoryStorage {
     fn drop_table(&self, table_id: TableRefId) -> Result<(), StorageError> {
         self.tables.lock().unwrap().remove(&table_id);
         todo!("remove table from catalog");
-        Ok(())
     }
 }

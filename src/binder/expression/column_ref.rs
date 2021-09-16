@@ -83,11 +83,11 @@ fn record_regular_table_column(
         names.insert(col_name.to_string());
         let idxs = binder.context.column_ids.get_mut(table_name).unwrap();
         idxs.push(column_id);
-        assert_eq!(!idxs.is_empty(), true);
+        assert!(!idxs.is_empty());
         idx
     } else {
         let idxs = binder.context.column_ids.get_mut(table_name).unwrap();
-        assert_eq!(!idxs.is_empty(), true);
+        assert!(!idxs.is_empty());
         idxs.iter().position(|&r| r == column_id).unwrap() as u32
     }
 }

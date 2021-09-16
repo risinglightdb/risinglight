@@ -6,6 +6,12 @@ use crate::logical_plan::{
 
 pub struct PhysicalPlanGenerator {}
 
+impl Default for PhysicalPlanGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // We build the physical plan by copying content from logical plan,
 // we may implment moving content in the future.
 impl PhysicalPlanGenerator {

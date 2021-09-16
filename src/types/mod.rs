@@ -5,6 +5,7 @@ pub(crate) use native::*;
 
 /// PostgreSQL DataTypeEnum
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
 pub(crate) enum PgSQLDataTypeEnumEnum {
     Integer,
     Boolean,

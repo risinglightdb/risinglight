@@ -13,6 +13,8 @@ struct Inner {
     /// Mapping from column names to column ids
     column_idxs: HashMap<String, ColumnId>,
     columns: HashMap<ColumnId, ColumnCatalog>,
+
+    #[allow(dead_code)]
     is_materialized_view: bool,
     next_column_id: ColumnId,
 }
