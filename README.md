@@ -8,7 +8,18 @@ RisingLight is an OLAP database system for educational purpose.
 
 ```
 make deps
+```
 
+Run tests:
+
+```
+cargo test
+```
+
+Run benchmarks:
+
+```
+cargo bench
 ```
 
 ### Progress

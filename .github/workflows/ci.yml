@@ -49,3 +49,19 @@ jobs:
         with:
           command: test
           args: --release --no-fail-fast --all-features
+
+  bench:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+      - name: Install dependencies
+        run: make deps
+      - name: Bench
+        uses: actions-rs/cargo@v1
+        with:
+          command: bench
+          args: --all-features
