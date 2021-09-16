@@ -26,6 +26,8 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
+      - name: Install dependencies
+        run: make deps
       - name: Clippy
         uses: actions-rs/cargo@v1
         with:
