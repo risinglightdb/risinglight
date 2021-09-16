@@ -14,6 +14,12 @@ struct Inner {
     next_database_id: DatabaseId,
 }
 
+impl Default for RootCatalog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RootCatalog {
     pub fn new() -> RootCatalog {
         let root_catalog = RootCatalog {
@@ -84,34 +90,28 @@ impl RootCatalog {
     ) -> Option<TableRefId> {
         let db_opt = self.get_database_by_name(database_name);
 
-        if db_opt.is_none() {
-            return None;
-        }
+        db_opt.as_ref()?;
         let db = db_opt.unwrap();
 
         let database_id = db.id();
 
         let schema_opt = db.get_schema_by_name(schema_name);
 
-        if schema_opt.is_none() {
-            return None;
-        }
+        schema_opt.as_ref()?;
 
         let schema = schema_opt.unwrap();
         let schema_id = schema.id();
 
         let table_opt = schema.get_table_by_name(table_name);
 
-        if table_opt.is_none() {
-            return None;
-        }
+        table_opt.as_ref()?;
 
         let table_id = table_opt.unwrap().as_ref().id();
 
         Some(TableRefId {
-            database_id: database_id,
-            schema_id: schema_id,
-            table_id: table_id,
+            database_id,
+            schema_id,
+            table_id,
         })
     }
 }

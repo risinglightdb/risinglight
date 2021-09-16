@@ -1,7 +1,6 @@
 use super::*;
 use crate::array::{ArrayImpl, DataChunk};
 use crate::parser::Expression;
-use crate::physical_plan::ProjectionPhysicalPlan;
 
 pub struct ProjectionExecutor {
     pub project_expressions: Vec<Expression>,

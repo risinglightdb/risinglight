@@ -3,7 +3,7 @@ mod table;
 pub use self::table::*;
 
 use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};
-use crate::types::{ColumnId, DatabaseId, SchemaId, TableId};
+use crate::types::{ColumnId, DatabaseId, SchemaId};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -40,6 +40,12 @@ pub struct InMemoryStorage {
     tables: Mutex<HashMap<TableRefId, TableRef>>,
 }
 
+impl Default for InMemoryStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InMemoryStorage {
     pub fn new() -> Self {
         InMemoryStorage {
@@ -64,10 +70,10 @@ impl Storage for InMemoryStorage {
         let db = self
             .catalog
             .get_database_by_id(database_id)
-            .ok_or_else(|| StorageError::NotFound("database", database_id))?;
+            .ok_or(StorageError::NotFound("database", database_id))?;
         let schema = db
             .get_schema_by_id(schema_id)
-            .ok_or_else(|| StorageError::NotFound("schema", schema_id))?;
+            .ok_or(StorageError::NotFound("schema", schema_id))?;
         if schema.get_table_by_name(table_name).is_some() {
             return Err(StorageError::Duplicated("table", table_name.into()));
         }
@@ -91,7 +97,7 @@ impl Storage for InMemoryStorage {
             .lock()
             .unwrap()
             .get(&table_id)
-            .ok_or_else(|| StorageError::NotFound("table", table_id.table_id))?
+            .ok_or(StorageError::NotFound("table", table_id.table_id))?
             .clone();
         Ok(table)
     }
@@ -99,6 +105,5 @@ impl Storage for InMemoryStorage {
     fn drop_table(&self, table_id: TableRefId) -> Result<(), StorageError> {
         self.tables.lock().unwrap().remove(&table_id);
         todo!("remove table from catalog");
-        Ok(())
     }
 }

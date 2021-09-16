@@ -32,7 +32,8 @@ impl TryFrom<&pg::Node> for InsertStmt {
         let column_names = get_columns(stmt)?;
         // TODO: handle select stmt
         let select_stmt = try_match!(**stmt.selectStmt.as_ref().unwrap(), pg::Node::SelectStmt(s) => s, "select stmt");
-        let mut values = vec![];
+
+        let values;
         if let Some(list) = &select_stmt.valuesLists {
             values = get_values_list(list)?;
             if stmt.cols.is_some() && column_names.len() != values[0].len() {
@@ -45,6 +46,7 @@ impl TryFrom<&pg::Node> for InsertStmt {
         }
         let ref_ = BaseTableRef::from(stmt.relation.as_ref().unwrap().as_ref());
         assert!(ref_.alias.is_none());
+
         Ok(InsertStmt {
             database_name: ref_.database_name,
             schema_name: ref_.schema_name,

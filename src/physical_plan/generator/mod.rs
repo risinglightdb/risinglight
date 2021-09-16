@@ -6,6 +6,12 @@ use crate::logical_plan::{
 
 pub struct PhysicalPlanGenerator {}
 
+impl Default for PhysicalPlanGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // We build the physical plan by copying content from logical plan,
 // we may implment moving content in the future.
 impl PhysicalPlanGenerator {
@@ -88,7 +94,7 @@ mod tests {
     use crate::binder::{Bind, Binder};
     use crate::catalog::{ColumnCatalog, ColumnDesc, ColumnRefId, RootCatalog, TableRefId};
     use crate::logical_plan::LogicalPlanGenerator;
-    use crate::parser::{BaseTableRef, ColumnRef, ExprKind, Expression, SQLStatement};
+    use crate::parser::{ColumnRef, ExprKind, Expression, SQLStatement};
     use crate::physical_plan::PhysicalPlanGenerator;
     use crate::types::{DataType, DataTypeKind};
     use std::sync::Arc;

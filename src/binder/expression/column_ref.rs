@@ -12,7 +12,7 @@ impl ColumnRef {
                 }
 
                 let table_ref_id = binder.context.regular_tables.get(name).unwrap();
-                let table = binder.catalog.get_table(&table_ref_id);
+                let table = binder.catalog.get_table(table_ref_id);
                 let col_opt = table.get_column_by_name(&self.column_name);
                 if col_opt.is_none() {
                     return Err(BindError::InvalidColumn(self.column_name.clone()));
@@ -35,7 +35,7 @@ impl ColumnRef {
             None => {
                 let mut data_type: Option<DataType> = None;
                 let mut is_matched: bool = false;
-                for (name, ref_id) in binder.context.regular_tables.iter() {
+                for (_name, ref_id) in binder.context.regular_tables.iter() {
                     let table = binder.catalog.get_table(ref_id);
                     let col_opt = table.get_column_by_name(&self.column_name);
                     if let Some(col) = col_opt {
@@ -83,11 +83,11 @@ fn record_regular_table_column(
         names.insert(col_name.to_string());
         let idxs = binder.context.column_ids.get_mut(table_name).unwrap();
         idxs.push(column_id);
-        assert_eq!(idxs.len() > 0, true);
+        assert!(!idxs.is_empty());
         idx
     } else {
         let idxs = binder.context.column_ids.get_mut(table_name).unwrap();
-        assert_eq!(idxs.len() > 0, true);
+        assert!(!idxs.is_empty());
         idxs.iter().position(|&r| r == column_id).unwrap() as u32
     }
 }

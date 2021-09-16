@@ -73,7 +73,7 @@ pub struct Binder {
 impl Binder {
     pub fn new(catalog: Arc<RootCatalog>) -> Self {
         Binder {
-            catalog: catalog,
+            catalog,
             upper_contexts: Vec::new(),
             context: BinderContext::new(),
         }
@@ -86,6 +86,6 @@ impl Binder {
 
     pub fn pop_context(&mut self) {
         let old_context = self.upper_contexts.pop();
-        let used = std::mem::replace(&mut self.context, old_context.unwrap());
+        self.context = old_context.unwrap();
     }
 }

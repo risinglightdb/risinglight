@@ -1,5 +1,5 @@
 use super::*;
-use crate::catalog::{DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
+
 use crate::parser::{SelectStmt, TableRef};
 
 impl Bind for SelectStmt {
@@ -20,16 +20,13 @@ impl Bind for SelectStmt {
 
         // Add referred columns for base table reference
         if self.from_table.is_some() {
-            match self.from_table.as_mut().unwrap() {
-                TableRef::Base(base_ref) => {
-                    base_ref.column_ids = binder
-                        .context
-                        .column_ids
-                        .get(&base_ref.table_name)
-                        .unwrap()
-                        .to_vec();
-                }
-                _ => {}
+            if let TableRef::Base(base_ref) = self.from_table.as_mut().unwrap() {
+                base_ref.column_ids = binder
+                    .context
+                    .column_ids
+                    .get(&base_ref.table_name)
+                    .unwrap()
+                    .to_vec();
             }
         }
         binder.pop_context();

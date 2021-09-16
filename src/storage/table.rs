@@ -12,6 +12,7 @@ pub enum Table {
 pub type TableRef = Arc<BaseTable>;
 
 pub struct BaseTable {
+    #[allow(dead_code)]
     table_ref_id: TableRefId,
     inner: RwLock<BaseTableInner>,
 }

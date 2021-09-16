@@ -1,5 +1,5 @@
 use super::*;
-use crate::parser::{ExprKind, InsertStmt};
+use crate::parser::InsertStmt;
 use crate::types::ColumnId;
 
 impl Bind for InsertStmt {
@@ -24,8 +24,8 @@ impl Bind for InsertStmt {
         let table_ref_id = binder
             .catalog
             .get_table_id(
-                &self.database_name.as_ref().unwrap(),
-                &self.schema_name.as_ref().unwrap(),
+                self.database_name.as_ref().unwrap(),
+                self.schema_name.as_ref().unwrap(),
                 &table.name(),
             )
             .unwrap();
@@ -36,7 +36,7 @@ impl Bind for InsertStmt {
         assert!(self.column_types.is_empty(), "already bind");
         // If the query does not provide column information, get all columns info.
         if self.column_names.is_empty() {
-            assert!(self.values.len() > 0);
+            assert!(!self.values.is_empty());
             let return_size = self.values[0].len();
             let columns = table.all_columns();
             if return_size != columns.len() {
@@ -93,7 +93,7 @@ impl Bind for InsertStmt {
 
         let mut col_set: HashSet<ColumnId> = HashSet::new();
         for id in self.column_ids.iter() {
-            assert_eq!(col_set.contains(id), false);
+            assert!(!col_set.contains(id));
             col_set.insert(*id);
         }
 

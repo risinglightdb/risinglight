@@ -85,6 +85,8 @@ impl TryFrom<&pg::nodes::ColumnDef> for ColumnCatalog {
 
         let mut is_nullable = true;
         let mut is_primary = false;
+
+        #[allow(unused_variables)]
         let mut is_unique = false;
         for cons in cdef.constraints.iter().flatten() {
             let cons = try_match!(cons, pg::Node::Constraint(c) => c, "constraint");
@@ -95,6 +97,7 @@ impl TryFrom<&pg::nodes::ColumnDef> for ColumnCatalog {
                     is_primary = true;
                     is_nullable = false;
                 }
+                #[allow(unused_assignments)]
                 pg::sys::ConstrType::CONSTR_UNIQUE => is_unique = true,
                 _ => todo!("column constraint"),
             }

@@ -1,4 +1,3 @@
-use super::*;
 use crate::catalog::TableRefId;
 use crate::types::ColumnId;
 
@@ -9,7 +8,7 @@ pub struct SeqScanLogicalPlan {
 }
 
 impl SeqScanLogicalPlan {
-    pub fn new(table_ref_id: &TableRefId, column_ids: &Vec<ColumnId>) -> SeqScanLogicalPlan {
+    pub fn new(table_ref_id: &TableRefId, column_ids: &[ColumnId]) -> SeqScanLogicalPlan {
         SeqScanLogicalPlan {
             table_ref_id: *table_ref_id,
             column_ids: column_ids.to_vec(),
