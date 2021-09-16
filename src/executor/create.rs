@@ -7,14 +7,14 @@ pub struct CreateTableExecutor {
 }
 
 impl CreateTableExecutor {
-    pub async fn execute(self) -> Result<(), ExecutorError> {
+    pub async fn execute(self) -> Result<ExecutorResult, ExecutorError> {
         self.env.storage.create_table(
             self.plan.database_id,
             self.plan.schema_id,
             &self.plan.table_name,
             &self.plan.column_descs,
         )?;
-        Ok(())
+        Ok(ExecutorResult::Empty)
     }
 }
 

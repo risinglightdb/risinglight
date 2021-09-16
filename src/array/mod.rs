@@ -158,6 +158,17 @@ impl ArrayBuilderImpl {
             Self::UTF8(a) => ArrayImpl::UTF8(a.finish()),
         }
     }
+
+    /// Appends a DataArrayImpl
+    pub fn append(&mut self, array_impl: &ArrayImpl) {
+        match (self, array_impl) {
+            (Self::Bool(builder), ArrayImpl::Bool(arr)) => builder.append(arr),
+            (Self::Int32(builder), ArrayImpl::Int32(arr)) => builder.append(arr),
+            (Self::Float64(builder), ArrayImpl::Float64(arr)) => builder.append(arr),
+            (Self::UTF8(builder), ArrayImpl::UTF8(arr)) => builder.append(arr),
+            _ => panic!("failed to push value: type mismatch"),
+        }
+    }
 }
 
 #[cfg(test)]
