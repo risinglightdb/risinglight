@@ -1,3 +1,4 @@
+use crate::array::DataChunk;
 use crate::physical_plan::PhysicalPlan;
 use crate::storage::{StorageError, StorageRef};
 use futures::FutureExt;
@@ -8,9 +9,13 @@ use std::sync::Arc;
 mod create;
 mod evaluator;
 mod insert;
+mod project;
+mod seq_scan;
 
 pub use self::create::*;
 pub use self::insert::*;
+pub use self::project::*;
+pub use self::seq_scan::*;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum ExecutorError {
@@ -29,7 +34,13 @@ pub struct GlobalEnv {
     pub storage: StorageRef,
 }
 
-pub type BoxedExecutor = Pin<Box<dyn Future<Output = Result<(), ExecutorError>>>>;
+pub enum ExecutorResult {
+    Batch(DataChunk),
+    Empty,
+}
+
+pub type BoxedExecutor =
+    Pin<Box<dyn Future<Output = Result<ExecutorResult, ExecutorError>> + Send>>;
 
 pub struct ExecutorBuilder {
     env: GlobalEnvRef,
@@ -49,6 +60,21 @@ impl ExecutorBuilder {
             .execute()
             .boxed()),
             PhysicalPlan::Insert(plan) => Ok(InsertExecutor {
+                plan,
+                storage: self.env.storage.clone(),
+            }
+            .execute()
+            .boxed()),
+            PhysicalPlan::Projection(plan) => {
+                let child_executor = self.build(*plan.child)?;
+                Ok(ProjectionExecutor {
+                    project_expressions: plan.project_expressions,
+                    child_executor,
+                }
+                .execute()
+                .boxed())
+            }
+            PhysicalPlan::SeqScan(plan) => Ok(SeqScanExecutor {
                 plan,
                 storage: self.env.storage.clone(),
             }

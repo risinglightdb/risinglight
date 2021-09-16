@@ -1,4 +1,4 @@
-use super::ExecutorError;
+use super::{ExecutorError, ExecutorResult};
 use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunk};
 use crate::physical_plan::InsertPhysicalPlan;
 use crate::storage::StorageRef;
@@ -9,7 +9,7 @@ pub struct InsertExecutor {
 }
 
 impl InsertExecutor {
-    pub async fn execute(self) -> Result<(), ExecutorError> {
+    pub async fn execute(self) -> Result<ExecutorResult, ExecutorError> {
         let cardinality = self.plan.values.len();
         assert!(cardinality > 0);
 
@@ -34,7 +34,7 @@ impl InsertExecutor {
             .arrays(arrays.into())
             .build();
         table.append(chunk)?;
-        Ok(())
+        Ok(ExecutorResult::Empty)
     }
 }
 
