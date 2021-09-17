@@ -8,7 +8,7 @@ fn create_table(c: &mut Criterion) {
             |db| {
                 db.run("create table t(v1 int, v2 int, v3 int)").unwrap();
             },
-            BatchSize::SmallInput,
+            BatchSize::LargeInput,
         );
     });
 }
@@ -31,7 +31,7 @@ fn insert(c: &mut Criterion) {
                 |db| {
                     db.run(&sql).unwrap();
                 },
-                BatchSize::SmallInput,
+                BatchSize::LargeInput,
             );
         });
     }
