@@ -18,6 +18,7 @@ smallvec = { version = "1.6.1", features = ["serde"] }
 bitvec = { version = "0.22", features = ["serde"] }
 serde = "1.0"
 futures = "0.3"
+jemallocator = "0.3"
 
 [dev-dependencies]
 criterion = "0.3"
@@ -25,3 +26,7 @@ criterion = "0.3"
 [[bench]]
 name = "e2e"
 harness = false
+
+[profile.bench]
+codegen-units = 1
+lto = 'thin'
