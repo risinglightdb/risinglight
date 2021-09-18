@@ -35,7 +35,15 @@ impl Binder {
                         return Err(BindError::DuplicatedColumn(col.name.value.clone()));
                     }
                 }
-                let columns = columns.iter().map(ColumnCatalog::from).collect();
+                let columns = columns
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, col)| {
+                        let mut col = ColumnCatalog::from(col);
+                        col.set_id(idx as ColumnId);
+                        col
+                    })
+                    .collect();
                 Ok(BoundCreateTable {
                     database_id: db.id(),
                     schema_id: schema.id(),
@@ -97,7 +105,7 @@ mod tests {
                 table_name: "t1".into(),
                 columns: vec![
                     ColumnCatalog::new(0, "v1".into(), DataTypeKind::Int.not_null().to_column()),
-                    ColumnCatalog::new(0, "v2".into(), DataTypeKind::Int.nullable().to_column()),
+                    ColumnCatalog::new(1, "v2".into(), DataTypeKind::Int.nullable().to_column()),
                 ],
             }
         );

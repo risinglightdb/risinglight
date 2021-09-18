@@ -1,10 +1,10 @@
 use crate::{
-    binder::{Bind, BindError, Binder},
+    binder::{BindError, Binder},
     catalog::RootCatalogRef,
     executor::{ExecutorBuilder, ExecutorError, GlobalEnv, GlobalEnvRef},
-    logical_plan::{LogicalPlanError, LogicalPlanGenerator},
-    parser::{ParseError, SQLStatement},
-    physical_plan::{PhysicalPlanError, PhysicalPlanGenerator},
+    logical_plan::{LogicalPlanError, LogicalPlaner},
+    parser::{parse, ParserError},
+    physical_plan::{PhysicalPlanError, PhysicalPlaner},
     storage::InMemoryStorage,
 };
 use std::sync::Arc;
@@ -34,19 +34,20 @@ impl Database {
     /// Run SQL queries.
     pub fn run(&self, sql: &str) -> Result<(), Error> {
         // parse
-        let mut stmts = SQLStatement::parse(sql)?;
+        let stmts = parse(sql)?;
         // bind
         let mut binder = Binder::new(self.catalog.clone());
-        for stmt in stmts.iter_mut() {
-            stmt.bind(&mut binder)?;
-        }
-        let logical_planner = LogicalPlanGenerator::new();
-        let physical_planner = PhysicalPlanGenerator::new();
+        let stmts = stmts
+            .iter()
+            .map(|s| binder.bind(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let logical_planner = LogicalPlaner::default();
+        let physical_planner = PhysicalPlaner::default();
         let executor_builder = ExecutorBuilder::new(self.env.clone());
         // TODO: parallelize
-        for stmt in stmts.iter() {
-            let logical_plan = logical_planner.generate_logical_plan(stmt)?;
-            let physical_plan = physical_planner.generate_physical_plan(&logical_plan)?;
+        for stmt in stmts {
+            let logical_plan = logical_planner.plan(stmt)?;
+            let physical_plan = physical_planner.plan(logical_plan)?;
             let executor = executor_builder.build(physical_plan)?;
             futures::executor::block_on(executor).unwrap();
         }
@@ -57,7 +58,7 @@ impl Database {
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum Error {
     #[error("parse error: {0}")]
-    Parse(#[from] ParseError),
+    Parse(#[from] ParserError),
     #[error("bind error: {0}")]
     Bind(#[from] BindError),
     #[error("logical plan error: {0}")]

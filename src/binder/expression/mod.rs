@@ -21,13 +21,19 @@ pub enum BoundExprKind {
     ColumnRef(BoundColumnRef),
 }
 
+impl BoundExpr {
+    pub fn constant(value: DataValue) -> Self {
+        BoundExpr {
+            return_type: value.data_type(),
+            kind: BoundExprKind::Constant(value),
+        }
+    }
+}
+
 impl Binder {
     pub fn bind_expr(&mut self, expr: &Expr) -> Result<BoundExpr, BindError> {
         match expr {
-            Expr::Value(v) => Ok(BoundExpr {
-                kind: BoundExprKind::Constant(v.into()),
-                return_type: DataValue::from(v).data_type(),
-            }),
+            Expr::Value(v) => Ok(BoundExpr::constant(v.into())),
             Expr::Identifier(ident) => self.bind_column_ref(std::slice::from_ref(ident)),
             Expr::CompoundIdentifier(idents) => self.bind_column_ref(idents),
             _ => todo!("bind expression"),

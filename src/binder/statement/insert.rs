@@ -67,7 +67,11 @@ impl Binder {
                 bound_values.reserve(values.len());
                 for row in values.iter() {
                     if row.len() > column_ids.len() {
-                        todo!("return error: tuple length > column number");
+                        return Err(BindError::InvalidExpression(format!(
+                            "Column length mismatched. Expected: {}, Actual: {}",
+                            columns.len(),
+                            row.len()
+                        )));
                     }
                     let mut bound_row = vec![];
                     bound_row.reserve(row.len());
