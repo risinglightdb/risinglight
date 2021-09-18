@@ -2,7 +2,7 @@ use super::*;
 use crate::binder::BoundSelect;
 
 impl LogicalPlaner {
-    pub fn plan_select(&self, stmt: BoundSelect) -> Result<LogicalPlan, LogicalPlanError> {
+    pub fn plan_select(&self, stmt: Box<BoundSelect>) -> Result<LogicalPlan, LogicalPlanError> {
         let mut plan = LogicalPlan::Dummy;
         if let Some(table_ref) = stmt.from_table.get(0) {
             plan = LogicalPlan::SeqScan(LogicalSeqScan {

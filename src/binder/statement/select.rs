@@ -16,14 +16,14 @@ pub struct BoundSelect {
 }
 
 impl Binder {
-    pub fn bind_select(&mut self, query: &Query) -> Result<BoundSelect, BindError> {
+    pub fn bind_select(&mut self, query: &Query) -> Result<Box<BoundSelect>, BindError> {
         self.push_context();
         let ret = self.bind_select_internal(query);
         self.pop_context();
         ret
     }
 
-    fn bind_select_internal(&mut self, query: &Query) -> Result<BoundSelect, BindError> {
+    fn bind_select_internal(&mut self, query: &Query) -> Result<Box<BoundSelect>, BindError> {
         let select = match &query.body {
             SetExpr::Select(select) => &**select,
             _ => todo!("not select"),
@@ -73,14 +73,14 @@ impl Binder {
                 .clone();
         }
 
-        Ok(BoundSelect {
+        Ok(Box::new(BoundSelect {
             select_list,
             from_table,
             where_clause,
             select_distinct: select.distinct,
             limit,
             offset,
-        })
+        }))
     }
 }
 
@@ -118,7 +118,7 @@ mod tests {
             _ => panic!("type mismatch"),
         };
         assert_eq!(
-            binder.bind_select(query).unwrap(),
+            *binder.bind_select(query).unwrap(),
             BoundSelect {
                 select_list: vec![
                     BoundExpr {

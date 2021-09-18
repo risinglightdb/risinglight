@@ -38,7 +38,7 @@ impl DataTypeExt for DataTypeKind {
     }
 }
 
-const CHAR_DEFAULT_LEN: u64 = 1;
+// const CHAR_DEFAULT_LEN: u64 = 1;
 const VARCHAR_DEFAULT_LEN: u64 = 256;
 
 pub(crate) type DatabaseId = u32;

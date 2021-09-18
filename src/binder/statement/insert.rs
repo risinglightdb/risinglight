@@ -126,7 +126,7 @@ impl Binder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog};
+    use crate::catalog::{ColumnCatalog, RootCatalog};
     use crate::parser::parse;
     use crate::types::{DataTypeExt, DataTypeKind};
     use std::sync::Arc;

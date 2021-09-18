@@ -19,7 +19,7 @@ pub use self::table_ref::*;
 pub enum BoundStatement {
     CreateTable(BoundCreateTable),
     Insert(BoundInsert),
-    Select(BoundSelect),
+    Select(Box<BoundSelect>),
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]
@@ -78,7 +78,7 @@ impl Binder {
     }
 
     pub fn push_context(&mut self) {
-        let new_context = std::mem::replace(&mut self.context, BinderContext::default());
+        let new_context = std::mem::take(&mut self.context);
         self.upper_contexts.push(new_context);
     }
 

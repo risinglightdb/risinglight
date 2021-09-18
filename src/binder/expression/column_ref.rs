@@ -8,7 +8,7 @@ pub struct BoundColumnRef {
 
 impl Binder {
     pub fn bind_column_ref(&mut self, idents: &[Ident]) -> Result<BoundExpr, BindError> {
-        let (schema_name, table_name, column_name) = match idents {
+        let (_schema_name, table_name, column_name) = match idents {
             [column] => (None, None, &column.value),
             [table, column] => (None, Some(&table.value), &column.value),
             [schema, table, column] => (Some(&schema.value), Some(&table.value), &column.value),
@@ -46,11 +46,8 @@ impl Binder {
             }
             let (table_name, column_ref_id, data_type) =
                 info.ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
-            let column_index = self.record_regular_table_column(
-                &table_name,
-                &column_name,
-                column_ref_id.column_id,
-            );
+            let column_index =
+                self.record_regular_table_column(&table_name, column_name, column_ref_id.column_id);
 
             Ok(BoundExpr {
                 kind: BoundExprKind::ColumnRef(BoundColumnRef {
