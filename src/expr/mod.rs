@@ -1,9 +1,10 @@
 //! Expression framework of RisingLight
 
+use std::borrow::Borrow;
 use std::convert::{TryFrom, TryInto};
 use std::marker::PhantomData;
 
-use crate::array::{Array, ArrayBuilder, ArrayImpl, ScalarRef};
+use crate::array::{Array, ArrayBuilder, ArrayImpl, TypeMismatch};
 
 /// `BinaryExpression` is a trait over all binary functions.
 pub trait BinaryExpression {
@@ -24,7 +25,7 @@ where
     I1: Array,
     I2: Array,
     O: Array,
-    F: Fn(Option<&I1::Item>, Option<&I2::Item>) -> Option<<O::Item as ScalarRef>::OwnedType>,
+    F: Fn(Option<&I1::Item>, Option<&I2::Item>) -> Option<<O::Item as ToOwned>::Owned>,
 {
     func: F,
     _phantom: PhantomData<(I1, I2, O)>,
@@ -35,7 +36,7 @@ where
     I1: Array,
     I2: Array,
     O: Array,
-    F: Fn(Option<&I1::Item>, Option<&I2::Item>) -> Option<<O::Item as ScalarRef>::OwnedType>,
+    F: Fn(Option<&I1::Item>, Option<&I2::Item>) -> Option<<O::Item as ToOwned>::Owned>,
 {
     pub fn new(func: F) -> Self {
         Self {
@@ -48,13 +49,11 @@ where
 impl<I1, I2, O, F> BinaryExpression for BinaryVectorizedExpression<I1, I2, O, F>
 where
     I1: Array,
-    for<'a> &'a I1: TryFrom<&'a ArrayImpl>,
-    for<'a> <&'a I1 as std::convert::TryFrom<&'a ArrayImpl>>::Error: std::fmt::Debug,
+    for<'a> &'a I1: TryFrom<&'a ArrayImpl, Error = TypeMismatch>,
     I2: Array,
-    for<'b> &'b I2: TryFrom<&'b ArrayImpl>,
-    for<'b> <&'b I2 as std::convert::TryFrom<&'b ArrayImpl>>::Error: std::fmt::Debug,
+    for<'b> &'b I2: TryFrom<&'b ArrayImpl, Error = TypeMismatch>,
     O: Array + Into<ArrayImpl>,
-    F: Fn(Option<&I1::Item>, Option<&I2::Item>) -> Option<<O::Item as ScalarRef>::OwnedType>,
+    F: Fn(Option<&I1::Item>, Option<&I2::Item>) -> Option<<O::Item as ToOwned>::Owned>,
 {
     fn eval_chunk(&self, input1: &ArrayImpl, input2: &ArrayImpl) -> ArrayImpl {
         let input1: &I1 = input1
@@ -66,11 +65,7 @@ where
         assert_eq!(input1.len(), input2.len());
         let mut builder = O::Builder::new(input1.len());
         for (p1, p2) in input1.iter().zip(input2.iter()) {
-            builder.push(
-                (self.func)(p1, p2)
-                    .as_ref()
-                    .map(|x| ScalarRef::from_scalar_owned(x)),
-            );
+            builder.push((self.func)(p1, p2).as_ref().map(|x| x.borrow()));
         }
         builder.finish().into()
     }
@@ -79,7 +74,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::array::I32Array;
+    use crate::array::{I32Array, UTF8Array};
     use std::iter::FromIterator;
 
     #[test]
@@ -89,14 +84,32 @@ mod tests {
         });
         let result: I32Array = expr
             .eval_chunk(
-                &ArrayImpl::Int32(I32Array::from_iter([Some(1), Some(2), Some(3)])),
-                &ArrayImpl::Int32(I32Array::from_iter([Some(1), Some(2), Some(3)])),
+                &I32Array::from_iter([Some(1), Some(2), Some(3)]).into(),
+                &I32Array::from_iter([Some(1), Some(2), Some(3)]).into(),
             )
             .try_into()
             .unwrap();
         assert_eq!(
             result.iter().map(|x| x.cloned()).collect::<Vec<_>>(),
             [Some(2), Some(4), Some(6)]
+        );
+    }
+
+    #[test]
+    fn test_vec_concat() {
+        let expr = BinaryVectorizedExpression::<UTF8Array, I32Array, UTF8Array, _>::new(|x, y| {
+            x.and_then(|x| y.map(|y| format!("{}{}", x, y)))
+        });
+        let result: UTF8Array = expr
+            .eval_chunk(
+                &UTF8Array::from_iter([Some("1"), Some("2"), Some("3")]).into(),
+                &I32Array::from_iter([Some(1), Some(2), Some(3)]).into(),
+            )
+            .try_into()
+            .unwrap();
+        assert_eq!(
+            result.iter().collect::<Vec<_>>(),
+            [Some("11"), Some("22"), Some("33")]
         );
     }
 }

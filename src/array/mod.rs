@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
+use crate::types::DataValue;
 use crate::types::{DataType, DataTypeKind};
-use crate::types::{DataValue, NativeType};
 use serde::{Deserialize, Serialize};
 
 mod data_chunk;
@@ -24,41 +24,6 @@ pub enum ArrayError {
     BitOrError(String),
     #[error("index out of boundary")]
     IndexOutOfBoundary,
-}
-
-pub trait ScalarRef {
-    type OwnedType;
-
-    fn into_scalar_owned(&self) -> Self::OwnedType;
-
-    fn from_scalar_owned(owned: &Self::OwnedType) -> &Self;
-}
-
-impl ScalarRef for str {
-    type OwnedType = String;
-
-    fn into_scalar_owned(&self) -> String {
-        self.to_string()
-    }
-
-    fn from_scalar_owned(owned: &String) -> &str {
-        owned.as_str()
-    }
-}
-
-impl<T> ScalarRef for T
-where
-    T: NativeType,
-{
-    type OwnedType = T;
-
-    fn into_scalar_owned(&self) -> Self::OwnedType {
-        *self
-    }
-
-    fn from_scalar_owned(owned: &Self::OwnedType) -> &Self {
-        owned
-    }
 }
 
 /// A trait over all array builders.
@@ -103,7 +68,7 @@ pub trait Array: Sized {
     type Builder: ArrayBuilder<Array = Self>;
 
     /// Type of element in the array.
-    type Item: ScalarRef + ?Sized;
+    type Item: ToOwned + ?Sized;
 
     /// Retrieve a reference to value.
     fn get(&self, idx: usize) -> Option<&Self::Item>;
