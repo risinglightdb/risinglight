@@ -1,4 +1,4 @@
-// Author: Alex Chi (iskyzh@gmail.com)
+use std::convert::TryFrom;
 
 use crate::types::DataValue;
 use crate::types::{DataType, DataTypeKind};
@@ -25,6 +25,7 @@ pub enum ArrayError {
     #[error("index out of boundary")]
     IndexOutOfBoundary,
 }
+
 /// A trait over all array builders.
 ///
 /// `ArrayBuilder` is a trait over all builders. You could build an array with
@@ -67,7 +68,7 @@ pub trait Array: Sized {
     type Builder: ArrayBuilder<Array = Self>;
 
     /// Type of element in the array.
-    type Item: ?Sized;
+    type Item: ToOwned + ?Sized;
 
     /// Retrieve a reference to value.
     fn get(&self, idx: usize) -> Option<&Self::Item>;
@@ -86,28 +87,39 @@ pub trait Array: Sized {
     }
 }
 
+pub type BoolArray = PrimitiveArray<bool>;
+pub type I32Array = PrimitiveArray<i32>;
+pub type F64Array = PrimitiveArray<f64>;
+
 /// `ArrayCollection` embeds all possible array in `array` module.
 #[derive(Serialize, Deserialize)]
 pub enum ArrayImpl {
-    Bool(PrimitiveArray<bool>),
+    Bool(BoolArray),
     // Int16(PrimitiveArray<i16>),
-    Int32(PrimitiveArray<i32>),
+    Int32(I32Array),
     // Int64(PrimitiveArray<i64>),
     // Float32(PrimitiveArray<f32>),
-    Float64(PrimitiveArray<f64>),
+    Float64(F64Array),
     UTF8(UTF8Array),
 }
 
+pub type BoolArrayBuilder = PrimitiveArrayBuilder<bool>;
+pub type I32ArrayBuilder = PrimitiveArrayBuilder<i32>;
+pub type F64ArrayBuilder = PrimitiveArrayBuilder<f64>;
+
 /// Embeds all possible array builders in `array` module.
 pub enum ArrayBuilderImpl {
-    Bool(PrimitiveArrayBuilder<bool>),
+    Bool(BoolArrayBuilder),
     // Int16(PrimitiveArrayBuilder<i16>),
-    Int32(PrimitiveArrayBuilder<i32>),
+    Int32(I32ArrayBuilder),
     // Int64(PrimitiveArrayBuilder<i64>),
     // Float32(PrimitiveArrayBuilder<f32>),
-    Float64(PrimitiveArrayBuilder<f64>),
+    Float64(F64ArrayBuilder),
     UTF8(UTF8ArrayBuilder),
 }
+
+#[derive(Debug, Clone)]
+pub struct TypeMismatch;
 
 macro_rules! impl_into {
     ($x:ty, $y:ident) => {
@@ -116,8 +128,31 @@ macro_rules! impl_into {
                 Self::$y(array)
             }
         }
+
+        impl TryFrom<ArrayImpl> for $x {
+            type Error = TypeMismatch;
+
+            fn try_from(array: ArrayImpl) -> Result<Self, Self::Error> {
+                match array {
+                    ArrayImpl::$y(array) => Ok(array),
+                    _ => Err(TypeMismatch),
+                }
+            }
+        }
+
+        impl<'a> TryFrom<&'a ArrayImpl> for &'a $x {
+            type Error = TypeMismatch;
+
+            fn try_from(array: &'a ArrayImpl) -> Result<Self, Self::Error> {
+                match array {
+                    ArrayImpl::$y(array) => Ok(array),
+                    _ => Err(TypeMismatch),
+                }
+            }
+        }
     };
 }
+
 impl_into! { PrimitiveArray<bool>, Bool }
 // impl_into! { PrimitiveArray<i16>, Int16 }
 impl_into! { PrimitiveArray<i32>, Int32 }
