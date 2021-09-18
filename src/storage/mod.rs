@@ -1,6 +1,12 @@
+mod block;
+mod segment;
 mod table;
+mod slice;
 
+pub use self::block::*;
+pub use self::segment::*;
 pub use self::table::*;
+pub use self::slice::*;
 
 use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};
 use crate::types::{ColumnId, DatabaseId, SchemaId};
@@ -107,3 +113,16 @@ impl Storage for InMemoryStorage {
         todo!("remove table from catalog");
     }
 }
+
+// On-disk Storage
+// Each table with N columns is stored in multiple table slices.
+// (For our stand-alone system, we only store table in one slice. We could make the storage shared in distributed system.)
+// Each slice has mutiple table segments.
+// Each segment have N column segments.
+// Each column segment store data in a list of Block.
+pub const BLOCK_SIZE: usize = 2 * 1024 * 1024;
+pub type BlockId = u32;
+pub type TableSegmentId = u32;
+pub type SliceId = u32;
+pub type TupleSize = u64;
+pub type SegmentSize = u64;
