@@ -130,12 +130,12 @@ impl ArrayBuilderImpl {
     /// Create a new array builder from data type.
     pub fn new(ty: DataType) -> Self {
         match ty.kind() {
-            DataTypeKind::Bool => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
-            DataTypeKind::Int32 => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
-            DataTypeKind::Float64 => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
+            DataTypeKind::Boolean => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
+            DataTypeKind::Int => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
+            DataTypeKind::Double => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
             DataTypeKind::Char(_) => Self::UTF8(UTF8ArrayBuilder::new(0)),
             DataTypeKind::Varchar(_) => Self::UTF8(UTF8ArrayBuilder::new(0)),
-            DataTypeKind::Null => panic!("can not build array from NULL type"),
+            _ => panic!("unsupported data type"),
         }
     }
 

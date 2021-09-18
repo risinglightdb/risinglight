@@ -101,21 +101,14 @@ impl TableCatalog {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn test_table_catalog() {
-        let col0 = ColumnCatalog::new(
-            0,
-            "a".into(),
-            ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
-        );
-        let col1 = ColumnCatalog::new(
-            1,
-            "b".into(),
-            ColumnDesc::new(DataType::new(DataTypeKind::Bool, false), false),
-        );
+        let col0 = ColumnCatalog::new(0, "a".into(), DataTypeKind::Int.not_null().to_column());
+        let col1 = ColumnCatalog::new(1, "b".into(), DataTypeKind::Boolean.not_null().to_column());
 
         let col_catalogs = vec![col0, col1];
-        let table_catalog = TableCatalog::new(0, String::from("t"), col_catalogs, false);
+        let table_catalog = TableCatalog::new(0, "t".into(), col_catalogs, false);
 
         assert_eq!(table_catalog.contains_column("c"), false);
         assert_eq!(table_catalog.contains_column("a"), true);
@@ -126,10 +119,10 @@ mod tests {
 
         let col0_catalog = table_catalog.get_column_by_id(0).unwrap();
         assert_eq!(col0_catalog.name(), "a");
-        assert_eq!(col0_catalog.datatype().kind(), DataTypeKind::Int32);
+        assert_eq!(col0_catalog.datatype().kind(), DataTypeKind::Int);
 
         let col1_catalog = table_catalog.get_column_by_id(1).unwrap();
         assert_eq!(col1_catalog.name(), "b");
-        assert_eq!(col1_catalog.datatype().kind(), DataTypeKind::Bool);
+        assert_eq!(col1_catalog.datatype().kind(), DataTypeKind::Boolean);
     }
 }

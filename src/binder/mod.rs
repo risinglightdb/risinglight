@@ -1,22 +1,25 @@
 use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
+use crate::parser::{Ident, ObjectName, Statement};
 use crate::types::ColumnId;
-
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
     vec::Vec,
 };
 
-pub mod expression;
-pub mod statement;
-pub mod table_ref;
+mod expression;
+mod statement;
+mod table_ref;
 
-pub use expression::*;
-pub use statement::*;
-pub use table_ref::*;
+pub use self::expression::*;
+pub use self::statement::*;
+pub use self::table_ref::*;
 
-pub trait Bind {
-    fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError>;
+#[derive(Debug, PartialEq, Clone)]
+pub enum BoundStatement {
+    CreateTable(BoundCreateTable),
+    Insert(BoundInsert),
+    Select(BoundSelect),
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]
@@ -43,25 +46,20 @@ pub enum BindError {
     NotNullableColumn(String),
     #[error("ambiguous column")]
     AmbiguousColumn,
+    #[error("invalid table name: {0:?}")]
+    InvalidTableName(Vec<Ident>),
+    #[error("invalid SQL")]
+    InvalidSQL,
 }
 
 // TODO
+#[derive(Debug, Default)]
 struct BinderContext {
     pub regular_tables: HashMap<String, TableRefId>,
     // Mapping the table name to column names
     pub column_names: HashMap<String, HashSet<String>>,
     // Mapping table name to its column ids
     pub column_ids: HashMap<String, Vec<ColumnId>>,
-}
-
-impl BinderContext {
-    pub fn new() -> BinderContext {
-        BinderContext {
-            regular_tables: HashMap::new(),
-            column_names: HashMap::new(),
-            column_ids: HashMap::new(),
-        }
-    }
 }
 
 pub struct Binder {
@@ -75,12 +73,12 @@ impl Binder {
         Binder {
             catalog,
             upper_contexts: Vec::new(),
-            context: BinderContext::new(),
+            context: BinderContext::default(),
         }
     }
 
     pub fn push_context(&mut self) {
-        let new_context = std::mem::replace(&mut self.context, BinderContext::new());
+        let new_context = std::mem::replace(&mut self.context, BinderContext::default());
         self.upper_contexts.push(new_context);
     }
 
@@ -88,4 +86,24 @@ impl Binder {
         let old_context = self.upper_contexts.pop();
         self.context = old_context.unwrap();
     }
+
+    pub fn bind(&mut self, stmt: &Statement) -> Result<BoundStatement, BindError> {
+        match stmt {
+            Statement::CreateTable { .. } => {
+                Ok(BoundStatement::CreateTable(self.bind_create_table(stmt)?))
+            }
+            Statement::Insert { .. } => Ok(BoundStatement::Insert(self.bind_insert(stmt)?)),
+            Statement::Query(query) => Ok(BoundStatement::Select(self.bind_select(&*query)?)),
+            _ => todo!("bind statement"),
+        }
+    }
+}
+
+fn split_name(name: &ObjectName) -> Result<(&str, &str, &str), BindError> {
+    Ok(match name.0.as_slice() {
+        [table] => (DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME, &table.value),
+        [schema, table] => (DEFAULT_DATABASE_NAME, &schema.value, &table.value),
+        [db, schema, table] => (&db.value, &schema.value, &table.value),
+        _ => return Err(BindError::InvalidTableName(name.0.clone())),
+    })
 }

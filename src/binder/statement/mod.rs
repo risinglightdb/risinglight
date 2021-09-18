@@ -1,23 +1,9 @@
 use super::*;
 
-use crate::parser::SQLStatement;
+mod create_table;
+mod insert;
+mod select;
 
-pub mod create;
-pub mod insert;
-pub mod select;
-
-pub use create::*;
+pub use create_table::*;
 pub use insert::*;
 pub use select::*;
-
-impl Bind for SQLStatement {
-    fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError> {
-        match self {
-            Self::CreateDatabase(_stmt) => todo!(),
-            Self::CreateSchema(_stmt) => todo!(),
-            Self::CreateTable(stmt) => stmt.bind(binder),
-            Self::Insert(stmt) => stmt.bind(binder),
-            Self::Select(stmt) => stmt.bind(binder),
-        }
-    }
-}

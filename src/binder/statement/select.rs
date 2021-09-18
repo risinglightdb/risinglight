@@ -1,45 +1,95 @@
 use super::*;
+use crate::parser::{Query, SelectItem, SetExpr};
 
-use crate::parser::{SelectStmt, TableRef};
+#[derive(Debug, PartialEq, Clone)]
+pub struct BoundSelect {
+    pub select_list: Vec<BoundExpr>,
+    // TODO: aggregates: Vec<BoundExpr>,
+    pub from_table: Vec<BoundTableRef>,
+    pub where_clause: Option<BoundExpr>,
+    pub select_distinct: bool,
+    // pub groupby: Option<BoundGroupBy>,
+    // pub orderby: Option<BoundOrderBy>,
+    pub limit: Option<BoundExpr>,
+    pub offset: Option<BoundExpr>,
+    // pub return_names: Vec<String>,
+}
 
-impl Bind for SelectStmt {
-    fn bind(&mut self, binder: &mut Binder) -> Result<(), BindError> {
+impl Binder {
+    pub fn bind_select(&mut self, query: &Query) -> Result<BoundSelect, BindError> {
+        self.push_context();
+        let ret = self.bind_select_internal(query);
+        self.pop_context();
+        ret
+    }
+
+    fn bind_select_internal(&mut self, query: &Query) -> Result<BoundSelect, BindError> {
+        let select = match &query.body {
+            SetExpr::Select(select) => &**select,
+            _ => todo!("not select"),
+        };
         // Bind table ref
-        binder.push_context();
-        if self.from_table.is_some() {
-            self.from_table.as_mut().unwrap().bind(binder)?;
+        let mut from_table = vec![];
+        for table_ref in select.from.iter() {
+            let table_ref = self.bind_table_ref(&table_ref.relation)?;
+            from_table.push(table_ref);
         }
-        // TODO: process where, order by, group-by, limit and offset
+        // TODO: process where, order by, group-by
+        let where_clause = match &select.selection {
+            Some(expr) => Some(self.bind_expr(expr)?),
+            None => None,
+        };
+        let limit = match &query.limit {
+            Some(expr) => Some(self.bind_expr(expr)?),
+            None => None,
+        };
+        let offset = match &query.offset {
+            Some(offset) => Some(self.bind_expr(&offset.value)?),
+            None => None,
+        };
 
-        // Bind select list, we only support column reference now
-        for select_elem in self.select_list.iter_mut() {
-            select_elem.bind(binder)?;
-            self.return_names.push(select_elem.get_name());
-            self.return_types.push(select_elem.return_type);
+        // Bind the select list.
+        // we only support column reference now
+
+        let mut select_list = vec![];
+        // let mut return_names = vec![];
+        for item in select.projection.iter() {
+            let expr = match item {
+                SelectItem::UnnamedExpr(expr) => self.bind_expr(expr)?,
+                SelectItem::ExprWithAlias { expr, .. } => self.bind_expr(expr)?,
+                _ => todo!("bind select list"),
+            };
+            // return_names.push(expr.get_name());
+            select_list.push(expr);
         }
 
         // Add referred columns for base table reference
-        if self.from_table.is_some() {
-            if let TableRef::Base(base_ref) = self.from_table.as_mut().unwrap() {
-                base_ref.column_ids = binder
-                    .context
-                    .column_ids
-                    .get(&base_ref.table_name)
-                    .unwrap()
-                    .to_vec();
-            }
+        for table_ref in from_table.iter_mut() {
+            table_ref.column_ids = self
+                .context
+                .column_ids
+                .get(&table_ref.table_name)
+                .unwrap()
+                .clone();
         }
-        binder.pop_context();
-        Ok(())
+
+        Ok(BoundSelect {
+            select_list,
+            from_table,
+            where_clause,
+            select_distinct: select.distinct,
+            limit,
+            offset,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog};
-    use crate::parser::{BaseTableRef, SQLStatement};
-    use crate::types::{DataType, DataTypeKind};
+    use crate::catalog::{ColumnCatalog, ColumnRefId, RootCatalog};
+    use crate::parser::{parse, Statement};
+    use crate::types::{DataTypeExt, DataTypeKind};
     use std::sync::Arc;
 
     #[test]
@@ -53,71 +103,58 @@ mod tests {
             .add_table(
                 "t".into(),
                 vec![
-                    ColumnCatalog::new(
-                        0,
-                        "a".into(),
-                        ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
-                    ),
-                    ColumnCatalog::new(
-                        1,
-                        "b".into(),
-                        ColumnDesc::new(DataType::new(DataTypeKind::Int32, false), false),
-                    ),
+                    ColumnCatalog::new(0, "a".into(), DataTypeKind::Int.not_null().to_column()),
+                    ColumnCatalog::new(1, "b".into(), DataTypeKind::Int.not_null().to_column()),
                 ],
                 false,
             )
             .unwrap();
 
-        let sql = "select a, b from t;  select c from t;";
-        let mut stmts = SQLStatement::parse(sql).unwrap();
-        stmts[0].bind(&mut binder).unwrap();
-        let select_stmt = stmts[0].as_select_stmt();
-        let table_ref = select_stmt.from_table.as_mut().unwrap().as_base_ref();
+        let sql = "select b, a from t;  select c from t;";
+        let stmts = parse(sql).unwrap();
+
+        let query = match &stmts[0] {
+            Statement::Query(q) => &*q,
+            _ => panic!("type mismatch"),
+        };
         assert_eq!(
-            table_ref.database_name.as_ref().unwrap(),
-            DEFAULT_DATABASE_NAME
-        );
-        assert_eq!(table_ref.schema_name.as_ref().unwrap(), DEFAULT_SCHEMA_NAME);
-        assert_eq!(
-            table_ref.table_ref_id.unwrap(),
-            TableRefId {
-                database_id: 0,
-                schema_id: 0,
-                table_id: 0
+            binder.bind_select(query).unwrap(),
+            BoundSelect {
+                select_list: vec![
+                    BoundExpr {
+                        kind: BoundExprKind::ColumnRef(BoundColumnRef {
+                            column_ref_id: ColumnRefId::new(0, 0, 0, 1),
+                            column_index: 0,
+                        }),
+                        return_type: Some(DataTypeKind::Int.not_null()),
+                    },
+                    BoundExpr {
+                        kind: BoundExprKind::ColumnRef(BoundColumnRef {
+                            column_ref_id: ColumnRefId::new(0, 0, 0, 0),
+                            column_index: 1,
+                        }),
+                        return_type: Some(DataTypeKind::Int.not_null()),
+                    },
+                ],
+                from_table: vec![BoundTableRef {
+                    ref_id: TableRefId::new(0, 0, 0),
+                    table_name: "t".into(),
+                    column_ids: vec![1, 0],
+                }],
+                where_clause: None,
+                select_distinct: false,
+                limit: None,
+                offset: None,
             }
         );
 
+        let query = match &stmts[1] {
+            Statement::Query(q) => &*q,
+            _ => panic!("type mismatch"),
+        };
         assert_eq!(
-            select_stmt.return_types,
-            vec![
-                Some(DataType::new(DataTypeKind::Int32, false)),
-                Some(DataType::new(DataTypeKind::Int32, false))
-            ]
+            binder.bind_select(query),
+            Err(BindError::InvalidColumn("c".into()))
         );
-
-        assert_eq!(table_ref.column_ids, vec![0, 1]);
-
-        assert_eq!(
-            stmts[1].bind(&mut binder),
-            Err(BindError::InvalidColumn("c".to_string()))
-        );
-    }
-
-    impl SQLStatement {
-        fn as_select_stmt(&mut self) -> &mut SelectStmt {
-            match self {
-                SQLStatement::Select(stmt) => stmt,
-                _ => panic!("wrong statement type"),
-            }
-        }
-    }
-
-    impl TableRef {
-        fn as_base_ref(&mut self) -> &mut BaseTableRef {
-            match self {
-                TableRef::Base(base_ref) => base_ref,
-                _ => panic!("wrong statement type"),
-            }
-        }
     }
 }
