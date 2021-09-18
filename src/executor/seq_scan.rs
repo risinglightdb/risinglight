@@ -6,10 +6,11 @@ use crate::storage::StorageRef;
 pub struct SeqScanExecutor {
     pub plan: PhysicalSeqScan,
     pub storage: StorageRef,
+    pub output: mpsc::Sender<DataChunk>,
 }
 
 impl SeqScanExecutor {
-    pub async fn execute(self) -> Result<ExecutorResult, ExecutorError> {
+    pub async fn execute(self) -> Result<(), ExecutorError> {
         let table = self.storage.get_table(self.plan.table_ref_id)?;
         let col_descs = table.column_descs(&self.plan.column_ids)?;
         // Get n array builders
@@ -37,6 +38,7 @@ impl SeqScanExecutor {
             .cardinality(cardinality)
             .arrays(arrays.into())
             .build();
-        Ok(ExecutorResult::Batch(result))
+        self.output.send(result).await.ok().unwrap();
+        Ok(())
     }
 }

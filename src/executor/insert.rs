@@ -1,4 +1,4 @@
-use super::{ExecutorError, ExecutorResult};
+use super::*;
 use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunk};
 use crate::physical_plan::PhysicalInsert;
 use crate::storage::StorageRef;
@@ -6,10 +6,11 @@ use crate::storage::StorageRef;
 pub struct InsertExecutor {
     pub plan: PhysicalInsert,
     pub storage: StorageRef,
+    pub output: mpsc::Sender<DataChunk>,
 }
 
 impl InsertExecutor {
-    pub async fn execute(self) -> Result<ExecutorResult, ExecutorError> {
+    pub async fn execute(self) -> Result<(), ExecutorError> {
         let cardinality = self.plan.values.len();
         assert!(cardinality > 0);
 
@@ -34,7 +35,7 @@ impl InsertExecutor {
             .arrays(arrays.into())
             .build();
         table.append(chunk)?;
-        Ok(ExecutorResult::Empty)
+        Ok(())
     }
 }
 
@@ -74,6 +75,7 @@ mod tests {
         let executor = InsertExecutor {
             plan,
             storage: env.storage.clone(),
+            output: mpsc::channel(1).0,
         };
         futures::executor::block_on(executor.execute()).unwrap();
     }
@@ -93,7 +95,8 @@ mod tests {
         };
         let executor = CreateTableExecutor {
             plan,
-            env: env.clone(),
+            storage: env.storage.clone(),
+            output: mpsc::channel(1).0,
         };
         futures::executor::block_on(executor.execute()).unwrap();
         env

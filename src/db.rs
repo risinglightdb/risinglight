@@ -1,7 +1,7 @@
 use crate::{
     binder::{BindError, Binder},
     catalog::RootCatalogRef,
-    executor::{ExecutorBuilder, ExecutorError, GlobalEnv, GlobalEnvRef},
+    executor::{ExecutionManager, ExecutorError, GlobalEnv},
     logical_plan::{LogicalPlanError, LogicalPlaner},
     parser::{parse, ParserError},
     physical_plan::{PhysicalPlanError, PhysicalPlaner},
@@ -10,8 +10,8 @@ use crate::{
 use std::sync::Arc;
 
 pub struct Database {
-    env: GlobalEnvRef,
     catalog: RootCatalogRef,
+    execution_manager: ExecutionManager,
 }
 
 impl Default for Database {
@@ -28,7 +28,11 @@ impl Database {
         let env = Arc::new(GlobalEnv {
             storage: Arc::new(storage),
         });
-        Database { env, catalog }
+        let execution_manager = ExecutionManager::new(env);
+        Database {
+            catalog,
+            execution_manager,
+        }
     }
 
     /// Run SQL queries.
@@ -43,13 +47,12 @@ impl Database {
             .collect::<Result<Vec<_>, _>>()?;
         let logical_planner = LogicalPlaner::default();
         let physical_planner = PhysicalPlaner::default();
-        let executor_builder = ExecutorBuilder::new(self.env.clone());
         // TODO: parallelize
         for stmt in stmts {
             let logical_plan = logical_planner.plan(stmt)?;
             let physical_plan = physical_planner.plan(logical_plan)?;
-            let executor = executor_builder.build(physical_plan)?;
-            futures::executor::block_on(executor).unwrap();
+            let mut output = self.execution_manager.run(physical_plan);
+            self.execution_manager.block_on(output.recv());
         }
         Ok(())
     }
