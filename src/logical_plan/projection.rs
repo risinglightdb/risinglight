@@ -1,8 +1,8 @@
 use super::*;
-use crate::parser::Expression;
+use crate::binder::BoundExpr;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ProjectionLogicalPlan {
-    pub project_expressions: Vec<Expression>,
+pub struct LogicalProjection {
+    pub project_expressions: Vec<BoundExpr>,
     pub child: Box<LogicalPlan>,
 }
