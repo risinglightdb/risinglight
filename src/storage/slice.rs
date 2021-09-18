@@ -1,5 +1,5 @@
 use super::*;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
 use std::collections::HashMap;
 use std::vec::Vec;
 use crate::types::{ColumnId};

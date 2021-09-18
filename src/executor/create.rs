@@ -42,7 +42,7 @@ mod tests {
                 ColumnCatalog::new(1, "v2".into(), DataTypeKind::Int32.not_null().to_column()),
             ],
         };
-        let executor = CreateTableExecutor { plan, env: env };
+        let executor = CreateTableExecutor { plan, env };
         futures::executor::block_on(executor.execute()).unwrap();
 
         let id = TableRefId {

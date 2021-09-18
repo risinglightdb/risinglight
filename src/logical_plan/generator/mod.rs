@@ -185,7 +185,7 @@ mod tests {
                         schema_id: 0,
                         table_id: 0
                     },
-                    &vec![0, 1]
+                    &[0, 1]
                 )))
             })
         )
