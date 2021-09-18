@@ -6,17 +6,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-byteorder = "1" 
-positioned-io-preview = "0.3"
-lazy_static = "1.4.0"
-int-enum = "0.4"
-postgres-parser = "0.2.2"
+sqlparser = "0.10"
 thiserror = "1.0"
 num-traits = "0.2"
 typed-builder = "0.9.1"
 smallvec = { version = "1.6.1", features = ["serde"] }
 bitvec = { version = "0.22", features = ["serde"] }
-serde = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 futures = "0.3"
 jemallocator = "0.3"
 
