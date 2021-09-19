@@ -26,8 +26,8 @@ impl ColumnDesc {
         self.datatype.is_nullable()
     }
 
-    pub fn datatype(&self) -> DataType {
-        self.datatype
+    pub fn datatype(&self) -> &DataType {
+        &self.datatype
     }
 }
 
@@ -70,7 +70,7 @@ impl ColumnCatalog {
     }
 
     pub fn datatype(&self) -> DataType {
-        self.desc.datatype
+        self.desc.datatype.clone()
     }
 
     pub fn set_primary(&mut self, is_primary: bool) {
@@ -89,16 +89,15 @@ impl ColumnCatalog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::DataTypeKind;
+    use crate::types::{DataTypeExt, DataTypeKind};
 
     #[test]
     fn test_column_catalog() {
-        let col_desc = DataTypeKind::Int32.not_null().to_column();
+        let col_desc = DataTypeKind::Int.not_null().to_column();
         let mut col_catalog = ColumnCatalog::new(0, "grade".into(), col_desc);
         assert_eq!(col_catalog.id(), 0);
         assert_eq!(col_catalog.is_primary(), false);
         assert_eq!(col_catalog.is_nullable(), false);
-        assert_eq!(col_catalog.datatype().kind().data_len(), 4);
         assert_eq!(col_catalog.name(), "grade");
         col_catalog.set_primary(true);
         assert_eq!(col_catalog.is_primary(), true);

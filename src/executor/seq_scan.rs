@@ -1,10 +1,10 @@
 use super::*;
 use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunk};
-use crate::physical_plan::SeqScanPhysicalPlan;
+use crate::physical_plan::PhysicalSeqScan;
 use crate::storage::StorageRef;
 
 pub struct SeqScanExecutor {
-    pub plan: SeqScanPhysicalPlan,
+    pub plan: PhysicalSeqScan,
     pub storage: StorageRef,
 }
 
@@ -15,7 +15,7 @@ impl SeqScanExecutor {
         // Get n array builders
         let mut builders = col_descs
             .iter()
-            .map(|desc| ArrayBuilderImpl::new(desc.datatype()))
+            .map(|desc| ArrayBuilderImpl::new(desc.datatype().clone()))
             .collect::<Vec<ArrayBuilderImpl>>();
 
         let chunks = table.get_all_chunks()?;

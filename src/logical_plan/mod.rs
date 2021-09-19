@@ -1,11 +1,12 @@
+use crate::binder::BoundStatement;
+
 mod create;
-mod generator;
 mod insert;
 mod projection;
+mod select;
 mod seq_scan;
 
 pub use create::*;
-pub use generator::*;
 pub use insert::*;
 pub use projection::*;
 pub use seq_scan::*;
@@ -20,8 +21,21 @@ pub enum LogicalPlanError {
 #[derive(Debug, PartialEq, Clone)]
 pub enum LogicalPlan {
     Dummy,
-    SeqScan(SeqScanLogicalPlan),
-    Insert(InsertLogicalPlan),
-    CreateTable(CreateTableLogicalPlan),
-    Projection(ProjectionLogicalPlan),
+    SeqScan(LogicalSeqScan),
+    Insert(LogicalInsert),
+    CreateTable(LogicalCreateTable),
+    Projection(LogicalProjection),
+}
+
+#[derive(Default)]
+pub struct LogicalPlaner;
+
+impl LogicalPlaner {
+    pub fn plan(&self, stmt: BoundStatement) -> Result<LogicalPlan, LogicalPlanError> {
+        match stmt {
+            BoundStatement::CreateTable(stmt) => self.plan_create_table(stmt),
+            BoundStatement::Insert(stmt) => self.plan_insert(stmt),
+            BoundStatement::Select(stmt) => self.plan_select(stmt),
+        }
+    }
 }

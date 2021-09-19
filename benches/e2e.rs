@@ -4,7 +4,7 @@ use risinglight::Database;
 fn create_table(c: &mut Criterion) {
     c.bench_function("create table", |b| {
         b.iter_batched(
-            || Database::new(),
+            Database::new,
             |db| {
                 db.run("create table t(v1 int, v2 int, v3 int)").unwrap();
             },
