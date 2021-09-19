@@ -10,7 +10,7 @@ pub struct Block {
 }
 
 struct BlockInner {
-    buffer: [u8; BLOCK_SIZE]
+    buffer: [u8; BLOCK_SIZE],
 }
 // Each block has a BlockHeader which managed by BlockHeaderManager.
 pub struct BlockHeader {

@@ -22,5 +22,5 @@ pub struct TableSegment {
     num_tuples: TupleSize,
     column_segment_infos: HashMap<ColumnId, Arc<ColumnSegment>>,
     // Used for sequential scan.
-    next_table_segment: Option<Arc<TableSegment>>
+    next_table_segment: Option<Arc<TableSegment>>,
 }

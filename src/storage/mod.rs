@@ -1,12 +1,12 @@
 mod block;
 mod segment;
-mod table;
 mod slice;
+mod table;
 
 pub use self::block::*;
 pub use self::segment::*;
-pub use self::table::*;
 pub use self::slice::*;
+pub use self::table::*;
 
 use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};
 use crate::types::{ColumnId, DatabaseId, SchemaId};
