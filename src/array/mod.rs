@@ -211,6 +211,34 @@ impl ArrayBuilderImpl {
     }
 }
 
+impl ArrayImpl {
+    /// Get the value and convert it to string.
+    pub fn get_to_string(&self, idx: usize) -> String {
+        match self {
+            Self::Bool(a) => a.get(idx).map(|v| v.to_string()),
+            Self::Int32(a) => a.get(idx).map(|v| v.to_string()),
+            Self::Float64(a) => a.get(idx).map(|v| v.to_string()),
+            Self::UTF8(a) => a.get(idx).map(|v| v.to_string()),
+        }
+        .unwrap_or_else(|| "NULL".into())
+    }
+
+    /// Number of items of array.
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Bool(a) => a.len(),
+            Self::Int32(a) => a.len(),
+            Self::Float64(a) => a.len(),
+            Self::UTF8(a) => a.len(),
+        }
+    }
+
+    /// Check if array is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

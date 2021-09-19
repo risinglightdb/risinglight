@@ -1,4 +1,5 @@
 use crate::{
+    array::DataChunk,
     binder::{BindError, Binder},
     catalog::RootCatalogRef,
     executor::{ExecutionManager, ExecutorError, GlobalEnv},
@@ -35,26 +36,27 @@ impl Database {
         }
     }
 
-    /// Run SQL queries.
-    pub fn run(&self, sql: &str) -> Result<(), Error> {
+    /// Run SQL queries and return the outputs.
+    pub fn run(&self, sql: &str) -> Result<Vec<DataChunk>, Error> {
         // parse
         let stmts = parse(sql)?;
-        // bind
+
         let mut binder = Binder::new(self.catalog.clone());
-        let stmts = stmts
-            .iter()
-            .map(|s| binder.bind(s))
-            .collect::<Result<Vec<_>, _>>()?;
         let logical_planner = LogicalPlaner::default();
         let physical_planner = PhysicalPlaner::default();
         // TODO: parallelize
+        let mut results = vec![];
         for stmt in stmts {
+            let stmt = binder.bind(&stmt)?;
             let logical_plan = logical_planner.plan(stmt)?;
             let physical_plan = physical_planner.plan(logical_plan)?;
             let mut output = self.execution_manager.run(physical_plan);
-            self.execution_manager.block_on(output.recv());
+            let output = self.execution_manager.block_on(output.recv());
+            if let Some(output) = output {
+                results.push(output);
+            }
         }
-        Ok(())
+        Ok(results)
     }
 }
 

@@ -9,6 +9,13 @@ fn main() {
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
         let ret = db.run(&input);
-        println!("{:?}", ret);
+        match ret {
+            Ok(chunks) => {
+                for chunk in chunks {
+                    println!("{}", chunk);
+                }
+            }
+            Err(err) => println!("{}", err),
+        }
     }
 }
