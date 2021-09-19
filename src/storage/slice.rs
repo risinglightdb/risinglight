@@ -9,10 +9,12 @@ use std::vec::Vec;
 // So far, we only store in one slice.
 // Multiple slices could be used for sharding and partitioning in the future.
 pub struct DataTableSlice {
+    #[allow(dead_code)]
     inner: DataTableSliceInner,
 }
 
 pub struct DataTableSliceInner {
+    #[allow(dead_code)]
     column_descs: HashMap<ColumnId, ColumnDesc>,
     num_tuples: TupleSize,
     num_segments: SegmentSize,

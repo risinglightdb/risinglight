@@ -70,6 +70,7 @@ impl BaseTable {
 // Each on disk table stores data in DataTableSlices.
 // We only use one slice now.
 pub struct OnDiskDataTable {
+    #[allow(dead_code)]
     table_id: TableId,
     column_descs: HashMap<ColumnId, ColumnDesc>,
     primary_keys: Vec<ColumnId>,

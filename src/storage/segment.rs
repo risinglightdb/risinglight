@@ -7,10 +7,12 @@ use std::sync::{Arc, Mutex};
 /// A column segment stores data in a list of blocks.
 /// Each Block has prev and next block id, so ColumnSegment only stores the first and last block id.
 pub struct ColumnSegment {
+    #[allow(dead_code)]
     inner: Mutex<ColumnSegmentInner>,
 }
 
 pub struct ColumnSegmentInner {
+    #[allow(dead_code)]
     column_desc: ColumnDesc,
     first_block_id: Option<BlockId>,
     last_block_id: Option<BlockId>,
@@ -18,6 +20,7 @@ pub struct ColumnSegmentInner {
 
 // For a table with N columns, a table segment stores fixed number tuples.
 pub struct TableSegment {
+    #[allow(dead_code)]
     id: TableSegmentId,
     num_tuples: TupleSize,
     column_segment_infos: HashMap<ColumnId, Arc<ColumnSegment>>,
