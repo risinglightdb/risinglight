@@ -25,12 +25,47 @@ pub struct TableRefId {
     pub table_id: TableId,
 }
 
+impl TableRefId {
+    pub const fn new(database_id: DatabaseId, schema_id: SchemaId, table_id: TableId) -> Self {
+        TableRefId {
+            database_id,
+            schema_id,
+            table_id,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct ColumnRefId {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_id: TableId,
     pub column_id: ColumnId,
+}
+
+impl ColumnRefId {
+    pub const fn from_table(table: TableRefId, column_id: ColumnId) -> Self {
+        ColumnRefId {
+            database_id: table.database_id,
+            schema_id: table.schema_id,
+            table_id: table.table_id,
+            column_id,
+        }
+    }
+
+    pub const fn new(
+        database_id: DatabaseId,
+        schema_id: SchemaId,
+        table_id: TableId,
+        column_id: ColumnId,
+    ) -> Self {
+        ColumnRefId {
+            database_id,
+            schema_id,
+            table_id,
+            column_id,
+        }
+    }
 }
 
 #[derive(thiserror::Error, Debug)]

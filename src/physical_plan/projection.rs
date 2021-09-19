@@ -1,8 +1,20 @@
 use super::*;
-use crate::parser::Expression;
+use crate::{binder::BoundExpr, logical_plan::LogicalProjection};
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ProjectionPhysicalPlan {
-    pub project_expressions: Vec<Expression>,
+pub struct PhysicalProjection {
+    pub project_expressions: Vec<BoundExpr>,
     pub child: Box<PhysicalPlan>,
+}
+
+impl PhysicalPlaner {
+    pub fn plan_projection(
+        &self,
+        plan: LogicalProjection,
+    ) -> Result<PhysicalPlan, PhysicalPlanError> {
+        Ok(PhysicalPlan::Projection(PhysicalProjection {
+            project_expressions: plan.project_expressions,
+            child: Box::new(self.plan(*plan.child)?),
+        }))
+    }
 }

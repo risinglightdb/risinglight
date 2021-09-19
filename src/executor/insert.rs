@@ -1,10 +1,10 @@
 use super::{ExecutorError, ExecutorResult};
 use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunk};
-use crate::physical_plan::InsertPhysicalPlan;
+use crate::physical_plan::PhysicalInsert;
 use crate::storage::StorageRef;
 
 pub struct InsertExecutor {
-    pub plan: InsertPhysicalPlan,
+    pub plan: PhysicalInsert,
     pub storage: StorageRef,
 }
 
@@ -17,7 +17,7 @@ impl InsertExecutor {
         let columns = table.column_descs(&self.plan.column_ids)?;
         let mut array_builders = columns
             .iter()
-            .map(|col| ArrayBuilderImpl::new(col.datatype()))
+            .map(|col| ArrayBuilderImpl::new(col.datatype().clone()))
             .collect::<Vec<ArrayBuilderImpl>>();
         for row in &self.plan.values {
             for (expr, builder) in row.iter().zip(&mut array_builders) {
@@ -41,13 +41,13 @@ impl InsertExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::binder::BoundExpr;
     use crate::catalog::{ColumnCatalog, TableRefId};
     use crate::executor::CreateTableExecutor;
     use crate::executor::{GlobalEnv, GlobalEnvRef};
-    use crate::parser::Expression;
-    use crate::physical_plan::CreateTablePhysicalPlan;
+    use crate::physical_plan::PhysicalCreateTable;
     use crate::storage::InMemoryStorage;
-    use crate::types::{DataTypeKind, DataValue};
+    use crate::types::{DataTypeExt, DataTypeKind, DataValue};
     use std::sync::Arc;
 
     #[test]
@@ -58,11 +58,11 @@ mod tests {
             .iter()
             .map(|row| {
                 row.iter()
-                    .map(|&v| Expression::constant(DataValue::Int32(v)))
+                    .map(|&v| BoundExpr::constant(DataValue::Int32(v)))
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        let plan = InsertPhysicalPlan {
+        let plan = PhysicalInsert {
             table_ref_id: TableRefId {
                 database_id: 0,
                 schema_id: 0,
@@ -82,13 +82,13 @@ mod tests {
         let env = Arc::new(GlobalEnv {
             storage: Arc::new(InMemoryStorage::new()),
         });
-        let plan = CreateTablePhysicalPlan {
+        let plan = PhysicalCreateTable {
             database_id: 0,
             schema_id: 0,
             table_name: "t".into(),
-            column_descs: vec![
-                ColumnCatalog::new(0, "v1".into(), DataTypeKind::Int32.not_null().to_column()),
-                ColumnCatalog::new(1, "v2".into(), DataTypeKind::Int32.not_null().to_column()),
+            columns: vec![
+                ColumnCatalog::new(0, "v1".into(), DataTypeKind::Int.not_null().to_column()),
+                ColumnCatalog::new(1, "v2".into(), DataTypeKind::Int.not_null().to_column()),
             ],
         };
         let executor = CreateTableExecutor {

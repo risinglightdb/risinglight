@@ -1,9 +1,9 @@
 use super::*;
 use crate::array::{ArrayImpl, DataChunk};
-use crate::parser::Expression;
+use crate::binder::BoundExpr;
 
 pub struct ProjectionExecutor {
-    pub project_expressions: Vec<Expression>,
+    pub project_expressions: Vec<BoundExpr>,
     pub child_executor: BoxedExecutor,
 }
 

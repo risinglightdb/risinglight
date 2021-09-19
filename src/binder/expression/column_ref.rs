@@ -1,93 +1,82 @@
 use super::*;
 
-use crate::parser::ColumnRef;
-use crate::types::DataType;
-
-impl ColumnRef {
-    pub fn bind(&mut self, binder: &mut Binder) -> Result<DataType, BindError> {
-        match &self.table_name {
-            Some(name) => {
-                if !binder.context.regular_tables.contains_key(name) {
-                    return Err(BindError::InvalidTable(name.clone()));
-                }
-
-                let table_ref_id = binder.context.regular_tables.get(name).unwrap();
-                let table = binder.catalog.get_table(table_ref_id);
-                let col_opt = table.get_column_by_name(&self.column_name);
-                if col_opt.is_none() {
-                    return Err(BindError::InvalidColumn(self.column_name.clone()));
-                }
-                let col = col_opt.unwrap();
-                self.column_ref_id = Some(ColumnRefId {
-                    database_id: table_ref_id.database_id,
-                    schema_id: table_ref_id.schema_id,
-                    table_id: table_ref_id.table_id,
-                    column_id: col.id(),
-                });
-                self.column_index = Some(record_regular_table_column(
-                    binder,
-                    name,
-                    &self.column_name,
-                    col.id(),
-                ));
-                Ok(col.datatype())
-            }
-            None => {
-                let mut data_type: Option<DataType> = None;
-                let mut is_matched: bool = false;
-                for (_name, ref_id) in binder.context.regular_tables.iter() {
-                    let table = binder.catalog.get_table(ref_id);
-                    let col_opt = table.get_column_by_name(&self.column_name);
-                    if let Some(col) = col_opt {
-                        if is_matched {
-                            return Err(BindError::AmbiguousColumn);
-                        }
-                        is_matched = true;
-                        self.column_ref_id = Some(ColumnRefId {
-                            database_id: ref_id.database_id,
-                            schema_id: ref_id.schema_id,
-                            table_id: ref_id.table_id,
-                            column_id: col.id(),
-                        });
-                        data_type = Some(col.datatype());
-                        self.table_name = Some(table.name().clone());
-                    }
-                }
-
-                if !is_matched {
-                    return Err(BindError::InvalidColumn(self.column_name.clone()));
-                }
-
-                self.column_index = Some(record_regular_table_column(
-                    binder,
-                    self.table_name.as_ref().unwrap(),
-                    &self.column_name,
-                    self.column_ref_id.unwrap().column_id,
-                ));
-
-                Ok(data_type.unwrap())
-            }
-        }
-    }
+#[derive(Debug, PartialEq, Clone)]
+pub struct BoundColumnRef {
+    pub column_ref_id: ColumnRefId,
+    pub column_index: ColumnId,
 }
 
-fn record_regular_table_column(
-    binder: &mut Binder,
-    table_name: &str,
-    col_name: &str,
-    column_id: ColumnId,
-) -> ColumnId {
-    let names = binder.context.column_names.get_mut(table_name).unwrap();
-    if !names.contains(col_name) {
-        let idx = names.len() as u32;
-        names.insert(col_name.to_string());
-        let idxs = binder.context.column_ids.get_mut(table_name).unwrap();
-        idxs.push(column_id);
-        assert!(!idxs.is_empty());
-        idx
-    } else {
-        let idxs = binder.context.column_ids.get_mut(table_name).unwrap();
-        assert!(!idxs.is_empty());
-        idxs.iter().position(|&r| r == column_id).unwrap() as u32
+impl Binder {
+    pub fn bind_column_ref(&mut self, idents: &[Ident]) -> Result<BoundExpr, BindError> {
+        let (_schema_name, table_name, column_name) = match idents {
+            [column] => (None, None, &column.value),
+            [table, column] => (None, Some(&table.value), &column.value),
+            [schema, table, column] => (Some(&schema.value), Some(&table.value), &column.value),
+            _ => return Err(BindError::InvalidTableName(idents.into())),
+        };
+        if let Some(name) = table_name {
+            if !self.context.regular_tables.contains_key(name) {
+                return Err(BindError::InvalidTable(name.clone()));
+            }
+            let table_ref_id = self.context.regular_tables[name];
+            let table = self.catalog.get_table(&table_ref_id);
+            let col = table
+                .get_column_by_name(column_name)
+                .ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
+            let column_ref_id = ColumnRefId::from_table(table_ref_id, col.id());
+            let column_index = self.record_regular_table_column(name, column_name, col.id());
+            Ok(BoundExpr {
+                kind: BoundExprKind::ColumnRef(BoundColumnRef {
+                    column_ref_id,
+                    column_index,
+                }),
+                return_type: Some(col.datatype()),
+            })
+        } else {
+            let mut info = None;
+            for ref_id in self.context.regular_tables.values() {
+                let table = self.catalog.get_table(ref_id);
+                if let Some(col) = table.get_column_by_name(column_name) {
+                    if info.is_some() {
+                        return Err(BindError::AmbiguousColumn);
+                    }
+                    let column_ref_id = ColumnRefId::from_table(*ref_id, col.id());
+                    info = Some((table.name().clone(), column_ref_id, col.datatype()));
+                }
+            }
+            let (table_name, column_ref_id, data_type) =
+                info.ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
+            let column_index =
+                self.record_regular_table_column(&table_name, column_name, column_ref_id.column_id);
+
+            Ok(BoundExpr {
+                kind: BoundExprKind::ColumnRef(BoundColumnRef {
+                    column_ref_id,
+                    column_index,
+                }),
+                return_type: Some(data_type),
+            })
+        }
+    }
+
+    fn record_regular_table_column(
+        &mut self,
+        table_name: &str,
+        col_name: &str,
+        column_id: ColumnId,
+    ) -> ColumnId {
+        let names = self.context.column_names.get_mut(table_name).unwrap();
+        if !names.contains(col_name) {
+            let idx = names.len() as u32;
+            names.insert(col_name.to_string());
+            let idxs = self.context.column_ids.get_mut(table_name).unwrap();
+            idxs.push(column_id);
+            assert!(!idxs.is_empty());
+            idx
+        } else {
+            let idxs = &self.context.column_ids[table_name];
+            assert!(!idxs.is_empty());
+            idxs.iter().position(|&r| r == column_id).unwrap() as u32
+        }
     }
 }

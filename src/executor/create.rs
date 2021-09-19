@@ -1,8 +1,8 @@
 use super::*;
-use crate::physical_plan::CreateTablePhysicalPlan;
+use crate::physical_plan::PhysicalCreateTable;
 
 pub struct CreateTableExecutor {
-    pub plan: CreateTablePhysicalPlan,
+    pub plan: PhysicalCreateTable,
     pub env: GlobalEnvRef,
 }
 
@@ -12,7 +12,7 @@ impl CreateTableExecutor {
             self.plan.database_id,
             self.plan.schema_id,
             &self.plan.table_name,
-            &self.plan.column_descs,
+            &self.plan.columns,
         )?;
         Ok(ExecutorResult::Empty)
     }
@@ -23,7 +23,7 @@ mod tests {
     use super::*;
     use crate::catalog::{ColumnCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
     use crate::storage::InMemoryStorage;
-    use crate::types::DataTypeKind;
+    use crate::types::{DataTypeExt, DataTypeKind};
     use std::sync::Arc;
 
     #[test]
@@ -33,13 +33,13 @@ mod tests {
         let env = Arc::new(GlobalEnv {
             storage: Arc::new(storage),
         });
-        let plan = CreateTablePhysicalPlan {
+        let plan = PhysicalCreateTable {
             database_id: 0,
             schema_id: 0,
             table_name: "t".into(),
-            column_descs: vec![
-                ColumnCatalog::new(0, "v1".into(), DataTypeKind::Int32.not_null().to_column()),
-                ColumnCatalog::new(1, "v2".into(), DataTypeKind::Int32.not_null().to_column()),
+            columns: vec![
+                ColumnCatalog::new(0, "v1".into(), DataTypeKind::Int.not_null().to_column()),
+                ColumnCatalog::new(1, "v2".into(), DataTypeKind::Int.not_null().to_column()),
             ],
         };
         let executor = CreateTableExecutor { plan, env };
@@ -56,15 +56,13 @@ mod tests {
         );
 
         let table_ref = catalog.get_table(&id);
-        let col0 = table_ref.get_column_by_id(0).unwrap();
-        let col1 = table_ref.get_column_by_id(1).unwrap();
         assert_eq!(
-            col0,
-            ColumnCatalog::new(0, "v1".into(), DataTypeKind::Int32.not_null().to_column())
+            table_ref.get_column_by_id(0).unwrap(),
+            ColumnCatalog::new(0, "v1".into(), DataTypeKind::Int.not_null().to_column())
         );
         assert_eq!(
-            col1,
-            ColumnCatalog::new(1, "v2".into(), DataTypeKind::Int32.not_null().to_column())
+            table_ref.get_column_by_id(1).unwrap(),
+            ColumnCatalog::new(1, "v2".into(), DataTypeKind::Int.not_null().to_column())
         );
     }
 }
