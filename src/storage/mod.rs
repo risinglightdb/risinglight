@@ -1,9 +1,11 @@
 mod block;
+mod disk_manager;
 mod segment;
 mod slice;
 mod table;
 
 pub use self::block::*;
+pub use self::disk_manager::*;
 pub use self::segment::*;
 pub use self::slice::*;
 pub use self::table::*;
@@ -25,6 +27,8 @@ pub enum StorageError {
     Duplicated(&'static str, String),
     #[error("invalid column id: {0}")]
     InvalidColumn(ColumnId),
+    #[error("IO error : {0}")]
+    IOError(&'static str),
 }
 
 pub trait Storage: Sync + Send {
