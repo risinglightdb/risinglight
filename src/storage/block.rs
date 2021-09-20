@@ -31,7 +31,7 @@ impl Default for Block {
 #[allow(dead_code)]
 pub struct BlockInner {
     #[allow(dead_code)]
-    buffer: [u8; BLOCK_SIZE],
+    buffer: Vec<u8>,
 }
 impl Default for BlockInner {
     fn default() -> Self {
@@ -41,7 +41,7 @@ impl Default for BlockInner {
 impl BlockInner {
     pub fn new() -> Self {
         BlockInner {
-            buffer: [0; BLOCK_SIZE],
+            buffer: vec![0; BLOCK_SIZE],
         }
     }
 

@@ -142,3 +142,34 @@ impl DiskManager {
         Arc::new(block)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::vec::Vec;
+    #[test]
+    fn test_disk_manager() {
+        let mut mgr = DiskManager::new();
+        mgr.init(InitMode::Create);
+        assert_eq!(1, mgr.get_next_block_id());
+        assert_eq!(2, mgr.get_next_block_id());
+        assert_eq!(3, mgr.get_next_block_id());
+        let block = Arc::new(Block::new());
+        let buf = vec![1; BLOCK_SIZE];
+        let mut block_inner = block.get_inner_mutex();
+        let mut_ref = block_inner.get_buffer_mut();
+        mut_ref.clone_from_slice(&buf);
+        drop(block_inner);
+        mgr.write_block(1, block.clone());
+        drop(mgr);
+
+        let mut mgr2 = DiskManager::new();
+        mgr2.init(InitMode::Open);
+        assert_eq!(4, mgr2.get_next_block_id());
+        let new_block = mgr2.read_block(1);
+        let new_block_inner = new_block.get_inner_mutex();
+        let new_block_ref = new_block_inner.get_buffer_ref();
+        assert_eq!(buf, new_block_ref);
+    }
+}
