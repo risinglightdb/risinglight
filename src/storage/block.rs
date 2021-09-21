@@ -44,12 +44,15 @@ impl BlockInner {
             buffer: vec![0; BLOCK_SIZE],
         }
     }
+}
 
-    pub fn get_buffer_ref(&self) -> &[u8] {
+impl AsRef<[u8]> for BlockInner {
+    fn as_ref(&self) -> &[u8] {
         &self.buffer
     }
-
-    pub fn get_buffer_mut(&mut self) -> &mut [u8] {
+}
+impl AsMut<[u8]> for BlockInner {
+    fn as_mut(&mut self) -> &mut [u8] {
         &mut self.buffer
     }
 }

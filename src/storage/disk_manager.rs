@@ -18,40 +18,30 @@ pub struct DiskManager {
 
 pub struct DiskManagerInner {
     next_block_id: BlockId,
-    file: Option<File>,
+    file: File,
 }
 
 // Metablock always starts with Block 0. There will be more than one Metablock.
 // TODO: Support erasing blocks.
 impl DiskManagerInner {
-    fn new() -> Self {
+    fn new(file: File) -> Self {
         DiskManagerInner {
             next_block_id: 0,
-            file: None,
+            file,
         }
     }
     // Read and Write block will be used by DiskManager in other functions.
     // So we add methods for DiskManagerInner, so DiskManager does not need to grab mutex for twice.
     pub fn read_meta_block(&mut self) {
-        self.file
-            .as_ref()
-            .unwrap()
-            .seek(SeekFrom::Start(0))
-            .unwrap();
+        self.file.seek(SeekFrom::Start(0)).unwrap();
         let mut bytes: [u8; 4] = [0; 4];
-        self.file.as_ref().unwrap().read_exact(&mut bytes).unwrap();
+        self.file.read_exact(&mut bytes).unwrap();
         self.next_block_id = u32::from_le_bytes(bytes);
     }
 
     pub fn write_meta_block(&mut self) {
+        self.file.seek(SeekFrom::Start(0)).unwrap();
         self.file
-            .as_ref()
-            .unwrap()
-            .seek(SeekFrom::Start(0))
-            .unwrap();
-        self.file
-            .as_ref()
-            .unwrap()
             .write_all(&self.next_block_id.to_le_bytes())
             .unwrap();
     }
@@ -59,15 +49,39 @@ impl DiskManagerInner {
 
 impl Default for DiskManager {
     fn default() -> Self {
-        Self::new()
+        Self::create()
     }
 }
 // We won't use Result in DiskManager, the system cannot run anymore and must crash when there is IO error.
 impl DiskManager {
-    pub fn new() -> DiskManager {
-        DiskManager {
-            inner: Mutex::new(DiskManagerInner::new()),
-        }
+    pub fn create() -> DiskManager {
+        let temp_file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(DEFAULT_STROAGE_FILE_NAME)
+            .unwrap();
+        let inner_mutex = Mutex::new(DiskManagerInner::new(temp_file));
+        let mut inner = inner_mutex.lock().unwrap();
+        inner.next_block_id = 1;
+        inner.write_meta_block();
+        drop(inner);
+        DiskManager { inner: inner_mutex }
+    }
+
+    pub fn open() -> DiskManager {
+        let temp_file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(DEFAULT_STROAGE_FILE_NAME)
+            .unwrap();
+
+        let inner_mutex = Mutex::new(DiskManagerInner::new(temp_file));
+        let mut inner = inner_mutex.lock().unwrap();
+        inner.read_meta_block();
+        drop(inner);
+        DiskManager { inner: inner_mutex }
     }
 
     pub fn get_next_block_id(&mut self) -> BlockId {
@@ -77,67 +91,29 @@ impl DiskManager {
         inner.write_meta_block();
         id
     }
-    // The init mode should be decided by OnDisk Storage Manager.
-    pub fn init(&mut self, mode: InitMode) {
-        match mode {
-            // Create mode will create and truncate file.
-            InitMode::Create => {
-                let temp_file = OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .truncate(true)
-                    .create(true)
-                    .open(DEFAULT_STROAGE_FILE_NAME)
-                    .unwrap();
-                let mut inner = self.inner.lock().unwrap();
-                inner.file = Some(temp_file);
-                inner.next_block_id = 1;
-                inner.write_meta_block();
-            }
-            // Open mode will open an existing db file, it will be PANIC if failed!
-            InitMode::Open => {
-                let temp_file = OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .open(DEFAULT_STROAGE_FILE_NAME)
-                    .unwrap();
-                let mut inner = self.inner.lock().unwrap();
-                inner.file = Some(temp_file);
-                inner.read_meta_block();
-            }
-        }
-    }
 
     pub fn write_block(&mut self, block_id: BlockId, block: Arc<Block>) {
-        let inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().unwrap();
         inner
             .file
-            .as_ref()
-            .unwrap()
             .seek(SeekFrom::Start(block_id as u64 * BLOCK_SIZE as u64))
             .unwrap();
         inner
             .file
-            .as_ref()
-            .unwrap()
-            .write_all(block.get_inner_mutex().get_buffer_ref())
+            .write_all(block.get_inner_mutex().as_ref())
             .unwrap();
     }
 
     pub fn read_block(&mut self, block_id: BlockId) -> Arc<Block> {
         let block = Block::new();
-        let inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().unwrap();
         inner
             .file
-            .as_ref()
-            .unwrap()
             .seek(SeekFrom::Start(block_id as u64 * BLOCK_SIZE as u64))
             .unwrap();
         inner
             .file
-            .as_ref()
-            .unwrap()
-            .read_exact(block.get_inner_mutex().get_buffer_mut())
+            .read_exact(block.get_inner_mutex().as_mut())
             .unwrap();
         Arc::new(block)
     }
@@ -147,29 +123,26 @@ impl DiskManager {
 mod tests {
     use super::*;
     use std::sync::Arc;
-    use std::vec::Vec;
     #[test]
     fn test_disk_manager() {
-        let mut mgr = DiskManager::new();
-        mgr.init(InitMode::Create);
+        let mut mgr = DiskManager::create();
         assert_eq!(1, mgr.get_next_block_id());
         assert_eq!(2, mgr.get_next_block_id());
         assert_eq!(3, mgr.get_next_block_id());
         let block = Arc::new(Block::new());
         let buf = vec![1; BLOCK_SIZE];
         let mut block_inner = block.get_inner_mutex();
-        let mut_ref = block_inner.get_buffer_mut();
+        let mut_ref = block_inner.as_mut();
         mut_ref.clone_from_slice(&buf);
         drop(block_inner);
         mgr.write_block(1, block.clone());
         drop(mgr);
 
-        let mut mgr2 = DiskManager::new();
-        mgr2.init(InitMode::Open);
+        let mut mgr2 = DiskManager::open();
         assert_eq!(4, mgr2.get_next_block_id());
         let new_block = mgr2.read_block(1);
         let new_block_inner = new_block.get_inner_mutex();
-        let new_block_ref = new_block_inner.get_buffer_ref();
+        let new_block_ref = new_block_inner.as_ref();
         assert_eq!(buf, new_block_ref);
     }
 }
