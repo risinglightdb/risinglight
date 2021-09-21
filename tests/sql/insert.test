@@ -1,0 +1,20 @@
+statement ok
+create table t(v1 int, v2 int, v3 int)
+
+statement ok
+insert into t values (1,10,100)
+
+statement ok
+insert into t values (1,10,100), (2,20,200), (3,30,300), (4,40,400)
+
+statement ok
+insert into t(v1, v2, v3) values (1,10,100), (2,20,200), (3,30,300)
+
+statement ok
+insert into t(v1, v2) values (1,10), (2,20), (3,30), (4,40)
+
+statement ok
+insert into t(v2, v1) values (1,10), (2,20), (3,30), (4,40)
+
+statement ok
+insert into t values (NULL,NULL,NULL)

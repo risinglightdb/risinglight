@@ -1,0 +1,12 @@
+# statement ok
+# create database mydatabase
+
+# duplicated database
+# statement error
+# create database mydatabase
+
+# statement ok
+# create schema myschema
+
+statement ok
+create table t(v1 int, v2 int, v3 int)

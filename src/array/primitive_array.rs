@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
 /// `PrimitiveArray` is a collection of primitive types, such as `i32`, `f32`.
-#[derive(Serialize, Deserialize)]
+#[derive(PartialEq, Serialize, Deserialize)]
 pub struct PrimitiveArray<T: NativeType> {
     valid: BitVec,
     data: Vec<T>,

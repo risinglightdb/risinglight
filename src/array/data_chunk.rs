@@ -8,7 +8,7 @@ use std::sync::Arc;
 use typed_builder::TypedBuilder;
 
 /// `DataChunk` is a collection of arrays with visibility mask.
-#[derive(TypedBuilder, Default, Serialize, Deserialize)]
+#[derive(TypedBuilder, Default, Serialize, Deserialize, PartialEq)]
 pub struct DataChunk {
     #[builder(default)]
     arrays: SmallVec<[ArrayImpl; 16]>,

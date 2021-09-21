@@ -2,6 +2,19 @@
 //!
 //! [Sqllogictest]: https://www.sqlite.org/sqllogictest/doc/trunk/about.wiki
 
+use std::path::Path;
+use test_case::test_case;
+
+#[test_case("create.test")]
+#[test_case("insert.test")]
+#[test_case("select.test")]
+fn sqllogictest(name: &str) {
+    let script = std::fs::read_to_string(Path::new("tests/sql").join(name)).unwrap();
+    let records = parse(&script).unwrap();
+    let mut tester = SqlLogicTester::new(Database::new());
+    tester.test_multi(records);
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Record {
     Statement {
@@ -60,6 +73,16 @@ pub enum ParseError {
     ParseInt(#[from] std::num::ParseIntError),
     #[error("{0}")]
     ParseFloat(#[from] std::num::ParseFloatError),
+}
+
+impl ColumnValues {
+    fn len(&self) -> usize {
+        match self {
+            ColumnValues::Int(c) => c.len(),
+            ColumnValues::Float(c) => c.len(),
+            ColumnValues::Text(c) => c.len(),
+        }
+    }
 }
 
 pub fn parse(script: &str) -> Result<Vec<Record>, ParseError> {
@@ -169,9 +192,68 @@ pub fn parse(script: &str) -> Result<Vec<Record>, ParseError> {
     Ok(records)
 }
 
-#[test]
-fn parse_sqllogictest() {
-    let script = std::fs::read_to_string("tests/sql/simple.test").unwrap();
-    let records = parse(&script).unwrap();
-    println!("{:#?}", records);
+use risinglight::{array::*, Database};
+
+impl From<ColumnValues> for ArrayImpl {
+    fn from(col: ColumnValues) -> Self {
+        match col {
+            ColumnValues::Int(c) => c.into_iter().collect::<PrimitiveArray<i32>>().into(),
+            ColumnValues::Float(c) => c.into_iter().collect::<PrimitiveArray<f64>>().into(),
+            ColumnValues::Text(c) => c
+                .iter()
+                .map(|o| o.as_ref().map(|s| s.as_str()))
+                .collect::<UTF8Array>()
+                .into(),
+        }
+    }
+}
+
+struct SqlLogicTester {
+    db: Database,
+}
+
+impl SqlLogicTester {
+    pub fn new(db: Database) -> Self {
+        SqlLogicTester { db }
+    }
+
+    pub fn test(&mut self, record: Record) {
+        match record {
+            Record::Statement { error, sql, .. } => {
+                let ret = self.db.run(&sql);
+                match ret {
+                    Ok(_) if error => panic!(
+                        "statement is expected to fail, but actually succeed: {:?}",
+                        sql
+                    ),
+                    Err(e) if !error => panic!("statement failed: {}\n\tSQL: {:?}", e, sql),
+                    _ => {}
+                }
+            }
+            Record::Query {
+                sql,
+                expected_results,
+                ..
+            } => {
+                let actual = &self.db.run(&sql).expect("query failed")[0];
+                let expected = DataChunk::builder()
+                    .cardinality(expected_results[0].len())
+                    .arrays(expected_results.into_iter().map(ArrayImpl::from).collect())
+                    .build();
+                if *actual != expected {
+                    panic!(
+                        "query result mismatch:\nSQL:\n{}\n\nExpected:\n{}\nActual:\n{}",
+                        sql, expected, actual
+                    );
+                }
+            }
+            Record::Halt => {}
+        }
+    }
+
+    pub fn test_multi(&mut self, records: impl IntoIterator<Item = Record>) {
+        for record in records.into_iter() {
+            self.test(record);
+        }
+    }
 }

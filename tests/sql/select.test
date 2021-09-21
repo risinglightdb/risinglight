@@ -8,3 +8,8 @@ query II
 select v1, v2 from t
 ----
 1   10
+
+query I
+select v1 + v2 from t
+----
+11
