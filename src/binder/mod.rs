@@ -44,6 +44,8 @@ pub enum BindError {
     InvalidExpression(String),
     #[error("not nullable column: {0}")]
     NotNullableColumn(String),
+    #[error("binary operator types mismatch")]
+    BinaryOpTypeMismatch,
     #[error("ambiguous column")]
     AmbiguousColumn,
     #[error("invalid table name: {0:?}")]
