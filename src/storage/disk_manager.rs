@@ -42,11 +42,6 @@ impl DiskManagerInner {
     }
 }
 
-impl Default for DiskManager {
-    fn default() -> Self {
-        Self::create().unwrap()
-    }
-}
 // We won't use Result in DiskManager, the system cannot run anymore and must crash when there is IO error.
 impl DiskManager {
     pub fn create() -> Result<DiskManager, StorageError> {
