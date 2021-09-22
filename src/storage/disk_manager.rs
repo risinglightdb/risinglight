@@ -4,11 +4,6 @@ use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
 pub static DEFAULT_STROAGE_FILE_NAME: &str = "risinglight.db";
 
-#[derive(Eq, PartialEq, Hash, Copy, Clone)]
-pub enum InitMode {
-    Create,
-    Open,
-}
 // DiskManager is responsible for managing blocks on disk.
 // So we don't need use Mutex.
 pub struct DiskManager {
@@ -49,39 +44,47 @@ impl DiskManagerInner {
 
 impl Default for DiskManager {
     fn default() -> Self {
-        Self::create()
+        Self::create().unwrap()
     }
 }
 // We won't use Result in DiskManager, the system cannot run anymore and must crash when there is IO error.
 impl DiskManager {
-    pub fn create() -> DiskManager {
-        let temp_file = OpenOptions::new()
+    pub fn create() -> Result<DiskManager, StorageError> {
+        let file_res = OpenOptions::new()
             .read(true)
             .write(true)
             .truncate(true)
             .create(true)
-            .open(DEFAULT_STROAGE_FILE_NAME)
-            .unwrap();
-        let inner_mutex = Mutex::new(DiskManagerInner::new(temp_file));
-        let mut inner = inner_mutex.lock().unwrap();
-        inner.next_block_id = 1;
-        inner.write_meta_block();
-        drop(inner);
-        DiskManager { inner: inner_mutex }
+            .open(DEFAULT_STROAGE_FILE_NAME);
+        match file_res {
+            Ok(file) => {
+                let inner_mutex = Mutex::new(DiskManagerInner::new(file));
+                let mut inner = inner_mutex.lock().unwrap();
+                inner.next_block_id = 1;
+                inner.write_meta_block();
+                drop(inner);
+                Ok(DiskManager { inner: inner_mutex })
+            }
+            Err(_) => Err(StorageError::IOError("Unable to open file.")),
+        }
     }
 
-    pub fn open() -> DiskManager {
-        let temp_file = OpenOptions::new()
+    pub fn open() -> Result<DiskManager, StorageError> {
+        let file_res = OpenOptions::new()
             .read(true)
             .write(true)
-            .open(DEFAULT_STROAGE_FILE_NAME)
-            .unwrap();
+            .open(DEFAULT_STROAGE_FILE_NAME);
 
-        let inner_mutex = Mutex::new(DiskManagerInner::new(temp_file));
-        let mut inner = inner_mutex.lock().unwrap();
-        inner.read_meta_block();
-        drop(inner);
-        DiskManager { inner: inner_mutex }
+        match file_res {
+            Ok(file) => {
+                let inner_mutex = Mutex::new(DiskManagerInner::new(file));
+                let mut inner = inner_mutex.lock().unwrap();
+                inner.read_meta_block();
+                drop(inner);
+                Ok(DiskManager { inner: inner_mutex })
+            }
+            Err(_) => Err(StorageError::IOError("Unable to create file.")),
+        }
     }
 
     pub fn get_next_block_id(&mut self) -> BlockId {
@@ -125,7 +128,7 @@ mod tests {
     use std::sync::Arc;
     #[test]
     fn test_disk_manager() {
-        let mut mgr = DiskManager::create();
+        let mut mgr = DiskManager::create().unwrap();
         assert_eq!(1, mgr.get_next_block_id());
         assert_eq!(2, mgr.get_next_block_id());
         assert_eq!(3, mgr.get_next_block_id());
@@ -138,7 +141,7 @@ mod tests {
         mgr.write_block(1, block.clone());
         drop(mgr);
 
-        let mut mgr2 = DiskManager::open();
+        let mut mgr2 = DiskManager::open().unwrap();
         assert_eq!(4, mgr2.get_next_block_id());
         let new_block = mgr2.read_block(1);
         let new_block_inner = new_block.get_inner_mutex();
