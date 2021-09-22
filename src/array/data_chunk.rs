@@ -3,6 +3,7 @@ use super::*;
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+use std::fmt;
 use std::sync::Arc;
 use typed_builder::TypedBuilder;
 
@@ -38,3 +39,16 @@ impl DataChunk {
 }
 
 pub type DataChunkRef = Arc<DataChunk>;
+
+impl fmt::Display for DataChunk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use prettytable::{format, Table};
+        let mut table = Table::new();
+        table.set_format(*format::consts::FORMAT_NO_LINESEP_WITH_TITLE);
+        for i in 0..self.cardinality {
+            let row = self.arrays.iter().map(|a| a.get_to_string(i)).collect();
+            table.add_row(row);
+        }
+        write!(f, "{}", table)
+    }
+}

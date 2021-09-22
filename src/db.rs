@@ -1,7 +1,8 @@
 use crate::{
+    array::DataChunk,
     binder::{BindError, Binder},
     catalog::RootCatalogRef,
-    executor::{ExecutorBuilder, ExecutorError, GlobalEnv, GlobalEnvRef},
+    executor::{ExecutionManager, ExecutorError, GlobalEnv},
     logical_plan::{LogicalPlanError, LogicalPlaner},
     parser::{parse, ParserError},
     physical_plan::{PhysicalPlanError, PhysicalPlaner},
@@ -10,8 +11,8 @@ use crate::{
 use std::sync::Arc;
 
 pub struct Database {
-    env: GlobalEnvRef,
     catalog: RootCatalogRef,
+    execution_manager: ExecutionManager,
 }
 
 impl Default for Database {
@@ -28,30 +29,34 @@ impl Database {
         let env = Arc::new(GlobalEnv {
             storage: Arc::new(storage),
         });
-        Database { env, catalog }
+        let execution_manager = ExecutionManager::new(env);
+        Database {
+            catalog,
+            execution_manager,
+        }
     }
 
-    /// Run SQL queries.
-    pub fn run(&self, sql: &str) -> Result<(), Error> {
+    /// Run SQL queries and return the outputs.
+    pub fn run(&self, sql: &str) -> Result<Vec<DataChunk>, Error> {
         // parse
         let stmts = parse(sql)?;
-        // bind
+
         let mut binder = Binder::new(self.catalog.clone());
-        let stmts = stmts
-            .iter()
-            .map(|s| binder.bind(s))
-            .collect::<Result<Vec<_>, _>>()?;
         let logical_planner = LogicalPlaner::default();
         let physical_planner = PhysicalPlaner::default();
-        let executor_builder = ExecutorBuilder::new(self.env.clone());
         // TODO: parallelize
+        let mut results = vec![];
         for stmt in stmts {
+            let stmt = binder.bind(&stmt)?;
             let logical_plan = logical_planner.plan(stmt)?;
             let physical_plan = physical_planner.plan(logical_plan)?;
-            let executor = executor_builder.build(physical_plan)?;
-            futures::executor::block_on(executor).unwrap();
+            let mut output = self.execution_manager.run(physical_plan);
+            let output = self.execution_manager.block_on(output.recv());
+            if let Some(output) = output {
+                results.push(output);
+            }
         }
-        Ok(())
+        Ok(results)
     }
 }
 
