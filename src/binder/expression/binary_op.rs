@@ -4,23 +4,26 @@ use super::*;
 pub struct BoundBinaryOp {
     pub left_expr: Box<BoundExpr>,
     pub op: BinaryOperator,
-    pub right_bound_expr: Box<BoundExpr>,
+    pub right_expr: Box<BoundExpr>,
 }
 
 impl Binder {
     pub fn bind_binary_op(
         &mut self,
-        left: &Box<Expr>,
+        left: &Expr,
         op: &BinaryOperator,
-        right: &Box<Expr>,
+        right: &Expr,
     ) -> Result<BoundExpr, BindError> {
-        let mut return_type: Option<DataType> = None;
+        let return_type;
         let left_bound_expr = self.bind_expr(left)?;
         let right_bound_expr = self.bind_expr(right)?;
         match op {
             BinaryOperator::Plus => {
                 match (&left_bound_expr.return_type, &right_bound_expr.return_type) {
                     (Some(left_data_type), Some(right_data_type)) => {
+                        if left_data_type != right_data_type {
+                            return Err(BindError::BinaryOpTypeMismatch);
+                        }
                         return_type = Some(left_data_type.clone())
                     }
                     (None, None) => return_type = None,
@@ -33,7 +36,7 @@ impl Binder {
             kind: BoundExprKind::BinaryOp(BoundBinaryOp {
                 left_expr: Box::new(left_bound_expr),
                 op: op.clone(),
-                right_bound_expr: Box::new(right_bound_expr),
+                right_expr: Box::new(right_bound_expr),
             }),
             return_type,
         })
