@@ -53,12 +53,12 @@ impl DiskManager {
             .open(DEFAULT_STROAGE_FILE_NAME);
         match file_res {
             Ok(file) => {
-                let inner_mutex = Mutex::new(DiskManagerInner::new(file));
-                let mut inner = inner_mutex.lock().unwrap();
+                let mut inner = DiskManagerInner::new(file);
                 inner.next_block_id = 1;
                 inner.write_meta_block();
-                drop(inner);
-                Ok(DiskManager { inner: inner_mutex })
+                Ok(DiskManager {
+                    inner: Mutex::new(inner),
+                })
             }
             Err(_) => Err(StorageError::IOError("Unable to open file.")),
         }
@@ -72,17 +72,17 @@ impl DiskManager {
 
         match file_res {
             Ok(file) => {
-                let inner_mutex = Mutex::new(DiskManagerInner::new(file));
-                let mut inner = inner_mutex.lock().unwrap();
+                let mut inner = DiskManagerInner::new(file);
                 inner.read_meta_block();
-                drop(inner);
-                Ok(DiskManager { inner: inner_mutex })
+                Ok(DiskManager {
+                    inner: Mutex::new(inner),
+                })
             }
             Err(_) => Err(StorageError::IOError("Unable to create file.")),
         }
     }
 
-    pub fn get_next_block_id(&mut self) -> BlockId {
+    pub fn get_next_block_id(&self) -> BlockId {
         let mut inner = self.inner.lock().unwrap();
         let id = inner.next_block_id;
         inner.next_block_id += 1;
@@ -90,7 +90,7 @@ impl DiskManager {
         id
     }
 
-    pub fn write_block(&mut self, block_id: BlockId, block: Arc<Block>) {
+    pub fn write_block(&self, block_id: BlockId, block: Arc<Block>) {
         let mut inner = self.inner.lock().unwrap();
         inner
             .file
@@ -102,7 +102,7 @@ impl DiskManager {
             .unwrap();
     }
 
-    pub fn read_block(&mut self, block_id: BlockId) -> Arc<Block> {
+    pub fn read_block(&self, block_id: BlockId) -> Arc<Block> {
         let block = Block::new();
         let mut inner = self.inner.lock().unwrap();
         inner
@@ -123,7 +123,7 @@ mod tests {
     use std::sync::Arc;
     #[test]
     fn test_disk_manager() {
-        let mut mgr = DiskManager::create().unwrap();
+        let mgr = DiskManager::create().unwrap();
         assert_eq!(1, mgr.get_next_block_id());
         assert_eq!(2, mgr.get_next_block_id());
         assert_eq!(3, mgr.get_next_block_id());
@@ -136,7 +136,7 @@ mod tests {
         mgr.write_block(1, block.clone());
         drop(mgr);
 
-        let mut mgr2 = DiskManager::open().unwrap();
+        let mgr2 = DiskManager::open().unwrap();
         assert_eq!(4, mgr2.get_next_block_id());
         let new_block = mgr2.read_block(1);
         let new_block_inner = new_block.get_inner_mutex();
