@@ -92,7 +92,7 @@ pub type I32Array = PrimitiveArray<i32>;
 pub type F64Array = PrimitiveArray<f64>;
 
 /// `ArrayCollection` embeds all possible array in `array` module.
-#[derive(Serialize, Deserialize)]
+#[derive(PartialEq, Serialize, Deserialize)]
 pub enum ArrayImpl {
     Bool(BoolArray),
     // Int16(PrimitiveArray<i16>),

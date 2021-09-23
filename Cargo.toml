@@ -20,6 +20,7 @@ prettytable-rs = { version = "0.8", default-features = false }
 
 [dev-dependencies]
 criterion = "0.3"
+test-case = "1.2"
 
 [[bench]]
 name = "e2e"
