@@ -25,6 +25,8 @@ pub enum ExecutorError {
     BuildingPlanError,
     #[error("storage error: {0}")]
     Storage(#[from] StorageError),
+    #[error("convert error: {0}")]
+    Convert(#[from] evaluator::ConvertError),
 }
 
 pub type GlobalEnvRef = Arc<GlobalEnv>;

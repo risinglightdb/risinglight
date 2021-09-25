@@ -3,13 +3,13 @@ select 1
 ----
 1
 
-# FIXME: pass the following tests
-halt
-
 query R
 select 10000.00::FLOAT + 234.567::FLOAT
 ----
 10234.567
+
+# FIXME: pass the following tests
+halt
 
 query R
 select 100.0::DOUBLE/8.0::DOUBLE
