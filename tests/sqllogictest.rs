@@ -7,6 +7,8 @@ use std::path::Path;
 use test_case::test_case;
 
 #[test_case("basic_test.slt")]
+#[test_case("operator.slt")]
+#[test_case("nullable_and_or_eval.slt")]
 #[test_case("create.test")]
 #[test_case("insert.test")]
 #[test_case("select.test")]

@@ -81,11 +81,23 @@ impl ArrayImpl {
             BinaryOperator::GtEq => cmp!(>=),
             BinaryOperator::LtEq => cmp!(<=),
             BinaryOperator::And => match (self, right) {
-                (A::Bool(a), A::Bool(b)) => A::Bool(binary_op(a, b, |&a, &b| a && b)),
+                (A::Bool(a), A::Bool(b)) => {
+                    A::Bool(binary_op_with_null(a, b, |a, b| match (a, b) {
+                        (Some(a), Some(b)) => Some(*a && *b),
+                        (Some(false), _) | (_, Some(false)) => Some(false),
+                        _ => None,
+                    }))
+                }
                 _ => panic!("And can only be applied to BOOL arrays"),
             },
             BinaryOperator::Or => match (self, right) {
-                (A::Bool(a), A::Bool(b)) => A::Bool(binary_op(a, b, |&a, &b| a || b)),
+                (A::Bool(a), A::Bool(b)) => {
+                    A::Bool(binary_op_with_null(a, b, |a, b| match (a, b) {
+                        (Some(a), Some(b)) => Some(*a || *b),
+                        (Some(true), _) | (_, Some(true)) => Some(true),
+                        _ => None,
+                    }))
+                }
                 _ => panic!("Or can only be applied to BOOL arrays"),
             },
             _ => todo!("evaluate operator: {:?}", op),
@@ -159,6 +171,26 @@ where
     for (a, b) in a.iter().zip(b.iter()) {
         if let (Some(a), Some(b)) = (a, b) {
             builder.push(Some(f(a, b).borrow()));
+        } else {
+            builder.push(None);
+        }
+    }
+    builder.finish()
+}
+
+fn binary_op_with_null<A, B, O, F, V>(a: &A, b: &B, f: F) -> O
+where
+    A: Array,
+    B: Array,
+    O: Array,
+    V: Borrow<O::Item>,
+    F: Fn(Option<&A::Item>, Option<&B::Item>) -> Option<V>,
+{
+    assert_eq!(a.len(), b.len());
+    let mut builder = O::Builder::new(a.len());
+    for (a, b) in a.iter().zip(b.iter()) {
+        if let Some(c) = f(a, b) {
+            builder.push(Some(c.borrow()));
         } else {
             builder.push(None);
         }
