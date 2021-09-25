@@ -1,5 +1,8 @@
 #![deny(unused_must_use)]
 
+#[macro_use]
+extern crate log;
+
 pub mod array;
 pub mod binder;
 pub mod catalog;

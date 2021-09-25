@@ -7,12 +7,14 @@ use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
 
 mod create;
+mod dummy_scan;
 mod evaluator;
 mod insert;
 mod project;
 mod seq_scan;
 
 use self::create::*;
+use self::dummy_scan::*;
 use self::insert::*;
 use self::project::*;
 use self::seq_scan::*;
@@ -56,6 +58,9 @@ impl ExecutionManager {
     pub fn run(&self, plan: PhysicalPlan) -> mpsc::Receiver<DataChunk> {
         let (sender, recver) = mpsc::channel(1);
         match plan {
+            PhysicalPlan::Dummy => self
+                .runtime
+                .spawn(DummyScanExecutor { output: sender }.execute()),
             PhysicalPlan::CreateTable(plan) => self.runtime.spawn(
                 CreateTableExecutor {
                     plan,
@@ -88,7 +93,7 @@ impl ExecutionManager {
                 }
                 .execute(),
             ),
-            _ => todo!("execute physical plan"),
+            _ => todo!("execute physical plan: {:?}", plan),
         };
         recver
     }

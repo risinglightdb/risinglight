@@ -48,11 +48,15 @@ impl Database {
         let mut results = vec![];
         for stmt in stmts {
             let stmt = binder.bind(&stmt)?;
+            debug!("{:#?}", stmt);
             let logical_plan = logical_planner.plan(stmt)?;
+            debug!("{:#?}", logical_plan);
             let physical_plan = physical_planner.plan(logical_plan)?;
+            debug!("{:#?}", physical_plan);
             let mut output = self.execution_manager.run(physical_plan);
             let output = self.execution_manager.block_on(output.recv());
             if let Some(output) = output {
+                debug!("output:\n{}", output);
                 results.push(output);
             }
         }

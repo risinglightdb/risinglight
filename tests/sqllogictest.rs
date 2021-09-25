@@ -2,17 +2,26 @@
 //!
 //! [Sqllogictest]: https://www.sqlite.org/sqllogictest/doc/trunk/about.wiki
 
+use log::*;
 use std::path::Path;
 use test_case::test_case;
 
+#[test_case("basic_test.slt")]
 #[test_case("create.test")]
 #[test_case("insert.test")]
 #[test_case("select.test")]
 fn sqllogictest(name: &str) {
+    init_logger();
     let script = std::fs::read_to_string(Path::new("tests/sql").join(name)).unwrap();
-    let records = parse(&script).unwrap();
+    let records = parse(&script).expect("failed to parse sqllogictest");
     let mut tester = SqlLogicTester::new(Database::new());
     tester.test_multi(records);
+}
+
+fn init_logger() {
+    use std::sync::Once;
+    static INIT: Once = Once::new();
+    INIT.call_once(env_logger::init);
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -46,6 +55,7 @@ pub enum ColumnValues {
     Int(Vec<Option<i32>>),
     Float(Vec<Option<f64>>),
     Text(Vec<Option<String>>),
+    Bool(Vec<Option<bool>>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -73,6 +83,8 @@ pub enum ParseError {
     ParseInt(#[from] std::num::ParseIntError),
     #[error("{0}")]
     ParseFloat(#[from] std::num::ParseFloatError),
+    #[error("{0}")]
+    ParseBool(#[from] std::str::ParseBoolError),
 }
 
 impl ColumnValues {
@@ -81,6 +93,7 @@ impl ColumnValues {
             ColumnValues::Int(c) => c.len(),
             ColumnValues::Float(c) => c.len(),
             ColumnValues::Text(c) => c.len(),
+            ColumnValues::Bool(c) => c.len(),
         }
     }
 }
@@ -98,6 +111,7 @@ pub fn parse(script: &str) -> Result<Vec<Record>, ParseError> {
             [] => continue,
             ["halt"] => {
                 records.push(Record::Halt);
+                break;
             }
             ["skipif", db_name] => {
                 conditions.push(Condition::SkipIf {
@@ -135,6 +149,7 @@ pub fn parse(script: &str) -> Result<Vec<Record>, ParseError> {
                         'T' => values.push(ColumnValues::Text(vec![])),
                         'I' => values.push(ColumnValues::Int(vec![])),
                         'R' => values.push(ColumnValues::Float(vec![])),
+                        'B' => values.push(ColumnValues::Bool(vec![])),
                         _ => return Err(ParseError::InvalidType(type_string.to_string())),
                     }
                 }
@@ -171,9 +186,11 @@ pub fn parse(script: &str) -> Result<Vec<Record>, ParseError> {
                                 ColumnValues::Float(c) if v == "NULL" => c.push(None),
                                 ColumnValues::Text(c) if v == "NULL" => c.push(None),
                                 ColumnValues::Text(c) if v == "(empty)" => c.push(Some("".into())),
+                                ColumnValues::Bool(c) if v == "NULL" => c.push(None),
                                 ColumnValues::Int(c) => c.push(Some(v.parse()?)),
                                 ColumnValues::Float(c) => c.push(Some(v.parse()?)),
                                 ColumnValues::Text(c) => c.push(Some(v.into())),
+                                ColumnValues::Bool(c) => c.push(Some(v.parse()?)),
                             }
                         }
                     }
@@ -199,6 +216,7 @@ impl From<ColumnValues> for ArrayImpl {
         match col {
             ColumnValues::Int(c) => c.into_iter().collect::<PrimitiveArray<i32>>().into(),
             ColumnValues::Float(c) => c.into_iter().collect::<PrimitiveArray<f64>>().into(),
+            ColumnValues::Bool(c) => c.into_iter().collect::<PrimitiveArray<bool>>().into(),
             ColumnValues::Text(c) => c
                 .iter()
                 .map(|o| o.as_ref().map(|s| s.as_str()))
@@ -218,6 +236,7 @@ impl SqlLogicTester {
     }
 
     pub fn test(&mut self, record: Record) {
+        info!("test: {:?}", record);
         match record {
             Record::Statement { error, sql, .. } => {
                 let ret = self.db.run(&sql);
@@ -235,7 +254,10 @@ impl SqlLogicTester {
                 expected_results,
                 ..
             } => {
-                let actual = &self.db.run(&sql).expect("query failed")[0];
+                let output = self.db.run(&sql).expect("query failed");
+                let actual = output
+                    .get(0)
+                    .expect("expect result from query, but no output");
                 let expected = DataChunk::builder()
                     .cardinality(expected_results[0].len())
                     .arrays(expected_results.into_iter().map(ArrayImpl::from).collect())
@@ -253,6 +275,9 @@ impl SqlLogicTester {
 
     pub fn test_multi(&mut self, records: impl IntoIterator<Item = Record>) {
         for record in records.into_iter() {
+            if let Record::Halt = record {
+                return;
+            }
             self.test(record);
         }
     }

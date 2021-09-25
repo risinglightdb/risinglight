@@ -28,6 +28,11 @@ impl BoundExpr {
                 let right_arr = binary_op.right_expr.eval_array(chunk);
                 self.eval_binary_expr(left_arr, &binary_op.op, right_arr)
             }
+            BoundExprKind::Constant(v) => {
+                let mut builder = ArrayBuilderImpl::new(self.return_type.clone().unwrap());
+                builder.push(v);
+                builder.finish()
+            }
             _ => todo!("evaluate expression"),
         }
     }
