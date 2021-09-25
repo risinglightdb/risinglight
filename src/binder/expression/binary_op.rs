@@ -17,19 +17,30 @@ impl Binder {
         let return_type;
         let left_bound_expr = self.bind_expr(left)?;
         let right_bound_expr = self.bind_expr(right)?;
+        use BinaryOperator as Op;
         match op {
-            BinaryOperator::Plus => {
-                match (&left_bound_expr.return_type, &right_bound_expr.return_type) {
-                    (Some(left_data_type), Some(right_data_type)) => {
-                        if left_data_type != right_data_type {
-                            return Err(BindError::BinaryOpTypeMismatch);
-                        }
-                        return_type = Some(left_data_type.clone())
+            Op::Plus
+            | Op::Minus
+            | Op::Multiply
+            | Op::Divide
+            | Op::Modulo
+            | Op::Gt
+            | Op::GtEq
+            | Op::Lt
+            | Op::LtEq
+            | Op::Eq
+            | Op::NotEq
+            | Op::And
+            | Op::Or => match (&left_bound_expr.return_type, &right_bound_expr.return_type) {
+                (Some(left_data_type), Some(right_data_type)) => {
+                    if left_data_type != right_data_type {
+                        return Err(BindError::BinaryOpTypeMismatch);
                     }
-                    (None, None) => return_type = None,
-                    _ => return Err(BindError::BinaryOpTypeMismatch),
+                    return_type = Some(left_data_type.clone());
                 }
-            }
+                (None, None) => return_type = None,
+                _ => return Err(BindError::BinaryOpTypeMismatch),
+            },
             _ => todo!("Support more binary operators"),
         }
         Ok(BoundExpr {

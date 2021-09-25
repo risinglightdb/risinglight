@@ -8,9 +8,6 @@ select 10000.00::FLOAT + 234.567::FLOAT
 ----
 10234.567
 
-# FIXME: pass the following tests
-halt
-
 query R
 select 100.0::DOUBLE/8.0::DOUBLE
 ----
@@ -25,6 +22,9 @@ query B
 select 3>4
 ----
 false
+
+# FIXME: pass the following tests
+halt
 
 query T
 select DATE '2001-02-16'

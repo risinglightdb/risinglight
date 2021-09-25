@@ -1,10 +1,10 @@
 use crate::{
     array::*,
     binder::{BoundExpr, BoundExprKind},
-    expr::{BinaryExpression, BinaryVectorizedExpression},
     parser::BinaryOperator,
     types::{DataTypeKind, DataValue},
 };
+use std::borrow::Borrow;
 
 impl BoundExpr {
     /// Evaluate the given expression.
@@ -23,9 +23,9 @@ impl BoundExpr {
                 Ok(builder.finish())
             }
             BoundExprKind::BinaryOp(binary_op) => {
-                let left_arr = binary_op.left_expr.eval_array(chunk)?;
-                let right_arr = binary_op.right_expr.eval_array(chunk)?;
-                Ok(self.eval_binary_expr(left_arr, &binary_op.op, right_arr))
+                let left = binary_op.left_expr.eval_array(chunk)?;
+                let right = binary_op.right_expr.eval_array(chunk)?;
+                Ok(left.binary_op(&binary_op.op, &right))
             }
             BoundExprKind::Constant(v) => {
                 let mut builder = ArrayBuilderImpl::new(self.return_type.clone().unwrap());
@@ -42,76 +42,96 @@ impl BoundExpr {
             _ => todo!("evaluate expression: {:?}", self),
         }
     }
-
-    pub fn eval_binary_expr(
-        &self,
-        left_arr: ArrayImpl,
-        op: &BinaryOperator,
-        right_arr: ArrayImpl,
-    ) -> ArrayImpl {
-        match op {
-            BinaryOperator::Plus => match (&left_arr, &right_arr) {
-                (ArrayImpl::Int32(_), ArrayImpl::Int32(_)) => {
-                    BinaryVectorizedExpression::<I32Array, I32Array, I32Array, _>::new(|x, y| {
-                        x.and_then(|x| y.map(|y| x + y))
-                    })
-                    .eval_chunk(&left_arr, &right_arr)
-                }
-                (ArrayImpl::Float64(_), ArrayImpl::Float64(_)) => {
-                    BinaryVectorizedExpression::<F64Array, F64Array, F64Array, _>::new(|x, y| {
-                        x.and_then(|x| y.map(|y| x + y))
-                    })
-                    .eval_chunk(&left_arr, &right_arr)
-                }
-                _ => todo!("Support more types for plus!"),
-            },
-            _ => todo!("Support more operators"),
-        }
-    }
 }
 
 impl ArrayImpl {
+    /// Perform binary operation.
+    pub fn binary_op(&self, op: &BinaryOperator, right: &ArrayImpl) -> ArrayImpl {
+        type A = ArrayImpl;
+        macro_rules! arith {
+            ($op:tt) => {
+                match (self, right) {
+                    (A::Int32(a), A::Int32(b)) => A::Int32(binary_op(a, b, |a, b| a $op b)),
+                    (A::Float64(a), A::Float64(b)) => A::Float64(binary_op(a, b, |a, b| a $op b)),
+                    _ => todo!("Support more types for {}", stringify!($op)),
+                }
+            }
+        }
+        macro_rules! cmp {
+            ($op:tt) => {
+                match (self, right) {
+                    (A::Bool(a), A::Bool(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
+                    (A::Int32(a), A::Int32(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
+                    (A::Float64(a), A::Float64(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
+                    (A::UTF8(a), A::UTF8(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
+                    _ => todo!("Support more types for {}", stringify!($op)),
+                }
+            }
+        }
+        match op {
+            BinaryOperator::Plus => arith!(+),
+            BinaryOperator::Minus => arith!(-),
+            BinaryOperator::Multiply => arith!(*),
+            BinaryOperator::Divide => arith!(/),
+            BinaryOperator::Modulo => arith!(%),
+            BinaryOperator::Eq => cmp!(==),
+            BinaryOperator::NotEq => cmp!(!=),
+            BinaryOperator::Gt => cmp!(>),
+            BinaryOperator::Lt => cmp!(<),
+            BinaryOperator::GtEq => cmp!(>=),
+            BinaryOperator::LtEq => cmp!(<=),
+            BinaryOperator::And => match (self, right) {
+                (A::Bool(a), A::Bool(b)) => A::Bool(binary_op(a, b, |&a, &b| a && b)),
+                _ => panic!("And can only be applied to BOOL arrays"),
+            },
+            BinaryOperator::Or => match (self, right) {
+                (A::Bool(a), A::Bool(b)) => A::Bool(binary_op(a, b, |&a, &b| a || b)),
+                _ => panic!("Or can only be applied to BOOL arrays"),
+            },
+            _ => todo!("evaluate operator: {:?}", op),
+        }
+    }
+
     /// Cast the array to another type.
     pub fn try_cast(&self, data_type: DataTypeKind) -> Result<Self, ConvertError> {
+        type Type = DataTypeKind;
         Ok(match self {
             Self::Bool(a) => match data_type {
-                DataTypeKind::Boolean => Self::Bool(a.iter().map(|o| o.cloned()).collect()),
-                DataTypeKind::Int => Self::Int32(a.iter().map(|o| o.map(|&b| b as i32)).collect()),
-                DataTypeKind::Float(_) | DataTypeKind::Double => {
-                    Self::Float64(a.iter().map(|o| o.map(|&b| b as i32 as f64)).collect())
+                Type::Boolean => Self::Bool(a.clone()),
+                Type::Int => Self::Int32(unary_op(a, |&b| b as i32)),
+                Type::Float(_) | Type::Double => Self::Float64(unary_op(a, |&b| b as u8 as f64)),
+                Type::String | Type::Char(_) | Type::Varchar(_) => {
+                    Self::UTF8(unary_op(a, |&b| if b { "true" } else { "false" }))
                 }
-                DataTypeKind::String => Self::UTF8(
-                    a.iter()
-                        .map(|o| o.map(|&b| if b { "true" } else { "false" }))
-                        .collect(),
-                ),
                 _ => todo!("cast array"),
             },
             Self::Int32(a) => match data_type {
-                DataTypeKind::Boolean => Self::Bool(a.iter().map(|o| o.map(|&i| i != 0)).collect()),
-                DataTypeKind::Int => Self::Int32(a.iter().map(|o| o.cloned()).collect()),
-                DataTypeKind::Float(_) | DataTypeKind::Double => {
-                    Self::Float64(a.iter().map(|o| o.map(|&i| i as f64)).collect())
-                }
-                DataTypeKind::String => {
-                    Self::UTF8(a.iter().map(|o| o.map(|i| i.to_string())).collect())
+                Type::Boolean => Self::Bool(unary_op(a, |&i| i != 0)),
+                Type::Int => Self::Int32(a.clone()),
+                Type::Float(_) | Type::Double => Self::Float64(unary_op(a, |&i| i as f64)),
+                Type::String | Type::Char(_) | Type::Varchar(_) => {
+                    Self::UTF8(unary_op(a, |&i| i.to_string()))
                 }
                 _ => todo!("cast array"),
             },
             Self::Float64(a) => match data_type {
-                DataTypeKind::Boolean => {
-                    Self::Bool(a.iter().map(|o| o.map(|&f| f != 0.0)).collect())
-                }
-                DataTypeKind::Int => Self::Int32(a.iter().map(|o| o.map(|&f| f as i32)).collect()),
-                DataTypeKind::Float(_) | DataTypeKind::Double => {
-                    Self::Float64(a.iter().map(|o| o.cloned()).collect())
-                }
-                DataTypeKind::String => {
-                    Self::UTF8(a.iter().map(|o| o.map(|f| f.to_string())).collect())
+                Type::Boolean => Self::Bool(unary_op(a, |&f| f != 0.0)),
+                Type::Int => Self::Int32(unary_op(a, |&f| f as i32)),
+                Type::Float(_) | Type::Double => Self::Float64(a.clone()),
+                Type::String | Type::Char(_) | Type::Varchar(_) => {
+                    Self::UTF8(unary_op(a, |&f| f.to_string()))
                 }
                 _ => todo!("cast array"),
             },
-            Self::UTF8(_a) => todo!("cast array"),
+            Self::UTF8(a) => match data_type {
+                Type::Boolean => Self::Bool(try_unary_op(a, |s| s.parse::<bool>())?),
+                Type::Int => Self::Int32(try_unary_op(a, |s| s.parse::<i32>())?),
+                Type::Float(_) | Type::Double => {
+                    Self::Float64(try_unary_op(a, |s| s.parse::<f64>())?)
+                }
+                Type::String | Type::Char(_) | Type::Varchar(_) => Self::UTF8(a.clone()),
+                _ => todo!("cast array"),
+            },
         })
     }
 }
@@ -124,4 +144,60 @@ pub enum ConvertError {
     ParseFloat(#[from] std::num::ParseFloatError),
     #[error("failed to convert string to bool")]
     ParseBool(#[from] std::str::ParseBoolError),
+}
+
+fn binary_op<A, B, O, F, V>(a: &A, b: &B, f: F) -> O
+where
+    A: Array,
+    B: Array,
+    O: Array,
+    V: Borrow<O::Item>,
+    F: Fn(&A::Item, &B::Item) -> V,
+{
+    assert_eq!(a.len(), b.len());
+    let mut builder = O::Builder::new(a.len());
+    for (a, b) in a.iter().zip(b.iter()) {
+        if let (Some(a), Some(b)) = (a, b) {
+            builder.push(Some(f(a, b).borrow()));
+        } else {
+            builder.push(None);
+        }
+    }
+    builder.finish()
+}
+
+fn unary_op<A, O, F, V>(a: &A, f: F) -> O
+where
+    A: Array,
+    O: Array,
+    V: Borrow<O::Item>,
+    F: Fn(&A::Item) -> V,
+{
+    let mut builder = O::Builder::new(a.len());
+    for e in a.iter() {
+        if let Some(e) = e {
+            builder.push(Some(f(e).borrow()));
+        } else {
+            builder.push(None);
+        }
+    }
+    builder.finish()
+}
+
+fn try_unary_op<A, O, F, V, E>(a: &A, f: F) -> Result<O, E>
+where
+    A: Array,
+    O: Array,
+    V: Borrow<O::Item>,
+    F: Fn(&A::Item) -> Result<V, E>,
+{
+    let mut builder = O::Builder::new(a.len());
+    for e in a.iter() {
+        if let Some(e) = e {
+            builder.push(Some(f(e)?.borrow()));
+        } else {
+            builder.push(None);
+        }
+    }
+    Ok(builder.finish())
 }

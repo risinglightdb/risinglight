@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
 /// `PrimitiveArray` is a collection of primitive types, such as `i32`, `f32`.
-#[derive(PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct PrimitiveArray<T: NativeType> {
     valid: BitVec,
     data: Vec<T>,
@@ -21,6 +21,12 @@ impl<T: NativeType> FromIterator<Option<T>> for PrimitiveArray<T> {
             builder.push(e.as_ref());
         }
         builder.finish()
+    }
+}
+
+impl<T: NativeType> FromIterator<T> for PrimitiveArray<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        iter.into_iter().map(Some).collect()
     }
 }
 
