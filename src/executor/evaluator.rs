@@ -87,7 +87,14 @@ impl ArrayImpl {
         macro_rules! arith {
             ($op:tt) => {
                 match (self, right) {
+                    #[cfg(feature = "simd")]
+                    (A::Int32(a), A::Int32(b)) => A::Int32(simd_op::<_, _, _, 8>(a, b, |a, b| a $op b)),
+                    #[cfg(feature = "simd")]
+                    (A::Float64(a), A::Float64(b)) => A::Float64(simd_op::<_, _, _, 4>(a, b, |a, b| a $op b)),
+
+                    #[cfg(not(feature = "simd"))]
                     (A::Int32(a), A::Int32(b)) => A::Int32(binary_op(a, b, |a, b| a $op b)),
+                    #[cfg(not(feature = "simd"))]
                     (A::Float64(a), A::Float64(b)) => A::Float64(binary_op(a, b, |a, b| a $op b)),
                     _ => todo!("Support more types for {}", stringify!($op)),
                 }
@@ -190,6 +197,34 @@ impl ArrayImpl {
             },
         })
     }
+}
+
+#[cfg(feature = "simd")]
+use crate::types::NativeType;
+#[cfg(feature = "simd")]
+use core_simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
+
+#[cfg(feature = "simd")]
+fn simd_op<T, O, F, const N: usize>(
+    a: &PrimitiveArray<T>,
+    b: &PrimitiveArray<T>,
+    f: F,
+) -> PrimitiveArray<O>
+where
+    T: NativeType + SimdElement,
+    O: NativeType + SimdElement,
+    F: Fn(Simd<T, N>, Simd<T, N>) -> Simd<O, N>,
+    LaneCount<N>: SupportedLaneCount,
+{
+    assert_eq!(a.len(), b.len());
+    a.batch_iter::<N>()
+        .zip(b.batch_iter::<N>())
+        .map(|(a, b)| BatchItem {
+            valid: a.valid & b.valid,
+            data: f(a.data.into(), b.data.into()).into(),
+            len: a.len,
+        })
+        .collect()
 }
 
 fn binary_op<A, B, O, F, V>(a: &A, b: &B, f: F) -> O
