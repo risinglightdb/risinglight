@@ -39,7 +39,6 @@ impl BoundExpr {
                 }
                 array.try_cast(cast.ty.clone())
             }
-            _ => todo!("evaluate expression: {:?}", self),
         }
     }
 }
@@ -62,6 +61,7 @@ impl ArrayImpl {
                 match (self, right) {
                     (A::Bool(a), A::Bool(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
                     (A::Int32(a), A::Int32(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
+                    #[allow(clippy::float_cmp)]
                     (A::Float64(a), A::Float64(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
                     (A::UTF8(a), A::UTF8(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
                     _ => todo!("Support more types for {}", stringify!($op)),
@@ -149,6 +149,7 @@ impl ArrayImpl {
 }
 
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
+#[allow(clippy::enum_variant_names)]
 pub enum ConvertError {
     #[error("failed to convert string to int")]
     ParseInt(#[from] std::num::ParseIntError),

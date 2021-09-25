@@ -95,7 +95,6 @@ impl ExecutionManager {
                 }
                 .execute(),
             ),
-            _ => todo!("execute physical plan: {:?}", plan),
         };
         recver
     }
