@@ -6,36 +6,38 @@ use crate::storage::StorageRef;
 pub struct InsertExecutor {
     pub plan: PhysicalInsert,
     pub storage: StorageRef,
-    pub output: mpsc::Sender<DataChunk>,
 }
 
 impl InsertExecutor {
-    pub async fn execute(self) -> Result<(), ExecutorError> {
-        let cardinality = self.plan.values.len();
-        assert!(cardinality > 0);
+    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
+        try_stream! {
+            let cardinality = self.plan.values.len();
+            assert!(cardinality > 0);
 
-        let table = self.storage.get_table(self.plan.table_ref_id)?;
-        let columns = table.column_descs(&self.plan.column_ids)?;
-        let mut array_builders = columns
-            .iter()
-            .map(|col| ArrayBuilderImpl::new(col.datatype().clone()))
-            .collect::<Vec<ArrayBuilderImpl>>();
-        for row in &self.plan.values {
-            for (expr, builder) in row.iter().zip(&mut array_builders) {
-                let value = expr.eval();
-                builder.push(&value);
+            let table = self.storage.get_table(self.plan.table_ref_id)?;
+            let columns = table.column_descs(&self.plan.column_ids)?;
+            let mut array_builders = columns
+                .iter()
+                .map(|col| ArrayBuilderImpl::new(col.datatype().clone()))
+                .collect::<Vec<ArrayBuilderImpl>>();
+            for row in &self.plan.values {
+                for (expr, builder) in row.iter().zip(&mut array_builders) {
+                    let value = expr.eval();
+                    builder.push(&value);
+                }
             }
+            let arrays = array_builders
+                .into_iter()
+                .map(|builder| builder.finish())
+                .collect::<Vec<ArrayImpl>>();
+            let chunk = DataChunk::builder()
+                .cardinality(cardinality)
+                .arrays(arrays.into())
+                .build();
+            table.append(chunk)?;
+
+            yield DataChunk::builder().cardinality(1).build();
         }
-        let arrays = array_builders
-            .into_iter()
-            .map(|builder| builder.finish())
-            .collect::<Vec<ArrayImpl>>();
-        let chunk = DataChunk::builder()
-            .cardinality(cardinality)
-            .arrays(arrays.into())
-            .build();
-        table.append(chunk)?;
-        Ok(())
     }
 }
 
@@ -72,12 +74,15 @@ mod tests {
             column_ids: vec![0, 1],
             values,
         };
-        let executor = InsertExecutor {
+        let mut executor = InsertExecutor {
             plan,
             storage: env.storage.clone(),
-            output: mpsc::channel(1).0,
-        };
-        futures::executor::block_on(executor.execute()).unwrap();
+        }
+        .execute()
+        .boxed();
+        futures::executor::block_on(executor.next())
+            .unwrap()
+            .unwrap();
     }
 
     fn create_table() -> GlobalEnvRef {
@@ -93,12 +98,15 @@ mod tests {
                 ColumnCatalog::new(1, "v2".into(), DataTypeKind::Int.not_null().to_column()),
             ],
         };
-        let executor = CreateTableExecutor {
+        let mut executor = CreateTableExecutor {
             plan,
             storage: env.storage.clone(),
-            output: mpsc::channel(1).0,
-        };
-        futures::executor::block_on(executor.execute()).unwrap();
+        }
+        .execute()
+        .boxed();
+        futures::executor::block_on(executor.next())
+            .unwrap()
+            .unwrap();
         env
     }
 }

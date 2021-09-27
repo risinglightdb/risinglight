@@ -4,18 +4,19 @@ use crate::physical_plan::PhysicalCreateTable;
 pub struct CreateTableExecutor {
     pub plan: PhysicalCreateTable,
     pub storage: StorageRef,
-    pub output: mpsc::Sender<DataChunk>,
 }
 
 impl CreateTableExecutor {
-    pub async fn execute(self) -> Result<(), ExecutorError> {
-        self.storage.create_table(
-            self.plan.database_id,
-            self.plan.schema_id,
-            &self.plan.table_name,
-            &self.plan.columns,
-        )?;
-        Ok(())
+    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
+        try_stream! {
+            self.storage.create_table(
+                self.plan.database_id,
+                self.plan.schema_id,
+                &self.plan.table_name,
+                &self.plan.columns,
+            )?;
+            yield DataChunk::builder().cardinality(1).build();
+        }
     }
 }
 
@@ -40,12 +41,10 @@ mod tests {
                 ColumnCatalog::new(1, "v2".into(), DataTypeKind::Int.not_null().to_column()),
             ],
         };
-        let executor = CreateTableExecutor {
-            plan,
-            storage,
-            output: mpsc::channel(1).0,
-        };
-        futures::executor::block_on(executor.execute()).unwrap();
+        let mut executor = CreateTableExecutor { plan, storage }.execute().boxed();
+        futures::executor::block_on(executor.next())
+            .unwrap()
+            .unwrap();
 
         let id = TableRefId {
             database_id: 0,

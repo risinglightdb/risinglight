@@ -1,10 +1,9 @@
 use crate::array::DataChunk;
 use crate::physical_plan::PhysicalPlan;
 use crate::storage::{StorageError, StorageRef};
-use std::future::Future;
+use async_stream::try_stream;
+use futures::stream::{BoxStream, Stream, StreamExt};
 use std::sync::Arc;
-use tokio::runtime::Runtime;
-use tokio::sync::mpsc;
 
 mod aggregation;
 mod create;
@@ -21,6 +20,7 @@ use self::dummy_scan::*;
 use self::insert::*;
 use self::project::*;
 use self::seq_scan::*;
+
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum ExecutorError {
     #[error("failed to build executors from the physical plan")]
@@ -33,6 +33,8 @@ pub enum ExecutorError {
 
 pub type GlobalEnvRef = Arc<GlobalEnv>;
 
+type BoxedExecutor = BoxStream<'static, Result<DataChunk, ExecutorError>>;
+
 /// The global environment for task execution.
 /// The instance will be shared by every task.
 #[derive(Clone)]
@@ -40,72 +42,49 @@ pub struct GlobalEnv {
     pub storage: StorageRef,
 }
 
-pub struct ExecutionManager {
+pub struct ExecutorBuilder {
     env: GlobalEnvRef,
-    runtime: Runtime,
 }
 
-impl ExecutionManager {
-    pub fn new(env: GlobalEnvRef) -> ExecutionManager {
-        ExecutionManager {
-            env,
-            runtime: tokio::runtime::Builder::new_current_thread()
-                .build()
-                .unwrap(),
-        }
+impl ExecutorBuilder {
+    pub fn new(env: GlobalEnvRef) -> ExecutorBuilder {
+        ExecutorBuilder { env }
     }
 
-    pub fn block_on<F: Future>(&self, future: F) -> F::Output {
-        self.runtime.block_on(future)
-    }
-
-    pub fn run(&self, plan: PhysicalPlan) -> mpsc::Receiver<DataChunk> {
-        let (sender, recver) = mpsc::channel(1);
+    pub fn build(&self, plan: PhysicalPlan) -> BoxedExecutor {
         match plan {
-            PhysicalPlan::Dummy => self
-                .runtime
-                .spawn(DummyScanExecutor { output: sender }.execute()),
-            PhysicalPlan::CreateTable(plan) => self.runtime.spawn(
-                CreateTableExecutor {
-                    plan,
-                    storage: self.env.storage.clone(),
-                    output: sender,
-                }
-                .execute(),
-            ),
-            PhysicalPlan::Drop(plan) => self.runtime.spawn(
-                DropExecutor {
-                    plan,
-                    storage: self.env.storage.clone(),
-                    output: sender,
-                }
-                .execute(),
-            ),
-            PhysicalPlan::Insert(plan) => self.runtime.spawn(
-                InsertExecutor {
-                    plan,
-                    storage: self.env.storage.clone(),
-                    output: sender,
-                }
-                .execute(),
-            ),
-            PhysicalPlan::Projection(plan) => self.runtime.spawn(
-                ProjectionExecutor {
-                    project_expressions: plan.project_expressions,
-                    child: self.run(*plan.child),
-                    output: sender,
-                }
-                .execute(),
-            ),
-            PhysicalPlan::SeqScan(plan) => self.runtime.spawn(
-                SeqScanExecutor {
-                    plan,
-                    storage: self.env.storage.clone(),
-                    output: sender,
-                }
-                .execute(),
-            ),
-        };
-        recver
+            PhysicalPlan::Dummy => DummyScanExecutor.execute().boxed(),
+            PhysicalPlan::CreateTable(plan) => CreateTableExecutor {
+                plan,
+                storage: self.env.storage.clone(),
+            }
+            .execute()
+            .boxed(),
+            PhysicalPlan::Drop(plan) => DropExecutor {
+                plan,
+                storage: self.env.storage.clone(),
+            }
+            .execute()
+            .boxed(),
+            PhysicalPlan::Insert(plan) => InsertExecutor {
+                plan,
+                storage: self.env.storage.clone(),
+            }
+            .execute()
+            .boxed(),
+
+            PhysicalPlan::Projection(plan) => ProjectionExecutor {
+                project_expressions: plan.project_expressions,
+                child: self.build(*plan.child),
+            }
+            .execute()
+            .boxed(),
+            PhysicalPlan::SeqScan(plan) => SeqScanExecutor {
+                plan,
+                storage: self.env.storage.clone(),
+            }
+            .execute()
+            .boxed(),
+        }
     }
 }
