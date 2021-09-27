@@ -51,6 +51,7 @@ pub enum DataValue {
     Null,
     Bool(bool),
     Int32(i32),
+    Int64(i64),
     Float64(f64),
     String(String),
 }
@@ -61,6 +62,7 @@ impl DataValue {
         match self {
             Self::Bool(_) => Some(DataTypeKind::Boolean.not_null()),
             Self::Int32(_) => Some(DataTypeKind::Int.not_null()),
+            Self::Int64(_) => Some(DataTypeKind::BigInt.not_null()),
             Self::Float64(_) => Some(DataTypeKind::Double.not_null()),
             Self::String(_) => Some(DataTypeKind::Varchar(Some(VARCHAR_DEFAULT_LEN)).not_null()),
             Self::Null => None,
