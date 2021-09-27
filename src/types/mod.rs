@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 pub use sqlparser::ast::DataType as DataTypeKind;
 
 mod native;

@@ -6,6 +6,7 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
 
+mod aggregation;
 mod create;
 mod evaluator;
 mod insert;
@@ -16,7 +17,6 @@ use self::create::*;
 use self::insert::*;
 use self::project::*;
 use self::seq_scan::*;
-
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum ExecutorError {
     #[error("failed to build executors from the physical plan")]
