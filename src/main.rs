@@ -2,6 +2,7 @@ use risinglight::Database;
 use std::io::Write;
 
 fn main() {
+    env_logger::init();
     let db = Database::new();
     loop {
         print!("> ");

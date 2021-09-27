@@ -15,7 +15,7 @@ impl ProjectionExecutor {
                 .project_expressions
                 .iter()
                 .map(|expr| expr.eval_array(&batch))
-                .collect::<Vec<ArrayImpl>>();
+                .collect::<Result<Vec<ArrayImpl>, _>>()?;
 
             let result = DataChunk::builder()
                 .cardinality(batch.cardinality())

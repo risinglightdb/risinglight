@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
 /// `UTF8Array` is a collection of Rust UTF8 `String`s.
-#[derive(PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct UTF8Array {
     offset: Vec<usize>,
     valid: BitVec,
@@ -76,12 +76,16 @@ impl ArrayBuilder for UTF8ArrayBuilder {
     }
 }
 
-impl<'a> FromIterator<Option<&'a str>> for UTF8Array {
-    fn from_iter<I: IntoIterator<Item = Option<&'a str>>>(iter: I) -> Self {
+impl<Str: AsRef<str>> FromIterator<Option<Str>> for UTF8Array {
+    fn from_iter<I: IntoIterator<Item = Option<Str>>>(iter: I) -> Self {
         let iter = iter.into_iter();
         let mut builder = <Self as Array>::Builder::new(iter.size_hint().0);
         for e in iter {
-            builder.push(e);
+            if let Some(s) = e {
+                builder.push(Some(s.as_ref()));
+            } else {
+                builder.push(None);
+            }
         }
         builder.finish()
     }

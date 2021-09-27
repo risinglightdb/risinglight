@@ -8,12 +8,14 @@ use tokio::sync::mpsc;
 
 mod aggregation;
 mod create;
+mod dummy_scan;
 mod evaluator;
 mod insert;
 mod project;
 mod seq_scan;
 
 use self::create::*;
+use self::dummy_scan::*;
 use self::insert::*;
 use self::project::*;
 use self::seq_scan::*;
@@ -23,6 +25,8 @@ pub enum ExecutorError {
     BuildingPlanError,
     #[error("storage error: {0}")]
     Storage(#[from] StorageError),
+    #[error("convert error: {0}")]
+    Convert(#[from] evaluator::ConvertError),
 }
 
 pub type GlobalEnvRef = Arc<GlobalEnv>;
@@ -56,6 +60,9 @@ impl ExecutionManager {
     pub fn run(&self, plan: PhysicalPlan) -> mpsc::Receiver<DataChunk> {
         let (sender, recver) = mpsc::channel(1);
         match plan {
+            PhysicalPlan::Dummy => self
+                .runtime
+                .spawn(DummyScanExecutor { output: sender }.execute()),
             PhysicalPlan::CreateTable(plan) => self.runtime.spawn(
                 CreateTableExecutor {
                     plan,
@@ -88,7 +95,6 @@ impl ExecutionManager {
                 }
                 .execute(),
             ),
-            _ => todo!("execute physical plan"),
         };
         recver
     }

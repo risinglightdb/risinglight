@@ -1,6 +1,6 @@
 use super::*;
 use crate::types::{ColumnId, TableId};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
 
 pub struct TableCatalog {
@@ -12,7 +12,7 @@ struct Inner {
     name: String,
     /// Mapping from column names to column ids
     column_idxs: HashMap<String, ColumnId>,
-    columns: HashMap<ColumnId, ColumnCatalog>,
+    columns: BTreeMap<ColumnId, ColumnCatalog>,
 
     #[allow(dead_code)]
     is_materialized_view: bool,
@@ -31,7 +31,7 @@ impl TableCatalog {
             inner: Mutex::new(Inner {
                 name,
                 column_idxs: HashMap::new(),
-                columns: HashMap::new(),
+                columns: BTreeMap::new(),
                 is_materialized_view,
                 next_column_id: 0,
             }),
@@ -64,7 +64,7 @@ impl TableCatalog {
         inner.column_idxs.contains_key(name)
     }
 
-    pub fn all_columns(&self) -> HashMap<ColumnId, ColumnCatalog> {
+    pub fn all_columns(&self) -> BTreeMap<ColumnId, ColumnCatalog> {
         let inner = self.inner.lock().unwrap();
         inner.columns.clone()
     }
