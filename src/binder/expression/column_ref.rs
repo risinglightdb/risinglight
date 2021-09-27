@@ -19,7 +19,7 @@ impl Binder {
                 return Err(BindError::InvalidTable(name.clone()));
             }
             let table_ref_id = self.context.regular_tables[name];
-            let table = self.catalog.get_table(&table_ref_id);
+            let table = self.catalog.get_table(&table_ref_id).unwrap();
             let col = table
                 .get_column_by_name(column_name)
                 .ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
@@ -35,7 +35,7 @@ impl Binder {
         } else {
             let mut info = None;
             for ref_id in self.context.regular_tables.values() {
-                let table = self.catalog.get_table(ref_id);
+                let table = self.catalog.get_table(ref_id).unwrap();
                 if let Some(col) = table.get_column_by_name(column_name) {
                     if info.is_some() {
                         return Err(BindError::AmbiguousColumn);

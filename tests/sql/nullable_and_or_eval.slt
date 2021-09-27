@@ -31,5 +31,5 @@ false
 false
 NULL
 
-#statement ok
-#drop table bool_t1
+statement ok
+drop table bool_t1

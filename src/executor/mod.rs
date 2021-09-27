@@ -8,6 +8,7 @@ use tokio::sync::mpsc;
 
 mod aggregation;
 mod create;
+mod drop;
 mod dummy_scan;
 mod evaluator;
 mod insert;
@@ -15,6 +16,7 @@ mod project;
 mod seq_scan;
 
 use self::create::*;
+use self::drop::*;
 use self::dummy_scan::*;
 use self::insert::*;
 use self::project::*;
@@ -65,6 +67,14 @@ impl ExecutionManager {
                 .spawn(DummyScanExecutor { output: sender }.execute()),
             PhysicalPlan::CreateTable(plan) => self.runtime.spawn(
                 CreateTableExecutor {
+                    plan,
+                    storage: self.env.storage.clone(),
+                    output: sender,
+                }
+                .execute(),
+            ),
+            PhysicalPlan::Drop(plan) => self.runtime.spawn(
+                DropExecutor {
                     plan,
                     storage: self.env.storage.clone(),
                     output: sender,

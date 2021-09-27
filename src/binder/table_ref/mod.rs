@@ -22,7 +22,7 @@ impl Binder {
 
                 let ref_id = self
                     .catalog
-                    .get_table_id(database_name, schema_name, table_name)
+                    .get_table_id_by_name(database_name, schema_name, table_name)
                     .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
                 self.context
                     .regular_tables
