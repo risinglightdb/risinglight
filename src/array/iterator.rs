@@ -3,6 +3,7 @@ use super::Array;
 use std::iter::Iterator;
 use std::marker::PhantomData;
 
+#[derive(Clone)]
 pub struct ArrayIterator<'a, A: Array> {
     data: &'a A,
     pos: usize,

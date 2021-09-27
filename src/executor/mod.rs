@@ -10,6 +10,7 @@ mod create;
 mod drop;
 mod dummy_scan;
 mod evaluator;
+mod filter;
 mod insert;
 mod project;
 mod seq_scan;
@@ -17,6 +18,7 @@ mod seq_scan;
 use self::create::*;
 use self::drop::*;
 use self::dummy_scan::*;
+use self::filter::*;
 use self::insert::*;
 use self::project::*;
 use self::seq_scan::*;
@@ -82,6 +84,12 @@ impl ExecutorBuilder {
             PhysicalPlan::SeqScan(plan) => SeqScanExecutor {
                 plan,
                 storage: self.env.storage.clone(),
+            }
+            .execute()
+            .boxed(),
+            PhysicalPlan::Filter(plan) => FilterExecutor {
+                expr: plan.expr,
+                child: self.build(*plan.child),
             }
             .execute()
             .boxed(),

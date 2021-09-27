@@ -2,6 +2,7 @@ use crate::binder::BoundStatement;
 
 mod create;
 mod drop;
+mod filter;
 mod insert;
 mod projection;
 mod select;
@@ -9,6 +10,7 @@ mod seq_scan;
 
 pub use create::*;
 pub use drop::*;
+pub use filter::*;
 pub use insert::*;
 pub use projection::*;
 pub use seq_scan::*;
@@ -28,6 +30,7 @@ pub enum LogicalPlan {
     CreateTable(LogicalCreateTable),
     Drop(LogicalDrop),
     Projection(LogicalProjection),
+    Filter(LogicalFilter),
 }
 
 #[derive(Default)]

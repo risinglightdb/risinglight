@@ -1,11 +1,13 @@
 mod create;
 mod drop;
+mod filter;
 mod insert;
 mod projection;
 mod seq_scan;
 
 pub use create::*;
 pub use drop::*;
+pub use filter::*;
 pub use insert::*;
 pub use projection::*;
 pub use seq_scan::*;
@@ -26,6 +28,7 @@ pub enum PhysicalPlan {
     CreateTable(PhysicalCreateTable),
     Drop(PhysicalDrop),
     Projection(PhysicalProjection),
+    Filter(PhysicalFilter),
 }
 
 #[derive(Default)]
@@ -40,6 +43,7 @@ impl PhysicalPlaner {
             LogicalPlan::Insert(plan) => self.plan_insert(plan),
             LogicalPlan::SeqScan(plan) => self.plan_seq_scan(plan),
             LogicalPlan::Projection(plan) => self.plan_projection(plan),
+            LogicalPlan::Filter(plan) => self.plan_filter(plan),
         }
     }
 }

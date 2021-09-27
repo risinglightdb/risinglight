@@ -29,7 +29,10 @@ impl BoundExpr {
             }
             BoundExprKind::Constant(v) => {
                 let mut builder = ArrayBuilderImpl::new(self.return_type.clone().unwrap());
-                builder.push(v);
+                // TODO: optimize this
+                for _ in 0..chunk.cardinality() {
+                    builder.push(v);
+                }
                 Ok(builder.finish())
             }
             BoundExprKind::TypeCast(cast) => {
