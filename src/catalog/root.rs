@@ -77,41 +77,27 @@ impl RootCatalog {
             .and_then(|id| inner.databases.get(id))
             .cloned()
     }
-    pub fn get_table(&self, table_ref_id: &TableRefId) -> Arc<TableCatalog> {
-        let db = self.get_database_by_id(table_ref_id.database_id).unwrap();
-        let schema = db.get_schema_by_id(table_ref_id.schema_id).unwrap();
-        schema.get_table_by_id(table_ref_id.table_id).unwrap()
+
+    pub fn get_table(&self, table_ref_id: &TableRefId) -> Option<Arc<TableCatalog>> {
+        let db = self.get_database_by_id(table_ref_id.database_id)?;
+        let schema = db.get_schema_by_id(table_ref_id.schema_id)?;
+        schema.get_table_by_id(table_ref_id.table_id)
     }
-    pub fn get_table_id(
+
+    pub fn get_table_id_by_name(
         &self,
         database_name: &str,
         schema_name: &str,
         table_name: &str,
     ) -> Option<TableRefId> {
-        let db_opt = self.get_database_by_name(database_name);
-
-        db_opt.as_ref()?;
-        let db = db_opt.unwrap();
-
-        let database_id = db.id();
-
-        let schema_opt = db.get_schema_by_name(schema_name);
-
-        schema_opt.as_ref()?;
-
-        let schema = schema_opt.unwrap();
-        let schema_id = schema.id();
-
-        let table_opt = schema.get_table_by_name(table_name);
-
-        table_opt.as_ref()?;
-
-        let table_id = table_opt.unwrap().as_ref().id();
+        let db = self.get_database_by_name(database_name)?;
+        let schema = db.get_schema_by_name(schema_name)?;
+        let table = schema.get_table_by_name(table_name)?;
 
         Some(TableRefId {
-            database_id,
-            schema_id,
-            table_id,
+            database_id: db.id(),
+            schema_id: schema.id(),
+            table_id: table.id(),
         })
     }
 }

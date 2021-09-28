@@ -18,6 +18,7 @@ pub use self::table_ref::*;
 #[derive(Debug, PartialEq, Clone)]
 pub enum BoundStatement {
     CreateTable(BoundCreateTable),
+    Drop(BoundDrop),
     Insert(BoundInsert),
     Select(Box<BoundSelect>),
 }
@@ -94,6 +95,7 @@ impl Binder {
             Statement::CreateTable { .. } => {
                 Ok(BoundStatement::CreateTable(self.bind_create_table(stmt)?))
             }
+            Statement::Drop { .. } => Ok(BoundStatement::Drop(self.bind_drop(stmt)?)),
             Statement::Insert { .. } => Ok(BoundStatement::Insert(self.bind_insert(stmt)?)),
             Statement::Query(query) => Ok(BoundStatement::Select(self.bind_select(&*query)?)),
             _ => todo!("bind statement"),

@@ -30,7 +30,7 @@ impl Binder {
 
                 let table_ref_id = self
                     .catalog
-                    .get_table_id(database_name, schema_name, &table.name())
+                    .get_table_id_by_name(database_name, schema_name, &table.name())
                     .unwrap();
 
                 let mut column_ids = vec![];

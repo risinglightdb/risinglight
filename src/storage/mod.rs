@@ -27,8 +27,8 @@ pub enum StorageError {
     Duplicated(&'static str, String),
     #[error("invalid column id: {0}")]
     InvalidColumn(ColumnId),
-    #[error("IO error : {0}")]
-    IOError(&'static str),
+    #[error("IO error: {0} {1:?}")]
+    IOError(&'static str, std::io::ErrorKind),
 }
 
 pub trait Storage: Sync + Send {
@@ -113,8 +113,18 @@ impl Storage for InMemoryStorage {
     }
 
     fn drop_table(&self, table_id: TableRefId) -> Result<(), StorageError> {
-        self.tables.lock().unwrap().remove(&table_id);
-        todo!("remove table from catalog");
+        self.tables
+            .lock()
+            .unwrap()
+            .remove(&table_id)
+            .ok_or(StorageError::NotFound("table", table_id.table_id))?;
+        let db = self
+            .catalog
+            .get_database_by_id(table_id.database_id)
+            .unwrap();
+        let schema = db.get_schema_by_id(table_id.schema_id).unwrap();
+        schema.delete_table(table_id.table_id);
+        Ok(())
     }
 }
 

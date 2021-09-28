@@ -53,11 +53,11 @@ mod tests {
             table_id: 0,
         };
         assert_eq!(
-            catalog.get_table_id(DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME, "t"),
+            catalog.get_table_id_by_name(DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME, "t"),
             Some(id)
         );
 
-        let table_ref = catalog.get_table(&id);
+        let table_ref = catalog.get_table(&id).unwrap();
         assert_eq!(
             table_ref.get_column_by_id(0).unwrap(),
             ColumnCatalog::new(0, "v1".into(), DataTypeKind::Int.not_null().to_column())

@@ -51,7 +51,7 @@ impl SchemaCatalog {
         Ok(table_id)
     }
 
-    pub fn delete_table(&self, name: &str) -> Result<(), CatalogError> {
+    pub fn delete_table_by_name(&self, name: &str) -> Result<(), CatalogError> {
         let mut inner = self.inner.lock().unwrap();
         let id = inner
             .table_idxs
@@ -59,6 +59,11 @@ impl SchemaCatalog {
             .ok_or_else(|| CatalogError::NotFound("table", name.into()))?;
         inner.tables.remove(&id);
         Ok(())
+    }
+
+    pub fn delete_table(&self, id: TableId) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.tables.remove(&id);
     }
 
     pub fn all_tables(&self) -> HashMap<TableId, Arc<TableCatalog>> {

@@ -45,41 +45,32 @@ impl DiskManagerInner {
 // We won't use Result in DiskManager, the system cannot run anymore and must crash when there is IO error.
 impl DiskManager {
     pub fn create() -> Result<DiskManager, StorageError> {
-        let file_res = OpenOptions::new()
+        let file = OpenOptions::new()
             .read(true)
             .write(true)
             .truncate(true)
             .create(true)
-            .open(DEFAULT_STROAGE_FILE_NAME);
-        match file_res {
-            Ok(file) => {
-                let mut inner = DiskManagerInner::new(file);
-                inner.next_block_id = 1;
-                inner.write_meta_block();
-                Ok(DiskManager {
-                    inner: Mutex::new(inner),
-                })
-            }
-            Err(_) => Err(StorageError::IOError("Unable to open file.")),
-        }
+            .open(DEFAULT_STROAGE_FILE_NAME)
+            .map_err(|e| StorageError::IOError("Unable to open file.", e.kind()))?;
+        let mut inner = DiskManagerInner::new(file);
+        inner.next_block_id = 1;
+        inner.write_meta_block();
+        Ok(DiskManager {
+            inner: Mutex::new(inner),
+        })
     }
 
     pub fn open() -> Result<DiskManager, StorageError> {
-        let file_res = OpenOptions::new()
+        let file = OpenOptions::new()
             .read(true)
             .write(true)
-            .open(DEFAULT_STROAGE_FILE_NAME);
-
-        match file_res {
-            Ok(file) => {
-                let mut inner = DiskManagerInner::new(file);
-                inner.read_meta_block();
-                Ok(DiskManager {
-                    inner: Mutex::new(inner),
-                })
-            }
-            Err(_) => Err(StorageError::IOError("Unable to create file.")),
-        }
+            .open(DEFAULT_STROAGE_FILE_NAME)
+            .map_err(|e| StorageError::IOError("Unable to create file.", e.kind()))?;
+        let mut inner = DiskManagerInner::new(file);
+        inner.read_meta_block();
+        Ok(DiskManager {
+            inner: Mutex::new(inner),
+        })
     }
 
     pub fn get_next_block_id(&self) -> BlockId {
