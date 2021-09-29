@@ -4,25 +4,25 @@ use crate::binder::BoundExpr;
 
 pub struct ProjectionExecutor {
     pub project_expressions: Vec<BoundExpr>,
-    pub child: mpsc::Receiver<DataChunk>,
-    pub output: mpsc::Sender<DataChunk>,
+    pub child: BoxedExecutor,
 }
 
 impl ProjectionExecutor {
-    pub async fn execute(mut self) -> Result<(), ExecutorError> {
-        while let Some(batch) = self.child.recv().await {
-            let arrays = self
-                .project_expressions
-                .iter()
-                .map(|expr| expr.eval_array(&batch))
-                .collect::<Result<Vec<ArrayImpl>, _>>()?;
+    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
+        try_stream! {
+            for await batch in self.child {
+                let batch = batch?;
+                let arrays = self
+                    .project_expressions
+                    .iter()
+                    .map(|expr| expr.eval_array(&batch))
+                    .collect::<Result<Vec<ArrayImpl>, _>>()?;
 
-            let result = DataChunk::builder()
-                .cardinality(batch.cardinality())
-                .arrays(arrays.into())
-                .build();
-            self.output.send(result).await.ok().unwrap();
+                yield DataChunk::builder()
+                    .cardinality(batch.cardinality())
+                    .arrays(arrays.into())
+                    .build();
+            }
         }
-        Ok(())
     }
 }

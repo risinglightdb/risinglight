@@ -1,14 +1,11 @@
 use super::*;
-use crate::array::DataChunk;
 
-pub struct DummyScanExecutor {
-    pub output: mpsc::Sender<DataChunk>,
-}
+pub struct DummyScanExecutor;
 
 impl DummyScanExecutor {
-    pub async fn execute(self) -> Result<(), ExecutorError> {
-        let result = DataChunk::builder().cardinality(1).build();
-        self.output.send(result).await.ok().unwrap();
-        Ok(())
+    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
+        try_stream! {
+            yield DataChunk::builder().cardinality(1).build();
+        }
     }
 }

@@ -2,17 +2,18 @@ use crate::{
     array::DataChunk,
     binder::{BindError, Binder},
     catalog::RootCatalogRef,
-    executor::{ExecutionManager, ExecutorError, GlobalEnv},
+    executor::{ExecutorBuilder, ExecutorError, GlobalEnv},
     logical_plan::{LogicalPlanError, LogicalPlaner},
     parser::{parse, ParserError},
     physical_plan::{PhysicalPlanError, PhysicalPlaner},
     storage::InMemoryStorage,
 };
+use futures::TryStreamExt;
 use std::sync::Arc;
 
 pub struct Database {
     catalog: RootCatalogRef,
-    execution_manager: ExecutionManager,
+    executor_builder: ExecutorBuilder,
 }
 
 impl Default for Database {
@@ -29,10 +30,10 @@ impl Database {
         let env = Arc::new(GlobalEnv {
             storage: Arc::new(storage),
         });
-        let execution_manager = ExecutionManager::new(env);
+        let execution_manager = ExecutorBuilder::new(env);
         Database {
             catalog,
-            execution_manager,
+            executor_builder: execution_manager,
         }
     }
 
@@ -45,7 +46,7 @@ impl Database {
         let logical_planner = LogicalPlaner::default();
         let physical_planner = PhysicalPlaner::default();
         // TODO: parallelize
-        let mut results = vec![];
+        let mut outputs = vec![];
         for stmt in stmts {
             let stmt = binder.bind(&stmt)?;
             debug!("{:#?}", stmt);
@@ -53,14 +54,18 @@ impl Database {
             debug!("{:#?}", logical_plan);
             let physical_plan = physical_planner.plan(logical_plan)?;
             debug!("{:#?}", physical_plan);
-            let mut output = self.execution_manager.run(physical_plan);
-            let output = self.execution_manager.block_on(output.recv());
-            if let Some(output) = output {
-                debug!("output:\n{}", output);
-                results.push(output);
+            let executor = self.executor_builder.build(physical_plan);
+            let output: Vec<DataChunk> = futures::executor::block_on(executor.try_collect())
+                .map_err(|e| {
+                    debug!("error: {}", e);
+                    e
+                })?;
+            for chunk in output.iter() {
+                debug!("output:\n{}", chunk);
             }
+            outputs.extend(output);
         }
-        Ok(results)
+        Ok(outputs)
     }
 }
 
