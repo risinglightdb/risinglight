@@ -1,15 +1,17 @@
 use super::*;
 use crate::catalog::ColumnRefId;
-use crate::parser::{BinaryOperator, Expr, Value};
+use crate::parser::{Expr, Value};
 use crate::types::{DataType, DataValue};
 
 mod binary_op;
 mod column_ref;
 mod type_cast;
+mod unary_op;
 
 pub use self::binary_op::*;
 pub use self::column_ref::*;
 pub use self::type_cast::*;
+pub use self::unary_op::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundExpr {
@@ -24,6 +26,7 @@ pub enum BoundExprKind {
     Constant(DataValue),
     ColumnRef(BoundColumnRef),
     BinaryOp(BoundBinaryOp),
+    UnaryOp(BoundUnaryOp),
     TypeCast(BoundTypeCast),
 }
 
@@ -43,6 +46,8 @@ impl Binder {
             Expr::Identifier(ident) => self.bind_column_ref(std::slice::from_ref(ident)),
             Expr::CompoundIdentifier(idents) => self.bind_column_ref(idents),
             Expr::BinaryOp { left, op, right } => self.bind_binary_op(left, op, right),
+            Expr::UnaryOp { op, expr } => self.bind_unary_op(op, expr),
+            Expr::Nested(expr) => self.bind_expr(expr),
             Expr::Cast { expr, data_type } => self.bind_type_cast(expr, data_type.clone()),
             _ => todo!("bind expression: {:?}", expr),
         }

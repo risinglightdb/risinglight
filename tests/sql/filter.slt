@@ -19,9 +19,6 @@ select v2 from t where 3 > v1
 statement ok
 drop table t
 
-# FIXME: pass the following tests
-halt
-
 statement ok
 create table t(v1 int not null, v2 int not null, primary key(v1))
 

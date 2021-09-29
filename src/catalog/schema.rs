@@ -63,7 +63,8 @@ impl SchemaCatalog {
 
     pub fn delete_table(&self, id: TableId) {
         let mut inner = self.inner.lock().unwrap();
-        inner.tables.remove(&id);
+        let catalog = inner.tables.remove(&id).unwrap();
+        inner.table_idxs.remove(&catalog.name()).unwrap();
     }
 
     pub fn all_tables(&self) -> HashMap<TableId, Arc<TableCatalog>> {

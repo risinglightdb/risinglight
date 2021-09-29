@@ -1,4 +1,5 @@
 use super::*;
+use crate::parser::BinaryOperator;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundBinaryOp {
