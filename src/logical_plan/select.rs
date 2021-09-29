@@ -10,9 +10,14 @@ impl LogicalPlaner {
                 column_ids: table_ref.column_ids.clone(),
             });
         }
+        if let Some(expr) = stmt.where_clause {
+            plan = LogicalPlan::Filter(LogicalFilter {
+                expr,
+                child: Box::new(plan),
+            });
+        }
 
         // TODO: support the following clauses
-        assert_eq!(stmt.where_clause, None, "TODO: plan where");
         assert_eq!(stmt.limit, None, "TODO: plan limit");
         assert_eq!(stmt.offset, None, "TODO: plan offset");
         assert!(!stmt.select_distinct, "TODO: plan distinct");

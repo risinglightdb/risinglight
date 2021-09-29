@@ -1,6 +1,5 @@
 use super::*;
 
-use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::fmt;
@@ -13,11 +12,7 @@ pub struct DataChunk {
     #[builder(default)]
     arrays: SmallVec<[ArrayImpl; 16]>,
     #[builder(default)]
-    dimension: usize,
-    #[builder(default)]
     cardinality: usize,
-    #[builder(default, setter(strip_option))]
-    visibility: Option<BitVec>,
 }
 
 impl DataChunk {
@@ -25,16 +20,21 @@ impl DataChunk {
         self.cardinality
     }
 
-    pub fn visibility(&self) -> &Option<BitVec> {
-        &self.visibility
-    }
-
-    pub fn set_visibility(&mut self, visibility: BitVec) {
-        self.visibility = Some(visibility);
-    }
-
     pub fn array_at(&self, idx: usize) -> &ArrayImpl {
         &self.arrays[idx]
+    }
+
+    pub fn filter(&self, visibility: impl Iterator<Item = bool> + Clone) -> Self {
+        let cardinality = visibility.clone().filter(|v| *v).count();
+        let arrays = self
+            .arrays
+            .iter()
+            .map(|a| a.filter(visibility.clone()))
+            .collect();
+        DataChunk {
+            arrays,
+            cardinality,
+        }
     }
 }
 

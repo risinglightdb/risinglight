@@ -1,7 +1,7 @@
 use crate::{
     array::*,
     binder::{BoundExpr, BoundExprKind},
-    parser::BinaryOperator,
+    parser::{BinaryOperator, UnaryOperator},
     types::{DataTypeKind, DataValue},
 };
 use std::borrow::Borrow;
@@ -11,7 +11,12 @@ impl BoundExpr {
     pub fn eval(&self) -> DataValue {
         match &self.kind {
             BoundExprKind::Constant(v) => v.clone(),
-            _ => todo!("evaluate expression"),
+            BoundExprKind::UnaryOp(v) => match (&v.op, v.expr.eval()) {
+                (UnaryOperator::Minus, DataValue::Int32(i)) => DataValue::Int32(-i),
+                (UnaryOperator::Minus, DataValue::Float64(f)) => DataValue::Float64(-f),
+                _ => todo!("evaluate expression: {:?}", self.kind),
+            },
+            _ => todo!("evaluate expression: {:?}", self.kind),
         }
     }
 
@@ -27,9 +32,16 @@ impl BoundExpr {
                 let right = binary_op.right_expr.eval_array(chunk)?;
                 Ok(left.binary_op(&binary_op.op, &right))
             }
+            BoundExprKind::UnaryOp(op) => {
+                let array = op.expr.eval_array(chunk)?;
+                Ok(array.unary_op(&op.op))
+            }
             BoundExprKind::Constant(v) => {
                 let mut builder = ArrayBuilderImpl::new(self.return_type.clone().unwrap());
-                builder.push(v);
+                // TODO: optimize this
+                for _ in 0..chunk.cardinality() {
+                    builder.push(v);
+                }
                 Ok(builder.finish())
             }
             BoundExprKind::TypeCast(cast) => {
@@ -44,6 +56,28 @@ impl BoundExpr {
 }
 
 impl ArrayImpl {
+    /// Perform unary operation.
+    pub fn unary_op(&self, op: &UnaryOperator) -> ArrayImpl {
+        type A = ArrayImpl;
+        match op {
+            UnaryOperator::Plus => match self {
+                A::Int32(_) => self.clone(),
+                A::Float64(_) => self.clone(),
+                _ => panic!("+ can only be applied to Int or Float array"),
+            },
+            UnaryOperator::Minus => match self {
+                A::Int32(a) => A::Int32(unary_op(a, |v| -v)),
+                A::Float64(a) => A::Float64(unary_op(a, |v| -v)),
+                _ => panic!("- can only be applied to Int or Float array"),
+            },
+            UnaryOperator::Not => match self {
+                A::Bool(a) => A::Bool(unary_op(a, |b| !b)),
+                _ => panic!("Not can only be applied to BOOL array"),
+            },
+            _ => todo!("evaluate operator: {:?}", op),
+        }
+    }
+
     /// Perform binary operation.
     pub fn binary_op(&self, op: &BinaryOperator, right: &ArrayImpl) -> ArrayImpl {
         type A = ArrayImpl;

@@ -62,24 +62,13 @@ impl AggregationState for SumAggregationState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::array::ArrayBuilderImpl;
-    use crate::types::{DataType, DataTypeKind};
+    use crate::types::DataTypeKind;
+
     #[test]
     fn test_sum() {
         let mut state = SumAggregationState::new(DataTypeKind::Int);
-        let mut builder = ArrayBuilderImpl::new(DataType::new(DataTypeKind::Int, true));
-        builder.push(&DataValue::Int32(1));
-        builder.push(&DataValue::Int32(2));
-        builder.push(&DataValue::Int32(3));
-        builder.push(&DataValue::Int32(4));
-        let arr = builder.finish();
-        state.update(&arr).unwrap();
-        let val = state.output();
-        match val {
-            DataValue::Int64(sum) => {
-                assert_eq!(sum, 10);
-            }
-            _ => panic!(),
-        }
+        let array = ArrayImpl::Int32((1..5).collect());
+        state.update(&array).unwrap();
+        assert_eq!(state.output(), DataValue::Int64(10));
     }
 }
