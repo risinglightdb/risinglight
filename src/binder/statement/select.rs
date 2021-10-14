@@ -1,4 +1,5 @@
 use super::*;
+use crate::binder::BoundTableRef;
 use crate::parser::{Query, SelectItem, SetExpr};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -30,6 +31,11 @@ impl Binder {
         };
         // Bind table ref
         let mut from_table = vec![];
+        // We don't support cross join now.
+        // The cross join will have multiple TableWithJoin in "from" struct.
+        // Other types of join will onyl have one TableWithJoin in "from" struct.
+        assert!(select.from.len() <= 1);
+
         for table_ref in select.from.iter() {
             let table_ref = self.bind_table_ref(&table_ref.relation)?;
             from_table.push(table_ref);
@@ -65,12 +71,15 @@ impl Binder {
 
         // Add referred columns for base table reference
         for table_ref in from_table.iter_mut() {
-            table_ref.column_ids = self
-                .context
-                .column_ids
-                .get(&table_ref.table_name)
-                .unwrap()
-                .clone();
+            match table_ref {
+                BoundTableRef::BaseTableRef {
+                    ref_id: _,
+                    table_name,
+                    column_ids,
+                } => {
+                    *column_ids = self.context.column_ids.get(table_name).unwrap().clone();
+                }
+            }
         }
 
         Ok(Box::new(BoundSelect {
@@ -136,7 +145,7 @@ mod tests {
                         return_type: Some(DataTypeKind::Int.not_null()),
                     },
                 ],
-                from_table: vec![BoundTableRef {
+                from_table: vec![BoundTableRef::BaseTableRef {
                     ref_id: TableRefId::new(0, 0, 0),
                     table_name: "t".into(),
                     column_ids: vec![1, 0],

@@ -1,11 +1,12 @@
 use super::*;
 use crate::parser::TableFactor;
-
 #[derive(Debug, PartialEq, Clone)]
-pub struct BoundTableRef {
-    pub ref_id: TableRefId,
-    pub table_name: String,
-    pub column_ids: Vec<ColumnId>,
+pub enum BoundTableRef {
+    BaseTableRef {
+        ref_id: TableRefId,
+        table_name: String,
+        column_ids: Vec<ColumnId>,
+    },
 }
 
 impl Binder {
@@ -33,11 +34,17 @@ impl Binder {
                 self.context
                     .column_ids
                     .insert(table_name.into(), Vec::new());
-                Ok(BoundTableRef {
+                Ok(BoundTableRef::BaseTableRef {
                     ref_id,
                     table_name: table_name.into(),
                     column_ids: vec![],
                 })
+            }
+            TableFactor::NestedJoin(table_with_joins) => {
+                let bounded_table_ref = self.bind_table_ref(&table_with_joins.relation)?;
+                // We only support cross join now.
+                assert_eq!(table_with_joins.joins.len(), 0);
+                Ok(bounded_table_ref)
             }
             _ => panic!("bind table ref"),
         }

@@ -1,14 +1,22 @@
 use super::*;
-use crate::binder::BoundSelect;
+use crate::binder::{BoundSelect, BoundTableRef};
 
 impl LogicalPlaner {
     pub fn plan_select(&self, stmt: Box<BoundSelect>) -> Result<LogicalPlan, LogicalPlanError> {
         let mut plan = LogicalPlan::Dummy;
         if let Some(table_ref) = stmt.from_table.get(0) {
-            plan = LogicalPlan::SeqScan(LogicalSeqScan {
-                table_ref_id: table_ref.ref_id,
-                column_ids: table_ref.column_ids.clone(),
-            });
+            match table_ref {
+                BoundTableRef::BaseTableRef {
+                    ref_id,
+                    table_name: _,
+                    column_ids,
+                } => {
+                    plan = LogicalPlan::SeqScan(LogicalSeqScan {
+                        table_ref_id: *ref_id,
+                        column_ids: column_ids.to_vec(),
+                    });
+                }
+            }
         }
         if let Some(expr) = stmt.where_clause {
             plan = LogicalPlan::Filter(LogicalFilter {
