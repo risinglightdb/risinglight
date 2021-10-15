@@ -2,6 +2,7 @@ use super::*;
 use crate::array::{Array, ArrayImpl, DataChunk};
 use crate::binder::BoundExpr;
 
+/// The executor of a filter operation.
 pub struct FilterExecutor {
     pub expr: BoundExpr,
     pub child: BoxedExecutor,

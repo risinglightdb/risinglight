@@ -1,6 +1,7 @@
 use super::*;
 use crate::{binder::Object, physical_planner::PhysicalDrop};
 
+/// The executor of `drop` statement.
 pub struct DropExecutor {
     pub plan: PhysicalDrop,
     pub storage: StorageRef,

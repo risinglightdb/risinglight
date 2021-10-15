@@ -1,6 +1,7 @@
 use super::*;
 use crate::physical_planner::PhysicalCreateTable;
 
+/// The executor of `create table` statement.
 pub struct CreateTableExecutor {
     pub plan: PhysicalCreateTable,
     pub storage: StorageRef,

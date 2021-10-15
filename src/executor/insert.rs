@@ -3,6 +3,7 @@ use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunk};
 use crate::physical_planner::PhysicalInsert;
 use crate::storage::StorageRef;
 
+/// The executor of `insert` statement.
 pub struct InsertExecutor {
     pub plan: PhysicalInsert,
     pub storage: StorageRef,

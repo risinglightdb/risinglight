@@ -2,6 +2,7 @@ use super::*;
 use crate::array::{ArrayImpl, DataChunk};
 use crate::binder::BoundExpr;
 
+/// The executor of project operation.
 pub struct ProjectionExecutor {
     pub project_expressions: Vec<BoundExpr>,
     pub child: BoxedExecutor,

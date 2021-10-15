@@ -2,6 +2,7 @@ use super::*;
 use crate::parser::{SetExpr, Statement};
 use crate::types::ColumnId;
 
+/// A bound `insert` statement.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundInsert {
     pub table_ref_id: TableRefId,

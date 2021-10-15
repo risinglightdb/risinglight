@@ -3,6 +3,7 @@ use crate::catalog::TableRefId;
 use crate::logical_planner::LogicalSeqScan;
 use crate::types::ColumnId;
 
+/// The physical plan of sequential scan operation.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalSeqScan {
     pub table_ref_id: TableRefId,

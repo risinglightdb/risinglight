@@ -1,6 +1,7 @@
 use super::*;
 use crate::{binder::BoundExpr, logical_planner::LogicalFilter};
 
+/// The physical plan of filter operation.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalFilter {
     pub expr: BoundExpr,

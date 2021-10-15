@@ -1,5 +1,6 @@
 use crate::types::{ColumnId, DataType};
 
+/// A descriptor of a column.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ColumnDesc {
     datatype: DataType,
@@ -41,6 +42,7 @@ impl DataType {
     }
 }
 
+/// The catalog of a column.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ColumnCatalog {
     id: ColumnId,

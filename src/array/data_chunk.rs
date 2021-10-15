@@ -6,7 +6,9 @@ use std::fmt;
 use std::sync::Arc;
 use typed_builder::TypedBuilder;
 
-/// `DataChunk` is a collection of arrays with visibility mask.
+/// A collection of arrays.
+///
+/// A chunk is a horizontal subset of a query result.
 #[derive(TypedBuilder, Default, Serialize, Deserialize, PartialEq)]
 pub struct DataChunk {
     #[builder(default)]
@@ -16,14 +18,17 @@ pub struct DataChunk {
 }
 
 impl DataChunk {
+    /// Return the number of rows in the chunk.
     pub fn cardinality(&self) -> usize {
         self.cardinality
     }
 
+    /// Get the reference of array by index.
     pub fn array_at(&self, idx: usize) -> &ArrayImpl {
         &self.arrays[idx]
     }
 
+    /// Filter elements and create a new chunk.
     pub fn filter(&self, visibility: impl Iterator<Item = bool> + Clone) -> Self {
         let cardinality = visibility.clone().filter(|v| *v).count();
         let arrays = self
@@ -40,6 +45,7 @@ impl DataChunk {
 
 pub type DataChunkRef = Arc<DataChunk>;
 
+// Print the chunk as a pretty table.
 impl fmt::Display for DataChunk {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use prettytable::{format, Table};

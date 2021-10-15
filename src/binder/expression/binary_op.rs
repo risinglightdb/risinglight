@@ -1,6 +1,7 @@
 use super::*;
 use crate::parser::BinaryOperator;
 
+/// A bound binary operation expression.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundBinaryOp {
     pub left_expr: Box<BoundExpr>,

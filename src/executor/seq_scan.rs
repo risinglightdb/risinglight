@@ -3,6 +3,7 @@ use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunk};
 use crate::physical_planner::PhysicalSeqScan;
 use crate::storage::StorageRef;
 
+/// The executor of sequential scan operation.
 pub struct SeqScanExecutor {
     pub plan: PhysicalSeqScan,
     pub storage: StorageRef,
