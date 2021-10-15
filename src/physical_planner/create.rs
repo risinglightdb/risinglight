@@ -1,6 +1,6 @@
 use super::*;
 use crate::catalog::ColumnCatalog;
-use crate::logical_plan::LogicalCreateTable;
+use crate::logical_planner::LogicalCreateTable;
 use crate::types::{DatabaseId, SchemaId};
 
 #[derive(Debug, PartialEq, Clone)]

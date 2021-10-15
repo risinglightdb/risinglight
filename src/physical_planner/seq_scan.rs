@@ -1,6 +1,6 @@
 use super::*;
 use crate::catalog::TableRefId;
-use crate::logical_plan::LogicalSeqScan;
+use crate::logical_planner::LogicalSeqScan;
 use crate::types::ColumnId;
 
 #[derive(Debug, PartialEq, Clone)]

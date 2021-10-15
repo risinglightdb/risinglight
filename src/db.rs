@@ -3,9 +3,9 @@ use crate::{
     binder::{BindError, Binder},
     catalog::RootCatalogRef,
     executor::{ExecutorBuilder, ExecutorError, GlobalEnv},
-    logical_plan::{LogicalPlanError, LogicalPlaner},
+    logical_planner::{LogicalPlanError, LogicalPlaner},
     parser::{parse, ParserError},
-    physical_plan::{PhysicalPlanError, PhysicalPlaner},
+    physical_planner::{PhysicalPlanError, PhysicalPlaner},
     storage::InMemoryStorage,
 };
 use futures::TryStreamExt;

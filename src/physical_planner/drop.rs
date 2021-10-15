@@ -1,5 +1,5 @@
 use super::*;
-use crate::{binder::Object, logical_plan::LogicalDrop};
+use crate::{binder::Object, logical_planner::LogicalDrop};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalDrop {

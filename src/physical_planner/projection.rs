@@ -1,5 +1,5 @@
 use super::*;
-use crate::{binder::BoundExpr, logical_plan::LogicalProjection};
+use crate::{binder::BoundExpr, logical_planner::LogicalProjection};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalProjection {

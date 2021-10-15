@@ -1,7 +1,7 @@
 use super::*;
 use crate::binder::BoundExpr;
 use crate::catalog::TableRefId;
-use crate::logical_plan::LogicalInsert;
+use crate::logical_planner::LogicalInsert;
 use crate::types::ColumnId;
 
 #[derive(Debug, PartialEq, Clone)]

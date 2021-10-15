@@ -1,5 +1,5 @@
 use super::*;
-use crate::{binder::Object, physical_plan::PhysicalDrop};
+use crate::{binder::Object, physical_planner::PhysicalDrop};
 
 pub struct DropExecutor {
     pub plan: PhysicalDrop,

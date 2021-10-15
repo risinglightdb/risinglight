@@ -9,9 +9,9 @@ pub mod catalog;
 mod db;
 pub mod executor;
 pub mod expr;
-pub mod logical_plan;
+pub mod logical_planner;
 pub mod parser;
-pub mod physical_plan;
+pub mod physical_planner;
 pub mod storage;
 pub mod types;
 

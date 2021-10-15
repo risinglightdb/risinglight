@@ -1,6 +1,6 @@
 use super::*;
 use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunk};
-use crate::physical_plan::PhysicalInsert;
+use crate::physical_planner::PhysicalInsert;
 use crate::storage::StorageRef;
 
 pub struct InsertExecutor {
@@ -48,7 +48,7 @@ mod tests {
     use crate::catalog::{ColumnCatalog, TableRefId};
     use crate::executor::CreateTableExecutor;
     use crate::executor::{GlobalEnv, GlobalEnvRef};
-    use crate::physical_plan::PhysicalCreateTable;
+    use crate::physical_planner::PhysicalCreateTable;
     use crate::storage::InMemoryStorage;
     use crate::types::{DataTypeExt, DataTypeKind, DataValue};
     use std::sync::Arc;

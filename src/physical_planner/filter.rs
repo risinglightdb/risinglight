@@ -1,5 +1,5 @@
 use super::*;
-use crate::{binder::BoundExpr, logical_plan::LogicalFilter};
+use crate::{binder::BoundExpr, logical_planner::LogicalFilter};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalFilter {

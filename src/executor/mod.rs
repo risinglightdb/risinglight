@@ -1,5 +1,5 @@
 use crate::array::DataChunk;
-use crate::physical_plan::PhysicalPlan;
+use crate::physical_planner::PhysicalPlan;
 use crate::storage::{StorageError, StorageRef};
 use async_stream::try_stream;
 use futures::stream::{BoxStream, Stream, StreamExt};
