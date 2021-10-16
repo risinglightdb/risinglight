@@ -37,7 +37,7 @@ impl Binder {
         assert!(select.from.len() <= 1);
 
         for table_with_join in select.from.iter() {
-            let table_ref = self.bind_table_with_joins(&table_with_join)?;
+            let table_ref = self.bind_table_with_joins(table_with_join)?;
             from_table.push(table_ref);
         }
         // TODO: process where, order by, group-by
@@ -127,23 +127,22 @@ impl Binder {
     }
 
     fn bind_column_idx_for_table(&mut self, table_ref: &mut BoundTableRef) {
-        match table_ref {
-            BoundTableRef::JoinTableRef {
-                left_table: _,
-                right_table: _,
-                join_op,
-            } => match join_op {
+        if let BoundTableRef::JoinTableRef {
+            left_table: _,
+            right_table: _,
+            join_op,
+        } = table_ref
+        {
+            match join_op {
                 BoundJoinOperator::Inner(constraint) => match constraint {
                     BoundJoinConstraint::On(expr) => {
                         self.bind_column_idx_for_expr(&mut expr.kind);
                     }
                 },
-            },
-            _ => {}
+            }
         }
     }
 
-    fn bind_column_idx_for_join(&mut self, join_op: &mut BoundJoinOperator) {}
     fn bind_column_idx_for_expr(&mut self, expr_kind: &mut BoundExprKind) {
         match expr_kind {
             BoundExprKind::ColumnRef(col_ref) => {
@@ -177,76 +176,8 @@ mod tests {
     use super::*;
     use crate::catalog::{ColumnCatalog, ColumnRefId, RootCatalog};
     use crate::parser::{parse, BinaryOperator, Statement};
-    use crate::types::{DataType, DataTypeExt, DataTypeKind, DataValue};
+    use crate::types::{DataType, DataTypeExt, DataTypeKind};
     use std::sync::Arc;
-
-    #[test]
-    fn bind_select() {
-        let catalog = Arc::new(RootCatalog::new());
-        let mut binder = Binder::new(catalog.clone());
-
-        let database = catalog.get_database_by_id(0).unwrap();
-        let schema = database.get_schema_by_id(0).unwrap();
-        schema
-            .add_table(
-                "t".into(),
-                vec![
-                    ColumnCatalog::new(0, "a".into(), DataTypeKind::Int.not_null().to_column()),
-                    ColumnCatalog::new(1, "b".into(), DataTypeKind::Int.not_null().to_column()),
-                ],
-                false,
-            )
-            .unwrap();
-
-        let sql = "select b, a from t;  select c from t;";
-        let stmts = parse(sql).unwrap();
-
-        let query = match &stmts[0] {
-            Statement::Query(q) => &*q,
-            _ => panic!("type mismatch"),
-        };
-        assert_eq!(
-            *binder.bind_select(query).unwrap(),
-            BoundSelect {
-                select_list: vec![
-                    BoundExpr {
-                        kind: BoundExprKind::ColumnRef(BoundColumnRef {
-                            table_name: "t".into(),
-                            column_ref_id: ColumnRefId::new(0, 0, 0, 1),
-                            column_index: 0,
-                        }),
-                        return_type: Some(DataTypeKind::Int.not_null()),
-                    },
-                    BoundExpr {
-                        kind: BoundExprKind::ColumnRef(BoundColumnRef {
-                            table_name: "t".into(),
-                            column_ref_id: ColumnRefId::new(0, 0, 0, 0),
-                            column_index: 1,
-                        }),
-                        return_type: Some(DataTypeKind::Int.not_null()),
-                    },
-                ],
-                from_table: vec![BoundTableRef::BaseTableRef {
-                    ref_id: TableRefId::new(0, 0, 0),
-                    table_name: "t".into(),
-                    column_ids: vec![1, 0],
-                }],
-                where_clause: None,
-                select_distinct: false,
-                limit: None,
-                offset: None,
-            }
-        );
-
-        let query = match &stmts[1] {
-            Statement::Query(q) => &*q,
-            _ => panic!("type mismatch"),
-        };
-        assert_eq!(
-            binder.bind_select(query),
-            Err(BindError::InvalidColumn("c".into()))
-        );
-    }
 
     #[test]
     fn bind_join() {
