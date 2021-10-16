@@ -5,8 +5,8 @@ pub(crate) use native::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DataType {
-    kind: DataTypeKind,
-    nullable: bool,
+    pub kind: DataTypeKind,
+    pub nullable: bool,
 }
 
 impl DataType {

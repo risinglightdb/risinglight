@@ -16,6 +16,7 @@ impl LogicalPlaner {
                         column_ids: column_ids.to_vec(),
                     });
                 }
+                _ => todo!("support join"),
             }
         }
         if let Some(expr) = stmt.where_clause {
@@ -81,6 +82,7 @@ mod tests {
                 project_expressions: vec![
                     BoundExpr {
                         kind: BoundExprKind::ColumnRef(BoundColumnRef {
+                            table_name: "t".to_string(),
                             column_ref_id: ColumnRefId::new(0, 0, 0, 1),
                             column_index: 0,
                         }),
@@ -88,6 +90,7 @@ mod tests {
                     },
                     BoundExpr {
                         kind: BoundExprKind::ColumnRef(BoundColumnRef {
+                            table_name: "t".to_string(),
                             column_ref_id: ColumnRefId::new(0, 0, 0, 0),
                             column_index: 1,
                         }),
