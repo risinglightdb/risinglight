@@ -45,7 +45,7 @@ impl DataChunk {
 
 pub type DataChunkRef = Arc<DataChunk>;
 
-// Print the chunk as a pretty table.
+/// Print the chunk as a pretty table.
 impl fmt::Display for DataChunk {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use prettytable::{format, Table};

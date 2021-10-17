@@ -1,4 +1,4 @@
-//! [Sqllogictest] parser and runner.
+//! [Sqllogictest][Sqllogictest] parser and runner.
 //!
 //! [Sqllogictest]: https://www.sqlite.org/sqllogictest/doc/trunk/about.wiki
 
