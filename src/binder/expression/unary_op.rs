@@ -1,6 +1,7 @@
 use super::*;
 use crate::parser::UnaryOperator;
 
+/// A bound unary operation expression.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundUnaryOp {
     pub op: UnaryOperator,

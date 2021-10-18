@@ -3,6 +3,7 @@ use crate::types::{ColumnId, TableId};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
 
+/// The catalog of a table.
 pub struct TableCatalog {
     id: TableId,
     inner: Mutex<Inner>,

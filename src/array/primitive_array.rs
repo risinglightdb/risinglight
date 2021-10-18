@@ -6,13 +6,14 @@ use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
-/// `PrimitiveArray` is a collection of primitive types, such as `i32`, `f32`.
+/// A collection of primitive types, such as `i32`, `f32`.
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct PrimitiveArray<T: NativeType> {
     valid: BitVec,
     data: Vec<T>,
 }
 
+// Enable `collect()` an array from iterator of `Option<T>`.
 impl<T: NativeType> FromIterator<Option<T>> for PrimitiveArray<T> {
     fn from_iter<I: IntoIterator<Item = Option<T>>>(iter: I) -> Self {
         let iter = iter.into_iter();
@@ -24,6 +25,7 @@ impl<T: NativeType> FromIterator<Option<T>> for PrimitiveArray<T> {
     }
 }
 
+// Enable `collect()` an array from iterator of `T`.
 impl<T: NativeType> FromIterator<T> for PrimitiveArray<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         iter.into_iter().map(Some).collect()
@@ -43,7 +45,7 @@ impl<T: NativeType> Array for PrimitiveArray<T> {
     }
 }
 
-/// `PrimitiveArrayBuilder` constructs a `PrimitiveArray` from `Option<Primitive>`.
+/// A builder that constructs a [`PrimitiveArray`] from `Option<T>`.
 pub struct PrimitiveArrayBuilder<T: NativeType> {
     valid: BitVec,
     data: Vec<T>,

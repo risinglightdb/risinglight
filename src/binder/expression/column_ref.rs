@@ -1,5 +1,6 @@
 use super::*;
 
+/// A bound column reference expression.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundColumnRef {
     pub table_name: String,
