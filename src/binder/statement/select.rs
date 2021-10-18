@@ -128,12 +128,7 @@ impl Binder {
     }
 
     fn bind_column_idx_for_table(&mut self, table_ref: &mut BoundTableRef) {
-        if let BoundTableRef::JoinTableRef {
-            left_table: _,
-            right_table: _,
-            join_op,
-        } = table_ref
-        {
+        if let BoundTableRef::JoinTableRef { join_op, .. } = table_ref {
             match join_op {
                 BoundJoinOperator::Inner(constraint) => match constraint {
                     BoundJoinConstraint::On(expr) => {
