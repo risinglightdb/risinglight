@@ -1,5 +1,6 @@
 use super::*;
 
+/// A dummy executor that produces a single value.
 pub struct DummyScanExecutor;
 
 impl DummyScanExecutor {

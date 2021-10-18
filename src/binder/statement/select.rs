@@ -2,6 +2,7 @@ use super::*;
 use crate::binder::BoundTableRef;
 use crate::parser::{Query, SelectItem, SetExpr};
 
+/// A bound `select` statement.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundSelect {
     pub select_list: Vec<BoundExpr>,

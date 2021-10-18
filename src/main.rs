@@ -1,3 +1,5 @@
+//! A simple interactive shell of the database.
+
 use risinglight::Database;
 use std::io::Write;
 

@@ -1,3 +1,11 @@
+//! Logical planner of `select` statement.
+//!
+//! A `select` statement will be planned to a compose of:
+//!
+//! - [`LogicalSeqScan`] (from *) or dummy plan (no from)
+//! - [`LogicalFilter`] (where *)
+//! - [`LogicalProjection`] (select *)
+
 use super::*;
 use crate::binder::{BoundSelect, BoundTableRef};
 

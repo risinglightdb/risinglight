@@ -12,7 +12,7 @@ pub use insert::*;
 pub use projection::*;
 pub use seq_scan::*;
 
-use crate::logical_plan::LogicalPlan;
+use crate::logical_planner::LogicalPlan;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum PhysicalPlanError {

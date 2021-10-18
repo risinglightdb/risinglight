@@ -3,14 +3,15 @@ use crate::{
     binder::{BindError, Binder},
     catalog::RootCatalogRef,
     executor::{ExecutorBuilder, ExecutorError, GlobalEnv},
-    logical_plan::{LogicalPlanError, LogicalPlaner},
+    logical_planner::{LogicalPlanError, LogicalPlaner},
     parser::{parse, ParserError},
-    physical_plan::{PhysicalPlanError, PhysicalPlaner},
+    physical_planner::{PhysicalPlanError, PhysicalPlaner},
     storage::InMemoryStorage,
 };
 use futures::TryStreamExt;
 use std::sync::Arc;
 
+/// The database instance.
 pub struct Database {
     catalog: RootCatalogRef,
     executor_builder: ExecutorBuilder,
@@ -23,7 +24,7 @@ impl Default for Database {
 }
 
 impl Database {
-    /// Create a new Database instance.
+    /// Create a new database instance.
     pub fn new() -> Self {
         let storage = InMemoryStorage::new();
         let catalog = storage.catalog().clone();
@@ -69,6 +70,7 @@ impl Database {
     }
 }
 
+/// The error type of database operations.
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum Error {
     #[error("parse error: {0}")]

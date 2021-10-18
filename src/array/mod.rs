@@ -8,21 +8,9 @@ mod primitive_array;
 mod utf8_array;
 
 pub use self::data_chunk::*;
-pub use self::iterator::ArrayIterator;
+pub use self::iterator::ArrayIter;
 pub use self::primitive_array::*;
 pub use self::utf8_array::*;
-
-#[derive(thiserror::Error, Debug, PartialEq)]
-pub enum ArrayError {
-    #[error("failed to allocate memory")]
-    MemoryError,
-    #[error("failed to do bitwise and: {0}")]
-    BitAndError(String),
-    #[error("failed to do bitwise or: {0}")]
-    BitOrError(String),
-    #[error("index out of boundary")]
-    IndexOutOfBoundary,
-}
 
 /// A trait over all array builders.
 ///
@@ -75,8 +63,8 @@ pub trait Array: Sized {
     fn len(&self) -> usize;
 
     /// Get iterator of current array.
-    fn iter(&self) -> ArrayIterator<'_, Self> {
-        ArrayIterator::new(self)
+    fn iter(&self) -> ArrayIter<'_, Self> {
+        ArrayIter::new(self)
     }
 
     /// Check if `Array` is empty.
@@ -85,6 +73,7 @@ pub trait Array: Sized {
     }
 }
 
+/// An extension trait for [`Array`].
 pub trait ArrayExt: Array {
     /// Filter the elements and return a new array.
     fn filter<I>(&self, visibility: I) -> Self
@@ -112,7 +101,7 @@ pub type BoolArray = PrimitiveArray<bool>;
 pub type I32Array = PrimitiveArray<i32>;
 pub type F64Array = PrimitiveArray<f64>;
 
-/// `ArrayCollection` embeds all possible array in `array` module.
+/// Embeds all types of arrays in `array` module.
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub enum ArrayImpl {
     Bool(BoolArray),
@@ -128,7 +117,7 @@ pub type BoolArrayBuilder = PrimitiveArrayBuilder<bool>;
 pub type I32ArrayBuilder = PrimitiveArrayBuilder<i32>;
 pub type F64ArrayBuilder = PrimitiveArrayBuilder<f64>;
 
-/// Embeds all possible array builders in `array` module.
+/// Embeds all types of array builders in `array` module.
 pub enum ArrayBuilderImpl {
     Bool(BoolArrayBuilder),
     // Int16(PrimitiveArrayBuilder<i16>),
@@ -139,6 +128,7 @@ pub enum ArrayBuilderImpl {
     UTF8(UTF8ArrayBuilder),
 }
 
+/// An error which can be returned when downcasting an [`ArrayImpl`] into a concrete type array.
 #[derive(Debug, Clone)]
 pub struct TypeMismatch;
 

@@ -1,6 +1,7 @@
 use super::*;
 use crate::types::DataTypeKind;
 
+/// A bound type cast expression.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundTypeCast {
     pub expr: Box<BoundExpr>,

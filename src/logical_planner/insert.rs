@@ -3,6 +3,7 @@ use crate::binder::{BoundExpr, BoundInsert};
 use crate::catalog::TableRefId;
 use crate::types::ColumnId;
 
+/// The logical plan of `insert values`.
 #[derive(Debug, PartialEq, Clone)]
 pub struct LogicalInsert {
     pub table_ref_id: TableRefId,

@@ -3,14 +3,15 @@ use super::Array;
 use std::iter::Iterator;
 use std::marker::PhantomData;
 
+/// An iterator over the elements of an [`Array`].
 #[derive(Clone)]
-pub struct ArrayIterator<'a, A: Array> {
+pub struct ArrayIter<'a, A: Array> {
     data: &'a A,
     pos: usize,
     _phantom: PhantomData<&'a usize>,
 }
 
-impl<'a, A: Array> ArrayIterator<'a, A> {
+impl<'a, A: Array> ArrayIter<'a, A> {
     pub fn new(data: &'a A) -> Self {
         Self {
             data,
@@ -20,7 +21,7 @@ impl<'a, A: Array> ArrayIterator<'a, A> {
     }
 }
 
-impl<'a, A: Array> Iterator for ArrayIterator<'a, A> {
+impl<'a, A: Array> Iterator for ArrayIter<'a, A> {
     type Item = Option<&'a A::Item>;
 
     fn next(&mut self) -> Option<Self::Item> {
