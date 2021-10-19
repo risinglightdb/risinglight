@@ -12,7 +12,6 @@ pub enum BoundTableRef {
         right_table: Box<BoundTableRef>,
         join_op: BoundJoinOperator,
     },
-    Dummy,
 }
 
 #[derive(Debug, PartialEq, Clone)]
