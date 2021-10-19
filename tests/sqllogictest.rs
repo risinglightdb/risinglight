@@ -106,7 +106,7 @@ pub fn parse(script: &str) -> Result<Vec<Record>, ParseError> {
     let mut records = vec![];
     let mut conditions = vec![];
     while let Some(line) = lines.next() {
-        if line.is_empty() || line.starts_with("#") {
+        if line.is_empty() || line.starts_with('#') {
             continue;
         }
         let tokens: Vec<&str> = line.split_whitespace().collect();
@@ -133,7 +133,7 @@ pub fn parse(script: &str) -> Result<Vec<Record>, ParseError> {
                     _ => return Err(ParseError::UnexpectedToken(res.into())),
                 };
                 let mut sql = lines.next().ok_or(ParseError::UnexpectedEOF)?.into();
-                while let Some(line) = lines.next() {
+                for line in &mut lines {
                     if line.is_empty() {
                         break;
                     }
@@ -167,7 +167,7 @@ pub fn parse(script: &str) -> Result<Vec<Record>, ParseError> {
                 // up to first line of the form "----" or until the end of the record.
                 let mut sql = lines.next().ok_or(ParseError::UnexpectedEOF)?.into();
                 let mut has_result = false;
-                while let Some(line) = lines.next() {
+                for line in &mut lines {
                     if line.is_empty() || line == "----" {
                         has_result = line == "----";
                         break;
@@ -176,7 +176,7 @@ pub fn parse(script: &str) -> Result<Vec<Record>, ParseError> {
                 }
                 // Lines following the "----" are expected results of the query, one value per line.
                 if has_result {
-                    while let Some(line) = lines.next() {
+                    for line in &mut lines {
                         if line.is_empty() {
                             break;
                         }
