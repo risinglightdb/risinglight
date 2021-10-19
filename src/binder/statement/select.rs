@@ -123,7 +123,6 @@ impl Binder {
                 self.bind_column_ids(left_table);
                 self.bind_column_ids(right_table);
             }
-            _ => {}
         }
     }
 
