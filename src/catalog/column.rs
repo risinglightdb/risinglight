@@ -98,10 +98,10 @@ mod tests {
         let col_desc = DataTypeKind::Int.not_null().to_column();
         let mut col_catalog = ColumnCatalog::new(0, "grade".into(), col_desc);
         assert_eq!(col_catalog.id(), 0);
-        assert_eq!(col_catalog.is_primary(), false);
-        assert_eq!(col_catalog.is_nullable(), false);
+        assert!(!col_catalog.is_primary());
+        assert!(!col_catalog.is_nullable());
         assert_eq!(col_catalog.name(), "grade");
         col_catalog.set_primary(true);
-        assert_eq!(col_catalog.is_primary(), true);
+        assert!(col_catalog.is_primary());
     }
 }

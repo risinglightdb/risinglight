@@ -111,9 +111,9 @@ mod tests {
         let col_catalogs = vec![col0, col1];
         let table_catalog = TableCatalog::new(0, "t".into(), col_catalogs, false);
 
-        assert_eq!(table_catalog.contains_column("c"), false);
-        assert_eq!(table_catalog.contains_column("a"), true);
-        assert_eq!(table_catalog.contains_column("b"), true);
+        assert!(!table_catalog.contains_column("c"));
+        assert!(table_catalog.contains_column("a"));
+        assert!(table_catalog.contains_column("b"));
 
         assert_eq!(table_catalog.get_column_id_by_name("a"), Some(0));
         assert_eq!(table_catalog.get_column_id_by_name("b"), Some(1));
