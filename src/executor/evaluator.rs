@@ -7,7 +7,9 @@ use crate::{
 use std::borrow::Borrow;
 
 impl BoundExpr {
-    /// Evaluate the given expression.
+    /// Evaluate the given expression as a constant value.
+    ///
+    /// This method is used in the evaluation of `insert values`.
     pub fn eval(&self) -> DataValue {
         match &self.kind {
             BoundExprKind::Constant(v) => v.clone(),
@@ -20,6 +22,7 @@ impl BoundExpr {
         }
     }
 
+    /// Evaluate the given expression as an array.
     pub fn eval_array(&self, chunk: &DataChunk) -> Result<ArrayImpl, ConvertError> {
         match &self.kind {
             BoundExprKind::ColumnRef(col_ref) => {
@@ -182,6 +185,7 @@ impl ArrayImpl {
     }
 }
 
+/// The error type of value type convention.
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
 #[allow(clippy::enum_variant_names)]
 pub enum ConvertError {

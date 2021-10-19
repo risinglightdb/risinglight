@@ -1,9 +1,10 @@
 use super::*;
 use crate::binder::BoundExpr;
 use crate::catalog::TableRefId;
-use crate::logical_plan::LogicalInsert;
+use crate::logical_planner::LogicalInsert;
 use crate::types::ColumnId;
 
+/// The physical plan of `insert values`.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalInsert {
     pub table_ref_id: TableRefId,

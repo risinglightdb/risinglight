@@ -13,10 +13,13 @@ pub use self::column_ref::*;
 pub use self::type_cast::*;
 pub use self::unary_op::*;
 
+/// A bound expression.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundExpr {
+    /// The content of the expression.
     pub kind: BoundExprKind,
     /// The return type of the expression.
+    ///
     /// `None` means NULL.
     pub return_type: Option<DataType>,
 }
@@ -31,6 +34,7 @@ pub enum BoundExprKind {
 }
 
 impl BoundExpr {
+    /// Construct a constant value expression.
     pub fn constant(value: DataValue) -> Self {
         BoundExpr {
             return_type: value.data_type(),
@@ -40,6 +44,7 @@ impl BoundExpr {
 }
 
 impl Binder {
+    /// Bind an expression.
     pub fn bind_expr(&mut self, expr: &Expr) -> Result<BoundExpr, BindError> {
         match expr {
             Expr::Value(v) => Ok(BoundExpr::constant(v.into())),

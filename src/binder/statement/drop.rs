@@ -1,6 +1,7 @@
 use super::*;
 use crate::parser::{ObjectType, Statement};
 
+/// A bound `drop` statement.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundDrop {
     pub object: Object,
@@ -8,6 +9,7 @@ pub struct BoundDrop {
     pub cascade: bool,
 }
 
+/// Identifier of an object.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Object {
     // TODO: Database

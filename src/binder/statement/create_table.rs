@@ -5,6 +5,7 @@ use crate::{
     types::{DataType, DatabaseId, SchemaId},
 };
 
+/// A bound `create table` statement.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundCreateTable {
     pub database_id: DatabaseId,

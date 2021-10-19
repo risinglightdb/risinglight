@@ -1,8 +1,9 @@
 use super::*;
 use crate::catalog::ColumnCatalog;
-use crate::logical_plan::LogicalCreateTable;
+use crate::logical_planner::LogicalCreateTable;
 use crate::types::{DatabaseId, SchemaId};
 
+/// The physical plan of `create table`.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalCreateTable {
     pub database_id: DatabaseId,

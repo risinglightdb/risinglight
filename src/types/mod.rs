@@ -3,6 +3,7 @@ pub use sqlparser::ast::DataType as DataTypeKind;
 mod native;
 pub(crate) use native::*;
 
+/// Data type with nullable.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DataType {
     pub kind: DataTypeKind,
@@ -23,6 +24,7 @@ impl DataType {
     }
 }
 
+/// The extension methods for [`DataType`].
 pub trait DataTypeExt {
     fn nullable(self) -> DataType;
     fn not_null(self) -> DataType;
@@ -46,6 +48,7 @@ pub(crate) type SchemaId = u32;
 pub(crate) type TableId = u32;
 pub(crate) type ColumnId = u32;
 
+/// Primitive SQL value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DataValue {
     Null,

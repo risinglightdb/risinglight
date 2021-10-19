@@ -1,5 +1,7 @@
 use super::*;
 use crate::parser::{JoinConstraint, JoinOperator, TableFactor, TableWithJoins};
+
+/// A bound table reference.
 #[derive(Debug, PartialEq, Clone)]
 pub enum BoundTableRef {
     BaseTableRef {

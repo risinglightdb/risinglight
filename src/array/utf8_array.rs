@@ -4,7 +4,7 @@ use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
-/// `UTF8Array` is a collection of Rust UTF8 `String`s.
+/// A collection of Rust UTF8 `String`s.
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct UTF8Array {
     offset: Vec<usize>,
@@ -30,7 +30,7 @@ impl Array for UTF8Array {
     }
 }
 
-/// `UTF8ArrayBuilder` use `&str` to build an `UTF8Array`.
+/// A builder that uses `&str` to build an [`UTF8Array`].
 pub struct UTF8ArrayBuilder {
     offset: Vec<usize>,
     valid: BitVec,
@@ -76,6 +76,7 @@ impl ArrayBuilder for UTF8ArrayBuilder {
     }
 }
 
+// Enable `collect()` an array from iterator of `Option<&str>` or `Option<String>`.
 impl<Str: AsRef<str>> FromIterator<Option<Str>> for UTF8Array {
     fn from_iter<I: IntoIterator<Item = Option<Str>>>(iter: I) -> Self {
         let iter = iter.into_iter();

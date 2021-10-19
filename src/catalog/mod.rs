@@ -18,6 +18,7 @@ mod table;
 
 pub type RootCatalogRef = Arc<RootCatalog>;
 
+/// The reference ID of a table.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct TableRefId {
     pub database_id: DatabaseId,
@@ -35,6 +36,7 @@ impl TableRefId {
     }
 }
 
+/// The reference ID of a column.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct ColumnRefId {
     pub database_id: DatabaseId,
@@ -68,6 +70,7 @@ impl ColumnRefId {
     }
 }
 
+/// The error type of catalog operations.
 #[derive(thiserror::Error, Debug)]
 pub enum CatalogError {
     #[error("{0} not found: {1}")]
