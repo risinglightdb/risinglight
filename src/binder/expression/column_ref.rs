@@ -3,6 +3,7 @@ use super::*;
 /// A bound column reference expression.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundColumnRef {
+    pub table_name: String,
     pub column_ref_id: ColumnRefId,
     pub column_index: ColumnId,
 }
@@ -25,11 +26,12 @@ impl Binder {
                 .get_column_by_name(column_name)
                 .ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
             let column_ref_id = ColumnRefId::from_table(table_ref_id, col.id());
-            let column_index = self.record_regular_table_column(name, column_name, col.id());
+            self.record_regular_table_column(name, column_name, col.id());
             Ok(BoundExpr {
                 kind: BoundExprKind::ColumnRef(BoundColumnRef {
+                    table_name: name.clone(),
                     column_ref_id,
-                    column_index,
+                    column_index: u32::MAX,
                 }),
                 return_type: Some(col.datatype()),
             })
@@ -47,13 +49,13 @@ impl Binder {
             }
             let (table_name, column_ref_id, data_type) =
                 info.ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
-            let column_index =
-                self.record_regular_table_column(&table_name, column_name, column_ref_id.column_id);
+            self.record_regular_table_column(&table_name, column_name, column_ref_id.column_id);
 
             Ok(BoundExpr {
                 kind: BoundExprKind::ColumnRef(BoundColumnRef {
+                    table_name: table_name.clone(),
                     column_ref_id,
-                    column_index,
+                    column_index: u32::MAX,
                 }),
                 return_type: Some(data_type),
             })

@@ -73,6 +73,8 @@ pub struct Binder {
     catalog: Arc<RootCatalog>,
     context: BinderContext,
     upper_contexts: Vec<BinderContext>,
+    base_table_refs: Vec<String>,
+    column_sum_count: Vec<usize>,
 }
 
 impl Binder {
@@ -82,6 +84,8 @@ impl Binder {
             catalog,
             upper_contexts: Vec::new(),
             context: BinderContext::default(),
+            base_table_refs: Vec::new(),
+            column_sum_count: vec![0],
         }
     }
 
