@@ -68,20 +68,23 @@ impl I32ColumnBuilder {
         // the new block will begin at the current row count
         self.last_row_count = self.row_count;
 
-        let mut block_header = &mut block_data[..16];
+        let mut block_header = vec![0; 16];
+
+        let mut block_header_ref = &mut block_header[..];
 
         // add block type
-        block_header.put_i32(block_type.into());
+        block_header_ref.put_i32(block_type.into());
 
         // add checksum
-        block_header.put_i32(ChecksumType::None.into());
+        block_header_ref.put_i32(ChecksumType::None.into());
 
         // TODO(chi): add checksum support
-        block_header.put_u64(0);
+        block_header_ref.put_u64(0);
 
-        assert!(block_header.is_empty());
+        assert!(block_header_ref.is_empty());
 
         // add data to the column file
+        self.data.append(&mut block_header);
         self.data.append(&mut block_data);
     }
 }
