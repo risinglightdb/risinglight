@@ -1,142 +1,131 @@
-mod block;
-mod disk_manager;
-mod segment;
-mod slice;
-mod table;
+//! Traits and basic data structures for RisingLight's all storage engines.
 
-pub use self::block::*;
-pub use self::disk_manager::*;
-pub use self::segment::*;
-pub use self::slice::*;
-pub use self::table::*;
+mod memory;
+pub use memory::InMemoryStorage;
 
-use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};
+mod error;
+pub use error::{StorageError, StorageResult};
+
+use crate::array::{ArrayImpl, DataChunk};
+use crate::catalog::{ColumnCatalog, ColumnDesc, TableRefId};
 use crate::types::{ColumnId, DatabaseId, SchemaId};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 
-#[derive(thiserror::Error, Debug, PartialEq)]
-pub enum StorageError {
-    #[error("failed to read table")]
-    ReadTableError,
-    #[error("failed to write table")]
-    WriteTableError,
-    #[error("{0}({1}) not found")]
-    NotFound(&'static str, u32),
-    #[error("duplicated {0}: {1}")]
-    Duplicated(&'static str, String),
-    #[error("invalid column id: {0}")]
-    InvalidColumn(ColumnId),
-    #[error("IO error: {0} {1:?}")]
-    IOError(&'static str, std::io::ErrorKind),
+use async_trait::async_trait;
+use enum_dispatch::enum_dispatch;
+
+use std::sync::Arc;
+
+#[enum_dispatch(StorageDispatch)]
+#[derive(Clone)]
+pub enum StorageImpl {
+    InMemoryStorage(Arc<InMemoryStorage>),
 }
 
-pub trait Storage: Sync + Send {
+/// A trait for implementing `From` and `Into` [`StorageImpl`] with `enum_dispatch`.
+#[enum_dispatch]
+pub trait StorageDispatch {}
+
+#[cfg(test)]
+impl StorageImpl {
+    pub fn as_in_memory_storage(&self) -> Arc<InMemoryStorage> {
+        self.clone().try_into().unwrap()
+    }
+}
+
+/// Represents a storage engine.
+pub trait Storage: Sync + Send + 'static {
+    /// Type of the transaction.
+    type TransactionType: Transaction;
+
+    /// Type of the table belonging to this storage engine.
+    type TableType: Table<TransactionType = Self::TransactionType>;
+
     fn create_table(
         &self,
         database_id: DatabaseId,
         schema_id: SchemaId,
         table_name: &str,
         column_descs: &[ColumnCatalog],
-    ) -> Result<(), StorageError>;
-    fn get_table(&self, table_id: TableRefId) -> Result<TableRef, StorageError>;
-    fn drop_table(&self, table_id: TableRefId) -> Result<(), StorageError>;
+    ) -> StorageResult<()>;
+    fn get_table(&self, table_id: TableRefId) -> StorageResult<Self::TableType>;
+    fn drop_table(&self, table_id: TableRefId) -> StorageResult<()>;
 }
 
-pub type StorageRef = Arc<dyn Storage>;
+/// A table in the storage engine. [`Table`] is by default a reference to a table,
+/// so you could clone it and manipulate in different threads as you like.
+#[async_trait]
+pub trait Table: Sync + Send + Clone + 'static {
+    /// Type of the transaction.
+    type TransactionType: Transaction;
 
-pub struct InMemoryStorage {
-    catalog: RootCatalogRef,
-    tables: Mutex<HashMap<TableRefId, TableRef>>,
+    /// Get schema of the current table
+    fn column_descs(&self, ids: &[ColumnId]) -> StorageResult<Vec<ColumnDesc>>;
+
+    /// Begin a read-write-only txn
+    async fn write(&self) -> StorageResult<Self::TransactionType>;
+
+    /// Begin a read-only txn
+    async fn read(&self) -> StorageResult<Self::TransactionType>;
+
+    /// Begin a txn that might delete or update rows
+    async fn update(&self) -> StorageResult<Self::TransactionType>;
+
+    /// Get table id
+    fn table_id(&self) -> TableRefId;
 }
 
-impl Default for InMemoryStorage {
-    fn default() -> Self {
-        Self::new()
-    }
+/// Reference to a column.
+pub enum StorageColumnRef {
+    /// A runtime column which contains necessary information to locate a row
+    /// **only valid in the current transaction**.
+    RowHandler,
+    /// Begin TS of the current row.
+    BeginTs,
+    /// End TS of the current row.
+    EndTs,
+    /// User column.
+    Idx(u32),
 }
 
-impl InMemoryStorage {
-    pub fn new() -> Self {
-        InMemoryStorage {
-            catalog: Arc::new(RootCatalog::new()),
-            tables: Mutex::new(HashMap::new()),
-        }
-    }
-
-    pub fn catalog(&self) -> &RootCatalogRef {
-        &self.catalog
-    }
+/// A temporary reference to a row in table.
+pub trait RowHandler: Sync + Send + 'static {
+    fn from_column(column: &ArrayImpl, idx: usize) -> Self;
 }
 
-impl Storage for InMemoryStorage {
-    fn create_table(
+/// Represents a transaction in storage engine.
+#[async_trait]
+pub trait Transaction: Sync + Send + 'static {
+    /// Type of the table iterator
+    type TxnIteratorType: TxnIterator;
+
+    /// Type of the unique reference to a row
+    type RowHandlerType: RowHandler;
+
+    /// Scan one or multiple columns.
+    async fn scan(
         &self,
-        database_id: DatabaseId,
-        schema_id: SchemaId,
-        table_name: &str,
-        column_descs: &[ColumnCatalog],
-    ) -> Result<(), StorageError> {
-        let db = self
-            .catalog
-            .get_database_by_id(database_id)
-            .ok_or(StorageError::NotFound("database", database_id))?;
-        let schema = db
-            .get_schema_by_id(schema_id)
-            .ok_or(StorageError::NotFound("schema", schema_id))?;
-        if schema.get_table_by_name(table_name).is_some() {
-            return Err(StorageError::Duplicated("table", table_name.into()));
-        }
-        let table_id = schema
-            .add_table(table_name.into(), column_descs.to_vec(), false)
-            .map_err(|_| StorageError::Duplicated("table", table_name.into()))?;
+        begin_sort_key: Option<&[u8]>,
+        end_sort_key: Option<&[u8]>,
+        col_idx: &[StorageColumnRef],
+        reversed: bool,
+    ) -> StorageResult<Self::TxnIteratorType>;
 
-        let id = TableRefId {
-            database_id,
-            schema_id,
-            table_id,
-        };
-        let table = BaseTable::new(id, column_descs);
-        self.tables.lock().unwrap().insert(id, Arc::new(table));
-        Ok(())
-    }
+    /// Append data to the table.
+    async fn append(&mut self, columns: DataChunk) -> StorageResult<()>;
 
-    fn get_table(&self, table_id: TableRefId) -> Result<TableRef, StorageError> {
-        let table = self
-            .tables
-            .lock()
-            .unwrap()
-            .get(&table_id)
-            .ok_or(StorageError::NotFound("table", table_id.table_id))?
-            .clone();
-        Ok(table)
-    }
+    /// Delete a record.
+    async fn delete(&mut self, id: &Self::RowHandlerType) -> StorageResult<()>;
 
-    fn drop_table(&self, table_id: TableRefId) -> Result<(), StorageError> {
-        self.tables
-            .lock()
-            .unwrap()
-            .remove(&table_id)
-            .ok_or(StorageError::NotFound("table", table_id.table_id))?;
-        let db = self
-            .catalog
-            .get_database_by_id(table_id.database_id)
-            .unwrap();
-        let schema = db.get_schema_by_id(table_id.schema_id).unwrap();
-        schema.delete_table(table_id.table_id);
-        Ok(())
-    }
+    /// Commit a transaction.
+    async fn commit(self) -> StorageResult<()>;
+
+    /// Abort a transaction.
+    async fn abort(self) -> StorageResult<()>;
 }
 
-// On-disk Storage
-// Each table with N columns is stored in multiple table slices.
-// (For our stand-alone system, we only store table in one slice. We could make the storage shared in distributed system.)
-// Each slice has mutiple table segments.
-// Each segment have N column segments.
-// Each column segment store data in a list of Block.
-pub const BLOCK_SIZE: usize = 2 * 1024 * 1024;
-pub type BlockId = u32;
-pub type TableSegmentId = u32;
-pub type SliceId = u32;
-pub type TupleSize = u64;
-pub type SegmentSize = u64;
+/// An iterator over table in a transaction.
+#[async_trait]
+pub trait TxnIterator: Send {
+    /// get next batch of elements
+    async fn next_batch(&mut self) -> StorageResult<Option<DataChunk>>;
+}

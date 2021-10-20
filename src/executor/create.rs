@@ -1,13 +1,15 @@
 use super::*;
 use crate::physical_planner::PhysicalCreateTable;
+use crate::storage::Storage;
+use std::sync::Arc;
 
 /// The executor of `create table` statement.
-pub struct CreateTableExecutor {
+pub struct CreateTableExecutor<S: Storage> {
     pub plan: PhysicalCreateTable,
-    pub storage: StorageRef,
+    pub storage: Arc<S>,
 }
 
-impl CreateTableExecutor {
+impl<S: Storage> CreateTableExecutor<S> {
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
             self.storage.create_table(

@@ -1,44 +1,65 @@
 use super::*;
-use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunk};
+use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::physical_planner::PhysicalSeqScan;
-use crate::storage::StorageRef;
+use crate::storage::{Storage, StorageColumnRef, Table, Transaction, TxnIterator};
+use itertools::Itertools;
+use std::sync::Arc;
 
 /// The executor of sequential scan operation.
-pub struct SeqScanExecutor {
+pub struct SeqScanExecutor<S: Storage> {
     pub plan: PhysicalSeqScan,
-    pub storage: StorageRef,
+    pub storage: Arc<S>,
 }
 
-impl SeqScanExecutor {
+impl<S: Storage> SeqScanExecutor<S> {
+    async fn execute_inner(self) -> Result<DataChunk, ExecutorError> {
+        let table = self.storage.get_table(self.plan.table_ref_id)?;
+        let col_descs = table.column_descs(&self.plan.column_ids)?;
+        let col_idx = self
+            .plan
+            .column_ids
+            .iter()
+            .map(|x| StorageColumnRef::Idx(*x))
+            .collect_vec();
+        // Get n array builders
+        let mut builders = col_descs
+            .iter()
+            .map(|desc| ArrayBuilderImpl::new(desc.datatype().clone()))
+            .collect::<Vec<ArrayBuilderImpl>>();
+
+        let txn = table.read().await?;
+        let mut it = txn.scan(None, None, &col_idx, false).await?;
+
+        let mut cardinality: usize = 0;
+
+        // Notice: The column ids may not be ordered.
+        while let Some(chunk) = it.next_batch().await? {
+            cardinality += chunk.cardinality();
+
+            for (idx, builder) in builders.iter_mut().enumerate() {
+                builder.append(chunk.array_at(idx as usize));
+            }
+        }
+
+        let arrays = builders
+            .into_iter()
+            .map(|builder| builder.finish())
+            .collect_vec();
+
+        txn.commit().await?;
+
+        Ok(DataChunk::builder()
+            .cardinality(cardinality)
+            .arrays(arrays.into())
+            .build())
+    }
+}
+
+impl<S: Storage> SeqScanExecutor<S> {
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
-            let table = self.storage.get_table(self.plan.table_ref_id)?;
-            let col_descs = table.column_descs(&self.plan.column_ids)?;
-            // Get n array builders
-            let mut builders = col_descs
-                .iter()
-                .map(|desc| ArrayBuilderImpl::new(desc.datatype().clone()))
-                .collect::<Vec<ArrayBuilderImpl>>();
-
-            let chunks = table.get_all_chunks()?;
-            let mut cardinality: usize = 0;
-            // Notice: The column ids may not be ordered.
-            for chunk in chunks {
-                cardinality += chunk.cardinality();
-
-                for (idx, column_id) in self.plan.column_ids.iter().enumerate() {
-                    // For idx-th builder, we need column_id-th array in the chunk
-                    builders[idx].append(chunk.array_at(*column_id as usize));
-                }
-            }
-            let arrays = builders
-                .into_iter()
-                .map(|builder| builder.finish())
-                .collect::<Vec<ArrayImpl>>();
-            yield DataChunk::builder()
-                .cardinality(cardinality)
-                .arrays(arrays.into())
-                .build();
+            let chunk = self.execute_inner().await?;
+            yield chunk;
         }
     }
 }

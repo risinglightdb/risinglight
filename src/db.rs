@@ -6,7 +6,7 @@ use crate::{
     logical_planner::{LogicalPlanError, LogicalPlaner},
     parser::{parse, ParserError},
     physical_planner::{PhysicalPlanError, PhysicalPlaner},
-    storage::InMemoryStorage,
+    storage::{InMemoryStorage, StorageImpl},
 };
 use futures::TryStreamExt;
 use std::sync::Arc;
@@ -17,19 +17,13 @@ pub struct Database {
     executor_builder: ExecutorBuilder,
 }
 
-impl Default for Database {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Database {
     /// Create a new database instance.
-    pub fn new() -> Self {
+    pub fn new_in_memory() -> Self {
         let storage = InMemoryStorage::new();
         let catalog = storage.catalog().clone();
         let env = Arc::new(GlobalEnv {
-            storage: Arc::new(storage),
+            storage: StorageImpl::InMemoryStorage(Arc::new(storage)),
         });
         let execution_manager = ExecutorBuilder::new(env);
         Database {

@@ -17,7 +17,7 @@ fn sqllogictest(name: &str) {
     init_logger();
     let script = std::fs::read_to_string(Path::new("tests/sql").join(name)).unwrap();
     let records = parse(&script).expect("failed to parse sqllogictest");
-    let mut tester = SqlLogicTester::new(Database::new());
+    let mut tester = SqlLogicTester::new(Database::new_in_memory());
     tester.test_multi(records);
 }
 
