@@ -1,5 +1,3 @@
-// Author: Alex Chi (iskyzh@gmail.com)
-
 use super::{Array, ArrayBuilder, ArrayValidExt};
 use crate::types::NativeType;
 use bitvec::vec::BitVec;

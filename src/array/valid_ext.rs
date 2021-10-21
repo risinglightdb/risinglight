@@ -1,5 +1,7 @@
 use bitvec::vec::BitVec;
 
-pub trait ArrayValidExt {
+use super::Array;
+
+pub trait ArrayValidExt: Array {
     fn get_valid_bitmap(&self) -> &BitVec;
 }

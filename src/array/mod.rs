@@ -52,7 +52,7 @@ pub trait ArrayBuilder {
 ///
 /// For example, `PrimitiveArray` could return an `Option<&u32>`, and `UTF8Array` will
 /// return an `Option<&str>`.
-pub trait Array: Sized + ArrayValidExt {
+pub trait Array: Sized {
     /// Corresponding builder of this array.
     type Builder: ArrayBuilder<Array = Self>;
 

@@ -1,4 +1,3 @@
-// Author: Alex Chi (iskyzh@gmail.com)
 use super::{Array, ArrayBuilder, ArrayValidExt};
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
