@@ -12,6 +12,9 @@ pub use self::iterator::ArrayIter;
 pub use self::primitive_array::*;
 pub use self::utf8_array::*;
 
+mod shuffle_ext;
+pub use shuffle_ext::*;
+
 /// A trait over all array builders.
 ///
 /// `ArrayBuilder` is a trait over all builders. You could build an array with
