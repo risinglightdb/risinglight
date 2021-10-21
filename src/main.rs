@@ -4,7 +4,8 @@ use std::io::Write;
 
 use risinglight::Database;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     env_logger::init();
     let db = Database::new_in_memory();
     loop {
@@ -12,7 +13,7 @@ fn main() {
         std::io::stdout().lock().flush().unwrap();
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
-        let ret = db.run(&input);
+        let ret = db.run(&input).await;
         match ret {
             Ok(chunks) => {
                 for chunk in chunks {

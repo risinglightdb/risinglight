@@ -18,7 +18,9 @@ fn sqllogictest(name: &str) {
     let script = std::fs::read_to_string(Path::new("tests/sql").join(name)).unwrap();
     let records = parse(&script).expect("failed to parse sqllogictest");
     let mut tester = SqlLogicTester::new(Database::new_in_memory());
-    tester.test_multi(records);
+
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime.block_on(tester.test_multi(records));
 }
 
 fn init_logger() {
@@ -238,11 +240,11 @@ impl SqlLogicTester {
         SqlLogicTester { db }
     }
 
-    pub fn test(&mut self, record: Record) {
+    pub async fn test(&mut self, record: Record) {
         info!("test: {:?}", record);
         match record {
             Record::Statement { error, sql, .. } => {
-                let ret = self.db.run(&sql);
+                let ret = self.db.run(&sql).await;
                 match ret {
                     Ok(_) if error => panic!(
                         "statement is expected to fail, but actually succeed: {:?}",
@@ -257,7 +259,7 @@ impl SqlLogicTester {
                 expected_results,
                 ..
             } => {
-                let output = self.db.run(&sql).expect("query failed");
+                let output = self.db.run(&sql).await.expect("query failed");
                 let actual = output
                     .get(0)
                     .expect("expect result from query, but no output");
@@ -276,12 +278,12 @@ impl SqlLogicTester {
         }
     }
 
-    pub fn test_multi(&mut self, records: impl IntoIterator<Item = Record>) {
+    pub async fn test_multi(&mut self, records: impl IntoIterator<Item = Record>) {
         for record in records.into_iter() {
             if let Record::Halt = record {
                 return;
             }
-            self.test(record);
+            self.test(record).await;
         }
     }
 }

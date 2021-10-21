@@ -12,7 +12,7 @@ bitvec = {version = "0.22", features = ["serde"]}
 bytes = "1"
 enum_dispatch = "0.3"
 env_logger = "0.9"
-futures = "0.3"
+futures = {version = "0.3", default-features = false, features = ["alloc"]}
 itertools = "0.10"
 jemallocator = "0.3"
 log = "0.4"
@@ -25,10 +25,11 @@ serde = {version = "1.0", features = ["derive"]}
 smallvec = {version = "1.6.1", features = ["serde"]}
 sqlparser = "0.10"
 thiserror = "1.0"
+tokio = {version = "1", features = ["full"]}
 typed-builder = "0.9.1"
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = {version = "0.3", features = ["async_tokio"]}
 test-case = "1.2"
 
 [[bench]]

@@ -2,11 +2,14 @@ use criterion::*;
 use risinglight::Database;
 
 fn create_table(c: &mut Criterion) {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
     c.bench_function("create table", |b| {
-        b.iter_batched(
+        b.to_async(&runtime).iter_batched(
             Database::new_in_memory,
-            |db| {
-                db.run("create table t(v1 int, v2 int, v3 int)").unwrap();
+            |db| async move {
+                db.run("create table t(v1 int, v2 int, v3 int)")
+                    .await
+                    .unwrap()
             },
             BatchSize::LargeInput,
         );
@@ -14,6 +17,8 @@ fn create_table(c: &mut Criterion) {
 }
 
 fn insert(c: &mut Criterion) {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+
     let mut group = c.benchmark_group("insert");
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for size in [1, 16, 256, 4096, 65536] {
@@ -22,14 +27,16 @@ fn insert(c: &mut Criterion) {
                 .chain(std::iter::repeat("(1,10,100),").take(size - 1))
                 .chain(std::iter::once("(1,10,100)"))
                 .collect::<String>();
-            b.iter_batched(
-                || {
+            b.to_async(&runtime).iter_batched(
+                || async {
                     let db = Database::new_in_memory();
-                    db.run("create table t(v1 int, v2 int, v3 int)").unwrap();
+                    db.run("create table t(v1 int, v2 int, v3 int)")
+                        .await
+                        .unwrap();
                     db
                 },
-                |db| {
-                    db.run(&sql).unwrap();
+                |db| async {
+                    db.await.run(&sql).await.unwrap();
                 },
                 BatchSize::LargeInput,
             );
