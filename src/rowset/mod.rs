@@ -16,8 +16,9 @@
 //! |- 01.col     data for v1
 //! |- 01.sort    sort index for v1, which stores RowId + Key -> Block mapping
 //! |- 02.col     data for v2
-//! |- 02.null    null bitmap for v2
-//! \- 02.idx     normal index for v2, which stores RowId -> Block mapping
+//! |- 02.idx     normal index for v2, which stores RowId -> Block mapping
+//! |- 02b.col    null bitmap for v2
+//! \- 02b.idx    normal index for v2's null bitmap, which stores RowId -> Block mapping
 //! ```
 //!
 //! Data flushed to directory will be immutable, and the directory content will remain
