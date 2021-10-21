@@ -1,6 +1,6 @@
 // Author: Alex Chi (iskyzh@gmail.com)
 
-use super::{Array, ArrayBuilder};
+use super::{Array, ArrayBuilder, ArrayValidExt};
 use crate::types::NativeType;
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
@@ -42,6 +42,12 @@ impl<T: NativeType> Array for PrimitiveArray<T> {
 
     fn len(&self) -> usize {
         self.valid.len()
+    }
+}
+
+impl<T: NativeType> ArrayValidExt for PrimitiveArray<T> {
+    fn get_valid_bitmap(&self) -> &BitVec {
+        &self.valid
     }
 }
 

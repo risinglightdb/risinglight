@@ -9,31 +9,49 @@
 //! following Rowset directory structure:
 //!
 //! ```plain
-//! 03_03               directory name = <TableId>_<RowsetId>
-//! |- 03_03_MANIFEST   manifest file, which contains column descriptions of the current Rowset
-//! |- 03_03_01.col     data for v1
-//! |- 03_03_01.sort    sort index for v1, which stores RowId + Key -> Block mapping
-//! |- 03_03_02.col     data for v2
-//! |- 03_03_02.null    null bitmap for v2
-//! \- 03_03_02.idx     normal index for v2, which stores RowId -> Block mapping
+//! 03_03         directory name = <TableId>_<RowsetId>
+//! |- MANIFEST   manifest file, which contains column descriptions of the current Rowset
+//! |- 00.col     (generally should be) start timestamp
+//! |- 00.idx     normal index for timestamps, which stores RowId -> Block mapping
+//! |- 01.col     data for v1
+//! |- 01.sort    sort index for v1, which stores RowId + Key -> Block mapping
+//! |- 02.col     data for v2
+//! |- 02.null    null bitmap for v2
+//! \- 02.idx     normal index for v2, which stores RowId -> Block mapping
 //! ```
+//!
+//! Data flushed to directory will be immutable, and the directory content will remain
+//! unchanged throughout the whole process. Delete vectors for all Rowsets will be
+//! stored in a separate directory.
 //!
 //! Each index, sorted index and column data file has a pre-defined encoding scheme, and is
 //! managed on the granularity of block, which might be about 4KB in size. [`BlockBuilder`]s
-//! could freely encoding the data as they prefer inside each block.
+//! could freely encode the data as they prefer inside each block.
 //!
 //! There are a lot of [`BlockBuilder`]s and [`ColumnBuilder`]s in Secondary. For each
 //! encoding scheme, the the following structures should be implemented in pairs:
 //!
-//! * `RunLengthIntBlockBuilder` - `RunLengthIntBlockIterator`
-//! * `IntColumnBuilder` - `IntColumnIterator`
+//! * `RunLengthIntBlockBuilder` - `RunLengthIntBlockIterator` - an entry in proto
+//! * `IntColumnBuilder` - `IntColumnIterator` - an entry in proto
 
-use std::ops::Range;
+use enum_dispatch::enum_dispatch;
 
-use smallvec::SmallVec;
+use risinglight_proto::rowset::BlockIndex;
 
 use crate::array::{Array, ArrayImpl, DataChunk};
 use crate::storage::StorageError;
+
+mod index_builder;
+use index_builder::*;
+
+mod primitive_block_builder;
+use primitive_block_builder::*;
+
+mod primitive_column_builder;
+use primitive_column_builder::*;
+
+mod rowset_builder;
+use rowset_builder::*;
 
 type Result<T> = std::result::Result<T, StorageError>;
 
@@ -42,21 +60,6 @@ pub enum ScalarImpl {
     Int32(i32),
     Float64(f64),
     UTF8(String),
-}
-
-pub type Row = SmallVec<[ScalarImpl; 20]>;
-
-/// Builds a Rowset from [`DataChunk`].
-pub struct RowsetBuilder {}
-
-impl RowsetBuilder {
-    fn append(&mut self, chunk: DataChunk) -> Result<()> {
-        todo!()
-    }
-
-    fn finish(self) -> Vec<(String, Vec<u8>)> {
-        todo!()
-    }
 }
 
 /// Builds a column. [`ColumnBuilder`] will automatically chunk [`Array`] into
@@ -70,10 +73,10 @@ impl RowsetBuilder {
 pub trait ColumnBuilder<A: Array> {
     /// Append an [`Array`] to the column. [`ColumnBuilder`] will automatically chunk it into
     /// small parts.
-    fn append(&mut self, array: A) -> Result<()>;
+    fn append(&mut self, array: A);
 
     /// Finish a column, return block index information and encoded block data
-    fn finish(self) -> (Vec<Index>, Vec<u8>);
+    fn finish(self) -> (Vec<BlockIndex>, Vec<u8>);
 }
 
 /// Builds a block. All builders should implement the trait, while
@@ -86,22 +89,22 @@ pub trait ColumnBuilder<A: Array> {
 /// |    4B      |     4B     |   8B   |  variable   |
 /// ```
 pub trait BlockBuilder<A: Array> {
-    fn append(&mut self, item: &A::Item) -> Result<()>;
+    /// Append one data into the block.
+    fn append(&mut self, item: &A::Item);
+
+    /// Get estimated size of block. Will be useful on runlength or compression encoding.
     fn estimated_size(&self) -> usize;
-    fn should_finish(&self, next_item: &A::Item, target_size: usize) -> bool;
+
+    /// Check if we should finish the current block. If there is no item in the current
+    /// builder, this function must return `true`.
+    fn should_finish(&self, next_item: &A::Item) -> bool;
+
+    /// Finish a block and return encoded data.
     fn finish(self) -> Vec<u8>;
 }
 
-/// Iterates
+/// Iterates on a block
 pub trait BlockIterator<A: Array> {}
 
+/// Iteratos on a column
 pub trait ColumnIterator<A: Array> {}
-
-pub struct RowsetIterator {}
-
-/// Builds index file for a column.
-pub struct IndexBuilder {}
-
-pub struct I32BlockBuilder {
-    data: Vec<u8>,
-}

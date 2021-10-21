@@ -23,7 +23,6 @@ prost-types = "0.9"
 risinglight_proto = {path = "proto"}
 serde = {version = "1.0", features = ["derive"]}
 smallvec = {version = "1.6.1", features = ["serde"]}
-smallvec = {version = "1.6.1", features = ["serde"]}
 sqlparser = "0.10"
 thiserror = "1.0"
 typed-builder = "0.9.1"

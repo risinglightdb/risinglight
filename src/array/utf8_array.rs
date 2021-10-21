@@ -1,5 +1,5 @@
 // Author: Alex Chi (iskyzh@gmail.com)
-use super::{Array, ArrayBuilder};
+use super::{Array, ArrayBuilder, ArrayValidExt};
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
@@ -27,6 +27,12 @@ impl Array for UTF8Array {
 
     fn len(&self) -> usize {
         self.valid.len()
+    }
+}
+
+impl ArrayValidExt for UTF8Array {
+    fn get_valid_bitmap(&self) -> &BitVec {
+        &self.valid
     }
 }
 

@@ -12,6 +12,9 @@ pub use self::iterator::ArrayIter;
 pub use self::primitive_array::*;
 pub use self::utf8_array::*;
 
+mod valid_ext;
+pub use valid_ext::*;
+
 /// A trait over all array builders.
 ///
 /// `ArrayBuilder` is a trait over all builders. You could build an array with
@@ -49,7 +52,7 @@ pub trait ArrayBuilder {
 ///
 /// For example, `PrimitiveArray` could return an `Option<&u32>`, and `UTF8Array` will
 /// return an `Option<&str>`.
-pub trait Array: Sized {
+pub trait Array: Sized + ArrayValidExt {
     /// Corresponding builder of this array.
     type Builder: ArrayBuilder<Array = Self>;
 
