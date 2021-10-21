@@ -31,6 +31,7 @@ typed-builder = "0.9.1"
 
 [dev-dependencies]
 criterion = {version = "0.3", features = ["async_tokio"]}
+tempfile = "3"
 test-case = "1.2"
 
 [[bench]]

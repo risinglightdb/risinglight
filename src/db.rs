@@ -78,7 +78,7 @@ impl Database {
 }
 
 /// The error type of database operations.
-#[derive(thiserror::Error, Debug, PartialEq)]
+#[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("parse error: {0}")]
     Parse(#[from] ParserError),

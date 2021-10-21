@@ -38,7 +38,7 @@ use self::projection::*;
 use self::seq_scan::*;
 
 /// The error type of execution.
-#[derive(thiserror::Error, Debug, PartialEq)]
+#[derive(thiserror::Error, Debug)]
 pub enum ExecutorError {
     #[error("failed to build executors from the physical plan")]
     BuildingPlanError,
