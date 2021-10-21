@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package risinglight.rowset;
+
+message BlockChecksum {
+  enum ChecksumType {
+    None = 0;
+    CRC32 = 1;
+  }
+  ChecksumType checksum_type = 1;
+  uint64 checksum = 2;
+}
+
+message BlockIndex {
+  enum BlockType {
+    Plain = 0;
+    RunLength = 1;
+    ZstdCompress = 2;
+  }
+  BlockType block_type = 1;
+  uint64 offset = 2;
+  uint64 length = 3;
+  uint64 first_rowid = 4;
+  bytes first_key = 5;
+}
+
+message ColumnInfo {
+  enum ColumnDataType {
+    Bool = 0;
+    Int32 = 1;
+    Float64 = 2;
+    UTF8 = 3;
+  }
+  uint64 column_id = 1;
+  ColumnDataType data_type = 2;
+  bool nullable = 3;
+  bool is_sort_key = 4;
+}
+
+message RowsetManifest {
+  repeated ColumnInfo columns = 1;
+}

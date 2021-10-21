@@ -3,6 +3,9 @@
 mod memory;
 pub use memory::InMemoryStorage;
 
+mod secondary;
+pub use secondary::SecondaryStorage;
+
 mod error;
 pub use error::{StorageError, StorageResult};
 

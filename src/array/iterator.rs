@@ -1,4 +1,3 @@
-// Author: Alex Chi (iskyzh@gmail.com)
 use super::Array;
 use std::iter::Iterator;
 use std::marker::PhantomData;
