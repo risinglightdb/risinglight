@@ -9,6 +9,7 @@ version = "0.1.0"
 async-stream = "0.3"
 async-trait = "0.1"
 bitvec = {version = "0.22", features = ["serde"]}
+bytes = "1"
 enum_dispatch = "0.3"
 env_logger = "0.9"
 futures = "0.3"
@@ -17,7 +18,11 @@ jemallocator = "0.3"
 log = "0.4"
 num-traits = "0.2"
 prettytable-rs = {version = "0.8", default-features = false}
+prost = "0.9"
+prost-types = "0.9"
+risinglight_proto = {path = "proto"}
 serde = {version = "1.0", features = ["derive"]}
+smallvec = {version = "1.6.1", features = ["serde"]}
 smallvec = {version = "1.6.1", features = ["serde"]}
 sqlparser = "0.10"
 thiserror = "1.0"
@@ -34,3 +39,8 @@ name = "e2e"
 [profile.bench]
 codegen-units = 1
 lto = 'thin'
+
+[workspace]
+members = [
+  "proto",
+]

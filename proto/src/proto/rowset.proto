@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package risinglight.rowset;
+
+message Checksum {
+  enum Algorithm {
+    CRC32 = 200;
+  }
+  Algorithm algorithm = 1;
+  uint64 checksum = 2;
+}

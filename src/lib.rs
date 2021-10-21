@@ -35,6 +35,8 @@ pub mod storage;
 /// Basic type definitions.
 pub mod types;
 
+mod rowset;
+
 pub use self::db::{Database, Error};
 
 use jemallocator::Jemalloc;
