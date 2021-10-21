@@ -15,6 +15,9 @@ pub use self::utf8_array::*;
 mod valid_ext;
 pub use valid_ext::*;
 
+mod shuffle_ext;
+pub use shuffle_ext::*;
+
 /// A trait over all array builders.
 ///
 /// `ArrayBuilder` is a trait over all builders. You could build an array with
