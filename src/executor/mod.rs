@@ -103,8 +103,10 @@ impl ExecutorBuilder {
     }
 
     pub fn build(&self, plan: PhysicalPlan) -> BoxedExecutor {
+        use StorageImpl::*;
         match self.env.storage.clone() {
-            StorageImpl::InMemoryStorage(storage) => self.build_with_storage(plan, storage),
+            InMemoryStorage(storage) => self.build_with_storage(plan, storage),
+            SecondaryStorage(storage) => self.build_with_storage(plan, storage),
         }
     }
 }

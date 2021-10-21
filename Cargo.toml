@@ -17,6 +17,7 @@ itertools = "0.10"
 jemallocator = "0.3"
 log = "0.4"
 num-traits = "0.2"
+parking_lot = "0.11"
 prettytable-rs = {version = "0.8", default-features = false}
 prost = "0.9"
 prost-types = "0.9"

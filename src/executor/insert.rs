@@ -20,7 +20,7 @@ impl<S: Storage> InsertExecutor<S> {
             let columns = table.column_descs(&self.plan.column_ids)?;
             let mut array_builders = columns
                 .iter()
-                .map(|col| ArrayBuilderImpl::new(col.datatype().clone()))
+                .map(|col| ArrayBuilderImpl::new(col.datatype()))
                 .collect::<Vec<ArrayBuilderImpl>>();
             for row in &self.plan.values {
                 for (expr, builder) in row.iter().zip(&mut array_builders) {

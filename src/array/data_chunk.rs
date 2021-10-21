@@ -41,6 +41,10 @@ impl DataChunk {
             cardinality,
         }
     }
+
+    pub fn column_count(&self) -> usize {
+        self.arrays.len()
+    }
 }
 
 pub type DataChunkRef = Arc<DataChunk>;
