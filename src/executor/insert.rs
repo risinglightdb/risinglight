@@ -57,9 +57,9 @@ mod tests {
     use crate::types::{DataTypeExt, DataTypeKind, DataValue};
     use std::sync::Arc;
 
-    #[test]
-    fn simple() {
-        let env = create_table();
+    #[tokio::test]
+    async fn simple() {
+        let env = create_table().await;
         let values = [[0, 100], [1, 101], [2, 102], [3, 103]];
         let values = values
             .iter()
@@ -84,12 +84,10 @@ mod tests {
         }
         .execute()
         .boxed();
-        futures::executor::block_on(executor.next())
-            .unwrap()
-            .unwrap();
+        executor.next().await.unwrap().unwrap();
     }
 
-    fn create_table() -> GlobalEnvRef {
+    async fn create_table() -> GlobalEnvRef {
         let env = Arc::new(GlobalEnv {
             storage: StorageImpl::InMemoryStorage(Arc::new(InMemoryStorage::new())),
         });
@@ -108,9 +106,7 @@ mod tests {
         }
         .execute()
         .boxed();
-        futures::executor::block_on(executor.next())
-            .unwrap()
-            .unwrap();
+        executor.next().await.unwrap().unwrap();
         env
     }
 }

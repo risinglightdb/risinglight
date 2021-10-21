@@ -33,7 +33,7 @@ impl Database {
     }
 
     /// Run SQL queries and return the outputs.
-    pub fn run(&self, sql: &str) -> Result<Vec<DataChunk>, Error> {
+    pub async fn run(&self, sql: &str) -> Result<Vec<DataChunk>, Error> {
         // parse
         let stmts = parse(sql)?;
 
@@ -50,11 +50,10 @@ impl Database {
             let physical_plan = physical_planner.plan(logical_plan)?;
             debug!("{:#?}", physical_plan);
             let executor = self.executor_builder.build(physical_plan);
-            let output: Vec<DataChunk> = futures::executor::block_on(executor.try_collect())
-                .map_err(|e| {
-                    debug!("error: {}", e);
-                    e
-                })?;
+            let output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
+                debug!("error: {}", e);
+                e
+            })?;
             for chunk in output.iter() {
                 debug!("output:\n{}", chunk);
             }

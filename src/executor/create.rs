@@ -31,8 +31,8 @@ mod tests {
     use crate::types::{DataTypeExt, DataTypeKind};
     use std::sync::Arc;
 
-    #[test]
-    fn test_create() {
+    #[tokio::test]
+    async fn test_create() {
         let storage = Arc::new(InMemoryStorage::new());
         let catalog = storage.catalog().clone();
         let plan = PhysicalCreateTable {
@@ -45,9 +45,7 @@ mod tests {
             ],
         };
         let mut executor = CreateTableExecutor { plan, storage }.execute().boxed();
-        futures::executor::block_on(executor.next())
-            .unwrap()
-            .unwrap();
+        executor.next().await.unwrap().unwrap();
 
         let id = TableRefId {
             database_id: 0,
