@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{SecondaryMemTable, SecondaryRowHandler, SecondaryTable, SecondaryTxnIterator};
+use super::{SecondaryMemRowset, SecondaryRowHandler, SecondaryTable, SecondaryTxnIterator};
 use crate::array::{DataChunk, DataChunkRef};
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
 use async_trait::async_trait;
@@ -14,7 +14,7 @@ pub struct SecondaryTransaction {
     finished: bool,
 
     /// Includes all to-be-committed data.
-    mem: SecondaryMemTable,
+    mem: SecondaryMemRowset,
 
     /// When transaction is started, reference to all data chunks will
     /// be cached in `snapshot` to provide snapshot isolation.
@@ -29,7 +29,7 @@ impl SecondaryTransaction {
     pub(super) fn start(table: &SecondaryTable) -> StorageResult<Self> {
         Ok(Self {
             finished: false,
-            mem: SecondaryMemTable::new(&table.info.columns),
+            mem: SecondaryMemRowset::new(&table.info.columns),
             table: table.clone(),
             snapshot: table.snapshot()?,
         })

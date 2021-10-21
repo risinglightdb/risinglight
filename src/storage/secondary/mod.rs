@@ -12,8 +12,8 @@ pub use table::*;
 mod transaction;
 pub use transaction::*;
 
-mod mem_rowset;
-pub use mem_rowset::*;
+mod rowset;
+pub use rowset::*;
 
 use super::{Storage, StorageError, StorageResult};
 use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};

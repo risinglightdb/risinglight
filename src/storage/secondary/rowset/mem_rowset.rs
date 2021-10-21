@@ -3,11 +3,11 @@ use crate::catalog::ColumnCatalog;
 use crate::storage::StorageResult;
 use itertools::Itertools;
 
-pub struct SecondaryMemTable {
+pub struct SecondaryMemRowset {
     builders: Vec<ArrayBuilderImpl>,
 }
 
-impl SecondaryMemTable {
+impl SecondaryMemRowset {
     pub fn new(columns: &[ColumnCatalog]) -> Self {
         Self {
             builders: columns
