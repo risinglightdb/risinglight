@@ -14,7 +14,7 @@
 
 use crate::array::DataChunk;
 use crate::physical_planner::PhysicalPlan;
-use crate::storage::{StorageError, StorageRef};
+use crate::storage::{Storage, StorageError, StorageImpl};
 use async_stream::try_stream;
 use futures::stream::{BoxStream, Stream, StreamExt};
 use std::sync::Arc;
@@ -63,7 +63,7 @@ pub type BoxedExecutor = BoxStream<'static, Result<DataChunk, ExecutorError>>;
 /// The instance will be shared by every task.
 #[derive(Clone)]
 pub struct GlobalEnv {
-    pub storage: StorageRef,
+    pub storage: StorageImpl,
 }
 
 /// The builder of executor.
@@ -77,46 +77,34 @@ impl ExecutorBuilder {
         ExecutorBuilder { env }
     }
 
-    /// Build executor from a physical plan.
-    pub fn build(&self, plan: PhysicalPlan) -> BoxedExecutor {
+    /// Build executor from a physical plan with given concrete [`Storage`] type.
+    fn build_with_storage(&self, plan: PhysicalPlan, storage: Arc<impl Storage>) -> BoxedExecutor {
         match plan {
             PhysicalPlan::Dummy => DummyScanExecutor.execute().boxed(),
-            PhysicalPlan::CreateTable(plan) => CreateTableExecutor {
-                plan,
-                storage: self.env.storage.clone(),
+            PhysicalPlan::CreateTable(plan) => {
+                CreateTableExecutor { plan, storage }.execute().boxed()
             }
-            .execute()
-            .boxed(),
-            PhysicalPlan::Drop(plan) => DropExecutor {
-                plan,
-                storage: self.env.storage.clone(),
-            }
-            .execute()
-            .boxed(),
-            PhysicalPlan::Insert(plan) => InsertExecutor {
-                plan,
-                storage: self.env.storage.clone(),
-            }
-            .execute()
-            .boxed(),
+            PhysicalPlan::Drop(plan) => DropExecutor { plan, storage }.execute().boxed(),
+            PhysicalPlan::Insert(plan) => InsertExecutor { plan, storage }.execute().boxed(),
             PhysicalPlan::Projection(plan) => ProjectionExecutor {
                 project_expressions: plan.project_expressions,
-                child: self.build(*plan.child),
+                child: self.build_with_storage(*plan.child, storage),
             }
             .execute()
             .boxed(),
-            PhysicalPlan::SeqScan(plan) => SeqScanExecutor {
-                plan,
-                storage: self.env.storage.clone(),
-            }
-            .execute()
-            .boxed(),
+            PhysicalPlan::SeqScan(plan) => SeqScanExecutor { plan, storage }.execute().boxed(),
             PhysicalPlan::Filter(plan) => FilterExecutor {
                 expr: plan.expr,
-                child: self.build(*plan.child),
+                child: self.build_with_storage(*plan.child, storage),
             }
             .execute()
             .boxed(),
+        }
+    }
+
+    pub fn build(&self, plan: PhysicalPlan) -> BoxedExecutor {
+        match self.env.storage.clone() {
+            StorageImpl::InMemoryStorage(storage) => self.build_with_storage(plan, storage),
         }
     }
 }

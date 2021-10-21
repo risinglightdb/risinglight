@@ -1,32 +1,35 @@
 [package]
+edition = "2021"
 name = "risinglight"
 version = "0.1.0"
-edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = "0.4"
+async-stream = "0.3"
+async-trait = "0.1"
+bitvec = {version = "0.22", features = ["serde"]}
+enum_dispatch = "0.3"
 env_logger = "0.9"
+futures = "0.3"
+itertools = "0.10"
+jemallocator = "0.3"
+log = "0.4"
+num-traits = "0.2"
+prettytable-rs = {version = "0.8", default-features = false}
+serde = {version = "1.0", features = ["derive"]}
+smallvec = {version = "1.6.1", features = ["serde"]}
 sqlparser = "0.10"
 thiserror = "1.0"
-num-traits = "0.2"
 typed-builder = "0.9.1"
-smallvec = { version = "1.6.1", features = ["serde"] }
-bitvec = { version = "0.22", features = ["serde"] }
-serde = { version = "1.0", features = ["derive"] }
-futures = "0.3"
-async-stream = "0.3"
-jemallocator = "0.3"
-prettytable-rs = { version = "0.8", default-features = false }
 
 [dev-dependencies]
 criterion = "0.3"
 test-case = "1.2"
 
 [[bench]]
-name = "e2e"
 harness = false
+name = "e2e"
 
 [profile.bench]
 codegen-units = 1

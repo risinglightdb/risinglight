@@ -1,11 +1,12 @@
 //! A simple interactive shell of the database.
 
-use risinglight::Database;
 use std::io::Write;
+
+use risinglight::Database;
 
 fn main() {
     env_logger::init();
-    let db = Database::new();
+    let db = Database::new_in_memory();
     loop {
         print!("> ");
         std::io::stdout().lock().flush().unwrap();

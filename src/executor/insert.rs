@@ -1,15 +1,16 @@
 use super::*;
 use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunk};
 use crate::physical_planner::PhysicalInsert;
-use crate::storage::StorageRef;
+use crate::storage::{Storage, Table, Transaction};
+use std::sync::Arc;
 
 /// The executor of `insert` statement.
-pub struct InsertExecutor {
+pub struct InsertExecutor<S: Storage> {
     pub plan: PhysicalInsert,
-    pub storage: StorageRef,
+    pub storage: Arc<S>,
 }
 
-impl InsertExecutor {
+impl<S: Storage> InsertExecutor<S> {
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
             let cardinality = self.plan.values.len();
@@ -35,7 +36,9 @@ impl InsertExecutor {
                 .cardinality(cardinality)
                 .arrays(arrays.into())
                 .build();
-            table.append(chunk)?;
+            let mut txn = table.write().await?;
+            txn.append(chunk).await?;
+            txn.commit().await?;
 
             yield DataChunk::builder().cardinality(1).build();
         }
@@ -77,7 +80,7 @@ mod tests {
         };
         let mut executor = InsertExecutor {
             plan,
-            storage: env.storage.clone(),
+            storage: env.storage.as_in_memory_storage(),
         }
         .execute()
         .boxed();
@@ -88,7 +91,7 @@ mod tests {
 
     fn create_table() -> GlobalEnvRef {
         let env = Arc::new(GlobalEnv {
-            storage: Arc::new(InMemoryStorage::new()),
+            storage: StorageImpl::InMemoryStorage(Arc::new(InMemoryStorage::new())),
         });
         let plan = PhysicalCreateTable {
             database_id: 0,
@@ -101,7 +104,7 @@ mod tests {
         };
         let mut executor = CreateTableExecutor {
             plan,
-            storage: env.storage.clone(),
+            storage: env.storage.as_in_memory_storage(),
         }
         .execute()
         .boxed();
