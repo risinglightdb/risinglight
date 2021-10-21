@@ -1,15 +1,14 @@
 use std::iter::Peekable;
 
-use enum_dispatch::enum_dispatch;
 use risinglight_proto::rowset::block_checksum::ChecksumType;
 use risinglight_proto::rowset::block_index::BlockType;
-use risinglight_proto::rowset::{BlockIndex, ColumnInfo};
+use risinglight_proto::rowset::BlockIndex;
 
 use bytes::BufMut;
 
 use crate::array::{Array, I32Array};
 
-use super::{BlockBuilder, ColumnBuilder, PlainI32BlockBuilder, Result};
+use super::{BlockBuilder, ColumnBuilder, PlainI32BlockBuilder};
 
 /// All supported block builders for `i32`.
 pub(super) enum I32BlockBuilderImpl {
@@ -38,6 +37,7 @@ pub struct I32ColumnBuilder {
 }
 
 impl I32ColumnBuilder {
+    #[allow(dead_code)]
     pub fn new(options: ColumnBuilderOptions) -> Self {
         Self {
             data: vec![],
@@ -103,20 +103,14 @@ fn append_one_by_one<'a>(
     let mut cnt = 0;
     while let Some(item) = iter.peek() {
         // peek and see if we could push more items into the builder
-        let to_be_appended = match item {
-            Some(x) => x,
-            None => &0,
-        };
+        let to_be_appended = item.unwrap_or(&0);
 
         if builder.should_finish(to_be_appended) {
             return (cnt, true);
         }
 
         // get the item from iterator and push it to the builder
-        let to_be_appended = match iter.next().unwrap() {
-            Some(x) => x,
-            None => &0,
-        };
+        let to_be_appended = iter.next().unwrap().unwrap_or(&0);
 
         builder.append(to_be_appended);
         cnt += 1;

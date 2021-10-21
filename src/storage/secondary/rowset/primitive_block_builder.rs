@@ -1,9 +1,6 @@
-use risinglight_proto::rowset::block_checksum::ChecksumType;
-
 use crate::array::I32Array;
 
-use super::{BlockBuilder, Result};
-use bytes::BufMut;
+use super::BlockBuilder;
 
 pub struct PlainI32BlockBuilder {
     data: Vec<u8>,
@@ -27,7 +24,7 @@ impl BlockBuilder<I32Array> for PlainI32BlockBuilder {
     }
 
     fn should_finish(&self, _next_item: &i32) -> bool {
-        self.data.len() != 0 && self.data.len() + std::mem::size_of::<i32>() > self.target_size
+        !self.data.is_empty() && self.data.len() + std::mem::size_of::<i32>() > self.target_size
     }
 
     fn finish(self) -> Vec<u8> {

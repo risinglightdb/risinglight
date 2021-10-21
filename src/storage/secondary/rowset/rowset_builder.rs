@@ -1,11 +1,12 @@
-use super::Result;
+#![allow(dead_code)]
+
 use crate::array::DataChunk;
 
 /// Builds a Rowset from [`DataChunk`].
 pub struct RowsetBuilder {}
 
 impl RowsetBuilder {
-    fn append(&mut self, chunk: DataChunk) -> Result<()> {
+    fn append(&mut self, _chunk: DataChunk) {
         todo!()
     }
 

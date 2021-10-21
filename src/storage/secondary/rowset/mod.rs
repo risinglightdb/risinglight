@@ -35,33 +35,18 @@
 //! * `RunLengthIntBlockBuilder` - `RunLengthIntBlock` - `RunLengthIntBlockIterator` - an entry in proto
 //! * `IntColumnBuilder` - `IntColumn` - `IntColumnIterator` - an entry in proto
 
-use enum_dispatch::enum_dispatch;
-
 use risinglight_proto::rowset::BlockIndex;
 
-use crate::array::{Array, ArrayImpl, DataChunk};
-use crate::storage::StorageError;
+use crate::array::Array;
 
 mod index_builder;
-use index_builder::*;
 
 mod primitive_block_builder;
 use primitive_block_builder::*;
 
 mod primitive_column_builder;
-use primitive_column_builder::*;
 
 mod rowset_builder;
-use rowset_builder::*;
-
-type Result<T> = std::result::Result<T, StorageError>;
-
-pub enum ScalarImpl {
-    Bool(bool),
-    Int32(i32),
-    Float64(f64),
-    UTF8(String),
-}
 
 /// Builds a column. [`ColumnBuilder`] will automatically chunk [`Array`] into
 /// blocks, calls [`BlockBuilder`] to generate a block, and builds index for a
