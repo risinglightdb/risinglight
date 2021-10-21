@@ -14,7 +14,7 @@ pub struct SecondaryTransaction {
     finished: bool,
 
     /// Includes all to-be-committed data.
-    mem: SecondaryMemRowset,
+    mem: Option<SecondaryMemRowset>,
 
     /// When transaction is started, reference to all data chunks will
     /// be cached in `snapshot` to provide snapshot isolation.
@@ -29,7 +29,7 @@ impl SecondaryTransaction {
     pub(super) fn start(table: &SecondaryTable) -> StorageResult<Self> {
         Ok(Self {
             finished: false,
-            mem: SecondaryMemRowset::new(&table.info.columns),
+            mem: Some(SecondaryMemRowset::new(&table.info.columns)),
             table: table.clone(),
             snapshot: table.snapshot()?,
         })
@@ -71,7 +71,7 @@ impl Transaction for SecondaryTransaction {
     }
 
     async fn append(&mut self, columns: DataChunk) -> StorageResult<()> {
-        self.mem.append(columns).await
+        self.mem.as_mut().unwrap().append(columns).await
     }
 
     async fn delete(&mut self, _id: &Self::RowHandlerType) -> StorageResult<()> {
@@ -80,7 +80,7 @@ impl Transaction for SecondaryTransaction {
 
     async fn commit(mut self) -> StorageResult<()> {
         // flush data to disk
-        let on_disk_rowset = self.mem.flush().await?;
+        let on_disk_rowset = self.mem.take().unwrap().flush().await?;
 
         // add rowset to table
         self.table.add_rowset(Arc::new(on_disk_rowset))?;

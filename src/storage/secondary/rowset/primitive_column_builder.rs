@@ -16,6 +16,7 @@ pub(super) enum I32BlockBuilderImpl {
 }
 
 /// Options for [`ColumnBuilder`]s.
+#[derive(Clone)]
 pub struct ColumnBuilderOptions {
     pub target_size: usize,
 }
@@ -37,7 +38,6 @@ pub struct I32ColumnBuilder {
 }
 
 impl I32ColumnBuilder {
-    #[allow(dead_code)]
     pub fn new(options: ColumnBuilderOptions) -> Self {
         Self {
             data: vec![],
@@ -120,7 +120,7 @@ fn append_one_by_one<'a>(
 }
 
 impl ColumnBuilder<I32Array> for I32ColumnBuilder {
-    fn append(&mut self, array: I32Array) {
+    fn append(&mut self, array: &I32Array) {
         use I32BlockBuilderImpl::*;
         let mut iter = array.iter().peekable();
 
@@ -164,7 +164,7 @@ mod tests {
         // In the first case, we append array that just fits size of each block
         let mut builder = I32ColumnBuilder::new(ColumnBuilderOptions { target_size: 128 });
         for _ in 0..10 {
-            builder.append(I32Array::from_iter(
+            builder.append(&I32Array::from_iter(
                 [Some(1)].iter().cycle().cloned().take(item_each_block),
             ));
         }
@@ -173,7 +173,7 @@ mod tests {
         // In this case, we append array that is smaller than each block, and fill fewer than 2 blocks of contents
         let mut builder = I32ColumnBuilder::new(ColumnBuilderOptions { target_size: 128 });
         for _ in 0..12 {
-            builder.append(I32Array::from_iter(
+            builder.append(&I32Array::from_iter(
                 [Some(1)].iter().cycle().cloned().take(4),
             ));
         }
@@ -181,17 +181,17 @@ mod tests {
 
         // In this case, we append two array that sums up to exactly 2 blocks
         let mut builder = I32ColumnBuilder::new(ColumnBuilderOptions { target_size: 128 });
-        builder.append(I32Array::from_iter(
+        builder.append(&I32Array::from_iter(
             [Some(1)].iter().cycle().cloned().take(30),
         ));
-        builder.append(I32Array::from_iter(
+        builder.append(&I32Array::from_iter(
             [Some(1)].iter().cycle().cloned().take(26),
         ));
         assert_eq!(builder.finish().0.len(), 2);
 
         // In this case, we append an array that is larger than 1 block.
         let mut builder = I32ColumnBuilder::new(ColumnBuilderOptions { target_size: 128 });
-        builder.append(I32Array::from_iter(
+        builder.append(&I32Array::from_iter(
             [Some(1)]
                 .iter()
                 .cycle()
@@ -203,7 +203,7 @@ mod tests {
         // And finally, some chaos test
         let mut builder = I32ColumnBuilder::new(ColumnBuilderOptions { target_size: 128 });
         for _ in 0..100 {
-            builder.append(I32Array::from_iter(
+            builder.append(&I32Array::from_iter(
                 [Some(1)].iter().cycle().cloned().take(23),
             ));
         }

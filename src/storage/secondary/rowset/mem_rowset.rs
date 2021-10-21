@@ -26,10 +26,10 @@ impl SecondaryMemRowset {
     }
 
     /// Flush memtable to disk and return a handler
-    pub async fn flush(&mut self) -> StorageResult<DataChunk> {
+    pub async fn flush(self) -> StorageResult<DataChunk> {
         let arrays = self
             .builders
-            .drain(..)
+            .into_iter()
             .map(|builder| builder.finish())
             .collect_vec();
         let cardinality = arrays[0].len();

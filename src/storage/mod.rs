@@ -116,7 +116,8 @@ pub trait Transaction: Sync + Send + 'static {
         reversed: bool,
     ) -> StorageResult<Self::TxnIteratorType>;
 
-    /// Append data to the table.
+    /// Append data to the table. Generally, `columns` should be in the same order as
+    /// [`ColumnCatalog`] when constructing the [`Table`].
     async fn append(&mut self, columns: DataChunk) -> StorageResult<()>;
 
     /// Delete a record.
