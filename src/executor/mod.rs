@@ -13,7 +13,7 @@
 //! [`try_stream`]: async_stream::try_stream
 
 use crate::array::DataChunk;
-use crate::physical_planner::{PhysicalPlan, PhysicalJoinType};
+use crate::physical_planner::{PhysicalJoinType, PhysicalPlan};
 use crate::storage::{Storage, StorageError, StorageImpl};
 use async_stream::try_stream;
 use futures::stream::{BoxStream, Stream, StreamExt};
@@ -27,9 +27,9 @@ mod evaluator;
 mod explain;
 mod filter;
 mod insert;
+mod nested_loop_join;
 mod projection;
 mod seq_scan;
-mod nested_loop_join;
 
 use self::create::*;
 use self::drop::*;
@@ -37,9 +37,9 @@ use self::dummy_scan::*;
 use self::explain::*;
 use self::filter::*;
 use self::insert::*;
+use self::nested_loop_join::*;
 use self::projection::*;
 use self::seq_scan::*;
-use self::nested_loop_join::*;
 
 /// The error type of execution.
 #[derive(thiserror::Error, Debug, PartialEq)]
@@ -104,6 +104,13 @@ impl ExecutorBuilder {
             .execute()
             .boxed(),
             PhysicalPlan::Explain(plan) => ExplainExecutor { plan }.execute().boxed(),
+            PhysicalPlan::Join(plan) => NestedLoopJoinExecutor {
+                left_child: self.build_with_storage(*plan.left_plan, storage.clone()),
+                right_child: self.build_with_storage(*plan.right_plan, storage.clone()),
+                join_op: plan.join_op.clone(),
+            }
+            .execute()
+            .boxed(),
         }
     }
 

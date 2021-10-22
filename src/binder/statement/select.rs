@@ -152,7 +152,6 @@ impl Binder {
                     .position(|idx| *idx == col_ref.column_ref_id.column_id)
                     .unwrap();
                 col_ref.column_index = (self.column_sum_count[table_idx] + idx) as u32;
-                println!("Column index: {}", col_ref.column_index);
             }
             BoundExprKind::BinaryOp(bin_op) => {
                 self.bind_column_idx_for_expr(&mut bin_op.left_expr.kind);

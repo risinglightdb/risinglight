@@ -3,18 +3,18 @@ mod drop;
 mod explain;
 mod filter;
 mod insert;
+mod join;
 mod projection;
 mod seq_scan;
-mod join;
 
 pub use create::*;
 pub use drop::*;
 pub use explain::*;
 pub use filter::*;
 pub use insert::*;
+pub use join::*;
 pub use projection::*;
 pub use seq_scan::*;
-pub use join::*;
 
 use crate::logical_planner::LogicalPlan;
 
@@ -34,7 +34,7 @@ pub enum PhysicalPlan {
     Projection(PhysicalProjection),
     Filter(PhysicalFilter),
     Explain(PhysicalExplain),
-    Join(PhysicalJoin)
+    Join(PhysicalJoin),
 }
 
 #[derive(Default)]
