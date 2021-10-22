@@ -32,7 +32,11 @@ impl SecondaryMemRowset {
             .drain(..)
             .map(|builder| builder.finish())
             .collect_vec();
+        let cardinality = arrays[0].len();
         // TODO: should sort before flushing
-        Ok(DataChunk::builder().arrays(arrays.into()).build())
+        Ok(DataChunk::builder()
+            .arrays(arrays.into())
+            .cardinality(cardinality)
+            .build())
     }
 }
