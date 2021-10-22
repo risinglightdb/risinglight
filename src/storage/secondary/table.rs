@@ -5,6 +5,8 @@ use crate::storage::Table;
 use async_trait::async_trait;
 use itertools::Itertools;
 use parking_lot::RwLock;
+use std::path::PathBuf;
+use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 use std::vec::Vec;
 
@@ -21,10 +23,12 @@ pub struct SecondaryTable {
 pub(super) struct SecondaryTableInner {
     /// All on-disk rowsets. As we donot have on-disk structures implemented,
     /// we simply leave a [`DataChunk`] here.
-    on_disk_for_test: Vec<DataChunkRef>,
+    on_disk: Vec<Arc<DiskRowset>>,
 
     /// Store info again in inner so that inner struct could access it.
     info: Arc<SecondaryTableInfo>,
+
+    next_rowset_id: AtomicUsize,
 }
 
 pub(super) struct SecondaryTableInfo {
@@ -32,10 +36,13 @@ pub(super) struct SecondaryTableInfo {
     pub table_ref_id: TableRefId,
 
     /// All columns (ordered) in table
-    pub columns: Vec<ColumnCatalog>,
+    pub columns: Arc<[ColumnCatalog]>,
 
     /// Mapping from [`ColumnId`] to column index in `columns`.
     pub column_map: HashMap<ColumnId, usize>,
+
+    /// Root directory of the storage
+    pub storage_options: Arc<StorageOptions>,
 }
 
 pub(super) type SecondaryTableInnerRef = Arc<RwLock<SecondaryTableInner>>;
@@ -43,8 +50,9 @@ pub(super) type SecondaryTableInnerRef = Arc<RwLock<SecondaryTableInner>>;
 impl SecondaryTableInner {
     pub fn new(info: Arc<SecondaryTableInfo>) -> Self {
         Self {
-            on_disk_for_test: vec![],
+            on_disk: vec![],
             info,
+            next_rowset_id: AtomicUsize::new(0),
         }
     }
 
@@ -65,15 +73,20 @@ impl SecondaryTableInner {
 }
 
 impl SecondaryTable {
-    pub fn new(table_ref_id: TableRefId, columns: &[ColumnCatalog]) -> Self {
+    pub fn new(
+        storage_options: Arc<StorageOptions>,
+        table_ref_id: TableRefId,
+        columns: &[ColumnCatalog],
+    ) -> Self {
         let info = Arc::new(SecondaryTableInfo {
-            columns: columns.to_vec(),
+            columns: columns.into(),
             column_map: columns
                 .iter()
                 .enumerate()
                 .map(|(idx, col)| (col.id(), idx))
                 .collect(),
             table_ref_id,
+            storage_options,
         });
 
         Self {
@@ -84,12 +97,26 @@ impl SecondaryTable {
 
     /// Get snapshot of all rowsets inside table.
     pub(super) fn snapshot(&self) -> StorageResult<Vec<DataChunkRef>> {
-        Ok(self.inner.read().on_disk_for_test.clone())
+        Ok(vec![])
     }
 
-    pub(super) fn add_rowset(&self, chunk: DataChunkRef) -> StorageResult<()> {
-        self.inner.write().on_disk_for_test.push(chunk);
+    pub(super) fn add_rowset(&self, rowset: DiskRowset) -> StorageResult<()> {
+        self.inner.write().on_disk.push(Arc::new(rowset));
         Ok(())
+    }
+
+    pub(super) fn generate_rowset_id(&self) -> usize {
+        let inner = self.inner.read();
+        inner
+            .next_rowset_id
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+    }
+
+    pub(super) fn get_rowset_path(&self, rowset_id: usize) -> PathBuf {
+        self.info
+            .storage_options
+            .path
+            .join(format!("{}_{}", self.table_id().table_id, rowset_id))
     }
 }
 

@@ -15,6 +15,9 @@ pub use transaction::*;
 mod rowset;
 pub use rowset::*;
 
+mod options;
+pub use options::*;
+
 use super::{Storage, StorageError, StorageResult};
 use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};
 use crate::types::{ColumnId, DatabaseId, SchemaId};
@@ -30,19 +33,17 @@ pub struct SecondaryStorage {
 
     /// All tables in the storage engine
     tables: RwLock<HashMap<TableRefId, SecondaryTable>>,
-}
 
-impl Default for SecondaryStorage {
-    fn default() -> Self {
-        Self::new()
-    }
+    /// Options of the current engine
+    options: Arc<StorageOptions>,
 }
 
 impl SecondaryStorage {
-    pub fn new() -> Self {
+    pub fn new(options: StorageOptions) -> Self {
         Self {
             catalog: Arc::new(RootCatalog::new()),
             tables: RwLock::new(HashMap::new()),
+            options: Arc::new(options),
         }
     }
 
@@ -83,7 +84,7 @@ impl Storage for SecondaryStorage {
             schema_id,
             table_id,
         };
-        let table = SecondaryTable::new(id, column_descs);
+        let table = SecondaryTable::new(self.options.clone(), id, column_descs);
         self.tables.write().insert(id, table);
         Ok(())
     }

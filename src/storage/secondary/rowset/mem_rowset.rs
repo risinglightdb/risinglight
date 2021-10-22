@@ -1,19 +1,28 @@
+use std::path::Path;
+use std::sync::Arc;
+
 use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::catalog::ColumnCatalog;
 use crate::storage::StorageResult;
 use itertools::Itertools;
 
+use super::rowset_builder::RowsetBuilder;
+use super::DiskRowset;
+use crate::storage::secondary::ColumnBuilderOptions;
+
 pub struct SecondaryMemRowset {
+    columns: Arc<[ColumnCatalog]>,
     builders: Vec<ArrayBuilderImpl>,
 }
 
 impl SecondaryMemRowset {
-    pub fn new(columns: &[ColumnCatalog]) -> Self {
+    pub fn new(columns: Arc<[ColumnCatalog]>) -> Self {
         Self {
             builders: columns
                 .iter()
                 .map(|column| ArrayBuilderImpl::new(column.desc().datatype()))
                 .collect_vec(),
+            columns,
         }
     }
 
@@ -26,17 +35,21 @@ impl SecondaryMemRowset {
     }
 
     /// Flush memtable to disk and return a handler
-    pub async fn flush(self) -> StorageResult<DataChunk> {
+    pub async fn flush(
+        self,
+        directory: impl AsRef<Path>,
+        column_options: ColumnBuilderOptions,
+    ) -> StorageResult<DiskRowset> {
         let arrays = self
             .builders
             .into_iter()
             .map(|builder| builder.finish())
             .collect_vec();
-        let cardinality = arrays[0].len();
-        // TODO: should sort before flushing
-        Ok(DataChunk::builder()
-            .arrays(arrays.into())
-            .cardinality(cardinality)
-            .build())
+        let chunk = DataChunk::builder().arrays(arrays.into()).build();
+        let directory = directory.as_ref().to_path_buf();
+        let mut builder = RowsetBuilder::new(self.columns, &directory, column_options);
+        builder.append(chunk);
+        builder.finish_and_flush().await?;
+        Ok(DiskRowset::new(directory))
     }
 }

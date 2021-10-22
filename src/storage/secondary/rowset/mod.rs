@@ -45,15 +45,20 @@ mod primitive_block_builder;
 use primitive_block_builder::*;
 
 mod primitive_column_builder;
-use primitive_column_builder::*;
 
 mod column_builder;
 use column_builder::*;
+
+mod encode;
+pub use encode::*;
 
 mod rowset_builder;
 
 mod mem_rowset;
 pub use mem_rowset::*;
+
+mod disk_rowset;
+pub use disk_rowset::*;
 
 /// Builds a column. [`ColumnBuilder`] will automatically chunk [`Array`] into
 /// blocks, calls [`BlockBuilder`] to generate a block, and builds index for a

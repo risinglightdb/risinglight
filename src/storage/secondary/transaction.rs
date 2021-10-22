@@ -1,6 +1,7 @@
-use std::sync::Arc;
-
-use super::{SecondaryMemRowset, SecondaryRowHandler, SecondaryTable, SecondaryTxnIterator};
+use super::{
+    ColumnBuilderOptions, SecondaryMemRowset, SecondaryRowHandler, SecondaryTable,
+    SecondaryTxnIterator,
+};
 use crate::array::{DataChunk, DataChunkRef};
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
 use async_trait::async_trait;
@@ -22,6 +23,9 @@ pub struct SecondaryTransaction {
 
     /// Reference table.
     table: SecondaryTable,
+
+    /// Rowset Id
+    rowset_id: usize,
 }
 
 impl SecondaryTransaction {
@@ -29,9 +33,10 @@ impl SecondaryTransaction {
     pub(super) fn start(table: &SecondaryTable) -> StorageResult<Self> {
         Ok(Self {
             finished: false,
-            mem: Some(SecondaryMemRowset::new(&table.info.columns)),
+            mem: Some(SecondaryMemRowset::new(table.info.columns.clone())),
             table: table.clone(),
             snapshot: table.snapshot()?,
+            rowset_id: table.generate_rowset_id(),
         })
     }
 }
@@ -80,10 +85,18 @@ impl Transaction for SecondaryTransaction {
 
     async fn commit(mut self) -> StorageResult<()> {
         // flush data to disk
-        let on_disk_rowset = self.mem.take().unwrap().flush().await?;
+        let on_disk_rowset = self
+            .mem
+            .take()
+            .unwrap()
+            .flush(
+                self.table.get_rowset_path(self.rowset_id),
+                ColumnBuilderOptions::from_storage_options(&*self.table.info.storage_options),
+            )
+            .await?;
 
         // add rowset to table
-        self.table.add_rowset(Arc::new(on_disk_rowset))?;
+        self.table.add_rowset(on_disk_rowset)?;
 
         self.finished = true;
         Ok(())

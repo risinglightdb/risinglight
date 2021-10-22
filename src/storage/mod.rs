@@ -4,7 +4,7 @@ mod memory;
 pub use memory::InMemoryStorage;
 
 mod secondary;
-pub use secondary::SecondaryStorage;
+pub use secondary::{SecondaryStorage, StorageOptions as SecondaryStorageOptions};
 
 mod error;
 pub use error::{StorageError, StorageResult};

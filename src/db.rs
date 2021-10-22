@@ -6,7 +6,7 @@ use crate::{
     logical_planner::{LogicalPlanError, LogicalPlaner},
     parser::{parse, ParserError},
     physical_planner::{PhysicalPlanError, PhysicalPlaner},
-    storage::{InMemoryStorage, SecondaryStorage, StorageImpl},
+    storage::{InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, StorageImpl},
 };
 use futures::TryStreamExt;
 use std::sync::Arc;
@@ -34,7 +34,7 @@ impl Database {
 
     /// Create a new database instance with merge-tree engine.
     pub fn new_on_disk() -> Self {
-        let storage = SecondaryStorage::new();
+        let storage = SecondaryStorage::new(SecondaryStorageOptions::default_for_test());
         let catalog = storage.catalog().clone();
         let env = Arc::new(GlobalEnv {
             storage: StorageImpl::SecondaryStorage(Arc::new(storage)),
