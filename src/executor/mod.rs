@@ -13,7 +13,7 @@
 //! [`try_stream`]: async_stream::try_stream
 
 use crate::array::DataChunk;
-use crate::physical_planner::PhysicalPlan;
+use crate::physical_planner::{PhysicalPlan, PhysicalJoinType};
 use crate::storage::{Storage, StorageError, StorageImpl};
 use async_stream::try_stream;
 use futures::stream::{BoxStream, Stream, StreamExt};
@@ -29,6 +29,7 @@ mod filter;
 mod insert;
 mod projection;
 mod seq_scan;
+mod nested_loop_join;
 
 use self::create::*;
 use self::drop::*;
@@ -38,6 +39,7 @@ use self::filter::*;
 use self::insert::*;
 use self::projection::*;
 use self::seq_scan::*;
+use self::nested_loop_join::*;
 
 /// The error type of execution.
 #[derive(thiserror::Error, Debug, PartialEq)]
