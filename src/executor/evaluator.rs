@@ -1,3 +1,4 @@
+use super::aggregation::{AggregationState, SumAggregationState};
 use crate::{
     array::*,
     binder::{BoundExpr, BoundExprKind},
@@ -5,7 +6,6 @@ use crate::{
     types::{DataTypeKind, DataValue},
 };
 use std::borrow::Borrow;
-use super::aggregation::{AggregationState, SumAggregationState};
 
 impl BoundExpr {
     /// Evaluate the given expression as a constant value.
@@ -69,10 +69,10 @@ impl BoundExpr {
                         state.update(&arrays[0]).unwrap();
                         builder.push(&state.output());
                         Ok(builder.finish())
-                    },
+                    }
                     _ => {
                         panic!("{} is not supported", f.op);
-                    },
+                    }
                 }
             }
         }

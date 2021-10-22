@@ -105,7 +105,7 @@ impl ExecutorBuilder {
                 child: self.build(*plan.child),
             }
             .execute()
-            .boxed()
+            .boxed(),
         }
     }
 

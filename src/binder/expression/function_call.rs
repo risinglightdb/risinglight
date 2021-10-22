@@ -9,17 +9,14 @@ pub struct BoundFunctionCall {
 }
 
 impl Binder {
-    pub fn bind_function_call(
-        &mut self,
-        f: &Function
-    ) -> Result<BoundExpr, BindError> {
+    pub fn bind_function_call(&mut self, f: &Function) -> Result<BoundExpr, BindError> {
         let op = f.name.to_string();
         let args = f
             .args
             .iter()
             .map(|arg| match &arg {
-                FunctionArg::Named { arg, .. } => { self.bind_expr(arg).unwrap() }
-                FunctionArg::Unnamed(arg) => { self.bind_expr(arg).unwrap() }
+                FunctionArg::Named { arg, .. } => self.bind_expr(arg).unwrap(),
+                FunctionArg::Unnamed(arg) => self.bind_expr(arg).unwrap(),
             })
             .collect::<Vec<BoundExpr>>();
 

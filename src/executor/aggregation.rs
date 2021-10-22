@@ -1,6 +1,6 @@
 use super::*;
 use crate::array::{Array, ArrayImpl};
-use crate::binder::{BoundExpr};
+use crate::binder::BoundExpr;
 use crate::types::{DataTypeKind, DataValue};
 
 pub struct SimpleAggExecutor {
