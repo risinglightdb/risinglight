@@ -1,5 +1,5 @@
 use super::*;
-use crate::{binder::BoundExpr, logical_plan::LogicalAggregation};
+use crate::{binder::BoundExpr, logical_planner::LogicalAggregation};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalAggregation {
