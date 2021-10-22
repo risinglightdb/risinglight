@@ -22,6 +22,7 @@ pub enum BoundStatement {
     Drop(BoundDrop),
     Insert(BoundInsert),
     Select(Box<BoundSelect>),
+    Explain(Box<BoundStatement>),
 }
 
 /// The error type of bind operations.
@@ -108,6 +109,9 @@ impl Binder {
             Statement::Drop { .. } => Ok(BoundStatement::Drop(self.bind_drop(stmt)?)),
             Statement::Insert { .. } => Ok(BoundStatement::Insert(self.bind_insert(stmt)?)),
             Statement::Query(query) => Ok(BoundStatement::Select(self.bind_select(&*query)?)),
+            Statement::Explain { statement, .. } => {
+                Ok(BoundStatement::Explain(Box::new(self.bind(&*statement)?)))
+            }
             _ => todo!("bind statement"),
         }
     }

@@ -24,6 +24,7 @@ mod create;
 mod drop;
 mod dummy_scan;
 mod evaluator;
+mod explain;
 mod filter;
 mod insert;
 mod projection;
@@ -32,6 +33,7 @@ mod seq_scan;
 use self::create::*;
 use self::drop::*;
 use self::dummy_scan::*;
+use self::explain::*;
 use self::filter::*;
 use self::insert::*;
 use self::projection::*;
@@ -99,6 +101,7 @@ impl ExecutorBuilder {
             }
             .execute()
             .boxed(),
+            PhysicalPlan::Explain(plan) => ExplainExecutor { plan }.execute().boxed(),
         }
     }
 
