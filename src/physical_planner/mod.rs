@@ -1,3 +1,4 @@
+mod aggregation;
 mod create;
 mod drop;
 mod filter;
@@ -5,6 +6,7 @@ mod insert;
 mod projection;
 mod seq_scan;
 
+pub use aggregation::*;
 pub use create::*;
 pub use drop::*;
 pub use filter::*;
@@ -29,6 +31,7 @@ pub enum PhysicalPlan {
     Drop(PhysicalDrop),
     Projection(PhysicalProjection),
     Filter(PhysicalFilter),
+    Aggregation(PhysicalAggregation),
 }
 
 #[derive(Default)]
@@ -44,6 +47,7 @@ impl PhysicalPlaner {
             LogicalPlan::SeqScan(plan) => self.plan_seq_scan(plan),
             LogicalPlan::Projection(plan) => self.plan_projection(plan),
             LogicalPlan::Filter(plan) => self.plan_filter(plan),
+            LogicalPlan::Aggregation(plan) => self.plan_aggregation(plan),
         }
     }
 }

@@ -1,5 +1,6 @@
 use crate::binder::BoundStatement;
 
+mod aggregation;
 mod create;
 mod drop;
 mod filter;
@@ -8,6 +9,7 @@ mod projection;
 mod select;
 mod seq_scan;
 
+pub use aggregation::*;
 pub use create::*;
 pub use drop::*;
 pub use filter::*;
@@ -33,6 +35,7 @@ pub enum LogicalPlan {
     Drop(LogicalDrop),
     Projection(LogicalProjection),
     Filter(LogicalFilter),
+    Aggregation(LogicalAggregation),
 }
 
 #[derive(Default)]

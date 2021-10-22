@@ -1,6 +1,32 @@
 use super::*;
 use crate::array::{Array, ArrayImpl};
+use crate::binder::{BoundExpr};
 use crate::types::{DataTypeKind, DataValue};
+
+pub struct SimpleAggExecutor {
+    pub aggregation_expressions: Vec<BoundExpr>,
+    pub child: BoxedExecutor,
+}
+
+impl SimpleAggExecutor {
+    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
+        try_stream! {
+            for await batch in self.child {
+                let batch = batch?;
+                let arrays = self
+                    .aggregation_expressions
+                    .iter()
+                    .map(|e| e.eval_array(&batch).unwrap())
+                    .collect::<Vec<ArrayImpl>>();
+
+                yield DataChunk::builder()
+                    .cardinality(batch.cardinality())
+                    .arrays(arrays.into())
+                    .build()
+            }
+        }
+    }
+}
 
 pub trait AggregationState {
     fn update(&mut self, array: &ArrayImpl) -> Result<(), ExecutorError>;

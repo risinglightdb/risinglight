@@ -5,6 +5,7 @@ use crate::{
     types::{DataTypeKind, DataValue},
 };
 use std::borrow::Borrow;
+use super::aggregation::{AggregationState, SumAggregationState};
 
 impl BoundExpr {
     /// Evaluate the given expression as a constant value.
@@ -53,6 +54,26 @@ impl BoundExpr {
                     return Ok(array);
                 }
                 array.try_cast(cast.ty.clone())
+            }
+            BoundExprKind::FunctionCall(f) => {
+                let mut builder = ArrayBuilderImpl::new(self.return_type.clone().unwrap());
+                let arrays = f
+                    .args
+                    .iter()
+                    .map(|e| e.eval_array(chunk).unwrap())
+                    .collect::<Vec<ArrayImpl>>();
+
+                match f.op.to_lowercase().as_str() {
+                    "sum" => {
+                        let mut state = SumAggregationState::new(DataTypeKind::Int);
+                        state.update(&arrays[0]).unwrap();
+                        builder.push(&state.output());
+                        Ok(builder.finish())
+                    },
+                    _ => {
+                        panic!("{} is not supported", f.op);
+                    },
+                }
             }
         }
     }

@@ -29,6 +29,7 @@ mod insert;
 mod projection;
 mod seq_scan;
 
+use self::aggregation::*;
 use self::create::*;
 use self::drop::*;
 use self::dummy_scan::*;
@@ -99,6 +100,12 @@ impl ExecutorBuilder {
             }
             .execute()
             .boxed(),
+            PhysicalPlan::Aggregation(plan) => SimpleAggExecutor {
+                aggregation_expressions: plan.aggregation_expressions,
+                child: self.build(*plan.child),
+            }
+            .execute()
+            .boxed()
         }
     }
 

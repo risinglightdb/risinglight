@@ -5,11 +5,13 @@ use crate::types::{DataType, DataValue};
 
 mod binary_op;
 mod column_ref;
+mod function_call;
 mod type_cast;
 mod unary_op;
 
 pub use self::binary_op::*;
 pub use self::column_ref::*;
+pub use self::function_call::*;
 pub use self::type_cast::*;
 pub use self::unary_op::*;
 
@@ -31,6 +33,7 @@ pub enum BoundExprKind {
     BinaryOp(BoundBinaryOp),
     UnaryOp(BoundUnaryOp),
     TypeCast(BoundTypeCast),
+    FunctionCall(BoundFunctionCall),
 }
 
 impl BoundExpr {
@@ -54,6 +57,7 @@ impl Binder {
             Expr::UnaryOp { op, expr } => self.bind_unary_op(op, expr),
             Expr::Nested(expr) => self.bind_expr(expr),
             Expr::Cast { expr, data_type } => self.bind_type_cast(expr, data_type.clone()),
+            Expr::Function(f) => self.bind_function_call(f),
             _ => todo!("bind expression: {:?}", expr),
         }
     }
