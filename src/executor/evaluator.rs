@@ -31,10 +31,8 @@ impl BoundExpr {
                 Ok(builder.finish())
             }
             BoundExprKind::BinaryOp(binary_op) => {
-                println!("Eval binary?");
                 let left = binary_op.left_expr.eval_array(chunk)?;
                 let right = binary_op.right_expr.eval_array(chunk)?;
-                println!("Success?");
                 Ok(left.binary_op(&binary_op.op, &right))
             }
             BoundExprKind::UnaryOp(op) => {

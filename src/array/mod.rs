@@ -191,7 +191,7 @@ impl ArrayBuilderImpl {
         }
     }
     /// Create a new array builder from data value.
-    pub fn new_from_value(val: &DataValue) -> Self {
+    pub fn new_from_type_of_value(val: &DataValue) -> Self {
         match val {
             DataValue::Bool(_) => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
             DataValue::Int32(_) => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),

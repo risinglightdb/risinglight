@@ -31,7 +31,7 @@ impl NestedLoopJoinExecutor {
             left_row.append(&mut right_row);
             let mut chunk_builders: Vec<ArrayBuilderImpl> = left_row.iter()
                                                    .map(|v|
-                                                    ArrayBuilderImpl::new_from_value(v))
+                                                    ArrayBuilderImpl::new_from_type_of_value(v))
                                                     .collect();
             let mut card = 0;
             for left_chunk in left_chunks.iter() {
@@ -43,7 +43,7 @@ impl NestedLoopJoinExecutor {
                             left_row.append(&mut right_row);
                             let mut builders: Vec<ArrayBuilderImpl> = left_row.iter()
                                                    .map(|v|
-                                                    ArrayBuilderImpl::new_from_value(v))
+                                                    ArrayBuilderImpl::new_from_type_of_value(v))
                                                     .collect();
                             for (idx, builder) in builders.iter_mut().enumerate() {
                                 builder.push(&left_row[idx]);
@@ -60,13 +60,11 @@ impl NestedLoopJoinExecutor {
                                         let arr_impl = expr.eval_array(&chunk)?;
                                         let value = arr_impl.get_data_value_by_idx(0);
                                         match value {
-                                            DataValue::Bool(val) => {
-                                                if val {
+                                            DataValue::Bool(true) => {
                                                     for (idx, builder) in chunk_builders.iter_mut().enumerate() {
                                                         builder.push(&left_row[idx]);
                                                     }
                                                     card += 1;
-                                                }
                                             }
                                             DataValue::Null => {}
                                             _ => panic!("Must be bool or null")

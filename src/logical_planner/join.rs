@@ -1,7 +1,7 @@
 use super::*;
 use crate::binder::BoundJoinOperator;
 
-// The logical plan of join
+/// The logical plan of join
 #[derive(Debug, Clone, PartialEq)]
 pub struct LogicalJoin {
     pub left_plan: Box<LogicalPlan>,
