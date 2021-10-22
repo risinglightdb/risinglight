@@ -66,8 +66,7 @@ impl NestedLoopJoinExecutor {
                                                     }
                                                     card += 1;
                                             }
-                                            DataValue::Null => {}
-                                            _ => panic!("Must be bool or null")
+                                            _ => {}
                                         }
                                     }
                                 },
