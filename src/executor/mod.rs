@@ -13,7 +13,7 @@
 //! [`try_stream`]: async_stream::try_stream
 
 use crate::array::DataChunk;
-use crate::physical_planner::{PhysicalJoinType, PhysicalPlan};
+use crate::physical_planner::PhysicalPlan;
 use crate::storage::{Storage, StorageError, StorageImpl};
 use async_stream::try_stream;
 use futures::stream::{BoxStream, Stream, StreamExt};
@@ -106,7 +106,7 @@ impl ExecutorBuilder {
             PhysicalPlan::Explain(plan) => ExplainExecutor { plan }.execute().boxed(),
             PhysicalPlan::Join(plan) => NestedLoopJoinExecutor {
                 left_child: self.build_with_storage(*plan.left_plan, storage.clone()),
-                right_child: self.build_with_storage(*plan.right_plan, storage.clone()),
+                right_child: self.build_with_storage(*plan.right_plan, storage),
                 join_op: plan.join_op.clone(),
             }
             .execute()

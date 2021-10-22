@@ -1,5 +1,5 @@
 use super::*;
-use crate::array::{Array, ArrayBuilderImpl, ArrayImpl, DataChunk};
+use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunk};
 use crate::binder::{BoundJoinConstraint, BoundJoinOperator};
 use crate::types::DataValue;
 use std::vec::Vec;
@@ -31,7 +31,7 @@ impl NestedLoopJoinExecutor {
             left_row.append(&mut right_row);
             let mut chunk_builders: Vec<ArrayBuilderImpl> = left_row.iter()
                                                    .map(|v|
-                                                    ArrayBuilderImpl::new_from_value(&v))
+                                                    ArrayBuilderImpl::new_from_value(v))
                                                     .collect();
             let mut card = 0;
             for left_chunk in left_chunks.iter() {
@@ -43,18 +43,17 @@ impl NestedLoopJoinExecutor {
                             left_row.append(&mut right_row);
                             let mut builders: Vec<ArrayBuilderImpl> = left_row.iter()
                                                    .map(|v|
-                                                    ArrayBuilderImpl::new_from_value(&v))
+                                                    ArrayBuilderImpl::new_from_value(v))
                                                     .collect();
                             for (idx, builder) in builders.iter_mut().enumerate() {
                                 builder.push(&left_row[idx]);
                             }
-                                    
+
                             let arrays: Vec<ArrayImpl> = builders.into_iter().map(|builder| builder.finish()).collect();
                             let chunk = DataChunk::builder()
                             .cardinality(1)
                             .arrays(arrays.into())
                             .build();
-                            let bool_val = false;
                             match &self.join_op {
                                 BoundJoinOperator::Inner(constraint) => match constraint {
                                     BoundJoinConstraint::On(expr) => {
@@ -84,7 +83,7 @@ impl NestedLoopJoinExecutor {
             .cardinality(card)
             .arrays(arrays.into())
             .build();
-           
+
         }
     }
 }
