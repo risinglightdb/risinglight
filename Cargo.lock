@@ -959,6 +959,7 @@ dependencies = [
  "jemallocator",
  "log",
  "num-traits",
+ "parking_lot",
  "prettytable-rs",
  "prost",
  "prost-types",

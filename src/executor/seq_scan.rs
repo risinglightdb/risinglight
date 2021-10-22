@@ -24,7 +24,7 @@ impl<S: Storage> SeqScanExecutor<S> {
         // Get n array builders
         let mut builders = col_descs
             .iter()
-            .map(|desc| ArrayBuilderImpl::new(desc.datatype().clone()))
+            .map(|desc| ArrayBuilderImpl::new(desc.datatype()))
             .collect::<Vec<ArrayBuilderImpl>>();
 
         let txn = table.read().await?;

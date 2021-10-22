@@ -180,7 +180,7 @@ impl_into! { UTF8Array, UTF8 }
 
 impl ArrayBuilderImpl {
     /// Create a new array builder from data type.
-    pub fn new(ty: DataType) -> Self {
+    pub fn new(ty: &DataType) -> Self {
         match ty.kind() {
             DataTypeKind::Boolean => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
             DataTypeKind::Int => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
