@@ -91,6 +91,7 @@ macro_rules! sum_func_gen {
 }
 
 sum_func_gen!(sum_i32, i32, i32);
+sum_func_gen!(sum_f64, f64, f64);
 
 impl AggregationState for SumAggregationState {
     fn update(&mut self, array: &ArrayImpl) -> Result<(), ExecutorError> {
@@ -101,6 +102,14 @@ impl AggregationState for SumAggregationState {
                 match temp {
                     None => self.result = DataValue::Null,
                     Some(val) => self.result = DataValue::Int32(val),
+                }
+            }
+            (ArrayImpl::Float64(arr), DataTypeKind::Double) => {
+                let mut temp: Option<f64> = None;
+                temp = arr.iter().fold(temp, sum_f64);
+                match temp {
+                    None => self.result = DataValue::Null,
+                    Some(val) => self.result = DataValue::Float64(val),
                 }
             }
             _ => todo!("Support more types for aggregation."),
@@ -250,5 +259,14 @@ mod tests {
         let array = ArrayImpl::Int32((1..5).collect());
         state.update(&array).unwrap();
         assert_eq!(state.output(), DataValue::Int32(10));
+
+        let mut state = SumAggregationState::new(DataTypeKind::Double);
+        let mut builder = ArrayBuilderImpl::new(DataType::new(DataTypeKind::Double, false));
+        for i in [0.1, 0.2, 0.3, 0.4].iter() {
+            builder.push(&DataValue::Float64(*i));
+        }
+        let array = builder.finish();
+        state.update(&array).unwrap();
+        assert_eq!(state.output(), DataValue::Float64(1.));
     }
 }
