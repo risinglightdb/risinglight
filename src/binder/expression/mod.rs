@@ -3,11 +3,13 @@ use crate::catalog::ColumnRefId;
 use crate::parser::{Expr, Value};
 use crate::types::{DataType, DataValue};
 
+mod agg;
 mod binary_op;
 mod column_ref;
 mod type_cast;
 mod unary_op;
 
+pub use self::agg::*;
 pub use self::binary_op::*;
 pub use self::column_ref::*;
 pub use self::type_cast::*;
