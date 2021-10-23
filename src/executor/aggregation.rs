@@ -42,7 +42,7 @@ impl SimpleAggExecutor {
                 .iter()
                 .map(|s| {
                     let result = &s.output();
-                    let mut builder = ArrayBuilderImpl::new(result.data_type().unwrap());
+                    let mut builder = ArrayBuilderImpl::new(&result.data_type().unwrap());
                     builder.push(result);
                     builder.finish()
                 })
@@ -259,7 +259,7 @@ mod tests {
         assert_eq!(state.output(), DataValue::Int32(10));
 
         let mut state = SumAggregationState::new(DataTypeKind::Double);
-        let mut builder = ArrayBuilderImpl::new(DataType::new(DataTypeKind::Double, false));
+        let mut builder = ArrayBuilderImpl::new(&DataType::new(DataTypeKind::Double, false));
         for i in [0.1, 0.2, 0.3, 0.4].iter() {
             builder.push(&DataValue::Float64(*i));
         }
