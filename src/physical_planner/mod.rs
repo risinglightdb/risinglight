@@ -3,6 +3,7 @@ mod drop;
 mod explain;
 mod filter;
 mod insert;
+mod join;
 mod projection;
 mod seq_scan;
 
@@ -11,6 +12,7 @@ pub use drop::*;
 pub use explain::*;
 pub use filter::*;
 pub use insert::*;
+pub use join::*;
 pub use projection::*;
 pub use seq_scan::*;
 
@@ -32,6 +34,7 @@ pub enum PhysicalPlan {
     Projection(PhysicalProjection),
     Filter(PhysicalFilter),
     Explain(PhysicalExplain),
+    Join(PhysicalJoin),
 }
 
 #[derive(Default)]
@@ -44,6 +47,7 @@ impl PhysicalPlaner {
             LogicalPlan::CreateTable(plan) => self.plan_create_table(plan),
             LogicalPlan::Drop(plan) => self.plan_drop(plan),
             LogicalPlan::Insert(plan) => self.plan_insert(plan),
+            LogicalPlan::Join(plan) => self.plan_join(plan),
             LogicalPlan::SeqScan(plan) => self.plan_seq_scan(plan),
             LogicalPlan::Projection(plan) => self.plan_projection(plan),
             LogicalPlan::Filter(plan) => self.plan_filter(plan),

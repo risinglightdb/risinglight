@@ -27,6 +27,7 @@ mod evaluator;
 mod explain;
 mod filter;
 mod insert;
+mod nested_loop_join;
 mod projection;
 mod seq_scan;
 
@@ -36,6 +37,7 @@ use self::dummy_scan::*;
 use self::explain::*;
 use self::filter::*;
 use self::insert::*;
+use self::nested_loop_join::*;
 use self::projection::*;
 use self::seq_scan::*;
 
@@ -102,6 +104,13 @@ impl ExecutorBuilder {
             .execute()
             .boxed(),
             PhysicalPlan::Explain(plan) => ExplainExecutor { plan }.execute().boxed(),
+            PhysicalPlan::Join(plan) => NestedLoopJoinExecutor {
+                left_child: self.build_with_storage(*plan.left_plan, storage.clone()),
+                right_child: self.build_with_storage(*plan.right_plan, storage),
+                join_op: plan.join_op.clone(),
+            }
+            .execute()
+            .boxed(),
         }
     }
 

@@ -190,6 +190,15 @@ impl ArrayBuilderImpl {
             _ => panic!("unsupported data type"),
         }
     }
+    /// Create a new array builder from data value.
+    pub fn new_from_type_of_value(val: &DataValue) -> Self {
+        match val {
+            DataValue::Bool(_) => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
+            DataValue::Int32(_) => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
+            DataValue::Float64(_) => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
+            _ => panic!("unsupported data type"),
+        }
+    }
 
     /// Appends an element to the back of array.
     pub fn push(&mut self, v: &DataValue) {
@@ -240,6 +249,26 @@ impl ArrayImpl {
         .unwrap_or_else(|| "NULL".into())
     }
 
+    pub fn get_data_value_by_idx(&self, idx: usize) -> DataValue {
+        match self {
+            Self::Bool(a) => match a.get(idx) {
+                Some(val) => DataValue::Bool(*val),
+                None => DataValue::Null,
+            },
+            Self::Int32(a) => match a.get(idx) {
+                Some(val) => DataValue::Int32(*val),
+                None => DataValue::Null,
+            },
+            Self::Float64(a) => match a.get(idx) {
+                Some(val) => DataValue::Float64(*val),
+                None => DataValue::Null,
+            },
+            Self::UTF8(a) => match a.get(idx) {
+                Some(val) => DataValue::String(val.to_string()),
+                None => DataValue::Null,
+            },
+        }
+    }
     /// Number of items of array.
     pub fn len(&self) -> usize {
         match self {
