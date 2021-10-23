@@ -26,7 +26,7 @@ impl BoundExpr {
     pub fn eval_array(&self, chunk: &DataChunk) -> Result<ArrayImpl, ConvertError> {
         match &self.kind {
             BoundExprKind::ColumnRef(col_ref) => {
-                let mut builder = ArrayBuilderImpl::new(self.return_type.clone().unwrap());
+                let mut builder = ArrayBuilderImpl::new(self.return_type.as_ref().unwrap());
                 builder.append(chunk.array_at(col_ref.column_index as usize));
                 Ok(builder.finish())
             }
@@ -40,7 +40,7 @@ impl BoundExpr {
                 Ok(array.unary_op(&op.op))
             }
             BoundExprKind::Constant(v) => {
-                let mut builder = ArrayBuilderImpl::new(self.return_type.clone().unwrap());
+                let mut builder = ArrayBuilderImpl::new(self.return_type.as_ref().unwrap());
                 // TODO: optimize this
                 for _ in 0..chunk.cardinality() {
                     builder.push(v);

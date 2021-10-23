@@ -48,6 +48,9 @@ mod primitive_column_builder;
 
 mod rowset_builder;
 
+mod mem_rowset;
+pub use mem_rowset::*;
+
 /// Builds a column. [`ColumnBuilder`] will automatically chunk [`Array`] into
 /// blocks, calls [`BlockBuilder`] to generate a block, and builds index for a
 /// column. Note that one [`Array`] might require multiple [`ColumnBuilder`] to build.

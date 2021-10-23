@@ -13,20 +13,9 @@ impl LogicalPlaner {
     pub fn plan_select(&self, stmt: Box<BoundSelect>) -> Result<LogicalPlan, LogicalPlanError> {
         let mut plan = LogicalPlan::Dummy;
         if let Some(table_ref) = stmt.from_table.get(0) {
-            match table_ref {
-                BoundTableRef::BaseTableRef {
-                    ref_id,
-                    table_name: _,
-                    column_ids,
-                } => {
-                    plan = LogicalPlan::SeqScan(LogicalSeqScan {
-                        table_ref_id: *ref_id,
-                        column_ids: column_ids.to_vec(),
-                    });
-                }
-                _ => todo!("support join"),
-            }
+            plan = self.plan_table_ref(table_ref)?;
         }
+
         if let Some(expr) = stmt.where_clause {
             plan = LogicalPlan::Filter(LogicalFilter {
                 expr,
@@ -49,6 +38,35 @@ impl LogicalPlaner {
             return Err(LogicalPlanError::InvalidSQL);
         }
         Ok(plan)
+    }
+
+    pub fn plan_table_ref(
+        &self,
+        table_ref: &BoundTableRef,
+    ) -> Result<LogicalPlan, LogicalPlanError> {
+        match table_ref {
+            BoundTableRef::BaseTableRef {
+                ref_id,
+                table_name: _,
+                column_ids,
+            } => Ok(LogicalPlan::SeqScan(LogicalSeqScan {
+                table_ref_id: *ref_id,
+                column_ids: column_ids.to_vec(),
+            })),
+            BoundTableRef::JoinTableRef {
+                left_table,
+                right_table,
+                join_op,
+            } => {
+                let left_plan = self.plan_table_ref(left_table)?;
+                let right_plan = self.plan_table_ref(right_table)?;
+                Ok(LogicalPlan::Join(LogicalJoin {
+                    left_plan: Box::new(left_plan),
+                    right_plan: Box::new(right_plan),
+                    join_op: join_op.clone(),
+                }))
+            }
+        }
     }
 }
 

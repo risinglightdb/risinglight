@@ -180,13 +180,22 @@ impl_into! { UTF8Array, UTF8 }
 
 impl ArrayBuilderImpl {
     /// Create a new array builder from data type.
-    pub fn new(ty: DataType) -> Self {
+    pub fn new(ty: &DataType) -> Self {
         match ty.kind() {
             DataTypeKind::Boolean => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
             DataTypeKind::Int => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
             DataTypeKind::Double => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
             DataTypeKind::Char(_) => Self::UTF8(UTF8ArrayBuilder::new(0)),
             DataTypeKind::Varchar(_) => Self::UTF8(UTF8ArrayBuilder::new(0)),
+            _ => panic!("unsupported data type"),
+        }
+    }
+    /// Create a new array builder from data value.
+    pub fn new_from_type_of_value(val: &DataValue) -> Self {
+        match val {
+            DataValue::Bool(_) => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
+            DataValue::Int32(_) => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
+            DataValue::Float64(_) => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
             _ => panic!("unsupported data type"),
         }
     }
@@ -240,6 +249,26 @@ impl ArrayImpl {
         .unwrap_or_else(|| "NULL".into())
     }
 
+    pub fn get_data_value_by_idx(&self, idx: usize) -> DataValue {
+        match self {
+            Self::Bool(a) => match a.get(idx) {
+                Some(val) => DataValue::Bool(*val),
+                None => DataValue::Null,
+            },
+            Self::Int32(a) => match a.get(idx) {
+                Some(val) => DataValue::Int32(*val),
+                None => DataValue::Null,
+            },
+            Self::Float64(a) => match a.get(idx) {
+                Some(val) => DataValue::Float64(*val),
+                None => DataValue::Null,
+            },
+            Self::UTF8(a) => match a.get(idx) {
+                Some(val) => DataValue::String(val.to_string()),
+                None => DataValue::Null,
+            },
+        }
+    }
     /// Number of items of array.
     pub fn len(&self) -> usize {
         match self {

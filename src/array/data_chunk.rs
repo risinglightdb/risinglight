@@ -1,11 +1,11 @@
 use super::*;
 
+use crate::types::DataValue;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::fmt;
 use std::sync::Arc;
 use typed_builder::TypedBuilder;
-
 /// A collection of arrays.
 ///
 /// A chunk is a horizontal subset of a query result.
@@ -23,6 +23,12 @@ impl DataChunk {
         self.cardinality
     }
 
+    pub fn get_row_by_idx(&self, idx: usize) -> Vec<DataValue> {
+        self.arrays
+            .iter()
+            .map(|arr| arr.get_data_value_by_idx(idx))
+            .collect()
+    }
     /// Get the reference of array by index.
     pub fn array_at(&self, idx: usize) -> &ArrayImpl {
         &self.arrays[idx]
@@ -40,6 +46,10 @@ impl DataChunk {
             arrays,
             cardinality,
         }
+    }
+
+    pub fn column_count(&self) -> usize {
+        self.arrays.len()
     }
 }
 

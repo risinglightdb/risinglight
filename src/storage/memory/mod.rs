@@ -15,7 +15,7 @@
 //! * reverse scan
 //! * [`RowHandler`] scan
 
-use super::{Storage, StorageDispatch, StorageError, StorageResult};
+use super::{Storage, StorageError, StorageResult};
 use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};
 use crate::types::{ColumnId, DatabaseId, SchemaId};
 use std::collections::HashMap;
@@ -119,5 +119,3 @@ impl Storage for InMemoryStorage {
         Ok(())
     }
 }
-
-impl StorageDispatch for InMemoryStorage {}

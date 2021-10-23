@@ -13,6 +13,7 @@ use test_case::test_case;
 #[test_case("create.test")]
 #[test_case("insert.test")]
 #[test_case("select.test")]
+#[test_case("join.slt")]
 fn sqllogictest(name: &str) {
     init_logger();
     let script = std::fs::read_to_string(Path::new("tests/sql").join(name)).unwrap();

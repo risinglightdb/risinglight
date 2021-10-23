@@ -22,11 +22,14 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub enum StorageImpl {
     InMemoryStorage(Arc<InMemoryStorage>),
+    SecondaryStorage(Arc<SecondaryStorage>),
 }
 
 /// A trait for implementing `From` and `Into` [`StorageImpl`] with `enum_dispatch`.
 #[enum_dispatch]
 pub trait StorageDispatch {}
+
+impl<S: Storage> StorageDispatch for S {}
 
 #[cfg(test)]
 impl StorageImpl {

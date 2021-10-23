@@ -2,16 +2,20 @@ use crate::binder::BoundStatement;
 
 mod create;
 mod drop;
+mod explain;
 mod filter;
 mod insert;
+mod join;
 mod projection;
 mod select;
 mod seq_scan;
 
 pub use create::*;
 pub use drop::*;
+pub use explain::*;
 pub use filter::*;
 pub use insert::*;
+pub use join::*;
 pub use projection::*;
 pub use seq_scan::*;
 
@@ -33,6 +37,8 @@ pub enum LogicalPlan {
     Drop(LogicalDrop),
     Projection(LogicalProjection),
     Filter(LogicalFilter),
+    Explain(LogicalExplain),
+    Join(LogicalJoin),
 }
 
 #[derive(Default)]
@@ -46,6 +52,7 @@ impl LogicalPlaner {
             BoundStatement::Drop(stmt) => self.plan_drop(stmt),
             BoundStatement::Insert(stmt) => self.plan_insert(stmt),
             BoundStatement::Select(stmt) => self.plan_select(stmt),
+            BoundStatement::Explain(stmt) => self.plan_explain(*stmt),
         }
     }
 }
