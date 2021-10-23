@@ -17,25 +17,23 @@ impl SimpleAggExecutor {
             let mut states = self
                 .aggregation_expressions
                 .iter()
-                .map(|e| SumAggregationState::new(e.return_type.clone().unwrap().kind()))
+                .map(|e| SumAggregationState::new(e.return_type.as_ref().unwrap().kind()))
                 .collect::<Vec<_>>();
 
             // Update states and cardinality in batch
             for await batch in self.child {
                 let batch = batch?;
                 cardinality += batch.cardinality();
+
+                // TODO: There might be aggregations that need two or more inputs
                 let exprs = self
                     .aggregation_expressions
                     .iter()
                     .map(|e| e.eval_array(&batch))
                     .collect::<Result<Vec<ArrayImpl>, _>>()?;
 
-                for (idx, agg_kind) in self.agg_kind.iter().enumerate() {
-                    match agg_kind {
-                        AggKind::Sum => {
-                            states[idx].update(&exprs[idx])?;
-                        }
-                    }
+                for (state, expr) in states.iter_mut().zip(exprs) {
+                    state.update(&expr)?;
                 }
             }
 
