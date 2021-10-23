@@ -1,9 +1,10 @@
 use super::*;
-use crate::array::{Array, ArrayImpl};
-use crate::binder::BoundExpr;
+use crate::array::{Array, ArrayBuilderImpl, ArrayImpl};
+use crate::binder::{AggKind, BoundExpr};
 use crate::types::{DataTypeKind, DataValue};
 
 pub struct SimpleAggExecutor {
+    pub agg_kind: Vec<AggKind>,
     pub aggregation_expressions: Vec<BoundExpr>,
     pub child: BoxedExecutor,
 }
@@ -11,19 +12,45 @@ pub struct SimpleAggExecutor {
 impl SimpleAggExecutor {
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
+            let mut cardinality = 0;
+            let mut states = self
+                .aggregation_expressions
+                .iter()
+                .map(|e| SumAggregationState::new(e.return_type.clone().unwrap().kind()))
+                .collect::<Vec<_>>();
+
             for await batch in self.child {
                 let batch = batch?;
-                let arrays = self
+                cardinality += batch.cardinality();
+                let exprs = self
                     .aggregation_expressions
                     .iter()
-                    .map(|e| e.eval_array(&batch).unwrap())
-                    .collect::<Vec<ArrayImpl>>();
+                    .map(|e| e.eval_array(&batch))
+                    .collect::<Result<Vec<ArrayImpl>, _>>()?;
 
-                yield DataChunk::builder()
-                    .cardinality(batch.cardinality())
+                for (idx, agg_kind) in self.agg_kind.iter().enumerate() {
+                    match agg_kind {
+                        AggKind::Sum => {
+                            states[idx].update(&exprs[idx])?;
+                        }
+                    }
+                }
+            }
+
+
+            let arrays = states
+                .iter()
+                .map(|s| {
+                    let result = &s.output();
+                    let mut builder = ArrayBuilderImpl::new(result.data_type().unwrap());
+                    builder.push(result);
+                    builder.finish()
+                })
+                .collect::<Vec<ArrayImpl>>();
+            yield DataChunk::builder()
+                    .cardinality(cardinality)
                     .arrays(arrays.into())
                     .build()
-            }
         }
     }
 }

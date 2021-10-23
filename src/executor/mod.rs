@@ -101,6 +101,7 @@ impl ExecutorBuilder {
             .execute()
             .boxed(),
             PhysicalPlan::Aggregation(plan) => SimpleAggExecutor {
+                agg_kind: plan.agg_kind,
                 aggregation_expressions: plan.aggregation_expressions,
                 child: self.build(*plan.child),
             }

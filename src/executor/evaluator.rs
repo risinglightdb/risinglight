@@ -1,4 +1,3 @@
-use super::aggregation::{AggregationState, SumAggregationState};
 use crate::{
     array::*,
     binder::{BoundExpr, BoundExprKind},
@@ -55,25 +54,9 @@ impl BoundExpr {
                 }
                 array.try_cast(cast.ty.clone())
             }
-            BoundExprKind::FunctionCall(f) => {
-                let mut builder = ArrayBuilderImpl::new(self.return_type.clone().unwrap());
-                let arrays = f
-                    .args
-                    .iter()
-                    .map(|e| e.eval_array(chunk).unwrap())
-                    .collect::<Vec<ArrayImpl>>();
-
-                match f.op.to_lowercase().as_str() {
-                    "sum" => {
-                        let mut state = SumAggregationState::new(DataTypeKind::Int);
-                        state.update(&arrays[0]).unwrap();
-                        builder.push(&state.output());
-                        Ok(builder.finish())
-                    }
-                    _ => {
-                        panic!("{} is not supported", f.op);
-                    }
-                }
+            BoundExprKind::FunctionCall(_) => {
+                // TODO: FunctionCall can be an expression or an aggregation.
+                panic!("Unimplemented")
             }
         }
     }

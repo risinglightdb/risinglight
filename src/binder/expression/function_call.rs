@@ -15,10 +15,10 @@ impl Binder {
             .args
             .iter()
             .map(|arg| match &arg {
-                FunctionArg::Named { arg, .. } => self.bind_expr(arg).unwrap(),
-                FunctionArg::Unnamed(arg) => self.bind_expr(arg).unwrap(),
+                FunctionArg::Named { arg, .. } => self.bind_expr(arg),
+                FunctionArg::Unnamed(arg) => self.bind_expr(arg),
             })
-            .collect::<Vec<BoundExpr>>();
+            .collect::<Result<Vec<BoundExpr>, _>>()?;
 
         // Return type depends on the aggregation type
         let return_type = match op.to_lowercase().as_str() {
@@ -27,10 +27,7 @@ impl Binder {
         };
 
         Ok(BoundExpr {
-            kind: BoundExprKind::FunctionCall(BoundFunctionCall {
-                op: f.name.to_string(),
-                args,
-            }),
+            kind: BoundExprKind::FunctionCall(BoundFunctionCall { op, args }),
             return_type,
         })
     }
