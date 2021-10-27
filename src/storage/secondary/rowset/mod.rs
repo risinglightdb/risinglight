@@ -46,10 +46,19 @@ use primitive_block_builder::*;
 
 mod primitive_column_builder;
 
+mod column_builder;
+use column_builder::*;
+
+mod encode;
+pub use encode::*;
+
 mod rowset_builder;
 
 mod mem_rowset;
 pub use mem_rowset::*;
+
+mod disk_rowset;
+pub use disk_rowset::*;
 
 /// Builds a column. [`ColumnBuilder`] will automatically chunk [`Array`] into
 /// blocks, calls [`BlockBuilder`] to generate a block, and builds index for a
@@ -62,7 +71,7 @@ pub use mem_rowset::*;
 pub trait ColumnBuilder<A: Array> {
     /// Append an [`Array`] to the column. [`ColumnBuilder`] will automatically chunk it into
     /// small parts.
-    fn append(&mut self, array: A);
+    fn append(&mut self, array: &A);
 
     /// Finish a column, return block index information and encoded block data
     fn finish(self) -> (Vec<BlockIndex>, Vec<u8>);

@@ -967,6 +967,7 @@ dependencies = [
  "serde",
  "smallvec",
  "sqlparser",
+ "tempfile",
  "test-case",
  "thiserror",
  "tokio",

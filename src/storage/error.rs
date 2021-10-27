@@ -1,6 +1,6 @@
 use crate::types::ColumnId;
 
-#[derive(thiserror::Error, Debug, PartialEq)]
+#[derive(thiserror::Error, Debug)]
 pub enum StorageError {
     #[error("failed to read table")]
     ReadTableError,
@@ -12,8 +12,15 @@ pub enum StorageError {
     Duplicated(&'static str, String),
     #[error("invalid column id: {0}")]
     InvalidColumn(ColumnId),
-    #[error("IO error: {0} {1:?}")]
-    IOError(&'static str, std::io::ErrorKind),
+    #[error("IO error: {0}")]
+    Io(#[source] Box<std::io::Error>),
+}
+
+impl From<std::io::Error> for StorageError {
+    #[inline]
+    fn from(e: std::io::Error) -> StorageError {
+        StorageError::Io(Box::new(e))
+    }
 }
 
 pub type StorageResult<T> = std::result::Result<T, StorageError>;
