@@ -14,7 +14,7 @@ impl<S: Storage> DropExecutor<S> {
             match self.plan.object {
                 Object::Table(ref_id) => self.storage.drop_table(ref_id)?,
             }
-            yield DataChunk::builder().cardinality(1).build();
+            yield DataChunk::single();
         }
     }
 }

@@ -40,12 +40,11 @@ impl SecondaryMemRowset {
         directory: impl AsRef<Path>,
         column_options: ColumnBuilderOptions,
     ) -> StorageResult<DiskRowset> {
-        let arrays = self
+        let chunk = self
             .builders
             .into_iter()
             .map(|builder| builder.finish())
-            .collect_vec();
-        let chunk = DataChunk::builder().arrays(arrays.into()).build();
+            .collect::<DataChunk>();
         let directory = directory.as_ref().to_path_buf();
         let mut builder = RowsetBuilder::new(self.columns, &directory, column_options);
         builder.append(chunk);

@@ -170,15 +170,12 @@ mod tests {
 
         for _ in 0..1000 {
             builder.append(
-                DataChunk::builder()
-                    .arrays(
-                        vec![I32Array::from_iter(
-                            [1, 2, 3].iter().cycle().cloned().take(1000).map(Some),
-                        )
-                        .into()]
+                [
+                    I32Array::from_iter([1, 2, 3].iter().cycle().cloned().take(1000).map(Some))
                         .into(),
-                    )
-                    .build(),
+                ]
+                .into_iter()
+                .collect(),
             )
         }
 

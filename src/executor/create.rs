@@ -18,7 +18,7 @@ impl<S: Storage> CreateTableExecutor<S> {
                 &self.plan.table_name,
                 &self.plan.columns,
             )?;
-            yield DataChunk::builder().cardinality(1).build();
+            yield DataChunk::single();
         }
     }
 }

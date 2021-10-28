@@ -13,7 +13,6 @@ pub struct SimpleAggExecutor {
 impl SimpleAggExecutor {
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
-            let mut cardinality = 0;
             let mut states = self
                 .aggregation_expressions
                 .iter()
@@ -23,7 +22,6 @@ impl SimpleAggExecutor {
             // Update states and cardinality in batch
             for await batch in self.child {
                 let batch = batch?;
-                cardinality += batch.cardinality();
 
                 // TODO: There might be aggregations that need two or more inputs
                 let exprs = self
@@ -38,7 +36,7 @@ impl SimpleAggExecutor {
             }
 
             // Output sum result
-            let arrays = states
+            let chunk = states
                 .iter()
                 .map(|s| {
                     let result = &s.output();
@@ -46,11 +44,8 @@ impl SimpleAggExecutor {
                     builder.push(result);
                     builder.finish()
                 })
-                .collect::<Vec<ArrayImpl>>();
-            yield DataChunk::builder()
-                    .cardinality(cardinality)
-                    .arrays(arrays.into())
-                    .build()
+                .collect::<DataChunk>();
+            yield chunk;
         }
     }
 }
