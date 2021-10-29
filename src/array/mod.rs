@@ -190,13 +190,24 @@ impl ArrayBuilderImpl {
             _ => panic!("unsupported data type"),
         }
     }
+
     /// Create a new array builder from data value.
-    pub fn new_from_type_of_value(val: &DataValue) -> Self {
+    pub fn from_type_of_value(val: &DataValue) -> Self {
         match val {
             DataValue::Bool(_) => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
             DataValue::Int32(_) => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
             DataValue::Float64(_) => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
             _ => panic!("unsupported data type"),
+        }
+    }
+
+    /// Create a new array builder with the same type of given array.
+    pub fn from_type_of_array(array: &ArrayImpl) -> Self {
+        match array {
+            ArrayImpl::Bool(_) => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
+            ArrayImpl::Int32(_) => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
+            ArrayImpl::Float64(_) => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
+            ArrayImpl::UTF8(_) => Self::UTF8(UTF8ArrayBuilder::new(0)),
         }
     }
 
@@ -249,7 +260,8 @@ impl ArrayImpl {
         .unwrap_or_else(|| "NULL".into())
     }
 
-    pub fn get_data_value_by_idx(&self, idx: usize) -> DataValue {
+    /// Get the value at the given index.
+    pub fn get(&self, idx: usize) -> DataValue {
         match self {
             Self::Bool(a) => match a.get(idx) {
                 Some(val) => DataValue::Bool(*val),
@@ -269,6 +281,7 @@ impl ArrayImpl {
             },
         }
     }
+
     /// Number of items of array.
     pub fn len(&self) -> usize {
         match self {

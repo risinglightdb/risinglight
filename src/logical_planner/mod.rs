@@ -6,6 +6,7 @@ mod explain;
 mod filter;
 mod insert;
 mod join;
+mod order;
 mod projection;
 mod select;
 mod seq_scan;
@@ -16,6 +17,7 @@ pub use explain::*;
 pub use filter::*;
 pub use insert::*;
 pub use join::*;
+pub use order::*;
 pub use projection::*;
 pub use seq_scan::*;
 
@@ -39,6 +41,7 @@ pub enum LogicalPlan {
     Filter(LogicalFilter),
     Explain(LogicalExplain),
     Join(LogicalJoin),
+    Order(LogicalOrder),
 }
 
 #[derive(Default)]

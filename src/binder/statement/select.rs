@@ -11,7 +11,7 @@ pub struct BoundSelect {
     pub where_clause: Option<BoundExpr>,
     pub select_distinct: bool,
     // pub groupby: Option<BoundGroupBy>,
-    // pub orderby: Option<BoundOrderBy>,
+    pub orderby: Vec<BoundOrderBy>,
     pub limit: Option<BoundExpr>,
     pub offset: Option<BoundExpr>,
     // pub return_names: Vec<String>,
@@ -41,11 +41,18 @@ impl Binder {
             let table_ref = self.bind_table_with_joins(table_with_join)?;
             from_table.push(table_ref);
         }
-        // TODO: process where, order by, group-by
+        // TODO: process group-by
         let mut where_clause = match &select.selection {
             Some(expr) => Some(self.bind_expr(expr)?),
             None => None,
         };
+        let mut orderby = vec![];
+        for e in query.order_by.iter() {
+            orderby.push(BoundOrderBy {
+                expr: self.bind_expr(&e.expr)?,
+                descending: e.asc == Some(false),
+            });
+        }
         let limit = match &query.limit {
             Some(expr) => Some(self.bind_expr(expr)?),
             None => None,
@@ -86,12 +93,12 @@ impl Binder {
         for expr in select_list.iter_mut() {
             self.bind_column_idx_for_expr(&mut expr.kind);
         }
-
-        match &mut where_clause {
-            Some(expr) => self.bind_column_idx_for_expr(&mut expr.kind),
-            None => {}
-        };
-
+        if let Some(expr) = &mut where_clause {
+            self.bind_column_idx_for_expr(&mut expr.kind);
+        }
+        for orderby in orderby.iter_mut() {
+            self.bind_column_idx_for_expr(&mut orderby.expr.kind);
+        }
         for table_ref in from_table.iter_mut() {
             self.bind_column_idx_for_table(table_ref);
         }
@@ -101,6 +108,7 @@ impl Binder {
             from_table,
             where_clause,
             select_distinct: select.distinct,
+            orderby,
             limit,
             offset,
         }))
@@ -163,6 +171,13 @@ impl Binder {
             _ => {}
         }
     }
+}
+
+/// A bound `order by` statement.
+#[derive(Debug, PartialEq, Clone)]
+pub struct BoundOrderBy {
+    pub expr: BoundExpr,
+    pub descending: bool,
 }
 
 #[cfg(test)]
@@ -295,6 +310,7 @@ mod tests {
                         })
                     }))
                 }],
+                orderby: vec![],
                 where_clause: None,
                 select_distinct: false,
                 limit: None,

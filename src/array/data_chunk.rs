@@ -40,11 +40,9 @@ impl DataChunk {
         self.arrays[0].len()
     }
 
+    /// Get the values of a row.
     pub fn get_row_by_idx(&self, idx: usize) -> Vec<DataValue> {
-        self.arrays
-            .iter()
-            .map(|arr| arr.get_data_value_by_idx(idx))
-            .collect()
+        self.arrays.iter().map(|arr| arr.get(idx)).collect()
     }
 
     /// Get the reference of array by index.

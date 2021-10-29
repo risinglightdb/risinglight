@@ -5,6 +5,7 @@
 //! - [`LogicalSeqScan`] (from *) or dummy plan (no from)
 //! - [`LogicalFilter`] (where *)
 //! - [`LogicalProjection`] (select *)
+//! - [`LogicalOrder`] (order by *)
 
 use super::*;
 use crate::binder::{BoundSelect, BoundTableRef};
@@ -31,6 +32,12 @@ impl LogicalPlaner {
         if !stmt.select_list.is_empty() {
             plan = LogicalPlan::Projection(LogicalProjection {
                 project_expressions: stmt.select_list,
+                child: Box::new(plan),
+            });
+        }
+        if !stmt.orderby.is_empty() {
+            plan = LogicalPlan::Order(LogicalOrder {
+                comparators: stmt.orderby,
                 child: Box::new(plan),
             });
         }
