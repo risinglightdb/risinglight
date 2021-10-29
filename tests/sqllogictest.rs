@@ -15,6 +15,7 @@ use test_case::test_case;
 #[test_case("insert.test")]
 #[test_case("select.test")]
 #[test_case("join.slt")]
+#[test_case("limit.slt")]
 fn sqllogictest(name: &str) {
     init_logger();
     let script = std::fs::read_to_string(Path::new("tests/sql").join(name)).unwrap();
@@ -263,10 +264,14 @@ impl SqlLogicTester {
                 ..
             } => {
                 let output = self.db.run(&sql).await.expect("query failed");
+                let expected: DataChunk =
+                    expected_results.into_iter().map(ArrayImpl::from).collect();
+                if output.is_empty() && expected.cardinality() == 0 {
+                    return;
+                }
                 let actual = output
                     .get(0)
                     .expect("expect result from query, but no output");
-                let expected = expected_results.into_iter().map(ArrayImpl::from).collect();
                 if *actual != expected {
                     panic!(
                         "query result mismatch:\nSQL:\n{}\n\nExpected:\n{}\nActual:\n{}",

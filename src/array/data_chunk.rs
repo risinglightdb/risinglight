@@ -4,6 +4,7 @@ use crate::types::DataValue;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::fmt;
+use std::ops::RangeBounds;
 use std::sync::Arc;
 
 /// A collection of arrays.
@@ -60,8 +61,15 @@ impl DataChunk {
         DataChunk { arrays }
     }
 
+    /// Return the number of columns.
     pub fn column_count(&self) -> usize {
         self.arrays.len()
+    }
+
+    /// Returns a slice of self that is equivalent to the given subset.
+    pub fn slice(&self, range: impl RangeBounds<usize> + Clone) -> Self {
+        let arrays = self.arrays.iter().map(|a| a.slice(range.clone())).collect();
+        DataChunk { arrays }
     }
 }
 

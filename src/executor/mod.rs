@@ -15,6 +15,7 @@
 use crate::array::DataChunk;
 use crate::physical_planner::PhysicalPlan;
 use crate::storage::{Storage, StorageError, StorageImpl};
+use crate::types::ConvertError;
 use async_stream::try_stream;
 use futures::stream::{BoxStream, Stream, StreamExt};
 use std::sync::Arc;
@@ -27,6 +28,7 @@ mod evaluator;
 mod explain;
 mod filter;
 mod insert;
+mod limit;
 mod nested_loop_join;
 mod order;
 mod projection;
@@ -38,6 +40,7 @@ use self::dummy_scan::*;
 use self::explain::*;
 use self::filter::*;
 use self::insert::*;
+use self::limit::*;
 use self::nested_loop_join::*;
 use self::order::*;
 use self::projection::*;
@@ -50,8 +53,8 @@ pub enum ExecutorError {
     BuildingPlanError,
     #[error("storage error: {0}")]
     Storage(#[from] StorageError),
-    #[error("convert error: {0}")]
-    Convert(#[from] evaluator::ConvertError),
+    #[error("conversion error: {0}")]
+    Convert(#[from] ConvertError),
 }
 
 /// Reference type of the global environment.
@@ -107,6 +110,13 @@ impl ExecutorBuilder {
             .boxed(),
             PhysicalPlan::Order(plan) => OrderExecutor {
                 comparators: plan.comparators,
+                child: self.build_with_storage(*plan.child, storage),
+            }
+            .execute()
+            .boxed(),
+            PhysicalPlan::Limit(plan) => LimitExecutor {
+                offset: plan.offset,
+                limit: plan.limit,
                 child: self.build_with_storage(*plan.child, storage),
             }
             .execute()

@@ -1,6 +1,7 @@
 use crate::types::{DataType, DataTypeKind, DataValue};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use std::ops::{Bound, RangeBounds};
 
 mod data_chunk;
 mod iterator;
@@ -82,22 +83,43 @@ pub trait Array: Sized {
 /// An extension trait for [`Array`].
 pub trait ArrayExt: Array {
     /// Filter the elements and return a new array.
-    fn filter<I>(&self, visibility: I) -> Self
-    where
-        I: Iterator<Item = bool>;
+    fn filter(&self, visibility: impl Iterator<Item = bool>) -> Self;
+
+    /// Return a slice of self for the provided range.
+    fn slice(&self, range: impl RangeBounds<usize>) -> Self;
 }
 
 impl<A: Array> ArrayExt for A {
     /// Filter the elements and return a new array.
-    fn filter<I>(&self, visibility: I) -> Self
-    where
-        I: Iterator<Item = bool>,
-    {
+    fn filter(&self, visibility: impl Iterator<Item = bool>) -> Self {
         let mut builder = Self::Builder::new(self.len());
         for (a, visible) in self.iter().zip(visibility) {
             if visible {
                 builder.push(a);
             }
+        }
+        builder.finish()
+    }
+
+    /// Return a slice of self for the provided range.
+    fn slice(&self, range: impl RangeBounds<usize>) -> Self {
+        let len = self.len();
+        let begin = match range.start_bound() {
+            Bound::Included(&n) => n,
+            Bound::Excluded(&n) => n + 1,
+            Bound::Unbounded => 0,
+        };
+        let end = match range.end_bound() {
+            Bound::Included(&n) => n + 1,
+            Bound::Excluded(&n) => n,
+            Bound::Unbounded => len,
+        };
+        assert!(begin <= end, "range start must not be greater than end");
+        assert!(end <= len, "range end out of bounds");
+
+        let mut builder = Self::Builder::new(end - begin);
+        for i in begin..end {
+            builder.push(self.get(i));
         }
         builder.finish()
     }
@@ -304,6 +326,16 @@ impl ArrayImpl {
             Self::Int32(a) => Self::Int32(a.filter(visibility)),
             Self::Float64(a) => Self::Float64(a.filter(visibility)),
             Self::UTF8(a) => Self::UTF8(a.filter(visibility)),
+        }
+    }
+
+    /// Return a slice of self for the provided range.
+    pub fn slice(&self, range: impl RangeBounds<usize>) -> Self {
+        match self {
+            Self::Bool(a) => Self::Bool(a.slice(range)),
+            Self::Int32(a) => Self::Int32(a.slice(range)),
+            Self::Float64(a) => Self::Float64(a.slice(range)),
+            Self::UTF8(a) => Self::UTF8(a.slice(range)),
         }
     }
 }

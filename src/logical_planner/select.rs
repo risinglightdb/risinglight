@@ -8,7 +8,7 @@
 //! - [`LogicalOrder`] (order by *)
 
 use super::*;
-use crate::binder::{BoundSelect, BoundTableRef};
+use crate::binder::{BoundExprKind, BoundSelect, BoundTableRef};
 
 impl LogicalPlaner {
     pub fn plan_select(&self, stmt: Box<BoundSelect>) -> Result<LogicalPlan, LogicalPlanError> {
@@ -25,8 +25,6 @@ impl LogicalPlaner {
         }
 
         // TODO: support the following clauses
-        assert_eq!(stmt.limit, None, "TODO: plan limit");
-        assert_eq!(stmt.offset, None, "TODO: plan offset");
         assert!(!stmt.select_distinct, "TODO: plan distinct");
 
         if !stmt.select_list.is_empty() {
@@ -38,6 +36,27 @@ impl LogicalPlaner {
         if !stmt.orderby.is_empty() {
             plan = LogicalPlan::Order(LogicalOrder {
                 comparators: stmt.orderby,
+                child: Box::new(plan),
+            });
+        }
+        if stmt.limit.is_some() || stmt.offset.is_some() {
+            let limit = match stmt.limit {
+                Some(limit) => match limit.kind {
+                    BoundExprKind::Constant(v) => v.as_usize()?.unwrap_or(usize::MAX / 2),
+                    _ => panic!("limit only support constant expression"),
+                },
+                None => usize::MAX / 2, // avoid 'offset + limit' overflow
+            };
+            let offset = match stmt.offset {
+                Some(offset) => match offset.kind {
+                    BoundExprKind::Constant(v) => v.as_usize()?.unwrap_or(0),
+                    _ => panic!("offset only support constant expression"),
+                },
+                None => 0,
+            };
+            plan = LogicalPlan::Limit(LogicalLimit {
+                offset,
+                limit,
                 child: Box::new(plan),
             });
         }

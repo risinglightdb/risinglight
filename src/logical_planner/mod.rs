@@ -1,4 +1,4 @@
-use crate::binder::BoundStatement;
+use crate::{binder::BoundStatement, types::ConvertError};
 
 mod create;
 mod drop;
@@ -6,6 +6,7 @@ mod explain;
 mod filter;
 mod insert;
 mod join;
+mod limit;
 mod order;
 mod projection;
 mod select;
@@ -17,6 +18,7 @@ pub use explain::*;
 pub use filter::*;
 pub use insert::*;
 pub use join::*;
+pub use limit::*;
 pub use order::*;
 pub use projection::*;
 pub use seq_scan::*;
@@ -26,6 +28,8 @@ pub use seq_scan::*;
 pub enum LogicalPlanError {
     #[error("invalid SQL")]
     InvalidSQL,
+    #[error("conversion error: {0}")]
+    Convert(#[from] ConvertError),
 }
 
 /// An enumeration which record all necessary information of execution plan,
@@ -42,6 +46,7 @@ pub enum LogicalPlan {
     Explain(LogicalExplain),
     Join(LogicalJoin),
     Order(LogicalOrder),
+    Limit(LogicalLimit),
 }
 
 #[derive(Default)]

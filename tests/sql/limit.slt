@@ -1,0 +1,42 @@
+statement ok
+create table t(v1 int not null, v2 int not null)
+
+statement ok
+insert into t values (1, 1), (4, 2), (3, 3), (10, 12), (2, 5)
+
+query I
+select v1 from t limit 3
+----
+1
+4
+3
+
+query I
+select v1 from t offset 2
+----
+3
+10
+2
+
+query I
+select v1 from t limit 2 offset 2
+----
+3
+10
+
+query I
+select v1 from t limit 6
+----
+1
+4
+3
+10
+2
+
+query I
+select v1 from t limit 0
+----
+
+query I
+select v1 from t offset 5
+----
