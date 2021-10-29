@@ -88,3 +88,9 @@ impl fmt::Display for DataChunk {
         write!(f, "{}", table)
     }
 }
+
+impl fmt::Debug for DataChunk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
