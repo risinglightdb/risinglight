@@ -22,9 +22,9 @@ select v1 from t order by v1 desc
 2
 1
 
-
 statement ok
 drop table t
+
 
 statement ok
 create table t(v1 int not null, v2 int not null)
@@ -41,6 +41,25 @@ select v1, v2 from t order by v1 asc, v2 desc
 2 2
 3 15
 3 9
+
+statement ok
+drop table t
+
+
+# sort with NULL
+statement ok
+create table t(v1 int, v2 int)
+
+statement ok
+insert into t values (1, 0), (2, 2), (NULL, 5), (2, NULL)
+
+query II
+select v1, v2 from t order by v1 asc, v2 asc
+----
+NULL 5
+1 0
+2 NULL
+2 2
 
 statement ok
 drop table t
