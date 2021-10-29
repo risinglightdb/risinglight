@@ -1,6 +1,12 @@
 use super::*;
 use crate::parser::{JoinConstraint, JoinOperator, TableFactor, TableWithJoins};
+use std::vec::Vec;
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct BoundedSingleJoinTableRef {
+    pub table_ref: Box<BoundTableRef>,
+    pub join_op: BoundJoinOperator,
+}
 /// A bound table reference.
 #[derive(Debug, PartialEq, Clone)]
 pub enum BoundTableRef {
@@ -10,9 +16,8 @@ pub enum BoundTableRef {
         column_ids: Vec<ColumnId>,
     },
     JoinTableRef {
-        left_table: Box<BoundTableRef>,
-        right_table: Box<BoundTableRef>,
-        join_op: BoundJoinOperator,
+        relation: Box<BoundTableRef>,
+        join_tables: Vec<BoundedSingleJoinTableRef>,
     },
 }
 
@@ -30,17 +35,21 @@ impl Binder {
         &mut self,
         table_with_joins: &TableWithJoins,
     ) -> Result<BoundTableRef, BindError> {
-        let mut join_table_ref = self.bind_table_ref(&table_with_joins.relation)?;
+        let relation = self.bind_table_ref(&table_with_joins.relation)?;
+        let mut join_tables = vec![];
         for join in table_with_joins.joins.iter() {
             let join_table = self.bind_table_ref(&join.relation)?;
             let join_op = self.bind_join_op(&join.join_operator)?;
-            join_table_ref = BoundTableRef::JoinTableRef {
-                left_table: Box::new(join_table_ref),
-                right_table: Box::new(join_table),
-                join_op,
-            }
+            let join_ref = BoundedSingleJoinTableRef {
+                table_ref: Box::new(join_table),
+                join_op
+            };
+            join_tables.push(join_ref);
         }
-        Ok(join_table_ref)
+        Ok(BoundTableRef::JoinTableRef {
+            relation: Box::new(relation),
+            join_tables,
+        })
     }
     pub fn bind_join_op(&mut self, join_op: &JoinOperator) -> Result<BoundJoinOperator, BindError> {
         match join_op {
