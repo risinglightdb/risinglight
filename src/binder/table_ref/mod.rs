@@ -42,7 +42,7 @@ impl Binder {
             let join_op = self.bind_join_op(&join.join_operator)?;
             let join_ref = BoundedSingleJoinTableRef {
                 table_ref: Box::new(join_table),
-                join_op
+                join_op,
             };
             join_tables.push(join_ref);
         }
