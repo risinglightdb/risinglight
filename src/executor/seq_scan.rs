@@ -30,28 +30,21 @@ impl<S: Storage> SeqScanExecutor<S> {
         let txn = table.read().await?;
         let mut it = txn.scan(None, None, &col_idx, false).await?;
 
-        let mut cardinality: usize = 0;
-
         // Notice: The column ids may not be ordered.
         while let Some(chunk) = it.next_batch().await? {
-            cardinality += chunk.cardinality();
-
             for (idx, builder) in builders.iter_mut().enumerate() {
                 builder.append(chunk.array_at(idx as usize));
             }
         }
 
-        let arrays = builders
+        let chunk: DataChunk = builders
             .into_iter()
             .map(|builder| builder.finish())
-            .collect_vec();
+            .collect();
 
         txn.commit().await?;
 
-        Ok(DataChunk::builder()
-            .cardinality(cardinality)
-            .arrays(arrays.into())
-            .build())
+        Ok(chunk)
     }
 }
 

@@ -1,5 +1,5 @@
 use super::*;
-use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunk};
+use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::physical_planner::PhysicalInsert;
 use crate::storage::{Storage, Table, Transaction};
 use std::sync::Arc;
@@ -28,19 +28,15 @@ impl<S: Storage> InsertExecutor<S> {
                     builder.push(&value);
                 }
             }
-            let arrays = array_builders
+            let chunk = array_builders
                 .into_iter()
                 .map(|builder| builder.finish())
-                .collect::<Vec<ArrayImpl>>();
-            let chunk = DataChunk::builder()
-                .cardinality(cardinality)
-                .arrays(arrays.into())
-                .build();
+                .collect::<DataChunk>();
             let mut txn = table.write().await?;
             txn.append(chunk).await?;
             txn.commit().await?;
 
-            yield DataChunk::builder().cardinality(1).build();
+            yield DataChunk::single();
         }
     }
 }

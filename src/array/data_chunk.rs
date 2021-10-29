@@ -5,22 +5,39 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::fmt;
 use std::sync::Arc;
-use typed_builder::TypedBuilder;
+
 /// A collection of arrays.
 ///
 /// A chunk is a horizontal subset of a query result.
-#[derive(TypedBuilder, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Serialize, Deserialize, PartialEq)]
 pub struct DataChunk {
-    #[builder(default)]
     arrays: SmallVec<[ArrayImpl; 16]>,
-    #[builder(default)]
-    cardinality: usize,
+}
+
+impl FromIterator<ArrayImpl> for DataChunk {
+    fn from_iter<I: IntoIterator<Item = ArrayImpl>>(iter: I) -> Self {
+        let arrays: SmallVec<[ArrayImpl; 16]> = iter.into_iter().collect();
+        assert!(!arrays.is_empty());
+        let cardinality = arrays[0].len();
+        assert!(
+            arrays.iter().map(|a| a.len()).all(|l| l == cardinality),
+            "all arrays must have the same length"
+        );
+        DataChunk { arrays }
+    }
 }
 
 impl DataChunk {
+    /// Return a DataChunk with 1 element in 1 array.
+    pub fn single() -> Self {
+        DataChunk {
+            arrays: [ArrayImpl::Int32((0..=0).collect())].into_iter().collect(),
+        }
+    }
+
     /// Return the number of rows in the chunk.
     pub fn cardinality(&self) -> usize {
-        self.cardinality
+        self.arrays[0].len()
     }
 
     pub fn get_row_by_idx(&self, idx: usize) -> Vec<DataValue> {
@@ -29,6 +46,7 @@ impl DataChunk {
             .map(|arr| arr.get_data_value_by_idx(idx))
             .collect()
     }
+
     /// Get the reference of array by index.
     pub fn array_at(&self, idx: usize) -> &ArrayImpl {
         &self.arrays[idx]
@@ -36,16 +54,12 @@ impl DataChunk {
 
     /// Filter elements and create a new chunk.
     pub fn filter(&self, visibility: impl Iterator<Item = bool> + Clone) -> Self {
-        let cardinality = visibility.clone().filter(|v| *v).count();
         let arrays = self
             .arrays
             .iter()
             .map(|a| a.filter(visibility.clone()))
             .collect();
-        DataChunk {
-            arrays,
-            cardinality,
-        }
+        DataChunk { arrays }
     }
 
     pub fn column_count(&self) -> usize {
@@ -61,7 +75,7 @@ impl fmt::Display for DataChunk {
         use prettytable::{format, Table};
         let mut table = Table::new();
         table.set_format(*format::consts::FORMAT_NO_LINESEP_WITH_TITLE);
-        for i in 0..self.cardinality {
+        for i in 0..self.cardinality() {
             let row = self.arrays.iter().map(|a| a.get_to_string(i)).collect();
             table.add_row(row);
         }

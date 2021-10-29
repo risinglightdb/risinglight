@@ -94,6 +94,7 @@ pub enum ParseError {
 }
 
 impl ColumnValues {
+    #[allow(dead_code)]
     fn len(&self) -> usize {
         match self {
             ColumnValues::Int(c) => c.len(),
@@ -264,10 +265,7 @@ impl SqlLogicTester {
                 let actual = output
                     .get(0)
                     .expect("expect result from query, but no output");
-                let expected = DataChunk::builder()
-                    .cardinality(expected_results[0].len())
-                    .arrays(expected_results.into_iter().map(ArrayImpl::from).collect())
-                    .build();
+                let expected = expected_results.into_iter().map(ArrayImpl::from).collect();
                 if *actual != expected {
                     panic!(
                         "query result mismatch:\nSQL:\n{}\n\nExpected:\n{}\nActual:\n{}",

@@ -1,5 +1,5 @@
 use super::*;
-use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunk};
+use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::binder::{BoundJoinConstraint, BoundJoinOperator};
 use crate::types::DataValue;
 use std::vec::Vec;
@@ -33,7 +33,7 @@ impl NestedLoopJoinExecutor {
                                                    .map(|v|
                                                     ArrayBuilderImpl::new_from_type_of_value(v))
                                                     .collect();
-            let mut card = 0;
+
             for left_chunk in left_chunks.iter() {
                 for left_idx in 0..left_chunk.cardinality() {
                     for right_chunk in right_chunks.iter() {
@@ -49,11 +49,7 @@ impl NestedLoopJoinExecutor {
                                 builder.push(&left_row[idx]);
                             }
 
-                            let arrays: Vec<ArrayImpl> = builders.into_iter().map(|builder| builder.finish()).collect();
-                            let chunk = DataChunk::builder()
-                            .cardinality(1)
-                            .arrays(arrays.into())
-                            .build();
+                            let chunk: DataChunk = builders.into_iter().map(|builder| builder.finish()).collect();
                             match &self.join_op {
                                 BoundJoinOperator::Inner(constraint) => match constraint {
                                     BoundJoinConstraint::On(expr) => {
@@ -64,7 +60,6 @@ impl NestedLoopJoinExecutor {
                                                     for (idx, builder) in chunk_builders.iter_mut().enumerate() {
                                                         builder.push(&left_row[idx]);
                                                     }
-                                                    card += 1;
                                             }
                                             _ => {}
                                         }
@@ -75,12 +70,8 @@ impl NestedLoopJoinExecutor {
                     }
                 }
             }
-            let arrays: Vec<ArrayImpl> = chunk_builders.into_iter().map(|builder| builder.finish()).collect();
-            yield DataChunk::builder()
-            .cardinality(card)
-            .arrays(arrays.into())
-            .build();
-
+            let chunk: DataChunk = chunk_builders.into_iter().map(|builder| builder.finish()).collect();
+            yield chunk;
         }
     }
 }

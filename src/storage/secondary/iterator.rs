@@ -1,7 +1,6 @@
 use crate::array::{DataChunk, DataChunkRef};
 use crate::storage::{StorageResult, TxnIterator};
 use async_trait::async_trait;
-use itertools::Itertools;
 
 /// An iterator over all data in a transaction.
 ///
@@ -32,16 +31,11 @@ impl TxnIterator for SecondaryTxnIterator {
         } else {
             let selected_chunk = &self.chunks[self.cnt];
             // TODO(chi): DataChunk should store Arc to array, so as to reduce costly clones.
-            let arrays = self
+            let chunk = self
                 .col_idx
                 .iter()
                 .map(|idx| selected_chunk.array_at(*idx as usize).clone())
-                .collect_vec();
-
-            let chunk = DataChunk::builder()
-                .cardinality(selected_chunk.cardinality())
-                .arrays(arrays.into())
-                .build();
+                .collect::<DataChunk>();
             self.cnt += 1;
 
             Ok(Some(chunk))
