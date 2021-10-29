@@ -49,8 +49,10 @@ pub(crate) type TableId = u32;
 pub(crate) type ColumnId = u32;
 
 /// Primitive SQL value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum DataValue {
+    // NOTE: Null comes first.
+    // => NULL is less than any non-NULL values
     Null,
     Bool(bool),
     Int32(i32),
