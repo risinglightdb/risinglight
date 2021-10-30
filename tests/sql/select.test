@@ -13,3 +13,8 @@ query I
 select v1 + v2 from t
 ----
 11
+
+query III
+select * from t
+----
+1   10   100

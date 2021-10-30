@@ -67,13 +67,15 @@ impl Binder {
         let mut select_list = vec![];
         // let mut return_names = vec![];
         for item in select.projection.iter() {
-            let expr = match item {
-                SelectItem::UnnamedExpr(expr) => self.bind_expr(expr)?,
-                SelectItem::ExprWithAlias { expr, .. } => self.bind_expr(expr)?,
+            match item {
+                SelectItem::UnnamedExpr(expr) => select_list.push(self.bind_expr(expr)?),
+                SelectItem::ExprWithAlias { expr, .. } => select_list.push(self.bind_expr(expr)?),
+                SelectItem::Wildcard => {
+                    select_list.extend_from_slice(self.bind_all_column_refs()?.as_slice())
+                }
                 _ => todo!("bind select list"),
             };
             // return_names.push(expr.get_name());
-            select_list.push(expr);
         }
 
         // Add referred columns for base table reference
