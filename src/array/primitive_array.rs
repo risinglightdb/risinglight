@@ -4,8 +4,13 @@ use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
+#[cfg(feature = "simd")]
+mod simd;
+#[cfg(feature = "simd")]
+pub use self::simd::*;
+
 /// A collection of primitive types, such as `i32`, `f32`.
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PrimitiveArray<T: NativeType> {
     valid: BitVec,
     data: Vec<T>,

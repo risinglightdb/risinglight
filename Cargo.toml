@@ -5,6 +5,9 @@ version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+simd = ["core_simd"]
+
 [dependencies]
 async-stream = "0.3"
 async-trait = "0.1"
@@ -27,6 +30,7 @@ smallvec = {version = "1.6.1", features = ["serde"]}
 sqlparser = "0.10"
 thiserror = "1.0"
 tokio = {version = "1", features = ["full"]}
+core_simd = { git = "https://github.com/rust-lang/portable-simd", optional = true }
 
 [dev-dependencies]
 criterion = {version = "0.3", features = ["async_tokio"]}
@@ -36,6 +40,10 @@ test-case = "1.2"
 [[bench]]
 harness = false
 name = "e2e"
+
+[[bench]]
+harness = false
+name = "array"
 
 [profile.bench]
 codegen-units = 1

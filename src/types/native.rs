@@ -5,22 +5,9 @@ pub trait NativeType:
 {
 }
 
-impl NativeType for i16 {}
-
-impl NativeType for i32 {}
-
-impl NativeType for i64 {}
-
-impl NativeType for f32 {}
-
-impl NativeType for f64 {}
-
-impl NativeType for u8 {}
-
-impl NativeType for u16 {}
-
-impl NativeType for u32 {}
-
-impl NativeType for u64 {}
-
-impl NativeType for bool {}
+macro_rules! impl_native {
+    ($($t:ty),*) => {
+        $(impl NativeType for $t {})*
+    }
+}
+impl_native!(u8, u16, u32, u64, usize, i8, i16, i32, i64, isize, f32, f64, bool);
