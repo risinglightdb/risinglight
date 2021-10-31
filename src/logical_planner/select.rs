@@ -6,7 +6,6 @@
 //! - [`LogicalFilter`] (where *)
 //! - [`LogicalProjection`] (select *)
 //! - [`LogicalOrder`] (order by *)
-
 use super::*;
 use crate::binder::{BoundSelect, BoundTableRef};
 
@@ -61,84 +60,23 @@ impl LogicalPlaner {
                 column_ids: column_ids.to_vec(),
             })),
             BoundTableRef::JoinTableRef {
-                left_table,
-                right_table,
-                join_op,
+                relation,
+                join_tables,
             } => {
-                let left_plan = self.plan_table_ref(left_table)?;
-                let right_plan = self.plan_table_ref(right_table)?;
+                let relation_plan = self.plan_table_ref(relation)?;
+                let mut join_table_plans = vec![];
+                for table in join_tables.iter() {
+                    let table_plan = self.plan_table_ref(&table.table_ref)?;
+                    join_table_plans.push(LogicalJoinTable {
+                        table_plan: Box::new(table_plan),
+                        join_op: table.join_op.clone(),
+                    });
+                }
                 Ok(LogicalPlan::Join(LogicalJoin {
-                    left_plan: Box::new(left_plan),
-                    right_plan: Box::new(right_plan),
-                    join_op: join_op.clone(),
+                    relation_plan: Box::new(relation_plan),
+                    join_table_plans,
                 }))
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::binder::*;
-    use crate::catalog::*;
-    use crate::parser::parse;
-    use crate::types::{DataTypeExt, DataTypeKind};
-    use std::sync::Arc;
-
-    #[test]
-    fn plan_select() {
-        let catalog = Arc::new(RootCatalog::new());
-        let mut binder = Binder::new(catalog.clone());
-
-        let database = catalog.get_database_by_id(0).unwrap();
-        let schema = database.get_schema_by_id(0).unwrap();
-        schema
-            .add_table(
-                "t".into(),
-                vec![
-                    ColumnCatalog::new(0, "a".into(), DataTypeKind::Int.not_null().to_column()),
-                    ColumnCatalog::new(1, "b".into(), DataTypeKind::Int.not_null().to_column()),
-                ],
-                false,
-            )
-            .unwrap();
-
-        let sql = "select b, a from t";
-        let stmts = parse(sql).unwrap();
-        let stmt = binder.bind(&stmts[0]).unwrap();
-        let planner = LogicalPlaner::default();
-        let plan = planner.plan(stmt).unwrap();
-        assert_eq!(
-            plan,
-            LogicalPlan::Projection(LogicalProjection {
-                project_expressions: vec![
-                    BoundExpr {
-                        kind: BoundExprKind::ColumnRef(BoundColumnRef {
-                            table_name: "t".to_string(),
-                            column_ref_id: ColumnRefId::new(0, 0, 0, 1),
-                            column_index: 0,
-                        }),
-                        return_type: Some(DataTypeKind::Int.not_null()),
-                    },
-                    BoundExpr {
-                        kind: BoundExprKind::ColumnRef(BoundColumnRef {
-                            table_name: "t".to_string(),
-                            column_ref_id: ColumnRefId::new(0, 0, 0, 0),
-                            column_index: 1,
-                        }),
-                        return_type: Some(DataTypeKind::Int.not_null()),
-                    },
-                ],
-                child: Box::new(LogicalPlan::SeqScan(LogicalSeqScan {
-                    table_ref_id: TableRefId {
-                        database_id: 0,
-                        schema_id: 0,
-                        table_id: 0
-                    },
-                    column_ids: vec![1, 0],
-                })),
-            })
-        )
     }
 }

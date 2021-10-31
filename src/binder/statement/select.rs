@@ -75,7 +75,7 @@ impl Binder {
             // return_names.push(expr.get_name());
             select_list.push(expr);
         }
-
+        // TODO: move the column index binding into phyiscal planner
         // Add referred columns for base table reference
         for table_ref in from_table.iter_mut() {
             self.bind_column_ids(table_ref);
@@ -124,24 +124,31 @@ impl Binder {
                 *column_ids = self.context.column_ids.get(table_name).unwrap().clone();
             }
             BoundTableRef::JoinTableRef {
-                left_table,
-                right_table,
-                join_op: _,
+                relation,
+                join_tables,
             } => {
-                self.bind_column_ids(left_table);
-                self.bind_column_ids(right_table);
+                self.bind_column_ids(relation);
+                for table in join_tables.iter_mut() {
+                    self.bind_column_ids(&mut table.table_ref);
+                }
             }
         }
     }
 
     fn bind_column_idx_for_table(&mut self, table_ref: &mut BoundTableRef) {
-        if let BoundTableRef::JoinTableRef { join_op, .. } = table_ref {
-            match join_op {
-                BoundJoinOperator::Inner(constraint) => match constraint {
-                    BoundJoinConstraint::On(expr) => {
-                        self.bind_column_idx_for_expr(&mut expr.kind);
-                    }
-                },
+        if let BoundTableRef::JoinTableRef {
+            relation: _,
+            join_tables,
+        } = table_ref
+        {
+            for table in join_tables.iter_mut() {
+                match &mut table.join_op {
+                    BoundJoinOperator::Inner(constraint) => match constraint {
+                        BoundJoinConstraint::On(expr) => {
+                            self.bind_column_idx_for_expr(&mut expr.kind);
+                        }
+                    },
+                }
             }
         }
     }
@@ -178,144 +185,4 @@ impl Binder {
 pub struct BoundOrderBy {
     pub expr: BoundExpr,
     pub descending: bool,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::catalog::{ColumnCatalog, ColumnRefId, RootCatalog};
-    use crate::parser::{parse, BinaryOperator, Statement};
-    use crate::types::{DataType, DataTypeExt, DataTypeKind};
-    use std::sync::Arc;
-
-    #[test]
-    fn bind_join() {
-        let catalog = Arc::new(RootCatalog::new());
-        let mut binder = Binder::new(catalog.clone());
-
-        let database = catalog.get_database_by_id(0).unwrap();
-        let schema = database.get_schema_by_id(0).unwrap();
-        schema
-            .add_table(
-                "x".into(),
-                vec![
-                    ColumnCatalog::new(0, "a".into(), DataTypeKind::Int.not_null().to_column()),
-                    ColumnCatalog::new(1, "b".into(), DataTypeKind::Int.not_null().to_column()),
-                ],
-                false,
-            )
-            .unwrap();
-        schema
-            .add_table(
-                "y".into(),
-                vec![
-                    ColumnCatalog::new(0, "c".into(), DataTypeKind::Int.not_null().to_column()),
-                    ColumnCatalog::new(1, "d".into(), DataTypeKind::Int.not_null().to_column()),
-                ],
-                false,
-            )
-            .unwrap();
-
-        let sql = "select c, d, a, b from x join y on a = c;";
-        let stmts = parse(sql).unwrap();
-        let query = match &stmts[0] {
-            Statement::Query(q) => &*q,
-            _ => panic!("type mismatch"),
-        };
-        assert_eq!(
-            *binder.bind_select(query).unwrap(),
-            BoundSelect {
-                select_list: vec![
-                    BoundExpr {
-                        kind: BoundExprKind::ColumnRef(BoundColumnRef {
-                            table_name: "y".into(),
-                            column_ref_id: ColumnRefId::new(0, 0, 1, 0),
-                            column_index: 2,
-                        }),
-                        return_type: Some(DataTypeKind::Int.not_null()),
-                    },
-                    BoundExpr {
-                        kind: BoundExprKind::ColumnRef(BoundColumnRef {
-                            table_name: "y".into(),
-                            column_ref_id: ColumnRefId::new(0, 0, 1, 1),
-                            column_index: 3,
-                        }),
-                        return_type: Some(DataTypeKind::Int.not_null()),
-                    },
-                    BoundExpr {
-                        kind: BoundExprKind::ColumnRef(BoundColumnRef {
-                            table_name: "x".into(),
-                            column_ref_id: ColumnRefId::new(0, 0, 0, 0),
-                            column_index: 0,
-                        }),
-                        return_type: Some(DataTypeKind::Int.not_null()),
-                    },
-                    BoundExpr {
-                        kind: BoundExprKind::ColumnRef(BoundColumnRef {
-                            table_name: "x".into(),
-                            column_ref_id: ColumnRefId::new(0, 0, 0, 1),
-                            column_index: 1,
-                        }),
-                        return_type: Some(DataTypeKind::Int.not_null()),
-                    },
-                ],
-                from_table: vec![BoundTableRef::JoinTableRef {
-                    left_table: Box::new(BoundTableRef::BaseTableRef {
-                        ref_id: TableRefId {
-                            database_id: 0,
-                            schema_id: 0,
-                            table_id: 0
-                        },
-                        table_name: "x".into(),
-                        column_ids: vec![0, 1]
-                    }),
-                    right_table: Box::new(BoundTableRef::BaseTableRef {
-                        ref_id: TableRefId {
-                            database_id: 0,
-                            schema_id: 0,
-                            table_id: 1
-                        },
-                        table_name: "y".into(),
-                        column_ids: vec![0, 1]
-                    }),
-                    join_op: BoundJoinOperator::Inner(BoundJoinConstraint::On(BoundExpr {
-                        kind: BoundExprKind::BinaryOp(BoundBinaryOp {
-                            left_expr: Box::new(BoundExpr {
-                                kind: BoundExprKind::ColumnRef(BoundColumnRef {
-                                    table_name: "x".into(),
-                                    column_ref_id: ColumnRefId::new(0, 0, 0, 0),
-                                    column_index: 0,
-                                }),
-                                return_type: Some(DataType {
-                                    kind: DataTypeKind::Int,
-                                    nullable: false
-                                })
-                            }),
-                            op: BinaryOperator::Eq,
-                            right_expr: Box::new(BoundExpr {
-                                kind: BoundExprKind::ColumnRef(BoundColumnRef {
-                                    table_name: "y".into(),
-                                    column_ref_id: ColumnRefId::new(0, 0, 1, 0),
-                                    column_index: 2,
-                                }),
-                                return_type: Some(DataType {
-                                    kind: DataTypeKind::Int,
-                                    nullable: false
-                                })
-                            }),
-                        }),
-                        return_type: Some(DataType {
-                            kind: DataTypeKind::Int,
-                            nullable: false
-                        })
-                    }))
-                }],
-                orderby: vec![],
-                where_clause: None,
-                select_distinct: false,
-                limit: None,
-                offset: None,
-            }
-        );
-    }
 }
