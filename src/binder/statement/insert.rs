@@ -78,7 +78,7 @@ impl Binder {
                     bound_row.reserve(row.len());
                     for (idx, expr) in row.iter().enumerate() {
                         // Bind expression
-                        let expr = self.bind_expr(expr)?;
+                        let mut expr = self.bind_expr(expr)?;
 
                         if let Some(data_type) = &expr.return_type {
                             // TODO: support valid type cast
@@ -95,6 +95,7 @@ impl Binder {
                                     "Can not insert null to non null column".into(),
                                 ));
                             }
+                            expr.return_type = Some(column_types[idx].clone());
                         }
                         bound_row.push(expr);
                     }

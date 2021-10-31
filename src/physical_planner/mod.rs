@@ -33,6 +33,7 @@ pub enum PhysicalPlan {
     Dummy,
     SeqScan(PhysicalSeqScan),
     Insert(PhysicalInsert),
+    Values(PhysicalValues),
     CreateTable(PhysicalCreateTable),
     Drop(PhysicalDrop),
     Projection(PhysicalProjection),

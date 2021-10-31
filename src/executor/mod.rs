@@ -33,6 +33,7 @@ mod nested_loop_join;
 mod order;
 mod projection;
 mod seq_scan;
+mod values;
 
 use self::create::*;
 use self::drop::*;
@@ -45,6 +46,7 @@ use self::nested_loop_join::*;
 use self::order::*;
 use self::projection::*;
 use self::seq_scan::*;
+use self::values::*;
 
 /// The error type of execution.
 #[derive(thiserror::Error, Debug)]
@@ -94,7 +96,19 @@ impl ExecutorBuilder {
                 CreateTableExecutor { plan, storage }.execute().boxed()
             }
             PhysicalPlan::Drop(plan) => DropExecutor { plan, storage }.execute().boxed(),
-            PhysicalPlan::Insert(plan) => InsertExecutor { plan, storage }.execute().boxed(),
+            PhysicalPlan::Insert(plan) => InsertExecutor {
+                table_ref_id: plan.table_ref_id,
+                column_ids: plan.column_ids,
+                storage: storage.clone(),
+                child: self.build_with_storage(*plan.child, storage),
+            }
+            .execute()
+            .boxed(),
+            PhysicalPlan::Values(plan) => ValuesExecutor {
+                values: plan.values,
+            }
+            .execute()
+            .boxed(),
             PhysicalPlan::Projection(plan) => ProjectionExecutor {
                 project_expressions: plan.project_expressions,
                 child: self.build_with_storage(*plan.child, storage),
