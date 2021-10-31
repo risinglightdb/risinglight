@@ -3,24 +3,16 @@ use std::fmt::Debug;
 pub trait NativeType:
     PartialOrd + PartialEq + Debug + Copy + Send + Sync + Sized + Default + 'static
 {
+    const ZERO: Self;
 }
 
-impl NativeType for i16 {}
+macro_rules! impl_native {
+    ($($t:ty),*) => {
+        $(impl NativeType for $t { const ZERO: Self = 0 as Self; })*
+    }
+}
+impl_native!(u8, u16, u32, u64, usize, i8, i16, i32, i64, isize, f32, f64);
 
-impl NativeType for i32 {}
-
-impl NativeType for i64 {}
-
-impl NativeType for f32 {}
-
-impl NativeType for f64 {}
-
-impl NativeType for u8 {}
-
-impl NativeType for u16 {}
-
-impl NativeType for u32 {}
-
-impl NativeType for u64 {}
-
-impl NativeType for bool {}
+impl NativeType for bool {
+    const ZERO: Self = false;
+}
