@@ -24,7 +24,7 @@ mod aggregation;
 mod create;
 mod drop;
 mod dummy_scan;
-mod evaluator;
+pub mod evaluator;
 mod explain;
 mod filter;
 mod insert;

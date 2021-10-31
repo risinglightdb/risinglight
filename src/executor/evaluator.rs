@@ -88,9 +88,9 @@ impl ArrayImpl {
             ($op:tt) => {
                 match (self, right) {
                     #[cfg(feature = "simd")]
-                    (A::Int32(a), A::Int32(b)) => A::Int32(simd_op::<_, _, _, 8>(a, b, |a, b| a $op b)),
+                    (A::Int32(a), A::Int32(b)) => A::Int32(simd_op::<_, _, _, 32>(a, b, |a, b| a $op b)),
                     #[cfg(feature = "simd")]
-                    (A::Float64(a), A::Float64(b)) => A::Float64(simd_op::<_, _, _, 4>(a, b, |a, b| a $op b)),
+                    (A::Float64(a), A::Float64(b)) => A::Float64(simd_op::<_, _, _, 32>(a, b, |a, b| a $op b)),
 
                     #[cfg(not(feature = "simd"))]
                     (A::Int32(a), A::Int32(b)) => A::Int32(binary_op(a, b, |a, b| a $op b)),
@@ -205,7 +205,7 @@ use crate::types::NativeType;
 use core_simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
 
 #[cfg(feature = "simd")]
-fn simd_op<T, O, F, const N: usize>(
+pub fn simd_op<T, O, F, const N: usize>(
     a: &PrimitiveArray<T>,
     b: &PrimitiveArray<T>,
     f: F,
@@ -227,7 +227,7 @@ where
         .collect()
 }
 
-fn binary_op<A, B, O, F, V>(a: &A, b: &B, f: F) -> O
+pub fn binary_op<A, B, O, F, V>(a: &A, b: &B, f: F) -> O
 where
     A: Array,
     B: Array,

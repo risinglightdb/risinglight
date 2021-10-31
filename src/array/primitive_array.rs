@@ -123,9 +123,16 @@ impl<T: NativeType, const N: usize> Iterator for BatchIter<'_, T, N> {
         let len = (self.array.len() - self.idx).min(N);
         let range = self.idx..self.idx + len;
 
-        let mut valid = 0usize;
-        BitSlice::from_element_mut(&mut valid)[..len]
-            .copy_from_bitslice(&self.array.valid[range.clone()]);
+        assert_eq!(N % 8, 0, "batch size must be a multiple of 8");
+        let mut valid = [0u8; std::mem::size_of::<usize>()];
+        let bytes = (len + 7) / 8;
+        valid[..bytes].copy_from_slice(unsafe {
+            std::slice::from_raw_parts(
+                (self.array.valid.as_raw_ptr() as *const u8).add(self.idx / 8),
+                bytes,
+            )
+        });
+        let valid = usize::from_le_bytes(valid);
 
         let data: [T; N] = if len == N {
             self.array.data[range].try_into().unwrap()
@@ -135,7 +142,7 @@ impl<T: NativeType, const N: usize> Iterator for BatchIter<'_, T, N> {
             data
         };
 
-        self.idx += len;
+        self.idx += N;
         Some(BatchItem { valid, data, len })
     }
 }
@@ -143,7 +150,7 @@ impl<T: NativeType, const N: usize> Iterator for BatchIter<'_, T, N> {
 impl<T: NativeType, const N: usize> FromIterator<BatchItem<T, N>> for PrimitiveArray<T> {
     fn from_iter<I: IntoIterator<Item = BatchItem<T, N>>>(iter: I) -> Self {
         let iter = iter.into_iter();
-        let mut builder = PrimitiveArrayBuilder::new(iter.size_hint().0);
+        let mut builder = PrimitiveArrayBuilder::new(iter.size_hint().0 * N);
         for e in iter {
             builder
                 .valid
@@ -161,21 +168,23 @@ mod tests {
 
     #[test]
     fn batch_iter() {
-        let a = (0..12).collect::<PrimitiveArray<u32>>();
+        let a = (0..12)
+            .map(|i| if i % 2 == 0 { Some(i) } else { None })
+            .collect::<PrimitiveArray<u32>>();
         let mut iter = a.batch_iter::<8>();
         assert_eq!(
             iter.next(),
             Some(BatchItem {
-                valid: 0xff,
-                data: [0, 1, 2, 3, 4, 5, 6, 7],
+                valid: 0b_0101_0101,
+                data: [0, 0, 2, 0, 4, 0, 6, 0],
                 len: 8
             })
         );
         assert_eq!(
             iter.next(),
             Some(BatchItem {
-                valid: 0xf,
-                data: [8, 9, 10, 11, 0, 0, 0, 0],
+                valid: 0b_0000_0101,
+                data: [8, 0, 10, 0, 0, 0, 0, 0],
                 len: 4
             })
         );
@@ -185,7 +194,7 @@ mod tests {
     #[test]
     fn batch_iter_collect() {
         let a = (0..12).collect::<PrimitiveArray<u32>>();
-        let a1 = a.batch_iter::<5>().collect::<PrimitiveArray<u32>>();
+        let a1 = a.batch_iter::<8>().collect::<PrimitiveArray<u32>>();
         assert_eq!(a1, a);
     }
 
