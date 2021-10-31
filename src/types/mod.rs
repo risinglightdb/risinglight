@@ -73,4 +73,38 @@ impl DataValue {
             Self::Null => None,
         }
     }
+
+    /// Convert the value to a usize.
+    pub fn as_usize(&self) -> Result<Option<usize>, ConvertError> {
+        Ok(Some(match self {
+            DataValue::Null => return Ok(None),
+            &DataValue::Bool(b) => b as usize,
+            &DataValue::Int32(v) => v
+                .try_into()
+                .map_err(|_| ConvertError::Cast(v.to_string(), "usize"))?,
+            &DataValue::Int64(v) => v
+                .try_into()
+                .map_err(|_| ConvertError::Cast(v.to_string(), "usize"))?,
+            &DataValue::Float64(f) if f.is_sign_negative() => {
+                return Err(ConvertError::Cast(f.to_string(), "usize"));
+            }
+            &DataValue::Float64(f) => f as usize,
+            DataValue::String(s) => s
+                .parse::<usize>()
+                .map_err(|e| ConvertError::ParseInt(s.clone(), e))?,
+        }))
+    }
+}
+
+/// The error type of value type convention.
+#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+pub enum ConvertError {
+    #[error("failed to convert string {0:?} to int: {:?}")]
+    ParseInt(String, std::num::ParseIntError),
+    #[error("failed to convert string {0:?} to float: {:?}")]
+    ParseFloat(String, std::num::ParseFloatError),
+    #[error("failed to convert string {0:?} to bool: {:?}")]
+    ParseBool(String, std::str::ParseBoolError),
+    #[error("failed to cast {0} to type {1}")]
+    Cast(String, &'static str),
 }

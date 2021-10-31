@@ -2,7 +2,7 @@ use crate::{
     array::*,
     binder::{BoundExpr, BoundExprKind},
     parser::{BinaryOperator, UnaryOperator},
-    types::{DataTypeKind, DataValue},
+    types::{ConvertError, DataTypeKind, DataValue},
 };
 use std::borrow::Borrow;
 
@@ -173,28 +173,23 @@ impl ArrayImpl {
                 _ => todo!("cast array"),
             },
             Self::UTF8(a) => match data_type {
-                Type::Boolean => Self::Bool(try_unary_op(a, |s| s.parse::<bool>())?),
-                Type::Int => Self::Int32(try_unary_op(a, |s| s.parse::<i32>())?),
-                Type::Float(_) | Type::Double => {
-                    Self::Float64(try_unary_op(a, |s| s.parse::<f64>())?)
-                }
+                Type::Boolean => Self::Bool(try_unary_op(a, |s| {
+                    s.parse::<bool>()
+                        .map_err(|e| ConvertError::ParseBool(s.to_string(), e))
+                })?),
+                Type::Int => Self::Int32(try_unary_op(a, |s| {
+                    s.parse::<i32>()
+                        .map_err(|e| ConvertError::ParseInt(s.to_string(), e))
+                })?),
+                Type::Float(_) | Type::Double => Self::Float64(try_unary_op(a, |s| {
+                    s.parse::<f64>()
+                        .map_err(|e| ConvertError::ParseFloat(s.to_string(), e))
+                })?),
                 Type::String | Type::Char(_) | Type::Varchar(_) => Self::UTF8(a.clone()),
                 _ => todo!("cast array"),
             },
         })
     }
-}
-
-/// The error type of value type convention.
-#[derive(thiserror::Error, Debug, Clone, PartialEq)]
-#[allow(clippy::enum_variant_names)]
-pub enum ConvertError {
-    #[error("failed to convert string to int")]
-    ParseInt(#[from] std::num::ParseIntError),
-    #[error("failed to convert string to float")]
-    ParseFloat(#[from] std::num::ParseFloatError),
-    #[error("failed to convert string to bool")]
-    ParseBool(#[from] std::str::ParseBoolError),
 }
 
 fn binary_op<A, B, O, F, V>(a: &A, b: &B, f: F) -> O

@@ -4,6 +4,7 @@ mod explain;
 mod filter;
 mod insert;
 mod join;
+mod limit;
 mod order;
 mod projection;
 mod seq_scan;
@@ -14,6 +15,7 @@ pub use explain::*;
 pub use filter::*;
 pub use insert::*;
 pub use join::*;
+pub use limit::*;
 pub use order::*;
 pub use projection::*;
 pub use seq_scan::*;
@@ -38,6 +40,7 @@ pub enum PhysicalPlan {
     Explain(PhysicalExplain),
     Join(PhysicalJoin),
     Order(PhysicalOrder),
+    Limit(PhysicalLimit),
 }
 
 #[derive(Default)]
@@ -55,6 +58,7 @@ impl PhysicalPlaner {
             LogicalPlan::Projection(plan) => self.plan_projection(plan),
             LogicalPlan::Filter(plan) => self.plan_filter(plan),
             LogicalPlan::Order(plan) => self.plan_order(plan),
+            LogicalPlan::Limit(plan) => self.plan_limit(plan),
             LogicalPlan::Explain(plan) => self.plan_explain(plan),
         }
     }
