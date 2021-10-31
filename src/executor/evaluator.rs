@@ -221,7 +221,7 @@ where
         .zip(b.batch_iter::<N>())
         .map(|(a, b)| BatchItem {
             valid: a.valid & b.valid,
-            data: f(a.data.into(), b.data.into()).into(),
+            data: f(a.data, b.data),
             len: a.len,
         })
         .collect()

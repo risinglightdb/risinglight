@@ -18,6 +18,11 @@ Run benchmarks:
 cargo bench
 ```
 
+Run benchmarks with SIMD acceleration:
+```
+RUSTFLAGS='-C target-cpu=native' cargo bench --features=simd
+```
+
 ### Progress
 
 The system design refers to [RisingWave C++ version](https://github.com/singularity-data/risingwave/tree/legacy-cpp/cpp). We will also "borrow" some code from Rust version.  
