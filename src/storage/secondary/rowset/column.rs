@@ -12,7 +12,7 @@ use super::{Block, BlockCacheKey, ColumnIndex};
 /// [`Column`] contains index, file handler and a reference to block cache. Therefore,
 /// it is simply a reference, and can be cloned without much overhead.
 #[derive(Clone)]
-pub(super) struct Column {
+pub struct Column {
     index: ColumnIndex,
     file: Arc<std::fs::File>,
     block_cache: Cache<BlockCacheKey, Block>,
@@ -34,6 +34,7 @@ impl Column {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn get_block(&self, block_id: usize) -> Block {
         // It is possible that there will be multiple futures accessing
         // one block not in cache concurrently, which might cause avalanche
@@ -50,8 +51,7 @@ impl Column {
             let file = self.file.clone();
             let info = self.index.indexes()[block_id].clone();
             let block = tokio::task::spawn_blocking(move || {
-                let mut data = Vec::with_capacity(info.length as usize);
-                data.resize(info.length as usize, 0);
+                let mut data = vec![0; info.length as usize];
                 // TODO(chi): handle file system errors
                 file.read_exact_at(&mut data[..], info.offset).unwrap();
                 Bytes::from(data)

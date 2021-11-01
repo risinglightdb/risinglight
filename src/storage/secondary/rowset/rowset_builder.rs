@@ -22,7 +22,11 @@ pub fn path_of_index_column(base: impl AsRef<Path>, column_info: &ColumnCatalog)
     path_of_column(base, column_info, ".idx")
 }
 
-pub fn path_of_column(base: impl AsRef<Path>, column_info: &ColumnCatalog, suffix: &str) -> PathBuf {
+pub fn path_of_column(
+    base: impl AsRef<Path>,
+    column_info: &ColumnCatalog,
+    suffix: &str,
+) -> PathBuf {
     base.as_ref()
         .join(format!("{}{}", column_info.id(), suffix))
 }
@@ -71,7 +75,7 @@ impl RowsetBuilder {
             .await?;
 
         let mut writer = BufWriter::new(file);
-        writer.write(&data).await?;
+        writer.write_all(&data).await?;
         writer.flush().await?;
 
         let file = writer.into_inner();

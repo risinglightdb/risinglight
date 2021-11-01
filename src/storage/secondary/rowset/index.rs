@@ -4,6 +4,8 @@ use bytes::Buf;
 use prost::Message;
 use risinglight_proto::rowset::BlockIndex;
 
+use crate::storage::secondary::INDEX_FOOTER_SIZE;
+
 use super::SECONDARY_INDEX_MAGIC;
 
 #[derive(Clone)]
@@ -12,14 +14,15 @@ pub struct ColumnIndex {
 }
 
 impl ColumnIndex {
+    #[allow(dead_code)]
     pub fn indexes(&self) -> &[BlockIndex] {
         &self.indexes
     }
 
     pub fn from_bytes(data: &[u8]) -> Self {
         // TODO(chi): error handling
-        let mut index_data = &data[..data.len() - 16];
-        let mut footer = &data[data.len() - 16..];
+        let mut index_data = &data[..data.len() - INDEX_FOOTER_SIZE];
+        let mut footer = &data[data.len() - INDEX_FOOTER_SIZE..];
         assert_eq!(footer.get_u32(), SECONDARY_INDEX_MAGIC);
         let length = footer.get_u64() as usize;
         // TODO: verify checksum

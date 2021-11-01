@@ -33,7 +33,6 @@
 //! * `RunLengthIntBlockBuilder` - `RunLengthIntBlock` - `RunLengthIntBlockIterator` - an entry in proto
 //! * `IntColumnBuilder` - `IntColumn` - `IntColumnIterator` - an entry in proto
 
-use bytes::Bytes;
 use risinglight_proto::rowset::BlockIndex;
 
 use crate::array::Array;
@@ -56,7 +55,6 @@ mod column_builder;
 use column_builder::*;
 
 mod column;
-use column::*;
 
 mod encode;
 pub use encode::*;

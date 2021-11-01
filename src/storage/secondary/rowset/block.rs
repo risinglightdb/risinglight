@@ -8,7 +8,7 @@ pub type Block = Bytes;
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Default)]
 pub struct BlockCacheKey {
     pub rowset_id: usize,
-    pub column_id: usize,
+    pub storage_column_id: usize,
     pub block_id: usize,
 }
 
@@ -18,8 +18,8 @@ impl BlockCacheKey {
         self
     }
 
-    pub fn column(mut self, column_id: usize) -> Self {
-        self.column_id = column_id;
+    pub fn column(mut self, storage_column_id: usize) -> Self {
+        self.storage_column_id = storage_column_id;
         self
     }
 
