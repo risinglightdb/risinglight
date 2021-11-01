@@ -52,7 +52,9 @@ impl<S: Storage> SeqScanExecutor<S> {
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
             let chunk = self.execute_inner().await?;
-            yield chunk;
+            if chunk.cardinality() != 0 {
+                yield chunk;
+            }
         }
     }
 }
