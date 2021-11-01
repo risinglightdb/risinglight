@@ -1,39 +1,26 @@
 use super::*;
-use crate::array::{ArrayBuilderImpl, DataChunk};
-use crate::physical_planner::PhysicalInsert;
+use crate::array::DataChunk;
+use crate::catalog::TableRefId;
 use crate::storage::{Storage, Table, Transaction};
+use crate::types::ColumnId;
 use std::sync::Arc;
 
 /// The executor of `insert` statement.
 pub struct InsertExecutor<S: Storage> {
-    pub plan: PhysicalInsert,
+    pub table_ref_id: TableRefId,
+    pub column_ids: Vec<ColumnId>,
     pub storage: Arc<S>,
+    pub child: BoxedExecutor,
 }
 
 impl<S: Storage> InsertExecutor<S> {
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
-            let cardinality = self.plan.values.len();
-            assert!(cardinality > 0);
-
-            let table = self.storage.get_table(self.plan.table_ref_id)?;
-            let columns = table.column_descs(&self.plan.column_ids)?;
-            let mut array_builders = columns
-                .iter()
-                .map(|col| ArrayBuilderImpl::new(col.datatype()))
-                .collect::<Vec<ArrayBuilderImpl>>();
-            for row in &self.plan.values {
-                for (expr, builder) in row.iter().zip(&mut array_builders) {
-                    let value = expr.eval();
-                    builder.push(&value);
-                }
-            }
-            let chunk = array_builders
-                .into_iter()
-                .map(|builder| builder.finish())
-                .collect::<DataChunk>();
+            let table = self.storage.get_table(self.table_ref_id)?;
             let mut txn = table.write().await?;
-            txn.append(chunk).await?;
+            for await chunk in self.child {
+                txn.append(chunk?).await?;
+            }
             txn.commit().await?;
 
             yield DataChunk::single();
@@ -44,43 +31,32 @@ impl<S: Storage> InsertExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::binder::BoundExpr;
+    use crate::array::{ArrayImpl, DataChunk};
     use crate::catalog::{ColumnCatalog, TableRefId};
-    use crate::executor::CreateTableExecutor;
-    use crate::executor::{GlobalEnv, GlobalEnvRef};
+    use crate::executor::{CreateTableExecutor, GlobalEnv, GlobalEnvRef};
     use crate::physical_planner::PhysicalCreateTable;
     use crate::storage::InMemoryStorage;
-    use crate::types::{DataTypeExt, DataTypeKind, DataValue};
+    use crate::types::{DataTypeExt, DataTypeKind};
     use std::sync::Arc;
 
     #[tokio::test]
     async fn simple() {
         let env = create_table().await;
-        let values = [[0, 100], [1, 101], [2, 102], [3, 103]];
-        let values = values
-            .iter()
-            .map(|row| {
-                row.iter()
-                    .map(|&v| BoundExpr::constant(DataValue::Int32(v)))
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let plan = PhysicalInsert {
-            table_ref_id: TableRefId {
-                database_id: 0,
-                schema_id: 0,
-                table_id: 0,
-            },
+        let executor = InsertExecutor {
+            table_ref_id: TableRefId::new(0, 0, 0),
             column_ids: vec![0, 1],
-            values,
-        };
-        let mut executor = InsertExecutor {
-            plan,
             storage: env.storage.as_in_memory_storage(),
-        }
-        .execute()
-        .boxed();
-        executor.next().await.unwrap().unwrap();
+            child: try_stream! {
+                yield [
+                    ArrayImpl::Int32((0..4).collect()),
+                    ArrayImpl::Int32((100..104).collect()),
+                ]
+                .into_iter()
+                .collect::<DataChunk>();
+            }
+            .boxed(),
+        };
+        executor.execute().boxed().next().await.unwrap().unwrap();
     }
 
     async fn create_table() -> GlobalEnvRef {

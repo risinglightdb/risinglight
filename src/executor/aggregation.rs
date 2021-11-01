@@ -123,8 +123,7 @@ mod tests {
     use crate::catalog::{ColumnCatalog, ColumnRefId, TableRefId};
     use crate::executor::CreateTableExecutor;
     use crate::executor::{GlobalEnv, GlobalEnvRef};
-    use crate::physical_planner::PhysicalCreateTable;
-    use crate::physical_planner::{PhysicalInsert, PhysicalSeqScan};
+    use crate::physical_planner::{PhysicalCreateTable, PhysicalSeqScan};
     use crate::storage::InMemoryStorage;
     use crate::types::{DataType, DataTypeExt, DataValue};
     use futures::TryStreamExt;
@@ -218,31 +217,21 @@ mod tests {
         .boxed();
         executor.next().await.unwrap().unwrap();
 
-        let values = [[1, 10], [2, 20], [3, 30], [4, 40]];
-        let values = values
-            .iter()
-            .map(|row| {
-                row.iter()
-                    .map(|&v| BoundExpr::constant(DataValue::Int32(v)))
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let plan = PhysicalInsert {
-            table_ref_id: TableRefId {
-                database_id: 0,
-                schema_id: 0,
-                table_id: 0,
-            },
+        let executor = InsertExecutor {
+            table_ref_id: TableRefId::new(0, 0, 0),
             column_ids: vec![0, 1],
-            values,
-        };
-        let mut executor = InsertExecutor {
-            plan,
             storage: env.storage.as_in_memory_storage(),
-        }
-        .execute()
-        .boxed();
-        executor.next().await.unwrap().unwrap();
+            child: try_stream! {
+                yield [
+                    ArrayImpl::Int32([1, 2, 3, 4].into_iter().collect()),
+                    ArrayImpl::Int32([10, 20, 30, 40].into_iter().collect()),
+                ]
+                .into_iter()
+                .collect::<DataChunk>();
+            }
+            .boxed(),
+        };
+        executor.execute().boxed().next().await.unwrap().unwrap();
         env
     }
 
