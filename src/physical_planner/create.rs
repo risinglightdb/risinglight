@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use super::*;
 use crate::catalog::ColumnCatalog;
 use crate::logical_planner::LogicalCreateTable;
@@ -23,5 +25,19 @@ impl PhysicalPlaner {
             table_name: plan.table_name,
             columns: plan.columns,
         }))
+    }
+}
+
+impl PlanExplainable for PhysicalCreateTable {
+    fn explain_inner(&self, _level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f,
+            "CreateTable: table {}, columns [{}]",
+            self.table_name,
+            self.columns
+                .iter()
+                .map(|x| format!("{}:{}", x.name(), x.datatype()))
+                .join(", ")
+        )
     }
 }

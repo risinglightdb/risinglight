@@ -15,3 +15,9 @@ impl PhysicalPlaner {
         }))
     }
 }
+
+impl PlanExplainable for PhysicalExplain {
+    fn explain_inner(&self, _level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Huh, explain myself?")
+    }
+}

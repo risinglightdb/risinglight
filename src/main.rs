@@ -12,7 +12,13 @@ async fn main() {
         print!("> ");
         std::io::stdout().lock().flush().unwrap();
         let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
+        let cnt = std::io::stdin().read_line(&mut input).unwrap();
+
+        if cnt == 0 {
+            // EOF
+            break;
+        }
+
         let ret = db.run(&input).await;
         match ret {
             Ok(chunks) => {
