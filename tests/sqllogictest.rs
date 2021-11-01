@@ -16,6 +16,11 @@ use test_case::test_case;
 #[test_case("select.test")]
 #[test_case("join.slt")]
 #[test_case("limit.slt")]
+#[test_case("type.slt")]
+// #[test_case("where.slt")]
+// #[test_case("select.slt")]
+// #[test_case("aggregation.slt")]
+// #[test_case("issue_347.slt")]
 fn sqllogictest(name: &str) {
     init_logger();
     let script = std::fs::read_to_string(Path::new("tests/sql").join(name)).unwrap();
