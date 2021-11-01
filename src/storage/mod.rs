@@ -9,6 +9,9 @@ pub use secondary::{SecondaryStorage, StorageOptions as SecondaryStorageOptions}
 mod error;
 pub use error::{StorageError, StorageResult};
 
+mod chunk;
+pub use chunk::*;
+
 use crate::array::{ArrayImpl, DataChunk};
 use crate::catalog::{ColumnCatalog, ColumnDesc, TableRefId};
 use crate::types::{ColumnId, DatabaseId, SchemaId};

@@ -16,9 +16,7 @@
 //! |- 01.col     data for v1
 //! |- 01.sort    sort index for v1, which stores RowId + Key -> Block mapping
 //! |- 02.col     data for v2
-//! |- 02.idx     normal index for v2, which stores RowId -> Block mapping
-//! |- 02b.col    null bitmap for v2
-//! \- 02b.idx    normal index for v2's null bitmap, which stores RowId -> Block mapping
+//! \- 02.idx     normal index for v2, which stores RowId -> Block mapping
 //! ```
 //!
 //! Data flushed to directory will be immutable, and the directory content will remain
@@ -35,6 +33,7 @@
 //! * `RunLengthIntBlockBuilder` - `RunLengthIntBlock` - `RunLengthIntBlockIterator` - an entry in proto
 //! * `IntColumnBuilder` - `IntColumn` - `IntColumnIterator` - an entry in proto
 
+use bytes::Bytes;
 use risinglight_proto::rowset::BlockIndex;
 
 use crate::array::Array;
@@ -45,6 +44,9 @@ mod primitive_block_builder;
 use primitive_block_builder::*;
 
 mod primitive_column_builder;
+
+mod primitive_nullable_block_builder;
+use primitive_nullable_block_builder::*;
 
 mod column_builder;
 use column_builder::*;
@@ -59,6 +61,12 @@ pub use mem_rowset::*;
 
 mod disk_rowset;
 pub use disk_rowset::*;
+
+mod primitive_block_iterator;
+pub use primitive_block_iterator::*;
+
+/// A block is simply a bytes array.
+pub type Block = Bytes;
 
 /// Builds a column. [`ColumnBuilder`] will automatically chunk [`Array`] into
 /// blocks, calls [`BlockBuilder`] to generate a block, and builds index for a
@@ -88,21 +96,25 @@ pub trait ColumnBuilder<A: Array> {
 /// ```
 pub trait BlockBuilder<A: Array> {
     /// Append one data into the block.
-    fn append(&mut self, item: &A::Item);
+    fn append(&mut self, item: Option<&A::Item>);
 
     /// Get estimated size of block. Will be useful on runlength or compression encoding.
     fn estimated_size(&self) -> usize;
 
     /// Check if we should finish the current block. If there is no item in the current
     /// builder, this function must return `true`.
-    fn should_finish(&self, next_item: &A::Item) -> bool;
+    fn should_finish(&self, next_item: &Option<&A::Item>) -> bool;
 
     /// Finish a block and return encoded data.
     fn finish(self) -> Vec<u8>;
 }
 
-/// Iterates on a block
-pub trait BlockIterator<A: Array> {}
+/// An iterator on a block.
+pub trait BlockIterator<A: Array> {
+    /// Get a batch from the block. A `None` return value means that
+    /// there are no more elements from the block.
+    fn next_batch(&mut self) -> Option<A>;
+}
 
 /// Iteratos on a column
 pub trait ColumnIterator<A: Array> {}

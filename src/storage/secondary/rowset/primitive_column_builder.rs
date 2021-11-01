@@ -9,12 +9,15 @@ use bytes::BufMut;
 use crate::array::Array;
 
 use super::encode::PrimitiveFixedWidthEncode;
-use super::{BlockBuilder, ColumnBuilder, PlainPrimitiveBlockBuilder};
+use super::{
+    BlockBuilder, ColumnBuilder, PlainNullablePrimitiveBlockBuilder, PlainPrimitiveBlockBuilder,
+};
 use crate::storage::secondary::ColumnBuilderOptions;
 
 /// All supported block builders for primitive types.
 pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
     Plain(PlainPrimitiveBlockBuilder<T>),
+    PlainNullable(PlainNullablePrimitiveBlockBuilder<T>),
 }
 
 pub type I32ColumnBuilder = PrimitiveColumnBuilder<i32>;
@@ -35,10 +38,13 @@ pub struct PrimitiveColumnBuilder<T: PrimitiveFixedWidthEncode> {
 
     /// Begin row count of the current block
     last_row_count: usize,
+
+    /// Indicates whether the current column accepts null elements
+    nullable: bool,
 }
 
 impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
-    pub fn new(options: ColumnBuilderOptions) -> Self {
+    pub fn new(nullable: bool, options: ColumnBuilderOptions) -> Self {
         Self {
             data: vec![],
             index: vec![],
@@ -46,12 +52,16 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
             current_builder: None,
             row_count: 0,
             last_row_count: 0,
+            nullable,
         }
     }
 
     fn finish_builder(&mut self) {
         let (block_type, mut block_data) = match self.current_builder.take().unwrap() {
             BlockBuilderImpl::Plain(builder) => (BlockType::Plain, builder.finish()),
+            BlockBuilderImpl::PlainNullable(builder) => {
+                (BlockType::PlainNullable, builder.finish())
+            }
         };
 
         self.index.push(BlockIndex {
@@ -99,16 +109,15 @@ fn append_one_by_one<'a, T: PrimitiveFixedWidthEncode>(
     builder: &mut impl BlockBuilder<T::ArrayType>,
 ) -> (usize, bool) {
     let mut cnt = 0;
-    while let Some(item) = iter.peek() {
+    while let Some(to_be_appended) = iter.peek() {
         // peek and see if we could push more items into the builder
-        let to_be_appended = item.unwrap_or(T::DEAFULT_VALUE);
 
         if builder.should_finish(to_be_appended) {
             return (cnt, true);
         }
 
         // get the item from iterator and push it to the builder
-        let to_be_appended = iter.next().unwrap().unwrap_or(T::DEAFULT_VALUE);
+        let to_be_appended = iter.next().unwrap();
 
         builder.append(to_be_appended);
         cnt += 1;
@@ -123,13 +132,20 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
 
         while iter.peek().is_some() {
             if self.current_builder.is_none() {
-                self.current_builder = Some(BlockBuilderImpl::Plain(
-                    PlainPrimitiveBlockBuilder::new(self.options.target_size - 16),
-                ));
+                if self.nullable {
+                    self.current_builder = Some(BlockBuilderImpl::PlainNullable(
+                        PlainNullablePrimitiveBlockBuilder::new(self.options.target_size - 16),
+                    ));
+                } else {
+                    self.current_builder = Some(BlockBuilderImpl::Plain(
+                        PlainPrimitiveBlockBuilder::new(self.options.target_size - 16),
+                    ));
+                }
             }
 
             let (row_count, should_finish) = match self.current_builder.as_mut().unwrap() {
                 BlockBuilderImpl::Plain(builder) => append_one_by_one(&mut iter, builder),
+                BlockBuilderImpl::PlainNullable(builder) => append_one_by_one(&mut iter, builder),
             };
 
             self.row_count += row_count;
@@ -159,7 +175,7 @@ mod tests {
     fn test_i32_column_builder_finish_boundary() {
         let item_each_block = (128 - 16) / 4;
         // In the first case, we append array that just fits size of each block
-        let mut builder = I32ColumnBuilder::new(ColumnBuilderOptions { target_size: 128 });
+        let mut builder = I32ColumnBuilder::new(false, ColumnBuilderOptions { target_size: 128 });
         for _ in 0..10 {
             builder.append(&I32Array::from_iter(
                 [Some(1)].iter().cycle().cloned().take(item_each_block),
@@ -168,7 +184,7 @@ mod tests {
         assert_eq!(builder.finish().0.len(), 10);
 
         // In this case, we append array that is smaller than each block, and fill fewer than 2 blocks of contents
-        let mut builder = I32ColumnBuilder::new(ColumnBuilderOptions { target_size: 128 });
+        let mut builder = I32ColumnBuilder::new(false, ColumnBuilderOptions { target_size: 128 });
         for _ in 0..12 {
             builder.append(&I32Array::from_iter(
                 [Some(1)].iter().cycle().cloned().take(4),
@@ -177,7 +193,7 @@ mod tests {
         assert_eq!(builder.finish().0.len(), 2);
 
         // In this case, we append two array that sums up to exactly 2 blocks
-        let mut builder = I32ColumnBuilder::new(ColumnBuilderOptions { target_size: 128 });
+        let mut builder = I32ColumnBuilder::new(false, ColumnBuilderOptions { target_size: 128 });
         builder.append(&I32Array::from_iter(
             [Some(1)].iter().cycle().cloned().take(30),
         ));
@@ -187,7 +203,7 @@ mod tests {
         assert_eq!(builder.finish().0.len(), 2);
 
         // In this case, we append an array that is larger than 1 block.
-        let mut builder = I32ColumnBuilder::new(ColumnBuilderOptions { target_size: 128 });
+        let mut builder = I32ColumnBuilder::new(false, ColumnBuilderOptions { target_size: 128 });
         builder.append(&I32Array::from_iter(
             [Some(1)]
                 .iter()
@@ -198,12 +214,23 @@ mod tests {
         assert_eq!(builder.finish().0.len(), 100);
 
         // And finally, some chaos test
-        let mut builder = I32ColumnBuilder::new(ColumnBuilderOptions { target_size: 128 });
+        let mut builder = I32ColumnBuilder::new(false, ColumnBuilderOptions { target_size: 128 });
         for _ in 0..100 {
             builder.append(&I32Array::from_iter(
                 [Some(1)].iter().cycle().cloned().take(23),
             ));
         }
         assert_eq!(builder.finish().0.len(), 83);
+    }
+
+    #[test]
+    fn test_nullable_i32_column_builder() {
+        let mut builder = I32ColumnBuilder::new(true, ColumnBuilderOptions { target_size: 128 });
+        for _ in 0..100 {
+            builder.append(&I32Array::from_iter(
+                [Some(1)].iter().cycle().cloned().take(23),
+            ));
+        }
+        builder.finish();
     }
 }
