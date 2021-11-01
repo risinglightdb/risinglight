@@ -29,8 +29,11 @@ pub enum PhysicalPlanError {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct Dummy;
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum PhysicalPlan {
-    Dummy,
+    Dummy(Dummy),
     SeqScan(PhysicalSeqScan),
     Insert(PhysicalInsert),
     Values(PhysicalValues),
@@ -50,7 +53,7 @@ pub struct PhysicalPlaner;
 impl PhysicalPlaner {
     pub fn plan(&self, plan: LogicalPlan) -> Result<PhysicalPlan, PhysicalPlanError> {
         match plan {
-            LogicalPlan::Dummy => Ok(PhysicalPlan::Dummy),
+            LogicalPlan::Dummy => Ok(PhysicalPlan::Dummy(Dummy)),
             LogicalPlan::CreateTable(plan) => self.plan_create_table(plan),
             LogicalPlan::Drop(plan) => self.plan_drop(plan),
             LogicalPlan::Insert(plan) => self.plan_insert(plan),
@@ -62,5 +65,45 @@ impl PhysicalPlaner {
             LogicalPlan::Limit(plan) => self.plan_limit(plan),
             LogicalPlan::Explain(plan) => self.plan_explain(plan),
         }
+    }
+}
+
+pub trait PlanExplainable {
+    fn explain_inner(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
+
+    fn explain(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", " ".repeat(level * 2))?;
+        self.explain_inner(level, f)
+    }
+}
+
+impl PlanExplainable for Dummy {
+    fn explain_inner(&self, _level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Dummy")
+    }
+}
+
+impl PhysicalPlan {
+    fn explain(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Dummy(p) => p.explain(level, f),
+            Self::SeqScan(p) => p.explain(level, f),
+            Self::Insert(p) => p.explain(level, f),
+            Self::Values(p) => p.explain(level, f),
+            Self::CreateTable(p) => p.explain(level, f),
+            Self::Drop(p) => p.explain(level, f),
+            Self::Projection(p) => p.explain(level, f),
+            Self::Filter(p) => p.explain(level, f),
+            Self::Explain(p) => p.explain(level, f),
+            Self::Join(p) => p.explain(level, f),
+            Self::Order(p) => p.explain(level, f),
+            Self::Limit(p) => p.explain(level, f),
+        }
+    }
+}
+
+impl std::fmt::Display for PhysicalPlan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.explain(0, f)
     }
 }

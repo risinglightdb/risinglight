@@ -34,3 +34,11 @@ impl PhysicalPlaner {
         Ok(plan)
     }
 }
+
+impl PlanExplainable for PhysicalJoin {
+    fn explain_inner(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Join: type {:?}", self.join_type)?;
+        self.left_plan.explain(level + 1, f)?;
+        self.right_plan.explain(level + 1, f)
+    }
+}

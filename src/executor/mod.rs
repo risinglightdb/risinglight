@@ -91,7 +91,7 @@ impl ExecutorBuilder {
     /// Build executor from a physical plan with given concrete [`Storage`] type.
     fn build_with_storage(&self, plan: PhysicalPlan, storage: Arc<impl Storage>) -> BoxedExecutor {
         match plan {
-            PhysicalPlan::Dummy => DummyScanExecutor.execute().boxed(),
+            PhysicalPlan::Dummy(_) => DummyScanExecutor.execute().boxed(),
             PhysicalPlan::CreateTable(plan) => {
                 CreateTableExecutor { plan, storage }.execute().boxed()
             }

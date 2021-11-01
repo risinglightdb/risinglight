@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use super::*;
 use crate::binder::BoundExpr;
 use crate::catalog::TableRefId;
@@ -27,5 +29,23 @@ impl PhysicalPlaner {
                 values: stmt.values,
             })),
         }))
+    }
+}
+
+impl PlanExplainable for PhysicalInsert {
+    fn explain_inner(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f,
+            "Insert: table {}, columns [{}]",
+            self.table_ref_id.table_id,
+            self.column_ids.iter().map(ToString::to_string).join(", ")
+        )?;
+        self.child.explain(level + 1, f)
+    }
+}
+
+impl PlanExplainable for PhysicalValues {
+    fn explain_inner(&self, _level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Values: {} rows", self.values.len())
     }
 }

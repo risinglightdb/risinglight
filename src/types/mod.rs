@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 pub use sqlparser::ast::DataType as DataTypeKind;
 
 mod native;
@@ -21,6 +23,16 @@ impl DataType {
 
     pub fn kind(&self) -> DataTypeKind {
         self.kind.clone()
+    }
+}
+
+impl Display for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.kind)?;
+        if self.nullable {
+            write!(f, "(nullable)")?;
+        }
+        Ok(())
     }
 }
 

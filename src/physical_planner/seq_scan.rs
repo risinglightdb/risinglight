@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use super::*;
 use crate::catalog::TableRefId;
 use crate::logical_planner::LogicalSeqScan;
@@ -16,5 +18,16 @@ impl PhysicalPlaner {
             table_ref_id: plan.table_ref_id,
             column_ids: plan.column_ids,
         }))
+    }
+}
+
+impl PlanExplainable for PhysicalSeqScan {
+    fn explain_inner(&self, _level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f,
+            "SeqScan: table #{}, columns [{}]",
+            self.table_ref_id.table_id,
+            self.column_ids.iter().map(ToString::to_string).join(", ")
+        )
     }
 }
