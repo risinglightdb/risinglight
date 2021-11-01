@@ -170,6 +170,15 @@ impl ArrayImpl {
                 }
                 _ => todo!("cast array"),
             },
+            Self::Int64(a) => match data_type {
+                Type::Boolean => Self::Bool(unary_op(a, |&i| i != 0)),
+                Type::Int => Self::Int64(a.clone()),
+                Type::Float(_) | Type::Double => Self::Float64(unary_op(a, |&i| i as f64)),
+                Type::String | Type::Char(_) | Type::Varchar(_) => {
+                    Self::UTF8(unary_op(a, |&i| i.to_string()))
+                }
+                _ => todo!("cast array"),
+            },
             Self::Float64(a) => match data_type {
                 Type::Boolean => Self::Bool(unary_op(a, |&f| f != 0.0)),
                 Type::Int => Self::Int32(unary_op(a, |&f| f as i32)),

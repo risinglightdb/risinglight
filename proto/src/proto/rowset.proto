@@ -21,8 +21,9 @@ message BlockIndex {
   BlockType block_type = 1;
   uint64 offset = 2;
   uint64 length = 3;
-  uint64 first_rowid = 4;
-  bytes first_key = 5;
+  uint32 first_rowid = 4;
+  uint32 row_count = 5;
+  bytes first_key = 6;
 }
 
 message ColumnInfo {

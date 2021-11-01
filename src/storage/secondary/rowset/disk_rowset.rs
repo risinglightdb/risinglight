@@ -16,7 +16,6 @@ use super::{Block, BlockCacheKey, ColumnIndex};
 /// Represents a column in Secondary.
 ///
 /// [`DiskRowset`] contains all necessary information, e.g. column info, rowset location.
-#[allow(dead_code)]
 pub struct DiskRowset {
     directory: PathBuf,
     column_infos: Arc<[ColumnCatalog]>,
@@ -30,7 +29,7 @@ impl DiskRowset {
         directory: PathBuf,
         column_infos: Arc<[ColumnCatalog]>,
         block_cache: Cache<BlockCacheKey, Block>,
-        rowset_id: usize,
+        rowset_id: u32,
     ) -> StorageResult<Self> {
         let mut columns = vec![];
 
@@ -55,7 +54,7 @@ impl DiskRowset {
                 ColumnIndex::from_bytes(&index_content),
                 Arc::new(file.into_std().await),
                 block_cache.clone(),
-                BlockCacheKey::default().rowset(rowset_id).column(id),
+                BlockCacheKey::default().rowset(rowset_id).column(id as u32),
             );
             columns.push(column);
         }
@@ -69,14 +68,13 @@ impl DiskRowset {
         })
     }
 
-    #[allow(dead_code)]
     pub fn column(&self, storage_column_id: usize) -> Column {
         self.columns[storage_column_id].clone()
     }
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use tempfile::TempDir;
 
     use crate::array::I32Array;
@@ -86,11 +84,15 @@ mod tests {
 
     use super::*;
 
-    pub async fn helper_build_rowset(tempdir: &TempDir) -> DiskRowset {
+    pub async fn helper_build_rowset(tempdir: &TempDir, nullable: bool) -> DiskRowset {
         let columns = vec![ColumnCatalog::new(
             0,
             "v1".to_string(),
-            DataTypeKind::Int.nullable().to_column(),
+            if nullable {
+                DataTypeKind::Int.nullable().to_column()
+            } else {
+                DataTypeKind::Int.not_null().to_column()
+            },
         )];
         let mut builder = RowsetBuilder::new(
             columns.clone().into(),
@@ -124,7 +126,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_block() {
         let tempdir = tempfile::tempdir().unwrap();
-        let rowset = helper_build_rowset(&tempdir).await;
+        let rowset = helper_build_rowset(&tempdir, true).await;
         let column = rowset.column(0);
         column.get_block(0).await;
     }

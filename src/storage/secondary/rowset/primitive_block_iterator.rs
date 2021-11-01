@@ -5,7 +5,7 @@ use crate::array::{Array, ArrayBuilder};
 use super::{Block, BlockIterator, PrimitiveFixedWidthEncode};
 
 /// Scans one or several arrays from the block content.
-pub struct PrimitiveBlockIterator<T: PrimitiveFixedWidthEncode> {
+pub struct PlainPrimitiveBlockIterator<T: PrimitiveFixedWidthEncode> {
     /// Block content
     block: Block,
 
@@ -18,8 +18,7 @@ pub struct PrimitiveBlockIterator<T: PrimitiveFixedWidthEncode> {
     _phantom: PhantomData<T>,
 }
 
-impl<T: PrimitiveFixedWidthEncode> PrimitiveBlockIterator<T> {
-    #[allow(dead_code)]
+impl<T: PrimitiveFixedWidthEncode> PlainPrimitiveBlockIterator<T> {
     pub fn new(block: Block, length: usize) -> Self {
         Self {
             block,
@@ -30,7 +29,7 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveBlockIterator<T> {
     }
 }
 
-impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PrimitiveBlockIterator<T> {
+impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PlainPrimitiveBlockIterator<T> {
     fn next_batch(&mut self) -> Option<T::ArrayType> {
         if self.finished {
             return None;
@@ -58,7 +57,7 @@ mod tests {
     use crate::storage::secondary::rowset::PlainPrimitiveBlockBuilder;
     use crate::storage::secondary::BlockIterator;
 
-    use super::PrimitiveBlockIterator;
+    use super::PlainPrimitiveBlockIterator;
 
     #[test]
     fn test_scan_i32() {
@@ -68,7 +67,7 @@ mod tests {
         builder.append(Some(&3));
         let data = builder.finish();
 
-        let mut scanner = PrimitiveBlockIterator::<i32>::new(Bytes::from(data), 3);
+        let mut scanner = PlainPrimitiveBlockIterator::<i32>::new(Bytes::from(data), 3);
 
         assert_eq!(
             scanner.next_batch().unwrap().to_vec(),

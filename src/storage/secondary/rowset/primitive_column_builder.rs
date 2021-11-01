@@ -12,7 +12,7 @@ use super::encode::PrimitiveFixedWidthEncode;
 use super::{
     BlockBuilder, ColumnBuilder, PlainNullablePrimitiveBlockBuilder, PlainPrimitiveBlockBuilder,
 };
-use crate::storage::secondary::ColumnBuilderOptions;
+use crate::storage::secondary::{BlockHeader, ColumnBuilderOptions, BLOCK_HEADER_SIZE};
 
 /// All supported block builders for primitive types.
 pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
@@ -67,8 +67,9 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
         self.index.push(BlockIndex {
             block_type: block_type.into(),
             offset: self.data.len() as u64,
-            length: block_data.len() as u64,
-            first_rowid: self.last_row_count as u64,
+            length: (block_data.len() + BLOCK_HEADER_SIZE) as u64,
+            first_rowid: self.last_row_count as u32,
+            row_count: (self.row_count - self.last_row_count) as u32,
             /// TODO(chi): support sort key
             first_key: "".into(),
         });
@@ -76,18 +77,17 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
         // the new block will begin at the current row count
         self.last_row_count = self.row_count;
 
-        let mut block_header = vec![0; 16];
+        let mut block_header = vec![0; BLOCK_HEADER_SIZE];
 
         let mut block_header_ref = &mut block_header[..];
 
-        // add block type
-        block_header_ref.put_i32(block_type.into());
-
-        // add checksum
-        block_header_ref.put_i32(ChecksumType::None.into());
-
-        // TODO(chi): add checksum support
-        block_header_ref.put_u64(0);
+        BlockHeader {
+            block_type,
+            checksum_type: ChecksumType::None,
+            // TODO(chi): add checksum support
+            checksum: 0,
+        }
+        .encode(&mut block_header_ref);
 
         assert!(block_header_ref.is_empty());
 
@@ -181,7 +181,10 @@ mod tests {
                 [Some(1)].iter().cycle().cloned().take(item_each_block),
             ));
         }
-        assert_eq!(builder.finish().0.len(), 10);
+        let (index, _) = builder.finish();
+        assert_eq!(index.len(), 10);
+        assert_eq!(index[3].first_rowid as usize, item_each_block * 3);
+        assert_eq!(index[3].row_count as usize, item_each_block);
 
         // In this case, we append array that is smaller than each block, and fill fewer than 2 blocks of contents
         let mut builder = I32ColumnBuilder::new(false, ColumnBuilderOptions { target_size: 128 });
