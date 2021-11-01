@@ -16,6 +16,7 @@ message BlockIndex {
     Plain = 0;
     RunLength = 1;
     ZstdCompress = 2;
+    PlainNullable = 3;
   }
   BlockType block_type = 1;
   uint64 offset = 2;

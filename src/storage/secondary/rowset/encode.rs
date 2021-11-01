@@ -1,3 +1,5 @@
+use bytes::Buf;
+
 use crate::array::{Array, BoolArray, F64Array, I32Array};
 
 /// Encode a primitive value into fixed-width buffer
@@ -7,7 +9,12 @@ pub trait PrimitiveFixedWidthEncode: Copy + Clone + 'static + Send + Sync {
     const DEAFULT_VALUE: &'static Self;
 
     type ArrayType: Array<Item = Self>;
+
+    /// Encode current primitive data to the end of an `Vec<u8>`.
     fn encode(&self, buffer: &mut Vec<u8>);
+
+    /// Decode a data from a bytes array.
+    fn decode(buffer: &mut impl Buf) -> Self;
 }
 
 impl PrimitiveFixedWidthEncode for bool {
@@ -17,6 +24,10 @@ impl PrimitiveFixedWidthEncode for bool {
 
     fn encode(&self, buffer: &mut Vec<u8>) {
         buffer.extend((*self as u8).to_le_bytes());
+    }
+
+    fn decode(buffer: &mut impl Buf) -> Self {
+        buffer.get_u8() != 0
     }
 }
 
@@ -29,6 +40,10 @@ impl PrimitiveFixedWidthEncode for i32 {
     fn encode(&self, buffer: &mut Vec<u8>) {
         buffer.extend(self.to_le_bytes());
     }
+
+    fn decode(buffer: &mut impl Buf) -> Self {
+        buffer.get_i32_le()
+    }
 }
 
 impl PrimitiveFixedWidthEncode for f64 {
@@ -39,5 +54,9 @@ impl PrimitiveFixedWidthEncode for f64 {
 
     fn encode(&self, buffer: &mut Vec<u8>) {
         buffer.extend(self.to_le_bytes());
+    }
+
+    fn decode(buffer: &mut impl Buf) -> Self {
+        buffer.get_f64_le()
     }
 }

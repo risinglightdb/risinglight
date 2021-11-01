@@ -8,8 +8,7 @@ use crate::catalog::ColumnCatalog;
 use crate::storage::secondary::ColumnBuilderOptions;
 use crate::storage::StorageResult;
 
-use super::primitive_column_builder::BoolColumnBuilder;
-use super::{ColumnBuilder, ColumnBuilderImpl};
+use super::ColumnBuilderImpl;
 
 use itertools::Itertools;
 
@@ -20,9 +19,6 @@ pub struct RowsetBuilder {
 
     /// Column data builders
     builders: Vec<ColumnBuilderImpl>,
-
-    /// Nullable column bitmap builders
-    bitmap_builders: Vec<Option<BoolColumnBuilder>>,
 
     /// Output directory of the rowset
     directory: PathBuf,
@@ -41,16 +37,6 @@ impl RowsetBuilder {
                     ColumnBuilderImpl::new_from_datatype(&column.datatype(), column_options.clone())
                 })
                 .collect_vec(),
-            bitmap_builders: columns
-                .iter()
-                .map(|column| {
-                    if column.is_nullable() {
-                        Some(BoolColumnBuilder::new(column_options.clone()))
-                    } else {
-                        None
-                    }
-                })
-                .collect_vec(),
             directory: directory.as_ref().to_path_buf(),
             columns,
         }
@@ -59,23 +45,7 @@ impl RowsetBuilder {
     pub fn append(&mut self, chunk: DataChunk) {
         for idx in 0..chunk.column_count() {
             self.builders[idx].append(chunk.array_at(idx));
-            if let Some(_bitmap_builder) = &mut self.bitmap_builders[idx] {
-                // TODO(chi): add Bitmap encoder and do append
-                todo!();
-                // bitmap_builder.append(chunk.array_at(idx).get_valid_bitmap())
-            }
         }
-    }
-
-    fn _path_of_bitmap_index_column(
-        base: impl AsRef<Path>,
-        column_info: &ColumnCatalog,
-    ) -> PathBuf {
-        Self::path_of_column(base, column_info, "b.idx")
-    }
-
-    fn path_of_bitmap_column(base: impl AsRef<Path>, column_info: &ColumnCatalog) -> PathBuf {
-        Self::path_of_column(base, column_info, "b.col")
     }
 
     fn path_of_data_column(base: impl AsRef<Path>, column_info: &ColumnCatalog) -> PathBuf {
@@ -113,12 +83,7 @@ impl RowsetBuilder {
     }
 
     pub async fn finish_and_flush(self) -> StorageResult<()> {
-        for ((column_info, builder), bitmap_builder) in self
-            .columns
-            .iter()
-            .zip(self.builders)
-            .zip(self.bitmap_builders)
-        {
+        for (column_info, builder) in self.columns.iter().zip(self.builders) {
             let (_index, data) = builder.finish();
 
             Self::pipe_to_file(
@@ -128,18 +93,6 @@ impl RowsetBuilder {
             .await?;
 
             // TODO(chi): flush index
-
-            if let Some(bitmap_builder) = bitmap_builder {
-                let (_index, data) = bitmap_builder.finish();
-
-                // TODO(chi): flush index
-
-                Self::pipe_to_file(
-                    Self::path_of_bitmap_column(&self.directory, column_info),
-                    data,
-                )
-                .await?;
-            }
         }
 
         Ok(())
@@ -161,7 +114,7 @@ mod tests {
             vec![ColumnCatalog::new(
                 0,
                 "v1".to_string(),
-                DataTypeKind::Int.not_null().to_column(),
+                DataTypeKind::Int.nullable().to_column(),
             )]
             .into(),
             tempdir.path(),

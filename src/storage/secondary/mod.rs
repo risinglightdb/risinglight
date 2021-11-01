@@ -1,7 +1,7 @@
 //! Secondary storage engine for RisingLight
 
-mod iterator;
-pub use iterator::*;
+mod txn_iterator;
+pub use txn_iterator::*;
 
 mod row_handler;
 pub use row_handler::*;
