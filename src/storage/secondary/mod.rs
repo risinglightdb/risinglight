@@ -1,6 +1,7 @@
 //! Secondary storage engine for RisingLight
 
 mod txn_iterator;
+use moka::future::Cache;
 pub use txn_iterator::*;
 
 mod row_handler;
@@ -36,6 +37,9 @@ pub struct SecondaryStorage {
 
     /// Options of the current engine
     options: Arc<StorageOptions>,
+
+    /// Block cache of the storage engine
+    block_cache: Cache<BlockCacheKey, Block>,
 }
 
 impl SecondaryStorage {
@@ -43,6 +47,7 @@ impl SecondaryStorage {
         Self {
             catalog: Arc::new(RootCatalog::new()),
             tables: RwLock::new(HashMap::new()),
+            block_cache: Cache::new(options.cache_size),
             options: Arc::new(options),
         }
     }
@@ -84,7 +89,12 @@ impl Storage for SecondaryStorage {
             schema_id,
             table_id,
         };
-        let table = SecondaryTable::new(self.options.clone(), id, column_descs);
+        let table = SecondaryTable::new(
+            self.options.clone(),
+            id,
+            column_descs,
+            self.block_cache.clone(),
+        );
         self.tables.write().insert(id, table);
         Ok(())
     }

@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::array::{ArrayBuilderImpl, DataChunk};
@@ -7,7 +7,6 @@ use crate::storage::StorageResult;
 use itertools::Itertools;
 
 use super::rowset_builder::RowsetBuilder;
-use super::DiskRowset;
 use crate::storage::secondary::ColumnBuilderOptions;
 
 pub struct SecondaryMemRowset {
@@ -39,7 +38,7 @@ impl SecondaryMemRowset {
         self,
         directory: impl AsRef<Path>,
         column_options: ColumnBuilderOptions,
-    ) -> StorageResult<DiskRowset> {
+    ) -> StorageResult<PathBuf> {
         let chunk = self
             .builders
             .into_iter()
@@ -49,6 +48,7 @@ impl SecondaryMemRowset {
         let mut builder = RowsetBuilder::new(self.columns, &directory, column_options);
         builder.append(chunk);
         builder.finish_and_flush().await?;
-        Ok(DiskRowset::new(directory))
+        // TODO(chi): do not reload index from disk, we can directly fetch it from cache.
+        Ok(directory)
     }
 }

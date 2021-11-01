@@ -39,6 +39,10 @@ use risinglight_proto::rowset::BlockIndex;
 use crate::array::Array;
 
 mod index_builder;
+pub use index_builder::*;
+
+mod index;
+pub use index::*;
 
 mod primitive_block_builder;
 use primitive_block_builder::*;
@@ -50,6 +54,9 @@ use primitive_nullable_block_builder::*;
 
 mod column_builder;
 use column_builder::*;
+
+mod column;
+use column::*;
 
 mod encode;
 pub use encode::*;
@@ -65,8 +72,8 @@ pub use disk_rowset::*;
 mod primitive_block_iterator;
 pub use primitive_block_iterator::*;
 
-/// A block is simply a bytes array.
-pub type Block = Bytes;
+mod block;
+pub use block::*;
 
 /// Builds a column. [`ColumnBuilder`] will automatically chunk [`Array`] into
 /// blocks, calls [`BlockBuilder`] to generate a block, and builds index for a

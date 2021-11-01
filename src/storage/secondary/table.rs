@@ -4,6 +4,7 @@ use crate::catalog::{ColumnDesc, TableRefId};
 use crate::storage::Table;
 use async_trait::async_trait;
 use itertools::Itertools;
+use moka::future::Cache;
 use parking_lot::RwLock;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicUsize;
@@ -43,6 +44,9 @@ pub(super) struct SecondaryTableInfo {
 
     /// Root directory of the storage
     pub storage_options: Arc<StorageOptions>,
+
+    /// Block cache for the whole storage engine
+    pub block_cache: Cache<BlockCacheKey, Block>,
 }
 
 pub(super) type SecondaryTableInnerRef = Arc<RwLock<SecondaryTableInner>>;
@@ -77,6 +81,7 @@ impl SecondaryTable {
         storage_options: Arc<StorageOptions>,
         table_ref_id: TableRefId,
         columns: &[ColumnCatalog],
+        block_cache: Cache<BlockCacheKey, Block>,
     ) -> Self {
         let info = Arc::new(SecondaryTableInfo {
             columns: columns.into(),
@@ -87,6 +92,7 @@ impl SecondaryTable {
                 .collect(),
             table_ref_id,
             storage_options,
+            block_cache,
         });
 
         Self {
