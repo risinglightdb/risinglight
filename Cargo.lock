@@ -262,7 +262,7 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 [[package]]
 name = "core_simd"
 version = "0.1.0"
-source = "git+https://github.com/rust-lang/portable-simd#772bf2090e04db68790549bae36e5180423f9f65"
+source = "git+https://github.com/rust-lang/portable-simd?rev=c2f59483f96cf1ab1e92cf10e0f9094432a8374c#c2f59483f96cf1ab1e92cf10e0f9094432a8374c"
 
 [[package]]
 name = "criterion"

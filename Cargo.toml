@@ -13,14 +13,14 @@ async-stream = "0.3"
 async-trait = "0.1"
 bitvec = {version = "0.22", features = ["serde"]}
 bytes = "1"
-core_simd = {git = "https://github.com/rust-lang/portable-simd", optional = true}
+core_simd = {git = "https://github.com/rust-lang/portable-simd", rev = "c2f59483f96cf1ab1e92cf10e0f9094432a8374c", optional = true}
 enum_dispatch = "0.3"
 env_logger = "0.9"
 futures = {version = "0.3", default-features = false, features = ["alloc"]}
 itertools = "0.10"
 jemallocator = "0.3"
 log = "0.4"
-moka = { version = "0.6", features = ["future"] }
+moka = {version = "0.6", features = ["future"]}
 num-traits = "0.2"
 parking_lot = "0.11"
 prettytable-rs = {version = "0.8", default-features = false}
