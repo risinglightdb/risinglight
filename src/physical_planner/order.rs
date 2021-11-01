@@ -18,7 +18,7 @@ impl PhysicalPlaner {
 }
 
 impl PlanExplainable for PhysicalOrder {
-    fn explain_inner(&self, _level: usize,f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn explain_inner(&self, _level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{:?}", self)
     }
 }
