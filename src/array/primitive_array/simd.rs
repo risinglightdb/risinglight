@@ -36,6 +36,27 @@ where
     pub len: usize,
 }
 
+pub trait SIMDSum<T, const N: usize>
+where
+    T: SimdElement + NativeType,
+    LaneCount<N>: SupportedLaneCount,
+{
+    fn sum(&self) -> T;
+}
+macro_rules! impl_simd_sum {
+    ($t:ty, $e: expr) => {
+        impl SIMDSum<$t, $e> for BatchItem<$t,$e> {
+            fn sum(&self) -> $t {
+                self.data.horizontal_sum()
+            }
+        }
+        
+    }
+}
+
+impl_simd_sum!(i32, 8);
+impl_simd_sum!(f64, 8);
+
 impl<T, const N: usize> Iterator for BatchIter<'_, T, N>
 where
     T: SimdElement + NativeType,
@@ -125,5 +146,16 @@ mod tests {
         let a = (0..12).collect::<PrimitiveArray<u32>>();
         let a1 = a.batch_iter::<8>().collect::<PrimitiveArray<u32>>();
         assert_eq!(a1, a);
+    }
+
+    #[test]
+    fn batch_sum() {
+        let a = (0..16).collect::<PrimitiveArray<i32>>();
+        let mut iter = a.batch_iter::<8>();
+        let mut sum = 0;
+        while let Some(batch) = iter.next() {
+            sum += batch.sum();
+        }
+        assert_eq!(sum, 120);
     }
 }

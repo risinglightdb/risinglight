@@ -2,6 +2,10 @@ use crate::types::{DataType, DataTypeKind, DataValue};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::ops::{Bound, RangeBounds};
+#[cfg(feature = "simd")]
+use crate::types::NativeType;
+#[cfg(feature = "simd")]
+use core_simd::{LaneCount, SimdElement, SupportedLaneCount};
 
 mod data_chunk;
 mod iterator;
@@ -199,6 +203,34 @@ impl_into! { PrimitiveArray<i32>, Int32 }
 // impl_into! { PrimitiveArray<f32>, Float32 }
 impl_into! { PrimitiveArray<f64>, Float64 }
 impl_into! { UTF8Array, UTF8 }
+
+#[cfg(feature = "simd")]
+pub trait ArraySIMDSum<T, const N: usize>
+where
+    T: SimdElement + NativeType,
+    LaneCount<N>: SupportedLaneCount,
+{
+    fn simd_sum(&self) -> T;
+}
+
+macro_rules! impl_simd_sum_for_arr {
+    ($t:ty, $e: expr) => {
+        #[cfg(feature = "simd")]
+        impl ArraySIMDSum<$t, $e> for PrimitiveArray<$t> {
+            fn simd_sum(&self) -> $t {
+                let mut iter = self.batch_iter::<$e>();
+                let mut sum: $t = 0 as $t;
+                while let Some(batch) = iter.next() {
+                    sum += batch.sum();
+                }
+                sum
+            }
+        }
+    };
+}
+
+impl_simd_sum_for_arr!(i32, 8);
+impl_simd_sum_for_arr!(f64, 8);
 
 impl ArrayBuilderImpl {
     /// Create a new array builder from data type.
