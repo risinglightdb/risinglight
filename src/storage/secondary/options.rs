@@ -4,12 +4,14 @@ use std::path::PathBuf;
 #[derive(Clone)]
 pub struct StorageOptions {
     pub path: PathBuf,
+    pub cache_size: usize,
 }
 
 impl StorageOptions {
     pub fn default_for_test() -> Self {
         Self {
             path: PathBuf::new().join("risinglight.secondary.db"),
+            cache_size: 1024,
         }
     }
 }

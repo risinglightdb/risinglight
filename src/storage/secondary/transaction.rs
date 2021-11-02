@@ -1,5 +1,5 @@
 use super::{
-    ColumnBuilderOptions, SecondaryMemRowset, SecondaryRowHandler, SecondaryTable,
+    ColumnBuilderOptions, DiskRowset, SecondaryMemRowset, SecondaryRowHandler, SecondaryTable,
     SecondaryTxnIterator,
 };
 use crate::array::{DataChunk, DataChunkRef};
@@ -85,7 +85,7 @@ impl Transaction for SecondaryTransaction {
 
     async fn commit(mut self) -> StorageResult<()> {
         // flush data to disk
-        let on_disk_rowset = self
+        let directory = self
             .mem
             .take()
             .unwrap()
@@ -96,7 +96,15 @@ impl Transaction for SecondaryTransaction {
             .await?;
 
         // add rowset to table
-        self.table.add_rowset(on_disk_rowset)?;
+        self.table.add_rowset(
+            DiskRowset::open(
+                directory,
+                self.table.info.columns.clone(),
+                self.table.info.block_cache.clone(),
+                self.rowset_id,
+            )
+            .await?,
+        )?;
 
         self.finished = true;
         Ok(())

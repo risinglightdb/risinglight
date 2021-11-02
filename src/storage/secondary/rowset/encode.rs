@@ -1,4 +1,4 @@
-use bytes::Buf;
+use bytes::{Buf, BufMut};
 
 use crate::array::{Array, BoolArray, F64Array, I32Array};
 
@@ -11,7 +11,7 @@ pub trait PrimitiveFixedWidthEncode: Copy + Clone + 'static + Send + Sync {
     type ArrayType: Array<Item = Self>;
 
     /// Encode current primitive data to the end of an `Vec<u8>`.
-    fn encode(&self, buffer: &mut Vec<u8>);
+    fn encode(&self, buffer: &mut impl BufMut);
 
     /// Decode a data from a bytes array.
     fn decode(buffer: &mut impl Buf) -> Self;
@@ -22,8 +22,8 @@ impl PrimitiveFixedWidthEncode for bool {
     const DEAFULT_VALUE: &'static bool = &false;
     type ArrayType = BoolArray;
 
-    fn encode(&self, buffer: &mut Vec<u8>) {
-        buffer.extend((*self as u8).to_le_bytes());
+    fn encode(&self, buffer: &mut impl BufMut) {
+        buffer.put_u8(*self as u8)
     }
 
     fn decode(buffer: &mut impl Buf) -> Self {
@@ -37,8 +37,8 @@ impl PrimitiveFixedWidthEncode for i32 {
 
     type ArrayType = I32Array;
 
-    fn encode(&self, buffer: &mut Vec<u8>) {
-        buffer.extend(self.to_le_bytes());
+    fn encode(&self, buffer: &mut impl BufMut) {
+        buffer.put_i32_le(*self);
     }
 
     fn decode(buffer: &mut impl Buf) -> Self {
@@ -52,8 +52,8 @@ impl PrimitiveFixedWidthEncode for f64 {
 
     type ArrayType = F64Array;
 
-    fn encode(&self, buffer: &mut Vec<u8>) {
-        buffer.extend(self.to_le_bytes());
+    fn encode(&self, buffer: &mut impl BufMut) {
+        buffer.put_f64_le(*self);
     }
 
     fn decode(buffer: &mut impl Buf) -> Self {

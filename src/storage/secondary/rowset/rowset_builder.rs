@@ -1,6 +1,7 @@
+use risinglight_proto::rowset::block_checksum::ChecksumType;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::fs::OpenOptions;
+use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncWriteExt, BufWriter};
 
 use crate::array::DataChunk;
@@ -8,9 +9,27 @@ use crate::catalog::ColumnCatalog;
 use crate::storage::secondary::ColumnBuilderOptions;
 use crate::storage::StorageResult;
 
+use super::index_builder::IndexBuilder;
 use super::ColumnBuilderImpl;
 
 use itertools::Itertools;
+
+pub fn path_of_data_column(base: impl AsRef<Path>, column_info: &ColumnCatalog) -> PathBuf {
+    path_of_column(base, column_info, ".col")
+}
+
+pub fn path_of_index_column(base: impl AsRef<Path>, column_info: &ColumnCatalog) -> PathBuf {
+    path_of_column(base, column_info, ".idx")
+}
+
+pub fn path_of_column(
+    base: impl AsRef<Path>,
+    column_info: &ColumnCatalog,
+    suffix: &str,
+) -> PathBuf {
+    base.as_ref()
+        .join(format!("{}{}", column_info.id(), suffix))
+}
 
 /// Builds a Rowset from [`DataChunk`].
 pub struct RowsetBuilder {
@@ -48,23 +67,6 @@ impl RowsetBuilder {
         }
     }
 
-    fn path_of_data_column(base: impl AsRef<Path>, column_info: &ColumnCatalog) -> PathBuf {
-        Self::path_of_column(base, column_info, ".col")
-    }
-
-    fn _path_of_index_column(base: impl AsRef<Path>, column_info: &ColumnCatalog) -> PathBuf {
-        Self::path_of_column(base, column_info, ".idx")
-    }
-
-    fn path_of_column(
-        base: impl AsRef<Path>,
-        column_info: &ColumnCatalog,
-        suffix: &str,
-    ) -> PathBuf {
-        base.as_ref()
-            .join(format!("{}{}", column_info.id(), suffix))
-    }
-
     async fn pipe_to_file(path: impl AsRef<Path>, data: Vec<u8>) -> StorageResult<()> {
         let file = OpenOptions::new()
             .write(true)
@@ -73,7 +75,7 @@ impl RowsetBuilder {
             .await?;
 
         let mut writer = BufWriter::new(file);
-        writer.write(&data).await?;
+        writer.write_all(&data).await?;
         writer.flush().await?;
 
         let file = writer.into_inner();
@@ -82,18 +84,30 @@ impl RowsetBuilder {
         Ok(())
     }
 
+    async fn sync_dir(path: &impl AsRef<Path>) -> StorageResult<()> {
+        File::open(path.as_ref()).await?.sync_all().await?;
+        Ok(())
+    }
+
     pub async fn finish_and_flush(self) -> StorageResult<()> {
         for (column_info, builder) in self.columns.iter().zip(self.builders) {
-            let (_index, data) = builder.finish();
+            let (index, data) = builder.finish();
+
+            Self::pipe_to_file(path_of_data_column(&self.directory, column_info), data).await?;
+
+            let mut index_builder = IndexBuilder::new(ChecksumType::None, index.len());
+            for index in index {
+                index_builder.append(index);
+            }
 
             Self::pipe_to_file(
-                Self::path_of_data_column(&self.directory, column_info),
-                data,
+                path_of_index_column(&self.directory, column_info),
+                index_builder.finish(),
             )
             .await?;
-
-            // TODO(chi): flush index
         }
+
+        Self::sync_dir(&self.directory).await?;
 
         Ok(())
     }
