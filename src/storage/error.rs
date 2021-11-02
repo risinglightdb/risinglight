@@ -14,6 +14,8 @@ pub enum StorageError {
     InvalidColumn(ColumnId),
     #[error("IO error: {0}")]
     Io(#[source] Box<std::io::Error>),
+    #[error("JSON decode error: {0}")]
+    JsonDecode(#[from] serde_json::Error)
 }
 
 impl From<std::io::Error> for StorageError {

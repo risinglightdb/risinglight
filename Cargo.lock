@@ -1268,6 +1268,7 @@ dependencies = [
  "prost-types",
  "risinglight_proto",
  "serde",
+ "serde_json",
  "smallvec",
  "sqlparser",
  "tempfile",
@@ -1458,6 +1459,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dbcb26aebf44a0993c3c95e41d13860131b6cbf52edb2c53230056baa4d733f"
 dependencies = [
  "log",
+ "serde",
 ]
 
 [[package]]

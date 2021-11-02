@@ -1,7 +1,8 @@
 use crate::types::{ColumnId, DataType};
+use serde::{Serialize, Deserialize};
 
 /// A descriptor of a column.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ColumnDesc {
     datatype: DataType,
     is_primary: bool,
@@ -43,7 +44,7 @@ impl DataType {
 }
 
 /// The catalog of a column.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ColumnCatalog {
     id: ColumnId,
     name: String,

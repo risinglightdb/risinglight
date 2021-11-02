@@ -42,6 +42,7 @@ impl StorageImpl {
 }
 
 /// Represents a storage engine.
+#[async_trait]
 pub trait Storage: Sync + Send + 'static {
     /// Type of the transaction.
     type TransactionType: Transaction;
@@ -49,7 +50,7 @@ pub trait Storage: Sync + Send + 'static {
     /// Type of the table belonging to this storage engine.
     type TableType: Table<TransactionType = Self::TransactionType>;
 
-    fn create_table(
+    async fn create_table(
         &self,
         database_id: DatabaseId,
         schema_id: SchemaId,
@@ -57,7 +58,7 @@ pub trait Storage: Sync + Send + 'static {
         column_descs: &[ColumnCatalog],
     ) -> StorageResult<()>;
     fn get_table(&self, table_id: TableRefId) -> StorageResult<Self::TableType>;
-    fn drop_table(&self, table_id: TableRefId) -> StorageResult<()>;
+    async fn drop_table(&self, table_id: TableRefId) -> StorageResult<()>;
 }
 
 /// A table in the storage engine. [`Table`] is by default a reference to a table,

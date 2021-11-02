@@ -33,6 +33,8 @@ pub use iterator::InMemoryTxnIterator;
 mod row_handler;
 pub use row_handler::InMemoryRowHandler;
 
+use async_trait::async_trait;
+
 /// In-memory storage of RisingLight.
 pub struct InMemoryStorage {
     catalog: RootCatalogRef,
@@ -58,11 +60,12 @@ impl InMemoryStorage {
     }
 }
 
+#[async_trait]
 impl Storage for InMemoryStorage {
     type TransactionType = InMemoryTransaction;
     type TableType = InMemoryTable;
 
-    fn create_table(
+    async fn create_table(
         &self,
         database_id: DatabaseId,
         schema_id: SchemaId,
@@ -104,7 +107,7 @@ impl Storage for InMemoryStorage {
         Ok(table)
     }
 
-    fn drop_table(&self, table_id: TableRefId) -> StorageResult<()> {
+    async fn drop_table(&self, table_id: TableRefId) -> StorageResult<()> {
         self.tables
             .lock()
             .unwrap()

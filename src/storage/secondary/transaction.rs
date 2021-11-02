@@ -37,7 +37,7 @@ impl SecondaryTransaction {
             mem: if readonly {
                 None
             } else {
-                Some(SecondaryMemRowset::new(table.info.columns.clone()))
+                Some(SecondaryMemRowset::new(table.shared.columns.clone()))
             },
             table: table.clone(),
             snapshot: table.snapshot()?,
@@ -101,7 +101,7 @@ impl Transaction for SecondaryTransaction {
             .unwrap()
             .flush(
                 &directory,
-                ColumnBuilderOptions::from_storage_options(&*self.table.info.storage_options),
+                ColumnBuilderOptions::from_storage_options(&*self.table.shared.storage_options),
             )
             .await?;
 
@@ -109,12 +109,12 @@ impl Transaction for SecondaryTransaction {
         self.table.add_rowset(
             DiskRowset::open(
                 directory,
-                self.table.info.columns.clone(),
-                self.table.info.block_cache.clone(),
+                self.table.shared.columns.clone(),
+                self.table.shared.block_cache.clone(),
                 self.rowset_id,
             )
             .await?,
-        )?;
+        ).await?;
 
         self.finished = true;
         Ok(())

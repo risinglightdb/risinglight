@@ -85,13 +85,13 @@ impl RowsetBuilder {
         writer.flush().await?;
 
         let file = writer.into_inner();
-        file.sync_all().await?;
+        file.sync_data().await?;
 
         Ok(())
     }
 
     async fn sync_dir(path: &impl AsRef<Path>) -> StorageResult<()> {
-        File::open(path.as_ref()).await?.sync_all().await?;
+        File::open(path.as_ref()).await?.sync_data().await?;
         Ok(())
     }
 

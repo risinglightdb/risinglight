@@ -12,7 +12,7 @@ impl<S: Storage> DropExecutor<S> {
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
             match self.plan.object {
-                Object::Table(ref_id) => self.storage.drop_table(ref_id)?,
+                Object::Table(ref_id) => self.storage.drop_table(ref_id).await?,
             }
             yield DataChunk::single();
         }
