@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Secondary storage engine for RisingLight
 
 mod txn_iterator;

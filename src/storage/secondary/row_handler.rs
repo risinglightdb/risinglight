@@ -22,7 +22,7 @@ impl SecondaryRowHandler {
 impl From<i64> for SecondaryRowHandler {
     fn from(data: i64) -> Self {
         assert!(data >= 0);
-        Self((data >> 32) as u32, (data & (1 << 32 - 1)) as u32)
+        Self((data >> 32) as u32, (data & ((1 << 32) - 1)) as u32)
     }
 }
 
