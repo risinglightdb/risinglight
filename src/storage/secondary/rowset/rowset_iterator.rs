@@ -11,7 +11,6 @@ pub struct RowSetIterator {
     rowset: Arc<DiskRowset>,
     column_refs: Arc<[StorageColumnRef]>,
     column_iterators: PackedVec<Option<ColumnIteratorImpl>>,
-    current_row: u32,
 }
 
 impl RowSetIterator {
@@ -63,7 +62,6 @@ impl RowSetIterator {
             rowset,
             column_iterators,
             column_refs,
-            current_row: start_row_id,
         }
     }
 

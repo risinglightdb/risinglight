@@ -1,5 +1,4 @@
 use super::*;
-use crate::array::DataChunkRef;
 use crate::catalog::{ColumnDesc, TableRefId};
 use crate::storage::Table;
 use async_trait::async_trait;
@@ -22,8 +21,8 @@ pub struct SecondaryTable {
 }
 
 pub(super) struct SecondaryTableInner {
-    /// All on-disk rowsets. As we donot have on-disk structures implemented,
-    /// we simply leave a [`DataChunk`] here.
+    /// All on-disk rowsets. In the future, this should be a MVCC hashmap,
+    /// so as to reduce the need to clone the `Arc`s.
     on_disk: Vec<Arc<DiskRowset>>,
 
     /// Store info again in inner so that inner struct could access it.
@@ -102,11 +101,13 @@ impl SecondaryTable {
     }
 
     /// Get snapshot of all rowsets inside table.
-    pub(super) fn snapshot(&self) -> StorageResult<Vec<DataChunkRef>> {
-        Ok(vec![])
+    pub(super) fn snapshot(&self) -> StorageResult<Vec<Arc<DiskRowset>>> {
+        let inner = self.inner.read();
+        Ok(inner.on_disk.clone())
     }
 
     pub(super) fn add_rowset(&self, rowset: DiskRowset) -> StorageResult<()> {
+        info!("RowSet flushed: {}", rowset.rowset_id());
         self.inner.write().on_disk.push(Arc::new(rowset));
         Ok(())
     }
@@ -140,14 +141,14 @@ impl Table for SecondaryTable {
     }
 
     async fn write(&self) -> StorageResult<Self::TransactionType> {
-        Ok(SecondaryTransaction::start(self)?)
+        Ok(SecondaryTransaction::start(self, false)?)
     }
 
     async fn read(&self) -> StorageResult<Self::TransactionType> {
-        Ok(SecondaryTransaction::start(self)?)
+        Ok(SecondaryTransaction::start(self, true)?)
     }
 
     async fn update(&self) -> StorageResult<Self::TransactionType> {
-        Ok(SecondaryTransaction::start(self)?)
+        Ok(SecondaryTransaction::start(self, false)?)
     }
 }

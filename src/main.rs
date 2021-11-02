@@ -2,12 +2,24 @@
 
 use std::io::Write;
 
+use log::info;
 use risinglight::Database;
 
 #[tokio::main]
 async fn main() {
     env_logger::init();
-    let db = Database::new_in_memory();
+
+    let db = if let Some(x) = std::env::args().nth(1) {
+        if x == "--disk" {
+            info!("using Secondary engine");
+            Database::new_on_disk().await
+        } else {
+            Database::new_in_memory()
+        }
+    } else {
+        Database::new_in_memory()
+    };
+
     loop {
         print!("> ");
         std::io::stdout().lock().flush().unwrap();

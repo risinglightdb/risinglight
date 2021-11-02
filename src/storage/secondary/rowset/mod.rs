@@ -143,6 +143,7 @@ pub trait ColumnIterator<A: Array> {
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum ColumnSeekPosition {
     RowId(u32),
+    #[allow(dead_code)]
     SortKey(()),
 }
 

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bitvec::prelude::BitVec;
 use smallvec::SmallVec;
 
-use crate::array::ArrayImpl;
+use crate::array::{ArrayImpl, DataChunk};
 
 pub type PackedVec<T> = SmallVec<[T; 16]>;
 
@@ -57,5 +57,18 @@ impl StorageChunk {
 
     pub fn visibility(&self) -> &Option<BitVec> {
         &self.visibility
+    }
+
+    pub fn to_data_chunk(self) -> DataChunk {
+        match self.visibility {
+            Some(visibility) => DataChunk::from_iter(
+                self.arrays
+                    .iter()
+                    .map(|a| a.filter(visibility.iter().map(|x| *x))),
+            ),
+            None => {
+                DataChunk::from_iter(self.arrays.iter().map(|a| a.filter([true].iter().cycle().cloned())))
+            }
+        }
     }
 }

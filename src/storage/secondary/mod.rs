@@ -1,24 +1,21 @@
-#![allow(dead_code)]
 //! Secondary storage engine for RisingLight
 
 mod txn_iterator;
 use moka::future::Cache;
 pub use txn_iterator::*;
-
 mod row_handler;
 pub use row_handler::*;
-
 mod table;
 pub use table::*;
-
 mod transaction;
 pub use transaction::*;
-
 mod rowset;
 pub use rowset::*;
-
 mod options;
 pub use options::*;
+mod concat_iterator;
+pub use concat_iterator::*;
+mod storage;
 
 use super::{Storage, StorageError, StorageResult};
 use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};
@@ -44,13 +41,15 @@ pub struct SecondaryStorage {
 }
 
 impl SecondaryStorage {
-    pub fn new(options: StorageOptions) -> Self {
-        Self {
+    pub async fn open(options: StorageOptions) -> StorageResult<Self> {
+        let mut engine = Self {
             catalog: Arc::new(RootCatalog::new()),
             tables: RwLock::new(HashMap::new()),
             block_cache: Cache::new(options.cache_size),
             options: Arc::new(options),
-        }
+        };
+        engine.bootstrap().await?;
+        Ok(engine)
     }
 
     pub fn catalog(&self) -> &RootCatalogRef {

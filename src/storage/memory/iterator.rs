@@ -25,7 +25,7 @@ impl InMemoryTxnIterator {
 
 #[async_trait]
 impl TxnIterator for InMemoryTxnIterator {
-    async fn next_batch(&mut self) -> StorageResult<Option<DataChunk>> {
+    async fn next_batch(&mut self, _expected_size: Option<usize>) -> StorageResult<Option<DataChunk>> {
         if self.cnt >= self.chunks.len() {
             Ok(None)
         } else {

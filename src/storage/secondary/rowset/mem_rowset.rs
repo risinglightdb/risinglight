@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 use crate::array::{ArrayBuilderImpl, DataChunk};
@@ -38,7 +38,7 @@ impl SecondaryMemRowset {
         self,
         directory: impl AsRef<Path>,
         column_options: ColumnBuilderOptions,
-    ) -> StorageResult<PathBuf> {
+    ) -> StorageResult<()> {
         let chunk = self
             .builders
             .into_iter()
@@ -49,6 +49,6 @@ impl SecondaryMemRowset {
         builder.append(chunk);
         builder.finish_and_flush().await?;
         // TODO(chi): do not reload index from disk, we can directly fetch it from cache.
-        Ok(directory)
+        Ok(())
     }
 }

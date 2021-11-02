@@ -33,8 +33,8 @@ impl Database {
     }
 
     /// Create a new database instance with merge-tree engine.
-    pub fn new_on_disk() -> Self {
-        let storage = SecondaryStorage::new(SecondaryStorageOptions::default_for_test());
+    pub async fn new_on_disk() -> Self {
+        let storage = SecondaryStorage::open(SecondaryStorageOptions::default_for_test()).await.unwrap();
         let catalog = storage.catalog().clone();
         let env = Arc::new(GlobalEnv {
             storage: StorageImpl::SecondaryStorage(Arc::new(storage)),
