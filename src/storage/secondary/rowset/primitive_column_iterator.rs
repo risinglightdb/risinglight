@@ -64,8 +64,6 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnIterator<T> {
         }
     }
 
-    fn skip_within_block(&mut self, size: usize) {}
-
     pub async fn next_batch_inner(
         &mut self,
         expected_size: Option<usize>,
