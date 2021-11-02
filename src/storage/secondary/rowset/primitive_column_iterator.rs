@@ -26,6 +26,10 @@ pub struct PrimitiveColumnIterator<T: PrimitiveFixedWidthEncode> {
     _phantom: PhantomData<T>,
 }
 
+pub type I32ColumnIterator = PrimitiveColumnIterator<i32>;
+pub type F64ColumnIterator = PrimitiveColumnIterator<f64>;
+pub type BoolColumnIterator = PrimitiveColumnIterator<bool>;
+
 impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnIterator<T> {
     fn get_iterator_for(
         block_type: BlockType,
@@ -98,10 +102,8 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnIterator<T> {
                 if total_cnt >= expected_size {
                     break;
                 }
-            } else {
-                if total_cnt != 0 {
-                    break;
-                }
+            } else if total_cnt != 0 {
+                break;
             }
 
             self.current_block_id += 1;
@@ -126,12 +128,21 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnIterator<T> {
             Some((first_row_id, builder.finish()))
         }
     }
+
+    fn fetch_hint_inner(&self) -> usize {
+        let index = self.column.index().index(self.current_block_id);
+        (index.row_count - (self.current_row_id - index.first_rowid)) as usize
+    }
 }
 
 #[async_trait]
 impl<T: PrimitiveFixedWidthEncode> ColumnIterator<T::ArrayType> for PrimitiveColumnIterator<T> {
     async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<(u32, T::ArrayType)> {
         self.next_batch_inner(expected_size).await
+    }
+
+    fn fetch_hint(&self) -> usize {
+        self.fetch_hint_inner()
     }
 }
 
@@ -155,7 +166,7 @@ mod tests {
             recv_data.extend(data.to_vec());
         }
 
-        for i in 0..1000 {
+        for i in 0..100 {
             assert_eq!(
                 recv_data[i * 1000..(i + 1) * 1000],
                 [1, 2, 3]
@@ -168,10 +179,10 @@ mod tests {
             );
         }
 
-        let mut scanner = PrimitiveColumnIterator::<i32>::new(column, 100000).await;
+        let mut scanner = PrimitiveColumnIterator::<i32>::new(column, 10000).await;
         for i in 0..10 {
             let (id, data) = scanner.next_batch(Some(1000)).await.unwrap();
-            assert_eq!(id, 100000 + i * 1000);
+            assert_eq!(id, 10000 + i * 1000);
             let left = data.to_vec();
             let right = [1, 2, 3]
                 .iter()

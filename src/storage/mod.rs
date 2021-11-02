@@ -88,10 +88,6 @@ pub enum StorageColumnRef {
     /// A runtime column which contains necessary information to locate a row
     /// **only valid in the current transaction**.
     RowHandler,
-    /// Begin TS of the current row.
-    BeginTs,
-    /// End TS of the current row.
-    EndTs,
     /// User column.
     Idx(u32),
 }

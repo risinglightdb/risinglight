@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
 use bitvec::prelude::BitVec;
+use smallvec::SmallVec;
 
 use crate::array::ArrayImpl;
+
+pub type PackedVec<T> = SmallVec<[T; 16]>;
 
 /// Similar to [`DataChunk`], in the storage system, we use [`StorageChunk`]
 /// to represent a set of columns. [`StorageChunk`] contains pointers to
@@ -13,14 +16,14 @@ pub struct StorageChunk {
     visibility: Option<BitVec>,
 
     /// Plain array from the blocks.
-    arrays: Vec<Arc<ArrayImpl>>,
+    arrays: PackedVec<Arc<ArrayImpl>>,
 
     /// Number of accessible rows.
     cardinality: usize,
 }
 
 impl StorageChunk {
-    pub fn new(visibility: Option<BitVec>, arrays: Vec<Arc<ArrayImpl>>) -> Self {
+    pub fn new(visibility: Option<BitVec>, arrays: SmallVec<[Arc<ArrayImpl>; 16]>) -> Self {
         assert!(!arrays.is_empty());
         let first_length = arrays[0].len();
         for array in &arrays {

@@ -39,44 +39,34 @@ use crate::array::Array;
 
 mod index_builder;
 pub use index_builder::*;
-
 mod index;
 pub use index::*;
-
 mod primitive_block_builder;
 use primitive_block_builder::*;
-
 mod primitive_column_builder;
-
 mod primitive_nullable_block_builder;
 use primitive_nullable_block_builder::*;
-
 mod primitive_column_iterator;
-// use primitive_column_iterator::*;
-
+use primitive_column_iterator::*;
 mod row_handler_sequencer;
-// use row_handler_sequencer::*;
-
+use row_handler_sequencer::*;
 mod column_builder;
 use column_builder::*;
-
 mod column;
-// use column::*;
-
+use column::*;
 mod encode;
 pub use encode::*;
-
-mod rowset_builder;
-
 mod mem_rowset;
+mod rowset_builder;
 pub use mem_rowset::*;
-
 mod disk_rowset;
 pub use disk_rowset::*;
-
+mod rowset_iterator;
+pub use rowset_iterator::*;
+mod column_iterator;
 mod primitive_block_iterator;
+pub use column_iterator::*;
 pub use primitive_block_iterator::*;
-
 mod block;
 pub use block::*;
 
@@ -144,6 +134,9 @@ pub trait ColumnIterator<A: Array> {
     /// there are no more elements from the block. By using `expected_size`, developers can
     /// get an array of NO MORE THAN the `expected_size` on supported column types.
     async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<(u32, A)>;
+
+    /// Number of items that can be fetched without I/O
+    fn fetch_hint(&self) -> usize;
 }
 
 /// When creating an iterator, a [`SeekPosition`] should be set as the initial location.

@@ -8,10 +8,10 @@ use crate::catalog::ColumnCatalog;
 use crate::storage::secondary::rowset::rowset_builder::{
     path_of_data_column, path_of_index_column,
 };
-use crate::storage::StorageResult;
+use crate::storage::{StorageColumnRef, StorageResult};
 
 use super::column::Column;
-use super::{Block, BlockCacheKey, ColumnIndex};
+use super::{Block, BlockCacheKey, ColumnIndex, ColumnSeekPosition, RowSetIterator};
 
 /// Represents a column in Secondary.
 ///
@@ -22,6 +22,7 @@ pub struct DiskRowset {
     columns: Vec<Column>,
     block_cache: Cache<BlockCacheKey, Block>,
     base_block_key: BlockCacheKey,
+    rowset_id: u32,
 }
 
 impl DiskRowset {
@@ -65,11 +66,28 @@ impl DiskRowset {
             directory,
             block_cache,
             base_block_key: BlockCacheKey::default().rowset(rowset_id),
+            rowset_id,
         })
     }
 
     pub fn column(&self, storage_column_id: usize) -> Column {
         self.columns[storage_column_id].clone()
+    }
+
+    pub fn column_info(&self, storage_column_id: usize) -> &ColumnCatalog {
+        &self.column_infos[storage_column_id]
+    }
+
+    pub fn rowset_id(&self) -> u32 {
+        self.rowset_id
+    }
+
+    pub async fn iter(
+        self: &Arc<Self>,
+        column_refs: Arc<[StorageColumnRef]>,
+        seek_pos: ColumnSeekPosition,
+    ) -> RowSetIterator {
+        RowSetIterator::new(self.clone(), column_refs, seek_pos).await
     }
 }
 
@@ -85,26 +103,60 @@ pub mod tests {
     use super::*;
 
     pub async fn helper_build_rowset(tempdir: &TempDir, nullable: bool) -> DiskRowset {
-        let columns = vec![ColumnCatalog::new(
-            0,
-            "v1".to_string(),
-            if nullable {
-                DataTypeKind::Int.nullable().to_column()
-            } else {
-                DataTypeKind::Int.not_null().to_column()
-            },
-        )];
+        let columns = vec![
+            ColumnCatalog::new(
+                0,
+                "v1".to_string(),
+                if nullable {
+                    DataTypeKind::Int.nullable().to_column()
+                } else {
+                    DataTypeKind::Int.not_null().to_column()
+                },
+            ),
+            ColumnCatalog::new(
+                1,
+                "v2".to_string(),
+                if nullable {
+                    DataTypeKind::Int.nullable().to_column()
+                } else {
+                    DataTypeKind::Int.not_null().to_column()
+                },
+            ),
+            ColumnCatalog::new(
+                2,
+                "v3".to_string(),
+                if nullable {
+                    DataTypeKind::Int.nullable().to_column()
+                } else {
+                    DataTypeKind::Int.not_null().to_column()
+                },
+            ),
+        ];
+
         let mut builder = RowsetBuilder::new(
             columns.clone().into(),
             tempdir.path(),
             ColumnBuilderOptions { target_size: 4096 },
         );
 
-        for _ in 0..1000 {
+        for _ in 0..100 {
             builder.append(
                 [
                     I32Array::from_iter([1, 2, 3].iter().cycle().cloned().take(1000).map(Some))
                         .into(),
+                    I32Array::from_iter(
+                        [1, 3, 5, 7, 9].iter().cycle().cloned().take(1000).map(Some),
+                    )
+                    .into(),
+                    I32Array::from_iter(
+                        [2, 3, 3, 3, 3, 3, 3]
+                            .iter()
+                            .cycle()
+                            .cloned()
+                            .take(1000)
+                            .map(Some),
+                    )
+                    .into(),
                 ]
                 .into_iter()
                 .collect(),
