@@ -27,10 +27,10 @@ fn array_sum(c: &mut Criterion) {
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for size in [1, 16, 256, 4096, 65536, 131072, 262144, 524288, 1048576] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            #[cfg(not(feature = "simd"))]
-            use risinglight::executor::evaluator;
             #[cfg(feature = "simd")]
             use risinglight::array::ArraySIMDSum;
+            #[cfg(not(feature = "simd"))]
+            use risinglight::executor::evaluator;
             let a1: I32Array = (0..size).collect();
             let temp: Option<i32> = None;
             b.iter(|| {
