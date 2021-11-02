@@ -51,10 +51,10 @@ where
         let range = self.idx..self.idx + len;
 
         let mut valid = [0u8; std::mem::size_of::<usize>()];
-        let bytes = (len + 7) / 8;
+        let bytes = (len + 7) >> 3;
         valid[..bytes].copy_from_slice(unsafe {
             std::slice::from_raw_parts(
-                (self.array.valid.as_raw_ptr() as *const u8).add(self.idx / 8),
+                (self.array.valid.as_raw_ptr() as *const u8).add(self.idx >> 3),
                 bytes,
             )
         });
