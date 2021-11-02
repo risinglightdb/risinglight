@@ -1,5 +1,7 @@
 use criterion::*;
+use risinglight::array::Array;
 use risinglight::array::I32Array;
+use risinglight::executor::sum_i32;
 
 fn array_mul(c: &mut Criterion) {
     let mut group = c.benchmark_group("array mul");
@@ -20,5 +22,26 @@ fn array_mul(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, array_mul);
+fn array_sum(c: &mut Criterion) {
+    let mut group = c.benchmark_group("array_sum");
+    group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    for size in [1, 16, 256, 4096, 65536, 131072, 262144, 524288, 1048576] {
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+            #[cfg(not(feature = "simd"))]
+            use risinglight::executor::evaluator;
+            #[cfg(feature = "simd")]
+            use risinglight::array::ArraySIMDSum;
+            let a1: I32Array = (0..size).collect();
+            let temp: Option<i32> = None;
+            b.iter(|| {
+                #[cfg(not(feature = "simd"))]
+                a1.iter().fold(temp, sum_i32);
+                #[cfg(feature = "simd")]
+                a1.simd_sum();
+            })
+        });
+    }
+    group.finish();
+}
+criterion_group!(benches, array_mul, array_sum);
 criterion_main!(benches);

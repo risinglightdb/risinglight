@@ -45,17 +45,16 @@ where
 }
 macro_rules! impl_simd_sum {
     ($t:ty, $e: expr) => {
-        impl SIMDSum<$t, $e> for BatchItem<$t,$e> {
+        impl SIMDSum<$t, $e> for BatchItem<$t, $e> {
             fn sum(&self) -> $t {
                 self.data.horizontal_sum()
             }
         }
-        
-    }
+    };
 }
 
-impl_simd_sum!(i32, 8);
-impl_simd_sum!(f64, 8);
+impl_simd_sum!(i32, 32);
+impl_simd_sum!(f64, 32);
 
 impl<T, const N: usize> Iterator for BatchIter<'_, T, N>
 where
@@ -150,12 +149,12 @@ mod tests {
 
     #[test]
     fn batch_sum() {
-        let a = (0..16).collect::<PrimitiveArray<i32>>();
-        let mut iter = a.batch_iter::<8>();
+        let a = (0..32).collect::<PrimitiveArray<i32>>();
+        let mut iter = a.batch_iter::<32>();
         let mut sum = 0;
         while let Some(batch) = iter.next() {
             sum += batch.sum();
         }
-        assert_eq!(sum, 120);
+        assert_eq!(sum, 496);
     }
 }

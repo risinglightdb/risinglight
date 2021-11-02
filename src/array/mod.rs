@@ -1,11 +1,11 @@
+#[cfg(feature = "simd")]
+use crate::types::NativeType;
 use crate::types::{DataType, DataTypeKind, DataValue};
+#[cfg(feature = "simd")]
+use core_simd::{LaneCount, SimdElement, SupportedLaneCount};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::ops::{Bound, RangeBounds};
-#[cfg(feature = "simd")]
-use crate::types::NativeType;
-#[cfg(feature = "simd")]
-use core_simd::{LaneCount, SimdElement, SupportedLaneCount};
 
 mod data_chunk;
 mod iterator;
@@ -229,8 +229,8 @@ macro_rules! impl_simd_sum_for_arr {
     };
 }
 
-impl_simd_sum_for_arr!(i32, 8);
-impl_simd_sum_for_arr!(f64, 8);
+impl_simd_sum_for_arr!(i32, 32);
+impl_simd_sum_for_arr!(f64, 32);
 
 impl ArrayBuilderImpl {
     /// Create a new array builder from data type.

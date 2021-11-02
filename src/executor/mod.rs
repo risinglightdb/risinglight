@@ -35,6 +35,7 @@ mod projection;
 mod seq_scan;
 mod values;
 
+pub use self::aggregation::*;
 use self::create::*;
 use self::drop::*;
 use self::dummy_scan::*;

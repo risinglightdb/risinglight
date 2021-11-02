@@ -74,7 +74,7 @@ impl SumAggregationState {
 macro_rules! sum_func_gen {
     ($fn_name: ident, $input: ty, $result: ty) => {
         #[allow(dead_code)]
-        fn $fn_name(result: Option<$result>, input: Option<&$input>) -> Option<$result> {
+        pub fn $fn_name(result: Option<$result>, input: Option<&$input>) -> Option<$result> {
             match (result, input) {
                 (_, None) => result,
                 (None, Some(i)) => Some(<$result>::from(*i)),
