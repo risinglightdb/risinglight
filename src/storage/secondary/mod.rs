@@ -27,8 +27,8 @@ use crate::types::{ColumnId, DatabaseId, SchemaId};
 use async_trait::async_trait;
 use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
+use std::sync::Arc;
 
 /// Secondary storage of RisingLight.
 pub struct SecondaryStorage {
@@ -49,7 +49,7 @@ pub struct SecondaryStorage {
     manifest: Arc<Mutex<Manifest>>,
 
     /// Next RowSet Id of the current storage engine
-    next_rowset_id: Arc<AtomicU32>
+    next_rowset_id: Arc<AtomicU32>,
 }
 
 impl SecondaryStorage {

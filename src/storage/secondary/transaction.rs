@@ -106,15 +106,17 @@ impl Transaction for SecondaryTransaction {
             .await?;
 
         // add rowset to table
-        self.table.add_rowset(
-            DiskRowset::open(
-                directory,
-                self.table.shared.columns.clone(),
-                self.table.shared.block_cache.clone(),
-                self.rowset_id,
+        self.table
+            .add_rowset(
+                DiskRowset::open(
+                    directory,
+                    self.table.shared.columns.clone(),
+                    self.table.shared.block_cache.clone(),
+                    self.rowset_id,
+                )
+                .await?,
             )
-            .await?,
-        ).await?;
+            .await?;
 
         self.finished = true;
         Ok(())

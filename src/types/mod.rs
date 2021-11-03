@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use serde::{Serialize, Deserialize};
 
 pub use sqlparser::ast::DataType as DataTypeKind;
 

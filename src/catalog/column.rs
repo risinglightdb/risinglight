@@ -1,5 +1,5 @@
 use crate::types::{ColumnId, DataType};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// A descriptor of a column.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

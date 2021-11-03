@@ -105,7 +105,7 @@ impl SecondaryStorage {
             .get_schema_by_id(schema_id)
             .ok_or(StorageError::NotFound("schema", schema_id))?;
         if schema.get_table_by_name(&table_name).is_some() {
-            return Err(StorageError::Duplicated("table", table_name.clone()));
+            return Err(StorageError::Duplicated("table", table_name));
         }
         let table_id = schema
             .add_table(table_name.clone(), column_descs.to_vec(), false)
