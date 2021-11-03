@@ -134,5 +134,8 @@ pub trait Transaction: Sync + Send + 'static {
 #[async_trait]
 pub trait TxnIterator: Send {
     /// get next batch of elements
-    async fn next_batch(&mut self, expected_size: Option<usize>) -> StorageResult<Option<DataChunk>>;
+    async fn next_batch(
+        &mut self,
+        expected_size: Option<usize>,
+    ) -> StorageResult<Option<DataChunk>>;
 }

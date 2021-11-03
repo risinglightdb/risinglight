@@ -66,9 +66,11 @@ impl StorageChunk {
                     .iter()
                     .map(|a| a.filter(visibility.iter().map(|x| *x))),
             ),
-            None => {
-                DataChunk::from_iter(self.arrays.iter().map(|a| a.filter([true].iter().cycle().cloned())))
-            }
+            None => DataChunk::from_iter(
+                self.arrays
+                    .iter()
+                    .map(|a| a.filter([true].iter().cycle().cloned())),
+            ),
         }
     }
 }
