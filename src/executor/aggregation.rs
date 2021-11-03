@@ -1,5 +1,7 @@
 use super::*;
-use crate::array::{Array, ArrayBuilderImpl, ArrayImpl};
+#[allow(unused_imports)]
+use crate::array::{Array};
+use crate::array::{ArrayBuilderImpl, ArrayImpl};
 use crate::binder::{AggKind, BoundExpr};
 use crate::types::{DataTypeKind, DataValue};
 
