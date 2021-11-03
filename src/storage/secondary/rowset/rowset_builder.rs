@@ -41,6 +41,9 @@ pub struct RowsetBuilder {
 
     /// Output directory of the rowset
     directory: PathBuf,
+
+    /// Count of rows in this rowset
+    row_cnt: u32,
 }
 
 impl RowsetBuilder {
@@ -58,10 +61,13 @@ impl RowsetBuilder {
                 .collect_vec(),
             directory: directory.as_ref().to_path_buf(),
             columns,
+            row_cnt: 0,
         }
     }
 
     pub fn append(&mut self, chunk: DataChunk) {
+        self.row_cnt += chunk.cardinality() as u32;
+
         for idx in 0..chunk.column_count() {
             self.builders[idx].append(chunk.array_at(idx));
         }

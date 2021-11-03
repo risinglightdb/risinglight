@@ -56,7 +56,7 @@ pub trait ArrayBuilder {
 ///
 /// For example, `PrimitiveArray` could return an `Option<&u32>`, and `UTF8Array` will
 /// return an `Option<&str>`.
-pub trait Array: Sized {
+pub trait Array: Sized + Send + Sync + 'static {
     /// Corresponding builder of this array.
     type Builder: ArrayBuilder<Array = Self>;
 
@@ -127,6 +127,7 @@ impl<A: Array> ArrayExt for A {
 
 pub type BoolArray = PrimitiveArray<bool>;
 pub type I32Array = PrimitiveArray<i32>;
+pub type I64Array = PrimitiveArray<i64>;
 pub type F64Array = PrimitiveArray<f64>;
 
 /// Embeds all types of arrays in `array` module.
@@ -135,7 +136,7 @@ pub enum ArrayImpl {
     Bool(BoolArray),
     // Int16(PrimitiveArray<i16>),
     Int32(I32Array),
-    // Int64(PrimitiveArray<i64>),
+    Int64(PrimitiveArray<i64>),
     // Float32(PrimitiveArray<f32>),
     Float64(F64Array),
     UTF8(UTF8Array),
@@ -143,6 +144,7 @@ pub enum ArrayImpl {
 
 pub type BoolArrayBuilder = PrimitiveArrayBuilder<bool>;
 pub type I32ArrayBuilder = PrimitiveArrayBuilder<i32>;
+pub type I64ArrayBuilder = PrimitiveArrayBuilder<i64>;
 pub type F64ArrayBuilder = PrimitiveArrayBuilder<f64>;
 
 /// Embeds all types of array builders in `array` module.
@@ -150,7 +152,7 @@ pub enum ArrayBuilderImpl {
     Bool(BoolArrayBuilder),
     // Int16(PrimitiveArrayBuilder<i16>),
     Int32(I32ArrayBuilder),
-    // Int64(PrimitiveArrayBuilder<i64>),
+    Int64(PrimitiveArrayBuilder<i64>),
     // Float32(PrimitiveArrayBuilder<f32>),
     Float64(F64ArrayBuilder),
     UTF8(UTF8ArrayBuilder),
@@ -195,7 +197,7 @@ macro_rules! impl_into {
 impl_into! { PrimitiveArray<bool>, Bool }
 // impl_into! { PrimitiveArray<i16>, Int16 }
 impl_into! { PrimitiveArray<i32>, Int32 }
-// impl_into! { PrimitiveArray<i64>, Int64 }
+impl_into! { PrimitiveArray<i64>, Int64 }
 // impl_into! { PrimitiveArray<f32>, Float32 }
 impl_into! { PrimitiveArray<f64>, Float64 }
 impl_into! { UTF8Array, UTF8 }
@@ -218,6 +220,7 @@ impl ArrayBuilderImpl {
         match val {
             DataValue::Bool(_) => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
             DataValue::Int32(_) => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
+            DataValue::Int64(_) => Self::Int64(PrimitiveArrayBuilder::<i64>::new(0)),
             DataValue::Float64(_) => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
             _ => panic!("unsupported data type"),
         }
@@ -228,6 +231,7 @@ impl ArrayBuilderImpl {
         match array {
             ArrayImpl::Bool(_) => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
             ArrayImpl::Int32(_) => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
+            ArrayImpl::Int64(_) => Self::Int64(PrimitiveArrayBuilder::<i64>::new(0)),
             ArrayImpl::Float64(_) => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
             ArrayImpl::UTF8(_) => Self::UTF8(UTF8ArrayBuilder::new(0)),
         }
@@ -237,11 +241,13 @@ impl ArrayBuilderImpl {
     pub fn push(&mut self, v: &DataValue) {
         match (self, v) {
             (Self::Bool(a), DataValue::Bool(v)) => a.push(Some(v)),
+            (Self::Int64(a), DataValue::Int64(v)) => a.push(Some(v)),
             (Self::Int32(a), DataValue::Int32(v)) => a.push(Some(v)),
             (Self::Float64(a), DataValue::Float64(v)) => a.push(Some(v)),
             (Self::UTF8(a), DataValue::String(v)) => a.push(Some(v)),
             (Self::Bool(a), DataValue::Null) => a.push(None),
             (Self::Int32(a), DataValue::Null) => a.push(None),
+            (Self::Int64(a), DataValue::Null) => a.push(None),
             (Self::Float64(a), DataValue::Null) => a.push(None),
             (Self::UTF8(a), DataValue::Null) => a.push(None),
             _ => panic!("failed to push value: type mismatch"),
@@ -253,6 +259,7 @@ impl ArrayBuilderImpl {
         match self {
             Self::Bool(a) => ArrayImpl::Bool(a.finish()),
             Self::Int32(a) => ArrayImpl::Int32(a.finish()),
+            Self::Int64(a) => ArrayImpl::Int64(a.finish()),
             Self::Float64(a) => ArrayImpl::Float64(a.finish()),
             Self::UTF8(a) => ArrayImpl::UTF8(a.finish()),
         }
@@ -263,6 +270,7 @@ impl ArrayBuilderImpl {
         match (self, array_impl) {
             (Self::Bool(builder), ArrayImpl::Bool(arr)) => builder.append(arr),
             (Self::Int32(builder), ArrayImpl::Int32(arr)) => builder.append(arr),
+            (Self::Int64(builder), ArrayImpl::Int64(arr)) => builder.append(arr),
             (Self::Float64(builder), ArrayImpl::Float64(arr)) => builder.append(arr),
             (Self::UTF8(builder), ArrayImpl::UTF8(arr)) => builder.append(arr),
             _ => panic!("failed to push value: type mismatch"),
@@ -276,6 +284,7 @@ impl ArrayImpl {
         match self {
             Self::Bool(a) => a.get(idx).map(|v| v.to_string()),
             Self::Int32(a) => a.get(idx).map(|v| v.to_string()),
+            Self::Int64(a) => a.get(idx).map(|v| v.to_string()),
             Self::Float64(a) => a.get(idx).map(|v| v.to_string()),
             Self::UTF8(a) => a.get(idx).map(|v| v.to_string()),
         }
@@ -291,6 +300,10 @@ impl ArrayImpl {
             },
             Self::Int32(a) => match a.get(idx) {
                 Some(val) => DataValue::Int32(*val),
+                None => DataValue::Null,
+            },
+            Self::Int64(a) => match a.get(idx) {
+                Some(val) => DataValue::Int64(*val),
                 None => DataValue::Null,
             },
             Self::Float64(a) => match a.get(idx) {
@@ -309,6 +322,7 @@ impl ArrayImpl {
         match self {
             Self::Bool(a) => a.len(),
             Self::Int32(a) => a.len(),
+            Self::Int64(a) => a.len(),
             Self::Float64(a) => a.len(),
             Self::UTF8(a) => a.len(),
         }
@@ -324,6 +338,7 @@ impl ArrayImpl {
         match self {
             Self::Bool(a) => Self::Bool(a.filter(visibility)),
             Self::Int32(a) => Self::Int32(a.filter(visibility)),
+            Self::Int64(a) => Self::Int64(a.filter(visibility)),
             Self::Float64(a) => Self::Float64(a.filter(visibility)),
             Self::UTF8(a) => Self::UTF8(a.filter(visibility)),
         }
@@ -334,6 +349,7 @@ impl ArrayImpl {
         match self {
             Self::Bool(a) => Self::Bool(a.slice(range)),
             Self::Int32(a) => Self::Int32(a.slice(range)),
+            Self::Int64(a) => Self::Int64(a.slice(range)),
             Self::Float64(a) => Self::Float64(a.slice(range)),
             Self::UTF8(a) => Self::UTF8(a.slice(range)),
         }

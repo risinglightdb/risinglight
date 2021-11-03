@@ -25,7 +25,7 @@ pub struct SecondaryTransaction {
     table: SecondaryTable,
 
     /// Rowset Id
-    rowset_id: usize,
+    rowset_id: u32,
 }
 
 impl SecondaryTransaction {

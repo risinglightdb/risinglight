@@ -7,7 +7,7 @@ use itertools::Itertools;
 use moka::future::Cache;
 use parking_lot::RwLock;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::vec::Vec;
 
@@ -29,7 +29,7 @@ pub(super) struct SecondaryTableInner {
     /// Store info again in inner so that inner struct could access it.
     info: Arc<SecondaryTableInfo>,
 
-    next_rowset_id: AtomicUsize,
+    next_rowset_id: AtomicU32,
 }
 
 pub(super) struct SecondaryTableInfo {
@@ -56,7 +56,7 @@ impl SecondaryTableInner {
         Self {
             on_disk: vec![],
             info,
-            next_rowset_id: AtomicUsize::new(0),
+            next_rowset_id: AtomicU32::new(0),
         }
     }
 
@@ -111,14 +111,14 @@ impl SecondaryTable {
         Ok(())
     }
 
-    pub(super) fn generate_rowset_id(&self) -> usize {
+    pub(super) fn generate_rowset_id(&self) -> u32 {
         let inner = self.inner.read();
         inner
             .next_rowset_id
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
     }
 
-    pub(super) fn get_rowset_path(&self, rowset_id: usize) -> PathBuf {
+    pub(super) fn get_rowset_path(&self, rowset_id: u32) -> PathBuf {
         self.info
             .storage_options
             .path

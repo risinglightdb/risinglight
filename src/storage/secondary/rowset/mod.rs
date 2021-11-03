@@ -51,10 +51,17 @@ mod primitive_column_builder;
 mod primitive_nullable_block_builder;
 use primitive_nullable_block_builder::*;
 
+mod primitive_column_iterator;
+// use primitive_column_iterator::*;
+
+mod row_handler_sequencer;
+// use row_handler_sequencer::*;
+
 mod column_builder;
 use column_builder::*;
 
 mod column;
+// use column::*;
 
 mod encode;
 pub use encode::*;
@@ -72,6 +79,8 @@ pub use primitive_block_iterator::*;
 
 mod block;
 pub use block::*;
+
+use async_trait::async_trait;
 
 /// Builds a column. [`ColumnBuilder`] will automatically chunk [`Array`] into
 /// blocks, calls [`BlockBuilder`] to generate a block, and builds index for a
@@ -114,12 +123,24 @@ pub trait BlockBuilder<A: Array> {
     fn finish(self) -> Vec<u8>;
 }
 
-/// An iterator on a block.
+/// An iterator on a block. This iterator requires the block being pre-loaded in memory.
 pub trait BlockIterator<A: Array> {
     /// Get a batch from the block. A `None` return value means that
     /// there are no more elements from the block.
     fn next_batch(&mut self) -> Option<A>;
 }
 
-/// Iteratos on a column
-pub trait ColumnIterator<A: Array> {}
+/// Iterator on a column. This iterator may request data from disk while iterating.
+#[async_trait]
+pub trait ColumnIterator<A: Array> {
+    /// Get a batch and the starting row id from the column. A `None` return value means that
+    /// there are no more elements from the block.
+    async fn next_batch(&mut self) -> Option<(u32, A)>;
+}
+
+/// When creating an iterator, a [`SeekPosition`] should be set as the initial location.
+pub enum ColumnSeekPosition {
+    Start,
+    RowId(u32),
+    SortKey(()),
+}
