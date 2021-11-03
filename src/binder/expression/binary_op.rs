@@ -1,5 +1,6 @@
 use super::*;
 use crate::parser::BinaryOperator;
+use crate::types::DataTypeExt;
 
 /// A bound binary operation expression.
 #[derive(Debug, PartialEq, Clone)]
@@ -35,13 +36,21 @@ impl Binder {
             | Op::And
             | Op::Or => match (&left_bound_expr.return_type, &right_bound_expr.return_type) {
                 (Some(left_data_type), Some(right_data_type)) => {
-                    if left_data_type != right_data_type {
-                        return Err(BindError::BinaryOpTypeMismatch);
+                    if left_data_type.kind() != right_data_type.kind() {
+                        return Err(BindError::BinaryOpTypeMismatch(
+                            format!("{:?}", left_data_type),
+                            format!("{:?}", right_data_type),
+                        ));
                     }
-                    return_type = Some(left_data_type.clone());
+                    return_type = Some(left_data_type.kind().nullable());
                 }
                 (None, None) => return_type = None,
-                _ => return Err(BindError::BinaryOpTypeMismatch),
+                _ => {
+                    return Err(BindError::BinaryOpTypeMismatch(
+                        "None".to_string(),
+                        "None".to_string(),
+                    ))
+                }
             },
             _ => todo!("Support more binary operators"),
         }

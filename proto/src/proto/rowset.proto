@@ -42,3 +42,8 @@ message ColumnInfo {
 message RowsetManifest {
   repeated ColumnInfo columns = 1;
 }
+
+message DeleteRecord {
+  uint32 rowset_id = 1;
+  uint32 row_id = 2;
+}
