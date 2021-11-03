@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
 pub use sqlparser::ast::DataType as DataTypeKind;
@@ -6,7 +7,7 @@ mod native;
 pub(crate) use native::*;
 
 /// Data type with nullable.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DataType {
     pub kind: DataTypeKind,
     pub nullable: bool,

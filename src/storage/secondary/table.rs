@@ -13,8 +13,8 @@ use std::vec::Vec;
 /// A table in Secondary engine.
 #[derive(Clone)]
 pub struct SecondaryTable {
-    /// Information about this table, shared by all structs
-    pub(super) info: Arc<SecondaryTableInfo>,
+    /// sharedrmation about this table, shared by all structs
+    pub(super) shared: Arc<SecondaryTableshared>,
 
     /// Inner lock-procted structures
     pub(super) inner: SecondaryTableInnerRef,
@@ -25,13 +25,11 @@ pub(super) struct SecondaryTableInner {
     /// so as to reduce the need to clone the `Arc`s.
     on_disk: Vec<Arc<DiskRowset>>,
 
-    /// Store info again in inner so that inner struct could access it.
-    info: Arc<SecondaryTableInfo>,
-
-    next_rowset_id: AtomicU32,
+    /// Store shared again in inner so that inner struct could access it.
+    shared: Arc<SecondaryTableshared>,
 }
 
-pub(super) struct SecondaryTableInfo {
+pub(super) struct SecondaryTableshared {
     /// Table id
     pub table_ref_id: TableRefId,
 
@@ -46,24 +44,29 @@ pub(super) struct SecondaryTableInfo {
 
     /// Block cache for the whole storage engine
     pub block_cache: Cache<BlockCacheKey, Block>,
+
+    /// Next RowSet Id of the current table
+    next_rowset_id: Arc<AtomicU32>,
+
+    /// Manifest file
+    manifest: Arc<Mutex<Manifest>>,
 }
 
 pub(super) type SecondaryTableInnerRef = Arc<RwLock<SecondaryTableInner>>;
 
 impl SecondaryTableInner {
-    pub fn new(info: Arc<SecondaryTableInfo>) -> Self {
+    pub fn new(shared: Arc<SecondaryTableshared>) -> Self {
         Self {
             on_disk: vec![],
-            info,
-            next_rowset_id: AtomicU32::new(0),
+            shared,
         }
     }
 
     fn column_descs(&self, ids: &[ColumnId]) -> StorageResult<Vec<ColumnDesc>> {
         ids.iter()
             .map(|id| {
-                Ok(self.info.columns[self
-                    .info
+                Ok(self.shared.columns[self
+                    .shared
                     .column_map
                     .get(id)
                     .cloned()
@@ -81,8 +84,10 @@ impl SecondaryTable {
         table_ref_id: TableRefId,
         columns: &[ColumnCatalog],
         block_cache: Cache<BlockCacheKey, Block>,
+        next_rowset_id: Arc<AtomicU32>,
+        manifest: Arc<Mutex<Manifest>>,
     ) -> Self {
-        let info = Arc::new(SecondaryTableInfo {
+        let shared = Arc::new(SecondaryTableshared {
             columns: columns.into(),
             column_map: columns
                 .iter()
@@ -92,11 +97,13 @@ impl SecondaryTable {
             table_ref_id,
             storage_options,
             block_cache,
+            next_rowset_id,
+            manifest,
         });
 
         Self {
-            info: info.clone(),
-            inner: Arc::new(RwLock::new(SecondaryTableInner::new(info))),
+            shared: shared.clone(),
+            inner: Arc::new(RwLock::new(SecondaryTableInner::new(shared))),
         }
     }
 
@@ -106,21 +113,32 @@ impl SecondaryTable {
         Ok(inner.on_disk.clone())
     }
 
-    pub(super) fn add_rowset(&self, rowset: DiskRowset) -> StorageResult<()> {
-        info!("RowSet flushed: {}", rowset.rowset_id());
+    pub(super) fn apply_add_rowset(&self, rowset: DiskRowset) -> StorageResult<()> {
         self.inner.write().on_disk.push(Arc::new(rowset));
         Ok(())
     }
 
+    pub(super) async fn add_rowset(&self, rowset: DiskRowset) -> StorageResult<()> {
+        info!("RowSet flushed: {}", rowset.rowset_id());
+        let mut manifest = self.shared.manifest.lock().await;
+        manifest
+            .append(ManifestOperation::AddRowSet(AddRowSetEntry {
+                rowset_id: rowset.rowset_id(),
+                table_id: self.shared.table_ref_id,
+            }))
+            .await?;
+        self.apply_add_rowset(rowset)?;
+        Ok(())
+    }
+
     pub(super) fn generate_rowset_id(&self) -> u32 {
-        let inner = self.inner.read();
-        inner
+        self.shared
             .next_rowset_id
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
     }
 
     pub(super) fn get_rowset_path(&self, rowset_id: u32) -> PathBuf {
-        self.info
+        self.shared
             .storage_options
             .path
             .join(format!("{}_{}", self.table_id().table_id, rowset_id))
@@ -137,7 +155,7 @@ impl Table for SecondaryTable {
     }
 
     fn table_id(&self) -> TableRefId {
-        self.info.table_ref_id
+        self.shared.table_ref_id
     }
 
     async fn write(&self) -> StorageResult<Self::TransactionType> {

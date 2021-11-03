@@ -2,6 +2,7 @@
 
 mod txn_iterator;
 use moka::future::Cache;
+use tokio::sync::Mutex;
 pub use txn_iterator::*;
 mod row_handler;
 pub use row_handler::*;
@@ -17,11 +18,16 @@ mod concat_iterator;
 pub use concat_iterator::*;
 mod storage;
 
+mod manifest;
+pub use manifest::*;
+
 use super::{Storage, StorageError, StorageResult};
-use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};
+use crate::catalog::{ColumnCatalog, RootCatalogRef, TableRefId};
 use crate::types::{ColumnId, DatabaseId, SchemaId};
+use async_trait::async_trait;
 use parking_lot::RwLock;
 use std::collections::HashMap;
+use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
 /// Secondary storage of RisingLight.
@@ -38,18 +44,17 @@ pub struct SecondaryStorage {
 
     /// Block cache of the storage engine
     block_cache: Cache<BlockCacheKey, Block>,
+
+    /// Stores all meta operations inside storage engine
+    manifest: Arc<Mutex<Manifest>>,
+
+    /// Next RowSet Id of the current storage engine
+    next_rowset_id: Arc<AtomicU32>,
 }
 
 impl SecondaryStorage {
     pub async fn open(options: StorageOptions) -> StorageResult<Self> {
-        let mut engine = Self {
-            catalog: Arc::new(RootCatalog::new()),
-            tables: RwLock::new(HashMap::new()),
-            block_cache: Cache::new(options.cache_size),
-            options: Arc::new(options),
-        };
-        engine.bootstrap().await?;
-        Ok(engine)
+        Self::bootstrap(options).await
     }
 
     pub fn catalog(&self) -> &RootCatalogRef {
@@ -57,69 +62,27 @@ impl SecondaryStorage {
     }
 }
 
+#[async_trait]
 impl Storage for SecondaryStorage {
     type TransactionType = SecondaryTransaction;
     type TableType = SecondaryTable;
 
-    // The following implementation is exactly the same as in-memory engine.
-
-    fn create_table(
+    async fn create_table(
         &self,
         database_id: DatabaseId,
         schema_id: SchemaId,
         table_name: &str,
         column_descs: &[ColumnCatalog],
     ) -> StorageResult<()> {
-        let db = self
-            .catalog
-            .get_database_by_id(database_id)
-            .ok_or(StorageError::NotFound("database", database_id))?;
-        let schema = db
-            .get_schema_by_id(schema_id)
-            .ok_or(StorageError::NotFound("schema", schema_id))?;
-        if schema.get_table_by_name(table_name).is_some() {
-            return Err(StorageError::Duplicated("table", table_name.into()));
-        }
-        let table_id = schema
-            .add_table(table_name.into(), column_descs.to_vec(), false)
-            .map_err(|_| StorageError::Duplicated("table", table_name.into()))?;
-
-        let id = TableRefId {
-            database_id,
-            schema_id,
-            table_id,
-        };
-        let table = SecondaryTable::new(
-            self.options.clone(),
-            id,
-            column_descs,
-            self.block_cache.clone(),
-        );
-        self.tables.write().insert(id, table);
-        Ok(())
+        self.create_table_inner(database_id, schema_id, table_name, column_descs)
+            .await
     }
 
     fn get_table(&self, table_id: TableRefId) -> StorageResult<SecondaryTable> {
-        let table = self
-            .tables
-            .read()
-            .get(&table_id)
-            .ok_or(StorageError::NotFound("table", table_id.table_id))?
-            .clone();
-        Ok(table)
+        self.get_table_inner(table_id)
     }
 
-    fn drop_table(&self, table_id: TableRefId) -> StorageResult<()> {
-        self.tables
-            .write()
-            .remove(&table_id)
-            .ok_or(StorageError::NotFound("table", table_id.table_id))?;
-        let db = self
-            .catalog
-            .get_database_by_id(table_id.database_id)
-            .unwrap();
-        let schema = db.get_schema_by_id(table_id.schema_id).unwrap();
-        schema.delete_table(table_id.table_id);
-        Ok(())
+    async fn drop_table(&self, table_id: TableRefId) -> StorageResult<()> {
+        self.drop_table_inner(table_id).await
     }
 }

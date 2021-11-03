@@ -6,6 +6,7 @@ pub use self::root::*;
 pub use self::schema::*;
 pub use self::table::*;
 use crate::types::*;
+use serde::{Deserialize, Serialize};
 
 pub static DEFAULT_DATABASE_NAME: &str = "postgres";
 pub static DEFAULT_SCHEMA_NAME: &str = "postgres";
@@ -19,7 +20,7 @@ mod table;
 pub type RootCatalogRef = Arc<RootCatalog>;
 
 /// The reference ID of a table.
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
 pub struct TableRefId {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,
