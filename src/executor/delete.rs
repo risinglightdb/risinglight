@@ -22,7 +22,7 @@ impl<S: Storage> DeleteExecutor<S> {
                 let chunk = chunk?;
                 let row_handlers = chunk.array_at(chunk.column_count() - 1);
                 for row_handler_idx in 0..row_handlers.len() {
-                    let row_handler = <S::TransactionType as Transaction>::RowHandlerType::from_column(&row_handlers, row_handler_idx);
+                    let row_handler = <S::TransactionType as Transaction>::RowHandlerType::from_column(row_handlers, row_handler_idx);
                     txn.delete(&row_handler).await?;
                 }
             }
