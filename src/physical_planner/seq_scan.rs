@@ -10,6 +10,7 @@ use crate::types::ColumnId;
 pub struct PhysicalSeqScan {
     pub table_ref_id: TableRefId,
     pub column_ids: Vec<ColumnId>,
+    pub with_row_handler: bool,
 }
 
 impl PhysicalPlaner {
@@ -17,6 +18,7 @@ impl PhysicalPlaner {
         Ok(PhysicalPlan::SeqScan(PhysicalSeqScan {
             table_ref_id: plan.table_ref_id,
             column_ids: plan.column_ids,
+            with_row_handler: plan.with_row_handler,
         }))
     }
 }
@@ -25,9 +27,10 @@ impl PlanExplainable for PhysicalSeqScan {
     fn explain_inner(&self, _level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(
             f,
-            "SeqScan: table #{}, columns [{}]",
+            "SeqScan: table #{}, columns [{}], with_row_handler: {}",
             self.table_ref_id.table_id,
-            self.column_ids.iter().map(ToString::to_string).join(", ")
+            self.column_ids.iter().map(ToString::to_string).join(", "),
+            self.with_row_handler
         )
     }
 }

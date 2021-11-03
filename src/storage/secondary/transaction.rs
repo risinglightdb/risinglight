@@ -27,6 +27,10 @@ pub struct SecondaryTransaction {
 
     /// Rowset Id
     rowset_id: u32,
+
+    /// Count of updated rows in this txn. If there is no insertion or updates,
+    /// RowSet won't be created on disk.
+    row_cnt: usize,
 }
 
 impl SecondaryTransaction {
@@ -42,6 +46,7 @@ impl SecondaryTransaction {
             table: table.clone(),
             snapshot: table.snapshot()?,
             rowset_id: table.generate_rowset_id(),
+            row_cnt: 0,
         })
     }
 }
@@ -83,6 +88,7 @@ impl Transaction for SecondaryTransaction {
     }
 
     async fn append(&mut self, columns: DataChunk) -> StorageResult<()> {
+        self.row_cnt += columns.cardinality();
         self.mem.as_mut().unwrap().append(columns).await
     }
 
@@ -91,34 +97,37 @@ impl Transaction for SecondaryTransaction {
     }
 
     async fn commit(mut self) -> StorageResult<()> {
-        let directory = self.table.get_rowset_path(self.rowset_id);
+        if self.row_cnt > 0 {
+            let directory = self.table.get_rowset_path(self.rowset_id);
 
-        tokio::fs::create_dir(&directory).await.ok();
+            tokio::fs::create_dir(&directory).await.ok();
 
-        // flush data to disk
-        self.mem
-            .take()
-            .unwrap()
-            .flush(
-                &directory,
-                ColumnBuilderOptions::from_storage_options(&*self.table.shared.storage_options),
-            )
-            .await?;
-
-        // add rowset to table
-        self.table
-            .add_rowset(
-                DiskRowset::open(
-                    directory,
-                    self.table.shared.columns.clone(),
-                    self.table.shared.block_cache.clone(),
-                    self.rowset_id,
+            // flush data to disk
+            self.mem
+                .take()
+                .unwrap()
+                .flush(
+                    &directory,
+                    ColumnBuilderOptions::from_storage_options(&*self.table.shared.storage_options),
                 )
-                .await?,
-            )
-            .await?;
+                .await?;
+
+            // add rowset to table
+            self.table
+                .add_rowset(
+                    DiskRowset::open(
+                        directory,
+                        self.table.shared.columns.clone(),
+                        self.table.shared.block_cache.clone(),
+                        self.rowset_id,
+                    )
+                    .await?,
+                )
+                .await?;
+        }
 
         self.finished = true;
+
         Ok(())
     }
 

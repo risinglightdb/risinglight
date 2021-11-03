@@ -13,7 +13,7 @@ impl LogicalPlaner {
     pub fn plan_select(&self, stmt: Box<BoundSelect>) -> Result<LogicalPlan, LogicalPlanError> {
         let mut plan = LogicalPlan::Dummy;
         if let Some(table_ref) = stmt.from_table.get(0) {
-            plan = self.plan_table_ref(table_ref)?;
+            plan = self.plan_table_ref(table_ref, false)?;
         }
 
         if let Some(expr) = stmt.where_clause {
@@ -68,6 +68,7 @@ impl LogicalPlaner {
     pub fn plan_table_ref(
         &self,
         table_ref: &BoundTableRef,
+        with_row_handler: bool,
     ) -> Result<LogicalPlan, LogicalPlanError> {
         match table_ref {
             BoundTableRef::BaseTableRef {
@@ -77,15 +78,16 @@ impl LogicalPlaner {
             } => Ok(LogicalPlan::SeqScan(LogicalSeqScan {
                 table_ref_id: *ref_id,
                 column_ids: column_ids.to_vec(),
+                with_row_handler,
             })),
             BoundTableRef::JoinTableRef {
                 relation,
                 join_tables,
             } => {
-                let relation_plan = self.plan_table_ref(relation)?;
+                let relation_plan = self.plan_table_ref(relation, with_row_handler)?;
                 let mut join_table_plans = vec![];
                 for table in join_tables.iter() {
-                    let table_plan = self.plan_table_ref(&table.table_ref)?;
+                    let table_plan = self.plan_table_ref(&table.table_ref, with_row_handler)?;
                     join_table_plans.push(LogicalJoinTable {
                         table_plan: Box::new(table_plan),
                         join_op: table.join_op.clone(),

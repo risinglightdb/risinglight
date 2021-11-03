@@ -139,6 +139,7 @@ mod tests {
                 table_id: 0,
             },
             column_ids: vec![0, 1],
+            with_row_handler: false,
         };
         let column0 = BoundExpr {
             kind: BoundExprKind::ColumnRef(BoundColumnRef {

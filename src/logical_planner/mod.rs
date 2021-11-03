@@ -1,6 +1,7 @@
 use crate::{binder::BoundStatement, types::ConvertError};
 
 mod create;
+mod delete;
 mod drop;
 mod explain;
 mod filter;
@@ -13,6 +14,7 @@ mod select;
 mod seq_scan;
 
 pub use create::*;
+pub use delete::*;
 pub use drop::*;
 pub use explain::*;
 pub use filter::*;
@@ -47,6 +49,7 @@ pub enum LogicalPlan {
     Join(LogicalJoin),
     Order(LogicalOrder),
     Limit(LogicalLimit),
+    Delete(LogicalDelete),
 }
 
 #[derive(Default)]
@@ -61,6 +64,7 @@ impl LogicalPlaner {
             BoundStatement::Insert(stmt) => self.plan_insert(stmt),
             BoundStatement::Select(stmt) => self.plan_select(stmt),
             BoundStatement::Explain(stmt) => self.plan_explain(*stmt),
+            BoundStatement::Delete(stmt) => self.plan_delete(*stmt),
         }
     }
 }

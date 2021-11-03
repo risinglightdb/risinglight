@@ -74,6 +74,38 @@ impl Binder {
         }
     }
 
+    pub fn bind_table_ref_with_name(
+        &mut self,
+        database_name: &str,
+        schema_name: &str,
+        table_name: &str,
+    ) -> Result<BoundTableRef, BindError> {
+        if self.context.regular_tables.contains_key(table_name) {
+            return Err(BindError::DuplicatedTableName(table_name.into()));
+        }
+
+        let ref_id = self
+            .catalog
+            .get_table_id_by_name(database_name, schema_name, table_name)
+            .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
+        self.context
+            .regular_tables
+            .insert(table_name.into(), ref_id);
+        self.context
+            .column_names
+            .insert(table_name.into(), HashSet::new());
+        self.context
+            .column_ids
+            .insert(table_name.into(), Vec::new());
+        let base_table_ref = BoundTableRef::BaseTableRef {
+            ref_id,
+            table_name: table_name.into(),
+            column_ids: vec![],
+        };
+        self.base_table_refs.push(table_name.into());
+        Ok(base_table_ref)
+    }
+
     pub fn bind_table_ref(&mut self, table: &TableFactor) -> Result<BoundTableRef, BindError> {
         match table {
             TableFactor::Table { name, alias, .. } => {
@@ -81,30 +113,7 @@ impl Binder {
                 if let Some(alias) = alias {
                     table_name = &alias.name.value;
                 }
-                if self.context.regular_tables.contains_key(table_name) {
-                    return Err(BindError::DuplicatedTableName(table_name.into()));
-                }
-
-                let ref_id = self
-                    .catalog
-                    .get_table_id_by_name(database_name, schema_name, table_name)
-                    .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
-                self.context
-                    .regular_tables
-                    .insert(table_name.into(), ref_id);
-                self.context
-                    .column_names
-                    .insert(table_name.into(), HashSet::new());
-                self.context
-                    .column_ids
-                    .insert(table_name.into(), Vec::new());
-                let base_table_ref = BoundTableRef::BaseTableRef {
-                    ref_id,
-                    table_name: table_name.into(),
-                    column_ids: vec![],
-                };
-                self.base_table_refs.push(table_name.into());
-                Ok(base_table_ref)
+                self.bind_table_ref_with_name(database_name, schema_name, table_name)
             }
             _ => panic!("bind table ref"),
         }

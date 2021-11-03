@@ -116,7 +116,7 @@ impl Binder {
         }))
     }
 
-    fn bind_column_ids(&mut self, table_ref: &mut BoundTableRef) {
+    pub(super) fn bind_column_ids(&mut self, table_ref: &mut BoundTableRef) {
         match table_ref {
             BoundTableRef::BaseTableRef {
                 ref_id: _,
@@ -137,7 +137,7 @@ impl Binder {
         }
     }
 
-    fn bind_column_idx_for_table(&mut self, table_ref: &mut BoundTableRef) {
+    pub(super) fn bind_column_idx_for_table(&mut self, table_ref: &mut BoundTableRef) {
         if let BoundTableRef::JoinTableRef {
             relation: _,
             join_tables,
@@ -155,7 +155,7 @@ impl Binder {
         }
     }
 
-    fn bind_column_idx_for_expr(&mut self, expr_kind: &mut BoundExprKind) {
+    pub(super) fn bind_column_idx_for_expr(&mut self, expr_kind: &mut BoundExprKind) {
         match expr_kind {
             BoundExprKind::ColumnRef(col_ref) => {
                 let table_idx = self

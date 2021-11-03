@@ -22,6 +22,7 @@ use std::sync::Arc;
 
 mod aggregation;
 mod create;
+mod delete;
 mod drop;
 mod dummy_scan;
 pub mod evaluator;
@@ -36,6 +37,7 @@ mod seq_scan;
 mod values;
 
 use self::create::*;
+use self::delete::*;
 use self::drop::*;
 use self::dummy_scan::*;
 use self::explain::*;
@@ -140,6 +142,13 @@ impl ExecutorBuilder {
                 left_child: self.build_with_storage(*plan.left_plan, storage.clone()),
                 right_child: self.build_with_storage(*plan.right_plan, storage),
                 join_op: plan.join_op.clone(),
+            }
+            .execute()
+            .boxed(),
+            PhysicalPlan::Delete(plan) => DeleteExecutor {
+                storage: storage.clone(),
+                child: self.build_with_storage(*plan.filter, storage),
+                table_ref_id: plan.table_ref_id,
             }
             .execute()
             .boxed(),
