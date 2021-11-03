@@ -1,7 +1,5 @@
 use criterion::*;
-use risinglight::array::Array;
 use risinglight::array::I32Array;
-use risinglight::executor::sum_i32;
 
 fn array_mul(c: &mut Criterion) {
     let mut group = c.benchmark_group("array mul");
@@ -32,10 +30,12 @@ fn array_sum(c: &mut Criterion) {
             #[cfg(not(feature = "simd"))]
             use risinglight::executor::evaluator;
             let a1: I32Array = (0..size).collect();
-            let temp: Option<i32> = None;
             b.iter(|| {
                 #[cfg(not(feature = "simd"))]
-                a1.iter().fold(temp, sum_i32);
+                {
+                    let temp: Option<i32> = None;
+                    a1.iter().fold(temp, sum_i32);
+                }
                 #[cfg(feature = "simd")]
                 a1.simd_sum();
             })

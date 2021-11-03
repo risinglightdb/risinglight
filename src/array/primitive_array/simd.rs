@@ -150,9 +150,9 @@ mod tests {
     #[test]
     fn batch_sum() {
         let a = (0..32).collect::<PrimitiveArray<i32>>();
-        let mut iter = a.batch_iter::<32>();
+        let iter = a.batch_iter::<32>();
         let mut sum = 0;
-        while let Some(batch) = iter.next() {
+        for batch in iter {
             sum += batch.sum();
         }
         assert_eq!(sum, 496);
