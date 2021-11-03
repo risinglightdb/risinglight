@@ -17,11 +17,8 @@ use super::{Block, BlockCacheKey, ColumnIndex, ColumnSeekPosition, RowSetIterato
 ///
 /// [`DiskRowset`] contains all necessary information, e.g. column info, rowset location.
 pub struct DiskRowset {
-    directory: PathBuf,
     column_infos: Arc<[ColumnCatalog]>,
     columns: Vec<Column>,
-    block_cache: Cache<BlockCacheKey, Block>,
-    base_block_key: BlockCacheKey,
     rowset_id: u32,
 }
 
@@ -63,9 +60,6 @@ impl DiskRowset {
         Ok(Self {
             column_infos,
             columns,
-            directory,
-            block_cache,
-            base_block_key: BlockCacheKey::default().rowset(rowset_id),
             rowset_id,
         })
     }

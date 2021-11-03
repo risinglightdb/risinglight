@@ -31,7 +31,7 @@ impl<S: Storage> SeqScanExecutor<S> {
         let mut it = txn.scan(None, None, &col_idx, false).await?;
 
         // Notice: The column ids may not be ordered.
-        while let Some(chunk) = it.next_batch().await? {
+        while let Some(chunk) = it.next_batch(None).await? {
             for (idx, builder) in builders.iter_mut().enumerate() {
                 builder.append(chunk.array_at(idx as usize));
             }
@@ -42,7 +42,7 @@ impl<S: Storage> SeqScanExecutor<S> {
             .map(|builder| builder.finish())
             .collect();
 
-        txn.commit().await?;
+        txn.abort().await?;
 
         Ok(chunk)
     }

@@ -84,6 +84,7 @@ pub trait Table: Sync + Send + Clone + 'static {
 }
 
 /// Reference to a column.
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum StorageColumnRef {
     /// A runtime column which contains necessary information to locate a row
     /// **only valid in the current transaction**.
@@ -133,5 +134,8 @@ pub trait Transaction: Sync + Send + 'static {
 #[async_trait]
 pub trait TxnIterator: Send {
     /// get next batch of elements
-    async fn next_batch(&mut self) -> StorageResult<Option<DataChunk>>;
+    async fn next_batch(
+        &mut self,
+        expected_size: Option<usize>,
+    ) -> StorageResult<Option<DataChunk>>;
 }
