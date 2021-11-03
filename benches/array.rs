@@ -23,21 +23,16 @@ fn array_mul(c: &mut Criterion) {
 fn array_sum(c: &mut Criterion) {
     let mut group = c.benchmark_group("array_sum");
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
-    for size in [1, 16, 256, 4096, 65536, 131072, 262144, 524288, 1048576] {
+    for size in [1, 16, 256, 4096, 65536, 1048576] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            #[cfg(feature = "simd")]
-            use risinglight::array::ArraySIMDSum;
             #[cfg(not(feature = "simd"))]
-            use risinglight::executor::evaluator;
+            use risinglight::{array::Array, executor::sum_i32};
             let a1: I32Array = (0..size).collect();
             b.iter(|| {
                 #[cfg(not(feature = "simd"))]
-                {
-                    let temp: Option<i32> = None;
-                    a1.iter().fold(temp, sum_i32);
-                }
+                a1.iter().fold(None, sum_i32);
                 #[cfg(feature = "simd")]
-                a1.simd_sum();
+                a1.batch_iter::<32>().sum::<i32>();
             })
         });
     }

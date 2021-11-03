@@ -1,6 +1,7 @@
 use super::*;
 use bitvec::prelude::{BitSlice, Lsb0};
 use core_simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
+use std::iter::Sum;
 
 impl<T: NativeType> PrimitiveArray<T> {
     /// Returns a batch iterator for SIMD.
@@ -35,26 +36,6 @@ where
     /// The length of the batch.
     pub len: usize,
 }
-
-pub trait SIMDSum<T, const N: usize>
-where
-    T: SimdElement + NativeType,
-    LaneCount<N>: SupportedLaneCount,
-{
-    fn sum(&self) -> T;
-}
-macro_rules! impl_simd_sum {
-    ($t:ty, $e: expr) => {
-        impl SIMDSum<$t, $e> for BatchItem<$t, $e> {
-            fn sum(&self) -> $t {
-                self.data.horizontal_sum()
-            }
-        }
-    };
-}
-
-impl_simd_sum!(i32, 32);
-impl_simd_sum!(f64, 32);
 
 impl<T, const N: usize> Iterator for BatchIter<'_, T, N>
 where
@@ -111,6 +92,20 @@ where
     }
 }
 
+macro_rules! impl_sum {
+    ($($t:ty),*) => {$(
+        impl<const N: usize> Sum<BatchItem<$t, N>> for $t
+        where
+            LaneCount<N>: SupportedLaneCount,
+        {
+            fn sum<I: Iterator<Item = BatchItem<$t, N>>>(iter: I) -> $t {
+                iter.map(|batch| batch.data.horizontal_sum()).sum()
+            }
+        }
+    )*}
+}
+impl_sum!(i8, i16, i32, i64, isize, u8, u16, u32, u64, usize, f32, f64);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -150,11 +145,6 @@ mod tests {
     #[test]
     fn batch_sum() {
         let a = (0..32).collect::<PrimitiveArray<i32>>();
-        let iter = a.batch_iter::<32>();
-        let mut sum = 0;
-        for batch in iter {
-            sum += batch.sum();
-        }
-        assert_eq!(sum, 496);
+        assert_eq!(a.batch_iter::<32>().sum::<i32>(), 496);
     }
 }

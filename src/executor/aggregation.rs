@@ -88,8 +88,6 @@ macro_rules! sum_func_gen {
 
 sum_func_gen!(sum_i32, i32, i32);
 sum_func_gen!(sum_f64, f64, f64);
-#[cfg(feature = "simd")]
-use crate::array::ArraySIMDSum;
 
 impl AggregationState for SumAggregationState {
     fn update(&mut self, array: &ArrayImpl) -> Result<(), ExecutorError> {
@@ -97,7 +95,7 @@ impl AggregationState for SumAggregationState {
             (ArrayImpl::Int32(arr), DataTypeKind::Int) => {
                 #[cfg(feature = "simd")]
                 {
-                    self.result = DataValue::Int32(arr.simd_sum())
+                    self.result = DataValue::Int32(arr.batch_iter::<32>().sum());
                 }
                 #[cfg(not(feature = "simd"))]
                 {
@@ -112,7 +110,7 @@ impl AggregationState for SumAggregationState {
             (ArrayImpl::Float64(arr), DataTypeKind::Double) => {
                 #[cfg(feature = "simd")]
                 {
-                    self.result = DataValue::Float64(arr.simd_sum())
+                    self.result = DataValue::Float64(arr.batch_iter::<32>().sum());
                 }
                 #[cfg(not(feature = "simd"))]
                 {
