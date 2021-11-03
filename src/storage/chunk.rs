@@ -1,20 +1,29 @@
 use std::sync::Arc;
 
 use bitvec::prelude::BitVec;
+use smallvec::SmallVec;
 
 use crate::array::ArrayImpl;
 
+pub type PackedVec<T> = SmallVec<[T; 16]>;
+
 /// Similar to [`DataChunk`], in the storage system, we use [`StorageChunk`]
 /// to represent a set of columns. [`StorageChunk`] contains pointers to
-/// array, and a visibility map.
+/// array, and a visibility map. [`StorageChunk`] generally corresponds to
+/// a batch read from a [`RowSet`].
 pub struct StorageChunk {
+    /// If a row is visible in this chunk. Data come from the delete map.
     visibility: Option<BitVec>,
-    arrays: Vec<Arc<ArrayImpl>>,
+
+    /// Plain array from the blocks.
+    arrays: PackedVec<Arc<ArrayImpl>>,
+
+    /// Number of accessible rows.
     cardinality: usize,
 }
 
 impl StorageChunk {
-    pub fn new(visibility: Option<BitVec>, arrays: Vec<Arc<ArrayImpl>>) -> Self {
+    pub fn new(visibility: Option<BitVec>, arrays: SmallVec<[Arc<ArrayImpl>; 16]>) -> Self {
         assert!(!arrays.is_empty());
         let first_length = arrays[0].len();
         for array in &arrays {

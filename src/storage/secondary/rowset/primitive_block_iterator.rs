@@ -10,41 +10,66 @@ pub struct PlainPrimitiveBlockIterator<T: PrimitiveFixedWidthEncode> {
     block: Block,
 
     /// Total count of elements in block
-    length: usize,
+    row_count: usize,
 
-    /// Indicates if the current block iterator has finished scanning
-    finished: bool,
+    /// Indicates the beginning row of the next batch
+    next_row: usize,
 
     _phantom: PhantomData<T>,
 }
 
 impl<T: PrimitiveFixedWidthEncode> PlainPrimitiveBlockIterator<T> {
-    pub fn new(block: Block, length: usize) -> Self {
+    pub fn new(block: Block, row_count: usize) -> Self {
         Self {
             block,
-            length,
-            finished: false,
+            row_count,
+            next_row: 0,
             _phantom: PhantomData,
         }
     }
 }
 
 impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PlainPrimitiveBlockIterator<T> {
-    fn next_batch(&mut self) -> Option<T::ArrayType> {
-        if self.finished {
-            return None;
+    fn next_batch(
+        &mut self,
+        expected_size: Option<usize>,
+        builder: &mut <T::ArrayType as Array>::Builder,
+    ) -> usize {
+        if self.next_row >= self.row_count {
+            return 0;
         }
-        // Currently, the `BlockIterator` on primitive blocks simply yields all data at once.
-        self.finished = true;
 
         // TODO(chi): error handling on corrupted block
 
-        let mut builder = <T::ArrayType as Array>::Builder::new(self.length);
-        let mut remaining_bytes = &self.block[..];
-        for _ in 0..self.length {
-            builder.push(Some(&T::decode(&mut remaining_bytes)));
+        let mut cnt = 0;
+        let mut buffer = &self.block[self.next_row * T::WIDTH..];
+
+        loop {
+            if let Some(expected_size) = expected_size {
+                assert!(expected_size > 0);
+                if cnt >= expected_size {
+                    break;
+                }
+            }
+
+            if self.next_row >= self.row_count {
+                break;
+            }
+
+            builder.push(Some(&T::decode(&mut buffer)));
+            cnt += 1;
+            self.next_row += 1;
         }
-        Some(builder.finish())
+
+        cnt
+    }
+
+    fn skip(&mut self, cnt: usize) {
+        self.next_row += cnt;
+    }
+
+    fn remaining_items(&self) -> usize {
+        self.row_count - self.next_row
     }
 }
 
@@ -53,6 +78,7 @@ mod tests {
     use bytes::Bytes;
 
     use crate::array::ArrayToVecExt;
+    use crate::array::{ArrayBuilder, I32ArrayBuilder};
     use crate::storage::secondary::rowset::BlockBuilder;
     use crate::storage::secondary::rowset::PlainPrimitiveBlockBuilder;
     use crate::storage::secondary::BlockIterator;
@@ -69,11 +95,20 @@ mod tests {
 
         let mut scanner = PlainPrimitiveBlockIterator::<i32>::new(Bytes::from(data), 3);
 
-        assert_eq!(
-            scanner.next_batch().unwrap().to_vec(),
-            vec![Some(1), Some(2), Some(3)]
-        );
+        let mut builder = I32ArrayBuilder::new(0);
 
-        assert_eq!(scanner.next_batch(), None);
+        scanner.skip(1);
+        assert_eq!(scanner.remaining_items(), 2);
+
+        assert_eq!(scanner.next_batch(Some(1), &mut builder), 1);
+        assert_eq!(builder.finish().to_vec(), vec![Some(2)]);
+
+        let mut builder = I32ArrayBuilder::new(0);
+        assert_eq!(scanner.next_batch(Some(2), &mut builder), 1);
+
+        assert_eq!(builder.finish().to_vec(), vec![Some(3)]);
+
+        let mut builder = I32ArrayBuilder::new(0);
+        assert_eq!(scanner.next_batch(None, &mut builder), 0);
     }
 }

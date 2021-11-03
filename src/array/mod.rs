@@ -29,7 +29,7 @@ pub use shuffle_ext::*;
 ///
 /// The associated type `Array` is the type of the corresponding array. It is the
 /// return type of `finish`.
-pub trait ArrayBuilder {
+pub trait ArrayBuilder: Send + Sync + 'static {
     /// Corresponding `Array` of this builder
     type Array: Array<Builder = Self>;
 

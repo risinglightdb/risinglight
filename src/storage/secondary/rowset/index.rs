@@ -43,7 +43,6 @@ impl ColumnIndex {
 
     pub fn block_of_seek_position(&self, seek_pos: ColumnSeekPosition) -> u32 {
         match seek_pos {
-            ColumnSeekPosition::Start => 0,
             ColumnSeekPosition::RowId(row_id) => self.block_of_row(row_id),
             ColumnSeekPosition::SortKey(_) => todo!(),
         }
