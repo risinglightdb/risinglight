@@ -6,7 +6,7 @@ pub struct DummyScanExecutor;
 impl DummyScanExecutor {
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
-            yield DataChunk::single();
+            yield DataChunk::single(0);
         }
     }
 }

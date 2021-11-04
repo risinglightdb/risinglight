@@ -8,6 +8,7 @@ use crate::catalog::ColumnCatalog;
 use crate::storage::secondary::rowset::rowset_builder::{
     path_of_data_column, path_of_index_column,
 };
+use crate::storage::secondary::DeleteVector;
 use crate::storage::{StorageColumnRef, StorageResult};
 
 use super::column::Column;
@@ -79,9 +80,10 @@ impl DiskRowset {
     pub async fn iter(
         self: &Arc<Self>,
         column_refs: Arc<[StorageColumnRef]>,
+        dvs: Vec<Arc<DeleteVector>>,
         seek_pos: ColumnSeekPosition,
     ) -> RowSetIterator {
-        RowSetIterator::new(self.clone(), column_refs, seek_pos).await
+        RowSetIterator::new(self.clone(), column_refs, dvs, seek_pos).await
     }
 }
 
