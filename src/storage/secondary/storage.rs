@@ -45,6 +45,7 @@ impl SecondaryStorage {
         info!("applying {} manifest entries", manifest_ops.len());
 
         let mut rowset_cnt = 0;
+        let mut dv_cnt = 0;
 
         for op in manifest_ops {
             match op {
@@ -92,15 +93,17 @@ impl SecondaryStorage {
                         .next_dv_id
                         .fetch_max(entry.dv_id + 1, std::sync::atomic::Ordering::SeqCst);
                     table.apply_commit(vec![], vec![dv])?;
+                    dv_cnt += 1;
                 }
                 ManifestOperation::Begin | ManifestOperation::End => {}
             }
         }
 
         info!(
-            "{} tables loaded, {} rowset loaded",
+            "{} tables loaded, {} rowset loaded, {} DV loaded",
             engine.tables.read().len(),
-            rowset_cnt
+            rowset_cnt,
+            dv_cnt
         );
 
         Ok(engine)
