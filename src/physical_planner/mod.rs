@@ -1,4 +1,5 @@
 mod create;
+mod delete;
 mod drop;
 mod explain;
 mod filter;
@@ -10,6 +11,7 @@ mod projection;
 mod seq_scan;
 
 pub use create::*;
+pub use delete::*;
 pub use drop::*;
 pub use explain::*;
 pub use filter::*;
@@ -45,6 +47,7 @@ pub enum PhysicalPlan {
     Join(PhysicalJoin),
     Order(PhysicalOrder),
     Limit(PhysicalLimit),
+    Delete(PhysicalDelete),
 }
 
 #[derive(Default)]
@@ -64,6 +67,7 @@ impl PhysicalPlaner {
             LogicalPlan::Order(plan) => self.plan_order(plan),
             LogicalPlan::Limit(plan) => self.plan_limit(plan),
             LogicalPlan::Explain(plan) => self.plan_explain(plan),
+            LogicalPlan::Delete(plan) => self.plan_delete(plan),
         }
     }
 }
@@ -98,6 +102,7 @@ impl PhysicalPlan {
             Self::Join(p) => p.explain(level, f),
             Self::Order(p) => p.explain(level, f),
             Self::Limit(p) => p.explain(level, f),
+            Self::Delete(p) => p.explain(level, f),
         }
     }
 }

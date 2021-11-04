@@ -1,4 +1,4 @@
-use crate::array::ArrayImpl;
+use crate::array::{Array, ArrayImpl};
 use crate::storage::RowHandler;
 
 /// RowHandler of Secondary is a tuple of rowset id and row id.
@@ -33,7 +33,11 @@ impl From<SecondaryRowHandler> for i64 {
 }
 
 impl RowHandler for SecondaryRowHandler {
-    fn from_column(_column: &ArrayImpl, _idx: usize) -> Self {
-        Self(0, 0)
+    fn from_column(column: &ArrayImpl, idx: usize) -> Self {
+        if let ArrayImpl::Int64(array) = column {
+            (*array.get(idx).unwrap()).into()
+        } else {
+            panic!("invalid column type")
+        }
     }
 }

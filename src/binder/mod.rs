@@ -23,6 +23,7 @@ pub enum BoundStatement {
     Insert(BoundInsert),
     Select(Box<BoundSelect>),
     Explain(Box<BoundStatement>),
+    Delete(Box<BoundDelete>),
 }
 
 /// The error type of bind operations.
@@ -48,8 +49,8 @@ pub enum BindError {
     InvalidExpression(String),
     #[error("not nullable column: {0}")]
     NotNullableColumn(String),
-    #[error("binary operator types mismatch")]
-    BinaryOpTypeMismatch,
+    #[error("binary operator types mismatch: {0} != {1}")]
+    BinaryOpTypeMismatch(String, String),
     #[error("ambiguous column")]
     AmbiguousColumn,
     #[error("invalid table name: {0:?}")]
@@ -108,6 +109,7 @@ impl Binder {
             }
             Statement::Drop { .. } => Ok(BoundStatement::Drop(self.bind_drop(stmt)?)),
             Statement::Insert { .. } => Ok(BoundStatement::Insert(self.bind_insert(stmt)?)),
+            Statement::Delete { .. } => Ok(BoundStatement::Delete(self.bind_delete(stmt)?)),
             Statement::Query(query) => Ok(BoundStatement::Select(self.bind_select(&*query)?)),
             Statement::Explain { statement, .. } => {
                 Ok(BoundStatement::Explain(Box::new(self.bind(&*statement)?)))

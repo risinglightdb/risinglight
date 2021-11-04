@@ -1,0 +1,18 @@
+statement ok
+create table t(v1 int, v2 int, v3 int)
+
+statement ok
+insert into t values (1,10,100)
+
+statement ok
+insert into t values (1,10,100), (2,20,200), (3,30,300), (4,40,400)
+
+statement ok
+delete from t where v1 = 1
+
+query III rowsort
+select * from t;
+----
+2 20 200
+3 30 300
+4 40 400

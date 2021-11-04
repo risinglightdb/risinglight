@@ -1,6 +1,10 @@
-use crate::array::{DataChunk, DataChunkRef};
-use crate::storage::{StorageResult, TxnIterator};
+use std::collections::HashSet;
+use std::sync::Arc;
+
+use crate::array::{ArrayImpl, DataChunk, DataChunkRef, I64Array};
+use crate::storage::{StorageColumnRef, StorageResult, TxnIterator};
 use async_trait::async_trait;
+use bitvec::prelude::BitVec;
 
 /// An iterator over all data in a transaction.
 ///
@@ -8,17 +12,61 @@ use async_trait::async_trait;
 /// When the transaction end, accessing items inside iterator is UB.
 /// To achieve this, we must enable GAT.
 pub struct InMemoryTxnIterator {
-    chunks: Vec<DataChunkRef>,
-    col_idx: Vec<u32>,
+    chunks: Arc<Vec<DataChunkRef>>,
+    deleted_rows: Arc<HashSet<usize>>,
+    col_idx: Vec<StorageColumnRef>,
     cnt: usize,
+    row_cnt: usize,
 }
 
 impl InMemoryTxnIterator {
-    pub(super) fn new(chunks: Vec<DataChunkRef>, col_idx: Vec<u32>) -> Self {
+    pub(super) fn new(
+        chunks: Arc<Vec<DataChunkRef>>,
+        deleted_rows: Arc<HashSet<usize>>,
+        col_idx: &[StorageColumnRef],
+    ) -> Self {
         Self {
             chunks,
-            col_idx,
+            col_idx: col_idx.to_vec(),
             cnt: 0,
+            row_cnt: 0,
+            deleted_rows,
+        }
+    }
+
+    async fn next_batch_inner(
+        &mut self,
+        _expected_size: Option<usize>,
+    ) -> StorageResult<Option<DataChunk>> {
+        if self.cnt >= self.chunks.len() {
+            Ok(None)
+        } else {
+            let selected_chunk = &self.chunks[self.cnt];
+
+            let batch_range = self.row_cnt..(selected_chunk.cardinality() + self.row_cnt);
+            let visibility = batch_range
+                .clone()
+                .map(|x| !self.deleted_rows.contains(&x))
+                .collect::<BitVec>();
+
+            let chunk = self
+                .col_idx
+                .iter()
+                .map(|idx| match idx {
+                    StorageColumnRef::Idx(idx) => selected_chunk
+                        .array_at(*idx as usize)
+                        .filter(visibility.iter().map(|x| *x)),
+                    StorageColumnRef::RowHandler => {
+                        ArrayImpl::Int64(I64Array::from_iter(batch_range.clone().map(|x| x as i64)))
+                            .filter(visibility.iter().map(|x| *x))
+                    }
+                })
+                .collect::<DataChunk>();
+
+            self.cnt += 1;
+            self.row_cnt += selected_chunk.cardinality();
+
+            Ok(Some(chunk))
         }
     }
 }
@@ -27,21 +75,8 @@ impl InMemoryTxnIterator {
 impl TxnIterator for InMemoryTxnIterator {
     async fn next_batch(
         &mut self,
-        _expected_size: Option<usize>,
+        expected_size: Option<usize>,
     ) -> StorageResult<Option<DataChunk>> {
-        if self.cnt >= self.chunks.len() {
-            Ok(None)
-        } else {
-            let selected_chunk = &self.chunks[self.cnt];
-            // TODO(chi): DataChunk should store Arc to array, so as to reduce costly clones.
-            let chunk = self
-                .col_idx
-                .iter()
-                .map(|idx| selected_chunk.array_at(*idx as usize).clone())
-                .collect::<DataChunk>();
-            self.cnt += 1;
-
-            Ok(Some(chunk))
-        }
+        self.next_batch_inner(expected_size).await
     }
 }

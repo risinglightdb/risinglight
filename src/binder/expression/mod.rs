@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use super::*;
 use crate::catalog::ColumnRefId;
 use crate::parser::{Expr, Value};
@@ -42,6 +44,20 @@ impl BoundExpr {
             return_type: value.data_type(),
             kind: BoundExprKind::Constant(value),
         }
+    }
+}
+
+impl Display for BoundExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.kind {
+            BoundExprKind::Constant(_) => write!(f, "const")?,
+            BoundExprKind::ColumnRef(_) => write!(f, "column ref")?,
+            BoundExprKind::BinaryOp(_) => write!(f, "binary")?,
+            BoundExprKind::UnaryOp(_) => write!(f, "unary")?,
+            BoundExprKind::TypeCast(_) => write!(f, "cast")?,
+        }
+
+        write!(f, " -> {:?}", self.return_type)
     }
 }
 

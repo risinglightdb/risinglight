@@ -4,6 +4,7 @@ use crate::catalog::{ColumnDesc, TableRefId};
 use crate::storage::Table;
 use async_trait::async_trait;
 use itertools::Itertools;
+use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 use std::vec::Vec;
 
@@ -17,6 +18,7 @@ pub struct InMemoryTable {
 
 pub(super) struct InMemoryTableInner {
     chunks: Vec<DataChunkRef>,
+    deleted_rows: HashSet<usize>,
     columns: HashMap<ColumnId, ColumnDesc>,
 }
 
@@ -30,6 +32,7 @@ impl InMemoryTableInner {
                 .iter()
                 .map(|col| (col.id(), col.desc().clone()))
                 .collect(),
+            deleted_rows: HashSet::new(),
         }
     }
 
@@ -40,8 +43,17 @@ impl InMemoryTableInner {
         Ok(())
     }
 
-    pub fn get_all_chunks(&self) -> StorageResult<Vec<DataChunkRef>> {
-        Ok(self.chunks.clone())
+    pub fn delete(&mut self, row_id: usize) -> Result<(), StorageError> {
+        self.deleted_rows.insert(row_id);
+        Ok(())
+    }
+
+    pub fn get_all_chunks(&self) -> Vec<DataChunkRef> {
+        self.chunks.clone()
+    }
+
+    pub fn get_all_deleted_rows(&self) -> HashSet<usize> {
+        self.deleted_rows.clone()
     }
 
     fn column_descs(&self, ids: &[ColumnId]) -> StorageResult<Vec<ColumnDesc>> {

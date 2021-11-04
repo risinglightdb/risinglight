@@ -1,9 +1,11 @@
+use std::collections::HashSet;
+use std::sync::Arc;
+
 use super::table::InMemoryTableInnerRef;
 use super::{InMemoryRowHandler, InMemoryTable, InMemoryTxnIterator};
 use crate::array::{DataChunk, DataChunkRef};
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
 use async_trait::async_trait;
-use itertools::Itertools;
 
 /// A transaction running on [`InMemoryStorage`].
 pub struct InMemoryTransaction {
@@ -15,21 +17,30 @@ pub struct InMemoryTransaction {
     /// Includes all to-be-committed data.
     buffer: Vec<DataChunk>,
 
+    /// All rows to be deleted
+    delete_buffer: Vec<usize>,
+
     /// When transaction is started, reference to all data chunks will
     /// be cached in `snapshot` to provide snapshot isolation.
-    snapshot: Vec<DataChunkRef>,
+    snapshot: Arc<Vec<DataChunkRef>>,
 
     /// Reference to inner table.
     table: InMemoryTableInnerRef,
+
+    /// Snapshot of all deleted rows
+    deleted_rows: Arc<HashSet<usize>>,
 }
 
 impl InMemoryTransaction {
     pub(super) fn start(table: &InMemoryTable) -> StorageResult<Self> {
+        let inner = table.inner.read().unwrap();
         Ok(Self {
             finished: false,
             buffer: vec![],
+            delete_buffer: vec![],
             table: table.inner.clone(),
-            snapshot: table.inner.read().unwrap().get_all_chunks()?,
+            snapshot: Arc::new(inner.get_all_chunks()),
+            deleted_rows: Arc::new(inner.get_all_deleted_rows()),
         })
     }
 }
@@ -57,15 +68,11 @@ impl Transaction for InMemoryTransaction {
         );
         assert!(!reversed, "reverse iterator is not supported for now");
 
-        let col_idx = col_idx
-            .iter()
-            .map(|x| match x {
-                StorageColumnRef::Idx(x) => *x,
-                _ => panic!("column type other than user columns are not supported for now"),
-            })
-            .collect_vec();
-
-        Ok(InMemoryTxnIterator::new(self.snapshot.clone(), col_idx))
+        Ok(InMemoryTxnIterator::new(
+            self.snapshot.clone(),
+            self.deleted_rows.clone(),
+            col_idx,
+        ))
     }
 
     async fn append(&mut self, columns: DataChunk) -> StorageResult<()> {
@@ -73,8 +80,9 @@ impl Transaction for InMemoryTransaction {
         Ok(())
     }
 
-    async fn delete(&mut self, _id: &Self::RowHandlerType) -> StorageResult<()> {
-        todo!()
+    async fn delete(&mut self, id: &Self::RowHandlerType) -> StorageResult<()> {
+        self.delete_buffer.push(id.0 as usize);
+        Ok(())
     }
 
     async fn commit(mut self) -> StorageResult<()> {
@@ -82,6 +90,10 @@ impl Transaction for InMemoryTransaction {
         for chunk in self.buffer.drain(..) {
             table.append(chunk)?;
         }
+        for deletion in self.delete_buffer.drain(..) {
+            table.delete(deletion)?;
+        }
+
         self.finished = true;
         Ok(())
     }
