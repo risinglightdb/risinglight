@@ -1,6 +1,6 @@
 use super::*;
 #[allow(unused_imports)]
-use crate::array::{Array,ArrayValidExt};
+use crate::array::{Array, ArrayValidExt};
 
 use crate::array::{ArrayBuilderImpl, ArrayImpl};
 use crate::binder::{AggKind, BoundExpr};
@@ -97,10 +97,11 @@ impl AggregationState for SumAggregationState {
                 #[cfg(feature = "simd")]
                 {
                     let bitmap = arr.get_valid_bitmap();
-                    if bitmap.count_ones() == 0 {
+                    if bitmap.any() {
+                        self.result = DataValue::Int32(arr.batch_iter::<32>().sum());
+                    } else {
                         self.result = DataValue::Null;
                     }
-                    self.result = DataValue::Int32(arr.batch_iter::<32>().sum());
                 }
                 #[cfg(not(feature = "simd"))]
                 {
@@ -116,10 +117,11 @@ impl AggregationState for SumAggregationState {
                 #[cfg(feature = "simd")]
                 {
                     let bitmap = arr.get_valid_bitmap();
-                    if bitmap.count_ones() == 0 {
+                    if bitmap.any() {
+                        self.result = DataValue::Float64(arr.batch_iter::<32>().sum());
+                    } else {
                         self.result = DataValue::Null;
                     }
-                    self.result = DataValue::Float64(arr.batch_iter::<32>().sum());
                 }
                 #[cfg(not(feature = "simd"))]
                 {
