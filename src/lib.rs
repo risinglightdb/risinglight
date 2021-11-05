@@ -19,6 +19,8 @@ pub mod binder;
 /// Stage 3: Transform the parse tree into a logical operations tree.
 pub mod logical_planner;
 
+/// Stage 5: Do query optimization.
+pub mod optimizer;
 /// Stage 4: Transform the logical plan into the physical plan.
 pub mod physical_planner;
 
