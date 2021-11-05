@@ -23,7 +23,7 @@ pub struct SecondaryTable {
 pub(super) struct SecondaryTableInner {
     /// All on-disk rowsets. In the future, this should be a MVCC hashmap,
     /// so as to reduce the need to clone the `Arc`s.
-    pub on_disk: Vec<Arc<DiskRowset>>,
+    pub on_disk: HashMap<u32, Arc<DiskRowset>>,
 
     /// All deletion vectors of this table.
     pub dv: HashMap<u32, Vec<Arc<DeleteVector>>>,
@@ -63,7 +63,7 @@ pub(super) type SecondaryTableInnerRef = Arc<RwLock<SecondaryTableInner>>;
 impl SecondaryTableInner {
     pub fn new(shared: Arc<SecondaryTableshared>) -> Self {
         Self {
-            on_disk: vec![],
+            on_disk: HashMap::new(),
             dv: HashMap::new(),
             shared,
         }
@@ -85,7 +85,7 @@ impl SecondaryTableInner {
     }
 
     fn apply_add_rowset(&mut self, rowset: DiskRowset) -> StorageResult<()> {
-        self.on_disk.push(Arc::new(rowset));
+        self.on_disk.insert(rowset.rowset_id(), Arc::new(rowset));
         Ok(())
     }
 
@@ -94,6 +94,11 @@ impl SecondaryTableInner {
             .entry(dv.rowset_id())
             .or_insert_with(Vec::new)
             .push(Arc::new(dv));
+        Ok(())
+    }
+
+    fn apply_delete_rowset(&mut self, rowset: u32) -> StorageResult<()> {
+        self.on_disk.remove(&rowset).unwrap();
         Ok(())
     }
 }
@@ -133,6 +138,7 @@ impl SecondaryTable {
         &self,
         rowsets: Vec<DiskRowset>,
         dvs: Vec<DeleteVector>,
+        deleted_rowsets: Vec<u32>,
     ) -> StorageResult<()> {
         let mut inner = self.inner.write();
         for rowset in rowsets {
@@ -141,6 +147,9 @@ impl SecondaryTable {
         for dv in dvs {
             inner.apply_add_dv(dv)?;
         }
+        for rowset in deleted_rowsets {
+            inner.apply_delete_rowset(rowset)?;
+        }
         Ok(())
     }
 
@@ -148,16 +157,17 @@ impl SecondaryTable {
         &self,
         rowsets: Vec<DiskRowset>,
         dvs: Vec<DeleteVector>,
+        deleted_rowsets: Vec<u32>,
     ) -> StorageResult<()> {
         info!(
-            "RowSet {} flushed, DV #{} flushed",
+            "RowSet {} flushed, DV {} flushed",
             rowsets
                 .iter()
                 .map(|x| format!("#{}", x.rowset_id()))
                 .join(","),
             dvs.iter()
                 .map(|x| format!("#{}(RS{})", x.dv_id(), x.rowset_id()))
-                .join(","),
+                .join(",")
         );
         let mut manifest = self.shared.manifest.lock().await;
         let mut ops = vec![];
@@ -166,6 +176,13 @@ impl SecondaryTable {
             ops.push(ManifestOperation::AddRowSet(AddRowSetEntry {
                 rowset_id: rowset.rowset_id(),
                 table_id: self.shared.table_ref_id,
+            }));
+        }
+
+        for rowset_id in &deleted_rowsets {
+            ops.push(ManifestOperation::DeleteRowSet(DeleteRowsetEntry {
+                table_id: self.shared.table_ref_id,
+                rowset_id: *rowset_id,
             }));
         }
 
@@ -178,7 +195,7 @@ impl SecondaryTable {
         }
 
         manifest.append(&ops).await?;
-        self.apply_commit(rowsets, dvs)?;
+        self.apply_commit(rowsets, dvs, deleted_rowsets)?;
         Ok(())
     }
 

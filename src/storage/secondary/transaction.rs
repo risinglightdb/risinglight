@@ -9,6 +9,7 @@ use super::{
 use crate::array::DataChunk;
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
 use async_trait::async_trait;
+use itertools::Itertools;
 use risinglight_proto::rowset::DeleteRecord;
 
 /// A transaction running on `SecondaryStorage`.
@@ -55,7 +56,7 @@ impl SecondaryTransaction {
             },
             delete_buffer: vec![],
             table: table.clone(),
-            snapshot: inner.on_disk.clone(),
+            snapshot: inner.on_disk.values().cloned().collect_vec(),
             rowset_id: table.generate_rowset_id(),
             dv_snapshot: inner.dv.clone(),
             row_cnt: 0,
@@ -116,7 +117,7 @@ impl SecondaryTransaction {
         }
 
         // commit all changes
-        self.table.commit(rowsets, dvs).await?;
+        self.table.commit(rowsets, dvs, vec![]).await?;
 
         self.finished = true;
 
