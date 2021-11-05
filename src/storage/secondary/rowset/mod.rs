@@ -11,8 +11,6 @@
 //! ```plain
 //! 03_03         directory name = <TableId>_<RowsetId>
 //! |- MANIFEST   manifest file, which contains column descriptions of the current Rowset
-//! |- 00.col     (generally should be) start timestamp
-//! |- 00.idx     normal index for timestamps, which stores RowId -> Block mapping
 //! |- 01.col     data for v1
 //! |- 01.sort    sort index for v1, which stores RowId + Key -> Block mapping
 //! |- 02.col     data for v2

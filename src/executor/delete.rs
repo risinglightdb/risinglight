@@ -16,6 +16,7 @@ impl<S: Storage> DeleteExecutor<S> {
         try_stream! {
             let table = self.storage.get_table(self.table_ref_id)?;
             let mut txn = table.update().await?;
+            let mut cnt = 0;
             for await chunk in self.child {
                 // TODO: we do not need a filter executor. We can simply get the boolean value from
                 // the child.
@@ -24,11 +25,12 @@ impl<S: Storage> DeleteExecutor<S> {
                 for row_handler_idx in 0..row_handlers.len() {
                     let row_handler = <S::TransactionType as Transaction>::RowHandlerType::from_column(row_handlers, row_handler_idx);
                     txn.delete(&row_handler).await?;
+                    cnt += 1;
                 }
             }
             txn.commit().await?;
 
-            yield DataChunk::single();
+            yield DataChunk::single(cnt);
         }
     }
 }

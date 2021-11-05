@@ -18,12 +18,15 @@ impl<S: Storage> InsertExecutor<S> {
         try_stream! {
             let table = self.storage.get_table(self.table_ref_id)?;
             let mut txn = table.write().await?;
+            let mut cnt = 0;
             for await chunk in self.child {
-                txn.append(chunk?).await?;
+                let chunk = chunk?;
+                cnt += chunk.cardinality();
+                txn.append(chunk).await?;
             }
             txn.commit().await?;
 
-            yield DataChunk::single();
+            yield DataChunk::single(cnt as i32);
         }
     }
 }

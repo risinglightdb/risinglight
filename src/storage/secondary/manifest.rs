@@ -38,10 +38,22 @@ pub struct AddRowSetEntry {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+pub struct AddDeleteVectorEntry {
+    pub table_id: TableRefId,
+    pub dv_id: u64,
+    pub rowset_id: u32,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub enum ManifestOperation {
     CreateTable(CreateTableEntry),
     DropTable(DropTableEntry),
     AddRowSet(AddRowSetEntry),
+    AddDeleteVector(AddDeleteVectorEntry),
+    // begin transaction
+    Begin,
+    // end transaction
+    End,
 }
 
 /// Handles all reads and writes to a manifest file
@@ -71,18 +83,42 @@ impl Manifest {
         let stream = Deserializer::from_str(&data).into_iter::<ManifestOperation>();
 
         let mut ops = vec![];
+        let mut buffered_ops = vec![];
+        let mut begin = false;
 
         for value in stream {
             let value = value?;
-            ops.push(value);
+            match value {
+                ManifestOperation::Begin => begin = true,
+                ManifestOperation::End => {
+                    ops.append(&mut buffered_ops);
+                    begin = false;
+                }
+                op => {
+                    if begin {
+                        buffered_ops.push(op);
+                    } else {
+                        warn!("manifest: find entry without txn begin");
+                    }
+                }
+            }
+        }
+
+        if !buffered_ops.is_empty() {
+            warn!("manifest: find uncommitted entries");
         }
 
         Ok(ops)
     }
 
-    pub async fn append(&mut self, entry: ManifestOperation) -> StorageResult<()> {
-        let json = serde_json::to_string(&entry)?;
-        self.file.write_all(json.as_bytes()).await?;
+    pub async fn append(&mut self, entries: &[ManifestOperation]) -> StorageResult<()> {
+        let mut json = Vec::new();
+        serde_json::to_writer(&mut json, &ManifestOperation::Begin)?;
+        for entry in entries {
+            serde_json::to_writer(&mut json, entry)?;
+        }
+        serde_json::to_writer(&mut json, &ManifestOperation::End)?;
+        self.file.write_all(&json).await?;
         self.file.sync_data().await?;
         Ok(())
     }
@@ -122,6 +158,7 @@ impl SecondaryStorage {
             &column_descs,
             self.block_cache.clone(),
             self.next_rowset_id.clone(),
+            self.next_dv_id.clone(),
             self.manifest.clone(),
         );
         self.tables.write().insert(id, table);
@@ -148,7 +185,7 @@ impl SecondaryStorage {
         self.apply_create_table(&entry)?;
 
         manifest
-            .append(ManifestOperation::CreateTable(entry))
+            .append(&[ManifestOperation::CreateTable(entry)])
             .await?;
 
         Ok(())
@@ -189,7 +226,9 @@ impl SecondaryStorage {
 
         self.apply_drop_table(&entry)?;
 
-        manifest.append(ManifestOperation::DropTable(entry)).await?;
+        manifest
+            .append(&[ManifestOperation::DropTable(entry)])
+            .await?;
 
         Ok(())
     }

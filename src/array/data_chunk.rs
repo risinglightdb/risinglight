@@ -30,9 +30,11 @@ impl FromIterator<ArrayImpl> for DataChunk {
 
 impl DataChunk {
     /// Return a DataChunk with 1 element in 1 array.
-    pub fn single() -> Self {
+    pub fn single(item: i32) -> Self {
         DataChunk {
-            arrays: [ArrayImpl::Int32((0..=0).collect())].into_iter().collect(),
+            arrays: [ArrayImpl::Int32([item].into_iter().collect())]
+                .into_iter()
+                .collect(),
         }
     }
 

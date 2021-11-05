@@ -1,6 +1,8 @@
+use bitvec::prelude::BitVec;
 use smallvec::smallvec;
 
 use crate::array::ArrayImpl;
+use crate::storage::secondary::DeleteVector;
 use crate::storage::{PackedVec, StorageChunk, StorageColumnRef};
 use std::sync::Arc;
 
@@ -10,6 +12,7 @@ use super::{ColumnIteratorImpl, ColumnSeekPosition, DiskRowset, RowHandlerSequen
 pub struct RowSetIterator {
     rowset: Arc<DiskRowset>,
     column_refs: Arc<[StorageColumnRef]>,
+    dvs: Vec<Arc<DeleteVector>>,
     column_iterators: PackedVec<Option<ColumnIteratorImpl>>,
 }
 
@@ -17,6 +20,7 @@ impl RowSetIterator {
     pub async fn new(
         rowset: Arc<DiskRowset>,
         column_refs: Arc<[StorageColumnRef]>,
+        dvs: Vec<Arc<DeleteVector>>,
         seek_pos: ColumnSeekPosition,
     ) -> Self {
         let start_row_id = match seek_pos {
@@ -61,6 +65,7 @@ impl RowSetIterator {
         Self {
             rowset,
             column_iterators,
+            dvs,
             column_refs,
         }
     }
@@ -133,8 +138,20 @@ impl RowSetIterator {
             }
         }
 
+        // Generate visibility bitmap
+        let visibility = if self.dvs.is_empty() {
+            None
+        } else {
+            let mut vis = BitVec::new();
+            vis.resize(common_chunk_range.1, true);
+            for dv in &self.dvs {
+                dv.apply_to(&mut vis, common_chunk_range.0);
+            }
+            Some(vis)
+        };
+
         Some(StorageChunk::new(
-            None,
+            visibility,
             arrays
                 .into_iter()
                 .map(Option::unwrap)
@@ -164,6 +181,7 @@ mod tests {
                     StorageColumnRef::Idx(0),
                 ]
                 .into(),
+                vec![],
                 ColumnSeekPosition::RowId(1000),
             )
             .await;

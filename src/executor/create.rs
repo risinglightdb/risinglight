@@ -18,7 +18,7 @@ impl<S: Storage> CreateTableExecutor<S> {
                 &self.plan.table_name,
                 &self.plan.columns,
             ).await?;
-            yield DataChunk::single();
+            yield DataChunk::single(0);
         }
     }
 }

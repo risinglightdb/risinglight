@@ -16,7 +16,9 @@ mod options;
 pub use options::*;
 mod concat_iterator;
 pub use concat_iterator::*;
+mod delete_vector;
 mod storage;
+pub use delete_vector::*;
 
 mod manifest;
 pub use manifest::*;
@@ -27,7 +29,7 @@ use crate::types::{ColumnId, DatabaseId, SchemaId};
 use async_trait::async_trait;
 use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::sync::atomic::AtomicU32;
+use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::Arc;
 
 /// Secondary storage of RisingLight.
@@ -50,6 +52,9 @@ pub struct SecondaryStorage {
 
     /// Next RowSet Id of the current storage engine
     next_rowset_id: Arc<AtomicU32>,
+
+    /// Next DV Id of the current storage engine
+    next_dv_id: Arc<AtomicU64>,
 }
 
 impl SecondaryStorage {

@@ -44,6 +44,5 @@ message RowsetManifest {
 }
 
 message DeleteRecord {
-  uint32 rowset_id = 1;
   uint32 row_id = 2;
 }
