@@ -11,7 +11,7 @@ use crate::storage::{StorageColumnRef, StorageResult, Transaction};
 use async_trait::async_trait;
 use risinglight_proto::rowset::DeleteRecord;
 
-/// A transaction running on [`SecondaryStorage`].
+/// A transaction running on `SecondaryStorage`.
 pub struct SecondaryTransaction {
     /// Indicates whether the transaction is committed or aborted. If
     /// the [`SecondaryTransaction`] object is dropped without finishing,

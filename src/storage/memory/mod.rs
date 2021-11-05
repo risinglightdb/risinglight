@@ -1,11 +1,11 @@
 //! In-memory storage implementation of RisingLight.
 //!
 //! RisingLight's in-memory representation of data is very simple. Currently,
-//! it is simple a vector of [`DataChunk`]. Upon insertion, users' data are
+//! it is simple a vector of `DataChunk`. Upon insertion, users' data are
 //! simply appended to the end of the vector.
 //!
 //! The in-memory engine provides snapshot isolation. In the current implementation,
-//! a snapshot (clone of all [`DataChunk`] references) will be created upon a
+//! a snapshot (clone of all `DataChunk` references) will be created upon a
 //! transaction starts. Inside transaction, we buffer all writes until commit.
 //! We do not guarantee read-after-write consistency.
 //!
@@ -13,7 +13,7 @@
 //! * deletion
 //! * sort_key based scan
 //! * reverse scan
-//! * [`RowHandler`] scan
+//! * `RowHandler` scan
 
 use super::{Storage, StorageError, StorageResult};
 use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};

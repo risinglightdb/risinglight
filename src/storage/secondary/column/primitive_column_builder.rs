@@ -5,11 +5,12 @@ use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 
 use crate::array::Array;
+use crate::storage::secondary::block::BlockBuilder;
 
-use super::encode::PrimitiveFixedWidthEncode;
-use super::{
-    BlockBuilder, ColumnBuilder, PlainNullablePrimitiveBlockBuilder, PlainPrimitiveBlockBuilder,
+use super::super::{
+    PlainNullablePrimitiveBlockBuilder, PlainPrimitiveBlockBuilder, PrimitiveFixedWidthEncode,
 };
+use super::ColumnBuilder;
 use crate::storage::secondary::{BlockHeader, ColumnBuilderOptions, BLOCK_HEADER_SIZE};
 
 /// All supported block builders for primitive types.

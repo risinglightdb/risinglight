@@ -7,7 +7,7 @@ use crate::array::{DataChunk, DataChunkRef};
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
 use async_trait::async_trait;
 
-/// A transaction running on [`InMemoryStorage`].
+/// A transaction running on `InMemoryStorage`.
 pub struct InMemoryTransaction {
     /// Indicates whether the transaction is committed or aborted. If
     /// the [`InMemoryTransaction`] object is dropped without finishing,

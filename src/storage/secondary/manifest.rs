@@ -166,7 +166,7 @@ impl SecondaryStorage {
         Ok(())
     }
 
-    pub async fn create_table_inner(
+    pub(super) async fn create_table_inner(
         &self,
         database_id: DatabaseId,
         schema_id: SchemaId,
@@ -191,7 +191,7 @@ impl SecondaryStorage {
         Ok(())
     }
 
-    pub fn get_table_inner(&self, table_id: TableRefId) -> StorageResult<SecondaryTable> {
+    pub(super) fn get_table_inner(&self, table_id: TableRefId) -> StorageResult<SecondaryTable> {
         let table = self
             .tables
             .read()
@@ -219,7 +219,7 @@ impl SecondaryStorage {
         Ok(())
     }
 
-    pub async fn drop_table_inner(&self, table_id: TableRefId) -> StorageResult<()> {
+    pub(super) async fn drop_table_inner(&self, table_id: TableRefId) -> StorageResult<()> {
         let entry = DropTableEntry { table_id };
 
         let mut manifest = self.manifest.lock().await;

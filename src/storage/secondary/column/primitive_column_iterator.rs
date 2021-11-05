@@ -2,11 +2,8 @@ use std::marker::PhantomData;
 
 use crate::array::{Array, ArrayBuilder};
 
-use super::column::Column;
-use super::{
-    Block, BlockIterator, ColumnIterator, ColumnSeekPosition, PlainPrimitiveBlockIterator,
-    PrimitiveFixedWidthEncode,
-};
+use super::super::{Block, BlockIterator, PlainPrimitiveBlockIterator, PrimitiveFixedWidthEncode};
+use super::{Column, ColumnIterator, ColumnSeekPosition};
 
 use async_trait::async_trait;
 use risinglight_proto::rowset::block_index::BlockType;
@@ -151,8 +148,8 @@ mod tests {
     use super::*;
 
     use crate::array::ArrayToVecExt;
-    use crate::storage::secondary::rowset::primitive_column_iterator::PrimitiveColumnIterator;
     use crate::storage::secondary::tests::helper_build_rowset;
+    use crate::storage::secondary::PrimitiveColumnIterator;
     use itertools::Itertools;
 
     #[tokio::test]

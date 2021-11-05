@@ -2,9 +2,9 @@ use crate::storage::StorageChunk;
 
 use super::{RowSetIterator, SecondaryIteratorImpl};
 
-/// [`ConcatIterator`] concats data from [`RowSet`]s and yields data
+/// [`ConcatIterator`] concats data from `RowSet`s and yields data
 /// from them one by one. This iterator should only be used on
-/// non-overlapping [`RowSet`]s.
+/// non-overlapping `RowSet`s.
 pub struct ConcatIterator {
     iters: Vec<RowSetIterator>,
     current_iter: usize,
@@ -19,7 +19,7 @@ impl ConcatIterator {
     }
 
     /// Get a batch from [`ConcatIterator`]. It is possible that less than `expected_size`
-    /// rows are returned, as we fetch a batch from the [`RowSet`] boundaries.
+    /// rows are returned, as we fetch a batch from the RowSet boundaries.
     pub async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<StorageChunk> {
         loop {
             if self.current_iter >= self.iters.len() {

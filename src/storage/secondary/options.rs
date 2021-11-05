@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-/// Options for [`SecondaryStorage`]
+/// Options for `SecondaryStorage`
 #[derive(Clone)]
 pub struct StorageOptions {
     pub path: PathBuf,
@@ -16,7 +16,7 @@ impl StorageOptions {
     }
 }
 
-/// Options for [`ColumnBuilder`]s.
+/// Options for `ColumnBuilder`s.
 #[derive(Clone)]
 pub struct ColumnBuilderOptions {
     pub target_size: usize,
