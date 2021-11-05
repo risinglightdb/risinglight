@@ -10,7 +10,7 @@ pub type PackedVec<T> = SmallVec<[T; 16]>;
 /// Similar to [`DataChunk`], in the storage system, we use [`StorageChunk`]
 /// to represent a set of columns. [`StorageChunk`] contains pointers to
 /// array, and a visibility map. [`StorageChunk`] generally corresponds to
-/// a batch read from a [`RowSet`].
+/// a batch read from a `RowSet`.
 pub struct StorageChunk {
     /// If a row is visible in this chunk. Data come from the delete map.
     visibility: Option<BitVec>,

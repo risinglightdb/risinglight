@@ -11,7 +11,7 @@ pub const INDEX_FOOTER_SIZE: usize = 4 + 8 + 4 + 8;
 /// Currently, Secondary uses a very simple index format. `.idx` file is
 /// simply a sequence of protubuf [`BlockIndex`] message. When a developer
 /// needs to read a column, they will need to read them to memory at once.
-/// The last 16 bytes of the index file is the checksum.
+/// The last 24 bytes of the index file is the checksum.
 ///
 /// ```plain
 /// | index | index | index | index | ... | magic number (4B) | block count (8B) | checksum type (4B) | checksum (8B) |

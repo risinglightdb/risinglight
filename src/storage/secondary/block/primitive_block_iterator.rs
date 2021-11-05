@@ -2,7 +2,8 @@ use std::marker::PhantomData;
 
 use crate::array::{Array, ArrayBuilder};
 
-use super::{Block, BlockIterator, PrimitiveFixedWidthEncode};
+use super::super::PrimitiveFixedWidthEncode;
+use super::{Block, BlockIterator};
 
 /// Scans one or several arrays from the block content.
 pub struct PlainPrimitiveBlockIterator<T: PrimitiveFixedWidthEncode> {
@@ -79,8 +80,7 @@ mod tests {
 
     use crate::array::ArrayToVecExt;
     use crate::array::{ArrayBuilder, I32ArrayBuilder};
-    use crate::storage::secondary::rowset::BlockBuilder;
-    use crate::storage::secondary::rowset::PlainPrimitiveBlockBuilder;
+    use crate::storage::secondary::block::{BlockBuilder, PlainPrimitiveBlockBuilder};
     use crate::storage::secondary::BlockIterator;
 
     use super::PlainPrimitiveBlockIterator;

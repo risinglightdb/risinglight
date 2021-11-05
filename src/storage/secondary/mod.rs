@@ -1,8 +1,7 @@
 //! Secondary storage engine for RisingLight
 
+// public modules and structures
 mod txn_iterator;
-use moka::future::Cache;
-use tokio::sync::Mutex;
 pub use txn_iterator::*;
 mod row_handler;
 pub use row_handler::*;
@@ -10,27 +9,40 @@ mod table;
 pub use table::*;
 mod transaction;
 pub use transaction::*;
-mod rowset;
-pub use rowset::*;
 mod options;
 pub use options::*;
-mod concat_iterator;
-pub use concat_iterator::*;
-mod delete_vector;
-mod storage;
-pub use delete_vector::*;
 
+// internal modules and structures
+mod delete_vector;
+use delete_vector::*;
+mod column;
+mod storage;
+use column::*;
+mod block;
+use block::*;
+mod concat_iterator;
+use concat_iterator::*;
 mod manifest;
-pub use manifest::*;
+use manifest::*;
+mod rowset;
+use rowset::*;
+mod index;
+use index::*;
+mod index_builder;
+use index_builder::*;
+mod encode;
+use encode::*;
 
 use super::{Storage, StorageError, StorageResult};
 use crate::catalog::{ColumnCatalog, RootCatalogRef, TableRefId};
 use crate::types::{ColumnId, DatabaseId, SchemaId};
 use async_trait::async_trait;
+use moka::future::Cache;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// Secondary storage of RisingLight.
 pub struct SecondaryStorage {

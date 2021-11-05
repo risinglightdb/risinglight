@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use super::encode::PrimitiveFixedWidthEncode;
+use super::super::encode::PrimitiveFixedWidthEncode;
 use super::BlockBuilder;
 
 /// Encodes fixed-width data into a block. The layout is simply an array of

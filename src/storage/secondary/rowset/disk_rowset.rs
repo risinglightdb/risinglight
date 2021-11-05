@@ -5,14 +5,11 @@ use tokio::fs::OpenOptions;
 use tokio::io::AsyncReadExt;
 
 use crate::catalog::ColumnCatalog;
-use crate::storage::secondary::rowset::rowset_builder::{
-    path_of_data_column, path_of_index_column,
-};
 use crate::storage::secondary::DeleteVector;
 use crate::storage::{StorageColumnRef, StorageResult};
 
-use super::column::Column;
-use super::{Block, BlockCacheKey, ColumnIndex, ColumnSeekPosition, RowSetIterator};
+use super::super::{Block, BlockCacheKey, Column, ColumnIndex, ColumnSeekPosition};
+use super::{path_of_data_column, path_of_index_column, RowSetIterator};
 
 /// Represents a column in Secondary.
 ///

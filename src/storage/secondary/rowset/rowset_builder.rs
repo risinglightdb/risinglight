@@ -4,13 +4,11 @@ use std::sync::Arc;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncWriteExt, BufWriter};
 
+use super::super::{ColumnBuilderImpl, IndexBuilder};
 use crate::array::DataChunk;
 use crate::catalog::ColumnCatalog;
 use crate::storage::secondary::ColumnBuilderOptions;
 use crate::storage::StorageResult;
-
-use super::index_builder::IndexBuilder;
-use super::ColumnBuilderImpl;
 
 use itertools::Itertools;
 

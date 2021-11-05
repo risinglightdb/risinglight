@@ -1,8 +1,8 @@
 use risinglight_proto::rowset::BlockIndex;
 
+use super::super::ColumnBuilderOptions;
+use super::{BoolColumnBuilder, ColumnBuilder};
 use crate::array::ArrayImpl;
-use crate::storage::secondary::rowset::primitive_column_builder::BoolColumnBuilder;
-use crate::storage::secondary::{ColumnBuilder, ColumnBuilderOptions};
 use crate::types::{DataType, DataTypeKind};
 
 use super::primitive_column_builder::{F64ColumnBuilder, I32ColumnBuilder};

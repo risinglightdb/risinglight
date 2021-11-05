@@ -6,9 +6,10 @@ use crate::storage::secondary::DeleteVector;
 use crate::storage::{PackedVec, StorageChunk, StorageColumnRef};
 use std::sync::Arc;
 
-use super::{ColumnIteratorImpl, ColumnSeekPosition, DiskRowset, RowHandlerSequencer};
+use super::super::{ColumnIteratorImpl, ColumnSeekPosition, RowHandlerSequencer};
+use super::DiskRowset;
 
-/// Iterates on a [`RowSet`]
+/// Iterates on a `RowSet`
 pub struct RowSetIterator {
     rowset: Arc<DiskRowset>,
     column_refs: Arc<[StorageColumnRef]>,

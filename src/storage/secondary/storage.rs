@@ -12,7 +12,7 @@ use tokio::fs;
 use tokio::sync::Mutex;
 
 impl SecondaryStorage {
-    pub async fn bootstrap(options: StorageOptions) -> StorageResult<Self> {
+    pub(super) async fn bootstrap(options: StorageOptions) -> StorageResult<Self> {
         let catalog = RootCatalog::new();
         let tables = HashMap::new();
 
