@@ -1,5 +1,8 @@
 use super::*;
-use crate::array::{Array, ArrayBuilderImpl, ArrayImpl};
+#[allow(unused_imports)]
+use crate::array::{Array, ArrayValidExt};
+
+use crate::array::{ArrayBuilderImpl, ArrayImpl};
 use crate::binder::{AggKind, BoundExpr};
 use crate::types::{DataTypeKind, DataValue};
 
@@ -73,7 +76,8 @@ impl SumAggregationState {
 
 macro_rules! sum_func_gen {
     ($fn_name: ident, $input: ty, $result: ty) => {
-        fn $fn_name(result: Option<$result>, input: Option<&$input>) -> Option<$result> {
+        #[allow(dead_code)]
+        pub fn $fn_name(result: Option<$result>, input: Option<&$input>) -> Option<$result> {
             match (result, input) {
                 (_, None) => result,
                 (None, Some(i)) => Some(<$result>::from(*i)),
@@ -90,19 +94,43 @@ impl AggregationState for SumAggregationState {
     fn update(&mut self, array: &ArrayImpl) -> Result<(), ExecutorError> {
         match (array, &self.input_datatype) {
             (ArrayImpl::Int32(arr), DataTypeKind::Int) => {
-                let mut temp: Option<i32> = None;
-                temp = arr.iter().fold(temp, sum_i32);
-                match temp {
-                    None => self.result = DataValue::Null,
-                    Some(val) => self.result = DataValue::Int32(val),
+                #[cfg(feature = "simd")]
+                {
+                    let bitmap = arr.get_valid_bitmap();
+                    if bitmap.any() {
+                        self.result = DataValue::Int32(arr.batch_iter::<32>().sum());
+                    } else {
+                        self.result = DataValue::Null;
+                    }
+                }
+                #[cfg(not(feature = "simd"))]
+                {
+                    let mut temp: Option<i32> = None;
+                    temp = arr.iter().fold(temp, sum_i32);
+                    match temp {
+                        None => self.result = DataValue::Null,
+                        Some(val) => self.result = DataValue::Int32(val),
+                    }
                 }
             }
             (ArrayImpl::Float64(arr), DataTypeKind::Double) => {
-                let mut temp: Option<f64> = None;
-                temp = arr.iter().fold(temp, sum_f64);
-                match temp {
-                    None => self.result = DataValue::Null,
-                    Some(val) => self.result = DataValue::Float64(val),
+                #[cfg(feature = "simd")]
+                {
+                    let bitmap = arr.get_valid_bitmap();
+                    if bitmap.any() {
+                        self.result = DataValue::Float64(arr.batch_iter::<32>().sum());
+                    } else {
+                        self.result = DataValue::Null;
+                    }
+                }
+                #[cfg(not(feature = "simd"))]
+                {
+                    let mut temp: Option<f64> = None;
+                    temp = arr.iter().fold(temp, sum_f64);
+                    match temp {
+                        None => self.result = DataValue::Null,
+                        Some(val) => self.result = DataValue::Float64(val),
+                    }
                 }
             }
             _ => todo!("Support more types for aggregation."),
