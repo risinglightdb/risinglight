@@ -21,6 +21,7 @@ use futures::stream::{BoxStream, Stream, StreamExt};
 use std::sync::Arc;
 
 mod aggregation;
+mod copy_from_file;
 mod create;
 mod delete;
 mod drop;
@@ -37,6 +38,7 @@ mod seq_scan;
 mod values;
 
 pub use self::aggregation::*;
+use self::copy_from_file::*;
 use self::create::*;
 use self::delete::*;
 use self::drop::*;
@@ -60,6 +62,14 @@ pub enum ExecutorError {
     Storage(#[from] StorageError),
     #[error("conversion error: {0}")]
     Convert(#[from] ConvertError),
+    #[error("tuple length mismatch: expected {expected} but got {actual}")]
+    LengthMismatch { expected: usize, actual: usize },
+    #[error("io error")]
+    Io(#[from] std::io::Error),
+    #[error("csv error")]
+    Csv(#[from] csv::Error),
+    #[error("value can not be null")]
+    NotNullable,
 }
 
 /// Reference type of the global environment.

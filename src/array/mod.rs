@@ -1,4 +1,4 @@
-use crate::types::{DataType, DataTypeKind, DataValue};
+use crate::types::{ConvertError, DataType, DataTypeKind, DataValue};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::ops::{Bound, RangeBounds};
@@ -208,9 +208,11 @@ impl ArrayBuilderImpl {
         match ty.kind() {
             DataTypeKind::Boolean => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
             DataTypeKind::Int => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
+            DataTypeKind::BigInt => Self::Int64(PrimitiveArrayBuilder::<i64>::new(0)),
             DataTypeKind::Double => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
-            DataTypeKind::Char(_) => Self::UTF8(UTF8ArrayBuilder::new(0)),
-            DataTypeKind::Varchar(_) => Self::UTF8(UTF8ArrayBuilder::new(0)),
+            DataTypeKind::Char(_) | DataTypeKind::Varchar(_) | DataTypeKind::String => {
+                Self::UTF8(UTF8ArrayBuilder::new(0))
+            }
             _ => panic!("unsupported data type"),
         }
     }
@@ -222,6 +224,7 @@ impl ArrayBuilderImpl {
             DataValue::Int32(_) => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
             DataValue::Int64(_) => Self::Int64(PrimitiveArrayBuilder::<i64>::new(0)),
             DataValue::Float64(_) => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
+            DataValue::String(_) => Self::UTF8(UTF8ArrayBuilder::new(0)),
             _ => panic!("unsupported data type"),
         }
     }
@@ -252,6 +255,36 @@ impl ArrayBuilderImpl {
             (Self::UTF8(a), DataValue::Null) => a.push(None),
             _ => panic!("failed to push value: type mismatch"),
         }
+    }
+
+    /// Appends an element in string.
+    pub fn push_str(&mut self, s: &str) -> Result<(), ConvertError> {
+        let null = s.is_empty();
+        match self {
+            Self::Bool(a) if null => a.push(None),
+            Self::Int32(a) if null => a.push(None),
+            Self::Int64(a) if null => a.push(None),
+            Self::Float64(a) if null => a.push(None),
+            Self::UTF8(a) if null => a.push(None),
+            Self::Bool(a) => a.push(Some(
+                &s.parse::<bool>()
+                    .map_err(|e| ConvertError::ParseBool(s.to_string(), e))?,
+            )),
+            Self::Int32(a) => a.push(Some(
+                &s.parse::<i32>()
+                    .map_err(|e| ConvertError::ParseInt(s.to_string(), e))?,
+            )),
+            Self::Int64(a) => a.push(Some(
+                &s.parse::<i64>()
+                    .map_err(|e| ConvertError::ParseInt(s.to_string(), e))?,
+            )),
+            Self::Float64(a) => a.push(Some(
+                &s.parse::<f64>()
+                    .map_err(|e| ConvertError::ParseFloat(s.to_string(), e))?,
+            )),
+            Self::UTF8(a) => a.push(Some(s)),
+        }
+        Ok(())
     }
 
     /// Finish build and return a new array.

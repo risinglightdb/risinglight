@@ -1,3 +1,4 @@
+mod copy_from_file;
 mod create;
 mod delete;
 mod drop;
@@ -10,6 +11,7 @@ mod order;
 mod projection;
 mod seq_scan;
 
+pub use copy_from_file::*;
 pub use create::*;
 pub use delete::*;
 pub use drop::*;

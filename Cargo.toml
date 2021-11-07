@@ -14,6 +14,7 @@ async-trait = "0.1"
 bitvec = {version = "0.22", features = ["serde"]}
 bytes = "1"
 core_simd = {git = "https://github.com/rust-lang/portable-simd", rev = "c2f59483f96cf1ab1e92cf10e0f9094432a8374c", optional = true}
+csv = "1.1"
 enum_dispatch = "0.3"
 env_logger = "0.9"
 futures = {version = "0.3", default-features = false, features = ["alloc"]}
