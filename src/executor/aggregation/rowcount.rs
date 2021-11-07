@@ -15,15 +15,20 @@ impl AggregationState for RowCountAggregationState {
     fn update(
         &mut self,
         array: &ArrayImpl,
-        visibility: Option<&[bool]>,
     ) -> Result<(), ExecutorError> {
-        let temp = match visibility {
-            None => array.len(),
-            Some(visibility) => visibility.iter().filter(|&&b| b).count(),
-        } as i32;
+        let temp = array.len() as i32;
         self.result = match &self.result {
             DataValue::Null => DataValue::Int32(temp),
             DataValue::Int32(res) => DataValue::Int32(res + temp),
+            _ => panic!("Mismatched type"),
+        };
+        Ok(())
+    }
+
+    fn update_single(&mut self, _: &DataValue) -> Result<(), ExecutorError> {
+        self.result = match &self.result {
+            DataValue::Null => DataValue::Int32(1),
+            DataValue::Int32(res) => DataValue::Int32(res + 1),
             _ => panic!("Mismatched type"),
         };
         Ok(())

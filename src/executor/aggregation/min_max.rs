@@ -39,14 +39,7 @@ impl AggregationState for MinMaxAggregationState {
     fn update(
         &mut self,
         array: &ArrayImpl,
-        visibility: Option<&[bool]>,
     ) -> Result<(), ExecutorError> {
-        let array = match visibility {
-            None => array.clone(),
-            Some(visibility) => {
-                array.filter(visibility.iter().copied().collect::<Vec<_>>().into_iter())
-            }
-        };
         match (array, &self.input_datatype) {
             (ArrayImpl::Int32(arr), DataTypeKind::Int) => {
                 let temp = arr
@@ -60,6 +53,21 @@ impl AggregationState for MinMaxAggregationState {
                         _ => panic!("Mismatched type"),
                     };
                 }
+            }
+            _ => panic!("Mismatched type"),
+        }
+        Ok(())
+    }
+
+    fn update_single(&mut self, value: &DataValue) -> Result<(), ExecutorError> {
+        match (value, &self.input_datatype) {
+            (DataValue::Int32(val), DataTypeKind::Int) => {
+                self.result = match self.result {
+                    DataValue::Null => DataValue::Int32(*val),
+                    DataValue::Int32(res) if self.is_min => DataValue::Int32(res.min(*val)),
+                    DataValue::Int32(res) => DataValue::Int32(res.max(*val)),
+                    _ => panic!("Mismatched type"),
+                };
             }
             _ => panic!("Mismatched type"),
         }

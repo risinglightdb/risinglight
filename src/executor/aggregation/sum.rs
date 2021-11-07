@@ -37,14 +37,7 @@ impl AggregationState for SumAggregationState {
     fn update(
         &mut self,
         array: &ArrayImpl,
-        visibility: Option<&[bool]>,
     ) -> Result<(), ExecutorError> {
-        let array = match visibility {
-            None => array.clone(),
-            Some(visibility) => {
-                array.filter(visibility.iter().copied().collect::<Vec<_>>().into_iter())
-            }
-        };
         // TODO: refactor into macros
         match (array, &self.input_datatype) {
             (ArrayImpl::Int32(arr), DataTypeKind::Int) => {
@@ -98,6 +91,27 @@ impl AggregationState for SumAggregationState {
         Ok(())
     }
 
+    fn update_single(&mut self, value: &DataValue) -> Result<(), ExecutorError> {
+        match (value, &self.input_datatype) {
+            (DataValue::Int32(val), DataTypeKind::Int) => {
+                self.result = match self.result {
+                    DataValue::Null => DataValue::Int32(*val),
+                    DataValue::Int32(res) => DataValue::Int32(res + val),
+                    _ => panic!("Mismatched type"),
+                }
+            }
+            (DataValue::Float64(val), DataTypeKind::Double) => {
+                self.result = match self.result {
+                    DataValue::Null => DataValue::Float64(*val),
+                    DataValue::Float64(res) => DataValue::Float64(res + val),
+                    _ => panic!("Mismatched type"),
+                }
+            }
+            _ => panic!("Mismatched type"),
+        }
+        Ok(())
+    }
+
     fn output(&self) -> DataValue {
         self.result.clone()
     }
@@ -113,7 +127,7 @@ mod tests {
     fn test_sum() {
         let mut state = SumAggregationState::new(DataTypeKind::Int);
         let array = ArrayImpl::Int32((1..5).collect());
-        state.update(&array, None).unwrap();
+        state.update(&array).unwrap();
         assert_eq!(state.output(), DataValue::Int32(10));
 
         let mut state = SumAggregationState::new(DataTypeKind::Double);
@@ -122,7 +136,7 @@ mod tests {
             builder.push(&DataValue::Float64(*i));
         }
         let array = builder.finish();
-        state.update(&array, None).unwrap();
+        state.update(&array).unwrap();
         assert_eq!(state.output(), DataValue::Float64(1.));
     }
 }

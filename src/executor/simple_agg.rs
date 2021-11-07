@@ -10,25 +10,26 @@ pub struct SimpleAggExecutor {
 }
 
 impl SimpleAggExecutor {
-    async fn execute_inner(
-        chunks: Vec<DataChunk>,
-        agg_calls: Vec<BoundAggCall>,
-    ) -> Result<DataChunk, ExecutorError> {
+    fn execute_inner(
+        states: &mut Vec<Box<dyn AggregationState>>,
+        chunk: DataChunk,
+        agg_calls: &[BoundAggCall],
+    ) -> Result<(), ExecutorError> {
         // TODO: support aggregations with multiple arguments
-        let mut states = create_agg_states(&agg_calls);
+        let exprs = agg_calls
+            .iter()
+            .map(|agg| agg.args[0].eval_array(&chunk))
+            .collect::<Result<Vec<ArrayImpl>, _>>()?;
 
-        for chunk in chunks {
-            let exprs = agg_calls
-                .iter()
-                .map(|agg| agg.args[0].eval_array(&chunk))
-                .collect::<Result<Vec<ArrayImpl>, _>>()?;
-
-            for (state, expr) in states.iter_mut().zip(exprs) {
-                state.update(&expr, None)?;
-            }
+        for (state, expr) in states.iter_mut().zip(exprs) {
+            state.update(&expr)?;
         }
 
-        Ok(states
+        Ok(())
+    }
+
+    fn finish_agg(states: Vec<Box<dyn AggregationState>>) -> DataChunk {
+        states
             .iter()
             .map(|s| {
                 let result = &s.output();
@@ -41,17 +42,19 @@ impl SimpleAggExecutor {
                     None => ArrayBuilderImpl::new(&DataType::new(DataTypeKind::Int, true)).finish(),
                 }
             })
-            .collect::<DataChunk>())
+            .collect::<DataChunk>()
     }
 
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
-            let mut chunks: Vec<DataChunk> = vec![];
-            for await batch in self.child {
-                chunks.push(batch?);
+            let mut states = create_agg_states(&self.agg_calls);
+
+            for await chunk in self.child {
+                let chunk = chunk?;
+                Self::execute_inner(&mut states, chunk, &self.agg_calls)?;
             }
 
-            let chunk = Self::execute_inner(chunks, self.agg_calls).await?;
+            let chunk = Self::finish_agg(states);
             yield chunk;
         }
     }

@@ -16,54 +16,49 @@ pub type HashKey = Vec<DataValue>;
 pub type HashValue = Vec<Box<dyn AggregationState>>;
 
 impl HashAggExecutor {
-    async fn execute_inner(
-        chunks: Vec<DataChunk>,
-        agg_calls: Vec<BoundAggCall>,
-        group_keys: Vec<BoundExpr>,
-    ) -> Result<DataChunk, ExecutorError> {
-        let mut state_entries = HashMap::<HashKey, HashValue>::new();
+    fn execute_inner(
+        state_entries: &mut HashMap<HashKey, HashValue>,
+        chunk: DataChunk,
+        agg_calls: &[BoundAggCall],
+        group_keys: &[BoundExpr],
+    ) -> Result<(), ExecutorError> {
+        // Eval group keys
+        let group_cols = group_keys
+            .iter()
+            .map(|e| e.eval_array(&chunk))
+            .collect::<Result<Vec<ArrayImpl>, _>>()?;
 
-        for chunk in chunks {
-            // Eval group keys
-            let group_cols = group_keys
-                .iter()
-                .map(|e| e.eval_array(&chunk))
-                .collect::<Result<Vec<ArrayImpl>, _>>()?;
-
-            // Collect unique group keys and corresponding visibilities
-            let mut unique_keys = vec![];
-            let mut key_to_vis_maps = HashMap::new();
-            let num_rows = chunk.cardinality();
-            for row_idx in 0..num_rows {
-                let mut group_key = HashKey::new();
-                for col in group_cols.iter() {
-                    group_key.push(col.get(row_idx));
-                }
-                if !key_to_vis_maps.contains_key(&group_key) {
-                    unique_keys.push(group_key.clone());
-                    key_to_vis_maps.insert(group_key.clone(), vec![false; num_rows]);
-                }
-                // since we just checked existence, the key must exist so we `unwrap` directly
-                let vis_map = key_to_vis_maps.get_mut(&group_key).unwrap();
-                vis_map[row_idx] = true;
+        // Collect unique group keys and corresponding visibilities
+        let num_rows = chunk.cardinality();
+        let arrays = agg_calls
+            .iter()
+            .map(|agg| agg.args[0].eval_array(&chunk))
+            .collect::<Result<Vec<_>, _>>()?;
+        for row_idx in 0..num_rows {
+            let mut group_key = HashKey::new();
+            for col in group_cols.iter() {
+                group_key.push(col.get(row_idx));
             }
 
-            // Update the state_entries
-            for key in unique_keys.iter() {
-                if !state_entries.contains_key(key) {
-                    state_entries.insert(key.to_vec(), create_agg_states(&agg_calls));
-                }
-                // since we just checked existence, the key must exist so we `unwrap` directly
-                let states = state_entries.get_mut(key).unwrap();
-                let vis_map = key_to_vis_maps.remove(key).unwrap();
-                for (agg, state) in agg_calls.iter().zip(states.iter_mut()) {
-                    // TODO: support aggregations with multiple arguments
-                    let array = agg.args[0].eval_array(&chunk)?;
-                    state.update(&array, Some(&vis_map))?;
-                }
+            if !state_entries.contains_key(&group_key) {
+                state_entries.insert(group_key.clone(), create_agg_states(agg_calls));
+            }
+            // since we just checked existence, the key must exist so we `unwrap` directly
+            let states = state_entries.get_mut(&group_key).unwrap();
+            for (array, state) in arrays.iter().zip(states.iter_mut()) {
+                // TODO: support aggregations with multiple arguments
+                state.update_single(&array.get(row_idx))?;
             }
         }
 
+        Ok(())
+    }
+
+    fn finish_agg(
+        state_entries: HashMap<HashKey, HashValue>,
+        agg_calls: Vec<BoundAggCall>,
+        group_keys: Vec<BoundExpr>,
+    ) -> DataChunk {
         let mut key_builders = group_keys
             .iter()
             .map(|e| ArrayBuilderImpl::new(e.return_type.as_ref().unwrap()))
@@ -83,21 +78,22 @@ impl HashAggExecutor {
             }
         }
         key_builders.append(&mut res_builders);
-        Ok(key_builders
+        key_builders
             .into_iter()
             .map(|builder| builder.finish())
-            .collect::<DataChunk>())
+            .collect::<DataChunk>()
     }
 
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
-            let mut chunks: Vec<DataChunk> = vec![];
+            let mut state_entries = HashMap::<HashKey, HashValue>::new();
 
-            for await batch in self.child {
-                chunks.push(batch?);
+            for await chunk in self.child {
+                let chunk = chunk?;
+                Self::execute_inner(&mut state_entries, chunk, &self.agg_calls, &self.group_keys)?;
             }
 
-            let chunk = Self::execute_inner(chunks, self.agg_calls, self.group_keys).await?;
+            let chunk = Self::finish_agg(state_entries, self.agg_calls, self.group_keys);
             yield chunk;
         }
     }
