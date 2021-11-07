@@ -3,38 +3,19 @@ use crate::array::{ArrayBuilderImpl, ArrayImpl};
 use crate::binder::{AggKind, BoundAggCall};
 use crate::types::{DataType, DataTypeKind, DataValue};
 
+/// The executor of simple aggregation.
 pub struct SimpleAggExecutor {
     pub agg_calls: Vec<BoundAggCall>,
     pub child: BoxedExecutor,
 }
 
-#[allow(dead_code)]
 impl SimpleAggExecutor {
     async fn execute_inner(
         chunks: Vec<DataChunk>,
         agg_calls: Vec<BoundAggCall>,
     ) -> Result<DataChunk, ExecutorError> {
         // TODO: support aggregations with multiple arguments
-        let mut states: Vec<Box<dyn AggregationState>> = agg_calls
-            .iter()
-            .map(|agg| match agg.kind {
-                AggKind::RowCount => Box::<dyn AggregationState>::from(
-                    RowCountAggregationState::new(DataValue::Int32(0)),
-                ),
-                AggKind::Max => Box::<dyn AggregationState>::from(MinMaxAggregationState::new(
-                    agg.return_type.kind(),
-                    false,
-                )),
-                AggKind::Min => Box::<dyn AggregationState>::from(MinMaxAggregationState::new(
-                    agg.return_type.kind(),
-                    true,
-                )),
-                AggKind::Sum => Box::<dyn AggregationState>::from(SumAggregationState::new(
-                    agg.return_type.kind(),
-                )),
-                _ => panic!("Unsupported aggregate kind"),
-            })
-            .collect();
+        let mut states = create_agg_states(&agg_calls);
 
         for chunk in chunks {
             let exprs = agg_calls
@@ -73,5 +54,25 @@ impl SimpleAggExecutor {
             let chunk = Self::execute_inner(chunks, self.agg_calls).await?;
             yield chunk;
         }
+    }
+}
+
+pub(super) fn create_agg_states(agg_calls: &[BoundAggCall]) -> Vec<Box<dyn AggregationState>> {
+    agg_calls.iter().map(create_agg_state).collect()
+}
+
+fn create_agg_state(agg_call: &BoundAggCall) -> Box<dyn AggregationState> {
+    match agg_call.kind {
+        AggKind::RowCount => Box::new(RowCountAggregationState::new(DataValue::Int32(0))),
+        AggKind::Max => Box::new(MinMaxAggregationState::new(
+            agg_call.return_type.kind(),
+            false,
+        )),
+        AggKind::Min => Box::new(MinMaxAggregationState::new(
+            agg_call.return_type.kind(),
+            true,
+        )),
+        AggKind::Sum => Box::new(SumAggregationState::new(agg_call.return_type.kind())),
+        _ => panic!("Unsupported aggregate kind"),
     }
 }

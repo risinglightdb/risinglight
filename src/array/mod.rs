@@ -395,7 +395,7 @@ impl ArrayImpl {
             Self::Int32(_) => Some(DataTypeKind::Int.not_null()),
             Self::Int64(_) => Some(DataTypeKind::BigInt.not_null()),
             Self::Float64(_) => Some(DataTypeKind::Double.not_null()),
-            Self::UTF8(_) => panic!("Cannot convert UTF8 to data type"),
+            Self::UTF8(_) => Some(DataTypeKind::String.not_null()),
         }
     }
 }

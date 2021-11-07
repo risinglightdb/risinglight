@@ -1,10 +1,11 @@
 use super::*;
 use crate::array::{ArrayBuilderImpl, ArrayImpl};
-use crate::binder::{AggKind, BoundAggCall, BoundExpr};
+use crate::binder::{BoundAggCall, BoundExpr};
 use crate::executor::aggregation::AggregationState;
 use crate::types::DataValue;
 use std::collections::HashMap;
 
+/// The executor of hash aggregation.
 pub struct HashAggExecutor {
     pub agg_calls: Vec<BoundAggCall>,
     pub group_keys: Vec<BoundExpr>,
@@ -14,7 +15,6 @@ pub struct HashAggExecutor {
 pub type HashKey = Vec<DataValue>;
 pub type HashValue = Vec<Box<dyn AggregationState>>;
 
-#[allow(dead_code)]
 impl HashAggExecutor {
     async fn execute_inner(
         chunks: Vec<DataChunk>,
@@ -31,7 +31,7 @@ impl HashAggExecutor {
                 .collect::<Result<Vec<ArrayImpl>, _>>()?;
 
             // Collect unique group keys and corresponding visibilities
-            let mut unique_keys = Vec::<HashKey>::new();
+            let mut unique_keys = vec![];
             let mut key_to_vis_maps = HashMap::new();
             let num_rows = chunk.cardinality();
             for row_idx in 0..num_rows {
@@ -39,36 +39,21 @@ impl HashAggExecutor {
                 for col in group_cols.iter() {
                     group_key.push(col.get(row_idx));
                 }
-                let vis_map = key_to_vis_maps.entry(group_key.clone()).or_insert_with(|| {
+                if !key_to_vis_maps.contains_key(&group_key) {
                     unique_keys.push(group_key.clone());
-                    vec![false; num_rows]
-                });
+                    key_to_vis_maps.insert(group_key.clone(), vec![false; num_rows]);
+                }
+                // since we just checked existence, the key must exist so we `unwrap` directly
+                let vis_map = key_to_vis_maps.get_mut(&group_key).unwrap();
                 vis_map[row_idx] = true;
             }
 
             // Update the state_entries
             for key in unique_keys.iter() {
                 if !state_entries.contains_key(key) {
-                    let hash_value = agg_calls
-                        .iter()
-                        .map(|agg| match agg.kind {
-                            AggKind::RowCount => Box::<dyn AggregationState>::from(
-                                RowCountAggregationState::new(DataValue::Null),
-                            ),
-                            AggKind::Max => Box::<dyn AggregationState>::from(
-                                MinMaxAggregationState::new(agg.return_type.kind(), false),
-                            ),
-                            AggKind::Min => Box::<dyn AggregationState>::from(
-                                MinMaxAggregationState::new(agg.return_type.kind(), true),
-                            ),
-                            AggKind::Sum => Box::<dyn AggregationState>::from(
-                                SumAggregationState::new(agg.return_type.kind()),
-                            ),
-                            _ => panic!("Unsupported aggregate kind"),
-                        })
-                        .collect();
-                    state_entries.insert(key.to_vec(), hash_value);
+                    state_entries.insert(key.to_vec(), create_agg_states(&agg_calls));
                 }
+                // since we just checked existence, the key must exist so we `unwrap` directly
                 let states = state_entries.get_mut(key).unwrap();
                 let vis_map = key_to_vis_maps.remove(key).unwrap();
                 for (agg, state) in agg_calls.iter().zip(states.iter_mut()) {

@@ -3,18 +3,18 @@ use super::*;
 use crate::array::{Array, ArrayValidExt};
 use crate::types::DataTypeKind;
 
+/// State for sum aggregation
 pub struct SumAggregationState {
     result: DataValue,
     input_datatype: DataTypeKind,
 }
 
-#[allow(dead_code)]
 impl SumAggregationState {
-    pub fn new(input_datatype: DataTypeKind) -> Box<Self> {
-        Box::new(Self {
+    pub fn new(input_datatype: DataTypeKind) -> Self {
+        Self {
             result: DataValue::Null,
             input_datatype,
-        })
+        }
     }
 }
 
@@ -37,7 +37,7 @@ impl AggregationState for SumAggregationState {
     fn update(
         &mut self,
         array: &ArrayImpl,
-        visibility: Option<&Vec<bool>>,
+        visibility: Option<&[bool]>,
     ) -> Result<(), ExecutorError> {
         let array = match visibility {
             None => array.clone(),
@@ -61,13 +61,12 @@ impl AggregationState for SumAggregationState {
                 {
                     let mut temp: Option<i32> = None;
                     temp = arr.iter().fold(temp, sum_i32);
-                    match temp {
-                        None => self.result = DataValue::Null,
-                        Some(val) => match self.result {
-                            DataValue::Null => self.result = DataValue::Int32(val),
-                            DataValue::Int32(res) => self.result = DataValue::Int32(res + val),
+                    if let Some(val) = temp {
+                        self.result = match self.result {
+                            DataValue::Null => DataValue::Int32(val),
+                            DataValue::Int32(res) => DataValue::Int32(res + val),
                             _ => panic!("Mismatched type"),
-                        },
+                        }
                     }
                 }
             }
@@ -85,13 +84,12 @@ impl AggregationState for SumAggregationState {
                 {
                     let mut temp: Option<f64> = None;
                     temp = arr.iter().fold(temp, sum_f64);
-                    match temp {
-                        None => self.result = DataValue::Null,
-                        Some(val) => match self.result {
-                            DataValue::Null => self.result = DataValue::Float64(val),
-                            DataValue::Float64(res) => self.result = DataValue::Float64(res + val),
+                    if let Some(val) = temp {
+                        self.result = match self.result {
+                            DataValue::Null => DataValue::Float64(val),
+                            DataValue::Float64(res) => DataValue::Float64(res + val),
                             _ => panic!("Mismatched type"),
-                        },
+                        }
                     }
                 }
             }

@@ -3,6 +3,7 @@ use crate::binder::{BindError, Binder, BoundExpr};
 use crate::parser::{BinaryOperator, FunctionArg};
 use crate::types::{DataType, DataTypeKind};
 
+/// Aggregation kind
 #[derive(Debug, PartialEq, Clone)]
 pub enum AggKind {
     Avg,
@@ -44,7 +45,7 @@ impl Binder {
             "max" => (AggKind::Max, args[0].return_type.clone()),
             "min" => (AggKind::Min, args[0].return_type.clone()),
             "sum" => (AggKind::Sum, args[0].return_type.clone()),
-            _ => panic!("Unsupported function"),
+            _ => panic!("Unsupported function: {}", func.name),
         };
 
         match kind {
