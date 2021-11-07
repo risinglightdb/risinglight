@@ -12,10 +12,7 @@ impl RowCountAggregationState {
 }
 
 impl AggregationState for RowCountAggregationState {
-    fn update(
-        &mut self,
-        array: &ArrayImpl,
-    ) -> Result<(), ExecutorError> {
+    fn update(&mut self, array: &ArrayImpl) -> Result<(), ExecutorError> {
         let temp = array.len() as i32;
         self.result = match &self.result {
             DataValue::Null => DataValue::Int32(temp),

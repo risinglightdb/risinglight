@@ -34,10 +34,7 @@ sum_func_gen!(sum_i32, i32, i32);
 sum_func_gen!(sum_f64, f64, f64);
 
 impl AggregationState for SumAggregationState {
-    fn update(
-        &mut self,
-        array: &ArrayImpl,
-    ) -> Result<(), ExecutorError> {
+    fn update(&mut self, array: &ArrayImpl) -> Result<(), ExecutorError> {
         // TODO: refactor into macros
         match (array, &self.input_datatype) {
             (ArrayImpl::Int32(arr), DataTypeKind::Int) => {

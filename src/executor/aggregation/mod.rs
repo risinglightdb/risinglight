@@ -12,15 +12,9 @@ pub use sum::*;
 
 /// `AggregationState` records the state of an aggregation
 pub trait AggregationState: 'static + Send + Sync {
-    fn update(
-        &mut self,
-        array: &ArrayImpl,
-    ) -> Result<(), ExecutorError>;
+    fn update(&mut self, array: &ArrayImpl) -> Result<(), ExecutorError>;
 
-    fn update_single(
-        &mut self,
-        value: &DataValue,
-    ) -> Result<(), ExecutorError>;
+    fn update_single(&mut self, value: &DataValue) -> Result<(), ExecutorError>;
 
     fn output(&self) -> DataValue;
 }
