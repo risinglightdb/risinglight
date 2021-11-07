@@ -1,3 +1,6 @@
+// TODO(wrj): remove this once linked to plan
+#![allow(dead_code)]
+
 use super::*;
 use crate::{
     array::ArrayBuilderImpl,

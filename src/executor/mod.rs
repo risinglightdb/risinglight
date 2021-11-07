@@ -22,6 +22,7 @@ use std::sync::Arc;
 
 mod aggregation;
 mod copy_from_file;
+mod copy_to_file;
 mod create;
 mod delete;
 mod drop;
@@ -38,7 +39,8 @@ mod seq_scan;
 mod values;
 
 pub use self::aggregation::*;
-use self::copy_from_file::*;
+// use self::copy_from_file::*;
+// use self::copy_to_file::*;
 use self::create::*;
 use self::delete::*;
 use self::drop::*;
