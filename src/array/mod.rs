@@ -388,11 +388,12 @@ impl ArrayImpl {
         }
     }
 
-    /// Get the type of value. `None` means NULL.
+    /// Get the type of value.
     pub fn data_type(&self) -> Option<DataType> {
         match self {
             Self::Bool(_) => Some(DataTypeKind::Boolean.not_null()),
             Self::Int32(_) => Some(DataTypeKind::Int.not_null()),
+            Self::Int64(_) => Some(DataTypeKind::BigInt.not_null()),
             Self::Float64(_) => Some(DataTypeKind::Double.not_null()),
             Self::UTF8(_) => panic!("Cannot convert UTF8 to data type"),
         }

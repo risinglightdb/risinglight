@@ -56,6 +56,7 @@ impl Display for BoundExpr {
             BoundExprKind::BinaryOp(_) => write!(f, "binary")?,
             BoundExprKind::UnaryOp(_) => write!(f, "unary")?,
             BoundExprKind::TypeCast(_) => write!(f, "cast")?,
+            BoundExprKind::AggCall(_) => write!(f, "agg")?,
         }
 
         write!(f, " -> {:?}", self.return_type)

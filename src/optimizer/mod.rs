@@ -1,7 +1,7 @@
 use crate::logical_planner::{
-    LogicalCreateTable, LogicalDelete, LogicalDrop, LogicalExplain, LogicalFilter, LogicalInsert,
-    LogicalJoin, LogicalJoinTable, LogicalLimit, LogicalOrder, LogicalPlan, LogicalProjection,
-    LogicalSeqScan,
+    LogicalCreateTable, LogicalDelete, LogicalDrop, LogicalExplain, LogicalFilter, LogicalHashAgg,
+    LogicalInsert, LogicalJoin, LogicalJoinTable, LogicalLimit, LogicalOrder, LogicalPlan,
+    LogicalProjection, LogicalSeqScan, LogicalSimpleAgg,
 };
 // The optimizer will do query optimization.
 // It will do both rule-based optimization (predicate pushdown, constant folding and common expression extraction)
@@ -32,6 +32,8 @@ pub trait PlanRewriter {
             LogicalPlan::Order(plan) => self.rewrite_order(plan),
             LogicalPlan::Limit(plan) => self.rewrite_limit(plan),
             LogicalPlan::Explain(plan) => self.rewrite_explain(plan),
+            LogicalPlan::SimpleAgg(plan) => self.rewrite_simple_agg(plan),
+            LogicalPlan::HashAgg(plan) => self.rewrite_hash_agg(plan),
             LogicalPlan::Delete(plan) => self.rewrite_delete(plan),
         }
     }
@@ -98,6 +100,21 @@ pub trait PlanRewriter {
     fn rewrite_explain(&mut self, plan: LogicalExplain) -> LogicalPlan {
         LogicalPlan::Explain(LogicalExplain {
             plan: Box::new(self.rewrite_plan(*plan.plan)),
+        })
+    }
+
+    fn rewrite_simple_agg(&mut self, plan: LogicalSimpleAgg) -> LogicalPlan {
+        LogicalPlan::SimpleAgg(LogicalSimpleAgg {
+            agg_calls: plan.agg_calls,
+            child: Box::new(self.rewrite_plan(*plan.child)),
+        })
+    }
+
+    fn rewrite_hash_agg(&mut self, plan: LogicalHashAgg) -> LogicalPlan {
+        LogicalPlan::HashAgg(LogicalHashAgg {
+            agg_calls: plan.agg_calls,
+            group_keys: plan.group_keys,
+            child: Box::new(self.rewrite_plan(*plan.child)),
         })
     }
 
