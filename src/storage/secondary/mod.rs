@@ -32,6 +32,8 @@ mod index_builder;
 use index_builder::*;
 mod encode;
 use encode::*;
+mod compactor;
+use compactor::*;
 
 use super::{Storage, StorageError, StorageResult};
 use crate::catalog::{ColumnCatalog, RootCatalogRef, TableRefId};
@@ -76,6 +78,10 @@ impl SecondaryStorage {
 
     pub fn catalog(&self) -> &RootCatalogRef {
         &self.catalog
+    }
+
+    pub fn spawn_compactor(self: &Arc<Self>) {
+        tokio::spawn(Compactor::new(self.clone()).run());
     }
 }
 

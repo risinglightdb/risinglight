@@ -100,6 +100,11 @@ impl Column {
         &self.index
     }
 
+    pub fn on_disk_size(&self) -> u64 {
+        let lst_idx = self.index.index(self.index.len() as u32 - 1);
+        lst_idx.offset + lst_idx.length
+    }
+
     pub async fn get_block(&self, block_id: u32) -> (BlockHeader, Block) {
         // It is possible that there will be multiple futures accessing
         // one block not in cache concurrently, which might cause avalanche

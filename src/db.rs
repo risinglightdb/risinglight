@@ -34,12 +34,15 @@ impl Database {
 
     /// Create a new database instance with merge-tree engine.
     pub async fn new_on_disk() -> Self {
-        let storage = SecondaryStorage::open(SecondaryStorageOptions::default_for_test())
-            .await
-            .unwrap();
+        let storage = Arc::new(
+            SecondaryStorage::open(SecondaryStorageOptions::default_for_test())
+                .await
+                .unwrap(),
+        );
+        storage.spawn_compactor();
         let catalog = storage.catalog().clone();
         let env = Arc::new(GlobalEnv {
-            storage: StorageImpl::SecondaryStorage(Arc::new(storage)),
+            storage: StorageImpl::SecondaryStorage(storage),
         });
         let execution_manager = ExecutorBuilder::new(env);
         Database {

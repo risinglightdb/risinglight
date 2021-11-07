@@ -136,7 +136,9 @@ mod tests {
             )]
             .into(),
             tempdir.path(),
-            ColumnBuilderOptions { target_size: 4096 },
+            ColumnBuilderOptions {
+                target_block_size: 4096,
+            },
         );
 
         for _ in 0..1000 {

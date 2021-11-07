@@ -38,6 +38,12 @@ pub struct AddRowSetEntry {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+pub struct DeleteRowsetEntry {
+    pub table_id: TableRefId,
+    pub rowset_id: u32,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct AddDeleteVectorEntry {
     pub table_id: TableRefId,
     pub dv_id: u64,
@@ -49,6 +55,7 @@ pub enum ManifestOperation {
     CreateTable(CreateTableEntry),
     DropTable(DropTableEntry),
     AddRowSet(AddRowSetEntry),
+    DeleteRowSet(DeleteRowsetEntry),
     AddDeleteVector(AddDeleteVectorEntry),
     // begin transaction
     Begin,

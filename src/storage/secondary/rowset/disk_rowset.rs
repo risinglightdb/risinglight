@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use moka::future::Cache;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -82,6 +83,14 @@ impl DiskRowset {
     ) -> RowSetIterator {
         RowSetIterator::new(self.clone(), column_refs, dvs, seek_pos).await
     }
+
+    pub fn on_disk_size(&self) -> u64 {
+        self.columns
+            .iter()
+            .map(|x| x.on_disk_size())
+            .sum1()
+            .unwrap_or(0)
+    }
 }
 
 #[cfg(test)]
@@ -129,7 +138,9 @@ pub mod tests {
         let mut builder = RowsetBuilder::new(
             columns.clone().into(),
             tempdir.path(),
-            ColumnBuilderOptions { target_size: 4096 },
+            ColumnBuilderOptions {
+                target_block_size: 4096,
+            },
         );
 
         for _ in 0..100 {

@@ -62,6 +62,8 @@ impl SecondaryStorage {
                     };
 
                     // TODO: parallel open
+                    // TODO: later if we vacuum the rowset, it won't exist
+                    // we should combine all rowset operations
                     let disk_rowset = DiskRowset::open(
                         table.get_rowset_path(entry.rowset_id),
                         table.shared.columns.clone(),
@@ -71,11 +73,19 @@ impl SecondaryStorage {
                     .await?;
 
                     // todo: apply in batch instead of one by one
-                    table.apply_commit(vec![disk_rowset], vec![])?;
+                    table.apply_commit(vec![disk_rowset], vec![], vec![])?;
                     engine
                         .next_rowset_id
                         .fetch_max(entry.rowset_id + 1, std::sync::atomic::Ordering::SeqCst);
                     rowset_cnt += 1;
+                }
+                ManifestOperation::DeleteRowSet(entry) => {
+                    let table = {
+                        let tables = engine.tables.read();
+                        tables.get(&entry.table_id).unwrap().clone()
+                    };
+                    table.apply_commit(vec![], vec![], vec![entry.rowset_id])?;
+                    rowset_cnt -= 1;
                 }
                 ManifestOperation::AddDeleteVector(entry) => {
                     let table = {
@@ -92,7 +102,7 @@ impl SecondaryStorage {
                     engine
                         .next_dv_id
                         .fetch_max(entry.dv_id + 1, std::sync::atomic::Ordering::SeqCst);
-                    table.apply_commit(vec![], vec![dv])?;
+                    table.apply_commit(vec![], vec![dv], vec![])?;
                     dv_cnt += 1;
                 }
                 ManifestOperation::Begin | ManifestOperation::End => {}
