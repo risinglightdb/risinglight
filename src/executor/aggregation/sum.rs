@@ -1,5 +1,6 @@
 use super::*;
-use crate::array::Array;
+#[allow(unused_imports)]
+use crate::array::{Array, ArrayValidExt};
 use crate::types::DataTypeKind;
 
 pub struct SumAggregationState {
