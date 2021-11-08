@@ -1,9 +1,9 @@
 //! A simple interactive shell of the database.
 
-use std::io::Write;
-
 use log::info;
 use risinglight::Database;
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
 
 #[tokio::main]
 async fn main() {
@@ -20,25 +20,33 @@ async fn main() {
         Database::new_in_memory()
     };
 
+    let mut rl = Editor::<()>::new();
     loop {
-        print!("> ");
-        std::io::stdout().lock().flush().unwrap();
-        let mut input = String::new();
-        let cnt = std::io::stdin().read_line(&mut input).unwrap();
-
-        if cnt == 0 {
-            // EOF
-            break;
-        }
-
-        let ret = db.run(&input).await;
-        match ret {
-            Ok(chunks) => {
-                for chunk in chunks {
-                    println!("{}", chunk);
+        let readline = rl.readline("> ");
+        match readline {
+            Ok(line) => {
+                rl.add_history_entry(line.as_str());
+                let ret = db.run(&line).await;
+                match ret {
+                    Ok(chunks) => {
+                        for chunk in chunks {
+                            println!("{}", chunk);
+                        }
+                    }
+                    Err(err) => println!("{}", err),
                 }
             }
-            Err(err) => println!("{}", err),
+            Err(ReadlineError::Interrupted) => {
+                println!("Interrupted");
+            }
+            Err(ReadlineError::Eof) => {
+                println!("Exited");
+                break;
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break;
+            }
         }
     }
 }
