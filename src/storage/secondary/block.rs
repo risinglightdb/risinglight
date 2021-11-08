@@ -2,12 +2,16 @@
 //!
 //! [`Block`] is the minimum managing unit in the storage engine.
 
+mod char_block_builder;
 mod primitive_block_builder;
 mod primitive_block_iterator;
 mod primitive_nullable_block_builder;
+mod varchar_block_builder;
+pub use char_block_builder::*;
 pub use primitive_block_builder::*;
 pub use primitive_block_iterator::*;
 pub use primitive_nullable_block_builder::*;
+pub use varchar_block_builder::*;
 
 use bytes::{Buf, BufMut, Bytes};
 use risinglight_proto::rowset::block_checksum::ChecksumType;
