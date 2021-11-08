@@ -17,10 +17,10 @@ use test_case::test_case;
 #[test_case("join.slt")]
 #[test_case("limit.slt")]
 #[test_case("type.slt")]
+#[test_case("aggregation.slt")]
 #[test_case("delete.slt")]
 // #[test_case("where.slt")]
 // #[test_case("select.slt")]
-// #[test_case("aggregation.slt")]
 // #[test_case("issue_347.slt")]
 fn sqllogictest(name: &str) {
     init_logger();

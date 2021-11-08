@@ -2,16 +2,16 @@ use std::fmt::Display;
 
 use super::*;
 use crate::catalog::ColumnRefId;
-use crate::parser::{Expr, Value};
+use crate::parser::{Expr, Function, Value};
 use crate::types::{DataType, DataValue};
 
-mod agg;
+mod agg_call;
 mod binary_op;
 mod column_ref;
 mod type_cast;
 mod unary_op;
 
-pub use self::agg::*;
+pub use self::agg_call::*;
 pub use self::binary_op::*;
 pub use self::column_ref::*;
 pub use self::type_cast::*;
@@ -35,6 +35,7 @@ pub enum BoundExprKind {
     BinaryOp(BoundBinaryOp),
     UnaryOp(BoundUnaryOp),
     TypeCast(BoundTypeCast),
+    AggCall(BoundAggCall),
 }
 
 impl BoundExpr {
@@ -72,6 +73,7 @@ impl Binder {
             Expr::UnaryOp { op, expr } => self.bind_unary_op(op, expr),
             Expr::Nested(expr) => self.bind_expr(expr),
             Expr::Cast { expr, data_type } => self.bind_type_cast(expr, data_type.clone()),
+            Expr::Function(func) => self.bind_function(func),
             _ => todo!("bind expression: {:?}", expr),
         }
     }

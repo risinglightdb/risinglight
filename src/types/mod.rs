@@ -5,6 +5,7 @@ pub use sqlparser::ast::DataType as DataTypeKind;
 
 mod native;
 pub(crate) use native::*;
+use std::hash::{Hash, Hasher};
 
 /// Data type with nullable.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -62,7 +63,7 @@ pub(crate) type TableId = u32;
 pub(crate) type ColumnId = u32;
 
 /// Primitive SQL value.
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialOrd)]
 pub enum DataValue {
     // NOTE: Null comes first.
     // => NULL is less than any non-NULL values
@@ -72,6 +73,33 @@ pub enum DataValue {
     Int64(i64),
     Float64(f64),
     String(String),
+}
+
+impl PartialEq for DataValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Null, Self::Null) => true,
+            (Self::Bool(left), Self::Bool(right)) => left == right,
+            (Self::Int32(left), Self::Int32(right)) => left == right,
+            (Self::Int64(left), Self::Int64(right)) => left == right,
+            (Self::String(left), Self::String(right)) => left == right,
+            (Self::Float64(left), Self::Float64(right)) => left == right,
+            _ => false,
+        }
+    }
+}
+impl Eq for DataValue {}
+impl Hash for DataValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Bool(b) => b.hash(state),
+            Self::Int32(i) => i.hash(state),
+            Self::Int64(i) => i.hash(state),
+            Self::String(s) => s.hash(state),
+            // TODO: support `f64` as hash key (group key)
+            _ => panic!("Unsupported data type"),
+        }
+    }
 }
 
 impl DataValue {

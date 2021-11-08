@@ -6,11 +6,11 @@ use crate::parser::{Query, SelectItem, SetExpr};
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundSelect {
     pub select_list: Vec<BoundExpr>,
-    // TODO: aggregates: Vec<BoundExpr>,
+    pub aggregates: Vec<BoundAggCall>,
     pub from_table: Vec<BoundTableRef>,
     pub where_clause: Option<BoundExpr>,
     pub select_distinct: bool,
-    // pub groupby: Option<BoundGroupBy>,
+    pub group_by: Vec<BoundExpr>,
     pub orderby: Vec<BoundOrderBy>,
     pub limit: Option<BoundExpr>,
     pub offset: Option<BoundExpr>,
@@ -41,7 +41,6 @@ impl Binder {
             let table_ref = self.bind_table_with_joins(table_with_join)?;
             from_table.push(table_ref);
         }
-        // TODO: process group-by
         let mut where_clause = match &select.selection {
             Some(expr) => Some(self.bind_expr(expr)?),
             None => None,
@@ -61,16 +60,35 @@ impl Binder {
             Some(offset) => Some(self.bind_expr(&offset.value)?),
             None => None,
         };
+        let mut group_by = vec![];
+        for group_key in &select.group_by {
+            group_by.push(self.bind_expr(group_key)?);
+        }
 
         // Bind the select list.
-        // we only support column reference now
         let mut select_list = vec![];
+        let mut aggregates = vec![];
         // let mut return_names = vec![];
         for item in select.projection.iter() {
             match item {
-                SelectItem::UnnamedExpr(expr) => select_list.push(self.bind_expr(expr)?),
-                SelectItem::ExprWithAlias { expr, .. } => select_list.push(self.bind_expr(expr)?),
+                SelectItem::UnnamedExpr(expr) => {
+                    let expr = self.bind_expr(expr)?;
+                    if let BoundExprKind::AggCall(agg_call) = expr.kind {
+                        aggregates.push(agg_call);
+                    } else {
+                        select_list.push(expr);
+                    }
+                }
+                SelectItem::ExprWithAlias { expr, .. } => {
+                    let expr = self.bind_expr(expr)?;
+                    if let BoundExprKind::AggCall(agg_call) = expr.kind {
+                        aggregates.push(agg_call);
+                    } else {
+                        select_list.push(expr);
+                    }
+                }
                 SelectItem::Wildcard => {
+                    // TODO: support wildcard in aggregation
                     select_list.extend_from_slice(self.bind_all_column_refs()?.as_slice())
                 }
                 _ => todo!("bind select list"),
@@ -92,6 +110,16 @@ impl Binder {
                 .push(idxs.len() + self.column_sum_count[self.column_sum_count.len() - 1]);
         }
 
+        for agg_call in aggregates.iter_mut() {
+            for expr in agg_call.args.iter_mut() {
+                self.bind_column_idx_for_expr(&mut expr.kind);
+            }
+        }
+
+        for expr in group_by.iter_mut() {
+            self.bind_column_idx_for_expr(&mut expr.kind);
+        }
+
         for expr in select_list.iter_mut() {
             self.bind_column_idx_for_expr(&mut expr.kind);
         }
@@ -107,9 +135,11 @@ impl Binder {
 
         Ok(Box::new(BoundSelect {
             select_list,
+            aggregates,
             from_table,
             where_clause,
             select_distinct: select.distinct,
+            group_by,
             orderby,
             limit,
             offset,

@@ -54,6 +54,9 @@ impl BoundExpr {
                 }
                 array.try_cast(cast.ty.clone())
             }
+            BoundExprKind::AggCall(_) => {
+                panic!("AggCall should not be evaluated")
+            }
         }
     }
 }
