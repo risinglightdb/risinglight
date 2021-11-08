@@ -1355,6 +1355,7 @@ dependencies = [
  "bytes",
  "core_simd",
  "criterion",
+ "csv",
  "enum_dispatch",
  "env_logger",
  "futures",

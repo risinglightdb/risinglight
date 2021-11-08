@@ -53,6 +53,11 @@ impl DataChunk {
         &self.arrays[idx]
     }
 
+    /// Get all arrays.
+    pub fn arrays(&self) -> &[ArrayImpl] {
+        &self.arrays
+    }
+
     /// Filter elements and create a new chunk.
     pub fn filter(&self, visibility: impl Iterator<Item = bool> + Clone) -> Self {
         let arrays = self
