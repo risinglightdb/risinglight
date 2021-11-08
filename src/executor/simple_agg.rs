@@ -2,6 +2,7 @@ use super::*;
 use crate::array::{ArrayBuilderImpl, ArrayImpl};
 use crate::binder::{AggKind, BoundAggCall};
 use crate::types::{DataType, DataTypeKind, DataValue};
+use smallvec::SmallVec;
 
 /// The executor of simple aggregation.
 pub struct SimpleAggExecutor {
@@ -11,7 +12,7 @@ pub struct SimpleAggExecutor {
 
 impl SimpleAggExecutor {
     fn execute_inner(
-        states: &mut Vec<Box<dyn AggregationState>>,
+        states: &mut [Box<dyn AggregationState>],
         chunk: DataChunk,
         agg_calls: &[BoundAggCall],
     ) -> Result<(), ExecutorError> {
@@ -28,7 +29,7 @@ impl SimpleAggExecutor {
         Ok(())
     }
 
-    fn finish_agg(states: Vec<Box<dyn AggregationState>>) -> DataChunk {
+    fn finish_agg(states: SmallVec<[Box<dyn AggregationState>; 16]>) -> DataChunk {
         states
             .iter()
             .map(|s| {
@@ -60,7 +61,9 @@ impl SimpleAggExecutor {
     }
 }
 
-pub(super) fn create_agg_states(agg_calls: &[BoundAggCall]) -> Vec<Box<dyn AggregationState>> {
+pub(super) fn create_agg_states(
+    agg_calls: &[BoundAggCall],
+) -> SmallVec<[Box<dyn AggregationState>; 16]> {
     agg_calls.iter().map(create_agg_state).collect()
 }
 

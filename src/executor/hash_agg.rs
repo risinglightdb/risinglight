@@ -3,6 +3,7 @@ use crate::array::{ArrayBuilderImpl, ArrayImpl};
 use crate::binder::{BoundAggCall, BoundExpr};
 use crate::executor::aggregation::AggregationState;
 use crate::types::DataValue;
+use smallvec::SmallVec;
 use std::collections::HashMap;
 
 /// The executor of hash aggregation.
@@ -12,33 +13,34 @@ pub struct HashAggExecutor {
     pub child: BoxedExecutor,
 }
 
-pub type HashKey = Vec<DataValue>;
-pub type HashValue = Vec<Box<dyn AggregationState>>;
+pub type HashKey = SmallVec<[DataValue; 16]>;
+pub type HashValue = SmallVec<[Box<dyn AggregationState>; 16]>;
 
 impl HashAggExecutor {
     fn execute_inner(
-        state_entries: &mut HashMap<HashKey, HashValue>,
+        state_entries: &mut HashMap<Arc<HashKey>, HashValue>,
         chunk: DataChunk,
         agg_calls: &[BoundAggCall],
         group_keys: &[BoundExpr],
     ) -> Result<(), ExecutorError> {
-        // Eval group keys
+        // Eval group keys and arguments
         let group_cols = group_keys
             .iter()
             .map(|e| e.eval_array(&chunk))
             .collect::<Result<Vec<ArrayImpl>, _>>()?;
-
-        // Collect unique group keys and corresponding visibilities
-        let num_rows = chunk.cardinality();
         let arrays = agg_calls
             .iter()
             .map(|agg| agg.args[0].eval_array(&chunk))
             .collect::<Result<Vec<_>, _>>()?;
+
+        // Update states
+        let num_rows = chunk.cardinality();
         for row_idx in 0..num_rows {
             let mut group_key = HashKey::new();
             for col in group_cols.iter() {
                 group_key.push(col.get(row_idx));
             }
+            let group_key = Arc::new(group_key);
 
             if !state_entries.contains_key(&group_key) {
                 state_entries.insert(group_key.clone(), create_agg_states(agg_calls));
@@ -55,7 +57,7 @@ impl HashAggExecutor {
     }
 
     fn finish_agg(
-        state_entries: HashMap<HashKey, HashValue>,
+        state_entries: HashMap<Arc<HashKey>, HashValue>,
         agg_calls: Vec<BoundAggCall>,
         group_keys: Vec<BoundExpr>,
     ) -> DataChunk {
@@ -86,7 +88,7 @@ impl HashAggExecutor {
 
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
-            let mut state_entries = HashMap::<HashKey, HashValue>::new();
+            let mut state_entries = HashMap::new();
 
             for await chunk in self.child {
                 let chunk = chunk?;
