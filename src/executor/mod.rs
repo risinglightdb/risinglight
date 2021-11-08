@@ -30,12 +30,14 @@ mod dummy_scan;
 pub mod evaluator;
 mod explain;
 mod filter;
+mod hash_agg;
 mod insert;
 mod limit;
 mod nested_loop_join;
 mod order;
 mod projection;
 mod seq_scan;
+mod simple_agg;
 mod values;
 
 pub use self::aggregation::*;
@@ -47,12 +49,14 @@ use self::drop::*;
 use self::dummy_scan::*;
 use self::explain::*;
 use self::filter::*;
+use self::hash_agg::*;
 use self::insert::*;
 use self::limit::*;
 use self::nested_loop_join::*;
 use self::order::*;
 use self::projection::*;
 use self::seq_scan::*;
+use self::simple_agg::*;
 use self::values::*;
 
 /// The error type of execution.
@@ -155,6 +159,19 @@ impl ExecutorBuilder {
                 left_child: self.build_with_storage(*plan.left_plan, storage.clone()),
                 right_child: self.build_with_storage(*plan.right_plan, storage),
                 join_op: plan.join_op.clone(),
+            }
+            .execute()
+            .boxed(),
+            PhysicalPlan::SimpleAgg(plan) => SimpleAggExecutor {
+                agg_calls: plan.agg_calls,
+                child: self.build_with_storage(*plan.child, storage),
+            }
+            .execute()
+            .boxed(),
+            PhysicalPlan::HashAgg(plan) => HashAggExecutor {
+                agg_calls: plan.agg_calls,
+                group_keys: plan.group_keys,
+                child: self.build_with_storage(*plan.child, storage),
             }
             .execute()
             .boxed(),

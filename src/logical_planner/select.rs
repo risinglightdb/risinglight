@@ -69,6 +69,22 @@ impl LogicalPlaner {
                 child: Box::new(plan),
             });
         }
+
+        if !stmt.aggregates.is_empty() {
+            plan = if stmt.group_by.is_empty() {
+                LogicalPlan::SimpleAgg(LogicalSimpleAgg {
+                    agg_calls: stmt.aggregates,
+                    child: Box::new(plan),
+                })
+            } else {
+                LogicalPlan::HashAgg(LogicalHashAgg {
+                    agg_calls: stmt.aggregates,
+                    group_keys: stmt.group_by,
+                    child: Box::new(plan),
+                })
+            };
+        }
+
         if plan == LogicalPlan::Dummy {
             return Err(LogicalPlanError::InvalidSQL);
         }
