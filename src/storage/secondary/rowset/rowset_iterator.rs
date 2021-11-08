@@ -16,7 +16,7 @@ pub struct RowSetIterator {
     rowset: Arc<DiskRowset>,
     column_refs: Arc<[StorageColumnRef]>,
     dvs: Vec<Arc<DeleteVector>>,
-    column_iterators: PackedVec<Option<ColumnIteratorImpl>>,
+    column_iterators: Vec<Option<ColumnIteratorImpl>>,
 }
 
 impl RowSetIterator {
@@ -48,7 +48,7 @@ impl RowSetIterator {
             panic!("no user column")
         }
 
-        let mut column_iterators: PackedVec<Option<ColumnIteratorImpl>> = smallvec![];
+        let mut column_iterators: Vec<Option<ColumnIteratorImpl>> = vec![];
 
         for column_ref in &*column_refs {
             // TODO: parallel seek

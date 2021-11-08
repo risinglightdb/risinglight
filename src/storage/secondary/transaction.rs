@@ -168,22 +168,19 @@ impl Transaction for SecondaryTransaction {
 
         let final_iter = if iters.len() == 1 {
             iters.pop().unwrap().into()
-        } else {
-            if is_sorted {
-                let sort_key = find_sort_key_id(&self.table.shared.columns);
-                if let Some(sort_key) = sort_key {
-                    let real_col_idx = col_idx.iter().position(|x| match x {
-                        StorageColumnRef::Idx(y) => *y as usize == sort_key,
-                        _ => false,
-                    });
-                    MergeIterator::new(iters, real_col_idx.expect("sort key not in column list"))
-                        .into()
-                } else {
-                    ConcatIterator::new(iters).into()
-                }
+        } else if is_sorted {
+            let sort_key = find_sort_key_id(&self.table.shared.columns);
+            if let Some(sort_key) = sort_key {
+                let real_col_idx = col_idx.iter().position(|x| match x {
+                    StorageColumnRef::Idx(y) => *y as usize == sort_key,
+                    _ => false,
+                });
+                MergeIterator::new(iters, real_col_idx.expect("sort key not in column list")).into()
             } else {
                 ConcatIterator::new(iters).into()
             }
+        } else {
+            ConcatIterator::new(iters).into()
         };
 
         Ok(SecondaryTableTxnIterator::new(final_iter))

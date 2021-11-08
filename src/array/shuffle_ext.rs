@@ -56,7 +56,11 @@ impl<T: ArrayBuilder> ArrayBuilderPickExt for T {}
 pub trait ArrayImplBuilderPickExt {
     fn pick_from(&mut self, array: &ArrayImpl, logical_rows: &[usize]);
 
-    fn pick_from_multiple(&mut self, arrays: &[impl AsRef<ArrayImpl>], logical_rows: &[(usize, usize)]);
+    fn pick_from_multiple(
+        &mut self,
+        arrays: &[impl AsRef<ArrayImpl>],
+        logical_rows: &[(usize, usize)],
+    );
 }
 
 impl ArrayImplBuilderPickExt for ArrayBuilderImpl {
@@ -73,11 +77,15 @@ impl ArrayImplBuilderPickExt for ArrayBuilderImpl {
         }
     }
 
-    fn pick_from_multiple(&mut self, arrays: &[impl AsRef<ArrayImpl>], logical_rows: &[(usize, usize)]) {
+    fn pick_from_multiple(
+        &mut self,
+        arrays: &[impl AsRef<ArrayImpl>],
+        logical_rows: &[(usize, usize)],
+    ) {
         match self {
             Self::Int32(builder) => {
                 let typed_arrays = arrays
-                    .into_iter()
+                    .iter()
                     .map(|x| x.as_ref().try_into().unwrap())
                     .collect::<SmallVec<[_; 8]>>();
                 builder.pick_from_multiple(&typed_arrays, logical_rows);

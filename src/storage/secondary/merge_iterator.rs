@@ -93,7 +93,7 @@ impl MergeIterator {
 
     /// Peek the top-most element
     fn peek_pending_data(&self) -> (usize, usize) {
-        self.pending_heap[0].clone()
+        self.pending_heap[0]
     }
 
     /// Pop an element and insert a new element.
