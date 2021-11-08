@@ -136,6 +136,7 @@ impl Transaction for SecondaryTransaction {
         begin_sort_key: Option<&[u8]>,
         end_sort_key: Option<&[u8]>,
         col_idx: &[StorageColumnRef],
+        is_sorted: bool,
         reversed: bool,
     ) -> StorageResult<Self::TxnIteratorType> {
         assert!(
@@ -147,6 +148,7 @@ impl Transaction for SecondaryTransaction {
             "sort_key is not supported in SecondaryEngine for now"
         );
         assert!(!reversed, "reverse iterator is not supported for now");
+        assert!(!is_sorted, "sorted iterator is not supported for now");
 
         let mut iters: Vec<RowSetIterator> = vec![];
         for rowset in &self.snapshot {

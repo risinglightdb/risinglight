@@ -114,6 +114,7 @@ pub trait Transaction: Sync + Send + 'static {
         begin_sort_key: Option<&[u8]>,
         end_sort_key: Option<&[u8]>,
         col_idx: &[StorageColumnRef],
+        is_sorted: bool,
         reversed: bool,
     ) -> StorageResult<Self::TxnIteratorType>;
 

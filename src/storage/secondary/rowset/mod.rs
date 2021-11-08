@@ -39,3 +39,18 @@ mod disk_rowset;
 pub use disk_rowset::*;
 mod rowset_iterator;
 pub use rowset_iterator::*;
+
+use crate::catalog::ColumnCatalog;
+
+pub fn find_sort_key_id(column_infos: &[ColumnCatalog]) -> Option<usize> {
+    let mut key = None;
+    for (id, column_info) in column_infos.iter().enumerate() {
+        if column_info.is_primary() {
+            if key.is_some() {
+                panic!("only one primary key is supported");
+            }
+            key = Some(id);
+        }
+    }
+    key
+}

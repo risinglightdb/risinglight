@@ -1,11 +1,12 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::array::{ArrayBuilderImpl, DataChunk};
+use crate::array::{ArrayBuilderImpl, ArrayImplBuilderPickExt, ArrayImplSortExt, DataChunk};
 use crate::catalog::ColumnCatalog;
 use crate::storage::StorageResult;
 use itertools::Itertools;
 
+use super::find_sort_key_id;
 use super::rowset_builder::RowsetBuilder;
 use crate::storage::secondary::ColumnBuilderOptions;
 
@@ -39,11 +40,28 @@ impl SecondaryMemRowset {
         directory: impl AsRef<Path>,
         column_options: ColumnBuilderOptions,
     ) -> StorageResult<()> {
-        let chunk = self
-            .builders
-            .into_iter()
-            .map(|builder| builder.finish())
-            .collect::<DataChunk>();
+        let chunk = if let Some(sort_key_idx) = find_sort_key_id(&*self.columns) {
+            let arrays = self
+                .builders
+                .into_iter()
+                .map(|builder| builder.finish())
+                .collect_vec();
+            let sorted_index = arrays[sort_key_idx].get_sorted_indices();
+            arrays
+                .into_iter()
+                .map(|array| {
+                    let mut builder = ArrayBuilderImpl::from_type_of_array(&array);
+                    builder.pick_from(&array, &sorted_index);
+                    builder.finish()
+                })
+                .collect::<DataChunk>()
+        } else {
+            self.builders
+                .into_iter()
+                .map(|builder| builder.finish())
+                .collect::<DataChunk>()
+        };
+
         let directory = directory.as_ref().to_path_buf();
         let mut builder = RowsetBuilder::new(self.columns, &directory, column_options);
         builder.append(chunk);
