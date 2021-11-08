@@ -3,11 +3,13 @@ use crate::storage::{StorageResult, TxnIterator};
 use async_trait::async_trait;
 use enum_dispatch::enum_dispatch;
 
-use super::ConcatIterator;
+use super::{ConcatIterator, MergeIterator, RowSetIterator};
 
 #[enum_dispatch]
 pub enum SecondaryIterator {
     Concat(ConcatIterator),
+    Merge(MergeIterator),
+    RowSet(RowSetIterator),
 }
 
 #[enum_dispatch(SecondaryIterator)]
@@ -36,6 +38,14 @@ impl TxnIterator for SecondaryTableTxnIterator {
     ) -> StorageResult<Option<DataChunk>> {
         Ok(match &mut self.iter {
             SecondaryIterator::Concat(iter) => iter
+                .next_batch(expected_size)
+                .await
+                .map(|x| x.to_data_chunk()),
+            SecondaryIterator::Merge(iter) => iter
+                .next_batch(expected_size)
+                .await
+                .map(|x| x.to_data_chunk()),
+            SecondaryIterator::RowSet(iter) => iter
                 .next_batch(expected_size)
                 .await
                 .map(|x| x.to_data_chunk()),

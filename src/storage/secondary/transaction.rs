@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::rowset::find_sort_key_id;
 use super::{
     ColumnBuilderOptions, ColumnSeekPosition, ConcatIterator, DeleteVector, DiskRowset,
-    RowSetIterator, SecondaryMemRowset, SecondaryRowHandler, SecondaryTable,
+    MergeIterator, RowSetIterator, SecondaryMemRowset, SecondaryRowHandler, SecondaryTable,
     SecondaryTableTxnIterator,
 };
 use crate::array::DataChunk;
@@ -148,7 +149,6 @@ impl Transaction for SecondaryTransaction {
             "sort_key is not supported in SecondaryEngine for now"
         );
         assert!(!reversed, "reverse iterator is not supported for now");
-        assert!(!is_sorted, "sorted iterator is not supported for now");
 
         let mut iters: Vec<RowSetIterator> = vec![];
         for rowset in &self.snapshot {
@@ -166,9 +166,27 @@ impl Transaction for SecondaryTransaction {
             )
         }
 
-        Ok(SecondaryTableTxnIterator::new(
-            ConcatIterator::new(iters).into(),
-        ))
+        let final_iter = if iters.len() == 1 {
+            iters.pop().unwrap().into()
+        } else {
+            if is_sorted {
+                let sort_key = find_sort_key_id(&self.table.shared.columns);
+                if let Some(sort_key) = sort_key {
+                    let real_col_idx = col_idx.iter().position(|x| match x {
+                        StorageColumnRef::Idx(y) => *y as usize == sort_key,
+                        _ => false,
+                    });
+                    MergeIterator::new(iters, real_col_idx.expect("sort key not in column list"))
+                        .into()
+                } else {
+                    ConcatIterator::new(iters).into()
+                }
+            } else {
+                ConcatIterator::new(iters).into()
+            }
+        };
+
+        Ok(SecondaryTableTxnIterator::new(final_iter))
     }
 
     async fn append(&mut self, columns: DataChunk) -> StorageResult<()> {
