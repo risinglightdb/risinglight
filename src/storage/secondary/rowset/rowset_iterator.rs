@@ -197,7 +197,7 @@ impl SecondaryIteratorImpl for RowSetIterator {}
 mod tests {
     use super::*;
     use crate::array::{Array, ArrayToVecExt};
-    use crate::storage::secondary::tests::helper_build_rowset;
+    use crate::storage::secondary::rowset::tests::helper_build_rowset;
     use crate::storage::secondary::SecondaryRowHandler;
     use itertools::Itertools;
 

@@ -39,6 +39,9 @@ use compactor::*;
 mod merge_iterator;
 use merge_iterator::*;
 
+#[cfg(test)]
+mod tests;
+
 use super::{Storage, StorageError, StorageResult};
 use crate::catalog::{ColumnCatalog, RootCatalogRef, TableRefId};
 use crate::types::{ColumnId, DatabaseId, SchemaId};

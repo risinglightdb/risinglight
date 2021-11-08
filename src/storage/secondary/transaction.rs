@@ -175,7 +175,11 @@ impl Transaction for SecondaryTransaction {
                     StorageColumnRef::Idx(y) => *y as usize == sort_key,
                     _ => false,
                 });
-                MergeIterator::new(iters, real_col_idx.expect("sort key not in column list")).into()
+                MergeIterator::new(
+                    iters.into_iter().map(|iter| iter.into()).collect_vec(),
+                    real_col_idx.expect("sort key not in column list"),
+                )
+                .into()
             } else {
                 ConcatIterator::new(iters).into()
             }
