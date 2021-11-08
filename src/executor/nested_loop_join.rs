@@ -25,7 +25,7 @@ impl NestedLoopJoinExecutor {
         left_row.append(&mut right_row);
         let mut chunk_builders: Vec<ArrayBuilderImpl> = left_row
             .iter()
-            .map(|v| ArrayBuilderImpl::from_type_of_value(v))
+            .map(ArrayBuilderImpl::from_type_of_value)
             .collect();
 
         for left_chunk in left_chunks.iter() {
@@ -37,7 +37,7 @@ impl NestedLoopJoinExecutor {
                         left_row.append(&mut right_row);
                         let mut builders: Vec<ArrayBuilderImpl> = left_row
                             .iter()
-                            .map(|v| ArrayBuilderImpl::from_type_of_value(v))
+                            .map(ArrayBuilderImpl::from_type_of_value)
                             .collect();
                         for (idx, builder) in builders.iter_mut().enumerate() {
                             builder.push(&left_row[idx]);
