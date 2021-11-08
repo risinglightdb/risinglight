@@ -38,7 +38,7 @@ async fn main() {
             }
             Err(ReadlineError::Interrupted) => {
                 println!("Interrupted");
-            },
+            }
             Err(ReadlineError::Eof) => {
                 println!("Exited");
                 break;
