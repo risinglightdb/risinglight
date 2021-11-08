@@ -2,6 +2,7 @@ use super::*;
 use crate::array::{ArrayBuilderImpl, ArrayImpl};
 use crate::binder::{AggKind, BoundAggCall};
 use crate::types::{DataType, DataTypeKind, DataValue};
+use itertools::Itertools;
 use smallvec::SmallVec;
 
 /// The executor of simple aggregation.
@@ -17,10 +18,10 @@ impl SimpleAggExecutor {
         agg_calls: &[BoundAggCall],
     ) -> Result<(), ExecutorError> {
         // TODO: support aggregations with multiple arguments
-        let exprs = agg_calls
+        let exprs: SmallVec<[ArrayImpl; 16]> = agg_calls
             .iter()
             .map(|agg| agg.args[0].eval_array(&chunk))
-            .collect::<Result<Vec<ArrayImpl>, _>>()?;
+            .try_collect()?;
 
         for (state, expr) in states.iter_mut().zip(exprs) {
             state.update(&expr)?;

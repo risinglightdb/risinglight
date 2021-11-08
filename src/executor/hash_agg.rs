@@ -3,6 +3,7 @@ use crate::array::{ArrayBuilderImpl, ArrayImpl};
 use crate::binder::{BoundAggCall, BoundExpr};
 use crate::executor::aggregation::AggregationState;
 use crate::types::DataValue;
+use itertools::Itertools;
 use smallvec::SmallVec;
 use std::collections::HashMap;
 
@@ -24,14 +25,14 @@ impl HashAggExecutor {
         group_keys: &[BoundExpr],
     ) -> Result<(), ExecutorError> {
         // Eval group keys and arguments
-        let group_cols = group_keys
+        let group_cols: SmallVec<[ArrayImpl; 16]> = group_keys
             .iter()
             .map(|e| e.eval_array(&chunk))
-            .collect::<Result<Vec<ArrayImpl>, _>>()?;
-        let arrays = agg_calls
+            .try_collect()?;
+        let arrays: SmallVec<[ArrayImpl; 16]> = agg_calls
             .iter()
             .map(|agg| agg.args[0].eval_array(&chunk))
-            .collect::<Result<Vec<_>, _>>()?;
+            .try_collect()?;
 
         // Update states
         let num_rows = chunk.cardinality();
