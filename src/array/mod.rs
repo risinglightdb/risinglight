@@ -1,4 +1,4 @@
-use crate::types::{ConvertError, DataType, DataTypeKind, DataValue};
+use crate::types::{ConvertError, DataType, DataTypeExt, DataTypeKind, DataValue};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::ops::{Bound, RangeBounds};
@@ -385,6 +385,17 @@ impl ArrayImpl {
             Self::Int64(a) => Self::Int64(a.slice(range)),
             Self::Float64(a) => Self::Float64(a.slice(range)),
             Self::UTF8(a) => Self::UTF8(a.slice(range)),
+        }
+    }
+
+    /// Get the type of value.
+    pub fn data_type(&self) -> Option<DataType> {
+        match self {
+            Self::Bool(_) => Some(DataTypeKind::Boolean.not_null()),
+            Self::Int32(_) => Some(DataTypeKind::Int.not_null()),
+            Self::Int64(_) => Some(DataTypeKind::BigInt.not_null()),
+            Self::Float64(_) => Some(DataTypeKind::Double.not_null()),
+            Self::UTF8(_) => Some(DataTypeKind::String.not_null()),
         }
     }
 }

@@ -5,12 +5,14 @@ mod delete;
 mod drop;
 mod explain;
 mod filter;
+mod hash_agg;
 mod insert;
 mod join;
 mod limit;
 mod order;
 mod projection;
 mod seq_scan;
+mod simple_agg;
 
 pub use copy_from_file::*;
 pub use copy_to_file::*;
@@ -19,12 +21,14 @@ pub use delete::*;
 pub use drop::*;
 pub use explain::*;
 pub use filter::*;
+pub use hash_agg::*;
 pub use insert::*;
 pub use join::*;
 pub use limit::*;
 pub use order::*;
 pub use projection::*;
 pub use seq_scan::*;
+pub use simple_agg::*;
 
 use crate::logical_planner::LogicalPlan;
 
@@ -49,6 +53,8 @@ pub enum PhysicalPlan {
     Filter(PhysicalFilter),
     Explain(PhysicalExplain),
     Join(PhysicalJoin),
+    SimpleAgg(PhysicalSimpleAgg),
+    HashAgg(PhysicalHashAgg),
     Order(PhysicalOrder),
     Limit(PhysicalLimit),
     Delete(PhysicalDelete),
@@ -71,6 +77,8 @@ impl PhysicalPlaner {
             LogicalPlan::Order(plan) => self.plan_order(plan),
             LogicalPlan::Limit(plan) => self.plan_limit(plan),
             LogicalPlan::Explain(plan) => self.plan_explain(plan),
+            LogicalPlan::SimpleAgg(plan) => self.plan_simple_agg(plan),
+            LogicalPlan::HashAgg(plan) => self.plan_hash_agg(plan),
             LogicalPlan::Delete(plan) => self.plan_delete(plan),
         }
     }
@@ -106,6 +114,8 @@ impl PhysicalPlan {
             Self::Join(p) => p.explain(level, f),
             Self::Order(p) => p.explain(level, f),
             Self::Limit(p) => p.explain(level, f),
+            Self::SimpleAgg(p) => p.explain(level, f),
+            Self::HashAgg(p) => p.explain(level, f),
             Self::Delete(p) => p.explain(level, f),
         }
     }
