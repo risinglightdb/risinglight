@@ -53,12 +53,12 @@ impl InMemoryTransaction {
     }
 }
 
+/// If primary key is found in [`ColumnCatalog`], sort all in-memory data using that key.
 fn sort_datachunk_by_pk(
     chunks: &Arc<Vec<Arc<DataChunk>>>,
     column_infos: &[ColumnCatalog],
 ) -> Arc<Vec<Arc<DataChunk>>> {
     if let Some(sort_key_id) = find_sort_key_id(column_infos) {
-        println!("using {}", sort_key_id);
         if chunks.is_empty() {
             return chunks.clone();
         }
