@@ -45,10 +45,29 @@ pub trait ArrayBuilderPickExt: ArrayBuilder {
 
 impl<T: ArrayBuilder> ArrayBuilderPickExt for T {}
 
+pub trait ArrayImplBuilderPickExt {
+    fn pick_from(&mut self, array: &ArrayImpl, logical_rows: &[usize]);
+}
+
+impl ArrayImplBuilderPickExt for ArrayBuilderImpl {
+    fn pick_from(&mut self, array: &ArrayImpl, logical_rows: &[usize]) {
+        match (self, array) {
+            (Self::Bool(builder), ArrayImpl::Bool(arr)) => builder.pick_from(arr, logical_rows),
+            (Self::Int32(builder), ArrayImpl::Int32(arr)) => builder.pick_from(arr, logical_rows),
+            (Self::Int64(builder), ArrayImpl::Int64(arr)) => builder.pick_from(arr, logical_rows),
+            (Self::Float64(builder), ArrayImpl::Float64(arr)) => {
+                builder.pick_from(arr, logical_rows)
+            }
+            (Self::UTF8(builder), ArrayImpl::UTF8(arr)) => builder.pick_from(arr, logical_rows),
+            _ => panic!("failed to push value: type mismatch"),
+        }
+    }
+}
+
 /// Get sorted indices from the current [`Array`]
 pub trait ArraySortExt: Array
 where
-    <Self as Array>::Item: Ord,
+    <Self as Array>::Item: PartialOrd,
 {
     /// Get indices of original items in a sorted array, which can be directly used in [`ArrayBuilderPickExt`].
     ///
@@ -81,7 +100,8 @@ where
                 (None, None) => Equal,
                 (None, _) => Less,
                 (_, None) => Greater,
-                (a, b) => a.cmp(&b),
+                // TODO: handle panic when doing `partial_cmp`.
+                (a, b) => a.partial_cmp(&b).unwrap(),
             }
         });
 
@@ -89,4 +109,20 @@ where
     }
 }
 
-impl<T: Array> ArraySortExt for T where T::Item: Ord {}
+impl<T: Array> ArraySortExt for T where T::Item: PartialOrd {}
+
+pub trait ArrayImplSortExt {
+    fn get_sorted_indices(&self) -> Vec<usize>;
+}
+
+impl ArrayImplSortExt for ArrayImpl {
+    fn get_sorted_indices(&self) -> Vec<usize> {
+        match self {
+            Self::Bool(a) => a.get_sorted_indices(),
+            Self::Int32(a) => a.get_sorted_indices(),
+            Self::Int64(a) => a.get_sorted_indices(),
+            Self::Float64(a) => a.get_sorted_indices(),
+            Self::UTF8(a) => a.get_sorted_indices(),
+        }
+    }
+}

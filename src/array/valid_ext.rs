@@ -6,8 +6,12 @@ pub trait ArrayValidExt: Array {
     fn get_valid_bitmap(&self) -> &BitVec;
 }
 
-impl ArrayImpl {
-    pub fn get_valid_bitmap(&self) -> &BitVec {
+pub trait ArrayImplValidExt {
+    fn get_valid_bitmap(&self) -> &BitVec;
+}
+
+impl ArrayImplValidExt for ArrayImpl {
+    fn get_valid_bitmap(&self) -> &BitVec {
         match self {
             Self::Bool(a) => a.get_valid_bitmap(),
             Self::Int32(a) => a.get_valid_bitmap(),

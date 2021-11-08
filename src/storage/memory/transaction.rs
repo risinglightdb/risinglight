@@ -56,6 +56,7 @@ impl Transaction for InMemoryTransaction {
         begin_sort_key: Option<&[u8]>,
         end_sort_key: Option<&[u8]>,
         col_idx: &[StorageColumnRef],
+        is_sorted: bool,
         reversed: bool,
     ) -> StorageResult<Self::TxnIteratorType> {
         assert!(
@@ -67,6 +68,7 @@ impl Transaction for InMemoryTransaction {
             "sort_key is not supported in InMemoryEngine for now"
         );
         assert!(!reversed, "reverse iterator is not supported for now");
+        assert!(!is_sorted, "sorted iterator is not supported for now");
 
         Ok(InMemoryTxnIterator::new(
             self.snapshot.clone(),

@@ -38,7 +38,7 @@ impl<S: Storage> SeqScanExecutor<S> {
         }
 
         let txn = table.read().await?;
-        let mut it = txn.scan(None, None, &col_idx, false).await?;
+        let mut it = txn.scan(None, None, &col_idx, false, false).await?;
 
         // Notice: The column ids may not be ordered.
         while let Some(chunk) = it.next_batch(None).await? {
