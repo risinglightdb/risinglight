@@ -12,8 +12,18 @@ use crate::binder::{BoundExprKind, BoundSelect, BoundTableRef};
 impl LogicalPlaner {
     pub fn plan_select(&self, stmt: Box<BoundSelect>) -> Result<LogicalPlan, LogicalPlanError> {
         let mut plan = LogicalPlan::Dummy;
+        let mut is_sorted = false;
+
         if let Some(table_ref) = stmt.from_table.get(0) {
-            plan = self.plan_table_ref(table_ref, false)?;
+            // use `sorted` mode from the storage engine if the order by column is the primary key
+            if stmt.orderby.len() == 1 && !stmt.orderby[0].descending {
+                if let BoundExprKind::ColumnRef(col_ref) = &stmt.orderby[0].expr.kind {
+                    if col_ref.is_primary_key {
+                        is_sorted = true;
+                    }
+                }
+            }
+            plan = self.plan_table_ref(table_ref, false, is_sorted)?;
         }
 
         if let Some(expr) = stmt.where_clause {
@@ -32,7 +42,7 @@ impl LogicalPlaner {
                 child: Box::new(plan),
             });
         }
-        if !stmt.orderby.is_empty() {
+        if !stmt.orderby.is_empty() && !is_sorted {
             plan = LogicalPlan::Order(LogicalOrder {
                 comparators: stmt.orderby,
                 child: Box::new(plan),
@@ -69,6 +79,7 @@ impl LogicalPlaner {
         &self,
         table_ref: &BoundTableRef,
         with_row_handler: bool,
+        is_sorted: bool,
     ) -> Result<LogicalPlan, LogicalPlanError> {
         match table_ref {
             BoundTableRef::BaseTableRef {
@@ -79,15 +90,17 @@ impl LogicalPlaner {
                 table_ref_id: *ref_id,
                 column_ids: column_ids.to_vec(),
                 with_row_handler,
+                is_sorted,
             })),
             BoundTableRef::JoinTableRef {
                 relation,
                 join_tables,
             } => {
-                let relation_plan = self.plan_table_ref(relation, with_row_handler)?;
+                let relation_plan = self.plan_table_ref(relation, with_row_handler, is_sorted)?;
                 let mut join_table_plans = vec![];
                 for table in join_tables.iter() {
-                    let table_plan = self.plan_table_ref(&table.table_ref, with_row_handler)?;
+                    let table_plan =
+                        self.plan_table_ref(&table.table_ref, with_row_handler, is_sorted)?;
                     join_table_plans.push(LogicalJoinTable {
                         table_plan: Box::new(table_plan),
                         join_op: table.join_op.clone(),

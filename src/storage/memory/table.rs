@@ -20,6 +20,7 @@ pub(super) struct InMemoryTableInner {
     chunks: Vec<DataChunkRef>,
     deleted_rows: HashSet<usize>,
     columns: HashMap<ColumnId, ColumnDesc>,
+    column_infos: Arc<[ColumnCatalog]>,
 }
 
 pub(super) type InMemoryTableInnerRef = Arc<RwLock<InMemoryTableInner>>;
@@ -33,6 +34,7 @@ impl InMemoryTableInner {
                 .map(|col| (col.id(), col.desc().clone()))
                 .collect(),
             deleted_rows: HashSet::new(),
+            column_infos: columns.into(),
         }
     }
 
@@ -65,6 +67,10 @@ impl InMemoryTableInner {
                     .ok_or(StorageError::InvalidColumn(*id))
             })
             .try_collect()
+    }
+
+    pub fn get_column_infos(&self) -> Arc<[ColumnCatalog]> {
+        self.column_infos.clone()
     }
 }
 

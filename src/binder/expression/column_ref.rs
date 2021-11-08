@@ -6,6 +6,7 @@ pub struct BoundColumnRef {
     pub table_name: String,
     pub column_ref_id: ColumnRefId,
     pub column_index: ColumnId,
+    pub is_primary_key: bool,
 }
 
 impl Binder {
@@ -27,6 +28,7 @@ impl Binder {
                         table_name: table.name().clone(),
                         column_ref_id,
                         column_index: u32::MAX,
+                        is_primary_key: col.is_primary(),
                     }),
                     return_type: Some(col.datatype().clone()),
                 };
@@ -66,6 +68,7 @@ impl Binder {
                     table_name: name.clone(),
                     column_ref_id,
                     column_index: u32::MAX,
+                    is_primary_key: col.is_primary(),
                 }),
                 return_type: Some(col.datatype()),
             })
@@ -78,10 +81,15 @@ impl Binder {
                         return Err(BindError::AmbiguousColumn);
                     }
                     let column_ref_id = ColumnRefId::from_table(*ref_id, col.id());
-                    info = Some((table.name().clone(), column_ref_id, col.datatype()));
+                    info = Some((
+                        table.name().clone(),
+                        column_ref_id,
+                        col.datatype(),
+                        col.is_primary(),
+                    ));
                 }
             }
-            let (table_name, column_ref_id, data_type) =
+            let (table_name, column_ref_id, data_type, is_primary_key) =
                 info.ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
             Self::record_regular_table_column(
                 &mut self.context.column_names,
@@ -96,6 +104,7 @@ impl Binder {
                     table_name: table_name.clone(),
                     column_ref_id,
                     column_index: u32::MAX,
+                    is_primary_key,
                 }),
                 return_type: Some(data_type),
             })

@@ -11,6 +11,7 @@ pub struct PhysicalSeqScan {
     pub table_ref_id: TableRefId,
     pub column_ids: Vec<ColumnId>,
     pub with_row_handler: bool,
+    pub is_sorted: bool,
 }
 
 impl PhysicalPlaner {
@@ -19,6 +20,7 @@ impl PhysicalPlaner {
             table_ref_id: plan.table_ref_id,
             column_ids: plan.column_ids,
             with_row_handler: plan.with_row_handler,
+            is_sorted: plan.is_sorted,
         }))
     }
 }
@@ -27,10 +29,11 @@ impl PlanExplainable for PhysicalSeqScan {
     fn explain_inner(&self, _level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(
             f,
-            "SeqScan: table #{}, columns [{}], with_row_handler: {}",
+            "SeqScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}",
             self.table_ref_id.table_id,
             self.column_ids.iter().map(ToString::to_string).join(", "),
-            self.with_row_handler
+            self.with_row_handler,
+            self.is_sorted
         )
     }
 }

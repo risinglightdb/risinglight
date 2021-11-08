@@ -168,12 +168,14 @@ mod tests {
             },
             column_ids: vec![0, 1],
             with_row_handler: false,
+            is_sorted: false,
         };
         let column0 = BoundExpr {
             kind: BoundExprKind::ColumnRef(BoundColumnRef {
                 table_name: "t".into(),
                 column_ref_id: ColumnRefId::new(0, 0, 0, 0),
                 column_index: 0,
+                is_primary_key: false,
             }),
             return_type: Some(DataType::new(DataTypeKind::Int, false)),
         };
@@ -182,6 +184,7 @@ mod tests {
                 table_name: "t".into(),
                 column_ref_id: ColumnRefId::new(0, 0, 0, 1),
                 column_index: 1,
+                is_primary_key: false,
             }),
             return_type: Some(DataType::new(DataTypeKind::Int, false)),
         };
