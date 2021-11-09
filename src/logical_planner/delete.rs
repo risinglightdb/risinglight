@@ -13,7 +13,7 @@ impl LogicalPlaner {
     pub fn plan_delete(&self, stmt: BoundDelete) -> Result<LogicalPlan, LogicalPlanError> {
         if let BoundTableRef::BaseTableRef { ref ref_id, .. } = stmt.from_table {
             if let Some(expr) = stmt.where_clause {
-                let child = Box::new(self.plan_table_ref(&stmt.from_table, true)?);
+                let child = Box::new(self.plan_table_ref(&stmt.from_table, true, false)?);
                 Ok(LogicalPlan::Delete(LogicalDelete {
                     table_ref_id: *ref_id,
                     filter: LogicalFilter { expr, child },

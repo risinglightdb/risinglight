@@ -2,11 +2,10 @@ use std::path::Path;
 use std::sync::Arc;
 
 use crate::array::{ArrayBuilderImpl, ArrayImplBuilderPickExt, ArrayImplSortExt, DataChunk};
-use crate::catalog::ColumnCatalog;
+use crate::catalog::{find_sort_key_id, ColumnCatalog};
 use crate::storage::StorageResult;
 use itertools::Itertools;
 
-use super::find_sort_key_id;
 use super::rowset_builder::RowsetBuilder;
 use crate::storage::secondary::ColumnBuilderOptions;
 

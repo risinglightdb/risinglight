@@ -3,9 +3,13 @@ use std::sync::Arc;
 
 use super::table::InMemoryTableInnerRef;
 use super::{InMemoryRowHandler, InMemoryTable, InMemoryTxnIterator};
-use crate::array::{DataChunk, DataChunkRef};
+use crate::array::{
+    ArrayBuilderImpl, ArrayImplBuilderPickExt, ArrayImplSortExt, DataChunk, DataChunkRef,
+};
+use crate::catalog::{find_sort_key_id, ColumnCatalog};
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
 use async_trait::async_trait;
+use itertools::Itertools;
 
 /// A transaction running on `InMemoryStorage`.
 pub struct InMemoryTransaction {
@@ -29,6 +33,9 @@ pub struct InMemoryTransaction {
 
     /// Snapshot of all deleted rows
     deleted_rows: Arc<HashSet<usize>>,
+
+    /// All information about columns
+    column_infos: Arc<[ColumnCatalog]>,
 }
 
 impl InMemoryTransaction {
@@ -41,7 +48,49 @@ impl InMemoryTransaction {
             table: table.inner.clone(),
             snapshot: Arc::new(inner.get_all_chunks()),
             deleted_rows: Arc::new(inner.get_all_deleted_rows()),
+            column_infos: inner.get_column_infos(),
         })
+    }
+}
+
+/// If primary key is found in [`ColumnCatalog`], sort all in-memory data using that key.
+fn sort_datachunk_by_pk(
+    chunks: &Arc<Vec<Arc<DataChunk>>>,
+    column_infos: &[ColumnCatalog],
+) -> Arc<Vec<Arc<DataChunk>>> {
+    if let Some(sort_key_id) = find_sort_key_id(column_infos) {
+        if chunks.is_empty() {
+            return chunks.clone();
+        }
+        let mut builders = chunks[0]
+            .arrays()
+            .iter()
+            .map(ArrayBuilderImpl::from_type_of_array)
+            .collect_vec();
+
+        for chunk in &**chunks {
+            for (array, builder) in chunk.arrays().iter().zip(builders.iter_mut()) {
+                builder.append(array);
+            }
+        }
+
+        let arrays = builders
+            .into_iter()
+            .map(|builder| builder.finish())
+            .collect_vec();
+        let sorted_index = arrays[sort_key_id].get_sorted_indices();
+
+        let chunk = arrays
+            .into_iter()
+            .map(|array| {
+                let mut builder = ArrayBuilderImpl::from_type_of_array(&array);
+                builder.pick_from(&array, &sorted_index);
+                builder.finish()
+            })
+            .collect::<DataChunk>();
+        Arc::new(vec![Arc::new(chunk)])
+    } else {
+        chunks.clone()
     }
 }
 
@@ -68,10 +117,15 @@ impl Transaction for InMemoryTransaction {
             "sort_key is not supported in InMemoryEngine for now"
         );
         assert!(!reversed, "reverse iterator is not supported for now");
-        assert!(!is_sorted, "sorted iterator is not supported for now");
+
+        let snapshot = if is_sorted {
+            sort_datachunk_by_pk(&self.snapshot, &self.column_infos)
+        } else {
+            self.snapshot.clone()
+        };
 
         Ok(InMemoryTxnIterator::new(
-            self.snapshot.clone(),
+            snapshot,
             self.deleted_rows.clone(),
             col_idx,
         ))
