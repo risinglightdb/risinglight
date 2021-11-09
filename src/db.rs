@@ -15,6 +15,7 @@ use std::sync::Arc;
 pub struct Database {
     catalog: RootCatalogRef,
     executor_builder: ExecutorBuilder,
+    storage: StorageImpl,
 }
 
 impl Database {
@@ -22,33 +23,40 @@ impl Database {
     pub fn new_in_memory() -> Self {
         let storage = InMemoryStorage::new();
         let catalog = storage.catalog().clone();
+        let storage = StorageImpl::InMemoryStorage(Arc::new(storage));
         let env = Arc::new(GlobalEnv {
-            storage: StorageImpl::InMemoryStorage(Arc::new(storage)),
+            storage: storage.clone(),
         });
         let execution_manager = ExecutorBuilder::new(env);
         Database {
             catalog,
             executor_builder: execution_manager,
+            storage,
         }
     }
 
     /// Create a new database instance with merge-tree engine.
-    pub async fn new_on_disk() -> Self {
-        let storage = Arc::new(
-            SecondaryStorage::open(SecondaryStorageOptions::default_for_test())
-                .await
-                .unwrap(),
-        );
-        storage.spawn_compactor();
+    pub async fn new_on_disk(options: SecondaryStorageOptions) -> Self {
+        let storage = Arc::new(SecondaryStorage::open(options).await.unwrap());
+        storage.spawn_compactor().await;
         let catalog = storage.catalog().clone();
+        let storage = StorageImpl::SecondaryStorage(storage);
         let env = Arc::new(GlobalEnv {
-            storage: StorageImpl::SecondaryStorage(storage),
+            storage: storage.clone(),
         });
         let execution_manager = ExecutorBuilder::new(env);
         Database {
             catalog,
             executor_builder: execution_manager,
+            storage,
         }
+    }
+
+    pub async fn shutdown(&self) -> Result<(), Error> {
+        if let StorageImpl::SecondaryStorage(storage) = &self.storage {
+            storage.shutdown().await?;
+        }
+        Ok(())
     }
 
     /// Run SQL queries and return the outputs.
@@ -95,4 +103,6 @@ pub enum Error {
     PhysicalPlan(#[from] PhysicalPlanError),
     #[error("execute error: {0}")]
     Execute(#[from] ExecutorError),
+    #[error("Storage error: {0}")]
+    StorageError(#[from] crate::storage::StorageError),
 }

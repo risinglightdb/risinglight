@@ -40,6 +40,7 @@ impl SecondaryStorage {
             options: Arc::new(options),
             next_rowset_id: Arc::new(AtomicU32::new(0)),
             next_dv_id: Arc::new(AtomicU64::new(0)),
+            compactor_handler: Mutex::new((None, None)),
         };
 
         info!("applying {} manifest entries", manifest_ops.len());
