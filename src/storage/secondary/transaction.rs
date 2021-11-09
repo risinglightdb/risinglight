@@ -7,8 +7,8 @@ use super::{
     SecondaryTableTxnIterator,
 };
 use crate::array::DataChunk;
-use crate::storage::{StorageColumnRef, StorageResult, Transaction};
 use crate::catalog::find_sort_key_id;
+use crate::storage::{StorageColumnRef, StorageResult, Transaction};
 use async_trait::async_trait;
 use itertools::Itertools;
 use risinglight_proto::rowset::DeleteRecord;
