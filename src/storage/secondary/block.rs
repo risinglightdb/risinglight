@@ -60,10 +60,11 @@ pub trait BlockIterator<A: Array> {
     fn remaining_items(&self) -> usize;
 }
 
-/// A key in block cache contains `rowset_id`, `column_id`
+/// A key in block cache contains `table_id`, `rowset_id`, `column_id`
 /// and `block_id`.
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Default)]
 pub struct BlockCacheKey {
+    pub table_id: u32,
     pub rowset_id: u32,
     pub storage_column_id: u32,
     pub block_id: u32,

@@ -16,6 +16,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
 use crate::catalog::{ColumnCatalog, TableRefId};
 use crate::types::{DatabaseId, SchemaId};
 
+use super::version_manager::EpochOp;
 use super::{SecondaryStorage, SecondaryTable, StorageError, StorageResult};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -36,7 +37,6 @@ pub struct AddRowSetEntry {
     pub table_id: TableRefId,
     pub rowset_id: u32,
 }
-
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DeleteRowsetEntry {
     pub table_id: TableRefId,
@@ -44,7 +44,14 @@ pub struct DeleteRowsetEntry {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct AddDeleteVectorEntry {
+pub struct AddDVEntry {
+    pub table_id: TableRefId,
+    pub dv_id: u64,
+    pub rowset_id: u32,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct DeleteDVEntry {
     pub table_id: TableRefId,
     pub dv_id: u64,
     pub rowset_id: u32,
@@ -56,7 +63,8 @@ pub enum ManifestOperation {
     DropTable(DropTableEntry),
     AddRowSet(AddRowSetEntry),
     DeleteRowSet(DeleteRowsetEntry),
-    AddDeleteVector(AddDeleteVectorEntry),
+    AddDV(AddDVEntry),
+    DeleteDV(DeleteDVEntry),
     // begin transaction
     Begin,
     // end transaction
@@ -163,10 +171,9 @@ impl SecondaryStorage {
             self.options.clone(),
             id,
             &column_descs,
+            self.next_id.clone(),
+            self.version.clone(),
             self.block_cache.clone(),
-            self.next_rowset_id.clone(),
-            self.next_dv_id.clone(),
-            self.manifest.clone(),
         );
         self.tables.write().insert(id, table);
 
@@ -187,13 +194,13 @@ impl SecondaryStorage {
             column_descs: column_descs.to_vec(),
         };
 
-        let mut manifest = self.manifest.lock().await;
-
-        self.apply_create_table(&entry)?;
-
-        manifest
-            .append(&[ManifestOperation::CreateTable(entry)])
+        // persist to manifest first
+        self.version
+            .commit_changes(vec![EpochOp::CreateTable(entry.clone())])
             .await?;
+
+        // then apply to catalog
+        self.apply_create_table(&entry)?;
 
         Ok(())
     }
@@ -229,12 +236,12 @@ impl SecondaryStorage {
     pub(super) async fn drop_table_inner(&self, table_id: TableRefId) -> StorageResult<()> {
         let entry = DropTableEntry { table_id };
 
-        let mut manifest = self.manifest.lock().await;
-
+        // contrary to create table, we first modify the catalog
         self.apply_drop_table(&entry)?;
 
-        manifest
-            .append(&[ManifestOperation::DropTable(entry)])
+        // and then persist to manifest
+        self.version
+            .commit_changes(vec![EpochOp::DropTable(entry)])
             .await?;
 
         Ok(())
