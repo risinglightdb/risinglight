@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use super::rowset::find_sort_key_id;
 use super::{
     ColumnBuilderOptions, ColumnSeekPosition, ConcatIterator, DeleteVector, DiskRowset,
     MergeIterator, RowSetIterator, SecondaryMemRowset, SecondaryRowHandler, SecondaryTable,
@@ -9,6 +8,7 @@ use super::{
 };
 use crate::array::DataChunk;
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
+use crate::catalog::find_sort_key_id;
 use async_trait::async_trait;
 use itertools::Itertools;
 use risinglight_proto::rowset::DeleteRecord;
