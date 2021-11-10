@@ -50,7 +50,8 @@ impl ColumnIndex {
 
     /// Find corresponding block of a row.
     pub fn block_of_row(&self, rowid: u32) -> u32 {
-        // For example, there are 3 blocks, each of which has a first rowid of `233`, `2333`, `23333`.
+        // For example, there are 3 blocks, each of which has a first rowid of `233`, `2333`,
+        // `23333`.
         //
         // ```plain
         // | 0 | 233 | 2333 | 23333 |

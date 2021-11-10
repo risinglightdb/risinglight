@@ -1,4 +1,3 @@
-//!
 //! The parser module directly uses the [`sqlparser`] crate
 //! and re-exports its AST types.
 
