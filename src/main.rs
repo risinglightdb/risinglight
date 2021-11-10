@@ -1,7 +1,7 @@
 //! A simple interactive shell of the database.
 
 use log::info;
-use risinglight::Database;
+use risinglight::{storage::SecondaryStorageOptions, Database};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
@@ -12,7 +12,7 @@ async fn main() {
     let db = if let Some(x) = std::env::args().nth(1) {
         if x == "--disk" {
             info!("using Secondary engine");
-            Database::new_on_disk().await
+            Database::new_on_disk(SecondaryStorageOptions::default_for_cli()).await
         } else {
             Database::new_in_memory()
         }

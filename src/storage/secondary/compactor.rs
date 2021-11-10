@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use itertools::Itertools;
+use tokio::sync::oneshot::Receiver;
 
 use crate::storage::secondary::column::ColumnSeekPosition;
 use crate::storage::secondary::concat_iterator::ConcatIterator;
@@ -14,11 +15,12 @@ use super::{SecondaryStorage, SecondaryTable};
 /// Manages all compactions happening in the storage engine.
 pub struct Compactor {
     storage: Arc<SecondaryStorage>,
+    stop: Receiver<()>,
 }
 
 impl Compactor {
-    pub fn new(storage: Arc<SecondaryStorage>) -> Self {
-        Self { storage }
+    pub fn new(storage: Arc<SecondaryStorage>, stop: Receiver<()>) -> Self {
+        Self { storage, stop }
     }
 
     async fn compact_table(&self, table: SecondaryTable) -> StorageResult<()> {
@@ -89,13 +91,20 @@ impl Compactor {
         Ok(())
     }
 
-    pub async fn run(self) {
+    pub async fn run(mut self) -> StorageResult<()> {
         loop {
             let tables = self.storage.tables.read().clone();
             for (_, table) in tables {
                 self.compact_table(table).await.unwrap();
             }
+            match self.stop.try_recv() {
+                Ok(_) => break,
+                Err(tokio::sync::oneshot::error::TryRecvError::Closed) => break,
+                _ => {}
+            }
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
+
+        Ok(())
     }
 }

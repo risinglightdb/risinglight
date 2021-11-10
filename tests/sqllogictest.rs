@@ -3,7 +3,9 @@
 //! [Sqllogictest]: https://www.sqlite.org/sqllogictest/doc/trunk/about.wiki
 
 use log::*;
+use risinglight::{array::*, storage::SecondaryStorageOptions, Database};
 use std::path::Path;
+use tempfile::tempdir;
 use test_case::test_case;
 
 #[test_case("basic_test.slt")]
@@ -30,6 +32,40 @@ fn sqllogictest(name: &str) {
 
     let runtime = tokio::runtime::Runtime::new().unwrap();
     runtime.block_on(tester.test_multi(records));
+}
+
+#[test_case("basic_test.slt")]
+#[test_case("operator.slt")]
+// #[test_case("nullable_and_or_eval.slt")]
+// #[test_case("filter.slt")]
+// #[test_case("order_by.slt")]
+#[test_case("create.test")]
+// #[test_case("insert.test")]
+// #[test_case("select.test")]
+// #[test_case("join.slt")]
+#[test_case("limit.slt")]
+// #[test_case("type.slt")]
+// #[test_case("aggregation.slt")]
+// #[test_case("delete.slt")]
+// #[test_case("where.slt")]
+// #[test_case("select.slt")]
+// #[test_case("issue_347.slt")]
+fn sqllogictest_disk(name: &str) {
+    init_logger();
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime.block_on(async move {
+        let temp_dir = tempdir().unwrap();
+        let script = std::fs::read_to_string(Path::new("tests/sql").join(name)).unwrap();
+        let records = parse(&script).expect("failed to parse sqllogictest");
+        let mut tester = SqlLogicTester::new(
+            Database::new_on_disk(SecondaryStorageOptions::default_for_test(
+                temp_dir.path().to_path_buf(),
+            ))
+            .await,
+        );
+        tester.test_multi(records).await;
+        tester.db.shutdown().await.unwrap();
+    });
 }
 
 fn init_logger() {
@@ -223,8 +259,6 @@ pub fn parse(script: &str) -> Result<Vec<Record>, ParseError> {
     }
     Ok(records)
 }
-
-use risinglight::{array::*, Database};
 
 impl From<ColumnValues> for ArrayImpl {
     fn from(col: ColumnValues) -> Self {

@@ -2,6 +2,8 @@
 
 // public modules and structures
 mod txn_iterator;
+use tokio::sync::oneshot::Sender;
+use tokio::task::JoinHandle;
 pub use txn_iterator::*;
 mod row_handler;
 pub use row_handler::*;
@@ -69,6 +71,10 @@ pub struct SecondaryStorage {
 
     /// Next DV Id of the current storage engine
     next_dv_id: Arc<AtomicU64>,
+
+    /// Compactor handler used to cancel compactor run
+    #[allow(clippy::type_complexity)]
+    compactor_handler: Mutex<(Option<Sender<()>>, Option<JoinHandle<StorageResult<()>>>)>,
 }
 
 impl SecondaryStorage {
@@ -80,8 +86,18 @@ impl SecondaryStorage {
         &self.catalog
     }
 
-    pub fn spawn_compactor(self: &Arc<Self>) {
-        tokio::spawn(Compactor::new(self.clone()).run());
+    pub async fn spawn_compactor(self: &Arc<Self>) {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        *self.compactor_handler.lock().await = (
+            Some(tx),
+            Some(tokio::spawn(Compactor::new(self.clone(), rx).run())),
+        );
+    }
+
+    pub async fn shutdown(self: &Arc<Self>) -> StorageResult<()> {
+        let mut handler = self.compactor_handler.lock().await;
+        handler.0.take().unwrap().send(()).unwrap();
+        handler.1.take().unwrap().await.unwrap()
     }
 }
 
