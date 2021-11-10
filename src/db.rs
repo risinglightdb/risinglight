@@ -4,6 +4,7 @@ use crate::{
     catalog::RootCatalogRef,
     executor::{ExecutorBuilder, ExecutorError, GlobalEnv},
     logical_planner::{LogicalPlanError, LogicalPlaner},
+    optimizer::Optimizer,
     parser::{parse, ParserError},
     physical_planner::{PhysicalPlanError, PhysicalPlaner},
     storage::{InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, StorageImpl},
@@ -66,6 +67,7 @@ impl Database {
 
         let mut binder = Binder::new(self.catalog.clone());
         let logical_planner = LogicalPlaner::default();
+        let mut optimizer = Optimizer::default();
         let physical_planner = PhysicalPlaner::default();
         // TODO: parallelize
         let mut outputs = vec![];
@@ -74,7 +76,8 @@ impl Database {
             debug!("{:#?}", stmt);
             let logical_plan = logical_planner.plan(stmt)?;
             debug!("{:#?}", logical_plan);
-            let physical_plan = physical_planner.plan(logical_plan)?;
+            let optimized_plan = optimizer.optimize(logical_plan);
+            let physical_plan = physical_planner.plan(optimized_plan)?;
             debug!("{:#?}", physical_plan);
             let executor = self.executor_builder.build(physical_plan);
             let output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
