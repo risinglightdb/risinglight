@@ -85,7 +85,8 @@ impl MergeIterator {
 
             let compare_result = self.compare_in_heap(parent_element, processing_element);
 
-            // As we are maintaining a min-heap, if the parent element is greater than the current one, push that down.
+            // As we are maintaining a min-heap, if the parent element is greater than the current
+            // one, push that down.
             if matches!(compare_result, std::cmp::Ordering::Greater) {
                 self.pending_heap.swap(parent_element, processing_element);
                 processing_element = parent_element;
@@ -128,8 +129,8 @@ impl MergeIterator {
             }
             let right_child = processing_element * 2 + 2;
 
-            // The child to swap with the processing element, which is the minimum among left and right
-            // child.
+            // The child to swap with the processing element, which is the minimum among left and
+            // right child.
             let mut selected_child = left_child;
             if right_child < self.pending_data_len()
                 && matches!(

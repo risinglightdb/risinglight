@@ -75,8 +75,8 @@ impl RowSetIterator {
 
     /// Return (finished, data chunk of the current iteration)
     ///
-    /// It is possible that after applying the deletion map, the current data chunk contains no element.
-    /// In this case, the chunk will not be returned to the upper layer.
+    /// It is possible that after applying the deletion map, the current data chunk contains no
+    /// element. In this case, the chunk will not be returned to the upper layer.
     ///
     /// TODO: check the deletion map before actually fetching data from column iterators.
     pub async fn next_batch_inner(

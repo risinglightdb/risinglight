@@ -25,8 +25,8 @@ pub struct StorageChunk {
 }
 
 impl StorageChunk {
-    /// Construct a [`StorageChunk`] from `visibility` and `arrays`. If there are no element in the chunk,
-    /// the function will return `None`.
+    /// Construct a [`StorageChunk`] from `visibility` and `arrays`. If there are no element in the
+    /// chunk, the function will return `None`.
     pub fn construct(
         visibility: Option<BitVec>,
         arrays: SmallVec<[Arc<ArrayImpl>; 16]>,
