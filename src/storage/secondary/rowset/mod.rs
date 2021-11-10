@@ -28,7 +28,8 @@
 //! There are a lot of block builders and column builders in Secondary. For each
 //! encoding scheme, the the following structures should be implemented in pairs:
 //!
-//! * `RunLengthIntBlockBuilder` - `RunLengthIntBlock` - `RunLengthIntBlockIterator` - an entry in proto
+//! * `RunLengthIntBlockBuilder` - `RunLengthIntBlock` - `RunLengthIntBlockIterator` - an entry in
+//!   proto
 //! * `IntColumnBuilder` - `IntColumn` - `IntColumnIterator` - an entry in proto
 
 mod mem_rowset;
