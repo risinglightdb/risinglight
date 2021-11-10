@@ -20,7 +20,7 @@ impl MinMaxAggregationState {
 }
 
 macro_rules! min_max_func_gen {
-    ($fn_name: ident, $input: ty, $result: ty, $cmp: ident) => {
+    ($fn_name:ident, $input:ty, $result:ty, $cmp:ident) => {
         fn $fn_name(result: Option<$result>, input: Option<&$input>) -> Option<$result> {
             match (result, input) {
                 (_, None) => result,
