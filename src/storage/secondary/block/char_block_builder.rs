@@ -10,11 +10,11 @@ pub struct PlainCharBlockBuilder {
 
 impl PlainCharBlockBuilder {
     #[allow(dead_code)]
-    pub fn new(target_size: usize, char_width: usize) -> Self {
+    pub fn new(target_size: usize, char_width: u64) -> Self {
         let data = Vec::with_capacity(target_size);
         Self {
             data,
-            char_width,
+            char_width: char_width as usize,
             target_size,
         }
     }

@@ -1,6 +1,7 @@
 use risinglight_proto::rowset::BlockIndex;
 
 use super::super::ColumnBuilderOptions;
+use super::char_column_builder::CharColumnBuilder;
 use super::{BoolColumnBuilder, ColumnBuilder};
 use crate::array::ArrayImpl;
 use crate::types::{DataType, DataTypeKind};
@@ -12,6 +13,7 @@ pub enum ColumnBuilderImpl {
     Int32(I32ColumnBuilder),
     Float64(F64ColumnBuilder),
     Bool(BoolColumnBuilder),
+    UTF8(CharColumnBuilder),
 }
 
 impl ColumnBuilderImpl {
@@ -26,6 +28,19 @@ impl ColumnBuilderImpl {
             DataTypeKind::Float(_) => {
                 Self::Float64(F64ColumnBuilder::new(datatype.is_nullable(), options))
             }
+            DataTypeKind::Char(char_width) => Self::UTF8(CharColumnBuilder::new(
+                datatype.is_nullable(),
+                char_width,
+                options,
+            )),
+            DataTypeKind::Varchar(_) => {
+                // TODO: why varchar have char_width???
+                Self::UTF8(CharColumnBuilder::new(
+                    datatype.is_nullable(),
+                    None,
+                    options,
+                ))
+            }
             _ => todo!(),
         }
     }
@@ -35,6 +50,7 @@ impl ColumnBuilderImpl {
             (Self::Int32(builder), ArrayImpl::Int32(array)) => builder.append(array),
             (Self::Bool(builder), ArrayImpl::Bool(array)) => builder.append(array),
             (Self::Float64(builder), ArrayImpl::Float64(array)) => builder.append(array),
+            (Self::UTF8(builder), ArrayImpl::UTF8(array)) => builder.append(array),
             _ => todo!(),
         }
     }
@@ -44,6 +60,7 @@ impl ColumnBuilderImpl {
             Self::Int32(builder) => builder.finish(),
             Self::Bool(builder) => builder.finish(),
             Self::Float64(builder) => builder.finish(),
+            Self::UTF8(builder) => builder.finish(),
         }
     }
 }
