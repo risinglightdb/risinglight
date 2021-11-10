@@ -1,3 +1,5 @@
+use sqlparser::ast::DataType;
+
 use super::*;
 use crate::parser::{SetExpr, Statement};
 use crate::types::ColumnId;
@@ -85,8 +87,17 @@ impl Binder {
                             // table t1(a float, b float)
                             // for example: insert into values (1, 1);
                             // 1 should be casted to float.
-                            if data_type.kind() != column_types[idx].kind() {
-                                todo!("type cast");
+                            let left_kind = data_type.kind();
+                            let right_kind = column_types[idx].kind();
+                            if left_kind != right_kind {
+                                match (&left_kind, &right_kind) {
+                                    // For char types, no need to cast
+                                    (DataType::Char(_), DataType::Char(_)) => {}
+                                    (DataType::Char(_), DataType::Varchar(_)) => {}
+                                    (DataType::Varchar(_), DataType::Char(_)) => {}
+                                    (DataType::Varchar(_), DataType::Varchar(_)) => {}
+                                    _ => todo!("type cast: {} {}", left_kind, right_kind),
+                                }
                             }
                         } else {
                             // If the data value is null, the column must be nullable.

@@ -103,9 +103,9 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
 /// In the future, for integer data, we should be able to skip the `should_finish`
 /// check, as we can calculate expected number of items to add simply by
 /// `size_of::<T>() * N`.
-fn append_one_by_one<'a, T: PrimitiveFixedWidthEncode>(
-    iter: &mut Peekable<impl Iterator<Item = Option<&'a T>>>,
-    builder: &mut impl BlockBuilder<T::ArrayType>,
+pub fn append_one_by_one<'a, A: Array>(
+    iter: &mut Peekable<impl Iterator<Item = Option<&'a A::Item>>>,
+    builder: &mut impl BlockBuilder<A>,
 ) -> (usize, bool) {
     let mut cnt = 0;
     while let Some(to_be_appended) = iter.peek() {
