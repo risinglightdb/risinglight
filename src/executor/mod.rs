@@ -1,5 +1,3 @@
-//!
-//!
 //! # Execution Model
 //!
 //! The execution engine executes the query in a Vectorized Volcano model.

@@ -13,7 +13,10 @@ pub trait ArrayToVecExt: Array {
     /// use risinglight::array::*;
     ///
     /// let array = I32Array::from_iter([1, 3, 5, 7, 9].map(Some));
-    /// assert_eq!(array.to_vec(), vec![Some(1), Some(3), Some(5), Some(7), Some(9)]);
+    /// assert_eq!(
+    ///     array.to_vec(),
+    ///     vec![Some(1), Some(3), Some(5), Some(7), Some(9)]
+    /// );
     /// ```
     fn to_vec(&self) -> Vec<Option<<Self::Item as ToOwned>::Owned>> {
         self.iter().map(|x| x.map(|x| x.to_owned())).collect_vec()
@@ -100,7 +103,8 @@ pub trait ArraySortExt: Array
 where
     <Self as Array>::Item: PartialOrd,
 {
-    /// Get indices of original items in a sorted array, which can be directly used in [`ArrayBuilderPickExt`].
+    /// Get indices of original items in a sorted array, which can be directly used in
+    /// [`ArrayBuilderPickExt`].
     ///
     /// For example, `[1, 7, 3, 9, 5]` will have a sorted indices of `[0, 2, 4, 1, 3]`.
     ///
@@ -115,7 +119,10 @@ where
     ///
     /// let mut builder = I32ArrayBuilder::new(10);
     /// builder.pick_from(&array, &indices);
-    /// assert_eq!(builder.finish().to_vec(), [None, None, Some(1), Some(3), Some(5), Some(7), Some(9)]);
+    /// assert_eq!(
+    ///     builder.finish().to_vec(),
+    ///     [None, None, Some(1), Some(3), Some(5), Some(7), Some(9)]
+    /// );
     /// ```
     fn get_sorted_indices(&self) -> Vec<usize> {
         let mut sort_keys = (0..self.len())

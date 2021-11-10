@@ -4,9 +4,10 @@ use crate::logical_planner::{
     LogicalProjection, LogicalSeqScan, LogicalSimpleAgg,
 };
 // The optimizer will do query optimization.
-// It will do both rule-based optimization (predicate pushdown, constant folding and common expression extraction)
-// , and cost-based optimization (Join reordering and join algorithm selection).
-// It takes LogicalPlan as input and returns a new LogicalPlan which could be used to generate phyiscal plan.
+// It will do both rule-based optimization (predicate pushdown, constant folding and common
+// expression extraction) , and cost-based optimization (Join reordering and join algorithm
+// selection). It takes LogicalPlan as input and returns a new LogicalPlan which could be used to
+// generate phyiscal plan.
 pub struct Optimizer {}
 
 impl Optimizer {

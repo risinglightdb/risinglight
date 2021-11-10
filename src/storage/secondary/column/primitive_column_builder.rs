@@ -192,7 +192,8 @@ mod tests {
         assert_eq!(index[3].first_rowid as usize, item_each_block * 3);
         assert_eq!(index[3].row_count as usize, item_each_block);
 
-        // In this case, we append array that is smaller than each block, and fill fewer than 2 blocks of contents
+        // In this case, we append array that is smaller than each block, and fill fewer than 2
+        // blocks of contents
         let mut builder = I32ColumnBuilder::new(
             false,
             ColumnBuilderOptions {
