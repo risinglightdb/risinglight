@@ -4,9 +4,9 @@ use crate::binder::{BoundExpr, BoundExprKind, BoundUnaryOp};
 use std::vec::Vec;
 /// Constant folding rule aims to evalute the constant expression before query execution.
 /// For example,
-/// select 3 * 2 * a from t;
+/// select 3 * 2 * a from t where a >= 100 * 300;
 /// The rule will convert it into
-/// select 6 * a from t;
+/// select 6 * a from t  where a >= 30000;
 #[derive(Default)]
 pub struct ConstantFoldingRewriter {}
 
@@ -18,7 +18,15 @@ impl PlanRewriter for ConstantFoldingRewriter {
         }
         LogicalPlan::Projection(LogicalProjection {
             project_expressions: new_exprs,
-            child: plan.child,
+            child: Box::new(self.rewrite_plan(*plan.child)),
+        })
+    }
+
+    fn rewrite_filter(&mut self, plan: LogicalFilter) -> LogicalPlan {
+        let new_expr = self.rewrite_expression(plan.expr);
+        LogicalPlan::Filter(LogicalFilter {
+            expr: new_expr,
+            child: Box::new(self.rewrite_plan(*plan.child)),
         })
     }
 }
@@ -79,11 +87,14 @@ impl ConstantFoldingRewriter {
     }
 
     fn is_static_evaluable(&self, expr: &BoundExpr) -> bool {
-        match expr.kind {
+        match &expr.kind {
             BoundExprKind::Constant(_) => true,
             BoundExprKind::ColumnRef(_) => false,
-            BoundExprKind::BinaryOp(_) => false,
-            BoundExprKind::UnaryOp(_) => true,
+            BoundExprKind::BinaryOp(binary_op) => {
+                self.is_static_evaluable(&binary_op.left_expr)
+                    && self.is_static_evaluable(&binary_op.right_expr)
+            }
+            BoundExprKind::UnaryOp(unary_op) => self.is_static_evaluable(&unary_op.expr),
             BoundExprKind::TypeCast(_) => false,
             BoundExprKind::AggCall(_) => false,
         }

@@ -19,8 +19,29 @@ impl BoundExpr {
                 _ => todo!("evaluate expression: {:?}", self.kind),
             },
             BoundExprKind::BinaryOp(v) => match (&v.op, v.left_expr.eval(), v.right_expr.eval()) {
+                (BinaryOperator::Plus, DataValue::Int32(l), DataValue::Int32(r)) => {
+                    DataValue::Int32(l + r)
+                }
+                (BinaryOperator::Plus, DataValue::Float64(l), DataValue::Float64(r)) => {
+                    DataValue::Float64(l + r)
+                }
+                (BinaryOperator::Minus, DataValue::Int32(l), DataValue::Int32(r)) => {
+                    DataValue::Int32(l - r)
+                }
+                (BinaryOperator::Minus, DataValue::Float64(l), DataValue::Float64(r)) => {
+                    DataValue::Float64(l - r)
+                }
                 (BinaryOperator::Multiply, DataValue::Int32(l), DataValue::Int32(r)) => {
                     DataValue::Int32(l * r)
+                }
+                (BinaryOperator::Multiply, DataValue::Float64(l), DataValue::Float64(r)) => {
+                    DataValue::Float64(l * r)
+                }
+                (BinaryOperator::Divide, DataValue::Int32(l), DataValue::Int32(r)) => {
+                    DataValue::Int32(l / r)
+                }
+                (BinaryOperator::Divide, DataValue::Float64(l), DataValue::Float64(r)) => {
+                    DataValue::Float64(l / r)
                 }
                 _ => todo!("evaluate expression: {:?}", self.kind),
             },
