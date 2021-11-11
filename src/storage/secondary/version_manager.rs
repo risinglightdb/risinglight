@@ -132,7 +132,7 @@ pub struct VersionManager {
     /// as to support quick lock and unlock.
     inner: PLMutex<VersionManagerInner>,
 
-    /// Manifest file. We only allow one thread committing changes, and `commit_changes` will hold
+    /// Manifest file. We only allow one thread to commit changes, and `commit_changes` will hold
     /// this lock until complete. As the commit procedure involves async waiting, we need to use an
     /// async lock.
     manifest: Mutex<Manifest>,
@@ -149,7 +149,6 @@ impl VersionManager {
     /// Commit changes and return a new epoch number
     pub async fn commit_changes(&self, ops: Vec<EpochOp>) -> StorageResult<u64> {
         // Hold the manifest lock so that no one else could commit changes.
-
         let mut manifest = self.manifest.lock().await;
 
         let mut snapshot;
@@ -177,9 +176,9 @@ impl VersionManager {
 
             for op in ops {
                 match op {
-                    // For catalog operations, just leave it as-is. The version manager currently do
-                    // create MVCC map for catalog operations, and do not provide interface to
-                    // access them.
+                    // For catalog operations, just leave it as-is. The version manager currently
+                    // doesn't create MVCC map for catalog operations, and
+                    // doesn't not provide interface to access them.
                     EpochOp::CreateTable(entry) => {
                         entries.push(ManifestOperation::CreateTable(entry))
                     }
