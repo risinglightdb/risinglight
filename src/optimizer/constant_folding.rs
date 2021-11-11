@@ -1,7 +1,7 @@
 use super::*;
+use crate::array::{ArrayBuilderImpl, ArrayImpl};
 use crate::binder::BoundBinaryOp;
 use crate::binder::{BoundExpr, BoundExprKind, BoundUnaryOp};
-use crate::array::{ArrayImpl, ArrayBuilderImpl};
 use std::vec::Vec;
 /// Constant folding rule aims to evalute the constant expression before query execution.
 /// For example,
@@ -36,11 +36,11 @@ impl ConstantFoldingRewriter {
     fn extract_data_value_to_array(&mut self, expr: &BoundExpr) -> ArrayImpl {
         match &expr.kind {
             BoundExprKind::Constant(value) => {
-                let mut builder = ArrayBuilderImpl::from_type_of_value(&value);  
-                builder.push(value);     
+                let mut builder = ArrayBuilderImpl::from_type_of_value(&value);
+                builder.push(value);
                 builder.finish()
-            },
-            _ => panic!("Cannot extract data value from other expression")
+            }
+            _ => panic!("Cannot extract data value from other expression"),
         }
     }
 
