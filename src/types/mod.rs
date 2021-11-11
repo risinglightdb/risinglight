@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
 
 pub use sqlparser::ast::DataType as DataTypeKind;
 
@@ -8,10 +7,20 @@ pub(crate) use native::*;
 use std::hash::{Hash, Hasher};
 
 /// Data type with nullable.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DataType {
     pub kind: DataTypeKind,
     pub nullable: bool,
+}
+
+impl std::fmt::Debug for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.kind)?;
+        if self.nullable {
+            write!(f, " (null)")?;
+        }
+        Ok(())
+    }
 }
 
 impl DataType {
@@ -25,16 +34,6 @@ impl DataType {
 
     pub fn kind(&self) -> DataTypeKind {
         self.kind.clone()
-    }
-}
-
-impl Display for DataType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.kind)?;
-        if self.nullable {
-            write!(f, "(nullable)")?;
-        }
-        Ok(())
     }
 }
 

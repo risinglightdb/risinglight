@@ -36,7 +36,7 @@ impl PlanExplainable for PhysicalCreateTable {
             self.table_name,
             self.columns
                 .iter()
-                .map(|x| format!("{}:{}", x.name(), x.datatype()))
+                .map(|x| format!("{}:{:?}", x.name(), x.datatype()))
                 .join(", ")
         )
     }

@@ -3,11 +3,21 @@ use crate::parser::BinaryOperator;
 use crate::types::DataTypeExt;
 
 /// A bound binary operation expression.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct BoundBinaryOp {
     pub left_expr: Box<BoundExpr>,
     pub op: BinaryOperator,
     pub right_expr: Box<BoundExpr>,
+}
+
+impl std::fmt::Debug for BoundBinaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:?}({:?}, {:?})",
+            self.op, self.left_expr, self.right_expr
+        )
+    }
 }
 
 impl Binder {

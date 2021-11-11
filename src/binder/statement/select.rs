@@ -213,8 +213,19 @@ impl Binder {
 }
 
 /// A bound `order by` statement.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct BoundOrderBy {
     pub expr: BoundExpr,
     pub descending: bool,
+}
+
+impl std::fmt::Debug for BoundOrderBy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:?} ({})",
+            self.expr,
+            if self.descending { "desc" } else { "asc" }
+        )
+    }
 }
