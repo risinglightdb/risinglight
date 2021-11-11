@@ -1,12 +1,18 @@
 use super::*;
 
 /// A bound column reference expression.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct BoundColumnRef {
     pub table_name: String,
     pub column_ref_id: ColumnRefId,
     pub column_index: ColumnId,
     pub is_primary_key: bool,
+}
+
+impl std::fmt::Debug for BoundColumnRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.column_index)
+    }
 }
 
 impl Binder {

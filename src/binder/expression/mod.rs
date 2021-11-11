@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use super::*;
 use crate::catalog::ColumnRefId;
 use crate::parser::{Expr, Function, Value};
@@ -18,7 +16,7 @@ pub use self::type_cast::*;
 pub use self::unary_op::*;
 
 /// A bound expression.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct BoundExpr {
     /// The content of the expression.
     pub kind: BoundExprKind,
@@ -28,7 +26,7 @@ pub struct BoundExpr {
     pub return_type: Option<DataType>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub enum BoundExprKind {
     Constant(DataValue),
     ColumnRef(BoundColumnRef),
@@ -36,6 +34,20 @@ pub enum BoundExprKind {
     UnaryOp(BoundUnaryOp),
     TypeCast(BoundTypeCast),
     AggCall(BoundAggCall),
+}
+
+impl std::fmt::Debug for BoundExprKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BoundExprKind::Constant(expr) => write!(f, "{:?} (const)", expr)?,
+            BoundExprKind::ColumnRef(expr) => write!(f, "#{:?}", expr)?,
+            BoundExprKind::BinaryOp(expr) => write!(f, "{:?}", expr)?,
+            BoundExprKind::UnaryOp(expr) => write!(f, "{:?}", expr)?,
+            BoundExprKind::TypeCast(expr) => write!(f, "{:?} (cast)", expr)?,
+            BoundExprKind::AggCall(expr) => write!(f, "{:?} (agg)", expr)?,
+        }
+        Ok(())
+    }
 }
 
 impl BoundExpr {
@@ -48,18 +60,13 @@ impl BoundExpr {
     }
 }
 
-impl Display for BoundExpr {
+impl std::fmt::Debug for BoundExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.kind {
-            BoundExprKind::Constant(_) => write!(f, "const")?,
-            BoundExprKind::ColumnRef(_) => write!(f, "column ref")?,
-            BoundExprKind::BinaryOp(_) => write!(f, "binary")?,
-            BoundExprKind::UnaryOp(_) => write!(f, "unary")?,
-            BoundExprKind::TypeCast(_) => write!(f, "cast")?,
-            BoundExprKind::AggCall(_) => write!(f, "agg")?,
+        write!(f, "{:?}", self.kind)?;
+        if let Some(return_type) = &self.return_type {
+            write!(f, " -> {:?}", return_type)?;
         }
-
-        write!(f, " -> {:?}", self.return_type)
+        Ok(())
     }
 }
 
