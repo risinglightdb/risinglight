@@ -1,6 +1,7 @@
 use super::*;
 use crate::binder::BoundBinaryOp;
 use crate::binder::{BoundExpr, BoundExprKind, BoundUnaryOp};
+use crate::array::{ArrayImpl, ArrayBuilderImpl};
 use std::vec::Vec;
 /// Constant folding rule aims to evalute the constant expression before query execution.
 /// For example,
@@ -32,6 +33,17 @@ impl PlanRewriter for ConstantFoldingRewriter {
 }
 
 impl ConstantFoldingRewriter {
+    fn extract_data_value_to_array(&mut self, expr: &BoundExpr) -> ArrayImpl {
+        match &expr.kind {
+            BoundExprKind::Constant(value) => {
+                let mut builder = ArrayBuilderImpl::from_type_of_value(&value);  
+                builder.push(value);     
+                builder.finish()
+            },
+            _ => panic!("Cannot extract data value from other expression")
+        }
+    }
+
     fn rewrite_expression(&mut self, expr: BoundExpr) -> BoundExpr {
         match expr.kind {
             BoundExprKind::Constant(value) => BoundExpr {
@@ -48,21 +60,23 @@ impl ConstantFoldingRewriter {
                 let new_right_expr = self.rewrite_expression(*binary_op.right_expr);
                 let right_flag = self.is_static_evaluable(&new_right_expr);
 
-                let new_expr = BoundExpr {
-                    kind: BoundExprKind::BinaryOp(BoundBinaryOp {
-                        left_expr: Box::new(new_left_expr),
-                        op: binary_op.op,
-                        right_expr: Box::new(new_right_expr),
-                    }),
-                    return_type: expr.return_type,
-                };
                 if left_flag && right_flag {
+                    let left_arr = self.extract_data_value_to_array(&new_left_expr);
+                    let right_arr = self.extract_data_value_to_array(&new_right_expr);
+                    let res = left_arr.binary_op(&binary_op.op, &right_arr);
                     BoundExpr {
-                        kind: BoundExprKind::Constant(new_expr.eval()),
-                        return_type: new_expr.return_type,
+                        kind: BoundExprKind::Constant(res.get(0)),
+                        return_type: expr.return_type,
                     }
                 } else {
-                    new_expr
+                    BoundExpr {
+                        kind: BoundExprKind::BinaryOp(BoundBinaryOp {
+                            left_expr: Box::new(new_left_expr),
+                            op: binary_op.op,
+                            right_expr: Box::new(new_right_expr),
+                        }),
+                        return_type: expr.return_type,
+                    }
                 }
             }
             BoundExprKind::UnaryOp(unary_op) => {
