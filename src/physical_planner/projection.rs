@@ -25,7 +25,7 @@ impl PlanExplainable for PhysicalProjection {
         writeln!(f, "Projection: {} exprs", self.project_expressions.len())?;
         writeln!(f, "Exprs:")?;
         for expr in self.project_expressions.iter() {
-            writeln!(f, "{}", expr)?;
+            writeln!(f, "{:?}", expr)?;
         }
 
         self.child.explain(level + 1, f)

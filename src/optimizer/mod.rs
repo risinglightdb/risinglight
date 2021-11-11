@@ -13,6 +13,7 @@ pub use constant_folding::*;
 // expression extraction) , and cost-based optimization (Join reordering and join algorithm
 // selection). It takes LogicalPlan as input and returns a new LogicalPlan which could be used to
 // generate phyiscal plan.
+#[derive(Default)]
 pub struct Optimizer {}
 
 impl Optimizer {
