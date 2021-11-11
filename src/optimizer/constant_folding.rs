@@ -36,7 +36,7 @@ impl ConstantFoldingRewriter {
     fn extract_data_value_to_array(&mut self, expr: &BoundExpr) -> ArrayImpl {
         match &expr.kind {
             BoundExprKind::Constant(value) => {
-                let mut builder = ArrayBuilderImpl::from_type_of_value(&value);
+                let mut builder = ArrayBuilderImpl::from_type_of_value(value);
                 builder.push(value);
                 builder.finish()
             }
