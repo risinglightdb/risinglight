@@ -72,7 +72,7 @@ impl std::fmt::Debug for BoundExpr {
                 writeln!(f, "Right Expr:")?;
                 bin_op.right_expr.fmt(f)?;
                 writeln!(f, "Return Type:")?;
-            },
+            }
             BoundExprKind::UnaryOp(_) => writeln!(f, "unary")?,
             BoundExprKind::TypeCast(_) => writeln!(f, "cast")?,
             BoundExprKind::AggCall(_) => writeln!(f, "agg")?,
