@@ -152,7 +152,7 @@ mod tests {
         let item_each_block = (128 - 16) / 8;
         let mut builder = CharColumnBuilder::new(
             false,
-            Some(8),
+            Some(7),
             ColumnBuilderOptions {
                 target_block_size: 128,
             },
