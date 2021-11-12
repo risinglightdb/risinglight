@@ -147,18 +147,20 @@ impl Compactor {
 
     pub async fn run(mut self) -> StorageResult<()> {
         loop {
-            let tables = self.storage.tables.read().clone();
-            let (epoch, snapshot) = self.storage.version.pin();
-            for (_, table) in tables {
-                self.compact_table(&*snapshot, table).await.unwrap();
-            }
-            match self.stop.try_recv() {
-                Ok(_) => break,
-                Err(tokio::sync::oneshot::error::TryRecvError::Closed) => break,
-                _ => {}
+            {
+                let tables = self.storage.tables.read().clone();
+                let (epoch, snapshot) = self.storage.version.pin();
+                for (_, table) in tables {
+                    self.compact_table(&*snapshot, table).await.unwrap();
+                }
+                match self.stop.try_recv() {
+                    Ok(_) => break,
+                    Err(tokio::sync::oneshot::error::TryRecvError::Closed) => break,
+                    _ => {}
+                }
+                self.storage.version.unpin(epoch);
             }
             tokio::time::sleep(Duration::from_secs(1)).await;
-            self.storage.version.unpin(epoch);
         }
 
         Ok(())
