@@ -216,7 +216,7 @@ impl SecondaryTransaction {
         let final_iter = if iters.len() == 1 {
             iters.pop().unwrap().into()
         } else if is_sorted {
-            let sort_key = find_sort_key_id(&self.table.shared.columns);
+            let sort_key = find_sort_key_id(&self.table.columns);
             if let Some(sort_key) = sort_key {
                 let real_col_idx = col_idx.iter().position(|x| match x {
                     StorageColumnRef::Idx(y) => *y as usize == sort_key,
