@@ -10,7 +10,9 @@ pub type PackedVec<T> = SmallVec<[T; 16]>;
 /// Similar to [`DataChunk`], in the storage system, we use [`StorageChunk`]
 /// to represent a set of columns. [`StorageChunk`] contains pointers to
 /// array, and a visibility map. [`StorageChunk`] generally corresponds to
-/// a batch read from a `RowSet`.
+/// a batch read from a `RowSet`. All constructed [`StorageChunk`] has at
+/// least one element.
+#[derive(Clone)]
 pub struct StorageChunk {
     /// If a row is visible in this chunk. Data come from the delete map.
     visibility: Option<BitVec>,
@@ -23,7 +25,12 @@ pub struct StorageChunk {
 }
 
 impl StorageChunk {
-    pub fn new(visibility: Option<BitVec>, arrays: SmallVec<[Arc<ArrayImpl>; 16]>) -> Self {
+    /// Construct a [`StorageChunk`] from `visibility` and `arrays`. If there are no element in the
+    /// chunk, the function will return `None`.
+    pub fn construct(
+        visibility: Option<BitVec>,
+        arrays: SmallVec<[Arc<ArrayImpl>; 16]>,
+    ) -> Option<Self> {
         assert!(!arrays.is_empty());
         let first_length = arrays[0].len();
         for array in &arrays {
@@ -36,10 +43,15 @@ impl StorageChunk {
         } else {
             cardinality = first_length;
         }
-        Self {
-            visibility,
-            arrays,
-            cardinality,
+
+        if cardinality > 0 {
+            Some(Self {
+                visibility,
+                arrays,
+                cardinality,
+            })
+        } else {
+            None
         }
     }
 
@@ -47,8 +59,16 @@ impl StorageChunk {
         self.cardinality
     }
 
+    pub fn row_count(&self) -> usize {
+        self.array_at(0).len()
+    }
+
     pub fn column_count(&self) -> usize {
         self.arrays.len()
+    }
+
+    pub fn arrays(&self) -> &[Arc<ArrayImpl>] {
+        &self.arrays
     }
 
     pub fn array_at(&self, idx: usize) -> &Arc<ArrayImpl> {

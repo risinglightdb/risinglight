@@ -6,7 +6,9 @@ use crate::storage::secondary::DeleteVector;
 use crate::storage::{PackedVec, StorageChunk, StorageColumnRef};
 use std::sync::Arc;
 
-use super::super::{ColumnIteratorImpl, ColumnSeekPosition, RowHandlerSequencer};
+use super::super::{
+    ColumnIteratorImpl, ColumnSeekPosition, RowHandlerSequencer, SecondaryIteratorImpl,
+};
 use super::DiskRowset;
 
 /// Iterates on a `RowSet`
@@ -14,7 +16,7 @@ pub struct RowSetIterator {
     rowset: Arc<DiskRowset>,
     column_refs: Arc<[StorageColumnRef]>,
     dvs: Vec<Arc<DeleteVector>>,
-    column_iterators: PackedVec<Option<ColumnIteratorImpl>>,
+    column_iterators: Vec<Option<ColumnIteratorImpl>>,
 }
 
 impl RowSetIterator {
@@ -46,7 +48,7 @@ impl RowSetIterator {
             panic!("no user column")
         }
 
-        let mut column_iterators: PackedVec<Option<ColumnIteratorImpl>> = smallvec![];
+        let mut column_iterators: Vec<Option<ColumnIteratorImpl>> = vec![];
 
         for column_ref in &*column_refs {
             // TODO: parallel seek
@@ -71,7 +73,16 @@ impl RowSetIterator {
         }
     }
 
-    pub async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<StorageChunk> {
+    /// Return (finished, data chunk of the current iteration)
+    ///
+    /// It is possible that after applying the deletion map, the current data chunk contains no
+    /// element. In this case, the chunk will not be returned to the upper layer.
+    ///
+    /// TODO: check the deletion map before actually fetching data from column iterators.
+    pub async fn next_batch_inner(
+        &mut self,
+        expected_size: Option<usize>,
+    ) -> (bool, Option<StorageChunk>) {
         let fetch_size = if let Some(x) = expected_size {
             x
         } else {
@@ -123,7 +134,11 @@ impl RowSetIterator {
             }
         }
 
-        let common_chunk_range = common_chunk_range?;
+        let common_chunk_range = if let Some(common_chunk_range) = common_chunk_range {
+            common_chunk_range
+        } else {
+            return (true, None);
+        };
 
         // Fill RowHandlers
         for (id, column_ref) in self.column_refs.iter().enumerate() {
@@ -151,22 +166,38 @@ impl RowSetIterator {
             Some(vis)
         };
 
-        Some(StorageChunk::new(
-            visibility,
-            arrays
-                .into_iter()
-                .map(Option::unwrap)
-                .map(Arc::new)
-                .collect(),
-        ))
+        (
+            false,
+            StorageChunk::construct(
+                visibility,
+                arrays
+                    .into_iter()
+                    .map(Option::unwrap)
+                    .map(Arc::new)
+                    .collect(),
+            ),
+        )
+    }
+
+    pub async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<StorageChunk> {
+        loop {
+            let (finished, batch) = self.next_batch_inner(expected_size).await;
+            if finished {
+                return None;
+            } else if let Some(batch) = batch {
+                return Some(batch);
+            }
+        }
     }
 }
+
+impl SecondaryIteratorImpl for RowSetIterator {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::array::{Array, ArrayToVecExt};
-    use crate::storage::secondary::tests::helper_build_rowset;
+    use crate::storage::secondary::rowset::tests::helper_build_rowset;
     use crate::storage::secondary::SecondaryRowHandler;
     use itertools::Itertools;
 

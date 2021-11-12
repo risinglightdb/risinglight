@@ -2,8 +2,6 @@
 
 // public modules and structures
 mod txn_iterator;
-use tokio::sync::oneshot::Sender;
-use tokio::task::JoinHandle;
 pub use txn_iterator::*;
 mod row_handler;
 pub use row_handler::*;
@@ -36,8 +34,13 @@ mod encode;
 use encode::*;
 mod compactor;
 use compactor::*;
+mod merge_iterator;
+use merge_iterator::*;
 mod version_manager;
 use version_manager::*;
+
+#[cfg(test)]
+mod tests;
 
 use super::{Storage, StorageError, StorageResult};
 use crate::catalog::{ColumnCatalog, RootCatalogRef, TableRefId};
@@ -48,7 +51,9 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::Arc;
+use tokio::sync::oneshot::Sender;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 
 /// Secondary storage of RisingLight.
 pub struct SecondaryStorage {

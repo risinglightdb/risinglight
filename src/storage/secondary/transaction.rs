@@ -3,13 +3,12 @@ use std::sync::Arc;
 
 use super::version_manager::{Snapshot, VersionManager};
 use super::{
-    ColumnBuilderOptions, ColumnSeekPosition, ConcatIterator, DeleteVector, DiskRowset,
-    RowSetIterator, SecondaryMemRowset, SecondaryRowHandler, SecondaryTable,
-    SecondaryTableTxnIterator,
+    AddDVEntry, AddRowSetEntry, ColumnBuilderOptions, ColumnSeekPosition, ConcatIterator,
+    DeleteVector, DiskRowset, EpochOp, MergeIterator, RowSetIterator, SecondaryMemRowset,
+    SecondaryRowHandler, SecondaryTable, SecondaryTableTxnIterator,
 };
 use crate::array::DataChunk;
-use crate::storage::secondary::manifest::{AddDVEntry, AddRowSetEntry};
-use crate::storage::secondary::version_manager::EpochOp;
+use crate::catalog::find_sort_key_id;
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
 use async_trait::async_trait;
 use itertools::Itertools;
@@ -188,7 +187,6 @@ impl SecondaryTransaction {
             "sort_key is not supported in SecondaryEngine for now"
         );
         assert!(!reversed, "reverse iterator is not supported for now");
-        assert!(!is_sorted, "sorted iterator is not supported for now");
 
         let mut iters: Vec<RowSetIterator> = vec![];
 
@@ -215,9 +213,28 @@ impl SecondaryTransaction {
             }
         }
 
-        Ok(SecondaryTableTxnIterator::new(
-            ConcatIterator::new(iters).into(),
-        ))
+        let final_iter = if iters.len() == 1 {
+            iters.pop().unwrap().into()
+        } else if is_sorted {
+            let sort_key = find_sort_key_id(&self.table.columns);
+            if let Some(sort_key) = sort_key {
+                let real_col_idx = col_idx.iter().position(|x| match x {
+                    StorageColumnRef::Idx(y) => *y as usize == sort_key,
+                    _ => false,
+                });
+                MergeIterator::new(
+                    iters.into_iter().map(|iter| iter.into()).collect_vec(),
+                    real_col_idx.expect("sort key not in column list"),
+                )
+                .into()
+            } else {
+                ConcatIterator::new(iters).into()
+            }
+        } else {
+            ConcatIterator::new(iters).into()
+        };
+
+        Ok(SecondaryTableTxnIterator::new(final_iter))
     }
 }
 

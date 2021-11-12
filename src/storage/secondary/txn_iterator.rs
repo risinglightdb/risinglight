@@ -1,13 +1,18 @@
 use crate::array::DataChunk;
-use crate::storage::{StorageResult, TxnIterator};
+use crate::storage::{StorageChunk, StorageResult, TxnIterator};
+use async_recursion::async_recursion;
 use async_trait::async_trait;
 use enum_dispatch::enum_dispatch;
 
-use super::ConcatIterator;
+use super::{ConcatIterator, MergeIterator, RowSetIterator};
 
 #[enum_dispatch]
 pub enum SecondaryIterator {
     Concat(ConcatIterator),
+    Merge(MergeIterator),
+    RowSet(RowSetIterator),
+    #[cfg(test)]
+    Test(super::tests::TestIterator),
 }
 
 #[enum_dispatch(SecondaryIterator)]
@@ -28,17 +33,29 @@ impl SecondaryTableTxnIterator {
     }
 }
 
+impl SecondaryIterator {
+    #[async_recursion]
+    pub async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<StorageChunk> {
+        match self {
+            SecondaryIterator::Concat(iter) => iter.next_batch(expected_size).await,
+            SecondaryIterator::Merge(iter) => iter.next_batch(expected_size).await,
+            SecondaryIterator::RowSet(iter) => iter.next_batch(expected_size).await,
+            #[cfg(test)]
+            SecondaryIterator::Test(iter) => iter.next_batch(expected_size).await,
+        }
+    }
+}
+
 #[async_trait]
 impl TxnIterator for SecondaryTableTxnIterator {
     async fn next_batch(
         &mut self,
         expected_size: Option<usize>,
     ) -> StorageResult<Option<DataChunk>> {
-        Ok(match &mut self.iter {
-            SecondaryIterator::Concat(iter) => iter
-                .next_batch(expected_size)
-                .await
-                .map(|x| x.to_data_chunk()),
-        })
+        Ok(self
+            .iter
+            .next_batch(expected_size)
+            .await
+            .map(|x| x.to_data_chunk()))
     }
 }
