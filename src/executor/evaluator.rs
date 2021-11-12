@@ -9,13 +9,40 @@ use std::borrow::Borrow;
 impl BoundExpr {
     /// Evaluate the given expression as a constant value.
     ///
-    /// This method is used in the evaluation of `insert values`.
+    /// This method is used in the evaluation of `insert values` and optimizer
     pub fn eval(&self) -> DataValue {
         match &self.kind {
             BoundExprKind::Constant(v) => v.clone(),
             BoundExprKind::UnaryOp(v) => match (&v.op, v.expr.eval()) {
                 (UnaryOperator::Minus, DataValue::Int32(i)) => DataValue::Int32(-i),
                 (UnaryOperator::Minus, DataValue::Float64(f)) => DataValue::Float64(-f),
+                _ => todo!("evaluate expression: {:?}", self.kind),
+            },
+            BoundExprKind::BinaryOp(v) => match (&v.op, v.left_expr.eval(), v.right_expr.eval()) {
+                (BinaryOperator::Plus, DataValue::Int32(l), DataValue::Int32(r)) => {
+                    DataValue::Int32(l + r)
+                }
+                (BinaryOperator::Plus, DataValue::Float64(l), DataValue::Float64(r)) => {
+                    DataValue::Float64(l + r)
+                }
+                (BinaryOperator::Minus, DataValue::Int32(l), DataValue::Int32(r)) => {
+                    DataValue::Int32(l - r)
+                }
+                (BinaryOperator::Minus, DataValue::Float64(l), DataValue::Float64(r)) => {
+                    DataValue::Float64(l - r)
+                }
+                (BinaryOperator::Multiply, DataValue::Int32(l), DataValue::Int32(r)) => {
+                    DataValue::Int32(l * r)
+                }
+                (BinaryOperator::Multiply, DataValue::Float64(l), DataValue::Float64(r)) => {
+                    DataValue::Float64(l * r)
+                }
+                (BinaryOperator::Divide, DataValue::Int32(l), DataValue::Int32(r)) => {
+                    DataValue::Int32(l / r)
+                }
+                (BinaryOperator::Divide, DataValue::Float64(l), DataValue::Float64(r)) => {
+                    DataValue::Float64(l / r)
+                }
                 _ => todo!("evaluate expression: {:?}", self.kind),
             },
             _ => todo!("evaluate expression: {:?}", self.kind),

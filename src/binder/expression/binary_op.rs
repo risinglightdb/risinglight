@@ -1,6 +1,6 @@
 use super::*;
 use crate::parser::BinaryOperator;
-use crate::types::DataTypeExt;
+use crate::types::{DataTypeExt, DataTypeKind};
 
 /// A bound binary operation expression.
 #[derive(PartialEq, Clone)]
@@ -32,36 +32,29 @@ impl Binder {
         let right_bound_expr = self.bind_expr(right)?;
         use BinaryOperator as Op;
         match op {
-            Op::Plus
-            | Op::Minus
-            | Op::Multiply
-            | Op::Divide
-            | Op::Modulo
-            | Op::Gt
-            | Op::GtEq
-            | Op::Lt
-            | Op::LtEq
-            | Op::Eq
-            | Op::NotEq
-            | Op::And
-            | Op::Or => match (&left_bound_expr.return_type, &right_bound_expr.return_type) {
-                (Some(left_data_type), Some(right_data_type)) => {
-                    if left_data_type.kind() != right_data_type.kind() {
-                        return Err(BindError::BinaryOpTypeMismatch(
-                            format!("{:?}", left_data_type),
-                            format!("{:?}", right_data_type),
-                        ));
+            Op::Plus | Op::Minus | Op::Multiply | Op::Divide | Op::Modulo => {
+                match (&left_bound_expr.return_type, &right_bound_expr.return_type) {
+                    (Some(left_data_type), Some(right_data_type)) => {
+                        if left_data_type.kind() != right_data_type.kind() {
+                            return Err(BindError::BinaryOpTypeMismatch(
+                                format!("{:?}", left_data_type),
+                                format!("{:?}", right_data_type),
+                            ));
+                        }
+                        return_type = Some(left_data_type.kind().nullable());
                     }
-                    return_type = Some(left_data_type.kind().nullable());
+                    (None, None) => return_type = None,
+                    _ => {
+                        return Err(BindError::BinaryOpTypeMismatch(
+                            "None".to_string(),
+                            "None".to_string(),
+                        ))
+                    }
                 }
-                (None, None) => return_type = None,
-                _ => {
-                    return Err(BindError::BinaryOpTypeMismatch(
-                        "None".to_string(),
-                        "None".to_string(),
-                    ))
-                }
-            },
+            }
+            Op::Gt | Op::GtEq | Op::Lt | Op::LtEq | Op::Eq | Op::NotEq | Op::And | Op::Or => {
+                return_type = Some(DataTypeKind::Boolean.nullable());
+            }
             _ => todo!("Support more binary operators"),
         }
         Ok(BoundExpr {
