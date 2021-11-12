@@ -36,6 +36,8 @@ mod encode;
 use encode::*;
 mod compactor;
 use compactor::*;
+mod version_manager;
+use version_manager::*;
 
 use super::{Storage, StorageError, StorageResult};
 use crate::catalog::{ColumnCatalog, RootCatalogRef, TableRefId};
@@ -51,7 +53,6 @@ use tokio::sync::Mutex;
 /// Secondary storage of RisingLight.
 pub struct SecondaryStorage {
     /// Catalog of the database
-    /// TODO(chi): persist catalog in Secondary
     catalog: RootCatalogRef,
 
     /// All tables in the storage engine
@@ -63,18 +64,15 @@ pub struct SecondaryStorage {
     /// Block cache of the storage engine
     block_cache: Cache<BlockCacheKey, Block>,
 
-    /// Stores all meta operations inside storage engine
-    manifest: Arc<Mutex<Manifest>>,
-
-    /// Next RowSet Id of the current storage engine
-    next_rowset_id: Arc<AtomicU32>,
-
-    /// Next DV Id of the current storage engine
-    next_dv_id: Arc<AtomicU64>,
+    /// Next RowSet Id and DV Id of the current storage engine
+    next_id: Arc<(AtomicU32, AtomicU64)>,
 
     /// Compactor handler used to cancel compactor run
     #[allow(clippy::type_complexity)]
     compactor_handler: Mutex<(Option<Sender<()>>, Option<JoinHandle<StorageResult<()>>>)>,
+
+    /// Manages all history states and vacuum unused files.
+    version: Arc<VersionManager>,
 }
 
 impl SecondaryStorage {
