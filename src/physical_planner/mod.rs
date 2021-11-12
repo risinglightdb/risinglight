@@ -5,6 +5,7 @@ mod drop;
 mod explain;
 mod filter;
 mod hash_agg;
+mod input_ref_resolver;
 mod insert;
 mod join;
 mod limit;
@@ -20,6 +21,7 @@ pub use drop::*;
 pub use explain::*;
 pub use filter::*;
 pub use hash_agg::*;
+pub use input_ref_resolver::*;
 pub use insert::*;
 pub use join::*;
 pub use limit::*;
@@ -64,7 +66,7 @@ pub enum PhysicalPlan {
 pub struct PhysicalPlaner;
 
 impl PhysicalPlaner {
-    pub fn plan(&self, plan: LogicalPlan) -> Result<PhysicalPlan, PhysicalPlanError> {
+    fn plan_inner(&self, plan: LogicalPlan) -> Result<PhysicalPlan, PhysicalPlanError> {
         match plan {
             LogicalPlan::Dummy => Ok(PhysicalPlan::Dummy(Dummy)),
             LogicalPlan::CreateTable(plan) => self.plan_create_table(plan),
@@ -84,6 +86,15 @@ impl PhysicalPlaner {
             LogicalPlan::CopyFromFile(plan) => self.plan_copy_from_file(plan),
             LogicalPlan::CopyToFile(plan) => self.plan_copy_to_file(plan),
         }
+    }
+
+    pub fn plan(&self, plan: LogicalPlan) -> Result<PhysicalPlan, PhysicalPlanError> {
+        // Resolve input reference
+        let mut resolver = InputRefResolver {};
+        let plan = resolver.resolve_plan(plan);
+
+        // Create physical plan
+        self.plan_inner(plan)
     }
 }
 

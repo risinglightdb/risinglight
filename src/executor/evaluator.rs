@@ -52,9 +52,9 @@ impl BoundExpr {
     /// Evaluate the given expression as an array.
     pub fn eval_array(&self, chunk: &DataChunk) -> Result<ArrayImpl, ConvertError> {
         match &self.kind {
-            BoundExprKind::ColumnRef(col_ref) => {
+            BoundExprKind::InputRef(input_ref) => {
                 let mut builder = ArrayBuilderImpl::new(self.return_type.as_ref().unwrap());
-                builder.append(chunk.array_at(col_ref.column_index as usize));
+                builder.append(chunk.array_at(input_ref.index));
                 Ok(builder.finish())
             }
             BoundExprKind::BinaryOp(binary_op) => {
@@ -81,9 +81,7 @@ impl BoundExpr {
                 }
                 array.try_cast(cast.ty.clone())
             }
-            BoundExprKind::AggCall(_) => {
-                panic!("AggCall should not be evaluated")
-            }
+            _ => panic!("{:?} should not be evaluated in `eval_array`", self.kind),
         }
     }
 }

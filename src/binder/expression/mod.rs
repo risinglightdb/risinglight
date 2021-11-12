@@ -6,12 +6,14 @@ use crate::types::{DataType, DataValue};
 mod agg_call;
 mod binary_op;
 mod column_ref;
+mod input_ref;
 mod type_cast;
 mod unary_op;
 
 pub use self::agg_call::*;
 pub use self::binary_op::*;
 pub use self::column_ref::*;
+pub use self::input_ref::*;
 pub use self::type_cast::*;
 pub use self::unary_op::*;
 
@@ -30,6 +32,7 @@ pub struct BoundExpr {
 pub enum BoundExprKind {
     Constant(DataValue),
     ColumnRef(BoundColumnRef),
+    InputRef(BoundInputRef), // Only used after column ref is resolved into input ref
     BinaryOp(BoundBinaryOp),
     UnaryOp(BoundUnaryOp),
     TypeCast(BoundTypeCast),
@@ -45,6 +48,7 @@ impl std::fmt::Debug for BoundExprKind {
             BoundExprKind::UnaryOp(expr) => write!(f, "{:?}", expr)?,
             BoundExprKind::TypeCast(expr) => write!(f, "{:?} (cast)", expr)?,
             BoundExprKind::AggCall(expr) => write!(f, "{:?} (agg)", expr)?,
+            BoundExprKind::InputRef(expr) => write!(f, "#{:?}", expr)?,
         }
         Ok(())
     }
