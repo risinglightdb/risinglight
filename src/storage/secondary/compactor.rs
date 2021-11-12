@@ -4,12 +4,15 @@ use std::time::Duration;
 use itertools::Itertools;
 use tokio::sync::oneshot::Receiver;
 
+use crate::catalog::find_sort_key_id;
 use crate::storage::secondary::column::ColumnSeekPosition;
 use crate::storage::secondary::concat_iterator::ConcatIterator;
 use crate::storage::secondary::manifest::{AddRowSetEntry, DeleteRowsetEntry};
+use crate::storage::secondary::merge_iterator::MergeIterator;
 use crate::storage::secondary::rowset::{DiskRowset, RowsetBuilder};
 use crate::storage::secondary::version_manager::EpochOp;
 use crate::storage::secondary::ColumnBuilderOptions;
+use crate::storage::secondary::SecondaryIterator;
 use crate::storage::{StorageColumnRef, StorageResult};
 
 use super::{SecondaryStorage, SecondaryTable, Snapshot};
@@ -74,9 +77,21 @@ impl Compactor {
                     .await,
             );
         }
-        let mut iter = ConcatIterator::new(iters);
+
         let rowset_id = table.generate_rowset_id();
         let directory = table.get_rowset_path(rowset_id);
+
+        let sort_key = find_sort_key_id(&table.columns);
+        let mut iter: SecondaryIterator = if let Some(sort_key) = sort_key {
+            MergeIterator::new(
+                iters.into_iter().map(|iter| iter.into()).collect_vec(),
+                sort_key,
+            )
+            .into()
+        } else {
+            ConcatIterator::new(iters).into()
+        };
+
         tokio::fs::create_dir(&directory).await.unwrap();
 
         let mut builder = RowsetBuilder::new(
