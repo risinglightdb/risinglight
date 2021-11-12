@@ -19,7 +19,7 @@ impl SumAggregationState {
 }
 
 macro_rules! sum_func_gen {
-    ($fn_name: ident, $input: ty, $result: ty) => {
+    ($fn_name:ident, $input:ty, $result:ty) => {
         pub fn $fn_name(result: Option<$result>, input: Option<&$input>) -> Option<$result> {
             match (result, input) {
                 (_, None) => result,

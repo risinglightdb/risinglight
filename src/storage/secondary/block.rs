@@ -60,8 +60,10 @@ pub trait BlockIterator<A: Array> {
     fn remaining_items(&self) -> usize;
 }
 
-/// A key in block cache contains `rowset_id`, `column_id`
-/// and `block_id`.
+/// A key in block cache contains `rowset_id`, `column_id` and `block_id`.
+///
+/// TODO: support per-table self-increment RowSet Id. Currently, all tables share one RowSet ID
+/// generator.
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Default)]
 pub struct BlockCacheKey {
     pub rowset_id: u32,

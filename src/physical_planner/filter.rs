@@ -19,7 +19,7 @@ impl PhysicalPlaner {
 
 impl PlanExplainable for PhysicalFilter {
     fn explain_inner(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Filter: {}", self.expr)?;
+        writeln!(f, "Filter: expr {:?}", self.expr)?;
         self.child.explain(level + 1, f)
     }
 }

@@ -3,17 +3,25 @@ use crate::logical_planner::{
     LogicalInsert, LogicalJoin, LogicalJoinTable, LogicalLimit, LogicalOrder, LogicalPlan,
     LogicalProjection, LogicalSeqScan, LogicalSimpleAgg,
 };
+
+mod constant_folding;
+
+pub use constant_folding::*;
+
 // The optimizer will do query optimization.
 // It will do both rule-based optimization (predicate pushdown, constant folding and common
 // expression extraction) , and cost-based optimization (Join reordering and join algorithm
 // selection). It takes LogicalPlan as input and returns a new LogicalPlan which could be used to
 // generate phyiscal plan.
+#[derive(Default)]
 pub struct Optimizer {}
 
 impl Optimizer {
     pub fn optimize(&mut self, plan: LogicalPlan) -> LogicalPlan {
         // TODO: add optimization rules
-        plan
+        let mut rewriter = ConstantFoldingRewriter {};
+
+        rewriter.rewrite_plan(plan)
     }
 }
 

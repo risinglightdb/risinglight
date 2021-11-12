@@ -2,8 +2,6 @@
 
 // public modules and structures
 mod txn_iterator;
-use tokio::sync::oneshot::Sender;
-use tokio::task::JoinHandle;
 pub use txn_iterator::*;
 mod row_handler;
 pub use row_handler::*;
@@ -38,6 +36,8 @@ mod compactor;
 use compactor::*;
 mod merge_iterator;
 use merge_iterator::*;
+mod version_manager;
+use version_manager::*;
 
 #[cfg(test)]
 mod tests;
@@ -51,12 +51,13 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::Arc;
+use tokio::sync::oneshot::Sender;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 
 /// Secondary storage of RisingLight.
 pub struct SecondaryStorage {
     /// Catalog of the database
-    /// TODO(chi): persist catalog in Secondary
     catalog: RootCatalogRef,
 
     /// All tables in the storage engine
@@ -68,18 +69,15 @@ pub struct SecondaryStorage {
     /// Block cache of the storage engine
     block_cache: Cache<BlockCacheKey, Block>,
 
-    /// Stores all meta operations inside storage engine
-    manifest: Arc<Mutex<Manifest>>,
-
-    /// Next RowSet Id of the current storage engine
-    next_rowset_id: Arc<AtomicU32>,
-
-    /// Next DV Id of the current storage engine
-    next_dv_id: Arc<AtomicU64>,
+    /// Next RowSet Id and DV Id of the current storage engine
+    next_id: Arc<(AtomicU32, AtomicU64)>,
 
     /// Compactor handler used to cancel compactor run
     #[allow(clippy::type_complexity)]
     compactor_handler: Mutex<(Option<Sender<()>>, Option<JoinHandle<StorageResult<()>>>)>,
+
+    /// Manages all history states and vacuum unused files.
+    version: Arc<VersionManager>,
 }
 
 impl SecondaryStorage {

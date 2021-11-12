@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::version_manager::{Snapshot, VersionManager};
 use super::{
-    ColumnBuilderOptions, ColumnSeekPosition, ConcatIterator, DeleteVector, DiskRowset,
-    MergeIterator, RowSetIterator, SecondaryMemRowset, SecondaryRowHandler, SecondaryTable,
-    SecondaryTableTxnIterator,
+    AddDVEntry, AddRowSetEntry, ColumnBuilderOptions, ColumnSeekPosition, ConcatIterator,
+    DeleteVector, DiskRowset, EpochOp, MergeIterator, RowSetIterator, SecondaryMemRowset,
+    SecondaryRowHandler, SecondaryTable, SecondaryTableTxnIterator,
 };
 use crate::array::DataChunk;
 use crate::catalog::find_sort_key_id;
@@ -26,15 +27,17 @@ pub struct SecondaryTransaction {
     /// Includes all to-be-deleted rows
     delete_buffer: Vec<SecondaryRowHandler>,
 
-    /// When transaction is started, the current state of the merge-tree
-    /// will be recorded.
-    snapshot: Vec<Arc<DiskRowset>>,
-
-    /// Snapshot of all committed deletes
-    dv_snapshot: HashMap<u32, Vec<Arc<DeleteVector>>>,
-
     /// Reference table.
     table: SecondaryTable,
+
+    /// Reference version manager.
+    version: Arc<VersionManager>,
+
+    /// Snapshot content
+    snapshot: Arc<Snapshot>,
+
+    /// Epoch of the snapshot
+    epoch: u64,
 
     /// Rowset Id
     rowset_id: u32,
@@ -45,21 +48,26 @@ pub struct SecondaryTransaction {
 }
 
 impl SecondaryTransaction {
-    /// Must not hold any inner lock to [`SecondaryTable`] when starting a transaction
     pub(super) fn start(table: &SecondaryTable, readonly: bool) -> StorageResult<Self> {
-        let inner = table.inner.read();
+        // pin a snapshot at version manager
+        let (epoch, snapshot) = table.version.pin();
+
+        // create memtable only if txn is not read only
+        let mem = if readonly {
+            None
+        } else {
+            Some(SecondaryMemRowset::new(table.columns.clone()))
+        };
+
         Ok(Self {
             finished: false,
-            mem: if readonly {
-                None
-            } else {
-                Some(SecondaryMemRowset::new(table.shared.columns.clone()))
-            },
+            mem,
             delete_buffer: vec![],
             table: table.clone(),
-            snapshot: inner.on_disk.values().cloned().collect_vec(),
+            version: table.version.clone(),
+            epoch,
+            snapshot,
             rowset_id: table.generate_rowset_id(),
-            dv_snapshot: inner.dv.clone(),
             row_cnt: 0,
         })
     }
@@ -76,14 +84,14 @@ impl SecondaryTransaction {
                 .unwrap()
                 .flush(
                     &directory,
-                    ColumnBuilderOptions::from_storage_options(&*self.table.shared.storage_options),
+                    ColumnBuilderOptions::from_storage_options(&*self.table.storage_options),
                 )
                 .await?;
 
             let on_disk = DiskRowset::open(
                 directory,
-                self.table.shared.columns.clone(),
-                self.table.shared.block_cache.clone(),
+                self.table.columns.clone(),
+                self.table.block_cache.clone(),
                 self.rowset_id,
             )
             .await?;
@@ -117,29 +125,59 @@ impl SecondaryTransaction {
             dvs.push(DeleteVector::new(dv_id, rowset_id, deletes));
         }
 
-        // commit all changes
-        self.table.commit(rowsets, dvs, vec![]).await?;
+        let mut changeset = vec![];
+
+        info!(
+            "RowSet {} flushed, DV {} flushed",
+            rowsets
+                .iter()
+                .map(|x| format!("#{}", x.rowset_id()))
+                .join(","),
+            dvs.iter()
+                .map(|x| format!("#{}(RS{})", x.dv_id(), x.rowset_id()))
+                .join(",")
+        );
+
+        // Add RowSets
+        changeset.extend(rowsets.into_iter().map(|x| {
+            EpochOp::AddRowSet((
+                AddRowSetEntry {
+                    rowset_id: x.rowset_id(),
+                    table_id: self.table.table_ref_id,
+                },
+                x,
+            ))
+        }));
+
+        // Add DVs
+        changeset.extend(dvs.into_iter().map(|x| {
+            EpochOp::AddDV((
+                AddDVEntry {
+                    rowset_id: x.rowset_id(),
+                    dv_id: x.dv_id(),
+                    table_id: self.table.table_ref_id,
+                },
+                x,
+            ))
+        }));
+
+        // Commit changeset
+        self.version.commit_changes(changeset).await?;
 
         self.finished = true;
+        self.version.unpin(self.epoch);
 
         Ok(())
     }
-}
 
-#[async_trait]
-impl Transaction for SecondaryTransaction {
-    type TxnIteratorType = SecondaryTableTxnIterator;
-
-    type RowHandlerType = SecondaryRowHandler;
-
-    async fn scan(
+    async fn scan_inner(
         &self,
         begin_sort_key: Option<&[u8]>,
         end_sort_key: Option<&[u8]>,
         col_idx: &[StorageColumnRef],
         is_sorted: bool,
         reversed: bool,
-    ) -> StorageResult<Self::TxnIteratorType> {
+    ) -> StorageResult<SecondaryTableTxnIterator> {
         assert!(
             begin_sort_key.is_none(),
             "sort_key is not supported in SecondaryEngine for now"
@@ -151,19 +189,28 @@ impl Transaction for SecondaryTransaction {
         assert!(!reversed, "reverse iterator is not supported for now");
 
         let mut iters: Vec<RowSetIterator> = vec![];
-        for rowset in &self.snapshot {
-            iters.push(
-                rowset
-                    .iter(
-                        col_idx.into(),
-                        self.dv_snapshot
-                            .get(&rowset.rowset_id())
-                            .cloned()
-                            .unwrap_or_default(),
-                        ColumnSeekPosition::start(),
-                    )
-                    .await,
-            )
+
+        if let Some(rowsets) = self.snapshot.get_rowsets_of(self.table.table_id()) {
+            for rowset_id in rowsets {
+                let rowset = self.version.get_rowset(self.table.table_id(), *rowset_id);
+
+                // Get DV id and read DVs
+                let dvs = self
+                    .snapshot
+                    .get_dvs_of(self.table.table_id(), *rowset_id)
+                    .map(|dvs| {
+                        dvs.iter()
+                            .map(|dv_id| self.version.get_dv(self.table.table_id(), *dv_id))
+                            .collect_vec()
+                    })
+                    .unwrap_or_default();
+
+                iters.push(
+                    rowset
+                        .iter(col_idx.into(), dvs, ColumnSeekPosition::start())
+                        .await,
+                )
+            }
         }
 
         let final_iter = if iters.len() == 1 {
@@ -189,6 +236,25 @@ impl Transaction for SecondaryTransaction {
 
         Ok(SecondaryTableTxnIterator::new(final_iter))
     }
+}
+
+#[async_trait]
+impl Transaction for SecondaryTransaction {
+    type TxnIteratorType = SecondaryTableTxnIterator;
+
+    type RowHandlerType = SecondaryRowHandler;
+
+    async fn scan(
+        &self,
+        begin_sort_key: Option<&[u8]>,
+        end_sort_key: Option<&[u8]>,
+        col_idx: &[StorageColumnRef],
+        is_sorted: bool,
+        reversed: bool,
+    ) -> StorageResult<Self::TxnIteratorType> {
+        self.scan_inner(begin_sort_key, end_sort_key, col_idx, is_sorted, reversed)
+            .await
+    }
 
     async fn append(&mut self, columns: DataChunk) -> StorageResult<()> {
         self.row_cnt += columns.cardinality();
@@ -206,6 +272,7 @@ impl Transaction for SecondaryTransaction {
 
     async fn abort(mut self) -> StorageResult<()> {
         self.finished = true;
+        self.version.unpin(self.epoch);
         Ok(())
     }
 }
@@ -214,6 +281,7 @@ impl Drop for SecondaryTransaction {
     fn drop(&mut self) {
         if !self.finished {
             warn!("Transaction dropped without committing or aborting");
+            self.version.unpin(self.epoch);
         }
     }
 }
