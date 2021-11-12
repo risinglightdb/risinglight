@@ -62,23 +62,11 @@ impl BoundExpr {
 
 impl std::fmt::Debug for BoundExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.kind {
-            BoundExprKind::Constant(_) => writeln!(f, "const")?,
-            BoundExprKind::ColumnRef(_) => writeln!(f, "column ref")?,
-            BoundExprKind::BinaryOp(bin_op) => {
-                writeln!(f, "binary")?;
-                writeln!(f, "Left Expr:")?;
-                bin_op.left_expr.fmt(f)?;
-                writeln!(f, "Right Expr:")?;
-                bin_op.right_expr.fmt(f)?;
-                writeln!(f, "Return Type:")?;
-            }
-            BoundExprKind::UnaryOp(_) => writeln!(f, "unary")?,
-            BoundExprKind::TypeCast(_) => writeln!(f, "cast")?,
-            BoundExprKind::AggCall(_) => writeln!(f, "agg")?,
+        write!(f, "{:?}", self.kind)?;
+        if let Some(return_type) = &self.return_type {
+            write!(f, " -> {:?}", return_type)?;
         }
-
-        writeln!(f, " -> {:?}", self.return_type)
+        Ok(())
     }
 }
 
