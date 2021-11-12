@@ -3,8 +3,9 @@ use std::sync::Arc;
 
 use futures::lock::Mutex;
 use parking_lot::Mutex as PLMutex;
+use tokio::select;
 
-use super::manifest::*;
+use super::{manifest::*, StorageOptions};
 use super::{DeleteVector, DiskRowset, StorageResult};
 
 /// The operations sent to the version manager. Compared with manifest entries, operations
@@ -96,6 +97,9 @@ pub struct VersionManagerInner {
     /// Reference count of each epoch.
     ref_cnt: HashMap<u64, usize>,
 
+    /// Deletion to apply in each epoch.
+    rowset_deletion_to_apply: HashMap<u64, Vec<(u32, u32)>>,
+
     /// Current epoch number.
     epoch: u64,
 }
@@ -136,13 +140,26 @@ pub struct VersionManager {
     /// this lock until complete. As the commit procedure involves async waiting, we need to use an
     /// async lock.
     manifest: Mutex<Manifest>,
+
+    /// Notify the vacuum to apply changes from one epoch.
+    tx: tokio::sync::mpsc::UnboundedSender<()>,
+
+    /// Receiver of the vacuum.
+    rx: PLMutex<Option<tokio::sync::mpsc::UnboundedReceiver<()>>>,
+
+    /// Storage options
+    storage_options: Arc<StorageOptions>,
 }
 
 impl VersionManager {
-    pub fn new(manifest: Manifest) -> Self {
+    pub fn new(manifest: Manifest, storage_options: Arc<StorageOptions>) -> Self {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         Self {
             manifest: Mutex::new(manifest),
             inner: PLMutex::new(VersionManagerInner::default()),
+            tx,
+            rx: PLMutex::new(Some(rx)),
+            storage_options,
         }
     }
 
@@ -154,6 +171,7 @@ impl VersionManager {
         let mut snapshot;
         let mut entries;
         let current_epoch;
+        let mut rowset_deletion_to_apply = vec![];
 
         {
             // Hold the inner lock, so as to apply the changes to the current status, and add new
@@ -195,7 +213,7 @@ impl VersionManager {
                         entries.push(ManifestOperation::AddRowSet(entry));
                     }
                     EpochOp::DeleteRowSet(entry) => {
-                        // TODO: record delete op and apply it later
+                        rowset_deletion_to_apply.push((entry.table_id.table_id, entry.rowset_id));
                         snapshot.delete_rowset(entry.table_id.table_id, entry.rowset_id);
                         entries.push(ManifestOperation::DeleteRowSet(entry));
                     }
@@ -226,6 +244,9 @@ impl VersionManager {
         inner.epoch += 1;
         let epoch = inner.epoch;
         inner.status.insert(epoch, Arc::new(snapshot));
+        inner
+            .rowset_deletion_to_apply
+            .insert(epoch, rowset_deletion_to_apply);
 
         Ok(epoch)
     }
@@ -248,7 +269,11 @@ impl VersionManager {
         *ref_cnt -= 1;
         if *ref_cnt == 0 {
             inner.ref_cnt.remove(&epoch).unwrap();
-            // TODO: do vacuum
+
+            if epoch != inner.epoch {
+                // TODO: precisely pass the epoch number that can be vacuum.
+                self.tx.send(()).unwrap();
+            }
         }
     }
 
@@ -260,5 +285,63 @@ impl VersionManager {
     pub fn get_dv(&self, table_id: u32, dv_id: u64) -> Arc<DeleteVector> {
         let inner = self.inner.lock();
         inner.dvs.get(&(table_id, dv_id)).unwrap().clone()
+    }
+
+    pub async fn find_vacuum(self: &Arc<Self>) -> StorageResult<Vec<(u32, u32)>> {
+        let mut inner = self.inner.lock();
+        let min_pinned_epoch = inner.ref_cnt.keys().min().cloned();
+
+        // If there is no pinned epoch, all deletions can be applied.
+        let vacuum_epoch = min_pinned_epoch.unwrap_or(inner.epoch);
+
+        let can_apply = |epoch, vacuum_epoch| epoch <= vacuum_epoch;
+
+        // Fetch to-be-applied deletions.
+        let mut deletions = vec![];
+        for (epoch, deletion) in &inner.rowset_deletion_to_apply {
+            if can_apply(*epoch, vacuum_epoch) {
+                deletions.extend(deletion.iter().cloned());
+            }
+        }
+        inner
+            .rowset_deletion_to_apply
+            .retain(|k, _| !can_apply(*k, vacuum_epoch));
+        for deletion in &deletions {
+            let rowset = inner.rowsets.remove(deletion).unwrap();
+            match Arc::try_unwrap(rowset) {
+                Ok(rowset) => drop(rowset),
+                Err(_) => panic!("rowset {:?} is still being used", deletion),
+            }
+        }
+        Ok(deletions)
+    }
+
+    pub async fn do_vacuum(self: &Arc<Self>) -> StorageResult<()> {
+        let deletions = self.find_vacuum().await?;
+
+        for (table_id, rowset_id) in deletions {
+            let path = self
+                .storage_options
+                .path
+                .join(format!("{}_{}", table_id, rowset_id));
+            info!("vacuum {}_{}", table_id, rowset_id);
+            tokio::fs::remove_dir_all(path).await?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn run(
+        self: &Arc<Self>,
+        mut stop: tokio::sync::mpsc::UnboundedReceiver<()>,
+    ) -> StorageResult<()> {
+        let mut vacuum_notifier = self.rx.lock().take().unwrap();
+        loop {
+            select! {
+                Some(_) = vacuum_notifier.recv() => self.do_vacuum().await?,
+                Some(_) = stop.recv() => break
+            }
+        }
+        Ok(())
     }
 }
