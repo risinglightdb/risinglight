@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 
-/// All supported block iterators for primitive types.
+/// All supported block iterators for char types.
 pub(super) enum PlainCharBlockIteratorImpl {
     Plain(PlainCharBlockIterator),
 }
