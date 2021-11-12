@@ -1,6 +1,6 @@
 use super::*;
 use crate::parser::BinaryOperator;
-use crate::types::DataTypeExt;
+use crate::types::{DataTypeKind, DataTypeExt};
 
 /// A bound binary operation expression.
 #[derive(PartialEq, Clone)]
@@ -37,14 +37,7 @@ impl Binder {
             | Op::Multiply
             | Op::Divide
             | Op::Modulo
-            | Op::Gt
-            | Op::GtEq
-            | Op::Lt
-            | Op::LtEq
-            | Op::Eq
-            | Op::NotEq
-            | Op::And
-            | Op::Or => match (&left_bound_expr.return_type, &right_bound_expr.return_type) {
+             => match (&left_bound_expr.return_type, &right_bound_expr.return_type) {
                 (Some(left_data_type), Some(right_data_type)) => {
                     if left_data_type.kind() != right_data_type.kind() {
                         return Err(BindError::BinaryOpTypeMismatch(
@@ -62,6 +55,16 @@ impl Binder {
                     ))
                 }
             },
+            Op::Gt
+            | Op::GtEq
+            | Op::Lt
+            | Op::LtEq
+            | Op::Eq
+            | Op::NotEq
+            | Op::And
+            | Op::Or => {
+                return_type = Some(DataTypeKind::Boolean.nullable());
+            }
             _ => todo!("Support more binary operators"),
         }
         Ok(BoundExpr {
