@@ -69,7 +69,14 @@ pub struct SecondaryStorage {
 
     /// Compactor handler used to cancel compactor run
     #[allow(clippy::type_complexity)]
-    compactor_handler: Mutex<(Option<Sender<()>>, Option<JoinHandle<StorageResult<()>>>)>,
+    compactor_handler: Mutex<(Option<Sender<()>>, Option<JoinHandle<()>>)>,
+
+    /// Vacuum handler used to cancel version manager run
+    #[allow(clippy::type_complexity)]
+    vacuum_handler: Mutex<(
+        Option<tokio::sync::mpsc::UnboundedSender<()>>,
+        Option<JoinHandle<()>>,
+    )>,
 
     /// Manages all history states and vacuum unused files.
     version: Arc<VersionManager>,
@@ -86,16 +93,43 @@ impl SecondaryStorage {
 
     pub async fn spawn_compactor(self: &Arc<Self>) {
         let (tx, rx) = tokio::sync::oneshot::channel();
+        let storage = self.clone();
         *self.compactor_handler.lock().await = (
             Some(tx),
-            Some(tokio::spawn(Compactor::new(self.clone(), rx).run())),
+            Some(tokio::spawn(async move {
+                Compactor::new(storage, rx)
+                    .run()
+                    .await
+                    .expect("compactor stopped unexpectly");
+            })),
+        );
+
+        let storage = self.clone();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        *self.vacuum_handler.lock().await = (
+            Some(tx),
+            Some(tokio::spawn(async move {
+                storage
+                    .version
+                    .run(rx)
+                    .await
+                    .expect("vacuum stopped unexpectly");
+            })),
         );
     }
 
     pub async fn shutdown(self: &Arc<Self>) -> StorageResult<()> {
         let mut handler = self.compactor_handler.lock().await;
+        info!("shutting down compactor");
         handler.0.take().unwrap().send(()).unwrap();
-        handler.1.take().unwrap().await.unwrap()
+        handler.1.take().unwrap().await.unwrap();
+
+        let mut handler = self.vacuum_handler.lock().await;
+        info!("shutting down vacuum");
+        handler.0.take().unwrap().send(()).unwrap();
+        handler.1.take().unwrap().await.unwrap();
+
+        Ok(())
     }
 }
 

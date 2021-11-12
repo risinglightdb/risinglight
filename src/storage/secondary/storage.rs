@@ -33,14 +33,17 @@ impl SecondaryStorage {
 
         let manifest_ops = manifest.replay().await?;
 
+        let options = Arc::new(options);
+
         let engine = Self {
             catalog: Arc::new(catalog),
             tables: RwLock::new(tables),
             block_cache: Cache::new(options.cache_size),
-            options: Arc::new(options),
+            options: options.clone(),
             next_id: Arc::new((AtomicU32::new(0), AtomicU64::new(0))),
-            version: Arc::new(VersionManager::new(manifest)),
+            version: Arc::new(VersionManager::new(manifest, options.clone())),
             compactor_handler: Mutex::new((None, None)),
+            vacuum_handler: Mutex::new((None, None)),
         };
 
         info!("applying {} manifest entries", manifest_ops.len());
@@ -94,6 +97,26 @@ impl SecondaryStorage {
 
         let mut changeset = vec![];
 
+        // vacuum unused RowSets
+        let mut dir = fs::read_dir(&options.path).await?;
+        while let Some(entry) = dir.next_entry().await? {
+            if entry.path().is_dir() {
+                if let Some((table_id, rowset_id)) =
+                    entry.file_name().to_str().unwrap().split_once("_")
+                {
+                    if let (Ok(table_id), Ok(rowset_id)) =
+                        (table_id.parse::<u32>(), rowset_id.parse::<u32>())
+                    {
+                        if !rowsets_to_open.contains_key(&(table_id, rowset_id)) {
+                            fs::remove_dir_all(entry.path())
+                                .await
+                                .expect("failed to vacuum unused rowsets");
+                        }
+                    }
+                }
+            }
+        }
+
         // TODO: parallel open
 
         let tables = engine.tables.read();
@@ -122,6 +145,8 @@ impl SecondaryStorage {
         }
 
         engine.version.commit_changes(changeset).await?;
+
+        // TODO: compact manifest entries
 
         drop(tables);
 
