@@ -1,7 +1,15 @@
+use bytes::BufMut;
+
 use super::BlockBuilder;
 use crate::array::UTF8Array;
 
 /// Encodes fixed-width char into a block.
+///
+/// Every record is composed of a item width and the actual data. For example,
+///
+/// ```plain
+/// | length (1B, u8) | data (10B) |
+/// ```
 pub struct PlainCharBlockBuilder {
     data: Vec<u8>,
     char_width: usize,
@@ -9,9 +17,9 @@ pub struct PlainCharBlockBuilder {
 }
 
 impl PlainCharBlockBuilder {
-    #[allow(dead_code)]
     pub fn new(target_size: usize, char_width: u64) -> Self {
         let data = Vec::with_capacity(target_size);
+        assert!(char_width < 256);
         Self {
             data,
             char_width: char_width as usize,
@@ -32,6 +40,7 @@ impl BlockBuilder<UTF8Array> for PlainCharBlockBuilder {
                 self.char_width
             );
         }
+        self.data.put_u8(item.len() as u8);
         self.data.extend(item);
         self.data.extend(
             [0].iter()
@@ -46,7 +55,9 @@ impl BlockBuilder<UTF8Array> for PlainCharBlockBuilder {
     }
 
     fn should_finish(&self, _next_item: &Option<&str>) -> bool {
-        !self.data.is_empty() && self.estimated_size() + self.char_width > self.target_size
+        !self.data.is_empty()
+            && self.estimated_size() + 1 /* length of an item */ + self.char_width
+                > self.target_size
     }
 
     fn finish(self) -> Vec<u8> {
@@ -64,7 +75,7 @@ mod tests {
         builder.append(Some("233"));
         builder.append(Some("2333"));
         builder.append(Some("23333"));
-        assert_eq!(builder.estimated_size(), 120);
+        assert_eq!(builder.estimated_size(), 123);
         assert!(builder.should_finish(&Some("2333333")));
         builder.finish();
     }

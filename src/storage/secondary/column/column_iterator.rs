@@ -2,13 +2,17 @@ use crate::array::{Array, ArrayImpl};
 use crate::catalog::ColumnCatalog;
 use crate::types::DataTypeKind;
 
-use super::{BoolColumnIterator, Column, ColumnIterator, F64ColumnIterator, I32ColumnIterator};
+use super::{
+    BoolColumnIterator, CharColumnIterator, Column, ColumnIterator, F64ColumnIterator,
+    I32ColumnIterator,
+};
 
 /// [`ColumnIteratorImpl`] of all types
 pub enum ColumnIteratorImpl {
     Int32(I32ColumnIterator),
     Float64(F64ColumnIterator),
     Bool(BoolColumnIterator),
+    Char(CharColumnIterator),
 }
 
 impl ColumnIteratorImpl {
@@ -19,6 +23,9 @@ impl ColumnIteratorImpl {
             DataTypeKind::Float(_) => {
                 Self::Float64(F64ColumnIterator::new(column, start_pos).await)
             }
+            DataTypeKind::Char(width) => Self::Char(
+                CharColumnIterator::new(column, start_pos, width.map(|x| x as usize)).await,
+            ),
             _ => todo!(),
         }
     }
@@ -34,6 +41,7 @@ impl ColumnIteratorImpl {
             Self::Int32(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
             Self::Float64(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
             Self::Bool(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
+            Self::Char(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
         }
     }
 
@@ -42,6 +50,7 @@ impl ColumnIteratorImpl {
             Self::Int32(it) => it.fetch_hint(),
             Self::Float64(it) => it.fetch_hint(),
             Self::Bool(it) => it.fetch_hint(),
+            Self::Char(it) => it.fetch_hint(),
         }
     }
 }
