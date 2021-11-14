@@ -209,7 +209,9 @@ impl ArrayBuilderImpl {
             DataTypeKind::Boolean => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
             DataTypeKind::Int => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
             DataTypeKind::BigInt => Self::Int64(PrimitiveArrayBuilder::<i64>::new(0)),
-            DataTypeKind::Double => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
+            DataTypeKind::Float(_) | DataTypeKind::Double => {
+                Self::Float64(PrimitiveArrayBuilder::<f64>::new(0))
+            }
             DataTypeKind::Char(_) | DataTypeKind::Varchar(_) | DataTypeKind::String => {
                 Self::UTF8(UTF8ArrayBuilder::new(0))
             }
@@ -396,6 +398,20 @@ impl ArrayImpl {
             Self::Int64(_) => Some(DataTypeKind::BigInt.not_null()),
             Self::Float64(_) => Some(DataTypeKind::Double.not_null()),
             Self::UTF8(_) => Some(DataTypeKind::String.not_null()),
+        }
+    }
+}
+
+/// Create a single element array from data value.
+impl From<&DataValue> for ArrayImpl {
+    fn from(val: &DataValue) -> Self {
+        match val {
+            &DataValue::Bool(v) => Self::Bool([v].into_iter().collect()),
+            &DataValue::Int32(v) => Self::Int32([v].into_iter().collect()),
+            &DataValue::Int64(v) => Self::Int64([v].into_iter().collect()),
+            &DataValue::Float64(v) => Self::Float64([v].into_iter().collect()),
+            DataValue::String(v) => Self::UTF8([Some(v)].into_iter().collect()),
+            DataValue::Null => panic!("can not build array from NULL"),
         }
     }
 }
