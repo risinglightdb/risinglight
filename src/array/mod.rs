@@ -209,7 +209,9 @@ impl ArrayBuilderImpl {
             DataTypeKind::Boolean => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
             DataTypeKind::Int => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
             DataTypeKind::BigInt => Self::Int64(PrimitiveArrayBuilder::<i64>::new(0)),
-            DataTypeKind::Double => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
+            DataTypeKind::Float(_) | DataTypeKind::Double => {
+                Self::Float64(PrimitiveArrayBuilder::<f64>::new(0))
+            }
             DataTypeKind::Char(_) | DataTypeKind::Varchar(_) | DataTypeKind::String => {
                 Self::UTF8(UTF8ArrayBuilder::new(0))
             }

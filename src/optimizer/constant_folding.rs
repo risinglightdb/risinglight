@@ -1,6 +1,8 @@
 use super::*;
 use crate::array::ArrayImpl;
-use crate::binder::{BoundBinaryOp, BoundExpr, BoundExprKind, BoundUnaryOp};
+use crate::binder::{
+    BoundAggCall, BoundBinaryOp, BoundExpr, BoundExprKind, BoundTypeCast, BoundUnaryOp,
+};
 use std::vec::Vec;
 
 /// Constant folding rule aims to evalute the constant expression before query execution.
@@ -73,6 +75,37 @@ impl ConstantFoldingRewriter {
                 };
                 BoundExpr {
                     kind,
+                    return_type: expr.return_type,
+                }
+            }
+            BoundExprKind::TypeCast(cast) => {
+                let new_expr = self.rewrite_expression(*cast.expr);
+
+                let kind = if let BoundExprKind::Constant(v) = &new_expr.kind {
+                    let res = ArrayImpl::from(v).try_cast(cast.ty).unwrap().get(0);
+                    BoundExprKind::Constant(res)
+                } else {
+                    BoundExprKind::TypeCast(BoundTypeCast {
+                        ty: cast.ty,
+                        expr: Box::new(new_expr),
+                    })
+                };
+                BoundExpr {
+                    kind,
+                    return_type: expr.return_type,
+                }
+            }
+            BoundExprKind::AggCall(agg_call) => {
+                let mut new_exprs: Vec<BoundExpr> = vec![];
+                for expr in agg_call.args.into_iter() {
+                    new_exprs.push(self.rewrite_expression(expr));
+                }
+                BoundExpr {
+                    kind: BoundExprKind::AggCall(BoundAggCall {
+                        kind: agg_call.kind,
+                        args: new_exprs,
+                        return_type: agg_call.return_type,
+                    }),
                     return_type: expr.return_type,
                 }
             }
