@@ -400,6 +400,20 @@ impl ArrayImpl {
     }
 }
 
+/// Create a single element array from data value.
+impl From<&DataValue> for ArrayImpl {
+    fn from(val: &DataValue) -> Self {
+        match val {
+            &DataValue::Bool(v) => Self::Bool([v].into_iter().collect()),
+            &DataValue::Int32(v) => Self::Int32([v].into_iter().collect()),
+            &DataValue::Int64(v) => Self::Int64([v].into_iter().collect()),
+            &DataValue::Float64(v) => Self::Float64([v].into_iter().collect()),
+            DataValue::String(v) => Self::UTF8([Some(v)].into_iter().collect()),
+            DataValue::Null => panic!("can not build array from NULL"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
