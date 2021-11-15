@@ -4,8 +4,10 @@ use crate::logical_planner::{
     LogicalProjection, LogicalSeqScan, LogicalSimpleAgg,
 };
 
+mod arith_expr_simplification;
 mod constant_folding;
 
+pub use arith_expr_simplification::*;
 pub use constant_folding::*;
 
 // The optimizer will do query optimization.
