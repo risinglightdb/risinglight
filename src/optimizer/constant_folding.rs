@@ -3,6 +3,7 @@ use crate::array::ArrayImpl;
 use crate::binder::{
     BoundAggCall, BoundBinaryOp, BoundExpr, BoundExprKind, BoundTypeCast, BoundUnaryOp,
 };
+use itertools::Itertools;
 use std::vec::Vec;
 
 /// Constant folding rule aims to evalute the constant expression before query execution.
@@ -16,10 +17,12 @@ pub struct ConstantFoldingRewriter {}
 
 impl PlanRewriter for ConstantFoldingRewriter {
     fn rewrite_projection(&mut self, plan: LogicalProjection) -> LogicalPlan {
-        let mut new_exprs: Vec<BoundExpr> = vec![];
-        for expr in plan.project_expressions.into_iter() {
-            new_exprs.push(self.rewrite_expression(expr));
-        }
+        let new_exprs: Vec<BoundExpr> = plan
+            .project_expressions
+            .into_iter()
+            .map(|expr| self.rewrite_expression(expr))
+            .collect_vec();
+
         LogicalPlan::Projection(LogicalProjection {
             project_expressions: new_exprs,
             child: Box::new(self.rewrite_plan(*plan.child)),

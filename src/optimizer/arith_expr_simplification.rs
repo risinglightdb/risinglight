@@ -2,6 +2,7 @@ use super::*;
 use crate::binder::{BoundExpr, BoundExprKind};
 use crate::parser::BinaryOperator;
 use crate::types::DataValue;
+use itertools::Itertools;
 use std::vec::Vec;
 /// Arithemtic expression simplification rule prunes the useless constant in the binary expressions.
 ///
@@ -13,10 +14,12 @@ pub struct ArithExprSimplification {}
 
 impl PlanRewriter for ArithExprSimplification {
     fn rewrite_projection(&mut self, plan: LogicalProjection) -> LogicalPlan {
-        let mut new_exprs: Vec<BoundExpr> = plan.project_expressions.into_iter().map(|expr| self.rewrite_expression(expr))).collect_vec();
-        for expr in plan.project_expressions.into_iter() {
-            new_exprs.push(self.rewrite_expression(expr));
-        }
+        let new_exprs: Vec<BoundExpr> = plan
+            .project_expressions
+            .into_iter()
+            .map(|expr| self.rewrite_expression(expr))
+            .collect_vec();
+
         LogicalPlan::Projection(LogicalProjection {
             project_expressions: new_exprs,
             child: Box::new(self.rewrite_plan(*plan.child)),
