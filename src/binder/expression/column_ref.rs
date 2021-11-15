@@ -1,5 +1,5 @@
 use super::*;
-
+use crate::catalog::ColumnDesc;
 /// A bound column reference expression.
 #[derive(PartialEq, Clone)]
 pub struct BoundColumnRef {
@@ -7,6 +7,7 @@ pub struct BoundColumnRef {
     pub column_ref_id: ColumnRefId,
     pub column_index: ColumnId,
     pub is_primary_key: bool,
+    pub desc: ColumnDesc,
 }
 
 impl std::fmt::Debug for BoundColumnRef {
@@ -35,6 +36,7 @@ impl Binder {
                         column_ref_id,
                         column_index: u32::MAX,
                         is_primary_key: col.is_primary(),
+                        desc: col.desc().clone(),
                     }),
                     return_type: Some(col.datatype().clone()),
                 };
@@ -75,6 +77,7 @@ impl Binder {
                     column_ref_id,
                     column_index: u32::MAX,
                     is_primary_key: col.is_primary(),
+                    desc: col.desc().clone(),
                 }),
                 return_type: Some(col.datatype()),
             })
@@ -92,10 +95,11 @@ impl Binder {
                         column_ref_id,
                         col.datatype(),
                         col.is_primary(),
+                        col.desc().clone(),
                     ));
                 }
             }
-            let (table_name, column_ref_id, data_type, is_primary_key) =
+            let (table_name, column_ref_id, data_type, is_primary_key, desc) =
                 info.ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
             Self::record_regular_table_column(
                 &mut self.context.column_names,
@@ -111,6 +115,7 @@ impl Binder {
                     column_ref_id,
                     column_index: u32::MAX,
                     is_primary_key,
+                    desc,
                 }),
                 return_type: Some(data_type),
             })
