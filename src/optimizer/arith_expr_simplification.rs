@@ -13,7 +13,7 @@ pub struct ArithExprSimplification {}
 
 impl PlanRewriter for ArithExprSimplification {
     fn rewrite_projection(&mut self, plan: LogicalProjection) -> LogicalPlan {
-        let mut new_exprs: Vec<BoundExpr> = vec![];
+        let mut new_exprs: Vec<BoundExpr> = plan.project_expressions.into_iter().map(|expr| self.rewrite_expression(expr))).collect_vec();
         for expr in plan.project_expressions.into_iter() {
             new_exprs.push(self.rewrite_expression(expr));
         }
