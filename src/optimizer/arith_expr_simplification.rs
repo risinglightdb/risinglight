@@ -2,41 +2,17 @@ use super::*;
 use crate::binder::{BoundExpr, BoundExprKind};
 use crate::parser::BinaryOperator;
 use crate::types::DataValue;
-use itertools::Itertools;
-use std::vec::Vec;
+
 /// Arithemtic expression simplification rule prunes the useless constant in the binary expressions.
 ///
 /// For example,
 /// `select 1 * a, b / 1, c + 0, d - 0 from t;`
 /// The query will be converted to:
 /// `select a, b, c, d from t;`
-pub struct ArithExprSimplification {}
+pub struct ArithExprSimplification;
 
 impl PlanRewriter for ArithExprSimplification {
-    fn rewrite_projection(&mut self, plan: LogicalProjection) -> LogicalPlan {
-        let new_exprs: Vec<BoundExpr> = plan
-            .project_expressions
-            .into_iter()
-            .map(|expr| self.rewrite_expression(expr))
-            .collect_vec();
-
-        LogicalPlan::Projection(LogicalProjection {
-            project_expressions: new_exprs,
-            child: Box::new(self.rewrite_plan(*plan.child)),
-        })
-    }
-
-    fn rewrite_filter(&mut self, plan: LogicalFilter) -> LogicalPlan {
-        let new_expr = self.rewrite_expression(plan.expr);
-        LogicalPlan::Filter(LogicalFilter {
-            expr: new_expr,
-            child: Box::new(self.rewrite_plan(*plan.child)),
-        })
-    }
-}
-
-impl ArithExprSimplification {
-    fn rewrite_expression(&mut self, expr: BoundExpr) -> BoundExpr {
+    fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
         // TODO: support more data types.
         match &expr.kind {
             BoundExprKind::BinaryOp(binary_op) => match &binary_op.op {

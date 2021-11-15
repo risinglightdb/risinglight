@@ -3,7 +3,6 @@ use crate::array::ArrayImpl;
 use crate::binder::{
     BoundAggCall, BoundBinaryOp, BoundExpr, BoundExprKind, BoundTypeCast, BoundUnaryOp,
 };
-use itertools::Itertools;
 use std::vec::Vec;
 
 /// Constant folding rule aims to evalute the constant expression before query execution.
@@ -13,37 +12,14 @@ use std::vec::Vec;
 /// The rule will convert it into
 /// `select 6 * a from t where a >= 30000;`
 #[derive(Default)]
-pub struct ConstantFoldingRewriter {}
+pub struct ConstantFolding;
 
-impl PlanRewriter for ConstantFoldingRewriter {
-    fn rewrite_projection(&mut self, plan: LogicalProjection) -> LogicalPlan {
-        let new_exprs: Vec<BoundExpr> = plan
-            .project_expressions
-            .into_iter()
-            .map(|expr| self.rewrite_expression(expr))
-            .collect_vec();
-
-        LogicalPlan::Projection(LogicalProjection {
-            project_expressions: new_exprs,
-            child: Box::new(self.rewrite_plan(*plan.child)),
-        })
-    }
-
-    fn rewrite_filter(&mut self, plan: LogicalFilter) -> LogicalPlan {
-        let new_expr = self.rewrite_expression(plan.expr);
-        LogicalPlan::Filter(LogicalFilter {
-            expr: new_expr,
-            child: Box::new(self.rewrite_plan(*plan.child)),
-        })
-    }
-}
-
-impl ConstantFoldingRewriter {
-    fn rewrite_expression(&mut self, expr: BoundExpr) -> BoundExpr {
+impl PlanRewriter for ConstantFolding {
+    fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
         match expr.kind {
             BoundExprKind::BinaryOp(binary_op) => {
-                let new_left_expr = self.rewrite_expression(*binary_op.left_expr);
-                let new_right_expr = self.rewrite_expression(*binary_op.right_expr);
+                let new_left_expr = self.rewrite_expr(*binary_op.left_expr);
+                let new_right_expr = self.rewrite_expr(*binary_op.right_expr);
 
                 let kind = if let (BoundExprKind::Constant(v1), BoundExprKind::Constant(v2)) =
                     (&new_left_expr.kind, &new_right_expr.kind)
@@ -65,7 +41,7 @@ impl ConstantFoldingRewriter {
                 }
             }
             BoundExprKind::UnaryOp(unary_op) => {
-                let new_expr = self.rewrite_expression(*unary_op.expr);
+                let new_expr = self.rewrite_expr(*unary_op.expr);
 
                 let kind = if let BoundExprKind::Constant(v) = &new_expr.kind {
                     let res = ArrayImpl::from(v).unary_op(&unary_op.op).get(0);
@@ -82,7 +58,7 @@ impl ConstantFoldingRewriter {
                 }
             }
             BoundExprKind::TypeCast(cast) => {
-                let new_expr = self.rewrite_expression(*cast.expr);
+                let new_expr = self.rewrite_expr(*cast.expr);
 
                 let kind = if let BoundExprKind::Constant(v) = &new_expr.kind {
                     let res = ArrayImpl::from(v).try_cast(cast.ty).unwrap().get(0);
@@ -101,7 +77,7 @@ impl ConstantFoldingRewriter {
             BoundExprKind::AggCall(agg_call) => {
                 let mut new_exprs: Vec<BoundExpr> = vec![];
                 for expr in agg_call.args.into_iter() {
-                    new_exprs.push(self.rewrite_expression(expr));
+                    new_exprs.push(self.rewrite_expr(expr));
                 }
                 BoundExpr {
                     kind: BoundExprKind::AggCall(BoundAggCall {

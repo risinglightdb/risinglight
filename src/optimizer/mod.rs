@@ -1,30 +1,25 @@
-use crate::logical_planner::{
-    LogicalCreateTable, LogicalDelete, LogicalDrop, LogicalExplain, LogicalFilter, LogicalHashAgg,
-    LogicalInsert, LogicalJoin, LogicalJoinTable, LogicalLimit, LogicalOrder, LogicalPlan,
-    LogicalProjection, LogicalSeqScan, LogicalSimpleAgg,
-};
+use crate::{binder::BoundExpr, logical_planner::*};
 
 mod arith_expr_simplification;
 mod constant_folding;
 
-pub use arith_expr_simplification::*;
-pub use constant_folding::*;
+use arith_expr_simplification::*;
+use constant_folding::*;
 
-// The optimizer will do query optimization.
-// It will do both rule-based optimization (predicate pushdown, constant folding and common
-// expression extraction) , and cost-based optimization (Join reordering and join algorithm
-// selection). It takes LogicalPlan as input and returns a new LogicalPlan which could be used to
-// generate phyiscal plan.
+/// The optimizer will do query optimization.
+///
+/// It will do both rule-based optimization (predicate pushdown, constant folding and common
+/// expression extraction) , and cost-based optimization (Join reordering and join algorithm
+/// selection). It takes LogicalPlan as input and returns a new LogicalPlan which could be used to
+/// generate phyiscal plan.
 #[derive(Default)]
 pub struct Optimizer {}
 
 impl Optimizer {
     pub fn optimize(&mut self, plan: LogicalPlan) -> LogicalPlan {
         // TODO: add optimization rules
-        let mut constant_folding = ConstantFoldingRewriter {};
-        let plan_0 = constant_folding.rewrite_plan(plan);
-        let mut arith_expr_simplification = ArithExprSimplification {};
-        arith_expr_simplification.rewrite_plan(plan_0)
+        let plan = ConstantFolding.rewrite_plan(plan);
+        ArithExprSimplification.rewrite_plan(plan)
     }
 }
 
@@ -82,14 +77,18 @@ pub trait PlanRewriter {
 
     fn rewrite_projection(&mut self, plan: LogicalProjection) -> LogicalPlan {
         LogicalPlan::Projection(LogicalProjection {
-            project_expressions: plan.project_expressions,
+            project_expressions: plan
+                .project_expressions
+                .into_iter()
+                .map(|expr| self.rewrite_expr(expr))
+                .collect(),
             child: Box::new(self.rewrite_plan(*plan.child)),
         })
     }
 
     fn rewrite_filter(&mut self, plan: LogicalFilter) -> LogicalPlan {
         LogicalPlan::Filter(LogicalFilter {
-            expr: plan.expr,
+            expr: self.rewrite_expr(plan.expr),
             child: Box::new(self.rewrite_plan(*plan.child)),
         })
     }
@@ -132,5 +131,9 @@ pub trait PlanRewriter {
 
     fn rewrite_delete(&mut self, plan: LogicalDelete) -> LogicalPlan {
         LogicalPlan::Delete(plan)
+    }
+
+    fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
+        expr
     }
 }
