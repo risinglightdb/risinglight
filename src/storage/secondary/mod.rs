@@ -38,6 +38,8 @@ mod merge_iterator;
 use merge_iterator::*;
 mod version_manager;
 use version_manager::*;
+mod transaction_manager;
+use transaction_manager::*;
 
 #[cfg(test)]
 mod tests;
@@ -85,6 +87,9 @@ pub struct SecondaryStorage {
 
     /// Manages all history states and vacuum unused files.
     version: Arc<VersionManager>,
+
+    /// Manages all ongoing txns
+    txn_mgr: Arc<TransactionManager>,
 }
 
 impl SecondaryStorage {

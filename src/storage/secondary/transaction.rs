@@ -5,7 +5,7 @@ use super::version_manager::{Snapshot, VersionManager};
 use super::{
     AddDVEntry, AddRowSetEntry, ColumnBuilderOptions, ColumnSeekPosition, ConcatIterator,
     DeleteVector, DiskRowset, EpochOp, MergeIterator, RowSetIterator, SecondaryMemRowset,
-    SecondaryRowHandler, SecondaryTable, SecondaryTableTxnIterator,
+    SecondaryRowHandler, SecondaryTable, SecondaryTableTxnIterator, TransactionLock,
 };
 use crate::array::DataChunk;
 use crate::catalog::find_sort_key_id;
@@ -45,10 +45,16 @@ pub struct SecondaryTransaction {
     /// Count of updated rows in this txn. If there is no insertion or updates,
     /// RowSet won't be created on disk.
     row_cnt: usize,
+
+    delete_lock: Option<TransactionLock>,
 }
 
 impl SecondaryTransaction {
-    pub(super) fn start(table: &SecondaryTable, readonly: bool) -> StorageResult<Self> {
+    pub(super) async fn start(
+        table: &SecondaryTable,
+        readonly: bool,
+        update: bool,
+    ) -> StorageResult<Self> {
         // pin a snapshot at version manager
         let (epoch, snapshot) = table.version.pin();
 
@@ -69,6 +75,11 @@ impl SecondaryTransaction {
             snapshot,
             rowset_id: table.generate_rowset_id(),
             row_cnt: 0,
+            delete_lock: if update {
+                Some(table.lock_for_deletion().await)
+            } else {
+                None
+            },
         })
     }
 
@@ -262,6 +273,10 @@ impl Transaction for SecondaryTransaction {
     }
 
     async fn delete(&mut self, id: &Self::RowHandlerType) -> StorageResult<()> {
+        assert!(
+            self.delete_lock.is_some(),
+            "delete lock is not held for this txn"
+        );
         self.delete_buffer.push(*id);
         Ok(())
     }

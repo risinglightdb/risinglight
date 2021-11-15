@@ -151,7 +151,13 @@ impl Compactor {
                 let tables = self.storage.tables.read().clone();
                 let (epoch, snapshot) = self.storage.version.pin();
                 for (_, table) in tables {
-                    self.compact_table(&*snapshot, table).await.unwrap();
+                    if let Some(_guard) = self
+                        .storage
+                        .txn_mgr
+                        .try_lock_for_compaction(table.table_id())
+                    {
+                        self.compact_table(&*snapshot, table).await.unwrap();
+                    }
                 }
                 match self.stop.try_recv() {
                     Ok(_) => break,
