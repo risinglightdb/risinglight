@@ -241,7 +241,7 @@ impl ArrayImpl {
 #[cfg(feature = "simd")]
 use crate::types::NativeType;
 #[cfg(feature = "simd")]
-use core_simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
+use std::simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
 
 #[cfg(feature = "simd")]
 pub fn simd_op<T, O, F, const N: usize>(
