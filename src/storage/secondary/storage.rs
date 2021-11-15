@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::Arc;
 
 use crate::catalog::RootCatalog;
+use crate::storage::secondary::transaction_manager::TransactionManager;
 use crate::storage::secondary::version_manager::{EpochOp, VersionManager};
 use crate::storage::secondary::{manifest::*, DeleteVector};
 
@@ -44,6 +45,7 @@ impl SecondaryStorage {
             version: Arc::new(VersionManager::new(manifest, options.clone())),
             compactor_handler: Mutex::new((None, None)),
             vacuum_handler: Mutex::new((None, None)),
+            txn_mgr: Arc::new(TransactionManager::default()),
         };
 
         info!("applying {} manifest entries", manifest_ops.len());

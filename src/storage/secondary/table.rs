@@ -32,6 +32,9 @@ pub struct SecondaryTable {
     /// the storage API to have snapshot interface.
     pub version: Arc<VersionManager>,
 
+    /// Will be removed when we have `snapshot` interface.
+    pub txn_mgr: Arc<TransactionManager>,
+
     /// Block cache of the storage engine. Note that this should be removed after we have
     /// refactored the storage API to have snapshot interface.
     pub block_cache: Cache<BlockCacheKey, Block>,
@@ -48,6 +51,7 @@ impl SecondaryTable {
         next_id: Arc<(AtomicU32, AtomicU64)>,
         version: Arc<VersionManager>,
         block_cache: Cache<BlockCacheKey, Block>,
+        txn_mgr: Arc<TransactionManager>,
     ) -> Self {
         Self {
             columns: columns.into(),
@@ -61,6 +65,7 @@ impl SecondaryTable {
             next_id,
             version,
             block_cache,
+            txn_mgr,
         }
     }
 
@@ -105,6 +110,10 @@ impl SecondaryTable {
     pub fn table_id(&self) -> u32 {
         self.table_ref_id.table_id
     }
+
+    pub async fn lock_for_deletion(&self) -> TransactionLock {
+        self.txn_mgr.lock_for_deletion(self.table_id()).await
+    }
 }
 
 #[async_trait]
@@ -120,14 +129,14 @@ impl Table for SecondaryTable {
     }
 
     async fn write(&self) -> StorageResult<Self::TransactionType> {
-        Ok(SecondaryTransaction::start(self, false)?)
+        Ok(SecondaryTransaction::start(self, false, false).await?)
     }
 
     async fn read(&self) -> StorageResult<Self::TransactionType> {
-        Ok(SecondaryTransaction::start(self, true)?)
+        Ok(SecondaryTransaction::start(self, true, false).await?)
     }
 
     async fn update(&self) -> StorageResult<Self::TransactionType> {
-        Ok(SecondaryTransaction::start(self, false)?)
+        Ok(SecondaryTransaction::start(self, false, true).await?)
     }
 }

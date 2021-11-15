@@ -174,6 +174,7 @@ impl SecondaryStorage {
             self.next_id.clone(),
             self.version.clone(),
             self.block_cache.clone(),
+            self.txn_mgr.clone(),
         );
         self.tables.write().insert(id, table);
 
