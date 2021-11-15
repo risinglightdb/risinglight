@@ -21,9 +21,10 @@ pub struct Optimizer {}
 impl Optimizer {
     pub fn optimize(&mut self, plan: LogicalPlan) -> LogicalPlan {
         // TODO: add optimization rules
-        let mut rewriter = ConstantFoldingRewriter {};
-
-        rewriter.rewrite_plan(plan)
+        let mut constant_folding = ConstantFoldingRewriter {};
+        let plan_0 = constant_folding.rewrite_plan(plan);
+        let mut arith_expr_simplification = ArithExprSimplification {};
+        arith_expr_simplification.rewrite_plan(plan_0)
     }
 }
 

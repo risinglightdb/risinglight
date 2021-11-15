@@ -1,8 +1,5 @@
 use super::*;
-use crate::array::ArrayImpl;
-use crate::binder::{
-    BoundAggCall, BoundBinaryOp, BoundExpr, BoundExprKind, BoundTypeCast, BoundUnaryOp,
-};
+use crate::binder::{BoundExpr, BoundExprKind};
 use crate::parser::BinaryOperator;
 use crate::types::DataValue;
 use std::vec::Vec;
@@ -12,7 +9,7 @@ use std::vec::Vec;
 /// select 1 * a, b / 1, c + 0, d - 0 from t;
 /// The query will be converted to:
 /// select a, b , c , d from t;
-struct ArithExprSimplification {}
+pub struct ArithExprSimplification {}
 
 impl PlanRewriter for ArithExprSimplification {
     fn rewrite_projection(&mut self, plan: LogicalProjection) -> LogicalPlan {
@@ -37,6 +34,7 @@ impl PlanRewriter for ArithExprSimplification {
 
 impl ArithExprSimplification {
     fn rewrite_expression(&mut self, expr: BoundExpr) -> BoundExpr {
+        // TODO: support more data types.
         match &expr.kind {
             BoundExprKind::BinaryOp(binary_op) => match &binary_op.op {
                 BinaryOperator::Plus => {
@@ -46,20 +44,29 @@ impl ArithExprSimplification {
                             BoundExprKind::ColumnRef(col),
                         )
                         | (
-                            BoundExprKind::Constant(DataValue::Float64(0.0)),
-                            BoundExprKind::ColumnRef(col),
-                        )
-                        | (
                             BoundExprKind::ColumnRef(col),
                             BoundExprKind::Constant(DataValue::Int32(0)),
+                        ) => BoundExpr {
+                            kind: BoundExprKind::ColumnRef(col.clone()),
+                            return_type: Some(col.desc.datatype().clone()),
+                        },
+                        (
+                            BoundExprKind::Constant(DataValue::Float64(val)),
+                            BoundExprKind::ColumnRef(col),
                         )
                         | (
                             BoundExprKind::ColumnRef(col),
-                            BoundExprKind::Constant(DataValue::Float64(0.0)),
-                        ) => BoundExpr {
-                            kind: BoundExprKind::ColumnRef(col.clone()),
-                            return_type: expr.return_type.clone(),
-                        },
+                            BoundExprKind::Constant(DataValue::Float64(val)),
+                        ) => {
+                            if *val == 0.0 {
+                                BoundExpr {
+                                    kind: BoundExprKind::ColumnRef(col.clone()),
+                                    return_type: Some(col.desc.datatype().clone()),
+                                }
+                            } else {
+                                expr
+                            }
+                        }
                         _ => expr,
                     }
                 }
@@ -68,14 +75,23 @@ impl ArithExprSimplification {
                         (
                             BoundExprKind::ColumnRef(col),
                             BoundExprKind::Constant(DataValue::Int32(0)),
-                        )
-                        | (
-                            BoundExprKind::ColumnRef(col),
-                            BoundExprKind::Constant(DataValue::Float64(0.0)),
                         ) => BoundExpr {
                             kind: BoundExprKind::ColumnRef(col.clone()),
-                            return_type: expr.return_type.clone(),
+                            return_type: Some(col.desc.datatype().clone()),
                         },
+                        (
+                            BoundExprKind::ColumnRef(col),
+                            BoundExprKind::Constant(DataValue::Float64(val)),
+                        ) => {
+                            if *val == 0.0 {
+                                BoundExpr {
+                                    kind: BoundExprKind::ColumnRef(col.clone()),
+                                    return_type: Some(col.desc.datatype().clone()),
+                                }
+                            } else {
+                                expr
+                            }
+                        }
                         _ => expr,
                     }
                 }
@@ -86,20 +102,29 @@ impl ArithExprSimplification {
                             BoundExprKind::ColumnRef(col),
                         )
                         | (
-                            BoundExprKind::Constant(DataValue::Float64(1.0)),
-                            BoundExprKind::ColumnRef(col),
-                        )
-                        | (
                             BoundExprKind::ColumnRef(col),
                             BoundExprKind::Constant(DataValue::Int32(1)),
+                        ) => BoundExpr {
+                            kind: BoundExprKind::ColumnRef(col.clone()),
+                            return_type: Some(col.desc.datatype().clone()),
+                        },
+                        (
+                            BoundExprKind::Constant(DataValue::Float64(val)),
+                            BoundExprKind::ColumnRef(col),
                         )
                         | (
                             BoundExprKind::ColumnRef(col),
-                            BoundExprKind::Constant(DataValue::Float64(1.0)),
-                        ) => BoundExpr {
-                            kind: BoundExprKind::ColumnRef(col.clone()),
-                            return_type: expr.return_type.clone(),
-                        },
+                            BoundExprKind::Constant(DataValue::Float64(val)),
+                        ) => {
+                            if *val == 1.0 {
+                                BoundExpr {
+                                    kind: BoundExprKind::ColumnRef(col.clone()),
+                                    return_type: Some(col.desc.datatype().clone()),
+                                }
+                            } else {
+                                expr
+                            }
+                        }
                         _ => expr,
                     }
                 }
@@ -108,14 +133,23 @@ impl ArithExprSimplification {
                         (
                             BoundExprKind::ColumnRef(col),
                             BoundExprKind::Constant(DataValue::Int32(1)),
-                        )
-                        | (
-                            BoundExprKind::ColumnRef(col),
-                            BoundExprKind::Constant(DataValue::Float64(1.0)),
                         ) => BoundExpr {
                             kind: BoundExprKind::ColumnRef(col.clone()),
-                            return_type: expr.return_type.clone(),
+                            return_type: Some(col.desc.datatype().clone()),
                         },
+                        (
+                            BoundExprKind::ColumnRef(col),
+                            BoundExprKind::Constant(DataValue::Float64(val)),
+                        ) => {
+                            if *val == 1.0 {
+                                BoundExpr {
+                                    kind: BoundExprKind::ColumnRef(col.clone()),
+                                    return_type: Some(col.desc.datatype().clone()),
+                                }
+                            } else {
+                                expr
+                            }
+                        }
                         _ => expr,
                     }
                 }
