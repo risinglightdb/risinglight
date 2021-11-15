@@ -6,9 +6,9 @@ use std::vec::Vec;
 /// Arithemtic expression simplification rule prunes the useless constant in the binary expressions.
 ///
 /// For example,
-/// select 1 * a, b / 1, c + 0, d - 0 from t;
+/// `select 1 * a, b / 1, c + 0, d - 0 from t;`
 /// The query will be converted to:
-/// select a, b , c , d from t;
+/// `select a, b, c, d from t;`
 pub struct ArithExprSimplification {}
 
 impl PlanRewriter for ArithExprSimplification {
