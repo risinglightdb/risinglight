@@ -36,13 +36,15 @@ impl Drop for TransactionLock {
 impl TransactionManager {
     fn get_lock_for_table(&self, table: u32) -> (Sender<()>, Receiver<()>) {
         let mut lock_map = self.lock_map.lock();
-        lock_map.entry(table).or_insert_with(|| {
-            let (tx, rx) = unbounded();
-            // only one member can get the lock, so we send one `()` message.
-            tx.try_send(()).unwrap();
-            (tx, rx)
-        });
-        lock_map.get(&table).unwrap().clone()
+        lock_map
+            .entry(table)
+            .or_insert_with(|| {
+                let (tx, rx) = unbounded();
+                // only one member can get the lock, so we send one `()` message.
+                tx.try_send(()).unwrap();
+                (tx, rx)
+            })
+            .clone()
     }
 
     /// Get a lock for compaction, return immediately
