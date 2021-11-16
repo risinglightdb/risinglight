@@ -130,33 +130,57 @@ pub type I32Array = PrimitiveArray<i32>;
 pub type I64Array = PrimitiveArray<i64>;
 pub type F64Array = PrimitiveArray<f64>;
 
-/// Embeds all types of arrays in `array` module.
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
-pub enum ArrayImpl {
-    Bool(BoolArray),
-    // Int16(PrimitiveArray<i16>),
-    Int32(I32Array),
-    Int64(PrimitiveArray<i64>),
-    // Float32(PrimitiveArray<f32>),
-    Float64(F64Array),
-    UTF8(UTF8Array),
+/// `for_all_variants` includes all variants of our array types. If you added a new array
+/// type inside the project, be sure to add a variant here.
+///
+/// Every tuple has four elements, where
+/// `{ enum variant name, function suffix name, array type, builder type }`
+///
+/// There are typically two ways of using this macro, pass token or pass no token.
+/// See the following implementations for example.
+#[macro_export]
+macro_rules! for_all_variants {
+    ($macro:tt $(, $x:tt)*) => {
+      $macro! {
+            [$($x),*],
+            { Int32, int32, I32Array, I32ArrayBuilder },
+            { Int64, int64, I64Array, I64ArrayBuilder },
+            { Float64, float64, F64Array, F64ArrayBuilder },
+            { UTF8, utf8, UTF8Array, UTF8ArrayBuilder },
+            { Bool, bool, BoolArray, BoolArrayBuilder }
+        }
+    };
 }
+
+/// Define `ArrayImpl` with macro.
+macro_rules! array_impl_enum {
+    ([], $( { $variant_name:ident, $suffix_name:ident, $array:ty, $builder:ty } ),*) => {
+        /// Embeds all types of arrays in `array` module.
+        #[derive(Clone, PartialEq, Serialize, Deserialize)]
+        pub enum ArrayImpl {
+        $( $variant_name($array) ),*
+        }
+    };
+}
+
+for_all_variants! { array_impl_enum }
 
 pub type BoolArrayBuilder = PrimitiveArrayBuilder<bool>;
 pub type I32ArrayBuilder = PrimitiveArrayBuilder<i32>;
 pub type I64ArrayBuilder = PrimitiveArrayBuilder<i64>;
 pub type F64ArrayBuilder = PrimitiveArrayBuilder<f64>;
 
-/// Embeds all types of array builders in `array` module.
-pub enum ArrayBuilderImpl {
-    Bool(BoolArrayBuilder),
-    // Int16(PrimitiveArrayBuilder<i16>),
-    Int32(I32ArrayBuilder),
-    Int64(PrimitiveArrayBuilder<i64>),
-    // Float32(PrimitiveArrayBuilder<f32>),
-    Float64(F64ArrayBuilder),
-    UTF8(UTF8ArrayBuilder),
+/// Define `ArrayImplBuilder` with macro.
+macro_rules! array_builder_impl_enum {
+    ([], $( { $variant_name:ident, $suffix_name:ident, $array:ty, $builder:ty } ),*) => {
+        /// Embeds all types of array builders in `array` module.
+        pub enum ArrayBuilderImpl {
+        $( $variant_name($builder) ),*
+        }
+    };
 }
+
+for_all_variants! { array_builder_impl_enum }
 
 /// An error which can be returned when downcasting an [`ArrayImpl`] into a concrete type array.
 #[derive(Debug, Clone)]
