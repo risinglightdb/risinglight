@@ -90,7 +90,9 @@ pub enum StorageColumnRef {
     /// A runtime column which contains necessary information to locate a row
     /// **only valid in the current transaction**.
     RowHandler,
-    /// User column.
+    /// User column index. Note that this index is NOT the `ColumnId` in catalog. It is the storage
+    /// column id, which is the same as the position of a column in the column catalog passed to a
+    /// RowSet.
     Idx(u32),
 }
 

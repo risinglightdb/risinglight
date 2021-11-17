@@ -50,6 +50,8 @@ pub struct SecondaryTransaction {
 }
 
 impl SecondaryTransaction {
+    /// Start a transaction on Secondary. If `update` is set to true, we will hold the delete lock
+    /// of a table.
     pub(super) async fn start(
         table: &SecondaryTable,
         readonly: bool,
@@ -246,6 +248,25 @@ impl SecondaryTransaction {
         };
 
         Ok(SecondaryTableTxnIterator::new(final_iter))
+    }
+
+    /// Aggregate block statistics of one column. In the future, we might support predicate
+    /// push-down, and this function will add filter-scan-aggregate functionality.
+    pub fn aggreagate_block_stat<A: StatisticsGlobalAgg>(
+        &self,
+        col_idx: StorageColumnRef,
+    ) -> DataValue {
+        let user_col_idx = match col_idx {
+            StorageColumnRef::Idx(idx) => idx,
+            _ => panic!("unsupported column ref for block aggregation"),
+        };
+
+        if let Some(rowsets) = self.snapshot.get_rowsets_of(self.table.table_id()) {
+            for rowset_id in rowsets {
+                let rowset = self.version.get_rowset(self.table.table_id(), *rowset_id);
+                let column = rowset.column(user_col_idx as usize);
+            }
+        }
     }
 }
 
