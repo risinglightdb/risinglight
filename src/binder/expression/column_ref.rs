@@ -122,7 +122,7 @@ impl Binder {
         }
     }
 
-    fn record_regular_table_column(
+    pub fn record_regular_table_column(
         column_names: &mut HashMap<String, HashSet<String>>,
         column_ids: &mut HashMap<String, Vec<ColumnId>>,
         table_name: &str,

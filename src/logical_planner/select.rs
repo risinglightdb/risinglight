@@ -99,6 +99,11 @@ impl LogicalPlaner {
             } => Ok(LogicalPlan::SeqScan(LogicalSeqScan {
                 table_ref_id: *ref_id,
                 column_ids: column_ids.to_vec(),
+                // column_ids: if column_ids.is_empty() {
+                //     vec![0]
+                // } else {
+                //     column_ids.to_vec()
+                // },
                 with_row_handler,
                 is_sorted,
             })),

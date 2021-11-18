@@ -85,7 +85,7 @@ impl Binder {
             };
             // return_names.push(expr.get_name());
         }
-        // TODO: move the column index binding into phyiscal planner
+        // TODO: move the column index binding into physical planner
         // Add referred columns for base table reference
         for table_ref in from_table.iter_mut() {
             self.bind_column_ids(table_ref);
