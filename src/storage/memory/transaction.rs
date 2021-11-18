@@ -163,7 +163,7 @@ impl Transaction for InMemoryTransaction {
 impl Drop for InMemoryTransaction {
     fn drop(&mut self) {
         if !self.finished {
-            panic!("Transaction dropped without committing or aborting");
+            warn!("Transaction dropped without committing or aborting");
         }
     }
 }
