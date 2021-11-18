@@ -38,5 +38,7 @@ pub use mem_rowset::*;
 pub use rowset_builder::*;
 mod disk_rowset;
 pub use disk_rowset::*;
+mod mem_rowset_row_format;
 mod rowset_iterator;
+pub use mem_rowset_row_format::*;
 pub use rowset_iterator::*;
