@@ -98,7 +98,7 @@ mod tests {
                     header: false,
                 },
                 column_types: vec![
-                    DataTypeKind::Int.not_null(),
+                    DataTypeKind::Int(None).not_null(),
                     DataTypeKind::Double.not_null(),
                     DataTypeKind::String.not_null(),
                 ],

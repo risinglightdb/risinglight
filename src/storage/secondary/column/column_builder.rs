@@ -19,7 +19,7 @@ pub enum ColumnBuilderImpl {
 impl ColumnBuilderImpl {
     pub fn new_from_datatype(datatype: &DataType, options: ColumnBuilderOptions) -> Self {
         match datatype.kind() {
-            DataTypeKind::Int => {
+            DataTypeKind::Int(_) => {
                 Self::Int32(I32ColumnBuilder::new(datatype.is_nullable(), options))
             }
             DataTypeKind::Boolean => {

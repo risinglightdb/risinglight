@@ -155,8 +155,16 @@ mod tests {
             .add_table(
                 "t".into(),
                 vec![
-                    ColumnCatalog::new(0, "a".into(), DataTypeKind::Int.not_null().to_column()),
-                    ColumnCatalog::new(1, "b".into(), DataTypeKind::Int.not_null().to_column()),
+                    ColumnCatalog::new(
+                        0,
+                        "a".into(),
+                        DataTypeKind::Int(None).not_null().to_column(),
+                    ),
+                    ColumnCatalog::new(
+                        1,
+                        "b".into(),
+                        DataTypeKind::Int(None).not_null().to_column(),
+                    ),
                 ],
                 false,
             )

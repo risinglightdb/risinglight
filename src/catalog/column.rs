@@ -110,7 +110,7 @@ mod tests {
 
     #[test]
     fn test_column_catalog() {
-        let col_desc = DataTypeKind::Int.not_null().to_column();
+        let col_desc = DataTypeKind::Int(None).not_null().to_column();
         let mut col_catalog = ColumnCatalog::new(0, "grade".into(), col_desc);
         assert_eq!(col_catalog.id(), 0);
         assert!(!col_catalog.is_primary());

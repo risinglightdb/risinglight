@@ -38,7 +38,7 @@ min_max_func_gen!(max_i32, i32, i32, max);
 impl AggregationState for MinMaxAggregationState {
     fn update(&mut self, array: &ArrayImpl) -> Result<(), ExecutorError> {
         match (array, &self.input_datatype) {
-            (ArrayImpl::Int32(arr), DataTypeKind::Int) => {
+            (ArrayImpl::Int32(arr), DataTypeKind::Int(_)) => {
                 let temp = arr
                     .iter()
                     .fold(None, if self.is_min { min_i32 } else { max_i32 });
@@ -58,7 +58,7 @@ impl AggregationState for MinMaxAggregationState {
 
     fn update_single(&mut self, value: &DataValue) -> Result<(), ExecutorError> {
         match (value, &self.input_datatype) {
-            (DataValue::Int32(val), DataTypeKind::Int) => {
+            (DataValue::Int32(val), DataTypeKind::Int(_)) => {
                 self.result = match self.result {
                     DataValue::Null => DataValue::Int32(*val),
                     DataValue::Int32(res) if self.is_min => DataValue::Int32(res.min(*val)),
