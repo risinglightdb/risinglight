@@ -1,5 +1,5 @@
 use crate::{
-    array::DataChunk,
+    array::{ArrayBuilder, DataChunk, I32ArrayBuilder, UTF8ArrayBuilder},
     binder::{BindError, Binder},
     catalog::RootCatalogRef,
     executor::{ExecutorBuilder, ExecutorError, GlobalEnv},
@@ -60,8 +60,53 @@ impl Database {
         Ok(())
     }
 
+    fn run_dt(&self) -> Result<Vec<DataChunk>, Error> {
+        let mut db_id_vec = I32ArrayBuilder::new(0);
+        let mut db_vec = UTF8ArrayBuilder::new(0);
+        let mut schema_id_vec = I32ArrayBuilder::new(0);
+        let mut schema_vec = UTF8ArrayBuilder::new(0);
+        let mut table_id_vec = I32ArrayBuilder::new(0);
+        let mut table_vec = UTF8ArrayBuilder::new(0);
+        for (_, database) in self.catalog.all_databases() {
+            for (_, schema) in database.all_schemas() {
+                for (_, table) in schema.all_tables() {
+                    db_id_vec.push(Some(&(database.id() as i32)));
+                    db_vec.push(Some(&database.name()));
+                    schema_id_vec.push(Some(&(schema.id() as i32)));
+                    schema_vec.push(Some(&schema.name()));
+                    table_id_vec.push(Some(&(table.id() as i32)));
+                    table_vec.push(Some(&table.name()));
+                }
+            }
+        }
+        let vecs = vec![
+            db_id_vec.finish().into(),
+            db_vec.finish().into(),
+            schema_id_vec.finish().into(),
+            schema_vec.finish().into(),
+            table_id_vec.finish().into(),
+            table_vec.finish().into(),
+        ];
+        Ok(vec![DataChunk::from_iter(vecs.into_iter())])
+    }
+
+    pub async fn run_internal(&self, cmd: &str) -> Result<Vec<DataChunk>, Error> {
+        if let Some((cmd, arg)) = cmd.split_once(" ") {
+            println!("executing command: {} {}", cmd, arg);
+            Ok(vec![])
+        } else if cmd == "dt" {
+            self.run_dt()
+        } else {
+            Err(Error::InternalError("unsupported command".to_string()))
+        }
+    }
+
     /// Run SQL queries and return the outputs.
     pub async fn run(&self, sql: &str) -> Result<Vec<DataChunk>, Error> {
+        if let Some(cmdline) = sql.strip_prefix('\\') {
+            return self.run_internal(cmdline).await;
+        }
+
         // parse
         let stmts = parse(sql)?;
 
@@ -108,4 +153,6 @@ pub enum Error {
     Execute(#[from] ExecutorError),
     #[error("Storage error: {0}")]
     StorageError(#[from] crate::storage::StorageError),
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }
