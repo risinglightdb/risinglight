@@ -15,12 +15,22 @@ pub enum AggKind {
 }
 
 /// Represents an aggregation function
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct BoundAggCall {
     pub kind: AggKind,
     pub args: Vec<BoundExpr>,
     pub return_type: DataType,
     // TODO: add distinct keyword
+}
+
+impl std::fmt::Debug for BoundAggCall {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:?}({:?}) -> {:?}",
+            self.kind, self.args, self.return_type
+        )
+    }
 }
 
 impl Binder {
