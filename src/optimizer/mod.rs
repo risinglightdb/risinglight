@@ -1,9 +1,11 @@
 use crate::{binder::BoundExpr, logical_planner::*};
 
 mod arith_expr_simplification;
+mod bool_expr_simplification;
 mod constant_folding;
 
 use arith_expr_simplification::*;
+use bool_expr_simplification::*;
 use constant_folding::*;
 
 /// The optimizer will do query optimization.
@@ -18,8 +20,9 @@ pub struct Optimizer {}
 impl Optimizer {
     pub fn optimize(&mut self, plan: LogicalPlan) -> LogicalPlan {
         // TODO: add optimization rules
-        let plan = ConstantFolding.rewrite_plan(plan);
-        ArithExprSimplification.rewrite_plan(plan)
+        let mut plan = ConstantFolding.rewrite_plan(plan);
+        plan = ArithExprSimplification.rewrite_plan(plan);
+        BoolExprSimplification.rewrite_plan(plan)
     }
 }
 
