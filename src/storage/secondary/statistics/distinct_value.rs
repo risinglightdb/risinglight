@@ -15,7 +15,7 @@ impl StatisticsGlobalAgg for DistinctValueGlobalAgg {
     fn apply_batch(&mut self, _index: &ColumnIndex) {}
 
     fn get_output(&self) -> DataValue {
-        DataValue::Int64(0)
+        DataValue::Null
     }
 }
 
@@ -31,6 +31,6 @@ impl StatisticsPartialAgg for DistinctValuePartialAgg {
     fn apply_batch(&mut self, _index: &ArrayImpl) {}
 
     fn get_output(&self) -> DataValue {
-        DataValue::Int64(0)
+        DataValue::Null
     }
 }
