@@ -177,6 +177,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "btreemultimap"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aba7eaea18547dd4915e745859622e5f796e5b08f5d594735ed0e08d051f97ca"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1371,6 +1380,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "bitvec",
+ "btreemultimap",
  "bytes",
  "criterion",
  "csv",

@@ -148,3 +148,6 @@ pub enum ConvertError {
     #[error("failed to cast {0} to type {1}")]
     Cast(String, &'static str),
 }
+
+/// memory table row type
+pub(crate) type Row = Vec<DataValue>;
