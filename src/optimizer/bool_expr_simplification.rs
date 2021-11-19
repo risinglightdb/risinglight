@@ -11,6 +11,9 @@ use crate::types::DataValue;
 /// `select * from t where a == null`
 /// The query will be converted to:
 /// `select '';`
+/// `select * from t where 1 == 1`
+/// The query will be converted to:
+/// `select * from t`
 pub struct BoolExprSimplification;
 
 impl PlanRewriter for BoolExprSimplification {
