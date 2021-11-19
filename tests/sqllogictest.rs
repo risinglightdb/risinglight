@@ -21,6 +21,7 @@ use test_case::test_case;
 #[test_case("type.slt")]
 #[test_case("aggregation.slt")]
 #[test_case("delete.slt")]
+#[test_case("copy/csv.slt")]
 // #[test_case("where.slt")]
 // #[test_case("select.slt")]
 // #[test_case("issue_347.slt")]
