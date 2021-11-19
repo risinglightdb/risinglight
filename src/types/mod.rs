@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
 
 pub use sqlparser::ast::DataType as DataTypeKind;
 
@@ -73,22 +72,6 @@ pub enum DataValue {
     Int64(i64),
     Float64(f64),
     String(String),
-}
-
-impl Ord for DataValue {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match (self, other) {
-            (Self::Null, Self::Null) => Ordering::Equal,
-            (Self::Null, _) => Ordering::Less,
-            (_, Self::Null) => Ordering::Greater,
-            (Self::Bool(left), Self::Bool(right)) => left.cmp(&right),
-            (Self::Int32(left), Self::Int32(right)) => left.cmp(&right),
-            (Self::Int64(left), Self::Int64(right)) => left.cmp(&right),
-            (Self::String(left), Self::String(right)) => left.cmp(&right),
-            (Self::Float64(left), Self::Float64(right)) => left.partial_cmp(&right).unwrap(),
-            _ => Ordering::Equal,
-        }
-    }
 }
 
 impl PartialEq for DataValue {
@@ -165,3 +148,6 @@ pub enum ConvertError {
     #[error("failed to cast {0} to type {1}")]
     Cast(String, &'static str),
 }
+
+/// memory table row type
+pub(crate) type Row = Vec<DataValue>;

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use super::version_manager::{Snapshot, VersionManager};
 use super::{
     AddDVEntry, AddRowSetEntry, ColumnBuilderOptions, ColumnSeekPosition, ConcatIterator,
-    DeleteVector, DiskRowset, EpochOp, MergeIterator, RowSetIterator, SecondaryMemRowset,
+    DeleteVector, DiskRowset, EpochOp, MergeIterator, RowSetIterator, SecondaryMemRowsetImpl,
     SecondaryRowHandler, SecondaryTable, SecondaryTableTxnIterator, TransactionLock,
 };
 use crate::array::DataChunk;
@@ -22,7 +22,7 @@ pub struct SecondaryTransaction {
     finished: bool,
 
     /// Includes all to-be-committed data.
-    mem: Option<SecondaryMemRowset>,
+    mem: Option<SecondaryMemRowsetImpl>,
 
     /// Includes all to-be-deleted rows
     delete_buffer: Vec<SecondaryRowHandler>,
@@ -62,7 +62,7 @@ impl SecondaryTransaction {
         let mem = if readonly {
             None
         } else {
-            Some(SecondaryMemRowset::new(table.columns.clone()))
+            Some(SecondaryMemRowsetImpl::new(table.columns.clone()))
         };
 
         Ok(Self {
