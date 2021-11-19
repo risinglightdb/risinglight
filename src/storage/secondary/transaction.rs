@@ -5,13 +5,17 @@ use super::version_manager::{Snapshot, VersionManager};
 use super::{
     AddDVEntry, AddRowSetEntry, ColumnBuilderOptions, ColumnSeekPosition, ConcatIterator,
     DeleteVector, DiskRowset, EpochOp, MergeIterator, RowSetIterator, SecondaryMemRowset,
-    SecondaryRowHandler, SecondaryTable, SecondaryTableTxnIterator, TransactionLock,
+    SecondaryRowHandler, SecondaryTable, SecondaryTableTxnIterator, StatisticsGlobalAgg,
+    TransactionLock,
 };
 use crate::array::DataChunk;
 use crate::catalog::find_sort_key_id;
+use crate::storage::secondary::statistics::create_statistics_global_aggregator;
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
+use crate::types::DataValue;
 use async_trait::async_trait;
 use itertools::Itertools;
+use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use risinglight_proto::rowset::DeleteRecord;
 
 /// A transaction running on `SecondaryStorage`.
@@ -252,21 +256,31 @@ impl SecondaryTransaction {
 
     /// Aggregate block statistics of one column. In the future, we might support predicate
     /// push-down, and this function will add filter-scan-aggregate functionality.
-    pub fn aggreagate_block_stat<A: StatisticsGlobalAgg>(
+    ///
+    /// This function can gather multiple statistics at a time (in the future).
+    pub fn aggreagate_block_stat(
         &self,
-        col_idx: StorageColumnRef,
-    ) -> DataValue {
+        ty: &[(BlockStatisticsType, StorageColumnRef)],
+    ) -> Vec<DataValue> {
+        if ty.len() != 0 {
+            panic!("currently we only support gathering one statistics at at time.");
+        }
+        let (ty, col_idx) = ty[0];
         let user_col_idx = match col_idx {
             StorageColumnRef::Idx(idx) => idx,
             _ => panic!("unsupported column ref for block aggregation"),
         };
+        let mut agg = create_statistics_global_aggregator(ty);
 
         if let Some(rowsets) = self.snapshot.get_rowsets_of(self.table.table_id()) {
             for rowset_id in rowsets {
                 let rowset = self.version.get_rowset(self.table.table_id(), *rowset_id);
                 let column = rowset.column(user_col_idx as usize);
+                agg.apply_batch(column.index());
             }
         }
+
+        vec![agg.get_output()]
     }
 }
 

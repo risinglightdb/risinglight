@@ -13,8 +13,12 @@ use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 
 use super::index::ColumnIndex;
 use crate::array::ArrayImpl;
-use crate::storage::StorageColumnRef;
 use crate::types::DataValue;
+
+mod row_count;
+use row_count::*;
+mod distinct_value;
+use distinct_value::*;
 
 /// Get the aggregated statistics from pre-aggregated per-block statistics.
 pub trait StatisticsGlobalAgg {
@@ -32,7 +36,8 @@ pub fn create_statistics_global_aggregator(
     ty: BlockStatisticsType,
 ) -> Box<dyn StatisticsGlobalAgg> {
     match ty {
-        BlockStatisticsType::RowCount => todo!(),
+        BlockStatisticsType::RowCount => Box::new(RowCountGlobalAgg::create()),
+        BlockStatisticsType::DistinctValue => Box::new(DistinctValueGlobalAgg::create()),
     }
 }
 
@@ -40,6 +45,7 @@ pub fn create_statistics_partial_aggregator(
     ty: BlockStatisticsType,
 ) -> Box<dyn StatisticsPartialAgg> {
     match ty {
-        BlockStatisticsType::RowCount => todo!(),
+        BlockStatisticsType::RowCount =>  panic!("RowCount partial aggregator should not be created, as the row count is already stored in block index"),
+        BlockStatisticsType::DistinctValue => Box::new(DistinctValuePartialAgg::create())
     }
 }

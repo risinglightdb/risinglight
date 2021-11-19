@@ -17,6 +17,7 @@ message BlockStatistics {
   // Description and usage of each statistics is described in `statistics.rs`.
   enum BlockStatisticsType {
     RowCount = 0;
+    DistinctValue = 1;
   }
   BlockStatisticsType block_stat_type = 1;
 

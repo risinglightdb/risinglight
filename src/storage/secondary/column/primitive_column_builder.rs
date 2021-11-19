@@ -71,6 +71,7 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
             row_count: (self.row_count - self.last_row_count) as u32,
             /// TODO(chi): support sort key
             first_key: "".into(),
+            stats: vec![]
         });
 
         // the new block will begin at the current row count

@@ -18,6 +18,10 @@ impl ColumnIndex {
         &self.indexes[block_id as usize]
     }
 
+    pub fn indexes(&self) -> &[BlockIndex] {
+        &*self.indexes
+    }
+
     pub fn len(&self) -> usize {
         self.indexes.len()
     }
