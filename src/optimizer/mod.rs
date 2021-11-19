@@ -45,6 +45,9 @@ pub trait PlanRewriter {
             LogicalPlan::SimpleAgg(plan) => self.rewrite_simple_agg(plan),
             LogicalPlan::HashAgg(plan) => self.rewrite_hash_agg(plan),
             LogicalPlan::Delete(plan) => self.rewrite_delete(plan),
+            LogicalPlan::Values(plan) => self.rewrite_values(plan),
+            LogicalPlan::CopyFromFile(plan) => self.rewrite_copy_from_file(plan),
+            LogicalPlan::CopyToFile(plan) => self.rewrite_copy_to_file(plan),
         }
     }
 
@@ -134,6 +137,18 @@ pub trait PlanRewriter {
 
     fn rewrite_delete(&mut self, plan: LogicalDelete) -> LogicalPlan {
         LogicalPlan::Delete(plan)
+    }
+
+    fn rewrite_values(&mut self, plan: LogicalValues) -> LogicalPlan {
+        LogicalPlan::Values(plan)
+    }
+
+    fn rewrite_copy_from_file(&mut self, plan: LogicalCopyFromFile) -> LogicalPlan {
+        LogicalPlan::CopyFromFile(plan)
+    }
+
+    fn rewrite_copy_to_file(&mut self, plan: LogicalCopyToFile) -> LogicalPlan {
+        LogicalPlan::CopyToFile(plan)
     }
 
     fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {

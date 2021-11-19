@@ -1,5 +1,4 @@
-mod copy_from_file;
-mod copy_to_file;
+mod copy;
 mod create;
 mod delete;
 mod drop;
@@ -14,8 +13,7 @@ mod projection;
 mod seq_scan;
 mod simple_agg;
 
-pub use copy_from_file::*;
-pub use copy_to_file::*;
+pub use copy::*;
 pub use create::*;
 pub use delete::*;
 pub use drop::*;
@@ -58,6 +56,8 @@ pub enum PhysicalPlan {
     Order(PhysicalOrder),
     Limit(PhysicalLimit),
     Delete(PhysicalDelete),
+    CopyFromFile(PhysicalCopyFromFile),
+    CopyToFile(PhysicalCopyToFile),
 }
 
 #[derive(Default)]
@@ -70,6 +70,7 @@ impl PhysicalPlaner {
             LogicalPlan::CreateTable(plan) => self.plan_create_table(plan),
             LogicalPlan::Drop(plan) => self.plan_drop(plan),
             LogicalPlan::Insert(plan) => self.plan_insert(plan),
+            LogicalPlan::Values(plan) => self.plan_values(plan),
             LogicalPlan::Join(plan) => self.plan_join(plan),
             LogicalPlan::SeqScan(plan) => self.plan_seq_scan(plan),
             LogicalPlan::Projection(plan) => self.plan_projection(plan),
@@ -80,6 +81,8 @@ impl PhysicalPlaner {
             LogicalPlan::SimpleAgg(plan) => self.plan_simple_agg(plan),
             LogicalPlan::HashAgg(plan) => self.plan_hash_agg(plan),
             LogicalPlan::Delete(plan) => self.plan_delete(plan),
+            LogicalPlan::CopyFromFile(plan) => self.plan_copy_from_file(plan),
+            LogicalPlan::CopyToFile(plan) => self.plan_copy_to_file(plan),
         }
     }
 }
@@ -117,6 +120,8 @@ impl PhysicalPlan {
             Self::SimpleAgg(p) => p.explain(level, f),
             Self::HashAgg(p) => p.explain(level, f),
             Self::Delete(p) => p.explain(level, f),
+            Self::CopyFromFile(p) => p.explain(level, f),
+            Self::CopyToFile(p) => p.explain(level, f),
         }
     }
 }

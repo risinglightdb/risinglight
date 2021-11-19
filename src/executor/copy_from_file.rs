@@ -1,16 +1,10 @@
-// TODO(wrj): remove this once linked to plan
-#![allow(dead_code)]
-
 use super::*;
-use crate::{
-    array::ArrayBuilderImpl,
-    physical_planner::{FileFormat, PhysicalCopyFromFile},
-};
+use crate::{array::ArrayBuilderImpl, binder::FileFormat, physical_planner::PhysicalCopyFromFile};
 use std::fs::File;
 
 /// The executor of loading file data.
 pub struct CopyFromFileExecutor {
-    plan: PhysicalCopyFromFile,
+    pub plan: PhysicalCopyFromFile,
 }
 
 impl CopyFromFileExecutor {
@@ -38,18 +32,21 @@ impl CopyFromFileExecutor {
                 escape,
                 header,
             } => csv::ReaderBuilder::new()
-                .delimiter(delimiter)
-                .quote(quote)
-                .escape(escape)
+                .delimiter(delimiter as u8)
+                .quote(quote as u8)
+                .escape(escape.map(|c| c as u8))
                 .has_headers(header)
                 .from_reader(file),
         };
 
+        let column_count = array_builders.len();
         for result in reader.records() {
             let record = result?;
-            if record.len() != array_builders.len() {
+            if !(record.len() == column_count
+                || record.len() == column_count + 1 && record.get(column_count) == Some(""))
+            {
                 return Err(ExecutorError::LengthMismatch {
-                    expected: array_builders.len(),
+                    expected: column_count,
                     actual: record.len(),
                 });
             }
@@ -92,8 +89,8 @@ mod tests {
             plan: PhysicalCopyFromFile {
                 path: file.path().into(),
                 format: FileFormat::Csv {
-                    delimiter: b',',
-                    quote: b'"',
+                    delimiter: ',',
+                    quote: '"',
                     escape: None,
                     header: false,
                 },
