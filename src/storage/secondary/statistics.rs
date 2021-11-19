@@ -41,6 +41,7 @@ pub fn create_statistics_global_aggregator(
     }
 }
 
+#[allow(dead_code)]
 pub fn create_statistics_partial_aggregator(
     ty: BlockStatisticsType,
 ) -> Box<dyn StatisticsPartialAgg> {

@@ -7,9 +7,13 @@ use crate::{
     optimizer::Optimizer,
     parser::{parse, ParserError},
     physical_planner::{PhysicalPlanError, PhysicalPlaner},
-    storage::{InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, StorageImpl},
+    storage::{
+        InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
+        StorageImpl, Table,
+    },
 };
 use futures::TryStreamExt;
+use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use std::sync::Arc;
 
 /// The database instance.
@@ -92,8 +96,52 @@ impl Database {
 
     pub async fn run_internal(&self, cmd: &str) -> Result<Vec<DataChunk>, Error> {
         if let Some((cmd, arg)) = cmd.split_once(" ") {
-            println!("executing command: {} {}", cmd, arg);
-            Ok(vec![])
+            if cmd == "stat" {
+                if let StorageImpl::SecondaryStorage(ref storage) = self.storage {
+                    let (table, col) = arg.split_once(" ").expect("failed to parse command");
+                    let table_id = self
+                        .catalog
+                        .get_table_id_by_name("postgres", "postgres", table)
+                        .expect("table not found");
+                    let col_id = self
+                        .catalog
+                        .get_table(&table_id)
+                        .unwrap()
+                        .get_column_id_by_name(col)
+                        .expect("column not found");
+                    let table = storage.get_table(table_id)?;
+                    let txn = table.read().await?;
+                    let row_count = txn.aggreagate_block_stat(&[
+                        (
+                            BlockStatisticsType::RowCount,
+                            // Note that `col_id` is the column catalog id instead of storage
+                            // column id. This should be fixed in the
+                            // future.
+                            StorageColumnRef::Idx(col_id),
+                        ),
+                        (
+                            BlockStatisticsType::DistinctValue,
+                            StorageColumnRef::Idx(col_id),
+                        ),
+                    ]);
+                    let mut stat_name = UTF8ArrayBuilder::new(0);
+                    let mut stat_value = UTF8ArrayBuilder::new(0);
+                    stat_name.push(Some("RowCount"));
+                    stat_value.push(Some(&format!("{:?}", row_count[0])));
+                    stat_name.push(Some("DistinctValue"));
+                    stat_value.push(Some(&format!("{:?}", row_count[1])));
+                    Ok(vec![DataChunk::from_iter([
+                        stat_name.finish().into(),
+                        stat_value.finish().into(),
+                    ])])
+                } else {
+                    Err(Error::InternalError(
+                        "this storage engine doesn't support statistics".to_string(),
+                    ))
+                }
+            } else {
+                Err(Error::InternalError("unsupported command".to_string()))
+            }
         } else if cmd == "dt" {
             self.run_dt()
         } else {

@@ -41,7 +41,6 @@ use version_manager::*;
 mod transaction_manager;
 use transaction_manager::*;
 mod statistics;
-use statistics::*;
 
 #[cfg(test)]
 mod tests;

@@ -5,8 +5,7 @@ use super::version_manager::{Snapshot, VersionManager};
 use super::{
     AddDVEntry, AddRowSetEntry, ColumnBuilderOptions, ColumnSeekPosition, ConcatIterator,
     DeleteVector, DiskRowset, EpochOp, MergeIterator, RowSetIterator, SecondaryMemRowset,
-    SecondaryRowHandler, SecondaryTable, SecondaryTableTxnIterator, StatisticsGlobalAgg,
-    TransactionLock,
+    SecondaryRowHandler, SecondaryTable, SecondaryTableTxnIterator, TransactionLock,
 };
 use crate::array::DataChunk;
 use crate::catalog::find_sort_key_id;
@@ -262,25 +261,26 @@ impl SecondaryTransaction {
         &self,
         ty: &[(BlockStatisticsType, StorageColumnRef)],
     ) -> Vec<DataValue> {
-        if ty.len() != 0 {
-            panic!("currently we only support gathering one statistics at at time.");
-        }
-        let (ty, col_idx) = ty[0];
-        let user_col_idx = match col_idx {
-            StorageColumnRef::Idx(idx) => idx,
-            _ => panic!("unsupported column ref for block aggregation"),
-        };
-        let mut agg = create_statistics_global_aggregator(ty);
+        let mut agg = ty
+            .iter()
+            .map(|(ty, _)| create_statistics_global_aggregator(*ty))
+            .collect_vec();
 
         if let Some(rowsets) = self.snapshot.get_rowsets_of(self.table.table_id()) {
             for rowset_id in rowsets {
                 let rowset = self.version.get_rowset(self.table.table_id(), *rowset_id);
-                let column = rowset.column(user_col_idx as usize);
-                agg.apply_batch(column.index());
+                for ((_, col_idx), agg) in ty.iter().zip(agg.iter_mut()) {
+                    let user_col_idx = match col_idx {
+                        StorageColumnRef::Idx(idx) => idx,
+                        _ => panic!("unsupported column ref for block aggregation"),
+                    };
+                    let column = rowset.column(*user_col_idx as usize);
+                    agg.apply_batch(column.index());
+                }
             }
         }
 
-        vec![agg.get_output()]
+        agg.into_iter().map(|agg| agg.get_output()).collect_vec()
     }
 }
 
