@@ -5,7 +5,7 @@
 use log::*;
 use risinglight::{array::*, storage::SecondaryStorageOptions, Database};
 use std::path::Path;
-use tempfile::tempdir;
+use tempfile::{tempdir, TempDir};
 use test_case::test_case;
 
 #[test_case("basic_test.slt")]
@@ -277,17 +277,22 @@ impl From<ColumnValues> for ArrayImpl {
 
 struct SqlLogicTester {
     db: Database,
+    testdir: TempDir,
 }
 
 impl SqlLogicTester {
     pub fn new(db: Database) -> Self {
-        SqlLogicTester { db }
+        SqlLogicTester {
+            db,
+            testdir: tempdir().unwrap(),
+        }
     }
 
     pub async fn test(&mut self, record: Record) {
         info!("test: {:?}", record);
         match record {
             Record::Statement { error, sql, .. } => {
+                let sql = self.replace_keywords(sql);
                 let ret = self.db.run(&sql).await;
                 match ret {
                     Ok(_) if error => panic!(
@@ -303,6 +308,7 @@ impl SqlLogicTester {
                 expected_results,
                 ..
             } => {
+                let sql = self.replace_keywords(sql);
                 let output = self.db.run(&sql).await.expect("query failed");
                 let expected: DataChunk =
                     expected_results.into_iter().map(ArrayImpl::from).collect();
@@ -330,5 +336,9 @@ impl SqlLogicTester {
             }
             self.test(record).await;
         }
+    }
+
+    fn replace_keywords(&self, sql: String) -> String {
+        sql.replace("__TEST_DIR__", self.testdir.path().to_str().unwrap())
     }
 }
