@@ -3,7 +3,7 @@ use itertools::Itertools;
 use super::*;
 use crate::binder::BoundExpr;
 use crate::catalog::TableRefId;
-use crate::logical_planner::LogicalInsert;
+use crate::logical_planner::{LogicalInsert, LogicalValues};
 use crate::types::ColumnId;
 
 /// The physical plan of `insert`.
@@ -21,13 +21,17 @@ pub struct PhysicalValues {
 }
 
 impl PhysicalPlaner {
-    pub fn plan_insert(&self, stmt: LogicalInsert) -> Result<PhysicalPlan, PhysicalPlanError> {
+    pub fn plan_insert(&self, plan: LogicalInsert) -> Result<PhysicalPlan, PhysicalPlanError> {
         Ok(PhysicalPlan::Insert(PhysicalInsert {
-            table_ref_id: stmt.table_ref_id,
-            column_ids: stmt.column_ids,
-            child: Box::new(PhysicalPlan::Values(PhysicalValues {
-                values: stmt.values,
-            })),
+            table_ref_id: plan.table_ref_id,
+            column_ids: plan.column_ids,
+            child: Box::new(self.plan(*plan.child)?),
+        }))
+    }
+
+    pub fn plan_values(&self, plan: LogicalValues) -> Result<PhysicalPlan, PhysicalPlanError> {
+        Ok(PhysicalPlan::Values(PhysicalValues {
+            values: plan.values,
         }))
     }
 }

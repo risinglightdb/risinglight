@@ -18,7 +18,7 @@ pub enum ColumnIteratorImpl {
 impl ColumnIteratorImpl {
     pub async fn new(column: Column, column_info: &ColumnCatalog, start_pos: u32) -> Self {
         match column_info.datatype().kind() {
-            DataTypeKind::Int => Self::Int32(I32ColumnIterator::new(column, start_pos).await),
+            DataTypeKind::Int(_) => Self::Int32(I32ColumnIterator::new(column, start_pos).await),
             DataTypeKind::Boolean => Self::Bool(BoolColumnIterator::new(column, start_pos).await),
             DataTypeKind::Float(_) => {
                 Self::Float64(F64ColumnIterator::new(column, start_pos).await)

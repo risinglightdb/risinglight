@@ -1,5 +1,6 @@
 use crate::{binder::BoundStatement, types::ConvertError};
 
+mod copy;
 mod create;
 mod delete;
 mod drop;
@@ -15,6 +16,7 @@ mod select;
 mod seq_scan;
 mod simple_agg;
 
+pub use copy::*;
 pub use create::*;
 pub use delete::*;
 pub use drop::*;
@@ -45,6 +47,7 @@ pub enum LogicalPlan {
     Dummy,
     SeqScan(LogicalSeqScan),
     Insert(LogicalInsert),
+    Values(LogicalValues),
     CreateTable(LogicalCreateTable),
     Drop(LogicalDrop),
     Projection(LogicalProjection),
@@ -56,6 +59,8 @@ pub enum LogicalPlan {
     Order(LogicalOrder),
     Limit(LogicalLimit),
     Delete(LogicalDelete),
+    CopyFromFile(LogicalCopyFromFile),
+    CopyToFile(LogicalCopyToFile),
 }
 
 #[derive(Default)]
@@ -68,6 +73,7 @@ impl LogicalPlaner {
             BoundStatement::CreateTable(stmt) => self.plan_create_table(stmt),
             BoundStatement::Drop(stmt) => self.plan_drop(stmt),
             BoundStatement::Insert(stmt) => self.plan_insert(stmt),
+            BoundStatement::Copy(stmt) => self.plan_copy(stmt),
             BoundStatement::Select(stmt) => self.plan_select(stmt),
             BoundStatement::Explain(stmt) => self.plan_explain(*stmt),
             BoundStatement::Delete(stmt) => self.plan_delete(*stmt),

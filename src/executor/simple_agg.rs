@@ -41,7 +41,8 @@ impl SimpleAggExecutor {
                         builder.push(result);
                         builder.finish()
                     }
-                    None => ArrayBuilderImpl::new(&DataType::new(DataTypeKind::Int, true)).finish(),
+                    None => ArrayBuilderImpl::new(&DataType::new(DataTypeKind::Int(None), true))
+                        .finish(),
                 }
             })
             .collect::<DataChunk>()

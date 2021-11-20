@@ -207,8 +207,8 @@ impl ArrayBuilderImpl {
     pub fn new(ty: &DataType) -> Self {
         match ty.kind() {
             DataTypeKind::Boolean => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
-            DataTypeKind::Int => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
-            DataTypeKind::BigInt => Self::Int64(PrimitiveArrayBuilder::<i64>::new(0)),
+            DataTypeKind::Int(_) => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
+            DataTypeKind::BigInt(_) => Self::Int64(PrimitiveArrayBuilder::<i64>::new(0)),
             DataTypeKind::Float(_) | DataTypeKind::Double => {
                 Self::Float64(PrimitiveArrayBuilder::<f64>::new(0))
             }
@@ -394,8 +394,8 @@ impl ArrayImpl {
     pub fn data_type(&self) -> Option<DataType> {
         match self {
             Self::Bool(_) => Some(DataTypeKind::Boolean.not_null()),
-            Self::Int32(_) => Some(DataTypeKind::Int.not_null()),
-            Self::Int64(_) => Some(DataTypeKind::BigInt.not_null()),
+            Self::Int32(_) => Some(DataTypeKind::Int(None).not_null()),
+            Self::Int64(_) => Some(DataTypeKind::BigInt(None).not_null()),
             Self::Float64(_) => Some(DataTypeKind::Double.not_null()),
             Self::UTF8(_) => Some(DataTypeKind::String.not_null()),
         }

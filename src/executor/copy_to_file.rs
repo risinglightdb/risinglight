@@ -1,8 +1,5 @@
-// TODO(wrj): remove this once linked to plan
-#![allow(dead_code)]
-
 use super::*;
-use crate::physical_planner::FileFormat;
+use crate::binder::FileFormat;
 use std::{fs::File, path::PathBuf};
 use tokio::sync::mpsc;
 
@@ -20,11 +17,15 @@ impl CopyToFileExecutor {
             let (sender, recver) = mpsc::channel(1);
             let writer = tokio::task::spawn_blocking(move || Self::write_file_blocking(path, format, recver));
             for await batch in child {
-                sender.send(batch?).await.unwrap();
+                let res = sender.send(batch?).await;
+                if res.is_err() {
+                    // send error means the background IO task returns error.
+                    break;
+                }
             }
             drop(sender);
-            writer.await.unwrap()?;
-            yield DataChunk::single(1);
+            let rows = writer.await.unwrap()?;
+            yield DataChunk::single(rows as _);
         }
     }
 
@@ -32,7 +33,7 @@ impl CopyToFileExecutor {
         path: PathBuf,
         format: FileFormat,
         mut recver: mpsc::Receiver<DataChunk>,
-    ) -> Result<(), ExecutorError> {
+    ) -> Result<usize, ExecutorError> {
         let file = File::create(&path)?;
         let mut writer = match format {
             FileFormat::Csv {
@@ -41,13 +42,14 @@ impl CopyToFileExecutor {
                 escape,
                 header,
             } => csv::WriterBuilder::new()
-                .delimiter(delimiter)
-                .quote(quote)
-                .escape(escape.unwrap_or(b'\\'))
+                .delimiter(delimiter as u8)
+                .quote(quote as u8)
+                .escape(escape.unwrap_or(quote) as u8)
                 .has_headers(header)
                 .from_writer(file),
         };
 
+        let mut rows = 0;
         while let Some(chunk) = recver.blocking_recv() {
             for i in 0..chunk.cardinality() {
                 // TODO(wrj): avoid dynamic memory allocation (String)
@@ -55,8 +57,9 @@ impl CopyToFileExecutor {
                 writer.write_record(row)?;
             }
             writer.flush()?;
+            rows += chunk.cardinality();
         }
-        Ok(())
+        Ok(rows)
     }
 }
 
@@ -72,8 +75,8 @@ mod tests {
         let executor = CopyToFileExecutor {
             path: file.path().into(),
             format: FileFormat::Csv {
-                delimiter: b',',
-                quote: b'"',
+                delimiter: ',',
+                quote: '"',
                 escape: None,
                 header: false,
             },
