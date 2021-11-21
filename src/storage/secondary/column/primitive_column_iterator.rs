@@ -127,6 +127,9 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnIterator<T> {
     }
 
     fn fetch_hint_inner(&self) -> usize {
+        if self.finished {
+            return 0;
+        }
         let index = self.column.index().index(self.current_block_id);
         (index.row_count - (self.current_row_id - index.first_rowid)) as usize
     }

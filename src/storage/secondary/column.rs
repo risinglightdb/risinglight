@@ -54,7 +54,8 @@ pub trait ColumnIterator<A: Array> {
     /// get an array of NO MORE THAN the `expected_size` on supported column types.
     async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<(u32, A)>;
 
-    /// Number of items that can be fetched without I/O
+    /// Number of items that can be fetched without I/O. When the column iterator has finished
+    /// iterating, the returned value should be 0.
     fn fetch_hint(&self) -> usize;
 }
 
