@@ -116,6 +116,9 @@ impl LogicalPlaner {
                         join_op: table.join_op.clone(),
                     });
                 }
+                if join_table_plans.is_empty() {
+                    return Ok(relation_plan);
+                }
                 Ok(LogicalPlan::Join(LogicalJoin {
                     relation_plan: Box::new(relation_plan),
                     join_table_plans,

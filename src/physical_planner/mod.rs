@@ -28,7 +28,7 @@ pub use order::*;
 pub use projection::*;
 pub use seq_scan::*;
 
-use crate::logical_planner::LogicalPlan;
+use crate::{logical_planner::LogicalPlan, optimizer::PlanRewriter};
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum PhysicalPlanError {
@@ -87,8 +87,7 @@ impl PhysicalPlaner {
 
     pub fn plan(&self, plan: LogicalPlan) -> Result<PhysicalPlan, PhysicalPlanError> {
         // Resolve input reference
-        let mut resolver = InputRefResolver {};
-        let plan = resolver.resolve_plan(plan);
+        let plan = InputRefResolver::default().rewrite_plan(plan);
 
         // Create physical plan
         self.plan_inner(plan)

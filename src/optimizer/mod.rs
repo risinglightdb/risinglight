@@ -1,4 +1,4 @@
-use crate::{binder::BoundExpr, logical_planner::*};
+use crate::{binder::*, logical_planner::*};
 
 mod arith_expr_simplification;
 mod bool_expr_simplification;
@@ -30,6 +30,7 @@ impl Optimizer {
 
 // PlanRewriter is a plan visitor.
 // User could implement the own optimization rules by implement PlanRewriter trait easily.
+// NOTE: the visitor should always visit child plan first.
 pub trait PlanRewriter {
     fn rewrite_plan(&mut self, plan: LogicalPlan) -> LogicalPlan {
         match plan {
@@ -61,19 +62,28 @@ pub trait PlanRewriter {
     }
 
     fn rewrite_insert(&mut self, plan: LogicalInsert) -> LogicalPlan {
-        LogicalPlan::Insert(plan)
+        LogicalPlan::Insert(LogicalInsert {
+            child: Box::new(self.rewrite_plan(*plan.child)),
+            table_ref_id: plan.table_ref_id,
+            column_ids: plan.column_ids,
+        })
     }
 
     fn rewrite_join(&mut self, plan: LogicalJoin) -> LogicalPlan {
+        let relation_plan = self.rewrite_plan(*plan.relation_plan);
         let mut join_table_plans = vec![];
         for plan in plan.join_table_plans.into_iter() {
+            use BoundJoinConstraint::*;
+            use BoundJoinOperator::*;
             join_table_plans.push(LogicalJoinTable {
                 table_plan: Box::new(self.rewrite_plan(*plan.table_plan)),
-                join_op: plan.join_op,
+                join_op: match plan.join_op {
+                    Inner(On(expr)) => Inner(On(self.rewrite_expr(expr))),
+                },
             });
         }
         LogicalPlan::Join(LogicalJoin {
-            relation_plan: Box::new(self.rewrite_plan(*plan.relation_plan)),
+            relation_plan: Box::new(relation_plan),
             join_table_plans,
         })
     }
@@ -84,34 +94,41 @@ pub trait PlanRewriter {
 
     fn rewrite_projection(&mut self, plan: LogicalProjection) -> LogicalPlan {
         LogicalPlan::Projection(LogicalProjection {
+            child: Box::new(self.rewrite_plan(*plan.child)),
             project_expressions: plan
                 .project_expressions
                 .into_iter()
                 .map(|expr| self.rewrite_expr(expr))
                 .collect(),
-            child: Box::new(self.rewrite_plan(*plan.child)),
         })
     }
 
     fn rewrite_filter(&mut self, plan: LogicalFilter) -> LogicalPlan {
         LogicalPlan::Filter(LogicalFilter {
-            expr: self.rewrite_expr(plan.expr),
             child: Box::new(self.rewrite_plan(*plan.child)),
+            expr: self.rewrite_expr(plan.expr),
         })
     }
 
     fn rewrite_order(&mut self, plan: LogicalOrder) -> LogicalPlan {
         LogicalPlan::Order(LogicalOrder {
-            comparators: plan.comparators,
             child: Box::new(self.rewrite_plan(*plan.child)),
+            comparators: plan
+                .comparators
+                .into_iter()
+                .map(|orderby| BoundOrderBy {
+                    expr: self.rewrite_expr(orderby.expr),
+                    descending: orderby.descending,
+                })
+                .collect(),
         })
     }
 
     fn rewrite_limit(&mut self, plan: LogicalLimit) -> LogicalPlan {
         LogicalPlan::Limit(LogicalLimit {
+            child: Box::new(self.rewrite_plan(*plan.child)),
             offset: plan.offset,
             limit: plan.limit,
-            child: Box::new(self.rewrite_plan(*plan.child)),
         })
     }
 
@@ -123,14 +140,32 @@ pub trait PlanRewriter {
 
     fn rewrite_aggregate(&mut self, plan: LogicalAggregate) -> LogicalPlan {
         LogicalPlan::Aggregate(LogicalAggregate {
-            agg_calls: plan.agg_calls,
-            group_keys: plan.group_keys,
             child: Box::new(self.rewrite_plan(*plan.child)),
+            agg_calls: plan
+                .agg_calls
+                .into_iter()
+                .map(|agg| BoundAggCall {
+                    kind: agg.kind,
+                    args: agg
+                        .args
+                        .into_iter()
+                        .map(|expr| self.rewrite_expr(expr))
+                        .collect(),
+                    return_type: agg.return_type,
+                })
+                .collect(),
+            group_keys: plan.group_keys,
         })
     }
 
     fn rewrite_delete(&mut self, plan: LogicalDelete) -> LogicalPlan {
-        LogicalPlan::Delete(plan)
+        LogicalPlan::Delete(LogicalDelete {
+            table_ref_id: plan.table_ref_id,
+            filter: LogicalFilter {
+                child: Box::new(self.rewrite_plan(*plan.filter.child)),
+                expr: self.rewrite_expr(plan.filter.expr),
+            },
+        })
     }
 
     fn rewrite_values(&mut self, plan: LogicalValues) -> LogicalPlan {
@@ -142,7 +177,12 @@ pub trait PlanRewriter {
     }
 
     fn rewrite_copy_to_file(&mut self, plan: LogicalCopyToFile) -> LogicalPlan {
-        LogicalPlan::CopyToFile(plan)
+        LogicalPlan::CopyToFile(LogicalCopyToFile {
+            child: Box::new(self.rewrite_plan(*plan.child)),
+            path: plan.path,
+            format: plan.format,
+            column_types: plan.column_types,
+        })
     }
 
     fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
