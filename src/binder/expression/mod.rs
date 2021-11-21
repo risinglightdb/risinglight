@@ -32,7 +32,8 @@ pub struct BoundExpr {
 pub enum BoundExprKind {
     Constant(DataValue),
     ColumnRef(BoundColumnRef),
-    InputRef(BoundInputRef), // Only used after column ref is resolved into input ref
+    /// Only used after column ref is resolved into input ref
+    InputRef(BoundInputRef),
     BinaryOp(BoundBinaryOp),
     UnaryOp(BoundUnaryOp),
     TypeCast(BoundTypeCast),

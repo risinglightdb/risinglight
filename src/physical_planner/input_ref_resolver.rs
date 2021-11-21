@@ -76,7 +76,7 @@ fn transform_expr(
 }
 
 fn transform_agg_args(agg_calls: Vec<BoundAggCall>, bindings: &[ColumnRefId]) -> Vec<BoundAggCall> {
-    let mut _agg_calls = vec![];
+    let mut inner_agg_calls = vec![];
     agg_calls
         .into_iter()
         .map(|agg| BoundAggCall {
@@ -84,7 +84,7 @@ fn transform_agg_args(agg_calls: Vec<BoundAggCall>, bindings: &[ColumnRefId]) ->
             args: agg
                 .args
                 .into_iter()
-                .map(|arg| transform_expr(arg, bindings, &mut _agg_calls))
+                .map(|arg| transform_expr(arg, bindings, &mut inner_agg_calls))
                 .collect(),
             return_type: agg.return_type,
         })
@@ -144,7 +144,7 @@ impl InputRefResolver {
         let (relation_plan, mut relation_bindings) = self.resolve_plan_inner(*plan.relation_plan);
         bindings.append(&mut relation_bindings);
         // TODO: Make the order of bindings consistent with the output order in executor
-        let mut _agg_calls = vec![];
+        let mut inner_agg_calls = vec![];
         let join_table_plans = plan
             .join_table_plans
             .into_iter()
@@ -159,7 +159,7 @@ impl InputRefResolver {
                             BoundJoinOperator::Inner(BoundJoinConstraint::On(transform_expr(
                                 expr,
                                 &bindings,
-                                &mut _agg_calls,
+                                &mut inner_agg_calls,
                             )))
                         }
                     },
@@ -255,7 +255,7 @@ impl InputRefResolver {
         let (child_plan, bindings) = self.resolve_plan_inner(*plan.child);
         let agg_calls = transform_agg_args(plan.agg_calls, &bindings);
         let mut bindings = vec![];
-        let mut _agg_calls = vec![];
+        let mut inner_agg_calls = vec![];
         let group_keys = plan
             .group_keys
             .into_iter()
@@ -267,7 +267,7 @@ impl InputRefResolver {
                     BoundExprKind::InputRef(_) => {}
                     _ => panic!("{:?} cannot be a group key", expr.kind),
                 }
-                transform_expr(expr, &bindings, &mut _agg_calls)
+                transform_expr(expr, &bindings, &mut inner_agg_calls)
             })
             .collect_vec();
 

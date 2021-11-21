@@ -6,6 +6,6 @@ pub struct BoundInputRef {
 
 impl std::fmt::Debug for BoundInputRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "I{:?}", self.index)
+        write!(f, "{:?}", self.index)
     }
 }
