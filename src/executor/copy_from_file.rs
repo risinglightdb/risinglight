@@ -1,6 +1,9 @@
+use indicatif::ProgressBar;
+
 use super::*;
 use crate::{array::ArrayBuilderImpl, binder::FileFormat, physical_planner::PhysicalCopyFromFile};
 use std::fs::File;
+use std::io::BufReader;
 
 /// The executor of loading file data.
 pub struct CopyFromFileExecutor {
@@ -15,7 +18,6 @@ impl CopyFromFileExecutor {
         }
     }
 
-    // TODO(wrj): process a window at a time
     fn read_file_blocking(self) -> Result<DataChunk, ExecutorError> {
         let mut array_builders = self
             .plan
@@ -25,6 +27,8 @@ impl CopyFromFileExecutor {
             .collect::<Vec<ArrayBuilderImpl>>();
 
         let file = File::open(&self.plan.path)?;
+        let file_size = file.metadata()?.len();
+        let mut buf_reader = BufReader::new(file);
         let mut reader = match self.plan.format {
             FileFormat::Csv {
                 delimiter,
@@ -36,31 +40,50 @@ impl CopyFromFileExecutor {
                 .quote(quote as u8)
                 .escape(escape.map(|c| c as u8))
                 .has_headers(header)
-                .from_reader(file),
+                .from_reader(&mut buf_reader),
+        };
+
+        let bar = if file_size < 1024 * 1024 {
+            // disable progress bar if file size is < 1MB
+            ProgressBar::hidden()
+        } else {
+            ProgressBar::new(file_size)
         };
 
         let column_count = array_builders.len();
-        for result in reader.records() {
-            let record = result?;
-            if !(record.len() == column_count
-                || record.len() == column_count + 1 && record.get(column_count) == Some(""))
-            {
-                return Err(ExecutorError::LengthMismatch {
-                    expected: column_count,
-                    actual: record.len(),
-                });
+        let mut iter = reader.records();
+        let mut round = 0;
+        loop {
+            round += 1;
+            if round % 1000 == 0 {
+                bar.set_position(iter.reader().position().byte());
             }
-            for ((s, builder), ty) in record
-                .iter()
-                .zip(&mut array_builders)
-                .zip(&self.plan.column_types)
-            {
-                if !ty.is_nullable() && s.is_empty() {
-                    return Err(ExecutorError::NotNullable);
+            if let Some(record) = iter.next() {
+                let record = record?;
+                if !(record.len() == column_count
+                    || record.len() == column_count + 1 && record.get(column_count) == Some(""))
+                {
+                    return Err(ExecutorError::LengthMismatch {
+                        expected: column_count,
+                        actual: record.len(),
+                    });
                 }
-                builder.push_str(s)?;
+                for ((s, builder), ty) in record
+                    .iter()
+                    .zip(&mut array_builders)
+                    .zip(&self.plan.column_types)
+                {
+                    if !ty.is_nullable() && s.is_empty() {
+                        return Err(ExecutorError::NotNullable);
+                    }
+                    builder.push_str(s)?;
+                }
+            } else {
+                break;
             }
         }
+        bar.finish();
+
         let chunk = array_builders
             .into_iter()
             .map(|builder| builder.finish())
