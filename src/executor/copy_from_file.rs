@@ -12,6 +12,12 @@ pub struct CopyFromFileExecutor {
     pub plan: PhysicalCopyFromFile,
 }
 
+/// When the source file size is about the limit, we show a progress bar on the screen.
+const IMPORT_PROGRESS_BAR_LIMIT: u64 = 1 * 1024 * 1024;
+
+/// We produce a batch everytime the DataChunk is larger than this size.
+const IMPORT_BATCH_SIZE: u64 = 16 * 1024 * 1024;
+
 impl CopyFromFileExecutor {
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
@@ -57,7 +63,7 @@ impl CopyFromFileExecutor {
                 .from_reader(&mut buf_reader),
         };
 
-        let bar = if file_size < 1024 * 1024 {
+        let bar = if file_size < IMPORT_PROGRESS_BAR_LIMIT {
             // disable progress bar if file size is < 1MB
             ProgressBar::hidden()
         } else {
@@ -80,7 +86,7 @@ impl CopyFromFileExecutor {
                 let current_pos = iter.reader().position().byte();
                 bar.set_position(current_pos);
                 // Produce a chunk of 16MB
-                if current_pos - last_pos > 16 * 1024 * 1024 {
+                if current_pos - last_pos > IMPORT_BATCH_SIZE {
                     last_pos = current_pos;
                     let chunk = flush_array(array_builders);
                     array_builders = create_array_builders(&self.plan);
