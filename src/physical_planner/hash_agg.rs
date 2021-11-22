@@ -15,7 +15,7 @@ impl PhysicalPlaner {
         Ok(PhysicalPlan::HashAgg(PhysicalHashAgg {
             agg_calls: plan.agg_calls,
             group_keys: plan.group_keys,
-            child: Box::new(self.plan(*plan.child)?),
+            child: Box::new(self.plan_inner(*plan.child)?),
         }))
     }
 }

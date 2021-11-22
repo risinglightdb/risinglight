@@ -16,7 +16,7 @@ impl PhysicalPlaner {
     ) -> Result<PhysicalPlan, PhysicalPlanError> {
         Ok(PhysicalPlan::SimpleAgg(PhysicalSimpleAgg {
             agg_calls: plan.agg_calls,
-            child: Box::new(self.plan(*plan.child)?),
+            child: Box::new(self.plan_inner(*plan.child)?),
         }))
     }
 }

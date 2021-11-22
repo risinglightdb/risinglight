@@ -25,7 +25,7 @@ impl PhysicalPlaner {
         Ok(PhysicalPlan::Insert(PhysicalInsert {
             table_ref_id: plan.table_ref_id,
             column_ids: plan.column_ids,
-            child: Box::new(self.plan(*plan.child)?),
+            child: Box::new(self.plan_inner(*plan.child)?),
         }))
     }
 
