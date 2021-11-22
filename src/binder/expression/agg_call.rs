@@ -83,9 +83,9 @@ impl Binder {
                             break;
                         }
                     }
-                    (AggKind::RowCount, Some(DataType::new(DataTypeKind::Int, false)))
+                    (AggKind::RowCount, Some(DataType::new(DataTypeKind::Int(None), false)))
                 } else {
-                    (AggKind::Count, Some(DataType::new(DataTypeKind::Int, false)))
+                    (AggKind::Count, Some(DataType::new(DataTypeKind::Int(None), false)))
                 }
             ),
             "max" => (AggKind::Max, args[0].return_type.clone()),
