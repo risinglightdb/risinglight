@@ -13,7 +13,7 @@ pub struct CopyFromFileExecutor {
 }
 
 /// When the source file size is about the limit, we show a progress bar on the screen.
-const IMPORT_PROGRESS_BAR_LIMIT: u64 = 1 * 1024 * 1024;
+const IMPORT_PROGRESS_BAR_LIMIT: u64 = 1024 * 1024;
 
 /// We produce a batch everytime the DataChunk is larger than this size.
 const IMPORT_BATCH_SIZE: u64 = 16 * 1024 * 1024;
