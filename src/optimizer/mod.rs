@@ -3,11 +3,12 @@ use crate::{binder::BoundExpr, logical_planner::*};
 mod arith_expr_simplification;
 mod bool_expr_simplification;
 mod constant_folding;
+mod constant_moving;
 
 use arith_expr_simplification::*;
 use bool_expr_simplification::*;
 use constant_folding::*;
-
+use constant_moving::*;
 /// The optimizer will do query optimization.
 ///
 /// It will do both rule-based optimization (predicate pushdown, constant folding and common
@@ -22,7 +23,8 @@ impl Optimizer {
         // TODO: add optimization rules
         let mut plan = ConstantFolding.rewrite_plan(plan);
         plan = ArithExprSimplification.rewrite_plan(plan);
-        BoolExprSimplification.rewrite_plan(plan)
+        plan = BoolExprSimplification.rewrite_plan(plan);
+        ConstantMovingRule.rewrite_plan(plan)
     }
 }
 
