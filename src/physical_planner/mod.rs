@@ -1,10 +1,10 @@
+mod aggregate;
 mod copy;
 mod create;
 mod delete;
 mod drop;
 mod explain;
 mod filter;
-mod hash_agg;
 mod input_ref_resolver;
 mod insert;
 mod join;
@@ -12,15 +12,14 @@ mod limit;
 mod order;
 mod projection;
 mod seq_scan;
-mod simple_agg;
 
+pub use aggregate::*;
 pub use copy::*;
 pub use create::*;
 pub use delete::*;
 pub use drop::*;
 pub use explain::*;
 pub use filter::*;
-pub use hash_agg::*;
 pub use input_ref_resolver::*;
 pub use insert::*;
 pub use join::*;
@@ -28,7 +27,6 @@ pub use limit::*;
 pub use order::*;
 pub use projection::*;
 pub use seq_scan::*;
-pub use simple_agg::*;
 
 use crate::logical_planner::LogicalPlan;
 
@@ -80,8 +78,7 @@ impl PhysicalPlaner {
             LogicalPlan::Order(plan) => self.plan_order(plan),
             LogicalPlan::Limit(plan) => self.plan_limit(plan),
             LogicalPlan::Explain(plan) => self.plan_explain(plan),
-            LogicalPlan::SimpleAgg(plan) => self.plan_simple_agg(plan),
-            LogicalPlan::HashAgg(plan) => self.plan_hash_agg(plan),
+            LogicalPlan::Aggregate(plan) => self.plan_aggregate(plan),
             LogicalPlan::Delete(plan) => self.plan_delete(plan),
             LogicalPlan::CopyFromFile(plan) => self.plan_copy_from_file(plan),
             LogicalPlan::CopyToFile(plan) => self.plan_copy_to_file(plan),

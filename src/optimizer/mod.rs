@@ -44,8 +44,7 @@ pub trait PlanRewriter {
             LogicalPlan::Order(plan) => self.rewrite_order(plan),
             LogicalPlan::Limit(plan) => self.rewrite_limit(plan),
             LogicalPlan::Explain(plan) => self.rewrite_explain(plan),
-            LogicalPlan::SimpleAgg(plan) => self.rewrite_simple_agg(plan),
-            LogicalPlan::HashAgg(plan) => self.rewrite_hash_agg(plan),
+            LogicalPlan::Aggregate(plan) => self.rewrite_aggregate(plan),
             LogicalPlan::Delete(plan) => self.rewrite_delete(plan),
             LogicalPlan::Values(plan) => self.rewrite_values(plan),
             LogicalPlan::CopyFromFile(plan) => self.rewrite_copy_from_file(plan),
@@ -122,15 +121,8 @@ pub trait PlanRewriter {
         })
     }
 
-    fn rewrite_simple_agg(&mut self, plan: LogicalSimpleAgg) -> LogicalPlan {
-        LogicalPlan::SimpleAgg(LogicalSimpleAgg {
-            agg_calls: plan.agg_calls,
-            child: Box::new(self.rewrite_plan(*plan.child)),
-        })
-    }
-
-    fn rewrite_hash_agg(&mut self, plan: LogicalHashAgg) -> LogicalPlan {
-        LogicalPlan::HashAgg(LogicalHashAgg {
+    fn rewrite_aggregate(&mut self, plan: LogicalAggregate) -> LogicalPlan {
+        LogicalPlan::Aggregate(LogicalAggregate {
             agg_calls: plan.agg_calls,
             group_keys: plan.group_keys,
             child: Box::new(self.rewrite_plan(*plan.child)),
