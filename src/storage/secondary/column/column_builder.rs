@@ -25,7 +25,7 @@ impl ColumnBuilderImpl {
             DataTypeKind::Boolean => {
                 Self::Bool(BoolColumnBuilder::new(datatype.is_nullable(), options))
             }
-            DataTypeKind::Float(_) => {
+            DataTypeKind::Float(_) | DataTypeKind::Double => {
                 Self::Float64(F64ColumnBuilder::new(datatype.is_nullable(), options))
             }
             DataTypeKind::Char(char_width) => Self::UTF8(CharColumnBuilder::new(
@@ -41,7 +41,7 @@ impl ColumnBuilderImpl {
                     options,
                 ))
             }
-            _ => todo!(),
+            other_datatype => todo!("column builder for {:?} is not implemented", other_datatype),
         }
     }
 

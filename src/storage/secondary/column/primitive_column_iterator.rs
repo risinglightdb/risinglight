@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use crate::array::{Array, ArrayBuilder};
 
-use super::super::{Block, BlockIterator, PlainPrimitiveBlockIterator, PrimitiveFixedWidthEncode};
+use super::super::{
+    Block, BlockIterator, PlainPrimitiveBlockIterator, PlainPrimitiveNullableBlockIterator,
+    PrimitiveFixedWidthEncode,
+};
 use super::{Column, ColumnIterator, ColumnSeekPosition};
 
 use async_trait::async_trait;
@@ -12,6 +15,7 @@ use risinglight_proto::rowset::BlockIndex;
 /// All supported block iterators for primitive types.
 pub(super) enum BlockIteratorImpl<T: PrimitiveFixedWidthEncode> {
     Plain(PlainPrimitiveBlockIterator<T>),
+    PlainNullable(PlainPrimitiveNullableBlockIterator<T>),
 }
 
 pub struct PrimitiveColumnIterator<T: PrimitiveFixedWidthEncode> {
@@ -39,6 +43,12 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnIterator<T> {
                 let mut it = PlainPrimitiveBlockIterator::new(block, index.row_count as usize);
                 it.skip(start_pos - index.first_rowid as usize);
                 BlockIteratorImpl::Plain(it)
+            }
+            BlockType::PlainNullable => {
+                let mut it =
+                    PlainPrimitiveNullableBlockIterator::new(block, index.row_count as usize);
+                it.skip(start_pos - index.first_rowid as usize);
+                BlockIteratorImpl::PlainNullable(it)
             }
             _ => todo!(),
         }
@@ -78,6 +88,7 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnIterator<T> {
         } else {
             match &mut self.block_iterator {
                 BlockIteratorImpl::Plain(bi) => bi.remaining_items(),
+                BlockIteratorImpl::PlainNullable(bi) => bi.remaining_items(),
             }
         };
 
@@ -88,6 +99,9 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnIterator<T> {
         loop {
             let cnt = match &mut self.block_iterator {
                 BlockIteratorImpl::Plain(bi) => {
+                    bi.next_batch(expected_size.map(|x| x - total_cnt), &mut builder)
+                }
+                BlockIteratorImpl::PlainNullable(bi) => {
                     bi.next_batch(expected_size.map(|x| x - total_cnt), &mut builder)
                 }
             };
