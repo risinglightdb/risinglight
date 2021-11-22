@@ -9,7 +9,11 @@ use crate::optimizer::PlanRewriter;
 #[derive(Default)]
 pub struct InputRefResolver {
     /// The output columns of the last visited plan.
-    bindings: Vec<ColumnRefId>,
+    ///
+    /// For those plans that don't change columns (e.g. Order, Filter), this variable should
+    /// not be touched. For other plans that change columns (e.g. SeqScan, Join, Projection,
+    /// Aggregate), this variable should be set before the function returns.
+    bindings: Vec<Option<ColumnRefId>>,
 }
 
 impl PlanRewriter for InputRefResolver {
@@ -47,18 +51,26 @@ impl PlanRewriter for InputRefResolver {
         self.bindings = plan
             .column_ids
             .iter()
-            .map(|col_id| ColumnRefId::from_table(plan.table_ref_id, *col_id))
+            .map(|col_id| Some(ColumnRefId::from_table(plan.table_ref_id, *col_id)))
             .collect();
         LogicalPlan::SeqScan(plan)
     }
 
     fn rewrite_projection(&mut self, plan: LogicalProjection) -> LogicalPlan {
         let child = self.rewrite_plan(*plan.child);
+        let mut bindings = vec![];
         let project_expressions = plan
             .project_expressions
             .into_iter()
-            .map(|expr| self.rewrite_expr(expr))
+            .map(|expr| {
+                bindings.push(match &expr.kind {
+                    BoundExprKind::ColumnRef(col) => Some(col.column_ref_id),
+                    _ => None,
+                });
+                self.rewrite_expr(expr)
+            })
             .collect();
+        self.bindings = bindings;
         LogicalPlan::Projection(LogicalProjection {
             project_expressions,
             child: Box::new(child),
@@ -87,10 +99,7 @@ impl PlanRewriter for InputRefResolver {
             .into_iter()
             .map(|expr| {
                 match &expr.kind {
-                    BoundExprKind::ColumnRef(col) => self.bindings.push(col.column_ref_id),
-                    // When hash agg is resolved again, the parent resolver will not use its
-                    // bindings
-                    BoundExprKind::InputRef(_) => {}
+                    BoundExprKind::ColumnRef(col) => self.bindings.push(Some(col.column_ref_id)),
                     _ => panic!("{:?} cannot be a group key", expr.kind),
                 }
                 self.rewrite_expr(expr)
@@ -112,7 +121,7 @@ impl PlanRewriter for InputRefResolver {
                 index: self
                     .bindings
                     .iter()
-                    .position(|col| *col == column_ref.column_ref_id)
+                    .position(|col| *col == Some(column_ref.column_ref_id))
                     .expect("column reference not found"),
             }),
             AggCall(agg) => AggCall(BoundAggCall {
