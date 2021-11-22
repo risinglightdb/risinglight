@@ -1,4 +1,4 @@
-use super::{Array, ArrayBuilder, ArrayValidExt};
+use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt};
 use crate::types::NativeType;
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
@@ -51,6 +51,12 @@ impl<T: NativeType> Array for PrimitiveArray<T> {
 impl<T: NativeType> ArrayValidExt for PrimitiveArray<T> {
     fn get_valid_bitmap(&self) -> &BitVec {
         &self.valid
+    }
+}
+
+impl<T: NativeType> ArrayEstimateExt for PrimitiveArray<T> {
+    fn get_estimated_size(&self) -> usize {
+        self.data.len() * std::mem::size_of::<T>() + self.valid.len() / 8
     }
 }
 

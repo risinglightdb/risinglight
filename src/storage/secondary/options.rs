@@ -21,8 +21,8 @@ impl StorageOptions {
         Self {
             path: PathBuf::new().join("risinglight.secondary.db"),
             cache_size: 1024,
-            target_rowset_size: 1 << 20,       // 1MB
-            target_block_size: 16 * (1 << 10), // 16KB
+            target_rowset_size: 256 * (1 << 20), // 256MB
+            target_block_size: 64 * (1 << 10),   // 64KB
         }
     }
 
