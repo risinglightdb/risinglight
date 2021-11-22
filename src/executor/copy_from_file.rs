@@ -1,4 +1,6 @@
-use indicatif::ProgressBar;
+use indicatif::{ProgressBar, ProgressStyle};
+use itertools::Itertools;
+use tokio::sync::mpsc::UnboundedSender;
 
 use super::*;
 use crate::{array::ArrayBuilderImpl, binder::FileFormat, physical_planner::PhysicalCopyFromFile};
@@ -10,21 +12,39 @@ pub struct CopyFromFileExecutor {
     pub plan: PhysicalCopyFromFile,
 }
 
+/// When the source file size is about the limit, we show a progress bar on the screen.
+const IMPORT_PROGRESS_BAR_LIMIT: u64 = 1024 * 1024;
+
+/// We produce a batch everytime the DataChunk is larger than this size.
+const IMPORT_BATCH_SIZE: u64 = 16 * 1024 * 1024;
+
 impl CopyFromFileExecutor {
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
-            let chunk = tokio::task::spawn_blocking(|| self.read_file_blocking()).await.unwrap()?;
-            yield chunk;
+            let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+            let handle = tokio::task::spawn_blocking(|| self.read_file_blocking(tx));
+            while let Some(chunk) = rx.recv().await {
+                yield chunk;
+            }
+            handle.await.unwrap()?;
         }
     }
 
-    fn read_file_blocking(self) -> Result<DataChunk, ExecutorError> {
-        let mut array_builders = self
-            .plan
-            .column_types
-            .iter()
-            .map(ArrayBuilderImpl::new)
-            .collect::<Vec<ArrayBuilderImpl>>();
+    fn read_file_blocking(self, tx: UnboundedSender<DataChunk>) -> Result<(), ExecutorError> {
+        let create_array_builders = |plan: &PhysicalCopyFromFile| {
+            plan.column_types
+                .iter()
+                .map(ArrayBuilderImpl::new)
+                .collect_vec()
+        };
+        let flush_array = |array_builders: Vec<ArrayBuilderImpl>| -> DataChunk {
+            array_builders
+                .into_iter()
+                .map(|builder| builder.finish())
+                .collect()
+        };
+
+        let mut array_builders = create_array_builders(&self.plan);
 
         let file = File::open(&self.plan.path)?;
         let file_size = file.metadata()?.len();
@@ -43,20 +63,37 @@ impl CopyFromFileExecutor {
                 .from_reader(&mut buf_reader),
         };
 
-        let bar = if file_size < 1024 * 1024 {
+        let bar = if file_size < IMPORT_PROGRESS_BAR_LIMIT {
             // disable progress bar if file size is < 1MB
             ProgressBar::hidden()
         } else {
-            ProgressBar::new(file_size)
+            let bar = ProgressBar::new(file_size);
+            bar.set_style(
+                ProgressStyle::default_bar()
+                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {bytes}/{total_bytes}")
+                    .progress_chars("=>-"),
+            );
+            bar
         };
 
-        let column_count = array_builders.len();
+        let column_count = self.plan.column_types.len();
         let mut iter = reader.records();
         let mut round = 0;
+        let mut last_pos = 0;
         loop {
             round += 1;
             if round % 1000 == 0 {
-                bar.set_position(iter.reader().position().byte());
+                let current_pos = iter.reader().position().byte();
+                bar.set_position(current_pos);
+                // Produce a chunk of 16MB
+                if current_pos - last_pos > IMPORT_BATCH_SIZE {
+                    last_pos = current_pos;
+                    let chunk = flush_array(array_builders);
+                    array_builders = create_array_builders(&self.plan);
+                    if chunk.cardinality() > 0 {
+                        tx.send(chunk).unwrap();
+                    }
+                }
             }
             if let Some(record) = iter.next() {
                 let record = record?;
@@ -84,11 +121,11 @@ impl CopyFromFileExecutor {
         }
         bar.finish();
 
-        let chunk = array_builders
-            .into_iter()
-            .map(|builder| builder.finish())
-            .collect();
-        Ok(chunk)
+        let chunk = flush_array(array_builders);
+        if chunk.cardinality() > 0 {
+            tx.send(chunk).unwrap();
+        }
+        Ok(())
     }
 }
 

@@ -13,8 +13,8 @@ pub use self::iterator::ArrayIter;
 pub use self::primitive_array::*;
 pub use self::utf8_array::*;
 
-mod valid_ext;
-pub use valid_ext::*;
+mod internal_ext;
+pub use internal_ext::*;
 
 mod shuffle_ext;
 pub use shuffle_ext::*;

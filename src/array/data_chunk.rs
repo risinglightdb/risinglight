@@ -78,6 +78,11 @@ impl DataChunk {
         let arrays = self.arrays.iter().map(|a| a.slice(range.clone())).collect();
         DataChunk { arrays }
     }
+
+    /// Get the estimated in-memory size of this DataChunk
+    pub fn estimated_size(&self) -> usize {
+        self.arrays.iter().map(|a| a.get_estimated_size()).sum()
+    }
 }
 
 pub type DataChunkRef = Arc<DataChunk>;
