@@ -10,8 +10,6 @@ use crate::optimizer::PlanRewriter;
 pub struct InputRefResolver {
     /// The output columns of the last visited plan.
     bindings: Vec<ColumnRefId>,
-    /// Aggregations collected from expressions.
-    agg_calls: Vec<BoundAggCall>,
 }
 
 impl PlanRewriter for InputRefResolver {
@@ -55,25 +53,12 @@ impl PlanRewriter for InputRefResolver {
     }
 
     fn rewrite_projection(&mut self, plan: LogicalProjection) -> LogicalPlan {
-        let mut child = self.rewrite_plan(*plan.child);
-
-        self.agg_calls.clear();
+        let child = self.rewrite_plan(*plan.child);
         let project_expressions = plan
             .project_expressions
             .into_iter()
             .map(|expr| self.rewrite_expr(expr))
             .collect();
-
-        // Push agg calls into the agg plan
-        if !self.agg_calls.is_empty() {
-            match &mut child {
-                LogicalPlan::Aggregate(agg) => agg.agg_calls.append(&mut self.agg_calls),
-                _ => panic!("Logical plan for aggregation is not found"),
-            }
-            // Re-resolve agg calls here as the arguments in agg calls should be resolved by
-            // the bindings from the child plan of the agg plan
-            child = self.rewrite_plan(child);
-        }
         LogicalPlan::Projection(LogicalProjection {
             project_expressions,
             child: Box::new(child),
@@ -97,9 +82,6 @@ impl PlanRewriter for InputRefResolver {
             })
             .collect();
 
-        // Only return the bindings of group keys and let projection resolver decide the agg
-        // call bindings
-        self.bindings.clear();
         let group_keys = plan
             .group_keys
             .into_iter()
@@ -127,22 +109,21 @@ impl PlanRewriter for InputRefResolver {
         use BoundExprKind::*;
         let new_kind = match expr.kind {
             ColumnRef(column_ref) => InputRef(BoundInputRef {
-                index: {
-                    let index = self
-                        .bindings
-                        .iter()
-                        .position(|col| *col == column_ref.column_ref_id)
-                        .expect("column reference not found");
-                    index
-                },
+                index: self
+                    .bindings
+                    .iter()
+                    .position(|col| *col == column_ref.column_ref_id)
+                    .expect("column reference not found"),
             }),
-            AggCall(agg) => {
-                // Current agg call is appended at the rightmost of the output chunk. `bindings`
-                // here is the index for group keys for further column binding resolving.
-                let index = self.bindings.len() + self.agg_calls.len();
-                self.agg_calls.push(agg);
-                InputRef(BoundInputRef { index })
-            }
+            AggCall(agg) => AggCall(BoundAggCall {
+                kind: agg.kind,
+                args: agg
+                    .args
+                    .into_iter()
+                    .map(|expr| self.rewrite_expr(expr))
+                    .collect(),
+                return_type: agg.return_type,
+            }),
             // rewrite sub-expressions
             BinaryOp(binary_op) => BinaryOp(BoundBinaryOp {
                 left_expr: Box::new(self.rewrite_expr(*binary_op.left_expr)),

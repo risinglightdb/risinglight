@@ -13,7 +13,6 @@ pub struct BoundSelect {
     pub orderby: Vec<BoundOrderBy>,
     pub limit: Option<BoundExpr>,
     pub offset: Option<BoundExpr>,
-    pub has_agg: bool,
     // pub return_names: Vec<String>,
 }
 
@@ -103,11 +102,8 @@ impl Binder {
         for expr in group_by.iter_mut() {
             self.bind_column_idx_for_expr(&mut expr.kind);
         }
-
-        let mut has_agg = false;
         for expr in select_list.iter_mut() {
             self.bind_column_idx_for_expr(&mut expr.kind);
-            has_agg |= self.find_agg_in_expr(&expr.kind);
         }
         if let Some(expr) = &mut where_clause {
             self.bind_column_idx_for_expr(&mut expr.kind);
@@ -128,7 +124,6 @@ impl Binder {
             orderby,
             limit,
             offset,
-            has_agg,
         }))
     }
 
@@ -199,21 +194,6 @@ impl Binder {
                 }
             }
             _ => {}
-        }
-    }
-
-    fn find_agg_in_expr(&self, expr_kind: &BoundExprKind) -> bool {
-        match expr_kind {
-            BoundExprKind::AggCall(_) => true,
-            BoundExprKind::ColumnRef(_) => false,
-            BoundExprKind::Constant(_) => false,
-            BoundExprKind::BinaryOp(bin_op) => {
-                self.find_agg_in_expr(&bin_op.left_expr.kind)
-                    || self.find_agg_in_expr(&bin_op.right_expr.kind)
-            }
-            BoundExprKind::UnaryOp(unary_op) => self.find_agg_in_expr(&unary_op.expr.kind),
-            BoundExprKind::TypeCast(type_cast) => self.find_agg_in_expr(&type_cast.expr.kind),
-            BoundExprKind::InputRef(_) => panic!("InputRef should not exist in binder"),
         }
     }
 }
