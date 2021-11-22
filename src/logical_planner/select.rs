@@ -35,18 +35,11 @@ impl LogicalPlaner {
 
         // Agg calls will be filled in later by input ref resolver
         if stmt.has_agg {
-            if stmt.group_by.is_empty() {
-                plan = LogicalPlan::SimpleAgg(LogicalSimpleAgg {
-                    agg_calls: vec![],
-                    child: Box::new(plan),
-                })
-            } else {
-                plan = LogicalPlan::HashAgg(LogicalHashAgg {
-                    agg_calls: vec![],
-                    group_keys: stmt.group_by,
-                    child: Box::new(plan),
-                })
-            }
+            plan = LogicalPlan::Aggregate(LogicalAggregate {
+                agg_calls: vec![],
+                group_keys: stmt.group_by,
+                child: Box::new(plan),
+            })
         }
 
         // TODO: support the following clauses

@@ -1,12 +1,12 @@
 use crate::{binder::BoundStatement, types::ConvertError};
 
+mod aggregate;
 mod copy;
 mod create;
 mod delete;
 mod drop;
 mod explain;
 mod filter;
-mod hash_agg;
 mod insert;
 mod join;
 mod limit;
@@ -14,22 +14,20 @@ mod order;
 mod projection;
 mod select;
 mod seq_scan;
-mod simple_agg;
 
+pub use aggregate::*;
 pub use copy::*;
 pub use create::*;
 pub use delete::*;
 pub use drop::*;
 pub use explain::*;
 pub use filter::*;
-pub use hash_agg::*;
 pub use insert::*;
 pub use join::*;
 pub use limit::*;
 pub use order::*;
 pub use projection::*;
 pub use seq_scan::*;
-pub use simple_agg::*;
 
 /// The error type of logical planner.
 #[derive(thiserror::Error, Debug, PartialEq)]
@@ -54,8 +52,7 @@ pub enum LogicalPlan {
     Filter(LogicalFilter),
     Explain(LogicalExplain),
     Join(LogicalJoin),
-    SimpleAgg(LogicalSimpleAgg),
-    HashAgg(LogicalHashAgg),
+    Aggregate(LogicalAggregate),
     Order(LogicalOrder),
     Limit(LogicalLimit),
     Delete(LogicalDelete),

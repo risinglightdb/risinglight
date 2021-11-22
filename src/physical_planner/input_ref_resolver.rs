@@ -1,14 +1,9 @@
-use super::*;
 use crate::binder::{
     BoundAggCall, BoundBinaryOp, BoundExpr, BoundExprKind, BoundInputRef, BoundJoinConstraint,
     BoundJoinOperator, BoundOrderBy, BoundTypeCast, BoundUnaryOp,
 };
 use crate::catalog::ColumnRefId;
-use crate::logical_planner::{
-    LogicalCopyFromFile, LogicalCopyToFile, LogicalCreateTable, LogicalDelete, LogicalDrop,
-    LogicalExplain, LogicalFilter, LogicalHashAgg, LogicalInsert, LogicalJoin, LogicalJoinTable,
-    LogicalLimit, LogicalOrder, LogicalProjection, LogicalSeqScan, LogicalSimpleAgg, LogicalValues,
-};
+use crate::logical_planner::*;
 use itertools::Itertools;
 
 /// Transform expr referring to input chunk into `BoundInputRef`
@@ -116,8 +111,7 @@ impl InputRefResolver {
             LogicalPlan::Limit(plan) => self.resolve_limit(plan),
             LogicalPlan::Explain(plan) => self.resolve_explain(plan),
             LogicalPlan::Delete(plan) => self.resolve_delete(plan),
-            LogicalPlan::SimpleAgg(plan) => self.resolve_simple_agg(plan),
-            LogicalPlan::HashAgg(plan) => self.resolve_hash_agg(plan),
+            LogicalPlan::Aggregate(plan) => self.resolve_aggregate(plan),
             LogicalPlan::Values(plan) => self.resolve_values(plan),
             LogicalPlan::CopyFromFile(plan) => self.resolve_copy_from_file(plan),
             LogicalPlan::CopyToFile(plan) => self.resolve_copy_to_file(plan),
@@ -180,12 +174,7 @@ impl InputRefResolver {
         let bindings = plan
             .column_ids
             .iter()
-            .map(|col_id| ColumnRefId {
-                database_id: plan.table_ref_id.database_id,
-                schema_id: plan.table_ref_id.schema_id,
-                table_id: plan.table_ref_id.table_id,
-                column_id: *col_id,
-            })
+            .map(|col_id| ColumnRefId::from_table(plan.table_ref_id, *col_id))
             .collect();
         (LogicalPlan::SeqScan(plan), bindings)
     }
@@ -202,20 +191,8 @@ impl InputRefResolver {
 
         // Push agg calls into the agg plan
         if !agg_calls.is_empty() {
-            match child_plan {
-                LogicalPlan::HashAgg(hash_agg) => {
-                    child_plan = LogicalPlan::HashAgg(LogicalHashAgg {
-                        agg_calls,
-                        group_keys: hash_agg.group_keys,
-                        child: hash_agg.child,
-                    })
-                }
-                LogicalPlan::SimpleAgg(simple_agg) => {
-                    child_plan = LogicalPlan::SimpleAgg(LogicalSimpleAgg {
-                        agg_calls,
-                        child: simple_agg.child,
-                    })
-                }
+            match &mut child_plan {
+                LogicalPlan::Aggregate(agg) => agg.agg_calls = agg_calls,
                 _ => panic!("Logical plan for aggregation is not found"),
             }
             // Re-resolve agg calls here as the arguments in agg calls should be resolved by
@@ -239,19 +216,7 @@ impl InputRefResolver {
         }
     }
 
-    fn resolve_simple_agg(&mut self, plan: LogicalSimpleAgg) -> (LogicalPlan, Vec<ColumnRefId>) {
-        let (child_plan, bindings) = self.resolve_plan_inner(*plan.child);
-        (
-            LogicalPlan::SimpleAgg(LogicalSimpleAgg {
-                agg_calls: transform_agg_args(plan.agg_calls, &bindings),
-                child: Box::new(child_plan),
-            }),
-            // Let projection resolver decide the agg call bindings
-            vec![],
-        )
-    }
-
-    fn resolve_hash_agg(&mut self, plan: LogicalHashAgg) -> (LogicalPlan, Vec<ColumnRefId>) {
+    fn resolve_aggregate(&mut self, plan: LogicalAggregate) -> (LogicalPlan, Vec<ColumnRefId>) {
         let (child_plan, bindings) = self.resolve_plan_inner(*plan.child);
         let agg_calls = transform_agg_args(plan.agg_calls, &bindings);
         let mut bindings = vec![];
@@ -272,7 +237,7 @@ impl InputRefResolver {
             .collect_vec();
 
         (
-            LogicalPlan::HashAgg(LogicalHashAgg {
+            LogicalPlan::Aggregate(LogicalAggregate {
                 agg_calls,
                 group_keys,
                 child: Box::new(child_plan),
