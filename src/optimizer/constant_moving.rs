@@ -8,7 +8,7 @@ use crate::binder::BoundExprKind;
 /// side. NOTICE: we don't process division as it is complicated.
 /// x / 2 == 2 means x = 4 or x = 5 !!!
 /// For example,
-/// `select  a from t where 100 + a > 300;`
+/// `select a from t where 100 + a > 300;`
 /// The rule will convert it into
 /// `select a from t where a > 200;`
 impl PlanRewriter for ConstantMovingRule {
