@@ -102,7 +102,7 @@ impl Binder {
         }
     }
 
-    fn record_regular_table_column(
+    pub fn record_regular_table_column(
         &mut self,
         table_name: &str,
         col_name: &str,

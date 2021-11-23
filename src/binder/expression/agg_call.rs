@@ -1,5 +1,3 @@
-use itertools::Itertools;
-use sqlparser::test_utils::{table, table_alias};
 use super::*;
 use crate::binder::{BindError, Binder, BoundExpr};
 use crate::parser::{BinaryOperator, FunctionArg};
@@ -46,7 +44,7 @@ impl Binder {
                     if !matches!(arg, Expr::Wildcard) {
                         args.push(self.bind_expr(arg)?)
                     }
-                },
+                }
             }
         }
         let (kind, return_type) = match func.name.to_string().to_lowercase().as_str() {
@@ -54,26 +52,17 @@ impl Binder {
                 AggKind::Avg,
                 Some(DataType::new(DataTypeKind::Double, false)),
             ),
-            "count" => (
-
-                if args.len() == 0 {
+            "count" => {
+                if args.is_empty() {
                     for ref_id in self.context.regular_tables.values() {
                         let table = self.catalog.get_table(ref_id).unwrap();
                         if let Some(col) = table.get_column_by_id(0) {
                             let column_ref_id = ColumnRefId::from_table(*ref_id, col.id());
-                            // println!("column id is: {}", column_ref_id.column_id);
-                            Self::record_regular_table_column(
-                                &mut self.context.column_names,
-                                &mut self.context.column_ids,
-                                &table.name().clone(),
-                                &col.name().clone(),
-                                col.id(),
-                            );
+                            self.record_regular_table_column(&table.name(), col.name(), col.id());
                             let expr = BoundExpr {
                                 kind: BoundExprKind::ColumnRef(BoundColumnRef {
-                                    table_name: table.name().clone(),
+                                    table_name: table.name(),
                                     column_ref_id,
-                                    column_index: u32::MAX,
                                     is_primary_key: col.is_primary(),
                                     desc: col.desc().clone(),
                                 }),
@@ -83,11 +72,17 @@ impl Binder {
                             break;
                         }
                     }
-                    (AggKind::RowCount, Some(DataType::new(DataTypeKind::Int(None), false)))
+                    (
+                        AggKind::RowCount,
+                        Some(DataType::new(DataTypeKind::Int(None), false)),
+                    )
                 } else {
-                    (AggKind::Count, Some(DataType::new(DataTypeKind::Int(None), false)))
+                    (
+                        AggKind::Count,
+                        Some(DataType::new(DataTypeKind::Int(None), false)),
+                    )
                 }
-            ),
+            }
             "max" => (AggKind::Max, args[0].return_type.clone()),
             "min" => (AggKind::Min, args[0].return_type.clone()),
             "sum" => (AggKind::Sum, args[0].return_type.clone()),
