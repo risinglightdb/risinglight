@@ -77,7 +77,6 @@ pub struct Binder {
     context: BinderContext,
     upper_contexts: Vec<BinderContext>,
     base_table_refs: Vec<String>,
-    column_sum_count: Vec<usize>,
 }
 
 impl Binder {
@@ -88,7 +87,6 @@ impl Binder {
             upper_contexts: Vec::new(),
             context: BinderContext::default(),
             base_table_refs: Vec::new(),
-            column_sum_count: vec![0],
         }
     }
 
