@@ -6,14 +6,14 @@ use super::BlockBuilder;
 /// Encodes fixed-width data into a block, with null element support.
 ///
 /// The layout is fixed-width data and a u8 bitmap, concatenated together.
-pub struct PlainNullablePrimitiveBlockBuilder<T: PrimitiveFixedWidthEncode> {
+pub struct PlainPrimitiveNullableBlockBuilder<T: PrimitiveFixedWidthEncode> {
     data: Vec<u8>,
     bitmap: Vec<bool>,
     target_size: usize,
     _phantom: PhantomData<T>,
 }
 
-impl<T: PrimitiveFixedWidthEncode> PlainNullablePrimitiveBlockBuilder<T> {
+impl<T: PrimitiveFixedWidthEncode> PlainPrimitiveNullableBlockBuilder<T> {
     pub fn new(target_size: usize) -> Self {
         let data = Vec::with_capacity(target_size);
         let bitmap = Vec::with_capacity(target_size);
@@ -27,7 +27,7 @@ impl<T: PrimitiveFixedWidthEncode> PlainNullablePrimitiveBlockBuilder<T> {
 }
 
 impl<T: PrimitiveFixedWidthEncode> BlockBuilder<T::ArrayType>
-    for PlainNullablePrimitiveBlockBuilder<T>
+    for PlainPrimitiveNullableBlockBuilder<T>
 {
     fn append(&mut self, item: Option<&T>) {
         if let Some(item) = item {

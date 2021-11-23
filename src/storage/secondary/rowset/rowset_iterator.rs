@@ -11,6 +11,9 @@ use super::super::{
 };
 use super::DiskRowset;
 
+/// When `expected_size` is not specified, we should limit the maximum size of the chunk.
+const ROWSET_MAX_OUTPUT: usize = 65536;
+
 /// Iterates on a `RowSet`
 pub struct RowSetIterator {
     rowset: Arc<DiskRowset>,
@@ -100,7 +103,7 @@ impl RowSetIterator {
                     }
                 }
             }
-            min.unwrap_or(65536)
+            min.unwrap_or(ROWSET_MAX_OUTPUT)
         };
 
         let mut arrays: PackedVec<Option<ArrayImpl>> = smallvec![];

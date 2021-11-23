@@ -6,7 +6,6 @@ use crate::parser::{Query, SelectItem, SetExpr};
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundSelect {
     pub select_list: Vec<BoundExpr>,
-    pub aggregates: Vec<BoundAggCall>,
     pub from_table: Vec<BoundTableRef>,
     pub where_clause: Option<BoundExpr>,
     pub select_distinct: bool,
@@ -14,6 +13,7 @@ pub struct BoundSelect {
     pub orderby: Vec<BoundOrderBy>,
     pub limit: Option<BoundExpr>,
     pub offset: Option<BoundExpr>,
+    pub has_agg: bool,
     // pub return_names: Vec<String>,
 }
 
@@ -67,28 +67,18 @@ impl Binder {
 
         // Bind the select list.
         let mut select_list = vec![];
-        let mut aggregates = vec![];
         // let mut return_names = vec![];
         for item in select.projection.iter() {
             match item {
                 SelectItem::UnnamedExpr(expr) => {
                     let expr = self.bind_expr(expr)?;
-                    if let BoundExprKind::AggCall(agg_call) = expr.kind {
-                        aggregates.push(agg_call);
-                    } else {
-                        select_list.push(expr);
-                    }
+                    select_list.push(expr);
                 }
                 SelectItem::ExprWithAlias { expr, .. } => {
                     let expr = self.bind_expr(expr)?;
-                    if let BoundExprKind::AggCall(agg_call) = expr.kind {
-                        aggregates.push(agg_call);
-                    } else {
-                        select_list.push(expr);
-                    }
+                    select_list.push(expr);
                 }
                 SelectItem::Wildcard => {
-                    // TODO: support wildcard in aggregation
                     select_list.extend_from_slice(self.bind_all_column_refs()?.as_slice())
                 }
                 _ => todo!("bind select list"),
@@ -110,18 +100,14 @@ impl Binder {
                 .push(idxs.len() + self.column_sum_count[self.column_sum_count.len() - 1]);
         }
 
-        for agg_call in aggregates.iter_mut() {
-            for expr in agg_call.args.iter_mut() {
-                self.bind_column_idx_for_expr(&mut expr.kind);
-            }
-        }
-
         for expr in group_by.iter_mut() {
             self.bind_column_idx_for_expr(&mut expr.kind);
         }
 
+        let mut has_agg = false;
         for expr in select_list.iter_mut() {
             self.bind_column_idx_for_expr(&mut expr.kind);
+            has_agg |= self.find_agg_in_expr(&expr.kind);
         }
         if let Some(expr) = &mut where_clause {
             self.bind_column_idx_for_expr(&mut expr.kind);
@@ -135,7 +121,6 @@ impl Binder {
 
         Ok(Box::new(BoundSelect {
             select_list,
-            aggregates,
             from_table,
             where_clause,
             select_distinct: select.distinct,
@@ -143,6 +128,7 @@ impl Binder {
             orderby,
             limit,
             offset,
+            has_agg,
         }))
     }
 
@@ -207,7 +193,27 @@ impl Binder {
             BoundExprKind::UnaryOp(unary_op) => {
                 self.bind_column_idx_for_expr(&mut unary_op.expr.kind);
             }
+            BoundExprKind::AggCall(agg_call) => {
+                for expr in agg_call.args.iter_mut() {
+                    self.bind_column_idx_for_expr(&mut expr.kind);
+                }
+            }
             _ => {}
+        }
+    }
+
+    fn find_agg_in_expr(&self, expr_kind: &BoundExprKind) -> bool {
+        match expr_kind {
+            BoundExprKind::AggCall(_) => true,
+            BoundExprKind::ColumnRef(_) => false,
+            BoundExprKind::Constant(_) => false,
+            BoundExprKind::BinaryOp(bin_op) => {
+                self.find_agg_in_expr(&bin_op.left_expr.kind)
+                    || self.find_agg_in_expr(&bin_op.right_expr.kind)
+            }
+            BoundExprKind::UnaryOp(unary_op) => self.find_agg_in_expr(&unary_op.expr.kind),
+            BoundExprKind::TypeCast(type_cast) => self.find_agg_in_expr(&type_cast.expr.kind),
+            BoundExprKind::InputRef(_) => panic!("InputRef should not exist in binder"),
         }
     }
 }

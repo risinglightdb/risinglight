@@ -1,6 +1,8 @@
+use itertools::Itertools;
 use sqlparser::ast::DataType;
 
 use super::*;
+use crate::catalog::{ColumnCatalog, TableCatalog};
 use crate::parser::{SetExpr, Statement};
 use crate::types::ColumnId;
 
@@ -21,39 +23,16 @@ impl Binder {
                 source,
                 ..
             } => {
-                let (database_name, schema_name, table_name) = split_name(table_name)?;
-                let table = self
-                    .catalog
-                    .get_database_by_name(database_name)
-                    .ok_or_else(|| BindError::InvalidDatabase(database_name.into()))?
-                    .get_schema_by_name(schema_name)
-                    .ok_or_else(|| BindError::InvalidSchema(schema_name.into()))?
-                    .get_table_by_name(table_name)
-                    .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
+                let (table_ref_id, table, columns) =
+                    self.bind_table_columns(table_name, columns)?;
+                let column_ids = columns.iter().map(|col| col.id()).collect_vec();
+                let column_types = columns.iter().map(|col| col.datatype()).collect_vec();
 
-                let table_ref_id = self
-                    .catalog
-                    .get_table_id_by_name(database_name, schema_name, &table.name())
-                    .unwrap();
-
-                let mut column_ids = vec![];
-                let mut column_types = vec![];
-                if columns.is_empty() {
-                    // If the query does not provide column information, get all columns info.
-                    let columns = table.all_columns();
-                    for (id, col) in columns.iter() {
-                        column_ids.push(*id);
-                        column_types.push(col.datatype().clone());
-                    }
-                } else {
-                    // Otherwise, we get columns info from the query.
-                    for col in columns.iter() {
-                        let col = table
-                            .get_column_by_name(&col.value)
-                            .ok_or_else(|| BindError::InvalidColumn(col.value.clone()))?;
-
-                        column_ids.push(col.id());
-                        column_types.push(col.datatype().clone());
+                // Check columns after transforming.
+                let col_set: HashSet<ColumnId> = column_ids.iter().cloned().collect();
+                for (id, col) in table.all_columns() {
+                    if !col_set.contains(&id) && !col.is_nullable() {
+                        return Err(BindError::NotNullableColumn(col.name().into()));
                     }
                 }
 
@@ -113,18 +92,6 @@ impl Binder {
                     bound_values.push(bound_row);
                 }
 
-                // Check columns after transforming.
-                let mut col_set: HashSet<ColumnId> = HashSet::new();
-                for &id in column_ids.iter() {
-                    assert!(col_set.insert(id));
-                }
-
-                for (id, col) in table.all_columns().iter() {
-                    if !col_set.contains(id) && !col.is_nullable() {
-                        return Err(BindError::NotNullableColumn(col.name().into()));
-                    }
-                }
-
                 Ok(BoundInsert {
                     table_ref_id,
                     column_ids,
@@ -133,6 +100,44 @@ impl Binder {
             }
             _ => panic!("mismatched statement type"),
         }
+    }
+
+    /// Bind `table_name [ (column_name [, ...] ) ]`
+    pub(super) fn bind_table_columns(
+        &mut self,
+        table_name: &ObjectName,
+        columns: &[Ident],
+    ) -> Result<(TableRefId, Arc<TableCatalog>, Vec<ColumnCatalog>), BindError> {
+        let (database_name, schema_name, table_name) = split_name(table_name)?;
+        let table = self
+            .catalog
+            .get_database_by_name(database_name)
+            .ok_or_else(|| BindError::InvalidDatabase(database_name.into()))?
+            .get_schema_by_name(schema_name)
+            .ok_or_else(|| BindError::InvalidSchema(schema_name.into()))?
+            .get_table_by_name(table_name)
+            .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
+
+        let table_ref_id = self
+            .catalog
+            .get_table_id_by_name(database_name, schema_name, &table.name())
+            .unwrap();
+
+        let columns = if columns.is_empty() {
+            // If the query does not provide column information, get all columns info.
+            table.all_columns().values().cloned().collect_vec()
+        } else {
+            // Otherwise, we get columns info from the query.
+            let mut column_catalogs = vec![];
+            for col in columns.iter() {
+                let col = table
+                    .get_column_by_name(&col.value)
+                    .ok_or_else(|| BindError::InvalidColumn(col.value.clone()))?;
+                column_catalogs.push(col);
+            }
+            column_catalogs
+        };
+        Ok((table_ref_id, table, columns))
     }
 }
 
@@ -155,8 +160,16 @@ mod tests {
             .add_table(
                 "t".into(),
                 vec![
-                    ColumnCatalog::new(0, "a".into(), DataTypeKind::Int.not_null().to_column()),
-                    ColumnCatalog::new(1, "b".into(), DataTypeKind::Int.not_null().to_column()),
+                    ColumnCatalog::new(
+                        0,
+                        "a".into(),
+                        DataTypeKind::Int(None).not_null().to_column(),
+                    ),
+                    ColumnCatalog::new(
+                        1,
+                        "b".into(),
+                        DataTypeKind::Int(None).not_null().to_column(),
+                    ),
                 ],
                 false,
             )

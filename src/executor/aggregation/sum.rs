@@ -37,7 +37,7 @@ impl AggregationState for SumAggregationState {
     fn update(&mut self, array: &ArrayImpl) -> Result<(), ExecutorError> {
         // TODO: refactor into macros
         match (array, &self.input_datatype) {
-            (ArrayImpl::Int32(arr), DataTypeKind::Int) => {
+            (ArrayImpl::Int32(arr), DataTypeKind::Int(_)) => {
                 #[cfg(feature = "simd")]
                 {
                     let bitmap = arr.get_valid_bitmap();
@@ -90,7 +90,7 @@ impl AggregationState for SumAggregationState {
 
     fn update_single(&mut self, value: &DataValue) -> Result<(), ExecutorError> {
         match (value, &self.input_datatype) {
-            (DataValue::Int32(val), DataTypeKind::Int) => {
+            (DataValue::Int32(val), DataTypeKind::Int(_)) => {
                 self.result = match self.result {
                     DataValue::Null => DataValue::Int32(*val),
                     DataValue::Int32(res) => DataValue::Int32(res + val),
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_sum() {
-        let mut state = SumAggregationState::new(DataTypeKind::Int);
+        let mut state = SumAggregationState::new(DataTypeKind::Int(None));
         let array = ArrayImpl::Int32((1..5).collect());
         state.update(&array).unwrap();
         assert_eq!(state.output(), DataValue::Int32(10));

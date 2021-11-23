@@ -1,36 +1,54 @@
-// TODO(wrj): remove this once linked to plan
-#![allow(dead_code)]
+use indicatif::{ProgressBar, ProgressStyle};
+use itertools::Itertools;
+use tokio::sync::mpsc::UnboundedSender;
 
 use super::*;
-use crate::{
-    array::ArrayBuilderImpl,
-    physical_planner::{FileFormat, PhysicalCopyFromFile},
-};
+use crate::{array::ArrayBuilderImpl, binder::FileFormat, physical_planner::PhysicalCopyFromFile};
 use std::fs::File;
+use std::io::BufReader;
 
 /// The executor of loading file data.
 pub struct CopyFromFileExecutor {
-    plan: PhysicalCopyFromFile,
+    pub plan: PhysicalCopyFromFile,
 }
+
+/// When the source file size is about the limit, we show a progress bar on the screen.
+const IMPORT_PROGRESS_BAR_LIMIT: u64 = 1024 * 1024;
+
+/// We produce a batch everytime the DataChunk is larger than this size.
+const IMPORT_BATCH_SIZE: u64 = 16 * 1024 * 1024;
 
 impl CopyFromFileExecutor {
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
-            let chunk = tokio::task::spawn_blocking(|| self.read_file_blocking()).await.unwrap()?;
-            yield chunk;
+            let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+            let handle = tokio::task::spawn_blocking(|| self.read_file_blocking(tx));
+            while let Some(chunk) = rx.recv().await {
+                yield chunk;
+            }
+            handle.await.unwrap()?;
         }
     }
 
-    // TODO(wrj): process a window at a time
-    fn read_file_blocking(self) -> Result<DataChunk, ExecutorError> {
-        let mut array_builders = self
-            .plan
-            .column_types
-            .iter()
-            .map(ArrayBuilderImpl::new)
-            .collect::<Vec<ArrayBuilderImpl>>();
+    fn read_file_blocking(self, tx: UnboundedSender<DataChunk>) -> Result<(), ExecutorError> {
+        let create_array_builders = |plan: &PhysicalCopyFromFile| {
+            plan.column_types
+                .iter()
+                .map(ArrayBuilderImpl::new)
+                .collect_vec()
+        };
+        let flush_array = |array_builders: Vec<ArrayBuilderImpl>| -> DataChunk {
+            array_builders
+                .into_iter()
+                .map(|builder| builder.finish())
+                .collect()
+        };
+
+        let mut array_builders = create_array_builders(&self.plan);
 
         let file = File::open(&self.plan.path)?;
+        let file_size = file.metadata()?.len();
+        let mut buf_reader = BufReader::new(file);
         let mut reader = match self.plan.format {
             FileFormat::Csv {
                 delimiter,
@@ -38,37 +56,76 @@ impl CopyFromFileExecutor {
                 escape,
                 header,
             } => csv::ReaderBuilder::new()
-                .delimiter(delimiter)
-                .quote(quote)
-                .escape(escape)
+                .delimiter(delimiter as u8)
+                .quote(quote as u8)
+                .escape(escape.map(|c| c as u8))
                 .has_headers(header)
-                .from_reader(file),
+                .from_reader(&mut buf_reader),
         };
 
-        for result in reader.records() {
-            let record = result?;
-            if record.len() != array_builders.len() {
-                return Err(ExecutorError::LengthMismatch {
-                    expected: array_builders.len(),
-                    actual: record.len(),
-                });
-            }
-            for ((s, builder), ty) in record
-                .iter()
-                .zip(&mut array_builders)
-                .zip(&self.plan.column_types)
-            {
-                if !ty.is_nullable() && s.is_empty() {
-                    return Err(ExecutorError::NotNullable);
+        let bar = if file_size < IMPORT_PROGRESS_BAR_LIMIT {
+            // disable progress bar if file size is < 1MB
+            ProgressBar::hidden()
+        } else {
+            let bar = ProgressBar::new(file_size);
+            bar.set_style(
+                ProgressStyle::default_bar()
+                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {bytes}/{total_bytes}")
+                    .progress_chars("=>-"),
+            );
+            bar
+        };
+
+        let column_count = self.plan.column_types.len();
+        let mut iter = reader.records();
+        let mut round = 0;
+        let mut last_pos = 0;
+        loop {
+            round += 1;
+            if round % 1000 == 0 {
+                let current_pos = iter.reader().position().byte();
+                bar.set_position(current_pos);
+                // Produce a chunk of 16MB
+                if current_pos - last_pos > IMPORT_BATCH_SIZE {
+                    last_pos = current_pos;
+                    let chunk = flush_array(array_builders);
+                    array_builders = create_array_builders(&self.plan);
+                    if chunk.cardinality() > 0 {
+                        tx.send(chunk).unwrap();
+                    }
                 }
-                builder.push_str(s)?;
+            }
+            if let Some(record) = iter.next() {
+                let record = record?;
+                if !(record.len() == column_count
+                    || record.len() == column_count + 1 && record.get(column_count) == Some(""))
+                {
+                    return Err(ExecutorError::LengthMismatch {
+                        expected: column_count,
+                        actual: record.len(),
+                    });
+                }
+                for ((s, builder), ty) in record
+                    .iter()
+                    .zip(&mut array_builders)
+                    .zip(&self.plan.column_types)
+                {
+                    if !ty.is_nullable() && s.is_empty() {
+                        return Err(ExecutorError::NotNullable);
+                    }
+                    builder.push_str(s)?;
+                }
+            } else {
+                break;
             }
         }
-        let chunk = array_builders
-            .into_iter()
-            .map(|builder| builder.finish())
-            .collect();
-        Ok(chunk)
+        bar.finish();
+
+        let chunk = flush_array(array_builders);
+        if chunk.cardinality() > 0 {
+            tx.send(chunk).unwrap();
+        }
+        Ok(())
     }
 }
 
@@ -92,13 +149,13 @@ mod tests {
             plan: PhysicalCopyFromFile {
                 path: file.path().into(),
                 format: FileFormat::Csv {
-                    delimiter: b',',
-                    quote: b'"',
+                    delimiter: ',',
+                    quote: '"',
                     escape: None,
                     header: false,
                 },
                 column_types: vec![
-                    DataTypeKind::Int.not_null(),
+                    DataTypeKind::Int(None).not_null(),
                     DataTypeKind::Double.not_null(),
                     DataTypeKind::String.not_null(),
                 ],

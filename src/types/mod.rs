@@ -106,8 +106,8 @@ impl DataValue {
     pub fn data_type(&self) -> Option<DataType> {
         match self {
             Self::Bool(_) => Some(DataTypeKind::Boolean.not_null()),
-            Self::Int32(_) => Some(DataTypeKind::Int.not_null()),
-            Self::Int64(_) => Some(DataTypeKind::BigInt.not_null()),
+            Self::Int32(_) => Some(DataTypeKind::Int(None).not_null()),
+            Self::Int64(_) => Some(DataTypeKind::BigInt(None).not_null()),
             Self::Float64(_) => Some(DataTypeKind::Double.not_null()),
             Self::String(_) => Some(DataTypeKind::Varchar(Some(VARCHAR_DEFAULT_LEN)).not_null()),
             Self::Null => None,
@@ -148,3 +148,6 @@ pub enum ConvertError {
     #[error("failed to cast {0} to type {1}")]
     Cast(String, &'static str),
 }
+
+/// memory table row type
+pub(crate) type Row = Vec<DataValue>;

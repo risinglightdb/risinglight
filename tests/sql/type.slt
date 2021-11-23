@@ -8,11 +8,11 @@ INSERT INTO test1 VALUES (TRUE)
 statement ok
 INSERT INTO test1 VALUES (false)
 
-query B
-select * from test1
+query B rowsort
+select * from test1 order by a
 ----
-true
 false
+true
 
 statement ok
 drop table test1

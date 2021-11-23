@@ -21,6 +21,7 @@ pub enum BoundStatement {
     CreateTable(BoundCreateTable),
     Drop(BoundDrop),
     Insert(BoundInsert),
+    Copy(BoundCopy),
     Select(Box<BoundSelect>),
     Explain(Box<BoundStatement>),
     Delete(Box<BoundDelete>),
@@ -110,6 +111,7 @@ impl Binder {
             Statement::Drop { .. } => Ok(BoundStatement::Drop(self.bind_drop(stmt)?)),
             Statement::Insert { .. } => Ok(BoundStatement::Insert(self.bind_insert(stmt)?)),
             Statement::Delete { .. } => Ok(BoundStatement::Delete(self.bind_delete(stmt)?)),
+            Statement::Copy { .. } => Ok(BoundStatement::Copy(self.bind_copy(stmt)?)),
             Statement::Query(query) => Ok(BoundStatement::Select(self.bind_select(&*query)?)),
             Statement::Explain { statement, .. } => {
                 Ok(BoundStatement::Explain(Box::new(self.bind(&*statement)?)))

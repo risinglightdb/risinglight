@@ -39,8 +39,8 @@ mod simple_agg;
 mod values;
 
 pub use self::aggregation::*;
-// use self::copy_from_file::*;
-// use self::copy_to_file::*;
+use self::copy_from_file::*;
+use self::copy_to_file::*;
 use self::create::*;
 use self::delete::*;
 use self::drop::*;
@@ -177,6 +177,14 @@ impl ExecutorBuilder {
                 storage: storage.clone(),
                 child: self.build_with_storage(*plan.filter, storage),
                 table_ref_id: plan.table_ref_id,
+            }
+            .execute()
+            .boxed(),
+            PhysicalPlan::CopyFromFile(plan) => CopyFromFileExecutor { plan }.execute().boxed(),
+            PhysicalPlan::CopyToFile(plan) => CopyToFileExecutor {
+                path: plan.path,
+                format: plan.format,
+                child: self.build_with_storage(*plan.child, storage),
             }
             .execute()
             .boxed(),

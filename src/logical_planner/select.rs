@@ -33,6 +33,15 @@ impl LogicalPlaner {
             });
         }
 
+        // Agg calls will be filled in later by input ref resolver
+        if stmt.has_agg {
+            plan = LogicalPlan::Aggregate(LogicalAggregate {
+                agg_calls: vec![],
+                group_keys: stmt.group_by,
+                child: Box::new(plan),
+            })
+        }
+
         // TODO: support the following clauses
         assert!(!stmt.select_distinct, "TODO: plan distinct");
 
@@ -68,21 +77,6 @@ impl LogicalPlaner {
                 limit,
                 child: Box::new(plan),
             });
-        }
-
-        if !stmt.aggregates.is_empty() {
-            plan = if stmt.group_by.is_empty() {
-                LogicalPlan::SimpleAgg(LogicalSimpleAgg {
-                    agg_calls: stmt.aggregates,
-                    child: Box::new(plan),
-                })
-            } else {
-                LogicalPlan::HashAgg(LogicalHashAgg {
-                    agg_calls: stmt.aggregates,
-                    group_keys: stmt.group_by,
-                    child: Box::new(plan),
-                })
-            };
         }
 
         if plan == LogicalPlan::Dummy {

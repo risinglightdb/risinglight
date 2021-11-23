@@ -132,7 +132,7 @@ mod tests {
             vec![ColumnCatalog::new(
                 0,
                 "v1".to_string(),
-                DataTypeKind::Int.nullable().to_column(),
+                DataTypeKind::Int(None).nullable().to_column(),
             )]
             .into(),
             tempdir.path(),

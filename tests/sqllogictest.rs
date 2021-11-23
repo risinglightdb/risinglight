@@ -2,10 +2,12 @@
 //!
 //! [Sqllogictest]: https://www.sqlite.org/sqllogictest/doc/trunk/about.wiki
 
+use itertools::Itertools;
 use log::*;
+use risinglight::types::DataValue;
 use risinglight::{array::*, storage::SecondaryStorageOptions, Database};
 use std::path::Path;
-use tempfile::tempdir;
+use tempfile::{tempdir, TempDir};
 use test_case::test_case;
 
 #[test_case("basic_test.slt")]
@@ -14,13 +16,14 @@ use test_case::test_case;
 #[test_case("filter.slt")]
 #[test_case("order_by.slt")]
 #[test_case("create.test")]
-#[test_case("insert.test")]
+// #[test_case("insert.test")]
 #[test_case("select.test")]
 #[test_case("join.slt")]
 #[test_case("limit.slt")]
 #[test_case("type.slt")]
 #[test_case("aggregation.slt")]
 #[test_case("delete.slt")]
+#[test_case("copy/csv.slt")]
 // #[test_case("where.slt")]
 // #[test_case("select.slt")]
 // #[test_case("issue_347.slt")]
@@ -36,17 +39,18 @@ fn sqllogictest(name: &str) {
 
 #[test_case("basic_test.slt")]
 #[test_case("operator.slt")]
-// #[test_case("nullable_and_or_eval.slt")]
-// #[test_case("filter.slt")]
-// #[test_case("order_by.slt")]
+#[test_case("nullable_and_or_eval.slt")]
+#[test_case("filter.slt")]
+#[test_case("order_by.slt")]
 #[test_case("create.test")]
 // #[test_case("insert.test")]
-// #[test_case("select.test")]
-// #[test_case("join.slt")]
+#[test_case("select.test")]
+#[test_case("join.slt")]
 #[test_case("limit.slt")]
-// #[test_case("type.slt")]
-// #[test_case("aggregation.slt")]
+#[test_case("type.slt")]
+#[test_case("aggregation.slt")]
 // #[test_case("delete.slt")]
+// #[test_case("copy/csv.slt")]
 // #[test_case("where.slt")]
 // #[test_case("select.slt")]
 // #[test_case("issue_347.slt")]
@@ -277,17 +281,76 @@ impl From<ColumnValues> for ArrayImpl {
 
 struct SqlLogicTester {
     db: Database,
+    testdir: TempDir,
+}
+
+fn consolidate_datachunk(chunks: Vec<DataChunk>) -> DataChunk {
+    let mut builders = chunks[0]
+        .arrays()
+        .iter()
+        .map(ArrayBuilderImpl::from_type_of_array)
+        .collect_vec();
+    for chunk in chunks {
+        for (a, b) in chunk.arrays().iter().zip(builders.iter_mut()) {
+            b.append(a);
+        }
+    }
+    builders.into_iter().map(|b| b.finish()).collect()
+}
+
+#[derive(PartialEq, Eq)]
+struct CmpDataValue(DataValue);
+
+impl PartialOrd for CmpDataValue {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
+
+impl Ord for CmpDataValue {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
+fn sort_datachunk(chunk: DataChunk) -> DataChunk {
+    let mut rows = vec![];
+    for idx in 0..chunk.cardinality() {
+        rows.push(
+            chunk
+                .get_row_by_idx(idx)
+                .into_iter()
+                .map(CmpDataValue)
+                .collect_vec(),
+        );
+    }
+    rows.sort();
+    let mut builders = chunk
+        .arrays()
+        .iter()
+        .map(ArrayBuilderImpl::from_type_of_array)
+        .collect_vec();
+    for row in rows {
+        for (d, b) in row.iter().zip(builders.iter_mut()) {
+            b.push(&d.0);
+        }
+    }
+    builders.into_iter().map(|b| b.finish()).collect()
 }
 
 impl SqlLogicTester {
     pub fn new(db: Database) -> Self {
-        SqlLogicTester { db }
+        SqlLogicTester {
+            db,
+            testdir: tempdir().unwrap(),
+        }
     }
 
     pub async fn test(&mut self, record: Record) {
         info!("test: {:?}", record);
         match record {
             Record::Statement { error, sql, .. } => {
+                let sql = self.replace_keywords(sql);
                 let ret = self.db.run(&sql).await;
                 match ret {
                     Ok(_) if error => panic!(
@@ -301,21 +364,28 @@ impl SqlLogicTester {
             Record::Query {
                 sql,
                 expected_results,
+                sort_mode,
                 ..
             } => {
+                let sql = self.replace_keywords(sql);
                 let output = self.db.run(&sql).await.expect("query failed");
                 let expected: DataChunk =
                     expected_results.into_iter().map(ArrayImpl::from).collect();
                 if output.is_empty() && expected.cardinality() == 0 {
                     return;
                 }
-                let actual = output
-                    .get(0)
-                    .expect("expect result from query, but no output");
-                if *actual != expected {
+                let (output, expected) = match sort_mode {
+                    SortMode::NoSort => (consolidate_datachunk(output), expected),
+                    SortMode::RowSort => (
+                        sort_datachunk(consolidate_datachunk(output)),
+                        sort_datachunk(expected),
+                    ),
+                    SortMode::ValueSort => todo!(),
+                };
+                if output != expected {
                     panic!(
                         "query result mismatch:\nSQL:\n{}\n\nExpected:\n{}\nActual:\n{}",
-                        sql, expected, actual
+                        sql, expected, output
                     );
                 }
             }
@@ -330,5 +400,9 @@ impl SqlLogicTester {
             }
             self.test(record).await;
         }
+    }
+
+    fn replace_keywords(&self, sql: String) -> String {
+        sql.replace("__TEST_DIR__", self.testdir.path().to_str().unwrap())
     }
 }

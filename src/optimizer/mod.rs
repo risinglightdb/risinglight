@@ -3,11 +3,12 @@ use crate::{binder::BoundExpr, logical_planner::*};
 mod arith_expr_simplification;
 mod bool_expr_simplification;
 mod constant_folding;
+mod constant_moving;
 
 use arith_expr_simplification::*;
 use bool_expr_simplification::*;
 use constant_folding::*;
-
+use constant_moving::*;
 /// The optimizer will do query optimization.
 ///
 /// It will do both rule-based optimization (predicate pushdown, constant folding and common
@@ -22,7 +23,8 @@ impl Optimizer {
         // TODO: add optimization rules
         let mut plan = ConstantFolding.rewrite_plan(plan);
         plan = ArithExprSimplification.rewrite_plan(plan);
-        BoolExprSimplification.rewrite_plan(plan)
+        plan = BoolExprSimplification.rewrite_plan(plan);
+        ConstantMovingRule.rewrite_plan(plan)
     }
 }
 
@@ -42,9 +44,11 @@ pub trait PlanRewriter {
             LogicalPlan::Order(plan) => self.rewrite_order(plan),
             LogicalPlan::Limit(plan) => self.rewrite_limit(plan),
             LogicalPlan::Explain(plan) => self.rewrite_explain(plan),
-            LogicalPlan::SimpleAgg(plan) => self.rewrite_simple_agg(plan),
-            LogicalPlan::HashAgg(plan) => self.rewrite_hash_agg(plan),
+            LogicalPlan::Aggregate(plan) => self.rewrite_aggregate(plan),
             LogicalPlan::Delete(plan) => self.rewrite_delete(plan),
+            LogicalPlan::Values(plan) => self.rewrite_values(plan),
+            LogicalPlan::CopyFromFile(plan) => self.rewrite_copy_from_file(plan),
+            LogicalPlan::CopyToFile(plan) => self.rewrite_copy_to_file(plan),
         }
     }
 
@@ -117,15 +121,8 @@ pub trait PlanRewriter {
         })
     }
 
-    fn rewrite_simple_agg(&mut self, plan: LogicalSimpleAgg) -> LogicalPlan {
-        LogicalPlan::SimpleAgg(LogicalSimpleAgg {
-            agg_calls: plan.agg_calls,
-            child: Box::new(self.rewrite_plan(*plan.child)),
-        })
-    }
-
-    fn rewrite_hash_agg(&mut self, plan: LogicalHashAgg) -> LogicalPlan {
-        LogicalPlan::HashAgg(LogicalHashAgg {
+    fn rewrite_aggregate(&mut self, plan: LogicalAggregate) -> LogicalPlan {
+        LogicalPlan::Aggregate(LogicalAggregate {
             agg_calls: plan.agg_calls,
             group_keys: plan.group_keys,
             child: Box::new(self.rewrite_plan(*plan.child)),
@@ -134,6 +131,18 @@ pub trait PlanRewriter {
 
     fn rewrite_delete(&mut self, plan: LogicalDelete) -> LogicalPlan {
         LogicalPlan::Delete(plan)
+    }
+
+    fn rewrite_values(&mut self, plan: LogicalValues) -> LogicalPlan {
+        LogicalPlan::Values(plan)
+    }
+
+    fn rewrite_copy_from_file(&mut self, plan: LogicalCopyFromFile) -> LogicalPlan {
+        LogicalPlan::CopyFromFile(plan)
+    }
+
+    fn rewrite_copy_to_file(&mut self, plan: LogicalCopyToFile) -> LogicalPlan {
+        LogicalPlan::CopyToFile(plan)
     }
 
     fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {

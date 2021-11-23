@@ -18,15 +18,18 @@ pub enum ColumnIteratorImpl {
 impl ColumnIteratorImpl {
     pub async fn new(column: Column, column_info: &ColumnCatalog, start_pos: u32) -> Self {
         match column_info.datatype().kind() {
-            DataTypeKind::Int => Self::Int32(I32ColumnIterator::new(column, start_pos).await),
+            DataTypeKind::Int(_) => Self::Int32(I32ColumnIterator::new(column, start_pos).await),
             DataTypeKind::Boolean => Self::Bool(BoolColumnIterator::new(column, start_pos).await),
-            DataTypeKind::Float(_) => {
+            DataTypeKind::Float(_) | DataTypeKind::Double => {
                 Self::Float64(F64ColumnIterator::new(column, start_pos).await)
             }
             DataTypeKind::Char(width) => Self::Char(
                 CharColumnIterator::new(column, start_pos, width.map(|x| x as usize)).await,
             ),
-            _ => todo!(),
+            other_datatype => todo!(
+                "column iterator for {:?} is not implemented",
+                other_datatype
+            ),
         }
     }
 

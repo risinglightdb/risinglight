@@ -52,9 +52,9 @@ impl BoundExpr {
     /// Evaluate the given expression as an array.
     pub fn eval_array(&self, chunk: &DataChunk) -> Result<ArrayImpl, ConvertError> {
         match &self.kind {
-            BoundExprKind::ColumnRef(col_ref) => {
+            BoundExprKind::InputRef(input_ref) => {
                 let mut builder = ArrayBuilderImpl::new(self.return_type.as_ref().unwrap());
-                builder.append(chunk.array_at(col_ref.column_index as usize));
+                builder.append(chunk.array_at(input_ref.index));
                 Ok(builder.finish())
             }
             BoundExprKind::BinaryOp(binary_op) => {
@@ -81,9 +81,7 @@ impl BoundExpr {
                 }
                 array.try_cast(cast.ty.clone())
             }
-            BoundExprKind::AggCall(_) => {
-                panic!("AggCall should not be evaluated")
-            }
+            _ => panic!("{:?} should not be evaluated in `eval_array`", self.kind),
         }
     }
 }
@@ -184,7 +182,7 @@ impl ArrayImpl {
         Ok(match self {
             Self::Bool(a) => match data_type {
                 Type::Boolean => Self::Bool(a.clone()),
-                Type::Int => Self::Int32(unary_op(a, |&b| b as i32)),
+                Type::Int(_) => Self::Int32(unary_op(a, |&b| b as i32)),
                 Type::Float(_) | Type::Double => Self::Float64(unary_op(a, |&b| b as u8 as f64)),
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::UTF8(unary_op(a, |&b| if b { "true" } else { "false" }))
@@ -193,7 +191,7 @@ impl ArrayImpl {
             },
             Self::Int32(a) => match data_type {
                 Type::Boolean => Self::Bool(unary_op(a, |&i| i != 0)),
-                Type::Int => Self::Int32(a.clone()),
+                Type::Int(_) => Self::Int32(a.clone()),
                 Type::Float(_) | Type::Double => Self::Float64(unary_op(a, |&i| i as f64)),
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::UTF8(unary_op(a, |&i| i.to_string()))
@@ -202,7 +200,7 @@ impl ArrayImpl {
             },
             Self::Int64(a) => match data_type {
                 Type::Boolean => Self::Bool(unary_op(a, |&i| i != 0)),
-                Type::Int => Self::Int64(a.clone()),
+                Type::Int(_) => Self::Int64(a.clone()),
                 Type::Float(_) | Type::Double => Self::Float64(unary_op(a, |&i| i as f64)),
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::UTF8(unary_op(a, |&i| i.to_string()))
@@ -211,7 +209,7 @@ impl ArrayImpl {
             },
             Self::Float64(a) => match data_type {
                 Type::Boolean => Self::Bool(unary_op(a, |&f| f != 0.0)),
-                Type::Int => Self::Int32(unary_op(a, |&f| f as i32)),
+                Type::Int(_) => Self::Int32(unary_op(a, |&f| f as i32)),
                 Type::Float(_) | Type::Double => Self::Float64(a.clone()),
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::UTF8(unary_op(a, |&f| f.to_string()))
@@ -223,7 +221,7 @@ impl ArrayImpl {
                     s.parse::<bool>()
                         .map_err(|e| ConvertError::ParseBool(s.to_string(), e))
                 })?),
-                Type::Int => Self::Int32(try_unary_op(a, |s| {
+                Type::Int(_) => Self::Int32(try_unary_op(a, |s| {
                     s.parse::<i32>()
                         .map_err(|e| ConvertError::ParseInt(s.to_string(), e))
                 })?),

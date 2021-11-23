@@ -113,7 +113,11 @@ impl ColumnBuilder<UTF8Array> for CharColumnBuilder {
                             PlainVarcharBlockBuilder::new(self.options.target_block_size - 16),
                         ));
                     }
-                    _ => unimplemented!(),
+                    (char_width, nullable) => unimplemented!(
+                        "width {:?} with nullable {} not implemented",
+                        char_width,
+                        nullable
+                    ),
                 }
             }
 

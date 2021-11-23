@@ -19,13 +19,13 @@ pub enum ColumnBuilderImpl {
 impl ColumnBuilderImpl {
     pub fn new_from_datatype(datatype: &DataType, options: ColumnBuilderOptions) -> Self {
         match datatype.kind() {
-            DataTypeKind::Int => {
+            DataTypeKind::Int(_) => {
                 Self::Int32(I32ColumnBuilder::new(datatype.is_nullable(), options))
             }
             DataTypeKind::Boolean => {
                 Self::Bool(BoolColumnBuilder::new(datatype.is_nullable(), options))
             }
-            DataTypeKind::Float(_) => {
+            DataTypeKind::Float(_) | DataTypeKind::Double => {
                 Self::Float64(F64ColumnBuilder::new(datatype.is_nullable(), options))
             }
             DataTypeKind::Char(char_width) => Self::UTF8(CharColumnBuilder::new(
@@ -41,7 +41,7 @@ impl ColumnBuilderImpl {
                     options,
                 ))
             }
-            _ => todo!(),
+            other_datatype => todo!("column builder for {:?} is not implemented", other_datatype),
         }
     }
 

@@ -8,7 +8,7 @@ use crate::array::Array;
 use crate::storage::secondary::block::BlockBuilder;
 
 use super::super::{
-    PlainNullablePrimitiveBlockBuilder, PlainPrimitiveBlockBuilder, PrimitiveFixedWidthEncode,
+    PlainPrimitiveBlockBuilder, PlainPrimitiveNullableBlockBuilder, PrimitiveFixedWidthEncode,
 };
 use super::ColumnBuilder;
 use crate::storage::secondary::{BlockHeader, ColumnBuilderOptions, BLOCK_HEADER_SIZE};
@@ -16,7 +16,7 @@ use crate::storage::secondary::{BlockHeader, ColumnBuilderOptions, BLOCK_HEADER_
 /// All supported block builders for primitive types.
 pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
     Plain(PlainPrimitiveBlockBuilder<T>),
-    PlainNullable(PlainNullablePrimitiveBlockBuilder<T>),
+    PlainNullable(PlainPrimitiveNullableBlockBuilder<T>),
 }
 
 pub type I32ColumnBuilder = PrimitiveColumnBuilder<i32>;
@@ -134,7 +134,7 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
             if self.current_builder.is_none() {
                 if self.nullable {
                     self.current_builder = Some(BlockBuilderImpl::PlainNullable(
-                        PlainNullablePrimitiveBlockBuilder::new(
+                        PlainPrimitiveNullableBlockBuilder::new(
                             self.options.target_block_size - 16,
                         ),
                     ));

@@ -1,34 +1,32 @@
-mod copy_from_file;
-mod copy_to_file;
+mod aggregate;
+mod copy;
 mod create;
 mod delete;
 mod drop;
 mod explain;
 mod filter;
-mod hash_agg;
+mod input_ref_resolver;
 mod insert;
 mod join;
 mod limit;
 mod order;
 mod projection;
 mod seq_scan;
-mod simple_agg;
 
-pub use copy_from_file::*;
-pub use copy_to_file::*;
+pub use aggregate::*;
+pub use copy::*;
 pub use create::*;
 pub use delete::*;
 pub use drop::*;
 pub use explain::*;
 pub use filter::*;
-pub use hash_agg::*;
+pub use input_ref_resolver::*;
 pub use insert::*;
 pub use join::*;
 pub use limit::*;
 pub use order::*;
 pub use projection::*;
 pub use seq_scan::*;
-pub use simple_agg::*;
 
 use crate::logical_planner::LogicalPlan;
 
@@ -58,18 +56,21 @@ pub enum PhysicalPlan {
     Order(PhysicalOrder),
     Limit(PhysicalLimit),
     Delete(PhysicalDelete),
+    CopyFromFile(PhysicalCopyFromFile),
+    CopyToFile(PhysicalCopyToFile),
 }
 
 #[derive(Default)]
 pub struct PhysicalPlaner;
 
 impl PhysicalPlaner {
-    pub fn plan(&self, plan: LogicalPlan) -> Result<PhysicalPlan, PhysicalPlanError> {
+    fn plan_inner(&self, plan: LogicalPlan) -> Result<PhysicalPlan, PhysicalPlanError> {
         match plan {
             LogicalPlan::Dummy => Ok(PhysicalPlan::Dummy(Dummy)),
             LogicalPlan::CreateTable(plan) => self.plan_create_table(plan),
             LogicalPlan::Drop(plan) => self.plan_drop(plan),
             LogicalPlan::Insert(plan) => self.plan_insert(plan),
+            LogicalPlan::Values(plan) => self.plan_values(plan),
             LogicalPlan::Join(plan) => self.plan_join(plan),
             LogicalPlan::SeqScan(plan) => self.plan_seq_scan(plan),
             LogicalPlan::Projection(plan) => self.plan_projection(plan),
@@ -77,10 +78,20 @@ impl PhysicalPlaner {
             LogicalPlan::Order(plan) => self.plan_order(plan),
             LogicalPlan::Limit(plan) => self.plan_limit(plan),
             LogicalPlan::Explain(plan) => self.plan_explain(plan),
-            LogicalPlan::SimpleAgg(plan) => self.plan_simple_agg(plan),
-            LogicalPlan::HashAgg(plan) => self.plan_hash_agg(plan),
+            LogicalPlan::Aggregate(plan) => self.plan_aggregate(plan),
             LogicalPlan::Delete(plan) => self.plan_delete(plan),
+            LogicalPlan::CopyFromFile(plan) => self.plan_copy_from_file(plan),
+            LogicalPlan::CopyToFile(plan) => self.plan_copy_to_file(plan),
         }
+    }
+
+    pub fn plan(&self, plan: LogicalPlan) -> Result<PhysicalPlan, PhysicalPlanError> {
+        // Resolve input reference
+        let mut resolver = InputRefResolver {};
+        let plan = resolver.resolve_plan(plan);
+
+        // Create physical plan
+        self.plan_inner(plan)
     }
 }
 
@@ -117,6 +128,8 @@ impl PhysicalPlan {
             Self::SimpleAgg(p) => p.explain(level, f),
             Self::HashAgg(p) => p.explain(level, f),
             Self::Delete(p) => p.explain(level, f),
+            Self::CopyFromFile(p) => p.explain(level, f),
+            Self::CopyToFile(p) => p.explain(level, f),
         }
     }
 }

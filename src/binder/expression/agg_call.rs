@@ -50,7 +50,7 @@ impl Binder {
             ),
             "count" => (
                 AggKind::RowCount,
-                Some(DataType::new(DataTypeKind::Int, false)),
+                Some(DataType::new(DataTypeKind::Int(None), false)),
             ),
             "max" => (AggKind::Max, args[0].return_type.clone()),
             "min" => (AggKind::Min, args[0].return_type.clone()),
@@ -75,9 +75,9 @@ impl Binder {
                         kind: BoundExprKind::AggCall(BoundAggCall {
                             kind: AggKind::RowCount,
                             args,
-                            return_type: DataType::new(DataTypeKind::Int, false),
+                            return_type: DataType::new(DataTypeKind::Int(None), false),
                         }),
-                        return_type: Some(DataType::new(DataTypeKind::Int, false)),
+                        return_type: Some(DataType::new(DataTypeKind::Int(None), false)),
                     }),
                 }),
                 return_type,

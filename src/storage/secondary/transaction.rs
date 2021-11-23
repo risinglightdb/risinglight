@@ -4,7 +4,7 @@ use std::sync::Arc;
 use super::version_manager::{Snapshot, VersionManager};
 use super::{
     AddDVEntry, AddRowSetEntry, ColumnBuilderOptions, ColumnSeekPosition, ConcatIterator,
-    DeleteVector, DiskRowset, EpochOp, MergeIterator, RowSetIterator, SecondaryMemRowset,
+    DeleteVector, DiskRowset, EpochOp, MergeIterator, RowSetIterator, SecondaryMemRowsetImpl,
     SecondaryRowHandler, SecondaryTable, SecondaryTableTxnIterator, TransactionLock,
 };
 use crate::array::DataChunk;
@@ -25,7 +25,7 @@ pub struct SecondaryTransaction {
     finished: bool,
 
     /// Includes all to-be-committed data.
-    mem: Option<SecondaryMemRowset>,
+    mem: Option<SecondaryMemRowsetImpl>,
 
     /// Includes all to-be-deleted rows
     delete_buffer: Vec<SecondaryRowHandler>,
@@ -42,14 +42,17 @@ pub struct SecondaryTransaction {
     /// Epoch of the snapshot
     epoch: u64,
 
-    /// Rowset Id
-    rowset_id: u32,
-
-    /// Count of updated rows in this txn. If there is no insertion or updates,
-    /// RowSet won't be created on disk.
-    row_cnt: usize,
+    /// The rowsets produced in the txn.
+    to_be_committed_rowsets: Vec<DiskRowset>,
 
     delete_lock: Option<TransactionLock>,
+
+    read_only: bool,
+
+    /// Total size of written data in the current txn
+    ///
+    /// TODO: we only calculate batch insert here. Need to estimate delete vector size.
+    total_size: usize,
 }
 
 impl SecondaryTransaction {
@@ -57,65 +60,62 @@ impl SecondaryTransaction {
     /// of a table.
     pub(super) async fn start(
         table: &SecondaryTable,
-        readonly: bool,
+        read_only: bool,
         update: bool,
     ) -> StorageResult<Self> {
         // pin a snapshot at version manager
         let (epoch, snapshot) = table.version.pin();
 
-        // create memtable only if txn is not read only
-        let mem = if readonly {
-            None
-        } else {
-            Some(SecondaryMemRowset::new(table.columns.clone()))
-        };
-
         Ok(Self {
             finished: false,
-            mem,
+            mem: None,
             delete_buffer: vec![],
             table: table.clone(),
             version: table.version.clone(),
             epoch,
             snapshot,
-            rowset_id: table.generate_rowset_id(),
-            row_cnt: 0,
             delete_lock: if update {
                 Some(table.lock_for_deletion().await)
             } else {
                 None
             },
+            to_be_committed_rowsets: vec![],
+            read_only,
+            total_size: 0,
         })
     }
 
-    async fn commit_inner(mut self) -> StorageResult<()> {
-        let rowsets = if self.row_cnt > 0 {
-            let directory = self.table.get_rowset_path(self.rowset_id);
+    async fn flush_rowset(&mut self) -> StorageResult<()> {
+        let rowset_id = self.table.generate_rowset_id();
+        let directory = self.table.get_rowset_path(rowset_id);
 
-            tokio::fs::create_dir(&directory).await.unwrap();
+        tokio::fs::create_dir(&directory).await.unwrap();
 
-            // flush data to disk
-            self.mem
-                .take()
-                .unwrap()
-                .flush(
-                    &directory,
-                    ColumnBuilderOptions::from_storage_options(&*self.table.storage_options),
-                )
-                .await?;
-
-            let on_disk = DiskRowset::open(
-                directory,
-                self.table.columns.clone(),
-                self.table.block_cache.clone(),
-                self.rowset_id,
+        // flush data to disk
+        self.mem
+            .take()
+            .unwrap()
+            .flush(
+                &directory,
+                ColumnBuilderOptions::from_storage_options(&*self.table.storage_options),
             )
             .await?;
 
-            vec![on_disk]
-        } else {
-            vec![]
-        };
+        let on_disk = DiskRowset::open(
+            directory,
+            self.table.columns.clone(),
+            self.table.block_cache.clone(),
+            rowset_id,
+        )
+        .await?;
+
+        self.to_be_committed_rowsets.push(on_disk);
+
+        Ok(())
+    }
+
+    async fn commit_inner(mut self) -> StorageResult<()> {
+        self.flush_rowset().await?;
 
         // flush deletes to disk
         let mut delete_split_map = HashMap::new();
@@ -127,6 +127,8 @@ impl SecondaryTransaction {
                     row_id: delete.row_id(),
                 });
         }
+
+        let rowsets = std::mem::take(&mut self.to_be_committed_rowsets);
 
         let mut dvs = vec![];
         for (rowset_id, deletes) in delete_split_map {
@@ -282,6 +284,26 @@ impl SecondaryTransaction {
 
         agg.into_iter().map(|agg| agg.get_output()).collect_vec()
     }
+
+    pub async fn append_inner(&mut self, columns: DataChunk) -> StorageResult<()> {
+        if self.read_only {
+            panic!("Txn is read-only but append is called");
+        }
+        if self.mem.is_none() {
+            self.mem = Some(SecondaryMemRowsetImpl::new(self.table.columns.clone()));
+        }
+        let mem = self.mem.as_mut().unwrap();
+        self.total_size += columns.estimated_size();
+        mem.append(columns).await?;
+        if self.total_size >= self.table.storage_options.target_rowset_size {
+            if self.total_size >= self.table.storage_options.target_rowset_size * 2 {
+                warn!("DataChunk is too big, target_row_size exceed 2x limit.")
+            }
+            self.total_size = 0;
+            self.flush_rowset().await?;
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -303,8 +325,7 @@ impl Transaction for SecondaryTransaction {
     }
 
     async fn append(&mut self, columns: DataChunk) -> StorageResult<()> {
-        self.row_cnt += columns.cardinality();
-        self.mem.as_mut().unwrap().append(columns).await
+        self.append_inner(columns).await
     }
 
     async fn delete(&mut self, id: &Self::RowHandlerType) -> StorageResult<()> {

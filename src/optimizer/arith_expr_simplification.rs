@@ -46,8 +46,8 @@ impl PlanRewriter for ArithExprSimplification {
             },
             TypeCast(op) => match (&op.ty, &op.expr.kind) {
                 (Ty::Boolean, k @ Constant(Bool(_))) => k.clone(),
-                (Ty::Int, k @ Constant(Int32(_))) => k.clone(),
-                (Ty::BigInt, k @ Constant(Int64(_))) => k.clone(),
+                (Ty::Int(_), k @ Constant(Int32(_))) => k.clone(),
+                (Ty::BigInt(_), k @ Constant(Int64(_))) => k.clone(),
                 (Ty::Double, k @ Constant(Float64(_))) => k.clone(),
                 (Ty::String, k @ Constant(String(_))) => k.clone(),
                 _ => expr.kind.clone(),
