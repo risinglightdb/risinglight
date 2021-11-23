@@ -1,4 +1,4 @@
-use super::{Array, ArrayBuilder, ArrayValidExt};
+use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt};
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
@@ -32,6 +32,12 @@ impl Array for UTF8Array {
 impl ArrayValidExt for UTF8Array {
     fn get_valid_bitmap(&self) -> &BitVec {
         &self.valid
+    }
+}
+
+impl ArrayEstimateExt for UTF8Array {
+    fn get_estimated_size(&self) -> usize {
+        self.data.len() + self.offset.len() + self.valid.len() / 8
     }
 }
 

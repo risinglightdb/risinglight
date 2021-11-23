@@ -1,5 +1,5 @@
 use super::*;
-use crate::binder::{BoundExprKind, BoundJoinOperator, BoundTableRef};
+use crate::binder::BoundTableRef;
 use crate::parser::{Query, SelectItem, SetExpr};
 
 /// A bound `select` statement.
@@ -13,7 +13,6 @@ pub struct BoundSelect {
     pub orderby: Vec<BoundOrderBy>,
     pub limit: Option<BoundExpr>,
     pub offset: Option<BoundExpr>,
-    pub has_agg: bool,
     // pub return_names: Vec<String>,
 }
 
@@ -41,7 +40,7 @@ impl Binder {
             let table_ref = self.bind_table_with_joins(table_with_join)?;
             from_table.push(table_ref);
         }
-        let mut where_clause = match &select.selection {
+        let where_clause = match &select.selection {
             Some(expr) => Some(self.bind_expr(expr)?),
             None => None,
         };
@@ -85,38 +84,9 @@ impl Binder {
             };
             // return_names.push(expr.get_name());
         }
-        // TODO: move the column index binding into physical planner
         // Add referred columns for base table reference
         for table_ref in from_table.iter_mut() {
             self.bind_column_ids(table_ref);
-        }
-
-        // Do it again, we need column index!
-        self.column_sum_count = vec![0];
-
-        for base_table_name in self.base_table_refs.iter() {
-            let idxs = self.context.column_ids.get_mut(base_table_name).unwrap();
-            self.column_sum_count
-                .push(idxs.len() + self.column_sum_count[self.column_sum_count.len() - 1]);
-        }
-
-        for expr in group_by.iter_mut() {
-            self.bind_column_idx_for_expr(&mut expr.kind);
-        }
-
-        let mut has_agg = false;
-        for expr in select_list.iter_mut() {
-            self.bind_column_idx_for_expr(&mut expr.kind);
-            has_agg |= self.find_agg_in_expr(&expr.kind);
-        }
-        if let Some(expr) = &mut where_clause {
-            self.bind_column_idx_for_expr(&mut expr.kind);
-        }
-        for orderby in orderby.iter_mut() {
-            self.bind_column_idx_for_expr(&mut orderby.expr.kind);
-        }
-        for table_ref in from_table.iter_mut() {
-            self.bind_column_idx_for_table(table_ref);
         }
 
         Ok(Box::new(BoundSelect {
@@ -128,16 +98,15 @@ impl Binder {
             orderby,
             limit,
             offset,
-            has_agg,
         }))
     }
 
-    pub(super) fn bind_column_ids(&mut self, table_ref: &mut BoundTableRef) {
+    pub fn bind_column_ids(&self, table_ref: &mut BoundTableRef) {
         match table_ref {
             BoundTableRef::BaseTableRef {
-                ref_id: _,
                 table_name,
                 column_ids,
+                ..
             } => {
                 *column_ids = self.context.column_ids.get(table_name).unwrap().clone();
             }
@@ -150,70 +119,6 @@ impl Binder {
                     self.bind_column_ids(&mut table.table_ref);
                 }
             }
-        }
-    }
-
-    pub(super) fn bind_column_idx_for_table(&mut self, table_ref: &mut BoundTableRef) {
-        if let BoundTableRef::JoinTableRef {
-            relation: _,
-            join_tables,
-        } = table_ref
-        {
-            for table in join_tables.iter_mut() {
-                match &mut table.join_op {
-                    BoundJoinOperator::Inner(constraint) => match constraint {
-                        BoundJoinConstraint::On(expr) => {
-                            self.bind_column_idx_for_expr(&mut expr.kind);
-                        }
-                    },
-                }
-            }
-        }
-    }
-
-    pub(super) fn bind_column_idx_for_expr(&mut self, expr_kind: &mut BoundExprKind) {
-        match expr_kind {
-            BoundExprKind::ColumnRef(col_ref) => {
-                let table_idx = self
-                    .base_table_refs
-                    .iter()
-                    .position(|r| r.eq(&col_ref.table_name))
-                    .unwrap();
-                let column_ids = self.context.column_ids.get(&col_ref.table_name).unwrap();
-                let idx = column_ids
-                    .iter()
-                    .position(|idx| *idx == col_ref.column_ref_id.column_id)
-                    .unwrap();
-                col_ref.column_index = (self.column_sum_count[table_idx] + idx) as u32;
-            }
-            BoundExprKind::BinaryOp(bin_op) => {
-                self.bind_column_idx_for_expr(&mut bin_op.left_expr.kind);
-                self.bind_column_idx_for_expr(&mut bin_op.right_expr.kind);
-            }
-            BoundExprKind::UnaryOp(unary_op) => {
-                self.bind_column_idx_for_expr(&mut unary_op.expr.kind);
-            }
-            BoundExprKind::AggCall(agg_call) => {
-                for expr in agg_call.args.iter_mut() {
-                    self.bind_column_idx_for_expr(&mut expr.kind);
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn find_agg_in_expr(&self, expr_kind: &BoundExprKind) -> bool {
-        match expr_kind {
-            BoundExprKind::AggCall(_) => true,
-            BoundExprKind::ColumnRef(_) => false,
-            BoundExprKind::Constant(_) => false,
-            BoundExprKind::BinaryOp(bin_op) => {
-                self.find_agg_in_expr(&bin_op.left_expr.kind)
-                    || self.find_agg_in_expr(&bin_op.right_expr.kind)
-            }
-            BoundExprKind::UnaryOp(unary_op) => self.find_agg_in_expr(&unary_op.expr.kind),
-            BoundExprKind::TypeCast(type_cast) => self.find_agg_in_expr(&type_cast.expr.kind),
-            BoundExprKind::InputRef(_) => panic!("InputRef should not exist in binder"),
         }
     }
 }

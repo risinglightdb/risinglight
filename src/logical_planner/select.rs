@@ -7,10 +7,12 @@
 //! - [`LogicalProjection`] (select *)
 //! - [`LogicalOrder`] (order by *)
 use super::*;
-use crate::binder::{BoundExprKind, BoundSelect, BoundTableRef};
+use crate::binder::{
+    BoundAggCall, BoundExpr, BoundExprKind, BoundInputRef, BoundSelect, BoundTableRef,
+};
 
 impl LogicalPlaner {
-    pub fn plan_select(&self, stmt: Box<BoundSelect>) -> Result<LogicalPlan, LogicalPlanError> {
+    pub fn plan_select(&self, mut stmt: Box<BoundSelect>) -> Result<LogicalPlan, LogicalPlanError> {
         let mut plan = LogicalPlan::Dummy;
         let mut is_sorted = false;
 
@@ -33,10 +35,13 @@ impl LogicalPlaner {
             });
         }
 
-        // Agg calls will be filled in later by input ref resolver
-        if stmt.has_agg {
+        let mut agg_extractor = AggExtractor::new(stmt.group_by.len());
+        for expr in &mut stmt.select_list {
+            agg_extractor.visit_expr(expr);
+        }
+        if !agg_extractor.agg_calls.is_empty() {
             plan = LogicalPlan::Aggregate(LogicalAggregate {
-                agg_calls: vec![],
+                agg_calls: agg_extractor.agg_calls,
                 group_keys: stmt.group_by,
                 child: Box::new(plan),
             })
@@ -121,11 +126,58 @@ impl LogicalPlaner {
                         join_op: table.join_op.clone(),
                     });
                 }
+                if join_table_plans.is_empty() {
+                    return Ok(relation_plan);
+                }
                 Ok(LogicalPlan::Join(LogicalJoin {
                     relation_plan: Box::new(relation_plan),
                     join_table_plans,
                 }))
             }
+        }
+    }
+}
+
+/// An expression visitor that extracts aggregation nodes and replaces them with `InputRef`.
+///
+/// For example:
+/// In SQL: `select sum(b) + a * count(a) from t group by a;`
+/// The expression `sum(b) + a * count(a)` will be rewritten to `InputRef(1) + a * InputRef(2)`,
+/// because the underlying aggregate plan will output `(a, sum(b), count(a))`. The group keys appear
+/// before aggregations.
+#[derive(Default)]
+struct AggExtractor {
+    agg_calls: Vec<BoundAggCall>,
+    index: usize,
+}
+
+impl AggExtractor {
+    fn new(group_key_count: usize) -> Self {
+        AggExtractor {
+            agg_calls: vec![],
+            index: group_key_count,
+        }
+    }
+
+    fn visit_expr(&mut self, expr: &mut BoundExpr) {
+        use BoundExprKind::*;
+        match &mut expr.kind {
+            kind @ AggCall(_) => {
+                let agg_expr =
+                    std::mem::replace(kind, InputRef(BoundInputRef { index: self.index }));
+                match agg_expr {
+                    AggCall(agg) => self.agg_calls.push(agg),
+                    _ => unreachable!(),
+                }
+                self.index += 1;
+            }
+            BinaryOp(bin_op) => {
+                self.visit_expr(&mut bin_op.left_expr);
+                self.visit_expr(&mut bin_op.right_expr);
+            }
+            UnaryOp(unary_op) => self.visit_expr(&mut unary_op.expr),
+            TypeCast(type_cast) => self.visit_expr(&mut type_cast.expr),
+            Constant(_) | ColumnRef(_) | InputRef(_) => {}
         }
     }
 }

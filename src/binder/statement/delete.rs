@@ -27,17 +27,11 @@ impl Binder {
             let (database_name, schema_name, table_name) = split_name(table_name)?;
             let mut from_table =
                 self.bind_table_ref_with_name(database_name, schema_name, table_name)?;
-
-            let mut where_clause = match &selection {
+            let where_clause = match &selection {
                 Some(expr) => Some(self.bind_expr(expr)?),
                 None => None,
             };
-
-            if let Some(expr) = &mut where_clause {
-                self.bind_column_ids(&mut from_table);
-                self.bind_column_idx_for_expr(&mut expr.kind);
-            }
-
+            self.bind_column_ids(&mut from_table);
             Ok(Box::new(BoundDelete {
                 from_table,
                 where_clause,

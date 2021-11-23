@@ -1,40 +1,34 @@
 use super::*;
 use crate::catalog::ColumnDesc;
+use itertools::Itertools;
+
 /// A bound column reference expression.
 #[derive(PartialEq, Clone)]
 pub struct BoundColumnRef {
     pub table_name: String,
     pub column_ref_id: ColumnRefId,
-    pub column_index: ColumnId,
     pub is_primary_key: bool,
     pub desc: ColumnDesc,
 }
 
 impl std::fmt::Debug for BoundColumnRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.column_index)
+        write!(f, "{:?}", self.column_ref_id)
     }
 }
 
 impl Binder {
     pub fn bind_all_column_refs(&mut self) -> Result<Vec<BoundExpr>, BindError> {
         let mut exprs = vec![];
-        for ref_id in self.context.regular_tables.values() {
-            let table = self.catalog.get_table(ref_id).unwrap();
+        for ref_id in self.context.regular_tables.values().cloned().collect_vec() {
+            let table = self.catalog.get_table(&ref_id).unwrap();
             for (col_id, col) in table.all_columns().iter() {
-                let column_ref_id = ColumnRefId::from_table(*ref_id, *col_id);
-                Self::record_regular_table_column(
-                    &mut self.context.column_names,
-                    &mut self.context.column_ids,
-                    &table.name(),
-                    col.name(),
-                    *col_id,
-                );
+                let column_ref_id = ColumnRefId::from_table(ref_id, *col_id);
+                self.record_regular_table_column(&table.name(), col.name(), *col_id);
                 let expr = BoundExpr {
                     kind: BoundExprKind::ColumnRef(BoundColumnRef {
                         table_name: table.name().clone(),
                         column_ref_id,
-                        column_index: u32::MAX,
                         is_primary_key: col.is_primary(),
                         desc: col.desc().clone(),
                     }),
@@ -64,18 +58,11 @@ impl Binder {
                 .get_column_by_name(column_name)
                 .ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
             let column_ref_id = ColumnRefId::from_table(table_ref_id, col.id());
-            Self::record_regular_table_column(
-                &mut self.context.column_names,
-                &mut self.context.column_ids,
-                name,
-                column_name,
-                col.id(),
-            );
+            self.record_regular_table_column(name, column_name, col.id());
             Ok(BoundExpr {
                 kind: BoundExprKind::ColumnRef(BoundColumnRef {
                     table_name: name.clone(),
                     column_ref_id,
-                    column_index: u32::MAX,
                     is_primary_key: col.is_primary(),
                     desc: col.desc().clone(),
                 }),
@@ -101,19 +88,12 @@ impl Binder {
             }
             let (table_name, column_ref_id, data_type, is_primary_key, desc) =
                 info.ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
-            Self::record_regular_table_column(
-                &mut self.context.column_names,
-                &mut self.context.column_ids,
-                &table_name,
-                column_name,
-                column_ref_id.column_id,
-            );
+            self.record_regular_table_column(&table_name, column_name, column_ref_id.column_id);
 
             Ok(BoundExpr {
                 kind: BoundExprKind::ColumnRef(BoundColumnRef {
                     table_name: table_name.clone(),
                     column_ref_id,
-                    column_index: u32::MAX,
                     is_primary_key,
                     desc,
                 }),
@@ -122,23 +102,22 @@ impl Binder {
         }
     }
 
-    pub fn record_regular_table_column(
-        column_names: &mut HashMap<String, HashSet<String>>,
-        column_ids: &mut HashMap<String, Vec<ColumnId>>,
+    fn record_regular_table_column(
+        &mut self,
         table_name: &str,
         col_name: &str,
         column_id: ColumnId,
     ) -> ColumnId {
-        let names = column_names.get_mut(table_name).unwrap();
+        let names = self.context.column_names.get_mut(table_name).unwrap();
         if !names.contains(col_name) {
             let idx = names.len() as u32;
             names.insert(col_name.to_string());
-            let idxs = column_ids.get_mut(table_name).unwrap();
+            let idxs = self.context.column_ids.get_mut(table_name).unwrap();
             idxs.push(column_id);
             assert!(!idxs.is_empty());
             idx
         } else {
-            let idxs = &column_ids[table_name];
+            let idxs = &self.context.column_ids[table_name];
             assert!(!idxs.is_empty());
             idxs.iter().position(|&r| r == column_id).unwrap() as u32
         }
