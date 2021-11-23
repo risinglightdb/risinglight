@@ -101,7 +101,56 @@ impl Hash for DataValue {
     }
 }
 
+macro_rules! impl_arith_for_datavalue {
+    ($Trait:ident, $name:ident) => {
+        impl std::ops::$Trait for &DataValue {
+            type Output = DataValue;
+
+            fn $name(self, rhs: Self) -> Self::Output {
+                use DataValue::*;
+                match (self, rhs) {
+                    (&Int32(x), &Int32(y)) => Int32(x.$name(y)),
+                    (&Float64(x), &Float64(y)) => Float64(x.$name(y)),
+                    _ => panic!(
+                        "invalid operation: {:?} {} {:?}",
+                        self,
+                        stringify!($name),
+                        rhs
+                    ),
+                }
+            }
+        }
+    };
+}
+impl_arith_for_datavalue!(Add, add);
+impl_arith_for_datavalue!(Sub, sub);
+impl_arith_for_datavalue!(Mul, mul);
+impl_arith_for_datavalue!(Div, div);
+impl_arith_for_datavalue!(Rem, rem);
+
 impl DataValue {
+    /// Whether the value is divisible by another.
+    pub fn is_divisible_by(&self, other: &DataValue) -> bool {
+        use DataValue::*;
+        match (self, other) {
+            (&Int32(x), &Int32(y)) => y != 0 && x % y == 0,
+            (&Float64(x), &Float64(y)) => y != 0.0 && x % y == 0.0,
+            _ => false,
+        }
+    }
+
+    /// Returns `true` if value is positive and `false` if the number is zero or negative.
+    pub fn is_positive(&self) -> bool {
+        match self {
+            Self::Bool(v) => *v,
+            Self::Int32(v) => v.is_positive(),
+            Self::Int64(v) => v.is_positive(),
+            Self::Float64(v) => v.is_sign_positive(),
+            Self::String(_) => false,
+            Self::Null => false,
+        }
+    }
+
     /// Get the type of value. `None` means NULL.
     pub fn data_type(&self) -> Option<DataType> {
         match self {
