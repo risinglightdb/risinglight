@@ -1,20 +1,22 @@
+use crate::array::ArrayImplValidExt;
+// use crate::array::ArrayImplValidExt;
 use super::*;
 
 /// State for row count aggregation
-pub struct RowCountAggregationState {
+pub struct CountAggregationState {
     result: DataValue,
 }
 
-impl RowCountAggregationState {
+impl CountAggregationState {
     pub fn new(init: DataValue) -> Self {
         Self { result: init }
     }
 }
 
-impl AggregationState for RowCountAggregationState {
+impl AggregationState for CountAggregationState {
     fn update(&mut self, array: &ArrayImpl) -> Result<(), ExecutorError> {
-        let temp = array.len() as i32;
-        // let temp = array.get_valid_bitmap().count_ones() as i32;
+        // let temp = array.len() as i32;
+        let temp = array.get_valid_bitmap().count_ones() as i32;
         self.result = match &self.result {
             DataValue::Null => DataValue::Int32(temp),
             DataValue::Int32(res) => DataValue::Int32(res + temp),

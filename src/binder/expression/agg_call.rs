@@ -11,7 +11,7 @@ pub enum AggKind {
     Max,
     Min,
     Sum,
-    // TODO: add Count
+    Count,
 }
 
 /// Represents an aggregation function
@@ -38,20 +38,51 @@ impl Binder {
         // TODO: Support scalar function
         let mut args = Vec::new();
         for arg in &func.args {
-            args.push(match &arg {
-                FunctionArg::Named { arg, .. } => self.bind_expr(arg)?,
-                FunctionArg::Unnamed(arg) => self.bind_expr(arg)?,
-            });
+            match &arg {
+                FunctionArg::Named { arg, .. } => args.push(self.bind_expr(arg)?),
+                FunctionArg::Unnamed(arg) => {
+                    if !matches!(arg, Expr::Wildcard) {
+                        args.push(self.bind_expr(arg)?)
+                    }
+                }
+            }
         }
         let (kind, return_type) = match func.name.to_string().to_lowercase().as_str() {
             "avg" => (
                 AggKind::Avg,
                 Some(DataType::new(DataTypeKind::Double, false)),
             ),
-            "count" => (
-                AggKind::RowCount,
-                Some(DataType::new(DataTypeKind::Int(None), false)),
-            ),
+            "count" => {
+                if args.is_empty() {
+                    for ref_id in self.context.regular_tables.values() {
+                        let table = self.catalog.get_table(ref_id).unwrap();
+                        if let Some(col) = table.get_column_by_id(0) {
+                            let column_ref_id = ColumnRefId::from_table(*ref_id, col.id());
+                            self.record_regular_table_column(&table.name(), col.name(), col.id());
+                            let expr = BoundExpr {
+                                kind: BoundExprKind::ColumnRef(BoundColumnRef {
+                                    table_name: table.name(),
+                                    column_ref_id,
+                                    is_primary_key: col.is_primary(),
+                                    desc: col.desc().clone(),
+                                }),
+                                return_type: Some(col.datatype()),
+                            };
+                            args.push(expr);
+                            break;
+                        }
+                    }
+                    (
+                        AggKind::RowCount,
+                        Some(DataType::new(DataTypeKind::Int(None), false)),
+                    )
+                } else {
+                    (
+                        AggKind::Count,
+                        Some(DataType::new(DataTypeKind::Int(None), false)),
+                    )
+                }
+            }
             "max" => (AggKind::Max, args[0].return_type.clone()),
             "min" => (AggKind::Min, args[0].return_type.clone()),
             "sum" => (AggKind::Sum, args[0].return_type.clone()),

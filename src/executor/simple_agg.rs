@@ -72,6 +72,7 @@ pub(super) fn create_agg_states(
 fn create_agg_state(agg_call: &BoundAggCall) -> Box<dyn AggregationState> {
     match agg_call.kind {
         AggKind::RowCount => Box::new(RowCountAggregationState::new(DataValue::Int32(0))),
+        AggKind::Count => Box::new(CountAggregationState::new(DataValue::Int32(0))),
         AggKind::Max => Box::new(MinMaxAggregationState::new(
             agg_call.return_type.kind(),
             false,
