@@ -50,7 +50,7 @@ impl PhysicalPlaner {
             path: plan.path,
             format: plan.format,
             column_types: plan.column_types,
-            child: self.plan_inner(*plan.child)?.into(),
+            child: self.plan_inner(plan.child.as_ref().clone())?.into(),
         }))
     }
 }

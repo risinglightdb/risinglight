@@ -3,7 +3,7 @@ use super::*;
 /// The logical plan of `explain`.
 #[derive(Debug, PartialEq, Clone)]
 pub struct LogicalExplain {
-    pub plan: Box<LogicalPlan>,
+    pub plan: LogicalPlanRef,
 }
 
 impl LogicalPlaner {

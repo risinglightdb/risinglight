@@ -117,7 +117,7 @@ impl ExecutorBuilder {
                 table_ref_id: plan.table_ref_id,
                 column_ids: plan.column_ids,
                 storage: storage.clone(),
-                child: self.build_with_storage(*plan.child, storage),
+                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
             }
             .execute()
             .boxed(),
@@ -128,27 +128,27 @@ impl ExecutorBuilder {
             .boxed(),
             PhysicalPlan::Projection(plan) => ProjectionExecutor {
                 project_expressions: plan.project_expressions,
-                child: self.build_with_storage(*plan.child, storage),
+                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
             }
             .execute()
             .boxed(),
             PhysicalPlan::SeqScan(plan) => SeqScanExecutor { plan, storage }.execute().boxed(),
             PhysicalPlan::Filter(plan) => FilterExecutor {
                 expr: plan.expr,
-                child: self.build_with_storage(*plan.child, storage),
+                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
             }
             .execute()
             .boxed(),
             PhysicalPlan::Order(plan) => OrderExecutor {
                 comparators: plan.comparators,
-                child: self.build_with_storage(*plan.child, storage),
+                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
             }
             .execute()
             .boxed(),
             PhysicalPlan::Limit(plan) => LimitExecutor {
                 offset: plan.offset,
                 limit: plan.limit,
-                child: self.build_with_storage(*plan.child, storage),
+                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
             }
             .execute()
             .boxed(),
@@ -162,14 +162,14 @@ impl ExecutorBuilder {
             .boxed(),
             PhysicalPlan::SimpleAgg(plan) => SimpleAggExecutor {
                 agg_calls: plan.agg_calls,
-                child: self.build_with_storage(*plan.child, storage),
+                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
             }
             .execute()
             .boxed(),
             PhysicalPlan::HashAgg(plan) => HashAggExecutor {
                 agg_calls: plan.agg_calls,
                 group_keys: plan.group_keys,
-                child: self.build_with_storage(*plan.child, storage),
+                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
             }
             .execute()
             .boxed(),
@@ -184,7 +184,7 @@ impl ExecutorBuilder {
             PhysicalPlan::CopyToFile(plan) => CopyToFileExecutor {
                 path: plan.path,
                 format: plan.format,
-                child: self.build_with_storage(*plan.child, storage),
+                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
             }
             .execute()
             .boxed(),

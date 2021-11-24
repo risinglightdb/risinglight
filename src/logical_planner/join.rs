@@ -3,7 +3,7 @@ use crate::binder::BoundJoinOperator;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct LogicalJoinTable {
-    pub table_plan: Box<LogicalPlan>,
+    pub table_plan: LogicalPlanRef,
     pub join_op: BoundJoinOperator,
 }
 /// The logical plan of join, it only records join tables and operators.
@@ -11,6 +11,6 @@ pub struct LogicalJoinTable {
 /// loop join or index join).
 #[derive(Debug, Clone, PartialEq)]
 pub struct LogicalJoin {
-    pub relation_plan: Box<LogicalPlan>,
+    pub relation_plan: LogicalPlanRef,
     pub join_table_plans: Vec<LogicalJoinTable>,
 }

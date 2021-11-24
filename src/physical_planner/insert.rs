@@ -25,7 +25,7 @@ impl PhysicalPlaner {
         Ok(PhysicalPlan::Insert(PhysicalInsert {
             table_ref_id: plan.table_ref_id,
             column_ids: plan.column_ids,
-            child: self.plan_inner(*plan.child)?.into(),
+            child: self.plan_inner(plan.child.as_ref().clone())?.into(),
         }))
     }
 

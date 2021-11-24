@@ -21,14 +21,14 @@ impl PlanRewriter for InputRefResolver {
         use BoundJoinConstraint::*;
         use BoundJoinOperator::*;
 
-        let relation_plan = self.rewrite_plan(*plan.relation_plan);
+        let relation_plan = self.rewrite_plan(plan.relation_plan.as_ref().clone());
         // TODO: Make the order of bindings consistent with the output order in executor
         let join_table_plans = plan
             .join_table_plans
             .into_iter()
             .map(|plan| {
                 let mut resolver = Self::default();
-                let table_plan = resolver.rewrite_plan(*plan.table_plan);
+                let table_plan = resolver.rewrite_plan(plan.table_plan.as_ref().clone());
                 self.bindings.append(&mut resolver.bindings);
 
                 LogicalJoinTable {
@@ -57,7 +57,7 @@ impl PlanRewriter for InputRefResolver {
     }
 
     fn rewrite_projection(&mut self, plan: LogicalProjection) -> LogicalPlan {
-        let child = self.rewrite_plan(*plan.child);
+        let child = self.rewrite_plan(plan.child.as_ref().clone());
         let mut bindings = vec![];
         let project_expressions = plan
             .project_expressions
@@ -73,12 +73,12 @@ impl PlanRewriter for InputRefResolver {
         self.bindings = bindings;
         LogicalPlan::Projection(LogicalProjection {
             project_expressions,
-            child:child.into(),
+            child: child.into(),
         })
     }
 
     fn rewrite_aggregate(&mut self, plan: LogicalAggregate) -> LogicalPlan {
-        let child = self.rewrite_plan(*plan.child);
+        let child = self.rewrite_plan(plan.child.as_ref().clone());
 
         let agg_calls = plan
             .agg_calls
@@ -109,7 +109,7 @@ impl PlanRewriter for InputRefResolver {
         LogicalPlan::Aggregate(LogicalAggregate {
             agg_calls,
             group_keys,
-            child:child.into(),
+            child: child.into(),
         })
     }
 

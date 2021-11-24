@@ -27,7 +27,7 @@ pub struct LogicalCopyToFile {
     /// The column types.
     pub column_types: Vec<DataType>,
     /// The child plan.
-    pub child: Box<LogicalPlan>,
+    pub child: LogicalPlanRef,
 }
 
 impl LogicalPlaner {
@@ -48,7 +48,8 @@ impl LogicalPlaner {
                     column_ids,
                     with_row_handler: false,
                     is_sorted: false,
-                }).into(),
+                })
+                .into(),
             }))
         } else {
             Ok(LogicalPlan::Insert(LogicalInsert {
@@ -58,7 +59,8 @@ impl LogicalPlaner {
                     path,
                     format: stmt.format,
                     column_types,
-                }).into(),
+                })
+                .into(),
             }))
         }
     }

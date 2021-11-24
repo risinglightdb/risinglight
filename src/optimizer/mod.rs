@@ -63,20 +63,20 @@ pub trait PlanRewriter {
 
     fn rewrite_insert(&mut self, plan: LogicalInsert) -> LogicalPlan {
         LogicalPlan::Insert(LogicalInsert {
-            child: self.rewrite_plan(*plan.child).into(),
+            child: self.rewrite_plan(plan.child.as_ref().clone()).into(),
             table_ref_id: plan.table_ref_id,
             column_ids: plan.column_ids,
         })
     }
 
     fn rewrite_join(&mut self, plan: LogicalJoin) -> LogicalPlan {
-        let relation_plan = self.rewrite_plan(*plan.relation_plan);
+        let relation_plan = self.rewrite_plan(plan.relation_plan.as_ref().clone());
         let mut join_table_plans = vec![];
         for plan in plan.join_table_plans.into_iter() {
             use BoundJoinConstraint::*;
             use BoundJoinOperator::*;
             join_table_plans.push(LogicalJoinTable {
-                table_plan: self.rewrite_plan(*plan.table_plan).into(),
+                table_plan: self.rewrite_plan(plan.table_plan.as_ref().clone()).into(),
                 join_op: match plan.join_op {
                     Inner(On(expr)) => Inner(On(self.rewrite_expr(expr))),
                 },
@@ -94,7 +94,7 @@ pub trait PlanRewriter {
 
     fn rewrite_projection(&mut self, plan: LogicalProjection) -> LogicalPlan {
         LogicalPlan::Projection(LogicalProjection {
-            child: self.rewrite_plan(*plan.child).into(),
+            child: self.rewrite_plan(plan.child.as_ref().clone()).into(),
             project_expressions: plan
                 .project_expressions
                 .into_iter()
@@ -105,14 +105,14 @@ pub trait PlanRewriter {
 
     fn rewrite_filter(&mut self, plan: LogicalFilter) -> LogicalPlan {
         LogicalPlan::Filter(LogicalFilter {
-            child: self.rewrite_plan(*plan.child).into(),
+            child: self.rewrite_plan(plan.child.as_ref().clone()).into(),
             expr: self.rewrite_expr(plan.expr),
         })
     }
 
     fn rewrite_order(&mut self, plan: LogicalOrder) -> LogicalPlan {
         LogicalPlan::Order(LogicalOrder {
-            child: self.rewrite_plan(*plan.child).into(),
+            child: self.rewrite_plan(plan.child.as_ref().clone()).into(),
             comparators: plan
                 .comparators
                 .into_iter()
@@ -126,7 +126,7 @@ pub trait PlanRewriter {
 
     fn rewrite_limit(&mut self, plan: LogicalLimit) -> LogicalPlan {
         LogicalPlan::Limit(LogicalLimit {
-            child: self.rewrite_plan(*plan.child).into(),
+            child: self.rewrite_plan(plan.child.as_ref().clone()).into(),
             offset: plan.offset,
             limit: plan.limit,
         })
@@ -134,13 +134,13 @@ pub trait PlanRewriter {
 
     fn rewrite_explain(&mut self, plan: LogicalExplain) -> LogicalPlan {
         LogicalPlan::Explain(LogicalExplain {
-            plan: self.rewrite_plan(*plan.plan).into(),
+            plan: self.rewrite_plan(plan.plan.as_ref().clone()).into(),
         })
     }
 
     fn rewrite_aggregate(&mut self, plan: LogicalAggregate) -> LogicalPlan {
         LogicalPlan::Aggregate(LogicalAggregate {
-            child: self.rewrite_plan(*plan.child).into(),
+            child: self.rewrite_plan(plan.child.as_ref().clone()).into(),
             agg_calls: plan
                 .agg_calls
                 .into_iter()
@@ -162,7 +162,7 @@ pub trait PlanRewriter {
         LogicalPlan::Delete(LogicalDelete {
             table_ref_id: plan.table_ref_id,
             filter: LogicalFilter {
-                child: self.rewrite_plan(*plan.filter.child).into(),
+                child: self.rewrite_plan(plan.filter.child.as_ref().clone()).into(),
                 expr: self.rewrite_expr(plan.filter.expr),
             },
         })
@@ -178,7 +178,7 @@ pub trait PlanRewriter {
 
     fn rewrite_copy_to_file(&mut self, plan: LogicalCopyToFile) -> LogicalPlan {
         LogicalPlan::CopyToFile(LogicalCopyToFile {
-            child: self.rewrite_plan(*plan.child).into(),
+            child: self.rewrite_plan(plan.child.as_ref().clone()).into(),
             path: plan.path,
             format: plan.format,
             column_types: plan.column_types,

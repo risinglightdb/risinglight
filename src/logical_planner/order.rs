@@ -5,5 +5,5 @@ use crate::binder::BoundOrderBy;
 #[derive(Debug, PartialEq, Clone)]
 pub struct LogicalOrder {
     pub comparators: Vec<BoundOrderBy>,
-    pub child: Box<LogicalPlan>,
+    pub child: LogicalPlanRef,
 }

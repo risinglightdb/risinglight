@@ -5,5 +5,5 @@ use super::*;
 pub struct LogicalLimit {
     pub offset: usize,
     pub limit: usize,
-    pub child: Box<LogicalPlan>,
+    pub child: LogicalPlanRef,
 }

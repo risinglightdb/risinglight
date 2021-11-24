@@ -15,7 +15,7 @@ impl PhysicalPlaner {
     ) -> Result<PhysicalPlan, PhysicalPlanError> {
         Ok(PhysicalPlan::Projection(PhysicalProjection {
             project_expressions: plan.project_expressions,
-            child: self.plan_inner(*plan.child)?.into(),
+            child: self.plan_inner(plan.child.as_ref().clone())?.into(),
         }))
     }
 }

@@ -8,7 +8,7 @@ use crate::types::ColumnId;
 pub struct LogicalInsert {
     pub table_ref_id: TableRefId,
     pub column_ids: Vec<ColumnId>,
-    pub child: Box<LogicalPlan>,
+    pub child: LogicalPlanRef,
 }
 
 /// The logical plan of `VALUES`.
@@ -24,7 +24,8 @@ impl LogicalPlaner {
             column_ids: stmt.column_ids,
             child: LogicalPlan::Values(LogicalValues {
                 values: stmt.values,
-            }).into(),
+            })
+            .into(),
         }))
     }
 }

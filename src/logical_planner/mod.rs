@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{binder::BoundStatement, types::ConvertError};
 
 mod aggregate;
@@ -40,6 +42,8 @@ pub enum LogicalPlanError {
 
 /// An enumeration which record all necessary information of execution plan,
 /// which will be used by optimizer and executor.
+
+type LogicalPlanRef = Rc<LogicalPlan>;
 #[derive(Debug, PartialEq, Clone)]
 pub enum LogicalPlan {
     Dummy,
