@@ -9,7 +9,7 @@ pub struct LogicalExplain {
 impl LogicalPlaner {
     pub fn plan_explain(&self, stmt: BoundStatement) -> Result<LogicalPlan, LogicalPlanError> {
         Ok(LogicalPlan::Explain(LogicalExplain {
-            plan: Box::new(self.plan(stmt)?),
+            plan: (self.plan(stmt)?.into()),
         }))
     }
 }

@@ -11,7 +11,7 @@ pub struct PhysicalExplain {
 impl PhysicalPlaner {
     pub fn plan_explain(&self, plan: LogicalExplain) -> Result<PhysicalPlan, PhysicalPlanError> {
         Ok(PhysicalPlan::Explain(PhysicalExplain {
-            plan: Box::new(self.plan_inner(*plan.plan)?),
+            plan: (self.plan_inner(*plan.plan)?.into()),
         }))
     }
 }

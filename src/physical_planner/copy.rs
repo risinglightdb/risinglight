@@ -50,7 +50,7 @@ impl PhysicalPlaner {
             path: plan.path,
             format: plan.format,
             column_types: plan.column_types,
-            child: Box::new(self.plan_inner(*plan.child)?),
+            child: self.plan_inner(*plan.child)?.into(),
         }))
     }
 }

@@ -21,7 +21,7 @@ pub enum StorageError {
 impl From<std::io::Error> for StorageError {
     #[inline]
     fn from(e: std::io::Error) -> StorageError {
-        StorageError::Io(Box::new(e))
+        StorageError::Io((e).into())
     }
 }
 

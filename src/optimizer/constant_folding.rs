@@ -30,9 +30,9 @@ impl PlanRewriter for ConstantFolding {
                     BoundExprKind::Constant(res)
                 } else {
                     BoundExprKind::BinaryOp(BoundBinaryOp {
-                        left_expr: Box::new(new_left_expr),
+                        left_expr: (new_left_expr.into()),
                         op: binary_op.op,
-                        right_expr: Box::new(new_right_expr),
+                        right_expr: (new_right_expr.into()),
                     })
                 };
                 BoundExpr {
@@ -49,7 +49,7 @@ impl PlanRewriter for ConstantFolding {
                 } else {
                     BoundExprKind::UnaryOp(BoundUnaryOp {
                         op: unary_op.op,
-                        expr: Box::new(new_expr),
+                        expr: (new_expr.into()),
                     })
                 };
                 BoundExpr {
@@ -66,7 +66,7 @@ impl PlanRewriter for ConstantFolding {
                 } else {
                     BoundExprKind::TypeCast(BoundTypeCast {
                         ty: cast.ty,
-                        expr: Box::new(new_expr),
+                        expr: (new_expr.into()),
                     })
                 };
                 BoundExpr {

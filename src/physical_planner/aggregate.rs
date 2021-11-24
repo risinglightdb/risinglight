@@ -25,13 +25,13 @@ impl PhysicalPlaner {
         if plan.group_keys.is_empty() {
             Ok(PhysicalPlan::SimpleAgg(PhysicalSimpleAgg {
                 agg_calls: plan.agg_calls,
-                child: Box::new(self.plan_inner(*plan.child)?),
+                child: self.plan_inner(*plan.child)?.into(),
             }))
         } else {
             Ok(PhysicalPlan::HashAgg(PhysicalHashAgg {
                 agg_calls: plan.agg_calls,
                 group_keys: plan.group_keys,
-                child: Box::new(self.plan_inner(*plan.child)?),
+                child: self.plan_inner(*plan.child)?.into(),
             }))
         }
     }

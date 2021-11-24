@@ -13,7 +13,7 @@ impl PhysicalPlaner {
     pub fn plan_delete(&self, plan: LogicalDelete) -> Result<PhysicalPlan, PhysicalPlanError> {
         Ok(PhysicalPlan::Delete(PhysicalDelete {
             table_ref_id: plan.table_ref_id,
-            filter: Box::new(self.plan_filter(plan.filter)?),
+            filter: (self.plan_filter(plan.filter)?.into()),
         }))
     }
 }

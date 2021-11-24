@@ -32,7 +32,7 @@ impl PlanRewriter for InputRefResolver {
                 self.bindings.append(&mut resolver.bindings);
 
                 LogicalJoinTable {
-                    table_plan: Box::new(table_plan),
+                    table_plan: (table_plan.into()),
                     join_op: match plan.join_op {
                         Inner(On(expr)) => Inner(On(self.rewrite_expr(expr))),
                     },
@@ -41,7 +41,7 @@ impl PlanRewriter for InputRefResolver {
             .collect();
 
         LogicalPlan::Join(LogicalJoin {
-            relation_plan: Box::new(relation_plan),
+            relation_plan: relation_plan.into(),
             // TODO: implement `rewrite_join` when `plan.join_table_plans` is not empty
             join_table_plans,
         })
@@ -73,7 +73,7 @@ impl PlanRewriter for InputRefResolver {
         self.bindings = bindings;
         LogicalPlan::Projection(LogicalProjection {
             project_expressions,
-            child: Box::new(child),
+            child:child.into(),
         })
     }
 
@@ -109,7 +109,7 @@ impl PlanRewriter for InputRefResolver {
         LogicalPlan::Aggregate(LogicalAggregate {
             agg_calls,
             group_keys,
-            child: Box::new(child),
+            child:child.into(),
         })
     }
 
@@ -135,16 +135,16 @@ impl PlanRewriter for InputRefResolver {
             }),
             // rewrite sub-expressions
             BinaryOp(binary_op) => BinaryOp(BoundBinaryOp {
-                left_expr: Box::new(self.rewrite_expr(*binary_op.left_expr)),
+                left_expr: (self.rewrite_expr(*binary_op.left_expr).into()),
                 op: binary_op.op,
-                right_expr: Box::new(self.rewrite_expr(*binary_op.right_expr)),
+                right_expr: (self.rewrite_expr(*binary_op.right_expr).into()),
             }),
             UnaryOp(unary_op) => UnaryOp(BoundUnaryOp {
                 op: unary_op.op,
-                expr: Box::new(self.rewrite_expr(*unary_op.expr)),
+                expr: (self.rewrite_expr(*unary_op.expr).into()),
             }),
             TypeCast(cast) => TypeCast(BoundTypeCast {
-                expr: Box::new(self.rewrite_expr(*cast.expr)),
+                expr: (self.rewrite_expr(*cast.expr).into()),
                 ty: cast.ty,
             }),
             IsNull(isnull) => IsNull(BoundIsNull {

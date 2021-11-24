@@ -22,9 +22,9 @@ impl LogicalPlaner {
         Ok(LogicalPlan::Insert(LogicalInsert {
             table_ref_id: stmt.table_ref_id,
             column_ids: stmt.column_ids,
-            child: Box::new(LogicalPlan::Values(LogicalValues {
+            child: LogicalPlan::Values(LogicalValues {
                 values: stmt.values,
-            })),
+            }).into(),
         }))
     }
 }

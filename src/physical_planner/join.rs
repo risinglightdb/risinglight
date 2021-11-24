@@ -25,8 +25,8 @@ impl PhysicalPlaner {
             let join_table_plan = self.plan_inner(*join_table.table_plan)?;
             plan = PhysicalPlan::Join(PhysicalJoin {
                 join_type: PhysicalJoinType::NestedLoop,
-                left_plan: Box::new(plan),
-                right_plan: Box::new(join_table_plan),
+                left_plan: plan.into(),
+                right_plan: (join_table_plan.into()),
                 join_op: join_table.join_op.clone(),
             })
         }

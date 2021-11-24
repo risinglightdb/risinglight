@@ -21,7 +21,7 @@ impl Binder {
         Ok(BoundExpr {
             kind: BoundExprKind::UnaryOp(BoundUnaryOp {
                 op: op.clone(),
-                expr: Box::new(bound_expr),
+                expr: (bound_expr.into()),
             }),
             return_type,
         })

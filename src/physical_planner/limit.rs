@@ -14,7 +14,7 @@ impl PhysicalPlaner {
         Ok(PhysicalPlan::Limit(PhysicalLimit {
             offset: plan.offset,
             limit: plan.limit,
-            child: Box::new(self.plan_inner(*plan.child)?),
+            child: self.plan_inner(*plan.child)?.into(),
         }))
     }
 }

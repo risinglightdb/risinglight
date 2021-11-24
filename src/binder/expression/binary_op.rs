@@ -59,9 +59,9 @@ impl Binder {
         }
         Ok(BoundExpr {
             kind: BoundExprKind::BinaryOp(BoundBinaryOp {
-                left_expr: Box::new(left_bound_expr),
+                left_expr: (left_bound_expr.into()),
                 op: op.clone(),
-                right_expr: Box::new(right_bound_expr),
+                right_expr: (right_bound_expr.into()),
             }),
             return_type,
         })
