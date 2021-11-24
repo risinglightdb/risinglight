@@ -1,5 +1,6 @@
 pub(crate) mod plan_rewriter;
 use crate::{binder::*, logical_planner::*};
+mod plan_node;
 
 use self::plan_rewriter::{
     arith_expr_simplification::ArithExprSimplification,
