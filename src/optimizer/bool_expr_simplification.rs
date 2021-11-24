@@ -1,8 +1,8 @@
 use super::*;
-use crate::binder::BoundExprKind;
-use crate::binder::{BoundExpr, BoundExprKind::*};
+use crate::binder::{BoundBinaryOp, BoundExpr, BoundExprKind::*};
 use crate::parser::BinaryOperator::*;
-use crate::types::DataValue;
+use crate::types::DataValue::*;
+
 /// Boolean expression simplification rule will rewrite expression which compares ('>=', '<' and
 /// '=') with null. (You need `a is null`!)
 /// Moroever, when the filtering condition is always false, we will prune the child logical plan,
@@ -17,47 +17,46 @@ use crate::types::DataValue;
 pub struct BoolExprSimplification;
 
 impl PlanRewriter for BoolExprSimplification {
-    fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
-        self.rewrite_null_expr(expr)
-    }
-
     fn rewrite_filter(&mut self, plan: LogicalFilter) -> LogicalPlan {
         let new_expr = self.rewrite_expr(plan.expr);
         match &new_expr.kind {
-            BoundExprKind::Constant(DataValue::Bool(false)) => LogicalPlan::Filter(LogicalFilter {
+            Constant(Bool(false) | Null) => LogicalPlan::Filter(LogicalFilter {
                 expr: new_expr,
                 child: Box::new(LogicalPlan::Dummy),
             }),
-            BoundExprKind::Constant(DataValue::Bool(true)) => self.rewrite_plan(*plan.child),
+            Constant(Bool(true)) => self.rewrite_plan(*plan.child),
             _ => LogicalPlan::Filter(LogicalFilter {
                 expr: new_expr,
                 child: Box::new(self.rewrite_plan(*plan.child)),
             }),
         }
     }
-}
 
-impl BoolExprSimplification {
-    pub fn rewrite_null_expr(&mut self, expr: BoundExpr) -> BoundExpr {
-        let new_kind = match &expr.kind {
-            BinaryOp(op) => match (&op.op, &op.left_expr.kind, &op.right_expr.kind) {
-                (Eq, Constant(DataValue::Null), _)
-                | (Eq, _, Constant(DataValue::Null))
-                | (NotEq, Constant(DataValue::Null), _)
-                | (NotEq, _, Constant(DataValue::Null))
-                | (Gt, _, Constant(DataValue::Null))
-                | (Gt, Constant(DataValue::Null), _)
-                | (Lt, Constant(DataValue::Null), _)
-                | (Lt, _, Constant(DataValue::Null))
-                | (GtEq, Constant(DataValue::Null), _)
-                | (GtEq, _, Constant(DataValue::Null))
-                | (LtEq, _, Constant(DataValue::Null))
-                | (LtEq, Constant(DataValue::Null), _) => {
-                    BoundExprKind::Constant(DataValue::Bool(false))
+    fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
+        let new_kind = match expr.kind {
+            BinaryOp(op) => {
+                let left = self.rewrite_expr(*op.left_expr);
+                let right = self.rewrite_expr(*op.right_expr);
+                match (op.op, &left.kind, &right.kind) {
+                    (And, Constant(Bool(false)), _) => Constant(Bool(false)),
+                    (And, _, Constant(Bool(false))) => Constant(Bool(false)),
+                    (And, Constant(Bool(true)), other) => other.clone(),
+                    (And, other, Constant(Bool(true))) => other.clone(),
+                    (Or, Constant(Bool(true)), _) => Constant(Bool(true)),
+                    (Or, _, Constant(Bool(true))) => Constant(Bool(true)),
+                    (Or, Constant(Bool(false)), other) => other.clone(),
+                    (Or, other, Constant(Bool(false))) => other.clone(),
+                    (Eq | NotEq | Gt | Lt | GtEq | LtEq, Constant(Null), _) => Constant(Null),
+                    (Eq | NotEq | Gt | Lt | GtEq | LtEq, _, Constant(Null)) => Constant(Null),
+                    (op, _, _) => BinaryOp(BoundBinaryOp {
+                        left_expr: Box::new(left),
+                        op,
+                        right_expr: Box::new(right),
+                    }),
                 }
-                _ => expr.kind.clone(),
-            },
-            _ => expr.kind.clone(),
+            }
+            // FIXME: rewrite child expressions
+            _ => expr.kind,
         };
         BoundExpr {
             kind: new_kind,
