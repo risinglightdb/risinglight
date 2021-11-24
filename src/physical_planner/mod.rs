@@ -28,7 +28,7 @@ pub use order::*;
 pub use projection::*;
 pub use seq_scan::*;
 
-use crate::{logical_planner::LogicalPlan, optimizer::PlanRewriter};
+use crate::{logical_optimizer::plan_rewriter::PlanRewriter, logical_planner::LogicalPlan};
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum PhysicalPlanError {
