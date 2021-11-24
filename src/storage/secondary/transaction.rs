@@ -9,9 +9,12 @@ use super::{
 };
 use crate::array::DataChunk;
 use crate::catalog::find_sort_key_id;
+use crate::storage::secondary::statistics::create_statistics_global_aggregator;
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
+use crate::types::DataValue;
 use async_trait::async_trait;
 use itertools::Itertools;
+use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use risinglight_proto::rowset::DeleteRecord;
 
 /// A transaction running on `SecondaryStorage`.
@@ -53,6 +56,8 @@ pub struct SecondaryTransaction {
 }
 
 impl SecondaryTransaction {
+    /// Start a transaction on Secondary. If `update` is set to true, we will hold the delete lock
+    /// of a table.
     pub(super) async fn start(
         table: &SecondaryTable,
         read_only: bool,
@@ -248,6 +253,36 @@ impl SecondaryTransaction {
         };
 
         Ok(SecondaryTableTxnIterator::new(final_iter))
+    }
+
+    /// Aggregate block statistics of one column. In the future, we might support predicate
+    /// push-down, and this function will add filter-scan-aggregate functionality.
+    ///
+    /// This function can gather multiple statistics at a time (in the future).
+    pub fn aggreagate_block_stat(
+        &self,
+        ty: &[(BlockStatisticsType, StorageColumnRef)],
+    ) -> Vec<DataValue> {
+        let mut agg = ty
+            .iter()
+            .map(|(ty, _)| create_statistics_global_aggregator(*ty))
+            .collect_vec();
+
+        if let Some(rowsets) = self.snapshot.get_rowsets_of(self.table.table_id()) {
+            for rowset_id in rowsets {
+                let rowset = self.version.get_rowset(self.table.table_id(), *rowset_id);
+                for ((_, col_idx), agg) in ty.iter().zip(agg.iter_mut()) {
+                    let user_col_idx = match col_idx {
+                        StorageColumnRef::Idx(idx) => idx,
+                        _ => panic!("unsupported column ref for block aggregation"),
+                    };
+                    let column = rowset.column(*user_col_idx as usize);
+                    agg.apply_batch(column.index());
+                }
+            }
+        }
+
+        agg.into_iter().map(|agg| agg.get_output()).collect_vec()
     }
 
     pub async fn append_inner(&mut self, columns: DataChunk) -> StorageResult<()> {

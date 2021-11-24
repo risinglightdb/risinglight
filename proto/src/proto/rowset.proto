@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package risinglight.rowset;
 
+// Checksum of a block.
 message BlockChecksum {
   enum ChecksumType {
     None = 0;
@@ -11,6 +12,20 @@ message BlockChecksum {
   uint64 checksum = 2;
 }
 
+// Statistics of a block.
+message BlockStatistics {
+  // Description and usage of each statistics is described in `statistics.rs`.
+  enum BlockStatisticsType {
+    RowCount = 0;
+    DistinctValue = 1;
+  }
+  BlockStatisticsType block_stat_type = 1;
+
+  // Encoded data of the aggregated value. Generally, it should be an encoded `DataValue`.
+  bytes body = 2;
+}
+
+// Index of a block, which contains necessary information to identify what's inside a block.
 message BlockIndex {
   enum BlockType {
     Plain = 0;
@@ -20,31 +35,30 @@ message BlockIndex {
     PlainFixedChar = 4;
     PlainVarchar = 5;
   }
+
+  // Type of the block.
   BlockType block_type = 1;
+
+  // Block offset (in bytes) in the `.col` file.
   uint64 offset = 2;
+
+  // Block length (in bytes).
   uint64 length = 3;
+
+  // RowID of the first item in the block.
   uint32 first_rowid = 4;
+
+  // Total count of rows in the block.
   uint32 row_count = 5;
+
+  // First key in the block. Only used in sorted index.
   bytes first_key = 6;
+
+  // Statistics of the block.
+  repeated BlockStatistics stats = 7;
 }
 
-message ColumnInfo {
-  enum ColumnDataType {
-    Bool = 0;
-    Int32 = 1;
-    Float64 = 2;
-    UTF8 = 3;
-  }
-  uint64 column_id = 1;
-  ColumnDataType data_type = 2;
-  bool nullable = 3;
-  bool is_sort_key = 4;
-}
-
-message RowsetManifest {
-  repeated ColumnInfo columns = 1;
-}
-
+// An entry of a delete record.
 message DeleteRecord {
   uint32 row_id = 2;
 }
