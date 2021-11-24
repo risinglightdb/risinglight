@@ -41,13 +41,13 @@ impl Binder {
             let join_table = self.bind_table_ref(&join.relation)?;
             let join_op = self.bind_join_op(&join.join_operator)?;
             let join_ref = BoundedSingleJoinTableRef {
-                table_ref: Box::new(join_table),
+                table_ref: (join_table.into()),
                 join_op,
             };
             join_tables.push(join_ref);
         }
         Ok(BoundTableRef::JoinTableRef {
-            relation: Box::new(relation),
+            relation: (relation.into()),
             join_tables,
         })
     }

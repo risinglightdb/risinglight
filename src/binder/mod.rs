@@ -112,7 +112,7 @@ impl Binder {
             Statement::Copy { .. } => Ok(BoundStatement::Copy(self.bind_copy(stmt)?)),
             Statement::Query(query) => Ok(BoundStatement::Select(self.bind_select(&*query)?)),
             Statement::Explain { statement, .. } => {
-                Ok(BoundStatement::Explain(Box::new(self.bind(&*statement)?)))
+                Ok(BoundStatement::Explain((self.bind(&*statement)?).into()))
             }
             _ => todo!("bind statement"),
         }

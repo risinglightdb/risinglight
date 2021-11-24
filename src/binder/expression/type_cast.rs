@@ -21,7 +21,7 @@ impl Binder {
         );
         Ok(BoundExpr {
             kind: BoundExprKind::TypeCast(BoundTypeCast {
-                expr: Box::new(bound_expr),
+                expr: (bound_expr.into()),
                 ty,
             }),
             return_type: Some(return_type),

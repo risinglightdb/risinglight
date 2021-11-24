@@ -31,7 +31,7 @@ impl LogicalPlaner {
         if let Some(expr) = stmt.where_clause {
             plan = LogicalPlan::Filter(LogicalFilter {
                 expr,
-                child: Box::new(plan),
+                child: plan.into(),
             });
         }
 
@@ -43,7 +43,7 @@ impl LogicalPlaner {
             plan = LogicalPlan::Aggregate(LogicalAggregate {
                 agg_calls: agg_extractor.agg_calls,
                 group_keys: stmt.group_by,
-                child: Box::new(plan),
+                child: plan.into(),
             })
         }
 
@@ -53,13 +53,13 @@ impl LogicalPlaner {
         if !stmt.select_list.is_empty() {
             plan = LogicalPlan::Projection(LogicalProjection {
                 project_expressions: stmt.select_list,
-                child: Box::new(plan),
+                child: plan.into(),
             });
         }
         if !stmt.orderby.is_empty() && !is_sorted {
             plan = LogicalPlan::Order(LogicalOrder {
                 comparators: stmt.orderby,
-                child: Box::new(plan),
+                child: plan.into(),
             });
         }
         if stmt.limit.is_some() || stmt.offset.is_some() {
@@ -80,7 +80,7 @@ impl LogicalPlaner {
             plan = LogicalPlan::Limit(LogicalLimit {
                 offset,
                 limit,
-                child: Box::new(plan),
+                child: plan.into(),
             });
         }
 
@@ -117,7 +117,7 @@ impl LogicalPlaner {
                     let table_plan =
                         self.plan_table_ref(&table.table_ref, with_row_handler, is_sorted)?;
                     join_table_plans.push(LogicalJoinTable {
-                        table_plan: Box::new(table_plan),
+                        table_plan: (table_plan.into()),
                         join_op: table.join_op.clone(),
                     });
                 }
@@ -125,7 +125,7 @@ impl LogicalPlaner {
                     return Ok(relation_plan);
                 }
                 Ok(LogicalPlan::Join(LogicalJoin {
-                    relation_plan: Box::new(relation_plan),
+                    relation_plan: relation_plan.into(),
                     join_table_plans,
                 }))
             }

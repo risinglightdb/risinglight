@@ -27,7 +27,7 @@ pub struct LogicalCopyToFile {
     /// The column types.
     pub column_types: Vec<DataType>,
     /// The child plan.
-    pub child: Box<LogicalPlan>,
+    pub child: LogicalPlanRef,
 }
 
 impl LogicalPlaner {
@@ -43,22 +43,24 @@ impl LogicalPlaner {
                 path,
                 format: stmt.format,
                 column_types,
-                child: Box::new(LogicalPlan::SeqScan(LogicalSeqScan {
+                child: LogicalPlan::SeqScan(LogicalSeqScan {
                     table_ref_id: stmt.table_ref_id,
                     column_ids,
                     with_row_handler: false,
                     is_sorted: false,
-                })),
+                })
+                .into(),
             }))
         } else {
             Ok(LogicalPlan::Insert(LogicalInsert {
                 table_ref_id: stmt.table_ref_id,
                 column_ids,
-                child: Box::new(LogicalPlan::CopyFromFile(LogicalCopyFromFile {
+                child: LogicalPlan::CopyFromFile(LogicalCopyFromFile {
                     path,
                     format: stmt.format,
                     column_types,
-                })),
+                })
+                .into(),
             }))
         }
     }

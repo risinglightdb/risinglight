@@ -8,5 +8,5 @@ pub struct LogicalAggregate {
     pub agg_calls: Vec<BoundAggCall>,
     /// Group keys in hash aggregation (optional)
     pub group_keys: Vec<BoundExpr>,
-    pub child: Box<LogicalPlan>,
+    pub child: LogicalPlanRef,
 }

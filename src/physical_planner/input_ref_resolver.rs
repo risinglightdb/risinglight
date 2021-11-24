@@ -21,18 +21,18 @@ impl PlanRewriter for InputRefResolver {
         use BoundJoinConstraint::*;
         use BoundJoinOperator::*;
 
-        let relation_plan = self.rewrite_plan(*plan.relation_plan);
+        let relation_plan = self.rewrite_plan(plan.relation_plan.as_ref().clone());
         // TODO: Make the order of bindings consistent with the output order in executor
         let join_table_plans = plan
             .join_table_plans
             .into_iter()
             .map(|plan| {
                 let mut resolver = Self::default();
-                let table_plan = resolver.rewrite_plan(*plan.table_plan);
+                let table_plan = resolver.rewrite_plan(plan.table_plan.as_ref().clone());
                 self.bindings.append(&mut resolver.bindings);
 
                 LogicalJoinTable {
-                    table_plan: Box::new(table_plan),
+                    table_plan: (table_plan.into()),
                     join_op: match plan.join_op {
                         Inner(On(expr)) => Inner(On(self.rewrite_expr(expr))),
                     },
@@ -41,7 +41,7 @@ impl PlanRewriter for InputRefResolver {
             .collect();
 
         LogicalPlan::Join(LogicalJoin {
-            relation_plan: Box::new(relation_plan),
+            relation_plan: relation_plan.into(),
             // TODO: implement `rewrite_join` when `plan.join_table_plans` is not empty
             join_table_plans,
         })
@@ -57,7 +57,7 @@ impl PlanRewriter for InputRefResolver {
     }
 
     fn rewrite_projection(&mut self, plan: LogicalProjection) -> LogicalPlan {
-        let child = self.rewrite_plan(*plan.child);
+        let child = self.rewrite_plan(plan.child.as_ref().clone());
         let mut bindings = vec![];
         let project_expressions = plan
             .project_expressions
@@ -73,12 +73,12 @@ impl PlanRewriter for InputRefResolver {
         self.bindings = bindings;
         LogicalPlan::Projection(LogicalProjection {
             project_expressions,
-            child: Box::new(child),
+            child: child.into(),
         })
     }
 
     fn rewrite_aggregate(&mut self, plan: LogicalAggregate) -> LogicalPlan {
-        let child = self.rewrite_plan(*plan.child);
+        let child = self.rewrite_plan(plan.child.as_ref().clone());
 
         let agg_calls = plan
             .agg_calls
@@ -109,7 +109,7 @@ impl PlanRewriter for InputRefResolver {
         LogicalPlan::Aggregate(LogicalAggregate {
             agg_calls,
             group_keys,
-            child: Box::new(child),
+            child: child.into(),
         })
     }
 
@@ -135,16 +135,16 @@ impl PlanRewriter for InputRefResolver {
             }),
             // rewrite sub-expressions
             BinaryOp(binary_op) => BinaryOp(BoundBinaryOp {
-                left_expr: Box::new(self.rewrite_expr(*binary_op.left_expr)),
+                left_expr: (self.rewrite_expr(*binary_op.left_expr).into()),
                 op: binary_op.op,
-                right_expr: Box::new(self.rewrite_expr(*binary_op.right_expr)),
+                right_expr: (self.rewrite_expr(*binary_op.right_expr).into()),
             }),
             UnaryOp(unary_op) => UnaryOp(BoundUnaryOp {
                 op: unary_op.op,
-                expr: Box::new(self.rewrite_expr(*unary_op.expr)),
+                expr: (self.rewrite_expr(*unary_op.expr).into()),
             }),
             TypeCast(cast) => TypeCast(BoundTypeCast {
-                expr: Box::new(self.rewrite_expr(*cast.expr)),
+                expr: (self.rewrite_expr(*cast.expr).into()),
                 ty: cast.ty,
             }),
             IsNull(isnull) => IsNull(BoundIsNull {

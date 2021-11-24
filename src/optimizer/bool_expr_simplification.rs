@@ -22,12 +22,12 @@ impl PlanRewriter for BoolExprSimplification {
         match &new_expr.kind {
             Constant(Bool(false) | Null) => LogicalPlan::Filter(LogicalFilter {
                 expr: new_expr,
-                child: Box::new(LogicalPlan::Dummy),
+                child: (LogicalPlan::Dummy.into()),
             }),
-            Constant(Bool(true)) => self.rewrite_plan(*plan.child),
+            Constant(Bool(true)) => self.rewrite_plan(plan.child.as_ref().clone()),
             _ => LogicalPlan::Filter(LogicalFilter {
                 expr: new_expr,
-                child: Box::new(self.rewrite_plan(*plan.child)),
+                child: self.rewrite_plan(plan.child.as_ref().clone()).into(),
             }),
         }
     }

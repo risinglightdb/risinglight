@@ -12,7 +12,7 @@ impl PhysicalPlaner {
     pub fn plan_filter(&self, plan: LogicalFilter) -> Result<PhysicalPlan, PhysicalPlanError> {
         Ok(PhysicalPlan::Filter(PhysicalFilter {
             expr: plan.expr,
-            child: Box::new(self.plan_inner(*plan.child)?),
+            child: self.plan_inner(plan.child.as_ref().clone())?.into(),
         }))
     }
 }
