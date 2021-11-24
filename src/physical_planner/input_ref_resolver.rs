@@ -1,7 +1,7 @@
 use crate::binder::*;
 use crate::catalog::ColumnRefId;
+use crate::logical_optimizer::plan_rewriter::PlanRewriter;
 use crate::logical_planner::*;
-use crate::optimizer::PlanRewriter;
 
 /// Resolves column references into physical indices into the `DataChunk`.
 ///

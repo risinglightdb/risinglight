@@ -1,32 +1,17 @@
-use crate::{binder::*, logical_planner::*};
+use crate::{
+    binder::{BoundAggCall, BoundExpr, BoundOrderBy},
+    logical_planner::{
+        LogicalAggregate, LogicalCopyFromFile, LogicalCopyToFile, LogicalCreateTable,
+        LogicalDelete, LogicalDrop, LogicalExplain, LogicalFilter, LogicalInsert, LogicalJoin,
+        LogicalJoinTable, LogicalLimit, LogicalOrder, LogicalPlan, LogicalProjection,
+        LogicalSeqScan, LogicalValues,
+    },
+};
 
-mod arith_expr_simplification;
-mod bool_expr_simplification;
-mod constant_folding;
-mod constant_moving;
-
-use arith_expr_simplification::*;
-use bool_expr_simplification::*;
-use constant_folding::*;
-use constant_moving::*;
-/// The optimizer will do query optimization.
-///
-/// It will do both rule-based optimization (predicate pushdown, constant folding and common
-/// expression extraction) , and cost-based optimization (Join reordering and join algorithm
-/// selection). It takes LogicalPlan as input and returns a new LogicalPlan which could be used to
-/// generate phyiscal plan.
-#[derive(Default)]
-pub struct Optimizer {}
-
-impl Optimizer {
-    pub fn optimize(&mut self, plan: LogicalPlan) -> LogicalPlan {
-        // TODO: add optimization rules
-        let mut plan = ConstantFolding.rewrite_plan(plan);
-        plan = ArithExprSimplification.rewrite_plan(plan);
-        plan = BoolExprSimplification.rewrite_plan(plan);
-        ConstantMovingRule.rewrite_plan(plan)
-    }
-}
+pub(super) mod arith_expr_simplification;
+pub(super) mod bool_expr_simplification;
+pub(super) mod constant_folding;
+pub(super) mod constant_moving;
 
 // PlanRewriter is a plan visitor.
 // User could implement the own optimization rules by implement PlanRewriter trait easily.
@@ -73,8 +58,8 @@ pub trait PlanRewriter {
         let relation_plan = self.rewrite_plan(plan.relation_plan.as_ref().clone());
         let mut join_table_plans = vec![];
         for plan in plan.join_table_plans.into_iter() {
-            use BoundJoinConstraint::*;
-            use BoundJoinOperator::*;
+            use super::BoundJoinConstraint::*;
+            use super::BoundJoinOperator::*;
             join_table_plans.push(LogicalJoinTable {
                 table_plan: self.rewrite_plan(plan.table_plan.as_ref().clone()).into(),
                 join_op: match plan.join_op {
