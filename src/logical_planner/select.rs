@@ -172,7 +172,7 @@ impl AggExtractor {
             }
             UnaryOp(unary_op) => self.visit_expr(&mut unary_op.expr),
             TypeCast(type_cast) => self.visit_expr(&mut type_cast.expr),
-            Constant(_) | ColumnRef(_) | InputRef(_) => {}
+            Constant(_) | ColumnRef(_) | InputRef(_) | IsNull(_) => {}
         }
     }
 }

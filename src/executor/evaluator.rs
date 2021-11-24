@@ -92,8 +92,8 @@ impl BoundExpr {
                 }
                 Ok(builder.finish())
             }
-            BoundExprKind::AggCall(_) => {
-                panic!("AggCall should not be evaluated")
+            _ => {
+                panic!("Unsupported Expression")
             }
             
         }
