@@ -81,6 +81,17 @@ impl BoundExpr {
                 }
                 array.try_cast(cast.ty.clone())
             }
+            BoundExprKind::IsNull(expr) => {
+                let arr = expr.expr.eval_array(chunk)?;
+                let mut builder = ArrayBuilderImpl::new(self.return_type.as_ref().unwrap());
+                for i in 0..arr.len() {
+                    builder.push(match arr.get(i) {
+                        DataValue::Null => &DataValue::Bool(true),
+                        _ => &DataValue::Bool(false),
+                    });
+                }
+                Ok(builder.finish())
+            }
             _ => panic!("{:?} should not be evaluated in `eval_array`", self.kind),
         }
     }

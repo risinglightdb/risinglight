@@ -147,6 +147,9 @@ impl PlanRewriter for InputRefResolver {
                 expr: Box::new(self.rewrite_expr(*cast.expr)),
                 ty: cast.ty,
             }),
+            IsNull(isnull) => IsNull(BoundIsNull {
+                expr: Box::new(self.rewrite_expr(*isnull.expr)),
+            }),
             kind => kind,
         };
         BoundExpr {

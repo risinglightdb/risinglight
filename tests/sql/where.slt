@@ -62,3 +62,24 @@ select sum(v2) from t where v1 >= 1
 
 statement ok
 drop table t
+
+statement ok
+create table t(v1 int, v2 int);
+
+statement ok
+insert into t values (1, 1), (null, 2), (null, 3), (4, 4);
+
+query I
+select v2 from t where v1 is null;
+----
+2
+3
+
+query I
+select v2 from t where v1 is not null;
+----
+1
+4
+
+statement ok
+drop table t
