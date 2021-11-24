@@ -1,23 +1,23 @@
 use super::*;
 use crate::catalog::ColumnRefId;
-use crate::parser::{Expr, Function, Value};
-use crate::types::{DataType, DataValue};
+use crate::parser::{Expr, Function, UnaryOperator, Value};
+use crate::types::{DataType, DataTypeKind, DataValue};
 
 mod agg_call;
 mod binary_op;
 mod column_ref;
 mod input_ref;
+mod null;
 mod type_cast;
 mod unary_op;
-mod null;
 
 pub use self::agg_call::*;
 pub use self::binary_op::*;
 pub use self::column_ref::*;
 pub use self::input_ref::*;
+pub use self::null::*;
 pub use self::type_cast::*;
 pub use self::unary_op::*;
-pub use self::null::*;
 /// A bound expression.
 #[derive(PartialEq, Clone)]
 pub struct BoundExpr {
@@ -39,7 +39,7 @@ pub enum BoundExprKind {
     UnaryOp(BoundUnaryOp),
     TypeCast(BoundTypeCast),
     AggCall(BoundAggCall),
-    IsNull(BoundIsNull)
+    IsNull(BoundIsNull),
 }
 
 impl std::fmt::Debug for BoundExprKind {
@@ -52,7 +52,7 @@ impl std::fmt::Debug for BoundExprKind {
             BoundExprKind::TypeCast(expr) => write!(f, "{:?} (cast)", expr)?,
             BoundExprKind::AggCall(expr) => write!(f, "{:?} (agg)", expr)?,
             BoundExprKind::InputRef(expr) => write!(f, "#{:?}", expr)?,
-            BoundExprKind::IsNull(expr) => write!(f, "{:?} (isnull)", expr)?
+            BoundExprKind::IsNull(expr) => write!(f, "{:?} (isnull)", expr)?,
         }
         Ok(())
     }
@@ -91,6 +91,16 @@ impl Binder {
             Expr::Cast { expr, data_type } => self.bind_type_cast(expr, data_type.clone()),
             Expr::Function(func) => self.bind_function(func),
             Expr::IsNull(expr) => self.bind_isnull(expr),
+            Expr::IsNotNull(expr) => {
+                let expr = self.bind_isnull(expr)?;
+                Ok(BoundExpr {
+                    kind: BoundExprKind::UnaryOp(BoundUnaryOp {
+                        op: UnaryOperator::Not,
+                        expr: Box::new(expr),
+                    }),
+                    return_type: Some(DataType::new(DataTypeKind::Boolean, false)),
+                })
+            }
             _ => todo!("bind expression: {:?}", expr),
         }
     }

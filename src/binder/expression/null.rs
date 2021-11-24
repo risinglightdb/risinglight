@@ -1,9 +1,9 @@
 use super::*;
-use crate::types::{DataTypeKind, DataType};
+use crate::types::{DataType, DataTypeKind};
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct BoundIsNull {
-    pub bound_expr: Box<BoundExpr>
+    pub expr: Box<BoundExpr>,
 }
 
 impl Binder {
@@ -11,9 +11,9 @@ impl Binder {
         let bound_expr = self.bind_expr(expr)?;
         Ok(BoundExpr {
             kind: BoundExprKind::IsNull(BoundIsNull {
-                bound_expr: Box::new(bound_expr)
+                expr: Box::new(bound_expr),
             }),
-            return_type: Some(DataType::new(DataTypeKind::Boolean, false))
+            return_type: Some(DataType::new(DataTypeKind::Boolean, false)),
         })
     }
 }

@@ -75,5 +75,11 @@ select v2 from t where v1 is null;
 2
 3
 
+query I
+select v2 from t where v1 is not null;
+----
+1
+4
+
 statement ok
 drop table t
