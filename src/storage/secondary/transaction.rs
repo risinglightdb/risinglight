@@ -86,20 +86,23 @@ impl SecondaryTransaction {
     }
 
     async fn flush_rowset(&mut self) -> StorageResult<()> {
+        // only flush when we have memtables
+        let mem = if let Some(mem) = self.mem.take() {
+            mem
+        } else {
+            return Ok(());
+        };
         let rowset_id = self.table.generate_rowset_id();
         let directory = self.table.get_rowset_path(rowset_id);
 
         tokio::fs::create_dir(&directory).await.unwrap();
 
         // flush data to disk
-        self.mem
-            .take()
-            .unwrap()
-            .flush(
-                &directory,
-                ColumnBuilderOptions::from_storage_options(&*self.table.storage_options),
-            )
-            .await?;
+        mem.flush(
+            &directory,
+            ColumnBuilderOptions::from_storage_options(&*self.table.storage_options),
+        )
+        .await?;
 
         let on_disk = DiskRowset::open(
             directory,
