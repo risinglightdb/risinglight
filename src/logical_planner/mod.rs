@@ -43,7 +43,7 @@ pub enum LogicalPlanError {
 /// An enumeration which record all necessary information of execution plan,
 /// which will be used by optimizer and executor.
 
-type LogicalPlanRef = Rc<LogicalPlan>;
+pub(crate) type LogicalPlanRef = Rc<LogicalPlan>;
 #[derive(Debug, PartialEq, Clone)]
 pub enum LogicalPlan {
     Dummy,
@@ -62,6 +62,12 @@ pub enum LogicalPlan {
     Delete(LogicalDelete),
     CopyFromFile(LogicalCopyFromFile),
     CopyToFile(LogicalCopyToFile),
+}
+
+impl Default for LogicalPlan {
+    fn default() -> Self {
+        LogicalPlan::Dummy
+    }
 }
 
 #[derive(Default)]
