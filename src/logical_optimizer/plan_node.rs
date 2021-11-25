@@ -1,19 +1,5 @@
-use crate::logical_planner::LogicalAggregate;
-use crate::logical_planner::LogicalCopyFromFile;
-use crate::logical_planner::LogicalCopyToFile;
-use crate::logical_planner::LogicalCreateTable;
-use crate::logical_planner::LogicalDelete;
-use crate::logical_planner::LogicalDrop;
-use crate::logical_planner::LogicalExplain;
-use crate::logical_planner::LogicalFilter;
-use crate::logical_planner::LogicalInsert;
-use crate::logical_planner::LogicalLimit;
-use crate::logical_planner::LogicalOrder;
-use crate::logical_planner::LogicalPlan;
-use crate::logical_planner::LogicalPlanRef;
-use crate::logical_planner::LogicalProjection;
-use crate::logical_planner::LogicalSeqScan;
-use crate::logical_planner::LogicalValues;
+use crate::logical_planner::*;
+
 pub trait LogicalPlanNode {
     fn get_children(&self) -> Vec<LogicalPlanRef>;
     fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef;
