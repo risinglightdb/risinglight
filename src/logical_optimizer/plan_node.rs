@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 use crate::logical_planner::LogicalAggregate;
 use crate::logical_planner::LogicalCopyFromFile;
 use crate::logical_planner::LogicalCopyToFile;
@@ -9,7 +7,6 @@ use crate::logical_planner::LogicalDrop;
 use crate::logical_planner::LogicalExplain;
 use crate::logical_planner::LogicalFilter;
 use crate::logical_planner::LogicalInsert;
-use crate::logical_planner::LogicalJoin;
 use crate::logical_planner::LogicalLimit;
 use crate::logical_planner::LogicalOrder;
 use crate::logical_planner::LogicalPlan;
@@ -17,277 +14,102 @@ use crate::logical_planner::LogicalPlanRef;
 use crate::logical_planner::LogicalProjection;
 use crate::logical_planner::LogicalSeqScan;
 use crate::logical_planner::LogicalValues;
-trait LogicalPlanNode {
+pub trait LogicalPlanNode {
     fn get_children(&self) -> Vec<LogicalPlanRef>;
     fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef;
 }
+
+// use marco to represent negative trait bounds
+pub trait LeafLogicalPlanNode: Clone {}
+macro_rules! impl_plan_node_for_leaf {
+    ($leaf_node_type:ident) => {
+        impl LogicalPlanNode for $leaf_node_type {
+            fn get_children(&self) -> Vec<LogicalPlanRef> {
+                vec![]
+            }
+
+            fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
+                assert!(children.is_empty());
+                LogicalPlan::$leaf_node_type(self.clone()).into()
+            }
+        }
+    };
+}
+pub trait UnaryLogicalPlanNode {
+    fn get_child(&self) -> LogicalPlanRef;
+    fn copy_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef;
+}
+macro_rules! impl_plan_node_for_unary {
+    ($unary_node_type:ident) => {
+        impl LogicalPlanNode for $unary_node_type {
+            fn get_children(&self) -> Vec<LogicalPlanRef> {
+                vec![self.get_child()]
+            }
+
+            fn copy_with_children(&self, mut children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
+                assert_eq!(children.len(), 1);
+                self.copy_with_child(std::mem::take(&mut children[1]))
+            }
+        }
+    };
+}
+
+impl_plan_node_for_leaf! {LogicalCreateTable}
+impl_plan_node_for_leaf! {LogicalDrop}
+impl_plan_node_for_leaf! {LogicalSeqScan}
+impl_plan_node_for_leaf! {LogicalValues}
+impl_plan_node_for_leaf! {LogicalCopyFromFile}
+impl_plan_node_for_unary! {LogicalInsert}
+impl_plan_node_for_unary! {LogicalAggregate}
+impl_plan_node_for_unary! {LogicalProjection}
+impl_plan_node_for_unary! {LogicalFilter}
+impl_plan_node_for_unary! {LogicalOrder}
+impl_plan_node_for_unary! {LogicalExplain}
+impl_plan_node_for_unary! {LogicalLimit}
+impl_plan_node_for_unary! {LogicalDelete}
+impl_plan_node_for_unary! {LogicalCopyToFile}
 
 // TODO: refactor with macro
 impl LogicalPlan {
     fn get_children(&self) -> Vec<LogicalPlanRef> {
         match self {
             LogicalPlan::Dummy => vec![],
-            LogicalPlan::CreateTable(plan) => plan.get_children(),
-            LogicalPlan::Drop(plan) => plan.get_children(),
-            LogicalPlan::Insert(plan) => plan.get_children(),
-            LogicalPlan::Join(plan) => plan.get_children(),
-            LogicalPlan::SeqScan(plan) => plan.get_children(),
-            LogicalPlan::Projection(plan) => plan.get_children(),
-            LogicalPlan::Filter(plan) => plan.get_children(),
-            LogicalPlan::Order(plan) => plan.get_children(),
-            LogicalPlan::Limit(plan) => plan.get_children(),
-            LogicalPlan::Explain(plan) => plan.get_children(),
-            LogicalPlan::Aggregate(plan) => plan.get_children(),
-            LogicalPlan::Delete(plan) => plan.get_children(),
-            LogicalPlan::Values(plan) => plan.get_children(),
-            LogicalPlan::CopyFromFile(plan) => plan.get_children(),
-            LogicalPlan::CopyToFile(plan) => plan.get_children(),
+            LogicalPlan::LogicalCreateTable(plan) => plan.get_children(),
+            LogicalPlan::LogicalDrop(plan) => plan.get_children(),
+            LogicalPlan::LogicalInsert(plan) => plan.get_children(),
+            LogicalPlan::LogicalJoin(plan) => plan.get_children(),
+            LogicalPlan::LogicalSeqScan(plan) => plan.get_children(),
+            LogicalPlan::LogicalProjection(plan) => plan.get_children(),
+            LogicalPlan::LogicalFilter(plan) => plan.get_children(),
+            LogicalPlan::LogicalOrder(plan) => plan.get_children(),
+            LogicalPlan::LogicalLimit(plan) => plan.get_children(),
+            LogicalPlan::LogicalExplain(plan) => plan.get_children(),
+            LogicalPlan::LogicalAggregate(plan) => plan.get_children(),
+            LogicalPlan::LogicalDelete(plan) => plan.get_children(),
+            LogicalPlan::LogicalValues(plan) => plan.get_children(),
+            LogicalPlan::LogicalCopyFromFile(plan) => plan.get_children(),
+            LogicalPlan::LogicalCopyToFile(plan) => plan.get_children(),
         }
     }
 
     fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
         match self {
             LogicalPlan::Dummy => LogicalPlan::Dummy.into(),
-            LogicalPlan::CreateTable(plan) => plan.copy_with_children(children),
-            LogicalPlan::Drop(plan) => plan.copy_with_children(children),
-            LogicalPlan::Insert(plan) => plan.copy_with_children(children),
-            LogicalPlan::Join(plan) => plan.copy_with_children(children),
-            LogicalPlan::SeqScan(plan) => plan.copy_with_children(children),
-            LogicalPlan::Projection(plan) => plan.copy_with_children(children),
-            LogicalPlan::Filter(plan) => plan.copy_with_children(children),
-            LogicalPlan::Order(plan) => plan.copy_with_children(children),
-            LogicalPlan::Limit(plan) => plan.copy_with_children(children),
-            LogicalPlan::Explain(plan) => plan.copy_with_children(children),
-            LogicalPlan::Aggregate(plan) => plan.copy_with_children(children),
-            LogicalPlan::Delete(plan) => plan.copy_with_children(children),
-            LogicalPlan::Values(plan) => plan.copy_with_children(children),
-            LogicalPlan::CopyFromFile(plan) => plan.copy_with_children(children),
-            LogicalPlan::CopyToFile(plan) => plan.copy_with_children(children),
+            LogicalPlan::LogicalCreateTable(plan) => plan.copy_with_children(children),
+            LogicalPlan::LogicalDrop(plan) => plan.copy_with_children(children),
+            LogicalPlan::LogicalInsert(plan) => plan.copy_with_children(children),
+            LogicalPlan::LogicalJoin(plan) => plan.copy_with_children(children),
+            LogicalPlan::LogicalSeqScan(plan) => plan.copy_with_children(children),
+            LogicalPlan::LogicalProjection(plan) => plan.copy_with_children(children),
+            LogicalPlan::LogicalFilter(plan) => plan.copy_with_children(children),
+            LogicalPlan::LogicalOrder(plan) => plan.copy_with_children(children),
+            LogicalPlan::LogicalLimit(plan) => plan.copy_with_children(children),
+            LogicalPlan::LogicalExplain(plan) => plan.copy_with_children(children),
+            LogicalPlan::LogicalAggregate(plan) => plan.copy_with_children(children),
+            LogicalPlan::LogicalDelete(plan) => plan.copy_with_children(children),
+            LogicalPlan::LogicalValues(plan) => plan.copy_with_children(children),
+            LogicalPlan::LogicalCopyFromFile(plan) => plan.copy_with_children(children),
+            LogicalPlan::LogicalCopyToFile(plan) => plan.copy_with_children(children),
         }
-    }
-}
-impl LogicalPlanNode for LogicalSeqScan {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![]
-    }
-
-    fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        assert!(children.is_empty());
-        LogicalPlan::SeqScan(self.clone()).into()
-    }
-}
-
-impl LogicalPlanNode for LogicalInsert {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![self.child.clone()]
-    }
-
-    fn copy_with_children(&self, mut children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        assert!(children.len() == 1);
-        LogicalPlan::Insert(LogicalInsert {
-            child: std::mem::take(&mut children[1]),
-            table_ref_id: self.table_ref_id,
-            column_ids: self.column_ids.clone(),
-        })
-        .into()
-    }
-}
-impl LogicalPlanNode for LogicalValues {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![]
-    }
-
-    fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        assert!(children.is_empty());
-        LogicalPlan::Values(self.clone()).into()
-    }
-}
-
-impl LogicalPlanNode for LogicalCreateTable {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![]
-    }
-
-    fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        assert!(children.is_empty());
-        LogicalPlan::CreateTable(self.clone()).into()
-    }
-}
-
-impl LogicalPlanNode for LogicalDrop {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![]
-    }
-
-    fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        assert!(children.is_empty());
-        LogicalPlan::Drop(self.clone()).into()
-    }
-}
-
-impl LogicalPlanNode for LogicalProjection {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![self.child.clone()]
-    }
-
-    fn copy_with_children(&self, mut children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        assert!(children.len() == 1);
-        LogicalPlan::Projection(LogicalProjection {
-            child: std::mem::take(&mut children[1]),
-            project_expressions: self.project_expressions.clone(),
-        })
-        .into()
-    }
-}
-
-impl LogicalPlanNode for LogicalFilter {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![self.child.clone()]
-    }
-
-    fn copy_with_children(&self, mut children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        assert!(children.len() == 1);
-        LogicalPlan::Filter(LogicalFilter {
-            child: std::mem::take(&mut children[1]),
-            expr: self.expr.clone(),
-        })
-        .into()
-    }
-}
-
-impl LogicalPlanNode for LogicalExplain {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![self.plan.clone()]
-    }
-
-    fn copy_with_children(&self, mut children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        assert!(children.len() == 1);
-        LogicalPlan::Explain(LogicalExplain {
-            plan: std::mem::take(&mut children[1]),
-        })
-        .into()
-    }
-}
-
-impl LogicalPlanNode for LogicalJoin {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![self.relation_plan.clone()]
-            .into_iter()
-            .chain(
-                self.join_table_plans
-                    .iter()
-                    .map(|join_table| join_table.table_plan.clone()),
-            )
-            .collect_vec()
-    }
-
-    fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        let mut children_iter = children.into_iter();
-        let relation_plan = children_iter.next().unwrap();
-        let mut join_table_plans = self.join_table_plans.clone();
-        join_table_plans
-            .iter_mut()
-            .zip_eq(children_iter)
-            .for_each(|(join_table, table_plan)| {
-                join_table.table_plan = table_plan;
-            });
-        LogicalPlan::Join(LogicalJoin {
-            relation_plan,
-            join_table_plans,
-        })
-        .into()
-    }
-}
-
-impl LogicalPlanNode for LogicalAggregate {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![self.child.clone()]
-    }
-
-    fn copy_with_children(&self, mut children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        assert!(children.len() == 1);
-        LogicalPlan::Aggregate(LogicalAggregate {
-            child: std::mem::take(&mut children[1]),
-            agg_calls: self.agg_calls.clone(),
-            group_keys: self.group_keys.clone(),
-        })
-        .into()
-    }
-}
-
-impl LogicalPlanNode for LogicalOrder {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![self.child.clone()]
-    }
-
-    fn copy_with_children(&self, mut children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        assert!(children.len() == 1);
-        LogicalPlan::Order(LogicalOrder {
-            child: std::mem::take(&mut children[1]),
-            comparators: self.comparators.clone(),
-        })
-        .into()
-    }
-}
-
-impl LogicalPlanNode for LogicalLimit {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![self.child.clone()]
-    }
-
-    fn copy_with_children(&self, mut children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        assert!(children.len() == 1);
-        LogicalPlan::Limit(LogicalLimit {
-            child: std::mem::take(&mut children[1]),
-            offset: self.offset,
-            limit: self.limit,
-        })
-        .into()
-    }
-}
-
-impl LogicalPlanNode for LogicalDelete {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![self.filter.child.clone()]
-    }
-
-    fn copy_with_children(&self, mut children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        assert!(children.len() == 1);
-        LogicalPlan::Delete(LogicalDelete {
-            table_ref_id: self.table_ref_id,
-            filter: LogicalFilter {
-                child: std::mem::take(&mut children[1]),
-                expr: self.filter.expr.clone(),
-            },
-        })
-        .into()
-    }
-}
-
-impl LogicalPlanNode for LogicalCopyFromFile {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![]
-    }
-
-    fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        assert!(children.is_empty());
-        LogicalPlan::CopyFromFile(self.clone()).into()
-    }
-}
-
-impl LogicalPlanNode for LogicalCopyToFile {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![self.child.clone()]
-    }
-
-    fn copy_with_children(&self, mut children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        assert!(children.len() == 1);
-        LogicalPlan::CopyToFile(LogicalCopyToFile {
-            path: self.path.clone(),
-            format: self.format.clone(),
-            column_types: self.column_types.clone(),
-            child: std::mem::take(&mut children[1]),
-        })
-        .into()
     }
 }

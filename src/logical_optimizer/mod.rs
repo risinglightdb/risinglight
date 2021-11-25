@@ -1,6 +1,6 @@
 pub(crate) mod plan_rewriter;
 use crate::{binder::*, logical_planner::*};
-mod plan_node;
+pub(crate) mod plan_node;
 
 use self::plan_rewriter::{
     arith_expr_simplification::ArithExprSimplification,
@@ -20,9 +20,10 @@ pub struct Optimizer {}
 impl Optimizer {
     pub fn optimize(&mut self, plan: LogicalPlan) -> LogicalPlan {
         // TODO: add optimization rules
-        let mut plan = ConstantFolding.rewrite_plan(plan);
+
+        let mut plan = ConstantFolding.rewrite_plan(plan.into());
         plan = ArithExprSimplification.rewrite_plan(plan);
         plan = BoolExprSimplification.rewrite_plan(plan);
-        ConstantMovingRule.rewrite_plan(plan)
+        ConstantMovingRule.rewrite_plan(plan).as_ref().clone()
     }
 }
