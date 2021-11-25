@@ -34,7 +34,7 @@ macro_rules! impl_plan_node_for_unary {
 
             fn copy_with_children(&self, mut children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
                 assert_eq!(children.len(), 1);
-                self.copy_with_child(std::mem::take(&mut children[1]))
+                self.copy_with_child(children.pop().unwrap())
             }
         }
     };
