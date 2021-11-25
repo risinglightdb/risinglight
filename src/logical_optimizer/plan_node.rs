@@ -59,6 +59,7 @@ impl_plan_node_for_leaf! {LogicalDrop}
 impl_plan_node_for_leaf! {LogicalSeqScan}
 impl_plan_node_for_leaf! {LogicalValues}
 impl_plan_node_for_leaf! {LogicalCopyFromFile}
+
 impl_plan_node_for_unary! {LogicalInsert}
 impl_plan_node_for_unary! {LogicalAggregate}
 impl_plan_node_for_unary! {LogicalProjection}
@@ -70,6 +71,7 @@ impl_plan_node_for_unary! {LogicalDelete}
 impl_plan_node_for_unary! {LogicalCopyToFile}
 
 // TODO: refactor with macro
+#[allow(dead_code)]
 impl LogicalPlan {
     fn get_children(&self) -> Vec<LogicalPlanRef> {
         match self {
