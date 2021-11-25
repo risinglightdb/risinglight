@@ -30,7 +30,7 @@ impl PlanRewriter for InputRefResolver {
             .cloned()
             .map(|plan| {
                 let mut resolver = Self::default();
-                let table_plan = self.rewrite_plan(plan.table_plan.clone());
+                let table_plan = resolver.rewrite_plan(plan.table_plan.clone());
                 self.bindings.append(&mut resolver.bindings);
 
                 LogicalJoinTable {
