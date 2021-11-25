@@ -7,21 +7,18 @@ use crate::logical_optimizer::plan_node::UnaryLogicalPlanNode;
 #[derive(Debug, PartialEq, Clone)]
 pub struct LogicalDelete {
     pub table_ref_id: TableRefId,
-    pub filter: LogicalFilter,
+    pub child: LogicalPlanRef,
 }
 
 impl UnaryLogicalPlanNode for LogicalDelete {
     fn get_child(&self) -> LogicalPlanRef {
-        self.filter.child.clone()
+        self.child.clone()
     }
 
     fn copy_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
         LogicalPlan::LogicalDelete(LogicalDelete {
             table_ref_id: self.table_ref_id,
-            filter: LogicalFilter {
-                child,
-                expr: self.filter.expr.clone(),
-            },
+            child,
         })
         .into()
     }
@@ -34,7 +31,7 @@ impl LogicalPlaner {
                 let child = self.plan_table_ref(&stmt.from_table, true, false)?.into();
                 Ok(LogicalPlan::LogicalDelete(LogicalDelete {
                     table_ref_id: *ref_id,
-                    filter: LogicalFilter { expr, child },
+                    child: LogicalPlan::LogicalFilter(LogicalFilter { expr, child }).into(),
                 }))
             } else {
                 panic!("delete whole table is not supported yet")

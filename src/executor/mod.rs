@@ -175,7 +175,7 @@ impl ExecutorBuilder {
             .boxed(),
             PhysicalPlan::Delete(plan) => DeleteExecutor {
                 storage: storage.clone(),
-                child: self.build_with_storage(*plan.filter, storage),
+                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
                 table_ref_id: plan.table_ref_id,
             }
             .execute()
