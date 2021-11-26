@@ -404,7 +404,7 @@ fn datachunk_to_strings(chunk: &DataChunk) -> Vec<String> {
                 DataValue::Int32(v) => write!(line, "{}", v),
                 DataValue::Int64(v) => write!(line, "{}", v),
                 DataValue::Float64(v) => write!(line, "{}", v),
-                DataValue::String(s) if s == "" => write!(line, "(empty)"),
+                DataValue::String(s) if s.is_empty() => write!(line, "(empty)"),
                 DataValue::String(s) => write!(line, "{}", s),
             }
             .unwrap();
