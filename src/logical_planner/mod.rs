@@ -43,25 +43,31 @@ pub enum LogicalPlanError {
 /// An enumeration which record all necessary information of execution plan,
 /// which will be used by optimizer and executor.
 
-type LogicalPlanRef = Rc<LogicalPlan>;
+pub(crate) type LogicalPlanRef = Rc<LogicalPlan>;
 #[derive(Debug, PartialEq, Clone)]
 pub enum LogicalPlan {
     Dummy,
-    SeqScan(LogicalSeqScan),
-    Insert(LogicalInsert),
-    Values(LogicalValues),
-    CreateTable(LogicalCreateTable),
-    Drop(LogicalDrop),
-    Projection(LogicalProjection),
-    Filter(LogicalFilter),
-    Explain(LogicalExplain),
-    Join(LogicalJoin),
-    Aggregate(LogicalAggregate),
-    Order(LogicalOrder),
-    Limit(LogicalLimit),
-    Delete(LogicalDelete),
-    CopyFromFile(LogicalCopyFromFile),
-    CopyToFile(LogicalCopyToFile),
+    LogicalSeqScan(LogicalSeqScan),
+    LogicalInsert(LogicalInsert),
+    LogicalValues(LogicalValues),
+    LogicalCreateTable(LogicalCreateTable),
+    LogicalDrop(LogicalDrop),
+    LogicalProjection(LogicalProjection),
+    LogicalFilter(LogicalFilter),
+    LogicalExplain(LogicalExplain),
+    LogicalJoin(LogicalJoin),
+    LogicalAggregate(LogicalAggregate),
+    LogicalOrder(LogicalOrder),
+    LogicalLimit(LogicalLimit),
+    LogicalDelete(LogicalDelete),
+    LogicalCopyFromFile(LogicalCopyFromFile),
+    LogicalCopyToFile(LogicalCopyToFile),
+}
+
+impl Default for LogicalPlan {
+    fn default() -> Self {
+        LogicalPlan::Dummy
+    }
 }
 
 #[derive(Default)]

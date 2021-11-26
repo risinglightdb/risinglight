@@ -17,18 +17,24 @@ use crate::types::DataValue::*;
 pub struct BoolExprSimplification;
 
 impl PlanRewriter for BoolExprSimplification {
-    fn rewrite_filter(&mut self, plan: LogicalFilter) -> LogicalPlan {
-        let new_expr = self.rewrite_expr(plan.expr);
+    fn rewrite_filter(&mut self, plan: &LogicalFilter) -> Option<LogicalPlanRef> {
+        let new_expr = self.rewrite_expr(plan.expr.clone());
         match &new_expr.kind {
-            Constant(Bool(false) | Null) => LogicalPlan::Filter(LogicalFilter {
-                expr: new_expr,
-                child: (LogicalPlan::Dummy.into()),
-            }),
-            Constant(Bool(true)) => self.rewrite_plan(plan.child.as_ref().clone()),
-            _ => LogicalPlan::Filter(LogicalFilter {
-                expr: new_expr,
-                child: self.rewrite_plan(plan.child.as_ref().clone()).into(),
-            }),
+            Constant(Bool(false) | Null) => Some(
+                LogicalPlan::LogicalFilter(LogicalFilter {
+                    expr: new_expr,
+                    child: (LogicalPlan::Dummy.into()),
+                })
+                .into(),
+            ),
+            Constant(Bool(true)) => Some(self.rewrite_plan(plan.get_child())),
+            _ => Some(
+                LogicalPlan::LogicalFilter(LogicalFilter {
+                    expr: new_expr,
+                    child: self.rewrite_plan(plan.get_child()),
+                })
+                .into(),
+            ),
         }
     }
 

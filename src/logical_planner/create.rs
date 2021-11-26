@@ -17,7 +17,7 @@ impl LogicalPlaner {
         &self,
         stmt: BoundCreateTable,
     ) -> Result<LogicalPlan, LogicalPlanError> {
-        Ok(LogicalPlan::CreateTable(LogicalCreateTable {
+        Ok(LogicalPlan::LogicalCreateTable(LogicalCreateTable {
             database_id: stmt.database_id,
             schema_id: stmt.schema_id,
             table_name: stmt.table_name,

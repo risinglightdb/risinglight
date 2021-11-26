@@ -28,7 +28,7 @@ pub use order::*;
 pub use projection::*;
 pub use seq_scan::*;
 
-use crate::{logical_planner::LogicalPlan, optimizer::PlanRewriter};
+use crate::{logical_optimizer::plan_rewriter::PlanRewriter, logical_planner::LogicalPlan};
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum PhysicalPlanError {
@@ -67,30 +67,30 @@ impl PhysicalPlaner {
     fn plan_inner(&self, plan: LogicalPlan) -> Result<PhysicalPlan, PhysicalPlanError> {
         match plan {
             LogicalPlan::Dummy => Ok(PhysicalPlan::Dummy(Dummy)),
-            LogicalPlan::CreateTable(plan) => self.plan_create_table(plan),
-            LogicalPlan::Drop(plan) => self.plan_drop(plan),
-            LogicalPlan::Insert(plan) => self.plan_insert(plan),
-            LogicalPlan::Values(plan) => self.plan_values(plan),
-            LogicalPlan::Join(plan) => self.plan_join(plan),
-            LogicalPlan::SeqScan(plan) => self.plan_seq_scan(plan),
-            LogicalPlan::Projection(plan) => self.plan_projection(plan),
-            LogicalPlan::Filter(plan) => self.plan_filter(plan),
-            LogicalPlan::Order(plan) => self.plan_order(plan),
-            LogicalPlan::Limit(plan) => self.plan_limit(plan),
-            LogicalPlan::Explain(plan) => self.plan_explain(plan),
-            LogicalPlan::Aggregate(plan) => self.plan_aggregate(plan),
-            LogicalPlan::Delete(plan) => self.plan_delete(plan),
-            LogicalPlan::CopyFromFile(plan) => self.plan_copy_from_file(plan),
-            LogicalPlan::CopyToFile(plan) => self.plan_copy_to_file(plan),
+            LogicalPlan::LogicalCreateTable(plan) => self.plan_create_table(plan),
+            LogicalPlan::LogicalDrop(plan) => self.plan_drop(plan),
+            LogicalPlan::LogicalInsert(plan) => self.plan_insert(plan),
+            LogicalPlan::LogicalValues(plan) => self.plan_values(plan),
+            LogicalPlan::LogicalJoin(plan) => self.plan_join(plan),
+            LogicalPlan::LogicalSeqScan(plan) => self.plan_seq_scan(plan),
+            LogicalPlan::LogicalProjection(plan) => self.plan_projection(plan),
+            LogicalPlan::LogicalFilter(plan) => self.plan_filter(plan),
+            LogicalPlan::LogicalOrder(plan) => self.plan_order(plan),
+            LogicalPlan::LogicalLimit(plan) => self.plan_limit(plan),
+            LogicalPlan::LogicalExplain(plan) => self.plan_explain(plan),
+            LogicalPlan::LogicalAggregate(plan) => self.plan_aggregate(plan),
+            LogicalPlan::LogicalDelete(plan) => self.plan_delete(plan),
+            LogicalPlan::LogicalCopyFromFile(plan) => self.plan_copy_from_file(plan),
+            LogicalPlan::LogicalCopyToFile(plan) => self.plan_copy_to_file(plan),
         }
     }
 
     pub fn plan(&self, plan: LogicalPlan) -> Result<PhysicalPlan, PhysicalPlanError> {
         // Resolve input reference
-        let plan = InputRefResolver::default().rewrite_plan(plan);
+        let plan = InputRefResolver::default().rewrite_plan(plan.into());
 
         // Create physical plan
-        self.plan_inner(plan)
+        self.plan_inner(plan.as_ref().clone())
     }
 }
 

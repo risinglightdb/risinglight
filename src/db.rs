@@ -3,8 +3,8 @@ use crate::{
     binder::{BindError, Binder},
     catalog::RootCatalogRef,
     executor::{ExecutorBuilder, ExecutorError, GlobalEnv},
+    logical_optimizer::Optimizer,
     logical_planner::{LogicalPlanError, LogicalPlaner},
-    optimizer::Optimizer,
     parser::{parse, ParserError},
     physical_planner::{PhysicalPlanError, PhysicalPlaner},
     storage::{

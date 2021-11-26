@@ -9,7 +9,7 @@ pub struct LogicalDrop {
 
 impl LogicalPlaner {
     pub fn plan_drop(&self, stmt: BoundDrop) -> Result<LogicalPlan, LogicalPlanError> {
-        Ok(LogicalPlan::Drop(LogicalDrop {
+        Ok(LogicalPlan::LogicalDrop(LogicalDrop {
             object: stmt.object,
         }))
     }

@@ -1,6 +1,7 @@
 use super::*;
 use crate::binder::{BoundExpr, BoundInsert};
 use crate::catalog::TableRefId;
+use crate::logical_optimizer::plan_node::UnaryLogicalPlanNode;
 use crate::types::ColumnId;
 
 /// The logical plan of `INSERT`.
@@ -17,12 +18,27 @@ pub struct LogicalValues {
     pub values: Vec<Vec<BoundExpr>>,
 }
 
+impl UnaryLogicalPlanNode for LogicalInsert {
+    fn get_child(&self) -> LogicalPlanRef {
+        self.child.clone()
+    }
+
+    fn copy_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
+        LogicalPlan::LogicalInsert(LogicalInsert {
+            child,
+            table_ref_id: self.table_ref_id,
+            column_ids: self.column_ids.clone(),
+        })
+        .into()
+    }
+}
+
 impl LogicalPlaner {
     pub fn plan_insert(&self, stmt: BoundInsert) -> Result<LogicalPlan, LogicalPlanError> {
-        Ok(LogicalPlan::Insert(LogicalInsert {
+        Ok(LogicalPlan::LogicalInsert(LogicalInsert {
             table_ref_id: stmt.table_ref_id,
             column_ids: stmt.column_ids,
-            child: LogicalPlan::Values(LogicalValues {
+            child: LogicalPlan::LogicalValues(LogicalValues {
                 values: stmt.values,
             })
             .into(),

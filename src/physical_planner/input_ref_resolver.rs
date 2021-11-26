@@ -1,7 +1,8 @@
 use crate::binder::*;
 use crate::catalog::ColumnRefId;
+use crate::logical_optimizer::plan_node::UnaryLogicalPlanNode;
+use crate::logical_optimizer::plan_rewriter::PlanRewriter;
 use crate::logical_planner::*;
-use crate::optimizer::PlanRewriter;
 
 /// Resolves column references into physical indices into the `DataChunk`.
 ///
@@ -17,51 +18,55 @@ pub struct InputRefResolver {
 }
 
 impl PlanRewriter for InputRefResolver {
-    fn rewrite_join(&mut self, plan: LogicalJoin) -> LogicalPlan {
+    fn rewrite_join(&mut self, plan: &LogicalJoin) -> Option<LogicalPlanRef> {
         use BoundJoinConstraint::*;
         use BoundJoinOperator::*;
 
-        let relation_plan = self.rewrite_plan(plan.relation_plan.as_ref().clone());
+        let relation_plan = self.rewrite_plan(plan.relation_plan.clone());
         // TODO: Make the order of bindings consistent with the output order in executor
         let join_table_plans = plan
             .join_table_plans
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|plan| {
                 let mut resolver = Self::default();
-                let table_plan = resolver.rewrite_plan(plan.table_plan.as_ref().clone());
+                let table_plan = resolver.rewrite_plan(plan.table_plan.clone());
                 self.bindings.append(&mut resolver.bindings);
 
                 LogicalJoinTable {
-                    table_plan: (table_plan.into()),
+                    table_plan: (table_plan),
                     join_op: match plan.join_op {
                         Inner(On(expr)) => Inner(On(self.rewrite_expr(expr))),
                     },
                 }
             })
             .collect();
-
-        LogicalPlan::Join(LogicalJoin {
-            relation_plan: relation_plan.into(),
-            // TODO: implement `rewrite_join` when `plan.join_table_plans` is not empty
-            join_table_plans,
-        })
+        Some(
+            LogicalPlan::LogicalJoin(LogicalJoin {
+                relation_plan,
+                // TODO: implement `rewrite_join` whens `plan.join_table_plans` is not empty
+                join_table_plans,
+            })
+            .into(),
+        )
     }
 
-    fn rewrite_seqscan(&mut self, plan: LogicalSeqScan) -> LogicalPlan {
+    fn rewrite_seqscan(&mut self, plan: &LogicalSeqScan) -> Option<LogicalPlanRef> {
         self.bindings = plan
             .column_ids
             .iter()
             .map(|col_id| Some(ColumnRefId::from_table(plan.table_ref_id, *col_id)))
             .collect();
-        LogicalPlan::SeqScan(plan)
+        None
     }
 
-    fn rewrite_projection(&mut self, plan: LogicalProjection) -> LogicalPlan {
-        let child = self.rewrite_plan(plan.child.as_ref().clone());
+    fn rewrite_projection(&mut self, plan: &LogicalProjection) -> Option<LogicalPlanRef> {
+        let child = self.rewrite_plan(plan.get_child());
         let mut bindings = vec![];
         let project_expressions = plan
             .project_expressions
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|expr| {
                 bindings.push(match &expr.kind {
                     BoundExprKind::ColumnRef(col) => Some(col.column_ref_id),
@@ -71,18 +76,22 @@ impl PlanRewriter for InputRefResolver {
             })
             .collect();
         self.bindings = bindings;
-        LogicalPlan::Projection(LogicalProjection {
-            project_expressions,
-            child: child.into(),
-        })
+        Some(
+            LogicalPlan::LogicalProjection(LogicalProjection {
+                project_expressions,
+                child,
+            })
+            .into(),
+        )
     }
 
-    fn rewrite_aggregate(&mut self, plan: LogicalAggregate) -> LogicalPlan {
-        let child = self.rewrite_plan(plan.child.as_ref().clone());
+    fn rewrite_aggregate(&mut self, plan: &LogicalAggregate) -> Option<LogicalPlanRef> {
+        let child = self.rewrite_plan(plan.get_child());
 
         let agg_calls = plan
             .agg_calls
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|agg| BoundAggCall {
                 kind: agg.kind,
                 args: agg
@@ -96,7 +105,8 @@ impl PlanRewriter for InputRefResolver {
 
         let group_keys = plan
             .group_keys
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|expr| {
                 match &expr.kind {
                     BoundExprKind::ColumnRef(col) => self.bindings.push(Some(col.column_ref_id)),
@@ -105,12 +115,14 @@ impl PlanRewriter for InputRefResolver {
                 self.rewrite_expr(expr)
             })
             .collect();
-
-        LogicalPlan::Aggregate(LogicalAggregate {
-            agg_calls,
-            group_keys,
-            child: child.into(),
-        })
+        Some(
+            LogicalPlan::LogicalAggregate(LogicalAggregate {
+                agg_calls,
+                group_keys,
+                child,
+            })
+            .into(),
+        )
     }
 
     /// Transform expr referring to input chunk into `BoundInputRef`

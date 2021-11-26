@@ -29,7 +29,7 @@ impl LogicalPlaner {
         }
 
         if let Some(expr) = stmt.where_clause {
-            plan = LogicalPlan::Filter(LogicalFilter {
+            plan = LogicalPlan::LogicalFilter(LogicalFilter {
                 expr,
                 child: plan.into(),
             });
@@ -40,7 +40,7 @@ impl LogicalPlaner {
             agg_extractor.visit_expr(expr);
         }
         if !agg_extractor.agg_calls.is_empty() {
-            plan = LogicalPlan::Aggregate(LogicalAggregate {
+            plan = LogicalPlan::LogicalAggregate(LogicalAggregate {
                 agg_calls: agg_extractor.agg_calls,
                 group_keys: stmt.group_by,
                 child: plan.into(),
@@ -51,13 +51,13 @@ impl LogicalPlaner {
         assert!(!stmt.select_distinct, "TODO: plan distinct");
 
         if !stmt.select_list.is_empty() {
-            plan = LogicalPlan::Projection(LogicalProjection {
+            plan = LogicalPlan::LogicalProjection(LogicalProjection {
                 project_expressions: stmt.select_list,
                 child: plan.into(),
             });
         }
         if !stmt.orderby.is_empty() && !is_sorted {
-            plan = LogicalPlan::Order(LogicalOrder {
+            plan = LogicalPlan::LogicalOrder(LogicalOrder {
                 comparators: stmt.orderby,
                 child: plan.into(),
             });
@@ -77,7 +77,7 @@ impl LogicalPlaner {
                 },
                 None => 0,
             };
-            plan = LogicalPlan::Limit(LogicalLimit {
+            plan = LogicalPlan::LogicalLimit(LogicalLimit {
                 offset,
                 limit,
                 child: plan.into(),
@@ -101,7 +101,7 @@ impl LogicalPlaner {
                 ref_id,
                 table_name: _,
                 column_ids,
-            } => Ok(LogicalPlan::SeqScan(LogicalSeqScan {
+            } => Ok(LogicalPlan::LogicalSeqScan(LogicalSeqScan {
                 table_ref_id: *ref_id,
                 column_ids: column_ids.to_vec(),
                 with_row_handler,
@@ -124,7 +124,7 @@ impl LogicalPlaner {
                 if join_table_plans.is_empty() {
                     return Ok(relation_plan);
                 }
-                Ok(LogicalPlan::Join(LogicalJoin {
+                Ok(LogicalPlan::LogicalJoin(LogicalJoin {
                     relation_plan: relation_plan.into(),
                     join_table_plans,
                 }))

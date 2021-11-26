@@ -1,6 +1,6 @@
 use super::*;
 use crate::binder::{BoundAggCall, BoundExpr};
-
+use crate::logical_optimizer::plan_node::UnaryLogicalPlanNode;
 /// The logical plan of hash aggregate operation.
 #[derive(Debug, PartialEq, Clone)]
 pub struct LogicalAggregate {
@@ -9,4 +9,19 @@ pub struct LogicalAggregate {
     /// Group keys in hash aggregation (optional)
     pub group_keys: Vec<BoundExpr>,
     pub child: LogicalPlanRef,
+}
+
+impl UnaryLogicalPlanNode for LogicalAggregate {
+    fn get_child(&self) -> LogicalPlanRef {
+        self.child.clone()
+    }
+
+    fn copy_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
+        LogicalPlan::LogicalAggregate(LogicalAggregate {
+            child,
+            agg_calls: self.agg_calls.clone(),
+            group_keys: self.group_keys.clone(),
+        })
+        .into()
+    }
 }
