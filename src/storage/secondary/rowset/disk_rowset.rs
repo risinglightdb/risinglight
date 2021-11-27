@@ -2,10 +2,12 @@ use itertools::Itertools;
 use moka::future::Cache;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::Mutex;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncReadExt;
 
 use crate::catalog::ColumnCatalog;
+use crate::storage::secondary::column::ColumnReadableFile;
 use crate::storage::secondary::DeleteVector;
 use crate::storage::{StorageColumnRef, StorageResult};
 
@@ -49,7 +51,11 @@ impl DiskRowset {
 
             let column = Column::new(
                 ColumnIndex::from_bytes(&index_content),
-                Arc::new(file.into_std().await),
+                if cfg!(target_os = "windows") {
+                    ColumnReadableFile::NormalRead(Arc::new(Mutex::new(file.into_std().await)))
+                } else {
+                    ColumnReadableFile::PositionedRead(Arc::new(file.into_std().await))
+                },
                 block_cache.clone(),
                 BlockCacheKey::default().rowset(rowset_id).column(id as u32),
             );
