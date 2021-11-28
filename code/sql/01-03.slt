@@ -1,0 +1,29 @@
+# 01-03: CREATE TABLE test
+
+# simple test
+statement ok
+CREATE TABLE t1 (a INT, b INT)
+
+# null and not null
+statement ok
+CREATE TABLE t2 (a INT NOT NULL, b INT NULL)
+
+# data types
+statement ok
+CREATE TABLE t3 (a INT, b BOOLEAN, c VARCHAR, d DOUBLE)
+
+# empty column
+statement error
+CREATE TABLE t4 ()
+
+# conflict name
+statement error
+CREATE TABLE t1 (a INT)
+
+# with schema
+statement ok
+CREATE TABLE postgres.t4 (a INT)
+
+# non-existent schema
+statement error
+CREATE TABLE schema.t1 (a INT)

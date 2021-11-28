@@ -2,5 +2,6 @@
 members = [
     "01-01",
     "01-02",
+    "01-03",
     "sqllogictest",
 ]

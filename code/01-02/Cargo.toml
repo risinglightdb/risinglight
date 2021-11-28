@@ -12,5 +12,5 @@ sqlparser = "0.12"
 thiserror = "1"
 
 [dev-dependencies]
-test-case = "1.2"
 sqllogictest = { path = "../sqllogictest" }
+test-case = "1.2"
