@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
 /// A collection of Rust UTF8 `String`s.
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UTF8Array {
     offset: Vec<usize>,
     valid: BitVec,
