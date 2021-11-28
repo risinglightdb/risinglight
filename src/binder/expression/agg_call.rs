@@ -104,7 +104,7 @@ impl Binder {
                     op: BinaryOperator::Divide,
                     right_expr: Box::new(BoundExpr {
                         kind: BoundExprKind::AggCall(BoundAggCall {
-                            kind: AggKind::RowCount,
+                            kind: AggKind::Count,
                             args,
                             return_type: DataType::new(DataTypeKind::Int(None), false),
                         }),

@@ -131,7 +131,7 @@ pub type I64Array = PrimitiveArray<i64>;
 pub type F64Array = PrimitiveArray<f64>;
 
 /// Embeds all types of arrays in `array` module.
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ArrayImpl {
     Bool(BoolArray),
     // Int16(PrimitiveArray<i16>),

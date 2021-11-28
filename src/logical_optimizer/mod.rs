@@ -19,11 +19,14 @@ pub struct Optimizer {}
 
 impl Optimizer {
     pub fn optimize(&mut self, plan: LogicalPlan) -> LogicalPlan {
-        // TODO: add optimization rules
+        // TODO: Add more optimization rules.
+        let mut plan = plan.into();
 
-        let mut plan = ConstantFolding.rewrite_plan(plan.into());
+        plan = ConstantFolding.rewrite_plan(plan);
         plan = ArithExprSimplification.rewrite_plan(plan);
         plan = BoolExprSimplification.rewrite_plan(plan);
-        ConstantMovingRule.rewrite_plan(plan).as_ref().clone()
+        plan = ConstantMovingRule.rewrite_plan(plan);
+
+        plan.as_ref().clone()
     }
 }
