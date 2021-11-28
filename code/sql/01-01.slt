@@ -1,0 +1,18 @@
+# Welcome to sqllogictest!
+#
+# See https://www.sqlite.org/sqllogictest/doc/trunk/about.wiki
+
+# A trivial example of SQL query test.
+query I
+SELECT 1
+----
+1
+
+query T
+SELECT 'Hello, world!'
+----
+Hello, world!
+
+# expression is not a valid SQL statement
+statement error
+1
