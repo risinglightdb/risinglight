@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "01-01",
+    "01-02",
     "sqllogictest",
 ]
