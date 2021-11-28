@@ -1,5 +1,5 @@
 use super::{Block, BlockIterator};
-use crate::array::{ArrayBuilder, UTF8Array, UTF8ArrayBuilder};
+use crate::array::{ArrayBuilder, Utf8Array, Utf8ArrayBuilder};
 use bytes::Buf;
 
 /// Scans one or several arrays from the block content.
@@ -28,11 +28,11 @@ impl PlainCharBlockIterator {
     }
 }
 
-impl BlockIterator<UTF8Array> for PlainCharBlockIterator {
+impl BlockIterator<Utf8Array> for PlainCharBlockIterator {
     fn next_batch(
         &mut self,
         expected_size: Option<usize>,
-        builder: &mut UTF8ArrayBuilder,
+        builder: &mut Utf8ArrayBuilder,
     ) -> usize {
         if self.next_row >= self.row_count {
             return 0;
@@ -80,7 +80,7 @@ mod tests {
     use bytes::Bytes;
 
     use crate::array::ArrayToVecExt;
-    use crate::array::{ArrayBuilder, UTF8ArrayBuilder};
+    use crate::array::{ArrayBuilder, Utf8ArrayBuilder};
     use crate::storage::secondary::block::{BlockBuilder, PlainCharBlockBuilder};
     use crate::storage::secondary::BlockIterator;
 
@@ -96,7 +96,7 @@ mod tests {
 
         let mut scanner = PlainCharBlockIterator::new(Bytes::from(data), 3, 20);
 
-        let mut builder = UTF8ArrayBuilder::new(0);
+        let mut builder = Utf8ArrayBuilder::new(0);
 
         scanner.skip(1);
         assert_eq!(scanner.remaining_items(), 2);
@@ -104,12 +104,12 @@ mod tests {
         assert_eq!(scanner.next_batch(Some(1), &mut builder), 1);
         assert_eq!(builder.finish().to_vec(), vec![Some("2333".to_string())]);
 
-        let mut builder = UTF8ArrayBuilder::new(0);
+        let mut builder = Utf8ArrayBuilder::new(0);
         assert_eq!(scanner.next_batch(Some(2), &mut builder), 1);
 
         assert_eq!(builder.finish().to_vec(), vec![Some("23333".to_string())]);
 
-        let mut builder = UTF8ArrayBuilder::new(0);
+        let mut builder = Utf8ArrayBuilder::new(0);
         assert_eq!(scanner.next_batch(None, &mut builder), 0);
     }
 }

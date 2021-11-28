@@ -19,7 +19,7 @@ impl ArrayImplValidExt for ArrayImpl {
             Self::Int32(a) => a.get_valid_bitmap(),
             Self::Int64(a) => a.get_valid_bitmap(),
             Self::Float64(a) => a.get_valid_bitmap(),
-            Self::UTF8(a) => a.get_valid_bitmap(),
+            Self::Utf8(a) => a.get_valid_bitmap(),
         }
     }
 }
@@ -41,7 +41,7 @@ impl ArrayImplEstimateExt for ArrayImpl {
             Self::Int32(a) => a.get_estimated_size(),
             Self::Int64(a) => a.get_estimated_size(),
             Self::Float64(a) => a.get_estimated_size(),
-            Self::UTF8(a) => a.get_estimated_size(),
+            Self::Utf8(a) => a.get_estimated_size(),
         }
     }
 }

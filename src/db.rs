@@ -1,5 +1,5 @@
 use crate::{
-    array::{ArrayBuilder, DataChunk, I32ArrayBuilder, UTF8ArrayBuilder},
+    array::{ArrayBuilder, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder},
     binder::{BindError, Binder},
     catalog::RootCatalogRef,
     executor::{ExecutorBuilder, ExecutorError, GlobalEnv},
@@ -66,11 +66,11 @@ impl Database {
 
     fn run_dt(&self) -> Result<Vec<DataChunk>, Error> {
         let mut db_id_vec = I32ArrayBuilder::new(0);
-        let mut db_vec = UTF8ArrayBuilder::new(0);
+        let mut db_vec = Utf8ArrayBuilder::new(0);
         let mut schema_id_vec = I32ArrayBuilder::new(0);
-        let mut schema_vec = UTF8ArrayBuilder::new(0);
+        let mut schema_vec = Utf8ArrayBuilder::new(0);
         let mut table_id_vec = I32ArrayBuilder::new(0);
-        let mut table_vec = UTF8ArrayBuilder::new(0);
+        let mut table_vec = Utf8ArrayBuilder::new(0);
         for (_, database) in self.catalog.all_databases() {
             for (_, schema) in database.all_schemas() {
                 for (_, table) in schema.all_tables() {
@@ -124,8 +124,8 @@ impl Database {
                             StorageColumnRef::Idx(col_id),
                         ),
                     ]);
-                    let mut stat_name = UTF8ArrayBuilder::new(0);
-                    let mut stat_value = UTF8ArrayBuilder::new(0);
+                    let mut stat_name = Utf8ArrayBuilder::new(0);
+                    let mut stat_value = Utf8ArrayBuilder::new(0);
                     stat_name.push(Some("RowCount"));
                     stat_value.push(Some(&format!("{:?}", row_count[0])));
                     stat_name.push(Some("DistinctValue"));

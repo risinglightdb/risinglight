@@ -1,4 +1,4 @@
-use crate::array::{ArrayBuilder, UTF8Array, UTF8ArrayBuilder};
+use crate::array::{ArrayBuilder, Utf8Array, Utf8ArrayBuilder};
 use crate::storage::secondary::block::PlainCharBlockIterator;
 
 use super::super::{Block, BlockIterator};
@@ -66,7 +66,7 @@ impl CharColumnIterator {
     pub async fn next_batch_inner(
         &mut self,
         expected_size: Option<usize>,
-    ) -> Option<(u32, UTF8Array)> {
+    ) -> Option<(u32, Utf8Array)> {
         if self.finished {
             return None;
         }
@@ -79,7 +79,7 @@ impl CharColumnIterator {
             }
         };
 
-        let mut builder = UTF8ArrayBuilder::new(capacity);
+        let mut builder = Utf8ArrayBuilder::new(capacity);
         let mut total_cnt = 0;
         let first_row_id = self.current_row_id;
 
@@ -135,8 +135,8 @@ impl CharColumnIterator {
 }
 
 #[async_trait]
-impl ColumnIterator<UTF8Array> for CharColumnIterator {
-    async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<(u32, UTF8Array)> {
+impl ColumnIterator<Utf8Array> for CharColumnIterator {
+    async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<(u32, Utf8Array)> {
         self.next_batch_inner(expected_size).await
     }
 

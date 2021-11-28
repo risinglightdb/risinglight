@@ -74,7 +74,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::array::{I32Array, UTF8Array};
+    use crate::array::{I32Array, Utf8Array};
     use std::iter::FromIterator;
 
     #[test]
@@ -97,12 +97,12 @@ mod tests {
 
     #[test]
     fn test_vec_concat() {
-        let expr = BinaryVectorizedExpression::<UTF8Array, I32Array, UTF8Array, _>::new(|x, y| {
+        let expr = BinaryVectorizedExpression::<Utf8Array, I32Array, Utf8Array, _>::new(|x, y| {
             x.and_then(|x| y.map(|y| format!("{}{}", x, y)))
         });
-        let result: UTF8Array = expr
+        let result: Utf8Array = expr
             .eval_chunk(
-                &UTF8Array::from_iter([Some("1"), Some("2"), Some("3")]).into(),
+                &Utf8Array::from_iter([Some("1"), Some("2"), Some("3")]).into(),
                 &I32Array::from_iter([Some(1), Some(2), Some(3)]).into(),
             )
             .try_into()
