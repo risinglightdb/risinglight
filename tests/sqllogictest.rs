@@ -337,7 +337,7 @@ impl SqlLogicTester {
                     for (array, type_char) in chunk.arrays().iter().zip(type_string.chars()) {
                         match (type_char, array) {
                             ('B', ArrayImpl::Bool(_)) => {}
-                            ('T', ArrayImpl::UTF8(_)) => {}
+                            ('T', ArrayImpl::Utf8(_)) => {}
                             ('I', ArrayImpl::Int32(_) | ArrayImpl::Int64(_)) => {}
                             ('R', ArrayImpl::Float64(_)) => {}
                             _ => panic!(

@@ -75,7 +75,7 @@ impl ArrayImplBuilderPickExt for ArrayBuilderImpl {
             (Self::Float64(builder), ArrayImpl::Float64(arr)) => {
                 builder.pick_from(arr, logical_rows)
             }
-            (Self::UTF8(builder), ArrayImpl::UTF8(arr)) => builder.pick_from(arr, logical_rows),
+            (Self::Utf8(builder), ArrayImpl::Utf8(arr)) => builder.pick_from(arr, logical_rows),
             _ => panic!("failed to push value: type mismatch"),
         }
     }
@@ -160,7 +160,7 @@ impl ArrayImplSortExt for ArrayImpl {
             Self::Int32(a) => a.get_sorted_indices(),
             Self::Int64(a) => a.get_sorted_indices(),
             Self::Float64(a) => a.get_sorted_indices(),
-            Self::UTF8(a) => a.get_sorted_indices(),
+            Self::Utf8(a) => a.get_sorted_indices(),
         }
     }
 }

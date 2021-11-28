@@ -1,6 +1,6 @@
 use bytes::BufMut;
 
-use crate::array::UTF8Array;
+use crate::array::Utf8Array;
 
 use super::BlockBuilder;
 
@@ -26,7 +26,7 @@ impl PlainVarcharBlockBuilder {
     }
 }
 
-impl BlockBuilder<UTF8Array> for PlainVarcharBlockBuilder {
+impl BlockBuilder<Utf8Array> for PlainVarcharBlockBuilder {
     fn append(&mut self, item: Option<&str>) {
         let item = item.expect("nullable item found in non-nullable block builder");
         self.data.extend(item.as_bytes());

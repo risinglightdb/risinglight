@@ -5,15 +5,15 @@ use std::iter::FromIterator;
 
 /// A collection of Rust UTF8 `String`s.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct UTF8Array {
+pub struct Utf8Array {
     offset: Vec<usize>,
     valid: BitVec,
     data: Vec<u8>,
 }
 
-impl Array for UTF8Array {
+impl Array for Utf8Array {
     type Item = str;
-    type Builder = UTF8ArrayBuilder;
+    type Builder = Utf8ArrayBuilder;
 
     fn get(&self, idx: usize) -> Option<&str> {
         if self.valid[idx] {
@@ -29,27 +29,27 @@ impl Array for UTF8Array {
     }
 }
 
-impl ArrayValidExt for UTF8Array {
+impl ArrayValidExt for Utf8Array {
     fn get_valid_bitmap(&self) -> &BitVec {
         &self.valid
     }
 }
 
-impl ArrayEstimateExt for UTF8Array {
+impl ArrayEstimateExt for Utf8Array {
     fn get_estimated_size(&self) -> usize {
         self.data.len() + self.offset.len() + self.valid.len() / 8
     }
 }
 
 /// A builder that uses `&str` to build an [`UTF8Array`].
-pub struct UTF8ArrayBuilder {
+pub struct Utf8ArrayBuilder {
     offset: Vec<usize>,
     valid: BitVec,
     data: Vec<u8>,
 }
 
-impl ArrayBuilder for UTF8ArrayBuilder {
-    type Array = UTF8Array;
+impl ArrayBuilder for Utf8ArrayBuilder {
+    type Array = Utf8Array;
 
     fn new(capacity: usize) -> Self {
         let mut offset = Vec::with_capacity(capacity + 1);
@@ -69,7 +69,7 @@ impl ArrayBuilder for UTF8ArrayBuilder {
         self.offset.push(self.data.len());
     }
 
-    fn append(&mut self, other: &UTF8Array) {
+    fn append(&mut self, other: &Utf8Array) {
         self.valid.extend_from_bitslice(&other.valid);
         self.data.extend_from_slice(&other.data);
         let start = *self.offset.last().unwrap();
@@ -78,8 +78,8 @@ impl ArrayBuilder for UTF8ArrayBuilder {
         }
     }
 
-    fn finish(self) -> UTF8Array {
-        UTF8Array {
+    fn finish(self) -> Utf8Array {
+        Utf8Array {
             valid: self.valid,
             data: self.data,
             offset: self.offset,
@@ -88,7 +88,7 @@ impl ArrayBuilder for UTF8ArrayBuilder {
 }
 
 // Enable `collect()` an array from iterator of `Option<&str>` or `Option<String>`.
-impl<Str: AsRef<str>> FromIterator<Option<Str>> for UTF8Array {
+impl<Str: AsRef<str>> FromIterator<Option<Str>> for Utf8Array {
     fn from_iter<I: IntoIterator<Item = Option<Str>>>(iter: I) -> Self {
         let iter = iter.into_iter();
         let mut builder = <Self as Array>::Builder::new(iter.size_hint().0);
@@ -108,7 +108,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_utf8_builder() {
-        let mut builder = UTF8ArrayBuilder::new(0);
+        let mut builder = Utf8ArrayBuilder::new(0);
         for i in 0..100 {
             if i % 2 == 0 {
                 builder.push(Some(&format!("{}", i)));

@@ -24,7 +24,7 @@ pub use shuffle_ext::*;
 /// `ArrayBuilder` is a trait over all builders. You could build an array with
 /// `push` with the help of `ArrayBuilder` trait. The `push` function always
 /// accepts reference to an element. e.g. for `PrimitiveArray`,
-/// you must do `builder.push(Some(&1))`. For `UTF8Array`, you must do
+/// you must do `builder.push(Some(&1))`. For `Utf8Array`, you must do
 /// `builder.push(Some("xxx"))`. Note that you don't need to construct a `String`.
 ///
 /// The associated type `Array` is the type of the corresponding array. It is the
@@ -54,7 +54,7 @@ pub trait ArrayBuilder: Send + Sync + 'static {
 /// The `Builder` associated type is the builder for this array.
 /// The `Item` is the item you could retrieve from this array.
 ///
-/// For example, `PrimitiveArray` could return an `Option<&u32>`, and `UTF8Array` will
+/// For example, `PrimitiveArray` could return an `Option<&u32>`, and `Utf8Array` will
 /// return an `Option<&str>`.
 pub trait Array: Sized + Send + Sync + 'static {
     /// Corresponding builder of this array.
@@ -139,7 +139,7 @@ pub enum ArrayImpl {
     Int64(PrimitiveArray<i64>),
     // Float32(PrimitiveArray<f32>),
     Float64(F64Array),
-    UTF8(UTF8Array),
+    Utf8(Utf8Array),
 }
 
 pub type BoolArrayBuilder = PrimitiveArrayBuilder<bool>;
@@ -155,7 +155,7 @@ pub enum ArrayBuilderImpl {
     Int64(PrimitiveArrayBuilder<i64>),
     // Float32(PrimitiveArrayBuilder<f32>),
     Float64(F64ArrayBuilder),
-    UTF8(UTF8ArrayBuilder),
+    Utf8(Utf8ArrayBuilder),
 }
 
 /// An error which can be returned when downcasting an [`ArrayImpl`] into a concrete type array.
@@ -200,7 +200,7 @@ impl_into! { PrimitiveArray<i32>, Int32 }
 impl_into! { PrimitiveArray<i64>, Int64 }
 // impl_into! { PrimitiveArray<f32>, Float32 }
 impl_into! { PrimitiveArray<f64>, Float64 }
-impl_into! { UTF8Array, UTF8 }
+impl_into! { Utf8Array, Utf8 }
 
 impl ArrayBuilderImpl {
     /// Create a new array builder from data type.
@@ -213,7 +213,7 @@ impl ArrayBuilderImpl {
                 Self::Float64(PrimitiveArrayBuilder::<f64>::new(0))
             }
             DataTypeKind::Char(_) | DataTypeKind::Varchar(_) | DataTypeKind::String => {
-                Self::UTF8(UTF8ArrayBuilder::new(0))
+                Self::Utf8(Utf8ArrayBuilder::new(0))
             }
             _ => panic!("unsupported data type"),
         }
@@ -226,7 +226,7 @@ impl ArrayBuilderImpl {
             DataValue::Int32(_) => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
             DataValue::Int64(_) => Self::Int64(PrimitiveArrayBuilder::<i64>::new(0)),
             DataValue::Float64(_) => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
-            DataValue::String(_) => Self::UTF8(UTF8ArrayBuilder::new(0)),
+            DataValue::String(_) => Self::Utf8(Utf8ArrayBuilder::new(0)),
             _ => panic!("unsupported data type"),
         }
     }
@@ -238,7 +238,7 @@ impl ArrayBuilderImpl {
             ArrayImpl::Int32(_) => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
             ArrayImpl::Int64(_) => Self::Int64(PrimitiveArrayBuilder::<i64>::new(0)),
             ArrayImpl::Float64(_) => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
-            ArrayImpl::UTF8(_) => Self::UTF8(UTF8ArrayBuilder::new(0)),
+            ArrayImpl::Utf8(_) => Self::Utf8(Utf8ArrayBuilder::new(0)),
         }
     }
 
@@ -249,12 +249,12 @@ impl ArrayBuilderImpl {
             (Self::Int64(a), DataValue::Int64(v)) => a.push(Some(v)),
             (Self::Int32(a), DataValue::Int32(v)) => a.push(Some(v)),
             (Self::Float64(a), DataValue::Float64(v)) => a.push(Some(v)),
-            (Self::UTF8(a), DataValue::String(v)) => a.push(Some(v)),
+            (Self::Utf8(a), DataValue::String(v)) => a.push(Some(v)),
             (Self::Bool(a), DataValue::Null) => a.push(None),
             (Self::Int32(a), DataValue::Null) => a.push(None),
             (Self::Int64(a), DataValue::Null) => a.push(None),
             (Self::Float64(a), DataValue::Null) => a.push(None),
-            (Self::UTF8(a), DataValue::Null) => a.push(None),
+            (Self::Utf8(a), DataValue::Null) => a.push(None),
             _ => panic!("failed to push value: type mismatch"),
         }
     }
@@ -267,7 +267,7 @@ impl ArrayBuilderImpl {
             Self::Int32(a) if null => a.push(None),
             Self::Int64(a) if null => a.push(None),
             Self::Float64(a) if null => a.push(None),
-            Self::UTF8(a) if null => a.push(None),
+            Self::Utf8(a) if null => a.push(None),
             Self::Bool(a) => a.push(Some(
                 &s.parse::<bool>()
                     .map_err(|e| ConvertError::ParseBool(s.to_string(), e))?,
@@ -284,7 +284,7 @@ impl ArrayBuilderImpl {
                 &s.parse::<f64>()
                     .map_err(|e| ConvertError::ParseFloat(s.to_string(), e))?,
             )),
-            Self::UTF8(a) => a.push(Some(s)),
+            Self::Utf8(a) => a.push(Some(s)),
         }
         Ok(())
     }
@@ -296,7 +296,7 @@ impl ArrayBuilderImpl {
             Self::Int32(a) => ArrayImpl::Int32(a.finish()),
             Self::Int64(a) => ArrayImpl::Int64(a.finish()),
             Self::Float64(a) => ArrayImpl::Float64(a.finish()),
-            Self::UTF8(a) => ArrayImpl::UTF8(a.finish()),
+            Self::Utf8(a) => ArrayImpl::Utf8(a.finish()),
         }
     }
 
@@ -307,7 +307,7 @@ impl ArrayBuilderImpl {
             (Self::Int32(builder), ArrayImpl::Int32(arr)) => builder.append(arr),
             (Self::Int64(builder), ArrayImpl::Int64(arr)) => builder.append(arr),
             (Self::Float64(builder), ArrayImpl::Float64(arr)) => builder.append(arr),
-            (Self::UTF8(builder), ArrayImpl::UTF8(arr)) => builder.append(arr),
+            (Self::Utf8(builder), ArrayImpl::Utf8(arr)) => builder.append(arr),
             _ => panic!("failed to push value: type mismatch"),
         }
     }
@@ -321,7 +321,7 @@ impl ArrayImpl {
             Self::Int32(a) => a.get(idx).map(|v| v.to_string()),
             Self::Int64(a) => a.get(idx).map(|v| v.to_string()),
             Self::Float64(a) => a.get(idx).map(|v| v.to_string()),
-            Self::UTF8(a) => a.get(idx).map(|v| v.to_string()),
+            Self::Utf8(a) => a.get(idx).map(|v| v.to_string()),
         }
         .unwrap_or_else(|| "NULL".into())
     }
@@ -345,7 +345,7 @@ impl ArrayImpl {
                 Some(val) => DataValue::Float64(*val),
                 None => DataValue::Null,
             },
-            Self::UTF8(a) => match a.get(idx) {
+            Self::Utf8(a) => match a.get(idx) {
                 Some(val) => DataValue::String(val.to_string()),
                 None => DataValue::Null,
             },
@@ -359,7 +359,7 @@ impl ArrayImpl {
             Self::Int32(a) => a.len(),
             Self::Int64(a) => a.len(),
             Self::Float64(a) => a.len(),
-            Self::UTF8(a) => a.len(),
+            Self::Utf8(a) => a.len(),
         }
     }
 
@@ -375,7 +375,7 @@ impl ArrayImpl {
             Self::Int32(a) => Self::Int32(a.filter(visibility)),
             Self::Int64(a) => Self::Int64(a.filter(visibility)),
             Self::Float64(a) => Self::Float64(a.filter(visibility)),
-            Self::UTF8(a) => Self::UTF8(a.filter(visibility)),
+            Self::Utf8(a) => Self::Utf8(a.filter(visibility)),
         }
     }
 
@@ -386,7 +386,7 @@ impl ArrayImpl {
             Self::Int32(a) => Self::Int32(a.slice(range)),
             Self::Int64(a) => Self::Int64(a.slice(range)),
             Self::Float64(a) => Self::Float64(a.slice(range)),
-            Self::UTF8(a) => Self::UTF8(a.slice(range)),
+            Self::Utf8(a) => Self::Utf8(a.slice(range)),
         }
     }
 
@@ -397,7 +397,7 @@ impl ArrayImpl {
             Self::Int32(_) => Some(DataTypeKind::Int(None).not_null()),
             Self::Int64(_) => Some(DataTypeKind::BigInt(None).not_null()),
             Self::Float64(_) => Some(DataTypeKind::Double.not_null()),
-            Self::UTF8(_) => Some(DataTypeKind::String.not_null()),
+            Self::Utf8(_) => Some(DataTypeKind::String.not_null()),
         }
     }
 }
@@ -410,7 +410,7 @@ impl From<&DataValue> for ArrayImpl {
             &DataValue::Int32(v) => Self::Int32([v].into_iter().collect()),
             &DataValue::Int64(v) => Self::Int64([v].into_iter().collect()),
             &DataValue::Float64(v) => Self::Float64([v].into_iter().collect()),
-            DataValue::String(v) => Self::UTF8([Some(v)].into_iter().collect()),
+            DataValue::String(v) => Self::Utf8([Some(v)].into_iter().collect()),
             DataValue::Null => panic!("can not build array from NULL"),
         }
     }

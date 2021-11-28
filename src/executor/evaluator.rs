@@ -146,7 +146,7 @@ impl ArrayImpl {
                     (A::Int32(a), A::Int32(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
                     #[allow(clippy::float_cmp)]
                     (A::Float64(a), A::Float64(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
-                    (A::UTF8(a), A::UTF8(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
+                    (A::Utf8(a), A::Utf8(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
                     _ => todo!("Support more types for {}", stringify!($op)),
                 }
             }
@@ -196,7 +196,7 @@ impl ArrayImpl {
                 Type::Int(_) => Self::Int32(unary_op(a, |&b| b as i32)),
                 Type::Float(_) | Type::Double => Self::Float64(unary_op(a, |&b| b as u8 as f64)),
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
-                    Self::UTF8(unary_op(a, |&b| if b { "true" } else { "false" }))
+                    Self::Utf8(unary_op(a, |&b| if b { "true" } else { "false" }))
                 }
                 _ => todo!("cast array"),
             },
@@ -205,7 +205,7 @@ impl ArrayImpl {
                 Type::Int(_) => Self::Int32(a.clone()),
                 Type::Float(_) | Type::Double => Self::Float64(unary_op(a, |&i| i as f64)),
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
-                    Self::UTF8(unary_op(a, |&i| i.to_string()))
+                    Self::Utf8(unary_op(a, |&i| i.to_string()))
                 }
                 _ => todo!("cast array"),
             },
@@ -214,7 +214,7 @@ impl ArrayImpl {
                 Type::Int(_) => Self::Int64(a.clone()),
                 Type::Float(_) | Type::Double => Self::Float64(unary_op(a, |&i| i as f64)),
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
-                    Self::UTF8(unary_op(a, |&i| i.to_string()))
+                    Self::Utf8(unary_op(a, |&i| i.to_string()))
                 }
                 _ => todo!("cast array"),
             },
@@ -223,11 +223,11 @@ impl ArrayImpl {
                 Type::Int(_) => Self::Int32(unary_op(a, |&f| f as i32)),
                 Type::Float(_) | Type::Double => Self::Float64(a.clone()),
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
-                    Self::UTF8(unary_op(a, |&f| f.to_string()))
+                    Self::Utf8(unary_op(a, |&f| f.to_string()))
                 }
                 _ => todo!("cast array"),
             },
-            Self::UTF8(a) => match data_type {
+            Self::Utf8(a) => match data_type {
                 Type::Boolean => Self::Bool(try_unary_op(a, |s| {
                     s.parse::<bool>()
                         .map_err(|e| ConvertError::ParseBool(s.to_string(), e))
@@ -240,7 +240,7 @@ impl ArrayImpl {
                     s.parse::<f64>()
                         .map_err(|e| ConvertError::ParseFloat(s.to_string(), e))
                 })?),
-                Type::String | Type::Char(_) | Type::Varchar(_) => Self::UTF8(a.clone()),
+                Type::String | Type::Char(_) | Type::Varchar(_) => Self::Utf8(a.clone()),
                 _ => todo!("cast array"),
             },
         })

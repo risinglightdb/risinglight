@@ -4,7 +4,7 @@ use risinglight_proto::rowset::BlockIndex;
 
 use super::super::{BlockBuilder, PlainCharBlockBuilder, PlainVarcharBlockBuilder};
 use super::{append_one_by_one, ColumnBuilder};
-use crate::array::{Array, UTF8Array};
+use crate::array::{Array, Utf8Array};
 use crate::storage::secondary::{BlockHeader, ColumnBuilderOptions, BLOCK_HEADER_SIZE};
 
 /// All supported block builders for char types.
@@ -93,8 +93,8 @@ impl CharColumnBuilder {
     }
 }
 
-impl ColumnBuilder<UTF8Array> for CharColumnBuilder {
-    fn append(&mut self, array: &UTF8Array) {
+impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
+    fn append(&mut self, array: &Utf8Array) {
         let mut iter = array.iter().peekable();
 
         while iter.peek().is_some() {
@@ -163,7 +163,7 @@ mod tests {
             },
         );
         for _ in 0..10 {
-            builder.append(&UTF8Array::from_iter(
+            builder.append(&Utf8Array::from_iter(
                 [Some("2333")].iter().cycle().cloned().take(item_each_block),
             ));
         }
@@ -184,7 +184,7 @@ mod tests {
             },
         );
         for _ in 0..10 {
-            builder.append(&UTF8Array::from_iter([Some("2333")]));
+            builder.append(&Utf8Array::from_iter([Some("2333")]));
         }
         let (index, _) = builder.finish();
         assert_eq!(index.len(), 10);

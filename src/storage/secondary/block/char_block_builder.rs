@@ -1,7 +1,7 @@
 use bytes::BufMut;
 
 use super::BlockBuilder;
-use crate::array::UTF8Array;
+use crate::array::Utf8Array;
 
 /// Encodes fixed-width char into a block.
 ///
@@ -28,7 +28,7 @@ impl PlainCharBlockBuilder {
     }
 }
 
-impl BlockBuilder<UTF8Array> for PlainCharBlockBuilder {
+impl BlockBuilder<Utf8Array> for PlainCharBlockBuilder {
     fn append(&mut self, item: Option<&str>) {
         let item = item
             .expect("nullable item found in non-nullable block builder")

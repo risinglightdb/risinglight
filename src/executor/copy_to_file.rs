@@ -84,7 +84,7 @@ mod tests {
                 yield [
                     ArrayImpl::Int32([1, 2].into_iter().collect()),
                     ArrayImpl::Float64([1.5, 2.5].into_iter().collect()),
-                    ArrayImpl::UTF8(["one", "two"].iter().map(Some).collect()),
+                    ArrayImpl::Utf8(["one", "two"].iter().map(Some).collect()),
                 ]
                 .into_iter()
                 .collect();

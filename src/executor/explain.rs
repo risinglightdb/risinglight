@@ -1,5 +1,5 @@
 use super::*;
-use crate::array::{ArrayImpl, UTF8Array};
+use crate::array::{ArrayImpl, Utf8Array};
 use crate::physical_planner::PhysicalExplain;
 
 /// The executor of `explain` statement.
@@ -10,7 +10,7 @@ pub struct ExplainExecutor {
 impl ExplainExecutor {
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         let explain_result = format!("{}", self.plan.plan);
-        let chunk = DataChunk::from_iter([ArrayImpl::UTF8(UTF8Array::from_iter([Some(
+        let chunk = DataChunk::from_iter([ArrayImpl::Utf8(Utf8Array::from_iter([Some(
             explain_result,
         )]))]);
 
