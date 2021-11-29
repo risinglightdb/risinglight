@@ -1,5 +1,5 @@
 use super::*;
-use crate::binder::{BoundBinaryOp, BoundExpr, BoundExprKind::*};
+use crate::binder::{BoundBinaryOp, BoundExpr, BoundExpr::*};
 use crate::parser::BinaryOperator::*;
 use crate::types::DataValue::*;
 
@@ -19,7 +19,7 @@ pub struct BoolExprSimplification;
 impl PlanRewriter for BoolExprSimplification {
     fn rewrite_filter(&mut self, plan: &LogicalFilter) -> Option<LogicalPlanRef> {
         let new_expr = self.rewrite_expr(plan.expr.clone());
-        match &new_expr.kind {
+        match &new_expr {
             Constant(Bool(false) | Null) => Some(
                 LogicalPlan::LogicalFilter(LogicalFilter {
                     expr: new_expr,
@@ -39,11 +39,11 @@ impl PlanRewriter for BoolExprSimplification {
     }
 
     fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
-        let new_kind = match expr.kind {
+        match expr {
             BinaryOp(op) => {
                 let left = self.rewrite_expr(*op.left_expr);
                 let right = self.rewrite_expr(*op.right_expr);
-                match (op.op, &left.kind, &right.kind) {
+                match (op.op, &left, &right) {
                     (And, Constant(Bool(false)), _) => Constant(Bool(false)),
                     (And, _, Constant(Bool(false))) => Constant(Bool(false)),
                     (And, Constant(Bool(true)), other) => other.clone(),
@@ -54,19 +54,16 @@ impl PlanRewriter for BoolExprSimplification {
                     (Or, other, Constant(Bool(false))) => other.clone(),
                     (Eq | NotEq | Gt | Lt | GtEq | LtEq, Constant(Null), _) => Constant(Null),
                     (Eq | NotEq | Gt | Lt | GtEq | LtEq, _, Constant(Null)) => Constant(Null),
-                    (op, _, _) => BinaryOp(BoundBinaryOp {
+                    (op0, _, _) => BinaryOp(BoundBinaryOp {
+                        op: op0,
                         left_expr: Box::new(left),
-                        op,
                         right_expr: Box::new(right),
+                        return_type: op.return_type.clone(),
                     }),
                 }
             }
             // FIXME: rewrite child expressions
-            _ => expr.kind,
-        };
-        BoundExpr {
-            kind: new_kind,
-            return_type: expr.return_type,
+            _ => expr,
         }
     }
 }

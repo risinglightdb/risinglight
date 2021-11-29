@@ -15,16 +15,9 @@ impl Binder {
         ty: DataTypeKind,
     ) -> Result<BoundExpr, BindError> {
         let bound_expr = self.bind_expr(expr)?;
-        let return_type = DataType::new(
-            ty.clone(),
-            bound_expr.return_type.as_ref().unwrap().is_nullable(),
-        );
-        Ok(BoundExpr {
-            kind: BoundExprKind::TypeCast(BoundTypeCast {
-                expr: (bound_expr.into()),
-                ty,
-            }),
-            return_type: Some(return_type),
-        })
+        Ok(BoundExpr::TypeCast(BoundTypeCast {
+            expr: (bound_expr.into()),
+            ty,
+        }))
     }
 }

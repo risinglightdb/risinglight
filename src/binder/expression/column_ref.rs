@@ -25,15 +25,12 @@ impl Binder {
             for (col_id, col) in table.all_columns().iter() {
                 let column_ref_id = ColumnRefId::from_table(ref_id, *col_id);
                 self.record_regular_table_column(&table.name(), col.name(), *col_id);
-                let expr = BoundExpr {
-                    kind: BoundExprKind::ColumnRef(BoundColumnRef {
-                        table_name: table.name().clone(),
-                        column_ref_id,
-                        is_primary_key: col.is_primary(),
-                        desc: col.desc().clone(),
-                    }),
-                    return_type: Some(col.datatype().clone()),
-                };
+                let expr = BoundExpr::ColumnRef(BoundColumnRef {
+                    table_name: table.name().clone(),
+                    column_ref_id,
+                    is_primary_key: col.is_primary(),
+                    desc: col.desc().clone(),
+                });
                 exprs.push(expr);
             }
         }
@@ -59,15 +56,12 @@ impl Binder {
                 .ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
             let column_ref_id = ColumnRefId::from_table(table_ref_id, col.id());
             self.record_regular_table_column(name, column_name, col.id());
-            Ok(BoundExpr {
-                kind: BoundExprKind::ColumnRef(BoundColumnRef {
-                    table_name: name.clone(),
-                    column_ref_id,
-                    is_primary_key: col.is_primary(),
-                    desc: col.desc().clone(),
-                }),
-                return_type: Some(col.datatype()),
-            })
+            Ok(BoundExpr::ColumnRef(BoundColumnRef {
+                table_name: name.clone(),
+                column_ref_id,
+                is_primary_key: col.is_primary(),
+                desc: col.desc().clone(),
+            }))
         } else {
             let mut info = None;
             for ref_id in self.context.regular_tables.values() {
@@ -80,25 +74,21 @@ impl Binder {
                     info = Some((
                         table.name().clone(),
                         column_ref_id,
-                        col.datatype(),
                         col.is_primary(),
                         col.desc().clone(),
                     ));
                 }
             }
-            let (table_name, column_ref_id, data_type, is_primary_key, desc) =
+            let (table_name, column_ref_id, is_primary_key, desc) =
                 info.ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
             self.record_regular_table_column(&table_name, column_name, column_ref_id.column_id);
 
-            Ok(BoundExpr {
-                kind: BoundExprKind::ColumnRef(BoundColumnRef {
-                    table_name: table_name.clone(),
-                    column_ref_id,
-                    is_primary_key,
-                    desc,
-                }),
-                return_type: Some(data_type),
-            })
+            Ok(BoundExpr::ColumnRef(BoundColumnRef {
+                table_name: table_name.clone(),
+                column_ref_id,
+                is_primary_key,
+                desc,
+            }))
         }
     }
 

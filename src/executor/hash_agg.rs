@@ -64,7 +64,7 @@ impl HashAggExecutor {
     ) -> DataChunk {
         let mut key_builders = group_keys
             .iter()
-            .map(|e| ArrayBuilderImpl::new(e.return_type.as_ref().unwrap()))
+            .map(|e| ArrayBuilderImpl::new(&e.return_type().unwrap()))
             .collect::<Vec<ArrayBuilderImpl>>();
         let mut res_builders = agg_calls
             .iter()

@@ -68,8 +68,8 @@ impl PlanRewriter for InputRefResolver {
             .iter()
             .cloned()
             .map(|expr| {
-                bindings.push(match &expr.kind {
-                    BoundExprKind::ColumnRef(col) => Some(col.column_ref_id),
+                bindings.push(match &expr {
+                    BoundExpr::ColumnRef(col) => Some(col.column_ref_id),
                     _ => None,
                 });
                 self.rewrite_expr(expr)
@@ -108,9 +108,9 @@ impl PlanRewriter for InputRefResolver {
             .iter()
             .cloned()
             .map(|expr| {
-                match &expr.kind {
-                    BoundExprKind::ColumnRef(col) => self.bindings.push(Some(col.column_ref_id)),
-                    _ => panic!("{:?} cannot be a group key", expr.kind),
+                match &expr {
+                    BoundExpr::ColumnRef(col) => self.bindings.push(Some(col.column_ref_id)),
+                    _ => panic!("{:?} cannot be a group key", expr),
                 }
                 self.rewrite_expr(expr)
             })
@@ -127,14 +127,15 @@ impl PlanRewriter for InputRefResolver {
 
     /// Transform expr referring to input chunk into `BoundInputRef`
     fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
-        use BoundExprKind::*;
-        let new_kind = match expr.kind {
+        use BoundExpr::*;
+        match expr {
             ColumnRef(column_ref) => InputRef(BoundInputRef {
                 index: self
                     .bindings
                     .iter()
                     .position(|col| *col == Some(column_ref.column_ref_id))
                     .expect("column reference not found"),
+                return_type: column_ref.desc.datatype().clone(),
             }),
             AggCall(agg) => AggCall(BoundAggCall {
                 kind: agg.kind,
@@ -147,13 +148,15 @@ impl PlanRewriter for InputRefResolver {
             }),
             // rewrite sub-expressions
             BinaryOp(binary_op) => BinaryOp(BoundBinaryOp {
-                left_expr: (self.rewrite_expr(*binary_op.left_expr).into()),
                 op: binary_op.op,
+                left_expr: (self.rewrite_expr(*binary_op.left_expr).into()),
                 right_expr: (self.rewrite_expr(*binary_op.right_expr).into()),
+                return_type: binary_op.return_type,
             }),
             UnaryOp(unary_op) => UnaryOp(BoundUnaryOp {
                 op: unary_op.op,
                 expr: (self.rewrite_expr(*unary_op.expr).into()),
+                return_type: unary_op.return_type,
             }),
             TypeCast(cast) => TypeCast(BoundTypeCast {
                 expr: (self.rewrite_expr(*cast.expr).into()),
@@ -162,11 +165,7 @@ impl PlanRewriter for InputRefResolver {
             IsNull(isnull) => IsNull(BoundIsNull {
                 expr: Box::new(self.rewrite_expr(*isnull.expr)),
             }),
-            kind => kind,
-        };
-        BoundExpr {
-            kind: new_kind,
-            return_type: expr.return_type,
+            expr => expr,
         }
     }
 }

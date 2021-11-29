@@ -1,6 +1,6 @@
 use super::*;
 use crate::array::{ArrayBuilderImpl, DataChunk};
-use crate::binder::{BoundExprKind, BoundOrderBy};
+use crate::binder::{BoundExpr, BoundOrderBy};
 use crate::types::DataValue;
 use std::cmp::Ordering;
 
@@ -49,8 +49,8 @@ impl RowRef<'_> {
     /// Compare with another row by the comparators.
     fn cmp_by(&self, other: &RowRef, comparators: &[BoundOrderBy]) -> Ordering {
         for cmp in comparators {
-            let column_index = match &cmp.expr.kind {
-                BoundExprKind::InputRef(input_ref) => input_ref.index,
+            let column_index = match &cmp.expr {
+                BoundExpr::InputRef(input_ref) => input_ref.index,
                 _ => todo!("only support order by columns now"),
             };
             let v1 = self.get(column_index);

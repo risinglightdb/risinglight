@@ -1,5 +1,5 @@
 use super::*;
-use crate::binder::{BoundExpr, BoundExprKind::*};
+use crate::binder::{BoundExpr, BoundExpr::*};
 use crate::parser::{BinaryOperator::*, UnaryOperator};
 use crate::types::{DataTypeKind as Ty, DataValue::*};
 
@@ -14,8 +14,8 @@ pub struct ArithExprSimplification;
 impl PlanRewriter for ArithExprSimplification {
     fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
         // TODO: support more data types.
-        let new_kind = match &expr.kind {
-            BinaryOp(op) => match (&op.op, &op.left_expr.kind, &op.right_expr.kind) {
+        match &expr {
+            BinaryOp(op) => match (&op.op, &*op.left_expr, &*op.right_expr) {
                 // x + 0, 0 + x
                 (Plus, Constant(Int32(0)), other) => other.clone(),
                 (Plus, other, Constant(Int32(0))) => other.clone(),
@@ -38,25 +38,21 @@ impl PlanRewriter for ArithExprSimplification {
                 (Divide, other, Constant(Int32(1))) => other.clone(),
                 (Divide, other, Constant(Float64(f))) if *f == 1.0 => other.clone(),
 
-                _ => expr.kind.clone(),
+                _ => expr.clone(),
             },
-            UnaryOp(op) => match (&op.op, &op.expr.kind) {
+            UnaryOp(op) => match (&op.op, &*op.expr) {
                 (UnaryOperator::Plus, other) => other.clone(),
-                _ => expr.kind.clone(),
+                _ => expr.clone(),
             },
-            TypeCast(op) => match (&op.ty, &op.expr.kind) {
+            TypeCast(op) => match (&op.ty, &*op.expr) {
                 (Ty::Boolean, k @ Constant(Bool(_))) => k.clone(),
                 (Ty::Int(_), k @ Constant(Int32(_))) => k.clone(),
                 (Ty::BigInt(_), k @ Constant(Int64(_))) => k.clone(),
                 (Ty::Double, k @ Constant(Float64(_))) => k.clone(),
                 (Ty::String, k @ Constant(String(_))) => k.clone(),
-                _ => expr.kind.clone(),
+                _ => expr.clone(),
             },
-            _ => expr.kind.clone(),
-        };
-        BoundExpr {
-            kind: new_kind,
-            return_type: expr.return_type,
+            _ => expr.clone(),
         }
     }
 }

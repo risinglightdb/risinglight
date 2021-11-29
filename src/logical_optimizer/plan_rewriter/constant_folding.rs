@@ -1,8 +1,6 @@
 use super::*;
 use crate::array::ArrayImpl;
-use crate::binder::{
-    BoundAggCall, BoundBinaryOp, BoundExpr, BoundExprKind, BoundTypeCast, BoundUnaryOp,
-};
+use crate::binder::{BoundAggCall, BoundBinaryOp, BoundExpr, BoundTypeCast, BoundUnaryOp};
 use std::vec::Vec;
 
 /// Constant folding rule aims to evalute the constant expression before query execution.
@@ -16,77 +14,63 @@ pub struct ConstantFolding;
 
 impl PlanRewriter for ConstantFolding {
     fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
-        match expr.kind {
-            BoundExprKind::BinaryOp(binary_op) => {
+        use BoundExpr::*;
+        match expr {
+            BinaryOp(binary_op) => {
                 let new_left_expr = self.rewrite_expr(*binary_op.left_expr);
                 let new_right_expr = self.rewrite_expr(*binary_op.right_expr);
 
-                let kind = if let (BoundExprKind::Constant(v1), BoundExprKind::Constant(v2)) =
-                    (&new_left_expr.kind, &new_right_expr.kind)
-                {
+                if let (Constant(v1), Constant(v2)) = (&new_left_expr, &new_right_expr) {
                     let res = ArrayImpl::from(v1)
                         .binary_op(&binary_op.op, &ArrayImpl::from(v2))
                         .get(0);
-                    BoundExprKind::Constant(res)
+                    Constant(res)
                 } else {
-                    BoundExprKind::BinaryOp(BoundBinaryOp {
-                        left_expr: (new_left_expr.into()),
+                    BinaryOp(BoundBinaryOp {
                         op: binary_op.op,
+                        left_expr: (new_left_expr.into()),
                         right_expr: (new_right_expr.into()),
+                        return_type: binary_op.return_type.clone(),
                     })
-                };
-                BoundExpr {
-                    kind,
-                    return_type: expr.return_type,
                 }
             }
-            BoundExprKind::UnaryOp(unary_op) => {
+            UnaryOp(unary_op) => {
                 let new_expr = self.rewrite_expr(*unary_op.expr);
 
-                let kind = if let BoundExprKind::Constant(v) = &new_expr.kind {
+                if let Constant(v) = &new_expr {
                     let res = ArrayImpl::from(v).unary_op(&unary_op.op).get(0);
-                    BoundExprKind::Constant(res)
+                    Constant(res)
                 } else {
-                    BoundExprKind::UnaryOp(BoundUnaryOp {
+                    UnaryOp(BoundUnaryOp {
                         op: unary_op.op,
                         expr: (new_expr.into()),
+                        return_type: unary_op.return_type.clone(),
                     })
-                };
-                BoundExpr {
-                    kind,
-                    return_type: expr.return_type,
                 }
             }
-            BoundExprKind::TypeCast(cast) => {
+            TypeCast(cast) => {
                 let new_expr = self.rewrite_expr(*cast.expr);
 
-                let kind = if let BoundExprKind::Constant(v) = &new_expr.kind {
+                if let Constant(v) = &new_expr {
                     let res = ArrayImpl::from(v).try_cast(cast.ty).unwrap().get(0);
-                    BoundExprKind::Constant(res)
+                    Constant(res)
                 } else {
-                    BoundExprKind::TypeCast(BoundTypeCast {
+                    TypeCast(BoundTypeCast {
                         ty: cast.ty,
                         expr: (new_expr.into()),
                     })
-                };
-                BoundExpr {
-                    kind,
-                    return_type: expr.return_type,
                 }
             }
-            BoundExprKind::AggCall(agg_call) => {
+            AggCall(agg_call) => {
                 let mut new_exprs: Vec<BoundExpr> = vec![];
                 for expr in agg_call.args.into_iter() {
                     new_exprs.push(self.rewrite_expr(expr));
                 }
-                BoundExpr {
-                    kind: BoundExprKind::AggCall(BoundAggCall {
-                        kind: agg_call.kind,
-                        args: new_exprs,
-                        return_type: agg_call.return_type,
-                    }),
-                    return_type: expr.return_type,
-                }
+                AggCall(BoundAggCall {
+                    kind: agg_call.kind,
+                    args: new_exprs,
+                    return_type: agg_call.return_type,
+                })
             }
             _ => expr,
         }

@@ -59,15 +59,12 @@ impl Binder {
                         if let Some(col) = table.get_column_by_id(0) {
                             let column_ref_id = ColumnRefId::from_table(*ref_id, col.id());
                             self.record_regular_table_column(&table.name(), col.name(), col.id());
-                            let expr = BoundExpr {
-                                kind: BoundExprKind::ColumnRef(BoundColumnRef {
-                                    table_name: table.name(),
-                                    column_ref_id,
-                                    is_primary_key: col.is_primary(),
-                                    desc: col.desc().clone(),
-                                }),
-                                return_type: Some(col.datatype()),
-                            };
+                            let expr = BoundExpr::ColumnRef(BoundColumnRef {
+                                table_name: table.name(),
+                                column_ref_id,
+                                is_primary_key: col.is_primary(),
+                                desc: col.desc().clone(),
+                            });
                             args.push(expr);
                             break;
                         }
@@ -83,44 +80,33 @@ impl Binder {
                     )
                 }
             }
-            "max" => (AggKind::Max, args[0].return_type.clone()),
-            "min" => (AggKind::Min, args[0].return_type.clone()),
-            "sum" => (AggKind::Sum, args[0].return_type.clone()),
+            "max" => (AggKind::Max, args[0].return_type()),
+            "min" => (AggKind::Min, args[0].return_type()),
+            "sum" => (AggKind::Sum, args[0].return_type()),
             _ => panic!("Unsupported function: {}", func.name),
         };
 
         match kind {
             // Rewrite `avg` into `sum / count`
-            AggKind::Avg => Ok(BoundExpr {
-                kind: BoundExprKind::BinaryOp(BoundBinaryOp {
-                    left_expr: Box::new(BoundExpr {
-                        kind: BoundExprKind::AggCall(BoundAggCall {
-                            kind: AggKind::Sum,
-                            args: args.clone(),
-                            return_type: args[0].return_type.clone().unwrap(),
-                        }),
-                        return_type: args[0].return_type.clone(),
-                    }),
-                    op: BinaryOperator::Divide,
-                    right_expr: Box::new(BoundExpr {
-                        kind: BoundExprKind::AggCall(BoundAggCall {
-                            kind: AggKind::Count,
-                            args,
-                            return_type: DataType::new(DataTypeKind::Int(None), false),
-                        }),
-                        return_type: Some(DataType::new(DataTypeKind::Int(None), false)),
-                    }),
-                }),
-                return_type,
-            }),
-            _ => Ok(BoundExpr {
-                kind: BoundExprKind::AggCall(BoundAggCall {
-                    kind,
+            AggKind::Avg => Ok(BoundExpr::BinaryOp(BoundBinaryOp {
+                op: BinaryOperator::Divide,
+                left_expr: Box::new(BoundExpr::AggCall(BoundAggCall {
+                    kind: AggKind::Sum,
+                    args: args.clone(),
+                    return_type: args[0].return_type().unwrap(),
+                })),
+                right_expr: Box::new(BoundExpr::AggCall(BoundAggCall {
+                    kind: AggKind::Count,
                     args,
-                    return_type: return_type.clone().unwrap(),
-                }),
+                    return_type: DataType::new(DataTypeKind::Int(None), false),
+                })),
                 return_type,
-            }),
+            })),
+            _ => Ok(BoundExpr::AggCall(BoundAggCall {
+                kind,
+                args,
+                return_type: return_type.unwrap(),
+            })),
         }
     }
 }
