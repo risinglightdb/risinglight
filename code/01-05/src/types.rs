@@ -64,3 +64,16 @@ impl ToString for DataValue {
         }
     }
 }
+
+impl DataValue {
+    /// Get the type of value. `None` means NULL.
+    pub fn datatype(&self) -> Option<DataType> {
+        match self {
+            Self::Bool(_) => Some(DataTypeKind::Boolean.not_null()),
+            Self::Int32(_) => Some(DataTypeKind::Int(None).not_null()),
+            Self::Float64(_) => Some(DataTypeKind::Double.not_null()),
+            Self::String(_) => Some(DataTypeKind::Varchar(None).not_null()),
+            Self::Null => None,
+        }
+    }
+}

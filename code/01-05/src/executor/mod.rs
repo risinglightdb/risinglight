@@ -8,8 +8,12 @@ use crate::{
 };
 
 mod create;
+mod insert;
+mod values;
 
 use self::create::*;
+use self::insert::*;
+use self::values::*;
 
 /// The error type of execution.
 #[derive(thiserror::Error, Debug)]
@@ -44,6 +48,15 @@ impl ExecutorBuilder {
                 stmt,
                 catalog: self.catalog.clone(),
                 storage: self.storage.clone(),
+            }),
+            BoundStatement::Insert(stmt) => Box::new(InsertExecutor {
+                table_ref_id: stmt.table_ref_id,
+                column_ids: stmt.column_ids,
+                storage: self.storage.clone(),
+                child: Box::new(ValuesExecutor {
+                    column_types: stmt.column_types,
+                    values: stmt.values,
+                }),
             }),
         }
     }

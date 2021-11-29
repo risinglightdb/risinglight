@@ -1,0 +1,37 @@
+# 01-05: INSERT test
+
+statement ok
+CREATE TABLE t (a INT NOT NULL, b INT, c INT)
+
+# simple insert
+statement ok
+INSERT INTO t VALUES (1,10,100), (2,20,200), (3,30,300)
+
+# invalid table name
+statement error
+INSERT INTO t1 VALUES (1,10,100), (2,20,200), (3,30,300)
+
+# insert with columns
+statement ok
+INSERT INTO t(a, b, c) VALUES (1,10,100)
+
+statement ok
+INSERT INTO t(a, b) VALUES (2,20)
+
+statement ok
+INSERT INTO t(b, a) VALUES (30,3)
+
+# invalid column name
+statement error
+INSERT INTO t(a, d) VALUES (1,10), (2,20), (3,30)
+
+# insert null
+statement ok
+INSERT INTO t VALUES (1,NULL,NULL)
+
+# more data types
+statement ok
+CREATE TABLE t1 (a INT, b BOOLEAN, c VARCHAR, d DOUBLE)
+
+statement ok
+INSERT INTO t1 VALUES (1,true,'char',3.14), (2,false,'',0.1)

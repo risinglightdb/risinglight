@@ -7,6 +7,7 @@ edition = "2021"
 [dependencies]
 bitvec = "0.22"
 env_logger = "0.9"
+itertools = "0.10"
 log = "0.4"
 prettytable-rs = { version = "0.8", default-features = false }
 rustyline = "9"
