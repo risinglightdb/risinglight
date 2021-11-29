@@ -17,7 +17,7 @@ impl ValuesExecutor {
 
             let mut array_builders = self.values[0]
                 .iter()
-                .map(|expr| ArrayBuilderImpl::new(expr.return_type.as_ref().unwrap()))
+                .map(|expr| ArrayBuilderImpl::new(&expr.return_type().unwrap()))
                 .collect::<Vec<ArrayBuilderImpl>>();
             for row in &self.values {
                 for (expr, builder) in row.iter().zip(&mut array_builders) {
@@ -49,7 +49,7 @@ mod tests {
                 .iter()
                 .map(|row| {
                     row.iter()
-                        .map(|&v| BoundExpr::constant(DataValue::Int32(v)))
+                        .map(|&v| BoundExpr::Constant(DataValue::Int32(v)))
                         .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),

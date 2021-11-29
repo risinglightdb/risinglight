@@ -59,9 +59,9 @@ impl Binder {
                     bound_row.reserve(row.len());
                     for (idx, expr) in row.iter().enumerate() {
                         // Bind expression
-                        let mut expr = self.bind_expr(expr)?;
+                        let expr = self.bind_expr(expr)?;
 
-                        if let Some(data_type) = &expr.return_type {
+                        if let Some(data_type) = &expr.return_type() {
                             // TODO: support valid type cast
                             // table t1(a float, b float)
                             // for example: insert into values (1, 1);
@@ -71,10 +71,8 @@ impl Binder {
                             if left_kind != right_kind {
                                 match (&left_kind, &right_kind) {
                                     // For char types, no need to cast
-                                    (DataType::Char(_), DataType::Char(_)) => {}
                                     (DataType::Char(_), DataType::Varchar(_)) => {}
                                     (DataType::Varchar(_), DataType::Char(_)) => {}
-                                    (DataType::Varchar(_), DataType::Varchar(_)) => {}
                                     _ => todo!("type cast: {} {}", left_kind, right_kind),
                                 }
                             }
@@ -85,7 +83,6 @@ impl Binder {
                                     "Can not insert null to non null column".into(),
                                 ));
                             }
-                            expr.return_type = Some(column_types[idx].clone());
                         }
                         bound_row.push(expr);
                     }

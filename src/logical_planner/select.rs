@@ -7,9 +7,7 @@
 //! - [`LogicalProjection`] (select *)
 //! - [`LogicalOrder`] (order by *)
 use super::*;
-use crate::binder::{
-    BoundAggCall, BoundExpr, BoundExprKind, BoundInputRef, BoundSelect, BoundTableRef,
-};
+use crate::binder::{BoundAggCall, BoundExpr, BoundInputRef, BoundSelect, BoundTableRef};
 
 impl LogicalPlaner {
     pub fn plan_select(&self, mut stmt: Box<BoundSelect>) -> Result<LogicalPlan, LogicalPlanError> {
@@ -19,7 +17,7 @@ impl LogicalPlaner {
         if let Some(table_ref) = stmt.from_table.get(0) {
             // use `sorted` mode from the storage engine if the order by column is the primary key
             if stmt.orderby.len() == 1 && !stmt.orderby[0].descending {
-                if let BoundExprKind::ColumnRef(col_ref) = &stmt.orderby[0].expr.kind {
+                if let BoundExpr::ColumnRef(col_ref) = &stmt.orderby[0].expr {
                     if col_ref.is_primary_key {
                         is_sorted = true;
                     }
@@ -64,15 +62,15 @@ impl LogicalPlaner {
         }
         if stmt.limit.is_some() || stmt.offset.is_some() {
             let limit = match stmt.limit {
-                Some(limit) => match limit.kind {
-                    BoundExprKind::Constant(v) => v.as_usize()?.unwrap_or(usize::MAX / 2),
+                Some(limit) => match limit {
+                    BoundExpr::Constant(v) => v.as_usize()?.unwrap_or(usize::MAX / 2),
                     _ => panic!("limit only support constant expression"),
                 },
                 None => usize::MAX / 2, // avoid 'offset + limit' overflow
             };
             let offset = match stmt.offset {
-                Some(offset) => match offset.kind {
-                    BoundExprKind::Constant(v) => v.as_usize()?.unwrap_or(0),
+                Some(offset) => match offset {
+                    BoundExpr::Constant(v) => v.as_usize()?.unwrap_or(0),
                     _ => panic!("offset only support constant expression"),
                 },
                 None => 0,
@@ -155,12 +153,14 @@ impl AggExtractor {
     }
 
     fn visit_expr(&mut self, expr: &mut BoundExpr) {
-        use BoundExprKind::*;
-        match &mut expr.kind {
-            kind @ AggCall(_) => {
-                let agg_expr =
-                    std::mem::replace(kind, InputRef(BoundInputRef { index: self.index }));
-                match agg_expr {
+        use BoundExpr::*;
+        match expr {
+            AggCall(agg) => {
+                let input_ref = InputRef(BoundInputRef {
+                    index: self.index,
+                    return_type: agg.return_type.clone(),
+                });
+                match std::mem::replace(expr, input_ref) {
                     AggCall(agg) => self.agg_calls.push(agg),
                     _ => unreachable!(),
                 }

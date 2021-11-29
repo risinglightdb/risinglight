@@ -1,7 +1,10 @@
+use crate::types::DataType;
+
 /// Reference to a column in data chunk
 #[derive(PartialEq, Clone)]
 pub struct BoundInputRef {
     pub index: usize,
+    pub return_type: DataType,
 }
 
 impl std::fmt::Debug for BoundInputRef {

@@ -1,13 +1,13 @@
 use super::*;
 use crate::catalog::ColumnRefId;
 use crate::parser::{Expr, Function, UnaryOperator, Value};
-use crate::types::{DataType, DataTypeKind, DataValue};
+use crate::types::{DataType, DataTypeExt, DataTypeKind, DataValue};
 
 mod agg_call;
 mod binary_op;
 mod column_ref;
 mod input_ref;
-mod null;
+mod isnull;
 mod type_cast;
 mod unary_op;
 
@@ -15,22 +15,13 @@ pub use self::agg_call::*;
 pub use self::binary_op::*;
 pub use self::column_ref::*;
 pub use self::input_ref::*;
-pub use self::null::*;
+pub use self::isnull::*;
 pub use self::type_cast::*;
 pub use self::unary_op::*;
+
 /// A bound expression.
 #[derive(PartialEq, Clone)]
-pub struct BoundExpr {
-    /// The content of the expression.
-    pub kind: BoundExprKind,
-    /// The return type of the expression.
-    ///
-    /// `None` means NULL.
-    pub return_type: Option<DataType>,
-}
-
-#[derive(PartialEq, Clone)]
-pub enum BoundExprKind {
+pub enum BoundExpr {
     Constant(DataValue),
     ColumnRef(BoundColumnRef),
     /// Only used after column ref is resolved into input ref
@@ -42,37 +33,32 @@ pub enum BoundExprKind {
     IsNull(BoundIsNull),
 }
 
-impl std::fmt::Debug for BoundExprKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BoundExprKind::Constant(expr) => write!(f, "{:?} (const)", expr)?,
-            BoundExprKind::ColumnRef(expr) => write!(f, "#{:?}", expr)?,
-            BoundExprKind::BinaryOp(expr) => write!(f, "{:?}", expr)?,
-            BoundExprKind::UnaryOp(expr) => write!(f, "{:?}", expr)?,
-            BoundExprKind::TypeCast(expr) => write!(f, "{:?} (cast)", expr)?,
-            BoundExprKind::AggCall(expr) => write!(f, "{:?} (agg)", expr)?,
-            BoundExprKind::InputRef(expr) => write!(f, "#{:?}", expr)?,
-            BoundExprKind::IsNull(expr) => write!(f, "{:?} (isnull)", expr)?,
-        }
-        Ok(())
-    }
-}
-
 impl BoundExpr {
-    /// Construct a constant value expression.
-    pub fn constant(value: DataValue) -> Self {
-        BoundExpr {
-            return_type: value.data_type(),
-            kind: BoundExprKind::Constant(value),
+    pub fn return_type(&self) -> Option<DataType> {
+        match self {
+            Self::Constant(v) => v.data_type(),
+            Self::ColumnRef(expr) => Some(expr.desc.datatype().clone()),
+            Self::BinaryOp(expr) => expr.return_type.clone(),
+            Self::UnaryOp(expr) => expr.return_type.clone(),
+            Self::TypeCast(expr) => Some(expr.ty.clone().nullable()),
+            Self::AggCall(expr) => Some(expr.return_type.clone()),
+            Self::InputRef(expr) => Some(expr.return_type.clone()),
+            Self::IsNull(_) => Some(DataTypeKind::Boolean.not_null()),
         }
     }
 }
 
 impl std::fmt::Debug for BoundExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.kind)?;
-        if let Some(return_type) = &self.return_type {
-            write!(f, " -> {:?}", return_type)?;
+        match self {
+            Self::Constant(expr) => write!(f, "{:?} (const)", expr)?,
+            Self::ColumnRef(expr) => write!(f, "#{:?}", expr)?,
+            Self::BinaryOp(expr) => write!(f, "{:?}", expr)?,
+            Self::UnaryOp(expr) => write!(f, "{:?}", expr)?,
+            Self::TypeCast(expr) => write!(f, "{:?} (cast)", expr)?,
+            Self::AggCall(expr) => write!(f, "{:?} (agg)", expr)?,
+            Self::InputRef(expr) => write!(f, "#{:?}", expr)?,
+            Self::IsNull(expr) => write!(f, "{:?} (isnull)", expr)?,
         }
         Ok(())
     }
@@ -82,7 +68,7 @@ impl Binder {
     /// Bind an expression.
     pub fn bind_expr(&mut self, expr: &Expr) -> Result<BoundExpr, BindError> {
         match expr {
-            Expr::Value(v) => Ok(BoundExpr::constant(v.into())),
+            Expr::Value(v) => Ok(BoundExpr::Constant(v.into())),
             Expr::Identifier(ident) => self.bind_column_ref(std::slice::from_ref(ident)),
             Expr::CompoundIdentifier(idents) => self.bind_column_ref(idents),
             Expr::BinaryOp { left, op, right } => self.bind_binary_op(left, op, right),
@@ -93,13 +79,11 @@ impl Binder {
             Expr::IsNull(expr) => self.bind_isnull(expr),
             Expr::IsNotNull(expr) => {
                 let expr = self.bind_isnull(expr)?;
-                Ok(BoundExpr {
-                    kind: BoundExprKind::UnaryOp(BoundUnaryOp {
-                        op: UnaryOperator::Not,
-                        expr: Box::new(expr),
-                    }),
-                    return_type: Some(DataType::new(DataTypeKind::Boolean, false)),
-                })
+                Ok(BoundExpr::UnaryOp(BoundUnaryOp {
+                    op: UnaryOperator::Not,
+                    expr: Box::new(expr),
+                    return_type: Some(DataTypeKind::Boolean.not_null()),
+                }))
             }
             _ => todo!("bind expression: {:?}", expr),
         }

@@ -6,6 +6,7 @@ use crate::parser::UnaryOperator;
 pub struct BoundUnaryOp {
     pub op: UnaryOperator,
     pub expr: Box<BoundExpr>,
+    pub return_type: Option<DataType>,
 }
 
 impl Binder {
@@ -16,14 +17,11 @@ impl Binder {
     ) -> Result<BoundExpr, BindError> {
         // use UnaryOperator as Op;
         let bound_expr = self.bind_expr(expr)?;
-        // TODO: check data type
-        let return_type = bound_expr.return_type.clone();
-        Ok(BoundExpr {
-            kind: BoundExprKind::UnaryOp(BoundUnaryOp {
-                op: op.clone(),
-                expr: (bound_expr.into()),
-            }),
-            return_type,
-        })
+        Ok(BoundExpr::UnaryOp(BoundUnaryOp {
+            op: op.clone(),
+            // TODO: check data type
+            return_type: bound_expr.return_type(),
+            expr: bound_expr.into(),
+        }))
     }
 }

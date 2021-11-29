@@ -1,6 +1,6 @@
 use crate::{
     array::*,
-    binder::{BoundExpr, BoundExprKind},
+    binder::BoundExpr,
     parser::{BinaryOperator, UnaryOperator},
     types::{ConvertError, DataTypeKind, DataValue},
 };
@@ -11,79 +11,64 @@ impl BoundExpr {
     ///
     /// This method is used in the evaluation of `insert values` and optimizer
     pub fn eval(&self) -> DataValue {
-        match &self.kind {
-            BoundExprKind::Constant(v) => v.clone(),
-            BoundExprKind::UnaryOp(v) => match (&v.op, v.expr.eval()) {
-                (UnaryOperator::Minus, DataValue::Int32(i)) => DataValue::Int32(-i),
-                (UnaryOperator::Minus, DataValue::Float64(f)) => DataValue::Float64(-f),
-                _ => todo!("evaluate expression: {:?}", self.kind),
+        use DataValue::*;
+        match &self {
+            BoundExpr::Constant(v) => v.clone(),
+            BoundExpr::UnaryOp(v) => match (&v.op, v.expr.eval()) {
+                (UnaryOperator::Minus, Int32(i)) => Int32(-i),
+                (UnaryOperator::Minus, Float64(f)) => Float64(-f),
+                _ => todo!("evaluate expression: {:?}", self),
             },
-            BoundExprKind::BinaryOp(v) => match (&v.op, v.left_expr.eval(), v.right_expr.eval()) {
-                (BinaryOperator::Plus, DataValue::Int32(l), DataValue::Int32(r)) => {
-                    DataValue::Int32(l + r)
-                }
-                (BinaryOperator::Plus, DataValue::Float64(l), DataValue::Float64(r)) => {
-                    DataValue::Float64(l + r)
-                }
-                (BinaryOperator::Minus, DataValue::Int32(l), DataValue::Int32(r)) => {
-                    DataValue::Int32(l - r)
-                }
-                (BinaryOperator::Minus, DataValue::Float64(l), DataValue::Float64(r)) => {
-                    DataValue::Float64(l - r)
-                }
-                (BinaryOperator::Multiply, DataValue::Int32(l), DataValue::Int32(r)) => {
-                    DataValue::Int32(l * r)
-                }
-                (BinaryOperator::Multiply, DataValue::Float64(l), DataValue::Float64(r)) => {
-                    DataValue::Float64(l * r)
-                }
-                (BinaryOperator::Divide, DataValue::Int32(l), DataValue::Int32(r)) => {
-                    DataValue::Int32(l / r)
-                }
-                (BinaryOperator::Divide, DataValue::Float64(l), DataValue::Float64(r)) => {
-                    DataValue::Float64(l / r)
-                }
-                _ => todo!("evaluate expression: {:?}", self.kind),
+            BoundExpr::BinaryOp(v) => match (&v.op, v.left_expr.eval(), v.right_expr.eval()) {
+                (BinaryOperator::Plus, Int32(l), Int32(r)) => Int32(l + r),
+                (BinaryOperator::Plus, Float64(l), Float64(r)) => Float64(l + r),
+                (BinaryOperator::Minus, Int32(l), Int32(r)) => Int32(l - r),
+                (BinaryOperator::Minus, Float64(l), Float64(r)) => Float64(l - r),
+                (BinaryOperator::Multiply, Int32(l), Int32(r)) => Int32(l * r),
+                (BinaryOperator::Multiply, Float64(l), Float64(r)) => Float64(l * r),
+                (BinaryOperator::Divide, Int32(l), Int32(r)) => Int32(l / r),
+                (BinaryOperator::Divide, Float64(l), Float64(r)) => Float64(l / r),
+                _ => todo!("evaluate expression: {:?}", self),
             },
-            _ => todo!("evaluate expression: {:?}", self.kind),
+            _ => todo!("evaluate expression: {:?}", self),
         }
     }
 
     /// Evaluate the given expression as an array.
     pub fn eval_array(&self, chunk: &DataChunk) -> Result<ArrayImpl, ConvertError> {
-        match &self.kind {
-            BoundExprKind::InputRef(input_ref) => {
-                let mut builder = ArrayBuilderImpl::new(self.return_type.as_ref().unwrap());
+        match &self {
+            BoundExpr::InputRef(input_ref) => {
+                let mut builder = ArrayBuilderImpl::new(&self.return_type().unwrap());
                 builder.append(chunk.array_at(input_ref.index));
                 Ok(builder.finish())
             }
-            BoundExprKind::BinaryOp(binary_op) => {
+            BoundExpr::BinaryOp(binary_op) => {
                 let left = binary_op.left_expr.eval_array(chunk)?;
                 let right = binary_op.right_expr.eval_array(chunk)?;
                 Ok(left.binary_op(&binary_op.op, &right))
             }
-            BoundExprKind::UnaryOp(op) => {
+            BoundExpr::UnaryOp(op) => {
                 let array = op.expr.eval_array(chunk)?;
                 Ok(array.unary_op(&op.op))
             }
-            BoundExprKind::Constant(v) => {
-                let mut builder = ArrayBuilderImpl::new(self.return_type.as_ref().unwrap());
+            BoundExpr::Constant(v) => {
+                let mut builder = ArrayBuilderImpl::new(&self.return_type().unwrap());
                 // TODO: optimize this
                 for _ in 0..chunk.cardinality() {
                     builder.push(v);
                 }
                 Ok(builder.finish())
             }
-            BoundExprKind::TypeCast(cast) => {
+            BoundExpr::TypeCast(cast) => {
                 let array = cast.expr.eval_array(chunk)?;
-                if self.return_type == cast.expr.return_type {
+                if self.return_type() == cast.expr.return_type() {
                     return Ok(array);
                 }
                 array.try_cast(cast.ty.clone())
             }
-            BoundExprKind::IsNull(expr) => {
+            BoundExpr::IsNull(expr) => {
                 let arr = expr.expr.eval_array(chunk)?;
-                let mut builder = ArrayBuilderImpl::new(self.return_type.as_ref().unwrap());
+                let mut builder = ArrayBuilderImpl::new(&self.return_type().unwrap());
                 for i in 0..arr.len() {
                     builder.push(match arr.get(i) {
                         DataValue::Null => &DataValue::Bool(true),
@@ -92,7 +77,7 @@ impl BoundExpr {
                 }
                 Ok(builder.finish())
             }
-            _ => panic!("{:?} should not be evaluated in `eval_array`", self.kind),
+            _ => panic!("{:?} should not be evaluated in `eval_array`", self),
         }
     }
 }
