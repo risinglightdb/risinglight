@@ -1,10 +1,11 @@
 use super::*;
-use crate::binder::BoundCreateTable;
+use crate::{binder::BoundCreateTable, catalog::TableRefId, storage::StorageRef};
 
 /// The executor of `CREATE TABLE` statement.
 pub struct CreateTableExecutor {
     pub stmt: BoundCreateTable,
     pub catalog: RootCatalogRef,
+    pub storage: StorageRef,
 }
 
 impl Executor for CreateTableExecutor {
@@ -16,6 +17,11 @@ impl Executor for CreateTableExecutor {
         for (name, desc) in &self.stmt.columns {
             table.add_column(name, desc.clone()).unwrap();
         }
-        Ok(DataChunk::single(0))
+        self.storage.add_table(TableRefId::new(
+            self.stmt.database_id,
+            self.stmt.schema_id,
+            table_id,
+        ))?;
+        Ok(DataChunk::single(1))
     }
 }

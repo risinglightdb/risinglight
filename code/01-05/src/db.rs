@@ -8,6 +8,7 @@ use crate::{
     catalog::{RootCatalog, RootCatalogRef},
     executor::{ExecuteError, ExecutorBuilder},
     parser::{parse, ParserError},
+    storage::InMemoryStorage,
 };
 
 /// The database instance.
@@ -26,9 +27,10 @@ impl Database {
     /// Create a new database instance.
     pub fn new() -> Self {
         let catalog = Arc::new(RootCatalog::new());
+        let storage = Arc::new(InMemoryStorage::new());
         Database {
             catalog: catalog.clone(),
-            executor_builder: ExecutorBuilder::new(catalog),
+            executor_builder: ExecutorBuilder::new(catalog, storage),
         }
     }
 

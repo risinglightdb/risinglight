@@ -23,6 +23,7 @@ pub mod executor;
 
 pub mod array;
 pub mod catalog;
+pub mod storage;
 pub mod types;
 
 pub use self::db::{Database, Error};

@@ -15,7 +15,11 @@ fn main() {
                 rl.add_history_entry(line.as_str());
                 let ret = db.run(&line);
                 match ret {
-                    Ok(_) => {}
+                    Ok(chunks) => {
+                        for chunk in chunks {
+                            println!("{}", chunk);
+                        }
+                    }
                     Err(err) => println!("{}", err),
                 }
             }
