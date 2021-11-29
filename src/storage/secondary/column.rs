@@ -11,12 +11,14 @@ mod column_iterator;
 mod primitive_column_builder;
 mod primitive_column_iterator;
 mod row_handler_sequencer;
+
 pub use column_builder::*;
 pub use column_iterator::*;
 pub use primitive_column_builder::*;
 pub use primitive_column_iterator::*;
 use risinglight_proto::rowset::BlockIndex;
 pub use row_handler_sequencer::*;
+use std::io::{Read, Seek, SeekFrom};
 mod char_column_iterator;
 pub use char_column_iterator::*;
 
@@ -24,7 +26,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use moka::future::Cache;
 use std::os::unix::fs::FileExt;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use super::{Block, BlockCacheKey, BlockHeader, ColumnIndex, BLOCK_HEADER_SIZE};
 use crate::array::Array;
@@ -73,6 +75,16 @@ impl ColumnSeekPosition {
     }
 }
 
+#[derive(Clone)]
+pub enum ColumnReadableFile {
+    /// For `read_at`
+    #[cfg(unix)]
+    PositionedRead(Arc<std::fs::File>),
+    /// For `file.lock().seek().read()`
+    NormalRead(Arc<Mutex<std::fs::File>>),
+    // In the future, we can even add minio / S3 file backend
+}
+
 /// Represents a column in Secondary.
 ///
 /// [`Column`] contains index, file handler and a reference to block cache. Therefore,
@@ -80,7 +92,7 @@ impl ColumnSeekPosition {
 #[derive(Clone)]
 pub struct Column {
     index: ColumnIndex,
-    file: Arc<std::fs::File>,
+    file: ColumnReadableFile,
     block_cache: Cache<BlockCacheKey, Block>,
     base_block_key: BlockCacheKey,
 }
@@ -88,7 +100,7 @@ pub struct Column {
 impl Column {
     pub fn new(
         index: ColumnIndex,
-        file: Arc<std::fs::File>,
+        file: ColumnReadableFile,
         block_cache: Cache<BlockCacheKey, Block>,
         base_block_key: BlockCacheKey,
     ) -> Self {
@@ -131,7 +143,16 @@ impl Column {
             let block = tokio::task::spawn_blocking(move || {
                 let mut data = vec![0; info.length as usize];
                 // TODO(chi): handle file system errors
-                file.read_exact_at(&mut data[..], info.offset).unwrap();
+                match file {
+                    ColumnReadableFile::PositionedRead(file) => {
+                        file.read_exact_at(&mut data[..], info.offset).unwrap()
+                    }
+                    ColumnReadableFile::NormalRead(file) => {
+                        let mut file = file.lock().unwrap();
+                        file.seek(SeekFrom::Start(info.offset as u64)).unwrap();
+                        file.read_exact(&mut data[..]).unwrap();
+                    }
+                }
                 Bytes::from(data)
             })
             .await
