@@ -1,6 +1,6 @@
 //! Execute the queries.
 
-use crate::{binder::BoundStatement, catalog::RootCatalogRef};
+use crate::{array::DataChunk, binder::BoundStatement, catalog::RootCatalogRef};
 
 mod create;
 
@@ -11,7 +11,7 @@ use self::create::*;
 pub enum ExecuteError {}
 
 pub trait Executor {
-    fn execute(&mut self) -> Result<String, ExecuteError>;
+    fn execute(&mut self) -> Result<DataChunk, ExecuteError>;
 }
 
 /// A type-erased executor object.

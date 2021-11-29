@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use crate::{
+    array::DataChunk,
     binder::{BindError, Binder},
     catalog::{RootCatalog, RootCatalogRef},
     executor::{ExecuteError, ExecutorBuilder},
@@ -32,7 +33,7 @@ impl Database {
     }
 
     /// Run SQL queries and return the outputs.
-    pub fn run(&self, sql: &str) -> Result<Vec<String>, Error> {
+    pub fn run(&self, sql: &str) -> Result<Vec<DataChunk>, Error> {
         // parse
         let stmts = parse(sql)?;
         let mut binder = Binder::new(self.catalog.clone());

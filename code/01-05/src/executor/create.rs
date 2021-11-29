@@ -8,7 +8,7 @@ pub struct CreateTableExecutor {
 }
 
 impl Executor for CreateTableExecutor {
-    fn execute(&mut self) -> Result<String, ExecuteError> {
+    fn execute(&mut self) -> Result<DataChunk, ExecuteError> {
         let db = self.catalog.get_database(self.stmt.database_id).unwrap();
         let schema = db.get_schema(self.stmt.schema_id).unwrap();
         let table_id = schema.add_table(&self.stmt.table_name).unwrap();
@@ -16,6 +16,6 @@ impl Executor for CreateTableExecutor {
         for (name, desc) in &self.stmt.columns {
             table.add_column(name, desc.clone()).unwrap();
         }
-        Ok(String::new())
+        Ok(DataChunk::single(0))
     }
 }
