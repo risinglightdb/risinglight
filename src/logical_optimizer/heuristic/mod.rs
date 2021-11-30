@@ -7,8 +7,8 @@ use super::rules::BoxedRule;
 struct HeuristicOptimizer {
     rules: Vec<BoxedRule>,
 }
-#[allow(dead_code)]
 
+#[allow(dead_code)]
 impl HeuristicOptimizer {
     fn optimize(&self, mut root: LogicalPlanRef) -> LogicalPlanRef {
         for rule in self.rules.iter() {
