@@ -109,6 +109,7 @@ impl SecondaryTransaction {
             self.table.columns.clone(),
             self.table.block_cache.clone(),
             rowset_id,
+            self.table.storage_options.io_backend,
         )
         .await?;
 

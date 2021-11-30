@@ -130,6 +130,7 @@ impl SecondaryStorage {
                 table.columns.clone(),
                 engine.block_cache.clone(),
                 entry.rowset_id,
+                options.io_backend,
             )
             .await?;
             changeset.push(EpochOp::AddRowSet((entry, disk_rowset)));

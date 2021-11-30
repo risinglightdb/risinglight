@@ -111,6 +111,7 @@ impl Compactor {
             table.columns.clone(),
             self.storage.block_cache.clone(),
             rowset_id,
+            self.storage.options.io_backend,
         )
         .await?;
 

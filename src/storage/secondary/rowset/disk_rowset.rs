@@ -11,7 +11,7 @@ use crate::storage::secondary::column::ColumnReadableFile;
 use crate::storage::secondary::DeleteVector;
 use crate::storage::{StorageColumnRef, StorageResult};
 
-use super::super::{Block, BlockCacheKey, Column, ColumnIndex, ColumnSeekPosition};
+use super::super::{Block, BlockCacheKey, Column, ColumnIndex, ColumnSeekPosition, IOBackend};
 use super::{path_of_data_column, path_of_index_column, RowSetIterator};
 
 /// Represents a column in Secondary.
@@ -29,6 +29,7 @@ impl DiskRowset {
         column_infos: Arc<[ColumnCatalog]>,
         block_cache: Cache<BlockCacheKey, Block>,
         rowset_id: u32,
+        io_backend: IOBackend,
     ) -> StorageResult<Self> {
         let mut columns = vec![];
 
@@ -51,10 +52,13 @@ impl DiskRowset {
 
             let column = Column::new(
                 ColumnIndex::from_bytes(&index_content),
-                if cfg!(target_os = "windows") {
-                    ColumnReadableFile::NormalRead(Arc::new(Mutex::new(file.into_std().await)))
-                } else {
-                    ColumnReadableFile::PositionedRead(Arc::new(file.into_std().await))
+                match io_backend {
+                    IOBackend::NormalRead => {
+                        ColumnReadableFile::NormalRead(Arc::new(Mutex::new(file.into_std().await)))
+                    }
+                    IOBackend::PositionedRead => {
+                        ColumnReadableFile::PositionedRead(Arc::new(file.into_std().await))
+                    }
                 },
                 block_cache.clone(),
                 BlockCacheKey::default().rowset(rowset_id).column(id as u32),
@@ -180,6 +184,7 @@ pub mod tests {
             columns.into(),
             Cache::new(2333),
             0,
+            IOBackend::NormalRead,
         )
         .await
         .unwrap()
