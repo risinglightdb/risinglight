@@ -57,9 +57,8 @@ impl_plan_node_for_unary! {LogicalDelete}
 impl_plan_node_for_unary! {LogicalCopyToFile}
 
 // TODO: refactor with macro
-#[allow(dead_code)]
 impl LogicalPlan {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
+    pub fn get_children(&self) -> Vec<LogicalPlanRef> {
         match self {
             LogicalPlan::Dummy => vec![],
             LogicalPlan::LogicalCreateTable(plan) => plan.get_children(),
@@ -80,7 +79,7 @@ impl LogicalPlan {
         }
     }
 
-    fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
+    pub fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
         match self {
             LogicalPlan::Dummy => LogicalPlan::Dummy.into(),
             LogicalPlan::LogicalCreateTable(plan) => plan.copy_with_children(children),
