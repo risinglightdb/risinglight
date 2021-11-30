@@ -26,6 +26,9 @@ impl ColumnIteratorImpl {
             DataTypeKind::Char(width) => Self::Char(
                 CharColumnIterator::new(column, start_pos, width.map(|x| x as usize)).await,
             ),
+            DataTypeKind::Varchar(width) => Self::Char(
+                CharColumnIterator::new(column, start_pos, width.map(|x| x as usize)).await,
+            ),
             other_datatype => todo!(
                 "column iterator for {:?} is not implemented",
                 other_datatype

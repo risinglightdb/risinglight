@@ -1,17 +1,15 @@
 use std::iter::Peekable;
 
-use risinglight_proto::rowset::block_checksum::ChecksumType;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 
 use crate::array::Array;
-use crate::storage::secondary::block::BlockBuilder;
 
 use super::super::{
-    PlainPrimitiveBlockBuilder, PlainPrimitiveNullableBlockBuilder, PrimitiveFixedWidthEncode,
+    BlockBuilder, BlockIndexBuilder, ColumnBuilderOptions, PlainPrimitiveBlockBuilder,
+    PlainPrimitiveNullableBlockBuilder, PrimitiveFixedWidthEncode,
 };
 use super::ColumnBuilder;
-use crate::storage::secondary::{BlockHeader, ColumnBuilderOptions, BLOCK_HEADER_SIZE};
 
 /// All supported block builders for primitive types.
 pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
@@ -26,32 +24,26 @@ pub type BoolColumnBuilder = PrimitiveColumnBuilder<bool>;
 /// Column builder of primitive types.
 pub struct PrimitiveColumnBuilder<T: PrimitiveFixedWidthEncode> {
     data: Vec<u8>,
-    index: Vec<BlockIndex>,
     options: ColumnBuilderOptions,
 
     /// Current block builder
     current_builder: Option<BlockBuilderImpl<T>>,
 
-    /// Count of rows which has been sent to builder
-    row_count: usize,
-
-    /// Begin row count of the current block
-    last_row_count: usize,
-
     /// Indicates whether the current column accepts null elements
     nullable: bool,
+
+    /// Block index builder
+    block_index_builder: BlockIndexBuilder,
 }
 
 impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
     pub fn new(nullable: bool, options: ColumnBuilderOptions) -> Self {
         Self {
             data: vec![],
-            index: vec![],
             options,
             current_builder: None,
-            row_count: 0,
-            last_row_count: 0,
             nullable,
+            block_index_builder: BlockIndexBuilder::new(),
         }
     }
 
@@ -63,37 +55,8 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
             }
         };
 
-        self.index.push(BlockIndex {
-            block_type: block_type.into(),
-            offset: self.data.len() as u64,
-            length: (block_data.len() + BLOCK_HEADER_SIZE) as u64,
-            first_rowid: self.last_row_count as u32,
-            row_count: (self.row_count - self.last_row_count) as u32,
-            /// TODO(chi): support sort key
-            first_key: "".into(),
-            stats: vec![],
-        });
-
-        // the new block will begin at the current row count
-        self.last_row_count = self.row_count;
-
-        let mut block_header = vec![0; BLOCK_HEADER_SIZE];
-
-        let mut block_header_ref = &mut block_header[..];
-
-        BlockHeader {
-            block_type,
-            checksum_type: ChecksumType::None,
-            // TODO(chi): add checksum support
-            checksum: 0,
-        }
-        .encode(&mut block_header_ref);
-
-        assert!(block_header_ref.is_empty());
-
-        // add data to the column file
-        self.data.append(&mut block_header);
-        self.data.append(&mut block_data);
+        self.block_index_builder
+            .finish_block(block_type, &mut self.data, &mut block_data);
     }
 }
 
@@ -150,7 +113,7 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                 BlockBuilderImpl::PlainNullable(builder) => append_one_by_one(&mut iter, builder),
             };
 
-            self.row_count += row_count;
+            self.block_index_builder.add_rows(row_count);
 
             // finish the current block
             if should_finish {
@@ -162,7 +125,7 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
     fn finish(mut self) -> (Vec<BlockIndex>, Vec<u8>) {
         self.finish_builder();
 
-        (self.index, self.data)
+        (self.block_index_builder.into_index(), self.data)
     }
 }
 

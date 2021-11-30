@@ -3,7 +3,7 @@ use crate::array::{ArrayBuilder, Utf8Array, Utf8ArrayBuilder};
 use bytes::Buf;
 
 /// Scans one or several arrays from the block content.
-pub struct PlainCharBlockIterator {
+pub struct PlainVarcharBlockIterator {
     /// Block content
     block: Block,
 
@@ -12,23 +12,19 @@ pub struct PlainCharBlockIterator {
 
     /// Indicates the beginning row of the next batch
     next_row: usize,
-
-    /// Width of the char column
-    char_width: usize,
 }
 
-impl PlainCharBlockIterator {
-    pub fn new(block: Block, row_count: usize, char_width: usize) -> Self {
+impl PlainVarcharBlockIterator {
+    pub fn new(block: Block, row_count: usize) -> Self {
         Self {
             block,
             row_count,
             next_row: 0,
-            char_width,
         }
     }
 }
 
-impl BlockIterator<Utf8Array> for PlainCharBlockIterator {
+impl BlockIterator<Utf8Array> for PlainVarcharBlockIterator {
     fn next_batch(
         &mut self,
         expected_size: Option<usize>,
@@ -41,7 +37,10 @@ impl BlockIterator<Utf8Array> for PlainCharBlockIterator {
         // TODO(chi): error handling on corrupted block
 
         let mut cnt = 0;
-        let mut buffer = &self.block[self.next_row * (self.char_width + 1)..];
+        const OFFSET: usize = std::mem::size_of::<u32>();
+        let offsets_length = OFFSET * self.row_count;
+        let offset_buffer = &self.block[0..offsets_length];
+        let data_buffer = &self.block[offsets_length..];
 
         loop {
             if let Some(expected_size) = expected_size {
@@ -55,9 +54,19 @@ impl BlockIterator<Utf8Array> for PlainCharBlockIterator {
                 break;
             }
 
-            let length = buffer.get_u8() as usize;
-            builder.push(Some(std::str::from_utf8(&buffer[..length]).unwrap()));
-            buffer = &buffer[self.char_width..];
+            let from;
+            let to;
+
+            if self.next_row == 0 {
+                let mut cur_offsets = offset_buffer;
+                from = 0;
+                to = cur_offsets.get_u32_le() as usize;
+            } else {
+                let mut cur_offsets = &offset_buffer[(self.next_row - 1) * OFFSET..];
+                from = cur_offsets.get_u32_le() as usize;
+                to = cur_offsets.get_u32_le() as usize;
+            }
+            builder.push(Some(std::str::from_utf8(&data_buffer[from..to]).unwrap()));
 
             cnt += 1;
             self.next_row += 1;
@@ -81,20 +90,20 @@ mod tests {
 
     use crate::array::ArrayToVecExt;
     use crate::array::{ArrayBuilder, Utf8ArrayBuilder};
-    use crate::storage::secondary::block::{BlockBuilder, PlainCharBlockBuilder};
+    use crate::storage::secondary::block::{BlockBuilder, PlainVarcharBlockBuilder};
     use crate::storage::secondary::BlockIterator;
 
     use super::*;
 
     #[test]
-    fn test_scan_char() {
-        let mut builder = PlainCharBlockBuilder::new(128, 20);
+    fn test_scan_varchar() {
+        let mut builder = PlainVarcharBlockBuilder::new(128);
         builder.append(Some("233"));
         builder.append(Some("2333"));
         builder.append(Some("23333"));
         let data = builder.finish();
 
-        let mut scanner = PlainCharBlockIterator::new(Bytes::from(data), 3, 20);
+        let mut scanner = PlainVarcharBlockIterator::new(Bytes::from(data), 3);
 
         let mut builder = Utf8ArrayBuilder::new(0);
 

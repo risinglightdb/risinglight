@@ -1,11 +1,12 @@
-use risinglight_proto::rowset::block_checksum::ChecksumType;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 
-use super::super::{BlockBuilder, PlainCharBlockBuilder, PlainVarcharBlockBuilder};
+use super::super::{
+    BlockBuilder, BlockIndexBuilder, PlainCharBlockBuilder, PlainVarcharBlockBuilder,
+};
 use super::{append_one_by_one, ColumnBuilder};
 use crate::array::{Array, Utf8Array};
-use crate::storage::secondary::{BlockHeader, ColumnBuilderOptions, BLOCK_HEADER_SIZE};
+use crate::storage::secondary::ColumnBuilderOptions;
 
 /// All supported block builders for char types.
 pub(super) enum CharBlockBuilderImpl {
@@ -16,17 +17,13 @@ pub(super) enum CharBlockBuilderImpl {
 /// Column builder of char types.
 pub struct CharColumnBuilder {
     data: Vec<u8>,
-    index: Vec<BlockIndex>,
     options: ColumnBuilderOptions,
 
     /// Current block builder
     current_builder: Option<CharBlockBuilderImpl>,
 
-    /// Count of rows which has been sent to builder
-    row_count: usize,
-
-    /// Begin row count of the current block
-    last_row_count: usize,
+    /// Block index builder
+    block_index_builder: BlockIndexBuilder,
 
     /// Indicates whether the current column accepts null elements
     nullable: bool,
@@ -39,11 +36,9 @@ impl CharColumnBuilder {
     pub fn new(nullable: bool, char_width: Option<u64>, options: ColumnBuilderOptions) -> Self {
         Self {
             data: vec![],
-            index: vec![],
             options,
             current_builder: None,
-            row_count: 0,
-            last_row_count: 0,
+            block_index_builder: BlockIndexBuilder::new(),
             nullable,
             char_width,
         }
@@ -59,37 +54,8 @@ impl CharColumnBuilder {
             }
         };
 
-        self.index.push(BlockIndex {
-            block_type: block_type.into(),
-            offset: self.data.len() as u64,
-            length: (block_data.len() + BLOCK_HEADER_SIZE) as u64,
-            first_rowid: self.last_row_count as u32,
-            row_count: (self.row_count - self.last_row_count) as u32,
-            /// TODO(chi): support sort key
-            first_key: "".into(),
-            stats: vec![],
-        });
-
-        // the new block will begin at the current row count
-        self.last_row_count = self.row_count;
-
-        let mut block_header = vec![0; BLOCK_HEADER_SIZE];
-
-        let mut block_header_ref = &mut block_header[..];
-
-        BlockHeader {
-            block_type,
-            checksum_type: ChecksumType::None,
-            // TODO(chi): add checksum support
-            checksum: 0,
-        }
-        .encode(&mut block_header_ref);
-
-        assert!(block_header_ref.is_empty());
-
-        // add data to the column file
-        self.data.append(&mut block_header);
-        self.data.append(&mut block_data);
+        self.block_index_builder
+            .finish_block(block_type, &mut self.data, &mut block_data);
     }
 }
 
@@ -108,7 +74,7 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                             ),
                         ));
                     }
-                    (None, false) => {
+                    (None, _) => {
                         self.current_builder = Some(CharBlockBuilderImpl::PlainVarchar(
                             PlainVarcharBlockBuilder::new(self.options.target_block_size - 16),
                         ));
@@ -130,7 +96,7 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                 }
             };
 
-            self.row_count += row_count;
+            self.block_index_builder.add_rows(row_count);
 
             // finish the current block
             if should_finish {
@@ -142,7 +108,7 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
     fn finish(mut self) -> (Vec<BlockIndex>, Vec<u8>) {
         self.finish_builder();
 
-        (self.index, self.data)
+        (self.block_index_builder.into_index(), self.data)
     }
 }
 
