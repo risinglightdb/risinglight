@@ -1,7 +1,8 @@
 pub(crate) mod plan_rewriter;
 use crate::{binder::*, logical_planner::*};
+mod heuristic;
 pub(crate) mod plan_node;
-
+mod rules;
 use self::plan_rewriter::{
     arith_expr_simplification::ArithExprSimplification,
     bool_expr_simplification::BoolExprSimplification, constant_folding::ConstantFolding,
