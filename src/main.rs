@@ -10,14 +10,16 @@ async fn main() {
     env_logger::init();
 
     let db = if let Some(x) = std::env::args().nth(1) {
-        if x == "--disk" {
+        if x == "--memory" {
+            info!("using memory engine");
+            Database::new_in_memory()
+        } else {
             info!("using Secondary engine");
             Database::new_on_disk(SecondaryStorageOptions::default_for_cli()).await
-        } else {
-            Database::new_in_memory()
         }
     } else {
-        Database::new_in_memory()
+        info!("using Secondary engine");
+        Database::new_on_disk(SecondaryStorageOptions::default_for_cli()).await
     };
 
     let mut rl = Editor::<()>::new();

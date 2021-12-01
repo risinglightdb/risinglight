@@ -27,6 +27,4 @@ Run interactive shell:
 
 ```
 cargo run
-# or use on-disk engine
-cargo run -- --disk
 ```
