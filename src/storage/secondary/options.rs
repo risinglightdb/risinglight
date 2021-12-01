@@ -1,5 +1,14 @@
 use std::path::PathBuf;
 
+/// IO Backend of the rowset readers
+#[derive(Clone, Copy)]
+pub enum IOBackend {
+    /// Use Linux's `pread` API to read from the files.
+    PositionedRead,
+    /// Use cross-platform API to read from files. Note that this would hurt performance
+    NormalRead,
+}
+
 /// Options for `SecondaryStorage`
 #[derive(Clone)]
 pub struct StorageOptions {
@@ -14,6 +23,9 @@ pub struct StorageOptions {
 
     /// Target size (in bytes) of blocks
     pub target_block_size: usize,
+
+    /// I/O Backend used by the storage engine
+    pub io_backend: IOBackend,
 }
 
 impl StorageOptions {
@@ -23,6 +35,12 @@ impl StorageOptions {
             cache_size: 1024,
             target_rowset_size: 256 * (1 << 20), // 256MB
             target_block_size: 64 * (1 << 10),   // 64KB
+            io_backend: if cfg!(target_os = "windows") {
+                warn!("RisingLight's storage is running in compatibility mode (NormalRead), which might hurt I/O performance.");
+                IOBackend::NormalRead
+            } else {
+                IOBackend::PositionedRead
+            },
         }
     }
 
@@ -32,6 +50,7 @@ impl StorageOptions {
             cache_size: 1024,
             target_rowset_size: 1 << 20,       // 1MB
             target_block_size: 16 * (1 << 10), // 16KB
+            io_backend: IOBackend::NormalRead,
         }
     }
 }
