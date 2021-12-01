@@ -16,6 +16,10 @@ pub use varchar_block_builder::*;
 mod char_block_iterator;
 pub use char_block_iterator::*;
 pub use primitive_nullable_block_iterator::*;
+mod block_index_builder;
+pub use block_index_builder::*;
+mod varchar_block_iterator;
+pub use varchar_block_iterator::*;
 
 use bytes::{Buf, BufMut, Bytes};
 use risinglight_proto::rowset::block_checksum::ChecksumType;

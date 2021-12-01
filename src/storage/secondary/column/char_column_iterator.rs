@@ -1,5 +1,5 @@
 use crate::array::{ArrayBuilder, Utf8Array, Utf8ArrayBuilder};
-use crate::storage::secondary::block::PlainCharBlockIterator;
+use crate::storage::secondary::block::{PlainCharBlockIterator, PlainVarcharBlockIterator};
 
 use super::super::{Block, BlockIterator};
 use super::{Column, ColumnIterator, ColumnSeekPosition};
@@ -10,7 +10,8 @@ use risinglight_proto::rowset::BlockIndex;
 
 /// All supported block iterators for char types.
 pub(super) enum PlainCharBlockIteratorImpl {
-    Plain(PlainCharBlockIterator),
+    PlainFixedChar(PlainCharBlockIterator),
+    PlainVarchar(PlainVarcharBlockIterator),
 }
 
 pub struct CharColumnIterator {
@@ -35,7 +36,12 @@ impl CharColumnIterator {
                 let mut it =
                     PlainCharBlockIterator::new(block, index.row_count as usize, char_width);
                 it.skip(start_pos - index.first_rowid as usize);
-                PlainCharBlockIteratorImpl::Plain(it)
+                PlainCharBlockIteratorImpl::PlainFixedChar(it)
+            }
+            (BlockType::PlainVarchar, _) => {
+                let mut it = PlainVarcharBlockIterator::new(block, index.row_count as usize);
+                it.skip(start_pos - index.first_rowid as usize);
+                PlainCharBlockIteratorImpl::PlainVarchar(it)
             }
             _ => todo!(),
         }
@@ -75,7 +81,8 @@ impl CharColumnIterator {
             expected_size
         } else {
             match &mut self.block_iterator {
-                PlainCharBlockIteratorImpl::Plain(bi) => bi.remaining_items(),
+                PlainCharBlockIteratorImpl::PlainFixedChar(bi) => bi.remaining_items(),
+                PlainCharBlockIteratorImpl::PlainVarchar(bi) => bi.remaining_items(),
             }
         };
 
@@ -85,7 +92,10 @@ impl CharColumnIterator {
 
         loop {
             let cnt = match &mut self.block_iterator {
-                PlainCharBlockIteratorImpl::Plain(bi) => {
+                PlainCharBlockIteratorImpl::PlainFixedChar(bi) => {
+                    bi.next_batch(expected_size.map(|x| x - total_cnt), &mut builder)
+                }
+                PlainCharBlockIteratorImpl::PlainVarchar(bi) => {
                     bi.next_batch(expected_size.map(|x| x - total_cnt), &mut builder)
                 }
             };
