@@ -38,6 +38,8 @@ impl std::fmt::Debug for BoundJoinConstraint {
 #[derive(PartialEq, Clone)]
 pub enum BoundJoinOperator {
     Inner(BoundJoinConstraint),
+    LeftOuter(BoundJoinConstraint),
+    RightOuter(BoundJoinConstraint),
 }
 
 impl std::fmt::Debug for BoundJoinOperator {
@@ -74,6 +76,14 @@ impl Binder {
             JoinOperator::Inner(constraint) => {
                 let constraint = self.bind_join_constraint(constraint)?;
                 Ok(BoundJoinOperator::Inner(constraint))
+            }
+            JoinOperator::LeftOuter(constraint) => {
+                let constraint = self.bind_join_constraint(constraint)?;
+                Ok(BoundJoinOperator::LeftOuter(constraint))
+            }
+            JoinOperator::RightOuter(constraint) => {
+                let constraint = self.bind_join_constraint(constraint)?;
+                Ok(BoundJoinOperator::RightOuter(constraint))
             }
             _ => todo!("Support more join types"),
         }

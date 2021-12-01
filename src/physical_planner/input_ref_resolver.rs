@@ -37,6 +37,8 @@ impl PlanRewriter for InputRefResolver {
                     table_plan: (table_plan),
                     join_op: match plan.join_op {
                         Inner(On(expr)) => Inner(On(self.rewrite_expr(expr))),
+                        LeftOuter(On(expr)) => LeftOuter(On(self.rewrite_expr(expr))),
+                        RightOuter(On(expr)) => RightOuter(On(self.rewrite_expr(expr))),
                     },
                 }
             })
