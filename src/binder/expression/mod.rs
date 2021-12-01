@@ -52,12 +52,12 @@ impl std::fmt::Debug for BoundExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Constant(expr) => write!(f, "{:?} (const)", expr)?,
-            Self::ColumnRef(expr) => write!(f, "#{:?}", expr)?,
+            Self::ColumnRef(expr) => write!(f, "Column #{:?}", expr)?,
             Self::BinaryOp(expr) => write!(f, "{:?}", expr)?,
             Self::UnaryOp(expr) => write!(f, "{:?}", expr)?,
             Self::TypeCast(expr) => write!(f, "{:?} (cast)", expr)?,
             Self::AggCall(expr) => write!(f, "{:?} (agg)", expr)?,
-            Self::InputRef(expr) => write!(f, "#{:?}", expr)?,
+            Self::InputRef(expr) => write!(f, "InputRef #{:?}", expr)?,
             Self::IsNull(expr) => write!(f, "{:?} (isnull)", expr)?,
         }
         Ok(())
