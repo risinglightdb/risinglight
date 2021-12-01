@@ -7,6 +7,7 @@ pub struct BoundedSingleJoinTableRef {
     pub table_ref: Box<BoundTableRef>,
     pub join_op: BoundJoinOperator,
 }
+
 /// A bound table reference.
 #[derive(Debug, PartialEq, Clone)]
 pub enum BoundTableRef {
@@ -21,13 +22,30 @@ pub enum BoundTableRef {
     },
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub enum BoundJoinConstraint {
     On(BoundExpr),
 }
-#[derive(Debug, PartialEq, Clone)]
+
+impl std::fmt::Debug for BoundJoinConstraint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::On(expr) => write!(f, "On {:?}", expr),
+        }
+    }
+}
+
+#[derive(PartialEq, Clone)]
 pub enum BoundJoinOperator {
     Inner(BoundJoinConstraint),
+}
+
+impl std::fmt::Debug for BoundJoinOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Inner(constraint) => write!(f, "Inner {:?}", constraint),
+        }
+    }
 }
 
 impl Binder {
