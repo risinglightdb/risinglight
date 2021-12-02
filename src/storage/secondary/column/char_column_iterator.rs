@@ -86,7 +86,7 @@ impl CharColumnIterator {
             }
         };
 
-        let mut builder = Utf8ArrayBuilder::new(capacity);
+        let mut builder = Utf8ArrayBuilder::with_capacity(capacity);
         let mut total_cnt = 0;
         let first_row_id = self.current_row_id;
 

@@ -34,7 +34,7 @@ impl<S: Storage> SeqScanExecutor<S> {
             .collect::<Vec<ArrayBuilderImpl>>();
 
         if self.plan.with_row_handler {
-            builders.push(ArrayBuilderImpl::Int64(I64ArrayBuilder::new(0)));
+            builders.push(ArrayBuilderImpl::Int64(I64ArrayBuilder::new()));
         }
 
         let txn = table.read().await?;

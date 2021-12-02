@@ -1,7 +1,7 @@
 use super::*;
 use crate::array::{ArrayBuilderImpl, ArrayImpl};
 use crate::binder::{AggKind, BoundAggCall};
-use crate::types::{DataType, DataTypeKind, DataValue};
+use crate::types::{DataTypeExt, DataTypeKind, DataValue};
 use itertools::Itertools;
 use smallvec::SmallVec;
 
@@ -37,12 +37,11 @@ impl SimpleAggExecutor {
                 let result = &s.output();
                 match &result.data_type() {
                     Some(r) => {
-                        let mut builder = ArrayBuilderImpl::new(r);
+                        let mut builder = ArrayBuilderImpl::with_capacity(1, r);
                         builder.push(result);
                         builder.finish()
                     }
-                    None => ArrayBuilderImpl::new(&DataType::new(DataTypeKind::Int(None), true))
-                        .finish(),
+                    None => ArrayBuilderImpl::new(&DataTypeKind::Int(None).nullable()).finish(),
                 }
             })
             .collect::<DataChunk>()

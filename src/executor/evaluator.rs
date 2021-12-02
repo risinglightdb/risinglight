@@ -37,11 +37,7 @@ impl BoundExpr {
     /// Evaluate the given expression as an array.
     pub fn eval_array(&self, chunk: &DataChunk) -> Result<ArrayImpl, ConvertError> {
         match &self {
-            BoundExpr::InputRef(input_ref) => {
-                let mut builder = ArrayBuilderImpl::new(&self.return_type().unwrap());
-                builder.append(chunk.array_at(input_ref.index));
-                Ok(builder.finish())
-            }
+            BoundExpr::InputRef(input_ref) => Ok(chunk.array_at(input_ref.index).clone()),
             BoundExpr::BinaryOp(binary_op) => {
                 let left = binary_op.left_expr.eval_array(chunk)?;
                 let right = binary_op.right_expr.eval_array(chunk)?;
@@ -52,7 +48,10 @@ impl BoundExpr {
                 Ok(array.unary_op(&op.op))
             }
             BoundExpr::Constant(v) => {
-                let mut builder = ArrayBuilderImpl::new(&self.return_type().unwrap());
+                let mut builder = ArrayBuilderImpl::with_capacity(
+                    chunk.cardinality(),
+                    &self.return_type().unwrap(),
+                );
                 // TODO: optimize this
                 for _ in 0..chunk.cardinality() {
                     builder.push(v);
@@ -67,15 +66,12 @@ impl BoundExpr {
                 array.try_cast(cast.ty.clone())
             }
             BoundExpr::IsNull(expr) => {
-                let arr = expr.expr.eval_array(chunk)?;
-                let mut builder = ArrayBuilderImpl::new(&self.return_type().unwrap());
-                for i in 0..arr.len() {
-                    builder.push(match arr.get(i) {
-                        DataValue::Null => &DataValue::Bool(true),
-                        _ => &DataValue::Bool(false),
-                    });
-                }
-                Ok(builder.finish())
+                let array = expr.expr.eval_array(chunk)?;
+                Ok(ArrayImpl::Bool(
+                    (0..array.len())
+                        .map(|i| array.get(i) == DataValue::Null)
+                        .collect(),
+                ))
             }
             _ => panic!("{:?} should not be evaluated in `eval_array`", self),
         }
@@ -269,7 +265,7 @@ where
     F: Fn(&A::Item, &B::Item) -> V,
 {
     assert_eq!(a.len(), b.len());
-    let mut builder = O::Builder::new(a.len());
+    let mut builder = O::Builder::with_capacity(a.len());
     for (a, b) in a.iter().zip(b.iter()) {
         if let (Some(a), Some(b)) = (a, b) {
             builder.push(Some(f(a, b).borrow()));
@@ -289,7 +285,7 @@ where
     F: Fn(Option<&A::Item>, Option<&B::Item>) -> Option<V>,
 {
     assert_eq!(a.len(), b.len());
-    let mut builder = O::Builder::new(a.len());
+    let mut builder = O::Builder::with_capacity(a.len());
     for (a, b) in a.iter().zip(b.iter()) {
         if let Some(c) = f(a, b) {
             builder.push(Some(c.borrow()));
@@ -307,7 +303,7 @@ where
     V: Borrow<O::Item>,
     F: Fn(&A::Item) -> V,
 {
-    let mut builder = O::Builder::new(a.len());
+    let mut builder = O::Builder::with_capacity(a.len());
     for e in a.iter() {
         if let Some(e) = e {
             builder.push(Some(f(e).borrow()));
@@ -325,7 +321,7 @@ where
     V: Borrow<O::Item>,
     F: Fn(&A::Item) -> Result<V, E>,
 {
-    let mut builder = O::Builder::new(a.len());
+    let mut builder = O::Builder::with_capacity(a.len());
     for e in a.iter() {
         if let Some(e) = e {
             builder.push(Some(f(e)?.borrow()));

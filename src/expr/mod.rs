@@ -63,7 +63,7 @@ where
             .try_into()
             .expect("failed to convert array to concrete type");
         assert_eq!(input1.len(), input2.len());
-        let mut builder = O::Builder::new(input1.len());
+        let mut builder = O::Builder::with_capacity(input1.len());
         for (p1, p2) in input1.iter().zip(input2.iter()) {
             builder.push((self.func)(p1, p2).as_ref().map(|x| x.borrow()));
         }

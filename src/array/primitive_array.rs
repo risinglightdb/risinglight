@@ -20,7 +20,7 @@ pub struct PrimitiveArray<T: NativeType> {
 impl<T: NativeType> FromIterator<Option<T>> for PrimitiveArray<T> {
     fn from_iter<I: IntoIterator<Item = Option<T>>>(iter: I) -> Self {
         let iter = iter.into_iter();
-        let mut builder = <Self as Array>::Builder::new(iter.size_hint().0);
+        let mut builder = <Self as Array>::Builder::with_capacity(iter.size_hint().0);
         for e in iter {
             builder.push(e.as_ref());
         }
@@ -69,7 +69,7 @@ pub struct PrimitiveArrayBuilder<T: NativeType> {
 impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
     type Array = PrimitiveArray<T>;
 
-    fn new(capacity: usize) -> Self {
+    fn with_capacity(capacity: usize) -> Self {
         Self {
             valid: BitVec::with_capacity(capacity),
             data: Vec::with_capacity(capacity),
