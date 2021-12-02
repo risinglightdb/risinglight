@@ -122,6 +122,7 @@ impl ExecutorBuilder {
             .execute()
             .boxed(),
             PhysicalPlan::Values(plan) => ValuesExecutor {
+                column_types: plan.column_types,
                 values: plan.values,
             }
             .execute()
