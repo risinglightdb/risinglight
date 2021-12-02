@@ -109,8 +109,7 @@ impl NestedLoopJoinExecutor {
                 match &mut left_bitmaps {
                     Some(left_bitmaps) => {
                         if matched {
-                        left_bitmaps[left_chunk_idx]
-                            .set(left_row_idx, true);
+                            left_bitmaps[left_chunk_idx].set(left_row_idx, true);
                         }
                     }
                     None => {}
@@ -122,13 +121,12 @@ impl NestedLoopJoinExecutor {
                 for left_chunk_idx in 0..left_chunks.len() {
                     for left_row_idx in 0..left_chunks[left_chunk_idx].cardinality() {
                         if !left_bitmaps[left_chunk_idx][left_row_idx] {
-                            
                             let mut left_row =
-                            left_chunks[left_chunk_idx].get_row_by_idx(left_row_idx);
+                                left_chunks[left_chunk_idx].get_row_by_idx(left_row_idx);
                             for _ in 0..right_row_len {
                                 left_row.push(DataValue::Null);
                             }
-                            
+
                             for (idx, builder) in chunk_builders.iter_mut().enumerate() {
                                 builder.push(&left_row[idx]);
                             }
