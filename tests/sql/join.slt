@@ -51,8 +51,8 @@ query IIII
 select v1, v2, v3, v4 from a left join b on v1 = v3;
 ----
 1 1 1 100
-2 2 NULL NULL
 3 3 3 300
+2 2 NULL NULL
 
 query IIII
 select v1, v2, v3, v4 from a right join b on v1 = v3;

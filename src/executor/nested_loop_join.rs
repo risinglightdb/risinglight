@@ -29,7 +29,18 @@ impl NestedLoopJoinExecutor {
             chunk_builders.push(ArrayBuilderImpl::from_type_of_array(arr));
         }
 
-        let mut bitmaps: Option<Vec<BitVec>> = match &join_op {
+        let mut left_bitmaps: Option<Vec<BitVec>> = match &join_op {
+            BoundJoinOperator::LeftOuter(_) => {
+                let mut vecs = vec![];
+                for left_chunk in left_chunks.iter() {
+                    vecs.push(bitvec![0; left_chunk.cardinality()]);
+                }
+                Some(vecs)
+            }
+            _ => None,
+        };
+
+        let mut right_bitmaps: Option<Vec<BitVec>> = match &join_op {
             BoundJoinOperator::RightOuter(_) => {
                 let mut vecs = vec![];
                 for right_chunk in right_chunks.iter() {
@@ -40,12 +51,12 @@ impl NestedLoopJoinExecutor {
             _ => None,
         };
 
-        for left_chunk in left_chunks.iter() {
-            for left_row_idx in 0..left_chunk.cardinality() {
+        for left_chunk_idx in 0..left_chunks.len() {
+            for left_row_idx in 0..left_chunks[left_chunk_idx].cardinality() {
                 let mut matched = false;
                 for right_chunk_idx in 0..right_chunks.len() {
                     for right_row_idx in 0..right_chunks[right_chunk_idx].cardinality() {
-                        let mut left_row = left_chunk.get_row_by_idx(left_row_idx);
+                        let mut left_row = left_chunks[left_chunk_idx].get_row_by_idx(left_row_idx);
                         let mut right_row =
                             right_chunks[right_chunk_idx].get_row_by_idx(right_row_idx);
                         left_row.append(&mut right_row);
@@ -71,9 +82,9 @@ impl NestedLoopJoinExecutor {
                                     match value {
                                         DataValue::Bool(true) => {
                                             matched = true;
-                                            match &mut bitmaps {
-                                                Some(bitmaps) => {
-                                                    bitmaps[right_chunk_idx]
+                                            match &mut right_bitmaps {
+                                                Some(right_bitmaps) => {
+                                                    right_bitmaps[right_chunk_idx]
                                                         .set(right_row_idx, true);
                                                 }
                                                 None => {}
@@ -95,25 +106,44 @@ impl NestedLoopJoinExecutor {
                         }
                     }
                 }
-                if let BoundJoinOperator::LeftOuter(_) = &join_op {
-                    let mut row = left_chunk.get_row_by_idx(left_row_idx);
-                    if !matched {
-                        for _ in 0..right_row_len {
-                            row.push(DataValue::Null);
+                match &mut left_bitmaps {
+                    Some(left_bitmaps) => {
+                        if matched {
+                        left_bitmaps[left_chunk_idx]
+                            .set(left_row_idx, true);
                         }
-                        for (idx, builder) in chunk_builders.iter_mut().enumerate() {
-                            builder.push(&row[idx]);
+                    }
+                    None => {}
+                }
+            }
+        }
+        match &left_bitmaps {
+            Some(left_bitmaps) => {
+                for left_chunk_idx in 0..left_chunks.len() {
+                    for left_row_idx in 0..left_chunks[left_chunk_idx].cardinality() {
+                        if !left_bitmaps[left_chunk_idx][left_row_idx] {
+                            
+                            let mut left_row =
+                            left_chunks[left_chunk_idx].get_row_by_idx(left_row_idx);
+                            for _ in 0..right_row_len {
+                                left_row.push(DataValue::Null);
+                            }
+                            
+                            for (idx, builder) in chunk_builders.iter_mut().enumerate() {
+                                builder.push(&left_row[idx]);
+                            }
                         }
                     }
                 }
             }
+            None => {}
         }
 
-        match &bitmaps {
-            Some(bitmaps) => {
+        match &right_bitmaps {
+            Some(right_bitmaps) => {
                 for right_chunk_idx in 0..right_chunks.len() {
                     for right_row_idx in 0..right_chunks[right_chunk_idx].cardinality() {
-                        if !bitmaps[right_chunk_idx][right_row_idx] {
+                        if !right_bitmaps[right_chunk_idx][right_row_idx] {
                             let mut row = vec![];
                             let mut righ_row =
                                 right_chunks[right_chunk_idx].get_row_by_idx(right_row_idx);
