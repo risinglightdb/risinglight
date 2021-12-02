@@ -46,6 +46,8 @@ impl std::fmt::Debug for BoundJoinOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Inner(constraint) => write!(f, "Inner {:?}", constraint),
+            Self::LeftOuter(constraint) => write!(f, "Left Outer {:?}", constraint),
+            Self::RightOuter(constraint) => write!(f, "Right Outer {:?}", constraint),
         }
     }
 }
