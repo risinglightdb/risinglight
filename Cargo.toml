@@ -60,3 +60,6 @@ lto = 'thin'
 members = [
   "proto",
 ]
+exclude = [
+  "code"
+]
