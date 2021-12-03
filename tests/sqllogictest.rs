@@ -42,7 +42,7 @@ fn sqllogictest(name: &str) {
 #[test_case("filter.slt")]
 #[test_case("order_by.slt")]
 #[test_case("create.slt")]
-// #[test_case("insert.slt")]
+#[test_case("insert.slt")]
 #[test_case("select.test")]
 #[test_case("join.slt")]
 #[test_case("limit.slt")]

@@ -1,9 +1,8 @@
 use super::*;
 use crate::array::{DataChunk, DataChunkRef};
-use crate::catalog::{ColumnDesc, TableRefId};
+use crate::catalog::TableRefId;
 use crate::storage::Table;
 use async_trait::async_trait;
-use itertools::Itertools;
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 use std::vec::Vec;
@@ -13,34 +12,26 @@ use std::vec::Vec;
 #[derive(Clone)]
 pub struct InMemoryTable {
     pub(super) table_ref_id: TableRefId,
+    pub(super) columns: Arc<[ColumnCatalog]>,
     pub(super) inner: InMemoryTableInnerRef,
 }
 
 pub(super) struct InMemoryTableInner {
     chunks: Vec<DataChunkRef>,
     deleted_rows: HashSet<usize>,
-    columns: HashMap<ColumnId, ColumnDesc>,
-    column_infos: Arc<[ColumnCatalog]>,
 }
 
 pub(super) type InMemoryTableInnerRef = Arc<RwLock<InMemoryTableInner>>;
 
 impl InMemoryTableInner {
-    pub fn new(columns: &[ColumnCatalog]) -> Self {
+    pub fn new() -> Self {
         Self {
             chunks: vec![],
-            columns: columns
-                .iter()
-                .map(|col| (col.id(), col.desc().clone()))
-                .collect(),
             deleted_rows: HashSet::new(),
-            column_infos: columns.into(),
         }
     }
 
     pub fn append(&mut self, chunk: DataChunk) -> Result<(), StorageError> {
-        // The BaseTable will not validate the datachunk, it is Binder's and Executor's task.
-        // TODO(runji): check and reorder columns
         self.chunks.push(Arc::new(chunk));
         Ok(())
     }
@@ -57,28 +48,14 @@ impl InMemoryTableInner {
     pub fn get_all_deleted_rows(&self) -> HashSet<usize> {
         self.deleted_rows.clone()
     }
-
-    fn column_descs(&self, ids: &[ColumnId]) -> StorageResult<Vec<ColumnDesc>> {
-        ids.iter()
-            .map(|id| {
-                self.columns
-                    .get(id)
-                    .cloned()
-                    .ok_or(StorageError::InvalidColumn(*id))
-            })
-            .try_collect()
-    }
-
-    pub fn get_column_infos(&self) -> Arc<[ColumnCatalog]> {
-        self.column_infos.clone()
-    }
 }
 
 impl InMemoryTable {
     pub fn new(table_ref_id: TableRefId, columns: &[ColumnCatalog]) -> Self {
         Self {
             table_ref_id,
-            inner: Arc::new(RwLock::new(InMemoryTableInner::new(columns))),
+            columns: columns.into(),
+            inner: Arc::new(RwLock::new(InMemoryTableInner::new())),
         }
     }
 }
@@ -87,9 +64,8 @@ impl InMemoryTable {
 impl Table for InMemoryTable {
     type TransactionType = InMemoryTransaction;
 
-    fn column_descs(&self, ids: &[ColumnId]) -> StorageResult<Vec<ColumnDesc>> {
-        let inner = self.inner.read().unwrap();
-        inner.column_descs(ids)
+    fn columns(&self) -> StorageResult<Arc<[ColumnCatalog]>> {
+        Ok(self.columns.clone())
     }
 
     fn table_id(&self) -> TableRefId {

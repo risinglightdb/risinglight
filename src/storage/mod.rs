@@ -13,8 +13,8 @@ mod chunk;
 pub use chunk::*;
 
 use crate::array::{ArrayImpl, DataChunk};
-use crate::catalog::{ColumnCatalog, ColumnDesc, TableRefId};
-use crate::types::{ColumnId, DatabaseId, SchemaId};
+use crate::catalog::{ColumnCatalog, TableRefId};
+use crate::types::{DatabaseId, SchemaId};
 
 use async_trait::async_trait;
 use enum_dispatch::enum_dispatch;
@@ -69,7 +69,7 @@ pub trait Table: Sync + Send + Clone + 'static {
     type TransactionType: Transaction;
 
     /// Get schema of the current table
-    fn column_descs(&self, ids: &[ColumnId]) -> StorageResult<Vec<ColumnDesc>>;
+    fn columns(&self) -> StorageResult<Arc<[ColumnCatalog]>>;
 
     /// Begin a read-write-only txn
     async fn write(&self) -> StorageResult<Self::TransactionType>;

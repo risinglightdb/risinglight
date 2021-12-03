@@ -14,7 +14,7 @@ pub struct SeqScanExecutor<S: Storage> {
 impl<S: Storage> SeqScanExecutor<S> {
     async fn execute_inner(self) -> Result<DataChunk, ExecutorError> {
         let table = self.storage.get_table(self.plan.table_ref_id)?;
-        let col_descs = table.column_descs(&self.plan.column_ids)?;
+        let columns = table.columns()?;
         let mut col_idx = self
             .plan
             .column_ids
@@ -28,9 +28,12 @@ impl<S: Storage> SeqScanExecutor<S> {
         }
 
         // Get n array builders
-        let mut builders = col_descs
+        let mut builders = self
+            .plan
+            .column_ids
             .iter()
-            .map(|desc| ArrayBuilderImpl::new(desc.datatype()))
+            .map(|&id| columns.iter().find(|col| col.id() == id).unwrap())
+            .map(|col| ArrayBuilderImpl::new(&col.datatype()))
             .collect::<Vec<ArrayBuilderImpl>>();
 
         if self.plan.with_row_handler {
