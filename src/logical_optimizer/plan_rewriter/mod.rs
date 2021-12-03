@@ -3,8 +3,8 @@ use crate::{
     logical_planner::{
         LogicalAggregate, LogicalCopyFromFile, LogicalCopyToFile, LogicalCreateTable,
         LogicalDelete, LogicalDrop, LogicalExplain, LogicalFilter, LogicalInsert, LogicalJoin,
-        LogicalJoinTable, LogicalLimit, LogicalOrder, LogicalPlan, LogicalPlanRef,
-        LogicalProjection, LogicalSeqScan, LogicalValues,
+        LogicalLimit, LogicalOrder, LogicalPlan, LogicalPlanRef, LogicalProjection, LogicalSeqScan,
+        LogicalValues,
     },
 };
 
@@ -64,25 +64,18 @@ pub trait PlanRewriter {
     }
 
     fn rewrite_join(&mut self, plan: &LogicalJoin) -> Option<LogicalPlanRef> {
-        let relation_plan = self.rewrite_plan(plan.relation_plan.clone());
+        use super::BoundJoinConstraint::*;
+        use super::BoundJoinOperator::*;
 
-        let mut join_table_plans = vec![];
-        for plan in plan.join_table_plans.iter().cloned() {
-            use super::BoundJoinConstraint::*;
-            use super::BoundJoinOperator::*;
-            join_table_plans.push(LogicalJoinTable {
-                table_plan: self.rewrite_plan(plan.table_plan),
-                join_op: match plan.join_op {
+        Some(
+            LogicalPlan::LogicalJoin(LogicalJoin {
+                left_plan: self.rewrite_plan(plan.left_plan.clone()),
+                right_plan: self.rewrite_plan(plan.right_plan.clone()),
+                join_op: match plan.join_op.clone() {
                     Inner(On(expr)) => Inner(On(self.rewrite_expr(expr))),
                     LeftOuter(On(expr)) => LeftOuter(On(self.rewrite_expr(expr))),
                     RightOuter(On(expr)) => RightOuter(On(self.rewrite_expr(expr))),
                 },
-            });
-        }
-        Some(
-            LogicalPlan::LogicalJoin(LogicalJoin {
-                relation_plan,
-                join_table_plans,
             })
             .into(),
         )

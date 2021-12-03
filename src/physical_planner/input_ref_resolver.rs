@@ -22,32 +22,20 @@ impl PlanRewriter for InputRefResolver {
         use BoundJoinConstraint::*;
         use BoundJoinOperator::*;
 
-        let relation_plan = self.rewrite_plan(plan.relation_plan.clone());
-        // TODO: Make the order of bindings consistent with the output order in executor
-        let join_table_plans = plan
-            .join_table_plans
-            .iter()
-            .cloned()
-            .map(|plan| {
-                let mut resolver = Self::default();
-                let table_plan = resolver.rewrite_plan(plan.table_plan.clone());
-                self.bindings.append(&mut resolver.bindings);
+        let left_plan = self.rewrite_plan(plan.left_plan.clone());
+        let mut resolver = Self::default();
+        let right_plan = resolver.rewrite_plan(plan.right_plan.clone());
+        self.bindings.append(&mut resolver.bindings);
 
-                LogicalJoinTable {
-                    table_plan: (table_plan),
-                    join_op: match plan.join_op {
-                        Inner(On(expr)) => Inner(On(self.rewrite_expr(expr))),
-                        LeftOuter(On(expr)) => LeftOuter(On(self.rewrite_expr(expr))),
-                        RightOuter(On(expr)) => RightOuter(On(self.rewrite_expr(expr))),
-                    },
-                }
-            })
-            .collect();
         Some(
             LogicalPlan::LogicalJoin(LogicalJoin {
-                relation_plan,
-                // TODO: implement `rewrite_join` whens `plan.join_table_plans` is not empty
-                join_table_plans,
+                left_plan,
+                right_plan,
+                join_op: match plan.join_op.clone() {
+                    Inner(On(expr)) => Inner(On(self.rewrite_expr(expr))),
+                    LeftOuter(On(expr)) => LeftOuter(On(self.rewrite_expr(expr))),
+                    RightOuter(On(expr)) => RightOuter(On(self.rewrite_expr(expr))),
+                },
             })
             .into(),
         )

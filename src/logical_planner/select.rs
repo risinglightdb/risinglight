@@ -109,23 +109,17 @@ impl LogicalPlaner {
                 relation,
                 join_tables,
             } => {
-                let relation_plan = self.plan_table_ref(relation, with_row_handler, is_sorted)?;
-                let mut join_table_plans = vec![];
-                for table in join_tables.iter() {
+                let mut plan = self.plan_table_ref(relation, with_row_handler, is_sorted)?;
+                for join_table in join_tables.iter() {
                     let table_plan =
-                        self.plan_table_ref(&table.table_ref, with_row_handler, is_sorted)?;
-                    join_table_plans.push(LogicalJoinTable {
-                        table_plan: (table_plan.into()),
-                        join_op: table.join_op.clone(),
+                        self.plan_table_ref(&join_table.table_ref, with_row_handler, is_sorted)?;
+                    plan = LogicalPlan::LogicalJoin(LogicalJoin {
+                        left_plan: plan.into(),
+                        right_plan: table_plan.into(),
+                        join_op: join_table.join_op.clone(),
                     });
                 }
-                if join_table_plans.is_empty() {
-                    return Ok(relation_plan);
-                }
-                Ok(LogicalPlan::LogicalJoin(LogicalJoin {
-                    relation_plan: relation_plan.into(),
-                    join_table_plans,
-                }))
+                Ok(plan)
             }
         }
     }
