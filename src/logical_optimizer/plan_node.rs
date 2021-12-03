@@ -40,6 +40,27 @@ macro_rules! impl_plan_node_for_unary {
     };
 }
 
+pub trait BinaryLogicalPlanNode {
+    fn get_left(&self) -> LogicalPlanRef;
+    fn get_right(&self) -> LogicalPlanRef;
+    fn copy_with_left_right(&self, left: LogicalPlanRef, right: LogicalPlanRef) -> LogicalPlanRef;
+}
+macro_rules! impl_plan_node_for_binary {
+    ($binary_node_type:ident) => {
+        impl LogicalPlanNode for $binary_node_type {
+            fn get_children(&self) -> Vec<LogicalPlanRef> {
+                vec![self.get_left(), self.get_right()]
+            }
+
+            fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
+                assert_eq!(children.len(), 2);
+                let mut iter = children.into_iter();
+                self.copy_with_left_right(iter.next().unwrap(), iter.next().unwrap())
+            }
+        }
+    };
+}
+
 impl_plan_node_for_leaf! {LogicalCreateTable}
 impl_plan_node_for_leaf! {LogicalDrop}
 impl_plan_node_for_leaf! {LogicalSeqScan}
@@ -55,6 +76,8 @@ impl_plan_node_for_unary! {LogicalExplain}
 impl_plan_node_for_unary! {LogicalLimit}
 impl_plan_node_for_unary! {LogicalDelete}
 impl_plan_node_for_unary! {LogicalCopyToFile}
+
+impl_plan_node_for_binary! {LogicalJoin}
 
 // TODO: refactor with macro
 impl LogicalPlan {

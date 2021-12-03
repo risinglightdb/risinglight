@@ -1,5 +1,5 @@
 use super::*;
-use crate::{binder::BoundJoinOperator, logical_optimizer::plan_node::LogicalPlanNode};
+use crate::{binder::BoundJoinOperator, logical_optimizer::plan_node::BinaryLogicalPlanNode};
 /// The logical plan of join, it only records join tables and operators.
 /// The query optimizer should decide the join orders and specific algorithms (hash join, nested
 /// loop join or index join).
@@ -10,15 +10,19 @@ pub struct LogicalJoin {
     pub join_op: BoundJoinOperator,
 }
 
-impl LogicalPlanNode for LogicalJoin {
-    fn get_children(&self) -> Vec<LogicalPlanRef> {
-        vec![self.left_plan.clone(), self.right_plan.clone()]
+impl BinaryLogicalPlanNode for LogicalJoin {
+    fn get_left(&self) -> LogicalPlanRef {
+        self.left_plan.clone()
     }
 
-    fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
+    fn get_right(&self) -> LogicalPlanRef {
+        self.right_plan.clone()
+    }
+
+    fn copy_with_left_right(&self, left: LogicalPlanRef, right: LogicalPlanRef) -> LogicalPlanRef {
         LogicalPlan::LogicalJoin(LogicalJoin {
-            left_plan: children[0].clone(),
-            right_plan: children[1].clone(),
+            left_plan: left,
+            right_plan: right,
             join_op: self.join_op.clone(),
         })
         .into()
