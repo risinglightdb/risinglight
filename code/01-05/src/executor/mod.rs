@@ -52,6 +52,7 @@ impl ExecutorBuilder {
             BoundStatement::Insert(stmt) => Box::new(InsertExecutor {
                 table_ref_id: stmt.table_ref_id,
                 column_ids: stmt.column_ids,
+                catalog: self.catalog.clone(),
                 storage: self.storage.clone(),
                 child: Box::new(ValuesExecutor {
                     column_types: stmt.column_types,
