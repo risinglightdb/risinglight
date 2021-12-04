@@ -81,7 +81,7 @@ where
 {
     fn from_iter<I: IntoIterator<Item = BatchItem<T, N>>>(iter: I) -> Self {
         let iter = iter.into_iter();
-        let mut builder = PrimitiveArrayBuilder::new(iter.size_hint().0 * N);
+        let mut builder = PrimitiveArrayBuilder::with_capacity(iter.size_hint().0 * N);
         for e in iter {
             builder
                 .valid
