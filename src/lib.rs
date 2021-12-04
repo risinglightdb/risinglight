@@ -31,8 +31,6 @@ pub mod executor;
 pub mod array;
 /// Metadata of database objects.
 pub mod catalog;
-/// Expression evaluation framework.
-pub mod expr;
 /// Persistent storage engine.
 pub mod storage;
 /// Basic type definitions.

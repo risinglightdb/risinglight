@@ -1,13 +1,11 @@
 use super::*;
-use crate::catalog::{ColumnDesc, TableRefId};
+use crate::catalog::TableRefId;
 use crate::storage::Table;
 use async_trait::async_trait;
-use itertools::Itertools;
 use moka::future::Cache;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::Arc;
-use std::vec::Vec;
 
 /// A table in Secondary engine.
 ///
@@ -69,20 +67,6 @@ impl SecondaryTable {
         }
     }
 
-    pub fn column_descs(&self, ids: &[ColumnId]) -> StorageResult<Vec<ColumnDesc>> {
-        ids.iter()
-            .map(|id| {
-                Ok(self.columns[self
-                    .column_map
-                    .get(id)
-                    .cloned()
-                    .ok_or(StorageError::InvalidColumn(*id))?]
-                .desc()
-                .clone())
-            })
-            .try_collect()
-    }
-
     pub fn generate_rowset_id(&self) -> u32 {
         self.next_id
             .0
@@ -120,8 +104,8 @@ impl SecondaryTable {
 impl Table for SecondaryTable {
     type TransactionType = SecondaryTransaction;
 
-    fn column_descs(&self, ids: &[ColumnId]) -> StorageResult<Vec<ColumnDesc>> {
-        self.column_descs(ids)
+    fn columns(&self) -> StorageResult<Arc<[ColumnCatalog]>> {
+        Ok(self.columns.clone())
     }
 
     fn table_id(&self) -> TableRefId {

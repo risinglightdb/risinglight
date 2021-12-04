@@ -108,7 +108,7 @@ mod tests {
 
         let mut scanner = PlainPrimitiveNullableBlockIterator::<i32>::new(Bytes::from(data), 3);
 
-        let mut builder = I32ArrayBuilder::new(0);
+        let mut builder = I32ArrayBuilder::new();
 
         scanner.skip(1);
         assert_eq!(scanner.remaining_items(), 2);
@@ -116,12 +116,12 @@ mod tests {
         assert_eq!(scanner.next_batch(Some(1), &mut builder), 1);
         assert_eq!(builder.finish().to_vec(), vec![None]);
 
-        let mut builder = I32ArrayBuilder::new(0);
+        let mut builder = I32ArrayBuilder::new();
         assert_eq!(scanner.next_batch(Some(2), &mut builder), 1);
 
         assert_eq!(builder.finish().to_vec(), vec![Some(3)]);
 
-        let mut builder = I32ArrayBuilder::new(0);
+        let mut builder = I32ArrayBuilder::new();
         assert_eq!(scanner.next_batch(None, &mut builder), 0);
     }
 }

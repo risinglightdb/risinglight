@@ -29,12 +29,17 @@ pub use shuffle_ext::*;
 ///
 /// The associated type `Array` is the type of the corresponding array. It is the
 /// return type of `finish`.
-pub trait ArrayBuilder: Send + Sync + 'static {
+pub trait ArrayBuilder: Sized + Send + Sync + 'static {
     /// Corresponding `Array` of this builder
     type Array: Array<Builder = Self>;
 
+    /// Create a new builder.
+    fn new() -> Self {
+        Self::with_capacity(0)
+    }
+
     /// Create a new builder with `capacity`.
-    fn new(capacity: usize) -> Self;
+    fn with_capacity(capacity: usize) -> Self;
 
     /// Append a value to builder.
     fn push(&mut self, value: Option<&<Self::Array as Array>::Item>);
@@ -92,7 +97,7 @@ pub trait ArrayExt: Array {
 impl<A: Array> ArrayExt for A {
     /// Filter the elements and return a new array.
     fn filter(&self, visibility: impl Iterator<Item = bool>) -> Self {
-        let mut builder = Self::Builder::new(self.len());
+        let mut builder = Self::Builder::with_capacity(self.len());
         for (a, visible) in self.iter().zip(visibility) {
             if visible {
                 builder.push(a);
@@ -117,7 +122,7 @@ impl<A: Array> ArrayExt for A {
         assert!(begin <= end, "range start must not be greater than end");
         assert!(end <= len, "range end out of bounds");
 
-        let mut builder = Self::Builder::new(end - begin);
+        let mut builder = Self::Builder::with_capacity(end - begin);
         for i in begin..end {
             builder.push(self.get(i));
         }
@@ -205,28 +210,21 @@ impl_into! { Utf8Array, Utf8 }
 impl ArrayBuilderImpl {
     /// Create a new array builder from data type.
     pub fn new(ty: &DataType) -> Self {
-        match ty.kind() {
-            DataTypeKind::Boolean => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
-            DataTypeKind::Int(_) => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
-            DataTypeKind::BigInt(_) => Self::Int64(PrimitiveArrayBuilder::<i64>::new(0)),
-            DataTypeKind::Float(_) | DataTypeKind::Double => {
-                Self::Float64(PrimitiveArrayBuilder::<f64>::new(0))
-            }
-            DataTypeKind::Char(_) | DataTypeKind::Varchar(_) | DataTypeKind::String => {
-                Self::Utf8(Utf8ArrayBuilder::new(0))
-            }
-            _ => panic!("unsupported data type"),
-        }
+        Self::with_capacity(0, ty)
     }
 
-    /// Create a new array builder from data value.
-    pub fn from_type_of_value(val: &DataValue) -> Self {
-        match val {
-            DataValue::Bool(_) => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
-            DataValue::Int32(_) => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
-            DataValue::Int64(_) => Self::Int64(PrimitiveArrayBuilder::<i64>::new(0)),
-            DataValue::Float64(_) => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
-            DataValue::String(_) => Self::Utf8(Utf8ArrayBuilder::new(0)),
+    /// Create a new array builder from data type with capacity.
+    pub fn with_capacity(capacity: usize, ty: &DataType) -> Self {
+        match ty.kind() {
+            DataTypeKind::Boolean => Self::Bool(BoolArrayBuilder::with_capacity(capacity)),
+            DataTypeKind::Int(_) => Self::Int32(I32ArrayBuilder::with_capacity(capacity)),
+            DataTypeKind::BigInt(_) => Self::Int64(I64ArrayBuilder::with_capacity(capacity)),
+            DataTypeKind::Float(_) | DataTypeKind::Double => {
+                Self::Float64(F64ArrayBuilder::with_capacity(capacity))
+            }
+            DataTypeKind::Char(_) | DataTypeKind::Varchar(_) | DataTypeKind::String => {
+                Self::Utf8(Utf8ArrayBuilder::with_capacity(capacity))
+            }
             _ => panic!("unsupported data type"),
         }
     }
@@ -234,11 +232,11 @@ impl ArrayBuilderImpl {
     /// Create a new array builder with the same type of given array.
     pub fn from_type_of_array(array: &ArrayImpl) -> Self {
         match array {
-            ArrayImpl::Bool(_) => Self::Bool(PrimitiveArrayBuilder::<bool>::new(0)),
-            ArrayImpl::Int32(_) => Self::Int32(PrimitiveArrayBuilder::<i32>::new(0)),
-            ArrayImpl::Int64(_) => Self::Int64(PrimitiveArrayBuilder::<i64>::new(0)),
-            ArrayImpl::Float64(_) => Self::Float64(PrimitiveArrayBuilder::<f64>::new(0)),
-            ArrayImpl::Utf8(_) => Self::Utf8(Utf8ArrayBuilder::new(0)),
+            ArrayImpl::Bool(_) => Self::Bool(BoolArrayBuilder::new()),
+            ArrayImpl::Int32(_) => Self::Int32(I32ArrayBuilder::new()),
+            ArrayImpl::Int64(_) => Self::Int64(I64ArrayBuilder::new()),
+            ArrayImpl::Float64(_) => Self::Float64(F64ArrayBuilder::new()),
+            ArrayImpl::Utf8(_) => Self::Utf8(Utf8ArrayBuilder::new()),
         }
     }
 

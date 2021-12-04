@@ -35,7 +35,7 @@ pub trait ArrayBuilderPickExt: ArrayBuilder {
     /// ```
     /// use risinglight::array::*;
     ///
-    /// let mut builder = I32ArrayBuilder::new(10);
+    /// let mut builder = I32ArrayBuilder::with_capacity(10);
     /// let array = I32Array::from_iter([1, 3, 5, 7, 9].map(Some));
     /// builder.pick_from(&array, &[4, 2, 0]);
     /// assert_eq!(builder.finish().to_vec(), vec![Some(9), Some(5), Some(1)]);
@@ -117,7 +117,7 @@ where
     /// let indices = array.get_sorted_indices();
     /// assert_eq!(indices[2..], [0, 2, 4, 1, 3]);
     ///
-    /// let mut builder = I32ArrayBuilder::new(10);
+    /// let mut builder = I32ArrayBuilder::with_capacity(10);
     /// builder.pick_from(&array, &indices);
     /// assert_eq!(
     ///     builder.finish().to_vec(),

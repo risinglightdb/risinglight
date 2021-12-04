@@ -48,7 +48,7 @@ impl InMemoryTransaction {
             table: table.inner.clone(),
             snapshot: Arc::new(inner.get_all_chunks()),
             deleted_rows: Arc::new(inner.get_all_deleted_rows()),
-            column_infos: inner.get_column_infos(),
+            column_infos: table.columns.clone(),
         })
     }
 }

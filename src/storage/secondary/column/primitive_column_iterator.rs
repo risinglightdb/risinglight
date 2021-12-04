@@ -92,7 +92,7 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnIterator<T> {
             }
         };
 
-        let mut builder = <T::ArrayType as Array>::Builder::new(capacity);
+        let mut builder = <T::ArrayType as Array>::Builder::with_capacity(capacity);
         let mut total_cnt = 0;
         let first_row_id = self.current_row_id;
 

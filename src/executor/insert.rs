@@ -1,8 +1,9 @@
 use super::*;
-use crate::array::DataChunk;
+use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::catalog::TableRefId;
 use crate::storage::{Storage, Table, Transaction};
-use crate::types::ColumnId;
+use crate::types::{ColumnId, DataType, DataValue};
+use itertools::Itertools;
 use std::sync::Arc;
 
 /// The executor of `insert` statement.
@@ -17,10 +18,24 @@ impl<S: Storage> InsertExecutor<S> {
     pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
         try_stream! {
             let table = self.storage.get_table(self.table_ref_id)?;
+            let columns = table.columns()?;
+            // Describe each column of the output chunks.
+            // example:
+            //    columns = [0: Int, 1: Bool, 3: Float, 4: String]
+            //    column_ids = [4, 1]
+            // => output_columns = [Null(Int), Pick(1), Null(Float), Pick(0)]
+            let output_columns = columns
+                .iter()
+                .map(|col| match self.column_ids.iter().position(|&id| id == col.id()) {
+                    Some(index) => Column::Pick { index },
+                    None => Column::Null { type_: col.datatype() },
+                })
+                .collect_vec();
+
             let mut txn = table.write().await?;
             let mut cnt = 0;
             for await chunk in self.child {
-                let chunk = chunk?;
+                let chunk = transform_chunk(chunk?, &output_columns);
                 cnt += chunk.cardinality();
                 txn.append(chunk).await?;
             }
@@ -29,6 +44,29 @@ impl<S: Storage> InsertExecutor<S> {
             yield DataChunk::single(cnt as i32);
         }
     }
+}
+
+enum Column {
+    /// Pick the column at `index` from child.
+    Pick { index: usize },
+    /// Null values with `type`.
+    Null { type_: DataType },
+}
+
+fn transform_chunk(chunk: DataChunk, output_columns: &[Column]) -> DataChunk {
+    output_columns
+        .iter()
+        .map(|col| match col {
+            Column::Pick { index } => chunk.array_at(*index).clone(),
+            Column::Null { type_ } => {
+                let mut builder = ArrayBuilderImpl::with_capacity(chunk.cardinality(), type_);
+                for _ in 0..chunk.cardinality() {
+                    builder.push(&DataValue::Null);
+                }
+                builder.finish()
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]

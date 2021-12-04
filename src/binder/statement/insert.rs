@@ -1,16 +1,16 @@
 use itertools::Itertools;
-use sqlparser::ast::DataType;
 
 use super::*;
 use crate::catalog::{ColumnCatalog, TableCatalog};
 use crate::parser::{SetExpr, Statement};
-use crate::types::ColumnId;
+use crate::types::{ColumnId, DataType, DataTypeKind};
 
 /// A bound `insert` statement.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundInsert {
     pub table_ref_id: TableRefId,
     pub column_ids: Vec<ColumnId>,
+    pub column_types: Vec<DataType>,
     pub values: Vec<Vec<BoundExpr>>,
 }
 
@@ -71,8 +71,8 @@ impl Binder {
                             if left_kind != right_kind {
                                 match (&left_kind, &right_kind) {
                                     // For char types, no need to cast
-                                    (DataType::Char(_), DataType::Varchar(_)) => {}
-                                    (DataType::Varchar(_), DataType::Char(_)) => {}
+                                    (DataTypeKind::Char(_), DataTypeKind::Varchar(_)) => {}
+                                    (DataTypeKind::Varchar(_), DataTypeKind::Char(_)) => {}
                                     _ => todo!("type cast: {} {}", left_kind, right_kind),
                                 }
                             }
@@ -92,6 +92,7 @@ impl Binder {
                 Ok(BoundInsert {
                     table_ref_id,
                     column_ids,
+                    column_types,
                     values: bound_values,
                 })
             }

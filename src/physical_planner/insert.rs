@@ -4,7 +4,7 @@ use super::*;
 use crate::binder::BoundExpr;
 use crate::catalog::TableRefId;
 use crate::logical_planner::{LogicalInsert, LogicalValues};
-use crate::types::ColumnId;
+use crate::types::{ColumnId, DataType};
 
 /// The physical plan of `insert`.
 #[derive(Debug, PartialEq, Clone)]
@@ -17,6 +17,7 @@ pub struct PhysicalInsert {
 /// The physical plan of `values`.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalValues {
+    pub column_types: Vec<DataType>,
     pub values: Vec<Vec<BoundExpr>>,
 }
 
@@ -31,6 +32,7 @@ impl PhysicalPlaner {
 
     pub fn plan_values(&self, plan: LogicalValues) -> Result<PhysicalPlan, PhysicalPlanError> {
         Ok(PhysicalPlan::Values(PhysicalValues {
+            column_types: plan.column_types,
             values: plan.values,
         }))
     }

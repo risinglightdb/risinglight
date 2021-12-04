@@ -17,7 +17,7 @@
 
 use super::{Storage, StorageError, StorageResult};
 use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};
-use crate::types::{ColumnId, DatabaseId, SchemaId};
+use crate::types::{DatabaseId, SchemaId};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

@@ -51,7 +51,7 @@ pub struct Utf8ArrayBuilder {
 impl ArrayBuilder for Utf8ArrayBuilder {
     type Array = Utf8Array;
 
-    fn new(capacity: usize) -> Self {
+    fn with_capacity(capacity: usize) -> Self {
         let mut offset = Vec::with_capacity(capacity + 1);
         offset.push(0);
         Self {
@@ -91,7 +91,7 @@ impl ArrayBuilder for Utf8ArrayBuilder {
 impl<Str: AsRef<str>> FromIterator<Option<Str>> for Utf8Array {
     fn from_iter<I: IntoIterator<Item = Option<Str>>>(iter: I) -> Self {
         let iter = iter.into_iter();
-        let mut builder = <Self as Array>::Builder::new(iter.size_hint().0);
+        let mut builder = <Self as Array>::Builder::with_capacity(iter.size_hint().0);
         for e in iter {
             if let Some(s) = e {
                 builder.push(Some(s.as_ref()));
@@ -108,7 +108,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_utf8_builder() {
-        let mut builder = Utf8ArrayBuilder::new(0);
+        let mut builder = Utf8ArrayBuilder::with_capacity(100);
         for i in 0..100 {
             if i % 2 == 0 {
                 builder.push(Some(&format!("{}", i)));
