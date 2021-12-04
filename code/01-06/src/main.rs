@@ -1,6 +1,6 @@
 //! A simple interactive shell of the database.
 
-use risinglight_01_05::Database;
+use risinglight_01_06::Database;
 use rustyline::{error::ReadlineError, Editor};
 
 fn main() {

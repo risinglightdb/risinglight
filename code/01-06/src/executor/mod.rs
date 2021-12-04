@@ -2,8 +2,8 @@
 
 use crate::{
     array::DataChunk,
-    binder::BoundStatement,
     catalog::RootCatalogRef,
+    physical_planner::PhysicalPlan,
     storage::{StorageError, StorageRef},
 };
 
@@ -41,23 +41,25 @@ impl ExecutorBuilder {
         ExecutorBuilder { catalog, storage }
     }
 
-    /// Build executor from a [BoundStatement].
-    pub fn build(&self, stmt: BoundStatement) -> BoxedExecutor {
-        match stmt {
-            BoundStatement::CreateTable(stmt) => Box::new(CreateTableExecutor {
-                stmt,
+    /// Build executor from a [PhysicalPlan].
+    pub fn build(&self, plan: PhysicalPlan) -> BoxedExecutor {
+        use PhysicalPlan::*;
+        match plan {
+            PhysicalCreateTable(plan) => Box::new(CreateTableExecutor {
+                plan,
                 catalog: self.catalog.clone(),
                 storage: self.storage.clone(),
             }),
-            BoundStatement::Insert(stmt) => Box::new(InsertExecutor {
-                table_ref_id: stmt.table_ref_id,
-                column_ids: stmt.column_ids,
+            PhysicalInsert(plan) => Box::new(InsertExecutor {
+                table_ref_id: plan.table_ref_id,
+                column_ids: plan.column_ids,
                 catalog: self.catalog.clone(),
                 storage: self.storage.clone(),
-                child: Box::new(ValuesExecutor {
-                    column_types: stmt.column_types,
-                    values: stmt.values,
-                }),
+                child: self.build(*plan.child),
+            }),
+            PhysicalValues(plan) => Box::new(ValuesExecutor {
+                column_types: plan.column_types,
+                values: plan.values,
             }),
         }
     }

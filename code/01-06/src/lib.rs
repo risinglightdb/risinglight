@@ -18,7 +18,13 @@ pub mod parser;
 // Stage 2: Resolve all expressions referring with their names.
 pub mod binder;
 
-// Stage 3: Execute the queries.
+// Stage 3: Transform the parse tree into a logical operations tree.
+pub mod logical_planner;
+
+// Stage 4: Transform the logical plan into the physical plan.
+pub mod physical_planner;
+
+// Stage 5: Execute the plans.
 pub mod executor;
 
 pub mod array;
