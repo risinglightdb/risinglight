@@ -61,7 +61,7 @@ impl From<&ColumnDef> for ColumnCatalog {
     fn from(cdef: &ColumnDef) -> Self {
         let mut is_nullable = true;
         let mut is_primary_ = false;
-        for opt in cdef.options.iter() {
+        for opt in &cdef.options {
             match opt.option {
                 ColumnOption::Null => is_nullable = true,
                 ColumnOption::NotNull => is_nullable = false,

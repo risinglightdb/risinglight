@@ -22,7 +22,7 @@ impl Binder {
         let mut exprs = vec![];
         for ref_id in self.context.regular_tables.values().cloned().collect_vec() {
             let table = self.catalog.get_table(&ref_id).unwrap();
-            for (col_id, col) in table.all_columns().iter() {
+            for (col_id, col) in &table.all_columns() {
                 let column_ref_id = ColumnRefId::from_table(ref_id, *col_id);
                 self.record_regular_table_column(&table.name(), col.name(), *col_id);
                 let expr = BoundExpr::ColumnRef(BoundColumnRef {

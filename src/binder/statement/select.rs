@@ -36,7 +36,7 @@ impl Binder {
         // Other types of join will onyl have one TableWithJoin in "from" struct.
         assert!(select.from.len() <= 1);
 
-        for table_with_join in select.from.iter() {
+        for table_with_join in &select.from {
             let table_ref = self.bind_table_with_joins(table_with_join)?;
             from_table.push(table_ref);
         }
@@ -45,7 +45,7 @@ impl Binder {
             None => None,
         };
         let mut orderby = vec![];
-        for e in query.order_by.iter() {
+        for e in &query.order_by {
             orderby.push(BoundOrderBy {
                 expr: self.bind_expr(&e.expr)?,
                 descending: e.asc == Some(false),
@@ -67,7 +67,7 @@ impl Binder {
         // Bind the select list.
         let mut select_list = vec![];
         // let mut return_names = vec![];
-        for item in select.projection.iter() {
+        for item in &select.projection {
             match item {
                 SelectItem::UnnamedExpr(expr) => {
                     let expr = self.bind_expr(expr)?;
@@ -85,7 +85,7 @@ impl Binder {
             // return_names.push(expr.get_name());
         }
         // Add referred columns for base table reference
-        for table_ref in from_table.iter_mut() {
+        for table_ref in &mut from_table {
             self.bind_column_ids(table_ref);
         }
 
