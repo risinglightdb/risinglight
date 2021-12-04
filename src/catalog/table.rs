@@ -37,7 +37,7 @@ impl TableCatalog {
                 next_column_id: 0,
             }),
         };
-        for col_catalog in columns.into_iter() {
+        for col_catalog in columns {
             table_catalog.add_column(col_catalog).unwrap();
         }
         table_catalog

@@ -69,8 +69,8 @@ impl MemTable for BTreeMapMemTable {
             .iter()
             .map(|column| ArrayBuilderImpl::new(column.desc().datatype()))
             .collect_vec();
-        for (_, row_vec) in self.multi_btree_map.into_iter() {
-            for row in row_vec.into_iter() {
+        for (_, row_vec) in self.multi_btree_map {
+            for row in row_vec {
                 for idx in 0..self.columns.len() {
                     builders[idx].push(&row[idx]);
                 }

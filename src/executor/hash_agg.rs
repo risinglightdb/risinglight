@@ -70,7 +70,7 @@ impl HashAggExecutor {
             .iter()
             .map(|agg| ArrayBuilderImpl::new(&agg.return_type))
             .collect::<Vec<ArrayBuilderImpl>>();
-        for (key, val) in state_entries.iter() {
+        for (key, val) in &state_entries {
             // Push group key
             for (k, builder) in key.iter().zip(key_builders.iter_mut()) {
                 builder.push(k);
