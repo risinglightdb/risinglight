@@ -63,7 +63,7 @@ impl PlanRewriter for ConstantFolding {
             }
             AggCall(agg_call) => {
                 let mut new_exprs: Vec<BoundExpr> = vec![];
-                for expr in agg_call.args.into_iter() {
+                for expr in agg_call.args {
                     new_exprs.push(self.rewrite_expr(expr));
                 }
                 AggCall(BoundAggCall {

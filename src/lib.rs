@@ -1,5 +1,5 @@
 //! RisingLight -- an educational OLAP database.
-
+#![deny(clippy::explicit_into_iter_loop)]
 #![deny(unused_must_use)]
 #![cfg_attr(feature = "simd", feature(portable_simd))]
 
