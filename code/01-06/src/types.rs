@@ -3,7 +3,7 @@
 pub use sqlparser::ast::DataType as DataTypeKind;
 
 /// Data type with nullable.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct DataType {
     kind: DataTypeKind,
     nullable: bool,
@@ -20,6 +20,16 @@ impl DataType {
 
     pub fn kind(&self) -> DataTypeKind {
         self.kind.clone()
+    }
+}
+
+impl std::fmt::Debug for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.kind)?;
+        if self.nullable {
+            write!(f, " (null)")?;
+        }
+        Ok(())
     }
 }
 

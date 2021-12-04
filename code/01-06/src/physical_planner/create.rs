@@ -31,7 +31,7 @@ impl Explain for PhysicalCreateTable {
     fn explain_inner(&self, _level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(
             f,
-            "CreateTable: name {}, columns [{}]",
+            "CreateTable: name: {}, columns: [{}]",
             self.table_name,
             self.columns
                 .iter()

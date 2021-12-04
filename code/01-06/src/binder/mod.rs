@@ -15,6 +15,7 @@ pub use self::statement::*;
 pub enum BoundStatement {
     CreateTable(BoundCreateTable),
     Insert(BoundInsert),
+    Explain(Box<BoundStatement>),
 }
 
 /// The error type of bind operations.
@@ -63,6 +64,9 @@ impl Binder {
                 Ok(BoundStatement::CreateTable(self.bind_create_table(stmt)?))
             }
             Statement::Insert { .. } => Ok(BoundStatement::Insert(self.bind_insert(stmt)?)),
+            Statement::Explain { statement, .. } => {
+                Ok(BoundStatement::Explain(self.bind(&*statement)?.into()))
+            }
             _ => todo!("bind statement: {:#?}", stmt),
         }
     }

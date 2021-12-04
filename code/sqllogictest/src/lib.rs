@@ -265,6 +265,8 @@ impl<D: DB> SqlLogicTester<D> {
                     .iter()
                     .map(|output| output.split('\n'))
                     .flatten()
+                    .map(|line| line.trim())
+                    .filter(|line| !line.is_empty())
                     .collect_vec();
                 match sort_mode {
                     SortMode::NoSort => {}

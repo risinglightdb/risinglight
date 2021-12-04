@@ -8,10 +8,12 @@ use crate::{
 };
 
 mod create;
+mod explain;
 mod insert;
 mod values;
 
 use self::create::*;
+use self::explain::*;
 use self::insert::*;
 use self::values::*;
 
@@ -61,6 +63,7 @@ impl ExecutorBuilder {
                 column_types: plan.column_types,
                 values: plan.values,
             }),
+            PhysicalExplain(plan) => Box::new(ExplainExecutor { plan: plan.child }),
         }
     }
 }
