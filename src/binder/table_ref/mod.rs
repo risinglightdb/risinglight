@@ -59,7 +59,7 @@ impl Binder {
     ) -> Result<BoundTableRef, BindError> {
         let relation = self.bind_table_ref(&table_with_joins.relation)?;
         let mut join_tables = vec![];
-        for join in table_with_joins.joins.iter() {
+        for join in &table_with_joins.joins {
             let join_table = self.bind_table_ref(&join.relation)?;
             let join_op = self.bind_join_op(&join.join_operator)?;
             let join_ref = BoundedSingleJoinTableRef {

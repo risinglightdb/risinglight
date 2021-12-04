@@ -177,7 +177,7 @@ impl Database {
                 debug!("error: {}", e);
                 e
             })?;
-            for chunk in output.iter() {
+            for chunk in &output {
                 debug!("output:\n{}", chunk);
             }
             outputs.extend(output);

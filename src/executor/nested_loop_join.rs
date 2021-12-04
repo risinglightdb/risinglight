@@ -32,7 +32,7 @@ impl NestedLoopJoinExecutor {
         let mut left_bitmaps: Option<Vec<BitVec>> = match &join_op {
             BoundJoinOperator::LeftOuter(_) => {
                 let mut vecs = vec![];
-                for left_chunk in left_chunks.iter() {
+                for left_chunk in &left_chunks {
                     vecs.push(bitvec![0; left_chunk.cardinality()]);
                 }
                 Some(vecs)
@@ -43,7 +43,7 @@ impl NestedLoopJoinExecutor {
         let mut right_bitmaps: Option<Vec<BitVec>> = match &join_op {
             BoundJoinOperator::RightOuter(_) => {
                 let mut vecs = vec![];
-                for right_chunk in right_chunks.iter() {
+                for right_chunk in &right_chunks {
                     vecs.push(bitvec![0; right_chunk.cardinality()]);
                 }
                 Some(vecs)

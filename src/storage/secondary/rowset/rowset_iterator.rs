@@ -68,12 +68,7 @@ impl RowSetIterator {
             };
         }
 
-        Self {
-            rowset,
-            column_iterators,
-            dvs,
-            column_refs,
-        }
+        Self { rowset, column_refs, dvs, column_iterators }
     }
 
     /// Return (finished, data chunk of the current iteration)

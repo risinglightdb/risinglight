@@ -11,7 +11,7 @@ struct HeuristicOptimizer {
 #[allow(dead_code)]
 impl HeuristicOptimizer {
     fn optimize(&self, mut root: LogicalPlanRef) -> LogicalPlanRef {
-        for rule in self.rules.iter() {
+        for rule in &self.rules {
             if rule.matches(root.clone()) {
                 root = rule.apply(root);
                 // we will not try to apply rules on a new node after a rule applyed
