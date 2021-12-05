@@ -43,3 +43,31 @@ query IBTR
 SELECT 1, false, 'char', 0.2
 ----
 1   false char 0.2
+
+# table.column
+query I
+SELECT t.a FROM t
+----
+1
+2
+3
+
+# table alias
+query I
+SELECT t1.a FROM t AS t1
+----
+1
+2
+3
+
+# invalid table name
+statement error
+SELECT * FROM t1
+
+# invalid column name
+statement error
+SELECT v FROM t
+
+# without selection list
+statement error
+SELECT FROM t
