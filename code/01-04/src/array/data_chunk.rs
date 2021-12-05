@@ -5,15 +5,15 @@ use std::sync::Arc;
 /// A collection of arrays.
 ///
 /// A chunk is a horizontal subset of a query result.
-#[derive(Default, PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct DataChunk {
-    arrays: Vec<ArrayImpl>,
+    arrays: Arc<[ArrayImpl]>,
 }
 
 /// Create [`DataChunk`] from a list of column arrays.
 impl FromIterator<ArrayImpl> for DataChunk {
     fn from_iter<I: IntoIterator<Item = ArrayImpl>>(iter: I) -> Self {
-        let arrays = iter.into_iter().collect::<Vec<_>>();
+        let arrays = iter.into_iter().collect::<Arc<[ArrayImpl]>>();
         assert!(!arrays.is_empty());
         let cardinality = arrays[0].len();
         assert!(
@@ -44,8 +44,6 @@ impl DataChunk {
         &self.arrays
     }
 }
-
-pub type DataChunkRef = Arc<DataChunk>;
 
 /// Print the chunk as a pretty table.
 impl fmt::Display for DataChunk {

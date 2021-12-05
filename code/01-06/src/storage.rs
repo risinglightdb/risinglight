@@ -4,7 +4,7 @@
 //! it is simple a vector of `DataChunk`. Upon insertion, users' data are
 //! simply appended to the end of the vector.
 
-use crate::array::{DataChunk, DataChunkRef};
+use crate::array::DataChunk;
 use crate::catalog::TableRefId;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
@@ -68,7 +68,7 @@ pub struct InMemoryTable {
 
 #[derive(Default)]
 struct InMemoryTableInner {
-    chunks: Vec<DataChunkRef>,
+    chunks: Vec<DataChunk>,
 }
 
 impl InMemoryTable {
@@ -82,12 +82,12 @@ impl InMemoryTable {
     /// Append a chunk to the table.
     pub fn append(&self, chunk: DataChunk) -> StorageResult<()> {
         let mut inner = self.inner.write().unwrap();
-        inner.chunks.push(Arc::new(chunk));
+        inner.chunks.push(chunk);
         Ok(())
     }
 
     /// Get all chunks of the table.
-    pub fn all_chunks(&self) -> StorageResult<Vec<DataChunkRef>> {
+    pub fn all_chunks(&self) -> StorageResult<Vec<DataChunk>> {
         let inner = self.inner.read().unwrap();
         Ok(inner.chunks.clone())
     }
