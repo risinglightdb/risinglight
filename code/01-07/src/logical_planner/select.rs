@@ -29,7 +29,7 @@ pub struct LogicalProjection {
     pub child: LogicalPlanRef,
 }
 
-impl LogicalPlaner {
+impl LogicalPlanner {
     pub fn plan_select(&self, stmt: BoundSelect) -> Result<LogicalPlan, LogicalPlanError> {
         let mut plan: LogicalPlan = LogicalDummy.into();
 

@@ -6,7 +6,7 @@ pub struct LogicalExplain {
     pub child: LogicalPlanRef,
 }
 
-impl LogicalPlaner {
+impl LogicalPlanner {
     pub fn plan_explain(&self, stmt: BoundStatement) -> Result<LogicalPlan, LogicalPlanError> {
         Ok(LogicalExplain {
             child: self.plan(stmt)?.into(),

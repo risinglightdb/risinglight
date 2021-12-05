@@ -31,13 +31,13 @@ impl std::fmt::Display for LogicalPlan {
 
 /// Logical planner transforms the AST into a logical operations tree.
 #[derive(Default)]
-pub struct LogicalPlaner;
+pub struct LogicalPlanner;
 
 /// The error type of logical planner.
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum LogicalPlanError {}
 
-impl LogicalPlaner {
+impl LogicalPlanner {
     /// Generate [`LogicalPlan`] from a [`BoundStatement`].
     pub fn plan(&self, stmt: BoundStatement) -> Result<LogicalPlan, LogicalPlanError> {
         match stmt {

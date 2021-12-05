@@ -11,7 +11,7 @@ pub struct PhysicalCreateTable {
     pub columns: Vec<(String, ColumnDesc)>,
 }
 
-impl PhysicalPlaner {
+impl PhysicalPlanner {
     pub fn plan_create_table(
         &self,
         plan: &LogicalCreateTable,

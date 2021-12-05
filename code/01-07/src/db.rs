@@ -7,9 +7,9 @@ use crate::{
     binder::{BindError, Binder},
     catalog::{CatalogRef, DatabaseCatalog},
     executor::{ExecuteError, ExecutorBuilder},
-    logical_planner::{LogicalPlanError, LogicalPlaner},
+    logical_planner::{LogicalPlanError, LogicalPlanner},
     parser::{parse, ParserError},
-    physical_planner::{PhysicalPlanError, PhysicalPlaner},
+    physical_planner::{PhysicalPlanError, PhysicalPlanner},
     storage::InMemoryStorage,
 };
 
@@ -44,8 +44,8 @@ impl Database {
         let mut outputs = vec![];
         for stmt in stmts {
             let mut binder = Binder::new(self.catalog.clone());
-            let logical_planner = LogicalPlaner::default();
-            let physical_planner = PhysicalPlaner::default();
+            let logical_planner = LogicalPlanner::default();
+            let physical_planner = PhysicalPlanner::default();
 
             let bound_stmt = binder.bind(&stmt)?;
             debug!("{:#?}", bound_stmt);

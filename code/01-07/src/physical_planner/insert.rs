@@ -20,7 +20,7 @@ pub struct PhysicalValues {
     pub values: Vec<Vec<BoundExpr>>,
 }
 
-impl PhysicalPlaner {
+impl PhysicalPlanner {
     pub fn plan_insert(&self, plan: &LogicalInsert) -> Result<PhysicalPlan, PhysicalPlanError> {
         Ok(PhysicalInsert {
             table_ref_id: plan.table_ref_id,

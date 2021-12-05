@@ -8,7 +8,7 @@ pub struct PhysicalProjection {
     pub child: Box<PhysicalPlan>,
 }
 
-impl PhysicalPlaner {
+impl PhysicalPlanner {
     pub fn plan_projection(
         &self,
         plan: &LogicalProjection,

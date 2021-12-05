@@ -8,7 +8,7 @@ pub struct PhysicalExplain {
     pub child: Box<PhysicalPlan>,
 }
 
-impl PhysicalPlaner {
+impl PhysicalPlanner {
     pub fn plan_explain(&self, plan: &LogicalExplain) -> Result<PhysicalPlan, PhysicalPlanError> {
         Ok(PhysicalExplain {
             child: self.plan(&plan.child)?.into(),

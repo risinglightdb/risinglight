@@ -36,13 +36,13 @@ impl std::fmt::Display for PhysicalPlan {
 
 /// Physical planner transforms the logical plan tree into a physical plan tree.
 #[derive(Default)]
-pub struct PhysicalPlaner;
+pub struct PhysicalPlanner;
 
 /// The error type of physical planner.
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum PhysicalPlanError {}
 
-impl PhysicalPlaner {
+impl PhysicalPlanner {
     /// Generate [`PhysicalPlan`] from a [`LogicalPlan`].
     pub fn plan(&self, plan: &LogicalPlan) -> Result<PhysicalPlan, PhysicalPlanError> {
         use LogicalPlan::*;

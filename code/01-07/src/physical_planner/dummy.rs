@@ -4,7 +4,7 @@ use crate::logical_planner::LogicalDummy;
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalDummy;
 
-impl PhysicalPlaner {
+impl PhysicalPlanner {
     pub fn plan_dummy(&self, _plan: &LogicalDummy) -> Result<PhysicalPlan, PhysicalPlanError> {
         Ok(PhysicalDummy.into())
     }

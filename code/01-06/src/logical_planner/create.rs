@@ -13,7 +13,7 @@ pub struct LogicalCreateTable {
     pub columns: Vec<(String, ColumnDesc)>,
 }
 
-impl LogicalPlaner {
+impl LogicalPlanner {
     pub fn plan_create_table(
         &self,
         stmt: BoundCreateTable,

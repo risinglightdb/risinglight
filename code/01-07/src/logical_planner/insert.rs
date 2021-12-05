@@ -19,7 +19,7 @@ pub struct LogicalValues {
     pub values: Vec<Vec<BoundExpr>>,
 }
 
-impl LogicalPlaner {
+impl LogicalPlanner {
     pub fn plan_insert(&self, stmt: BoundInsert) -> Result<LogicalPlan, LogicalPlanError> {
         Ok(LogicalInsert {
             table_ref_id: stmt.table_ref_id,

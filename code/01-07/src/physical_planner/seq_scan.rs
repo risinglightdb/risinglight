@@ -9,7 +9,7 @@ pub struct PhysicalSeqScan {
     pub column_ids: Vec<ColumnId>,
 }
 
-impl PhysicalPlaner {
+impl PhysicalPlanner {
     pub fn plan_get(&self, plan: &LogicalGet) -> Result<PhysicalPlan, PhysicalPlanError> {
         Ok(PhysicalSeqScan {
             table_ref_id: plan.table_ref_id,
