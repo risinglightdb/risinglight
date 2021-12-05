@@ -8,13 +8,20 @@ use crate::{
 };
 
 mod create;
+mod dummy;
+mod evaluator;
 mod explain;
 mod insert;
+mod projection;
+mod seq_scan;
 mod values;
 
 use self::create::*;
+use self::dummy::*;
 use self::explain::*;
 use self::insert::*;
+use self::projection::*;
+use self::seq_scan::*;
 use self::values::*;
 
 /// The error type of execution.
@@ -64,6 +71,16 @@ impl ExecutorBuilder {
                 values: plan.values,
             }),
             PhysicalExplain(plan) => Box::new(ExplainExecutor { plan: plan.child }),
+            PhysicalDummy(_) => Box::new(DummyExecutor),
+            PhysicalSeqScan(plan) => Box::new(SeqScanExecutor {
+                table_ref_id: plan.table_ref_id,
+                column_ids: plan.column_ids,
+                storage: self.storage.clone(),
+            }),
+            PhysicalProjection(plan) => Box::new(ProjectionExecutor {
+                exprs: plan.exprs,
+                child: self.build(*plan.child),
+            }),
         }
     }
 }

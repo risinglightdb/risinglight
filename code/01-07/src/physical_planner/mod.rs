@@ -2,12 +2,18 @@ use crate::logical_planner::{Explain, LogicalPlan};
 use enum_dispatch::enum_dispatch;
 
 mod create;
+mod dummy;
 mod explain;
 mod insert;
+mod projection;
+mod seq_scan;
 
 pub use self::create::*;
+pub use self::dummy::*;
 pub use self::explain::*;
 pub use self::insert::*;
+pub use self::projection::*;
+pub use self::seq_scan::*;
 
 /// The physical plan.
 #[enum_dispatch(Explain)]
@@ -17,6 +23,9 @@ pub enum PhysicalPlan {
     PhysicalInsert,
     PhysicalValues,
     PhysicalExplain,
+    PhysicalDummy,
+    PhysicalSeqScan,
+    PhysicalProjection,
 }
 
 impl std::fmt::Display for PhysicalPlan {
@@ -42,6 +51,9 @@ impl PhysicalPlaner {
             LogicalInsert(plan) => self.plan_insert(plan),
             LogicalValues(plan) => self.plan_values(plan),
             LogicalExplain(plan) => self.plan_explain(plan),
+            LogicalDummy(plan) => self.plan_dummy(plan),
+            LogicalGet(plan) => self.plan_get(plan),
+            LogicalProjection(plan) => self.plan_projection(plan),
         }
     }
 }

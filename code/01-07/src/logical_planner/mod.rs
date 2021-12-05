@@ -5,10 +5,12 @@ use std::rc::Rc;
 mod create;
 mod explain;
 mod insert;
+mod select;
 
 pub use self::create::*;
 pub use self::explain::*;
 pub use self::insert::*;
+pub use self::select::*;
 
 /// The logical plan.
 #[enum_dispatch(Explain)]
@@ -18,6 +20,9 @@ pub enum LogicalPlan {
     LogicalInsert,
     LogicalValues,
     LogicalExplain,
+    LogicalDummy,
+    LogicalGet,
+    LogicalProjection,
 }
 
 /// The reference type of logical plan.
@@ -44,6 +49,7 @@ impl LogicalPlaner {
             BoundStatement::CreateTable(stmt) => self.plan_create_table(stmt),
             BoundStatement::Insert(stmt) => self.plan_insert(stmt),
             BoundStatement::Explain(stmt) => self.plan_explain(*stmt),
+            BoundStatement::Select(stmt) => self.plan_select(stmt),
         }
     }
 }

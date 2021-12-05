@@ -1,7 +1,7 @@
 use super::*;
 use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::binder::BoundExpr;
-use crate::types::{DataType, DataValue};
+use crate::types::DataType;
 use itertools::Itertools;
 
 /// The executor of `VALUES`.
@@ -30,15 +30,6 @@ impl Executor for ValuesExecutor {
             .map(|builder| builder.finish())
             .collect::<DataChunk>();
         Ok(chunk)
-    }
-}
-
-impl BoundExpr {
-    /// Evaluate the constant expression.
-    pub fn eval_const(&self) -> Result<DataValue, ExecuteError> {
-        match self {
-            Self::Constant(v) => Ok(v.clone()),
-        }
     }
 }
 

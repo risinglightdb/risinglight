@@ -1,19 +1,20 @@
 use super::*;
+use itertools::Itertools;
 use std::fmt;
 use std::sync::Arc;
 
 /// A collection of arrays.
 ///
 /// A chunk is a horizontal subset of a query result.
-#[derive(Default, PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct DataChunk {
-    arrays: Vec<ArrayImpl>,
+    arrays: Arc<[ArrayImpl]>,
 }
 
 /// Create [`DataChunk`] from a list of column arrays.
 impl FromIterator<ArrayImpl> for DataChunk {
     fn from_iter<I: IntoIterator<Item = ArrayImpl>>(iter: I) -> Self {
-        let arrays = iter.into_iter().collect::<Vec<_>>();
+        let arrays = iter.into_iter().collect::<Arc<[ArrayImpl]>>();
         assert!(!arrays.is_empty());
         let cardinality = arrays[0].len();
         assert!(
@@ -43,9 +44,23 @@ impl DataChunk {
     pub fn arrays(&self) -> &[ArrayImpl] {
         &self.arrays
     }
-}
 
-pub type DataChunkRef = Arc<DataChunk>;
+    /// Concatenate multiple chunks into one.
+    pub fn concat(chunks: &[DataChunk]) -> Self {
+        assert!(!chunks.is_empty(), "must concat at least one chunk");
+        let mut builders = chunks[0]
+            .arrays()
+            .iter()
+            .map(ArrayBuilderImpl::from_type_of_array)
+            .collect_vec();
+        for chunk in chunks {
+            for (array, builder) in chunk.arrays.iter().zip(builders.iter_mut()) {
+                builder.append(array);
+            }
+        }
+        builders.into_iter().map(|b| b.finish()).collect()
+    }
+}
 
 /// Print the chunk as a pretty table.
 impl fmt::Display for DataChunk {

@@ -156,6 +156,16 @@ impl ArrayBuilderImpl {
         }
     }
 
+    /// Create a new array builder with the same type of given array.
+    pub fn from_type_of_array(array: &ArrayImpl) -> Self {
+        match array {
+            ArrayImpl::Bool(_) => Self::Bool(BoolArrayBuilder::with_capacity(0)),
+            ArrayImpl::Int32(_) => Self::Int32(I32ArrayBuilder::with_capacity(0)),
+            ArrayImpl::Float64(_) => Self::Float64(F64ArrayBuilder::with_capacity(0)),
+            ArrayImpl::Utf8(_) => Self::Utf8(Utf8ArrayBuilder::with_capacity(0)),
+        }
+    }
+
     /// Appends an element to the back of array.
     pub fn push(&mut self, v: &DataValue) {
         match (self, v) {

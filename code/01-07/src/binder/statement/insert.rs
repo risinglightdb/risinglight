@@ -96,7 +96,7 @@ impl Binder {
     }
 
     /// Bind `table_name [ (column_name [, ...] ) ]`
-    pub(super) fn bind_table_columns(
+    pub fn bind_table_columns(
         &mut self,
         table_name: &ObjectName,
         columns: &[Ident],
