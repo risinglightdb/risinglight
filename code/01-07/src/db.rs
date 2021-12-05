@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::{
     array::DataChunk,
     binder::{BindError, Binder},
-    catalog::{RootCatalog, RootCatalogRef},
+    catalog::{CatalogRef, DatabaseCatalog},
     executor::{ExecuteError, ExecutorBuilder},
     logical_planner::{LogicalPlanError, LogicalPlaner},
     parser::{parse, ParserError},
@@ -15,7 +15,7 @@ use crate::{
 
 /// The database instance.
 pub struct Database {
-    catalog: RootCatalogRef,
+    catalog: CatalogRef,
     executor_builder: ExecutorBuilder,
 }
 
@@ -28,7 +28,7 @@ impl Default for Database {
 impl Database {
     /// Create a new database instance.
     pub fn new() -> Self {
-        let catalog = Arc::new(RootCatalog::new());
+        let catalog = Arc::new(DatabaseCatalog::new());
         let storage = Arc::new(InMemoryStorage::new());
         Database {
             catalog: catalog.clone(),

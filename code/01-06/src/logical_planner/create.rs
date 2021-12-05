@@ -1,14 +1,13 @@
 use super::*;
 use crate::{
     binder::BoundCreateTable,
-    catalog::{ColumnDesc, DatabaseId, SchemaId},
+    catalog::{ColumnDesc, SchemaId},
 };
 use itertools::Itertools;
 
 /// The logical plan of `CREATE TABLE`.
 #[derive(Debug, PartialEq, Clone)]
 pub struct LogicalCreateTable {
-    pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_name: String,
     pub columns: Vec<(String, ColumnDesc)>,
@@ -20,7 +19,6 @@ impl LogicalPlaner {
         stmt: BoundCreateTable,
     ) -> Result<LogicalPlan, LogicalPlanError> {
         Ok(LogicalCreateTable {
-            database_id: stmt.database_id,
             schema_id: stmt.schema_id,
             table_name: stmt.table_name,
             columns: stmt.columns,

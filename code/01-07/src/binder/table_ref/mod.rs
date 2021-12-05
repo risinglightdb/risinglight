@@ -22,7 +22,7 @@ impl Binder {
         let (table_ref_id, _, columns) = self.bind_table_columns(name, &[])?;
         let alias = match alias {
             Some(alias) => &alias.name.value,
-            None => split_name(name).unwrap().2,
+            None => split_name(name).unwrap().1,
         };
         if self.tables.contains_key(alias) {
             return Err(BindError::DuplicatedAlias(alias.into()));

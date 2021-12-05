@@ -27,8 +27,6 @@ pub enum BoundStatement {
 pub enum BindError {
     #[error("table must have at least one column")]
     EmptyColumns,
-    #[error("database not found: {0}")]
-    DatabaseNotFound(String),
     #[error("schema not found: {0}")]
     SchemaNotFound(String),
     #[error("table not found: {0}")]
@@ -56,7 +54,7 @@ pub enum BindError {
 /// The binder resolves all expressions referring to schema objects such as
 /// tables or views with their column names and types.
 pub struct Binder {
-    catalog: RootCatalogRef,
+    catalog: CatalogRef,
     tables: HashMap<TableName, TableRefId>,
 }
 
@@ -64,7 +62,7 @@ type TableName = String;
 
 impl Binder {
     /// Create a new [Binder].
-    pub fn new(catalog: RootCatalogRef) -> Self {
+    pub fn new(catalog: CatalogRef) -> Self {
         Binder {
             catalog,
             tables: HashMap::default(),
@@ -87,12 +85,11 @@ impl Binder {
     }
 }
 
-/// Split an [ObjectName] into `(database name, schema name, table name)`.
-fn split_name(name: &ObjectName) -> Result<(&str, &str, &str), BindError> {
+/// Split an [ObjectName] into `(schema name, table name)`.
+fn split_name(name: &ObjectName) -> Result<(&str, &str), BindError> {
     Ok(match name.0.as_slice() {
-        [table] => (DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME, &table.value),
-        [schema, table] => (DEFAULT_DATABASE_NAME, &schema.value, &table.value),
-        [db, schema, table] => (&db.value, &schema.value, &table.value),
+        [table] => (DEFAULT_SCHEMA_NAME, &table.value),
+        [schema, table] => (&schema.value, &table.value),
         _ => return Err(BindError::InvalidTableName(name.0.clone())),
     })
 }

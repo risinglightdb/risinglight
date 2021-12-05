@@ -11,7 +11,7 @@ use itertools::Itertools;
 pub struct InsertExecutor {
     pub table_ref_id: TableRefId,
     pub column_ids: Vec<ColumnId>,
-    pub catalog: RootCatalogRef,
+    pub catalog: CatalogRef,
     pub storage: StorageRef,
     pub child: BoxedExecutor,
 }

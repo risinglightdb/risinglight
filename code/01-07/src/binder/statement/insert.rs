@@ -101,20 +101,15 @@ impl Binder {
         table_name: &ObjectName,
         columns: &[Ident],
     ) -> Result<(TableRefId, Arc<TableCatalog>, Vec<ColumnCatalog>), BindError> {
-        let (database_name, schema_name, table_name) = split_name(table_name)?;
-        let table = self
+        let (schema_name, table_name) = split_name(table_name)?;
+        let schema = self
             .catalog
-            .get_database_by_name(database_name)
-            .ok_or_else(|| BindError::DatabaseNotFound(database_name.into()))?
             .get_schema_by_name(schema_name)
-            .ok_or_else(|| BindError::SchemaNotFound(schema_name.into()))?
+            .ok_or_else(|| BindError::SchemaNotFound(schema_name.into()))?;
+        let table = schema
             .get_table_by_name(table_name)
             .ok_or_else(|| BindError::TableNotFound(table_name.into()))?;
-
-        let table_ref_id = self
-            .catalog
-            .get_table_id_by_name(database_name, schema_name, &table.name())
-            .unwrap();
+        let table_ref_id = TableRefId::new(schema.id(), table.id());
 
         let columns = if columns.is_empty() {
             // If the query does not provide column information, get all columns info.

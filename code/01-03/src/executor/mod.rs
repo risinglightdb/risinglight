@@ -1,6 +1,6 @@
 //! Execute the queries.
 
-use crate::{binder::BoundStatement, catalog::RootCatalogRef};
+use crate::{binder::BoundStatement, catalog::CatalogRef};
 
 mod create;
 
@@ -19,12 +19,12 @@ pub type BoxedExecutor = Box<dyn Executor>;
 
 /// The builder of executor.
 pub struct ExecutorBuilder {
-    catalog: RootCatalogRef,
+    catalog: CatalogRef,
 }
 
 impl ExecutorBuilder {
     /// Create a new executor builder.
-    pub fn new(catalog: RootCatalogRef) -> ExecutorBuilder {
+    pub fn new(catalog: CatalogRef) -> ExecutorBuilder {
         ExecutorBuilder { catalog }
     }
 

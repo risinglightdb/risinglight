@@ -4,39 +4,29 @@ use std::sync::{Arc, Mutex};
 
 /// The catalog of a database.
 pub struct DatabaseCatalog {
-    id: DatabaseId,
     inner: Mutex<Inner>,
 }
 
+#[derive(Default)]
 struct Inner {
-    name: String,
     schema_idxs: HashMap<String, SchemaId>,
     schemas: HashMap<SchemaId, Arc<SchemaCatalog>>,
     next_schema_id: SchemaId,
 }
 
+impl Default for DatabaseCatalog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DatabaseCatalog {
-    pub(super) fn new(id: DatabaseId, name: String) -> Self {
+    pub fn new() -> Self {
         let db_catalog = DatabaseCatalog {
-            id,
-            inner: Mutex::new(Inner {
-                name,
-                schema_idxs: HashMap::new(),
-                schemas: HashMap::new(),
-                next_schema_id: 0,
-            }),
+            inner: Mutex::new(Inner::default()),
         };
         db_catalog.add_schema(DEFAULT_SCHEMA_NAME).unwrap();
         db_catalog
-    }
-
-    pub fn id(&self) -> DatabaseId {
-        self.id
-    }
-
-    pub fn name(&self) -> String {
-        let inner = self.inner.lock().unwrap();
-        inner.name.clone()
     }
 
     pub fn add_schema(&self, name: &str) -> Result<SchemaId, CatalogError> {
@@ -79,5 +69,10 @@ impl DatabaseCatalog {
             .get(name)
             .and_then(|id| inner.schemas.get(id))
             .cloned()
+    }
+
+    pub fn get_table(&self, table_ref_id: TableRefId) -> Option<Arc<TableCatalog>> {
+        let schema = self.get_schema(table_ref_id.schema_id)?;
+        schema.get_table(table_ref_id.table_id)
     }
 }
