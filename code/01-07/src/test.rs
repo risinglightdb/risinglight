@@ -3,6 +3,7 @@ use sqllogictest::SqlLogicTester;
 use std::path::Path;
 use test_case::test_case;
 
+#[test_case("01-01.slt")]
 #[test_case("01-03.slt")]
 #[test_case("01-05.slt")]
 #[test_case("01-06.slt")]
