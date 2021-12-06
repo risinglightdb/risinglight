@@ -6,11 +6,13 @@ on:
       - main
     paths:
       - 'code/**'
+      - 'docs/**'
   pull_request:
     branches:
       - main
     paths:
       - 'code/**'
+      - 'docs/**'
 
 env:
   CARGO_TERM_COLOR: always
@@ -43,3 +45,16 @@ jobs:
         with:
           command: test
           args: --manifest-path code/Cargo.toml --release --no-fail-fast --all-features
+
+  docs:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+      - name: Install mdbook
+        run: cargo install mdbook mdbook-toc
+      - name: Build docs
+        working-directory: ./docs
+        run: mdbook build
