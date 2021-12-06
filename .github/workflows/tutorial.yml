@@ -1,12 +1,16 @@
-name: CI
+name: Tutorial
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'code/**'
   pull_request:
     branches:
       - main
+    paths:
+      - 'code/**'
 
 env:
   CARGO_TERM_COLOR: always
