@@ -16,10 +16,11 @@ use crate::logical_optimizer::plan_nodes::logical_order::LogicalOrder;
 use crate::logical_optimizer::plan_nodes::logical_projection::LogicalProjection;
 use crate::logical_optimizer::plan_nodes::logical_seq_scan::LogicalSeqScan;
 use crate::logical_optimizer::plan_nodes::LogicalPlan;
+use crate::physical_planner::Dummy;
 
 impl LogicalPlaner {
     pub fn plan_select(&self, mut stmt: Box<BoundSelect>) -> Result<LogicalPlan, LogicalPlanError> {
-        let mut plan = LogicalPlan::Dummy;
+        let mut plan = LogicalPlan::Dummy(Dummy {});
         let mut is_sorted = false;
 
         if let Some(table_ref) = stmt.from_table.get(0) {
@@ -90,7 +91,7 @@ impl LogicalPlaner {
             });
         }
 
-        if plan == LogicalPlan::Dummy {
+        if let LogicalPlan::Dummy(_) = plan {
             return Err(LogicalPlanError::InvalidSQL);
         }
         Ok(plan)

@@ -8,12 +8,15 @@ use logical_insert::LogicalInsert;
 use logical_values::LogicalValues;
 use std::rc::Rc;
 
+use crate::physical_planner::Dummy;
+
 use self::{
     logical_aggregate::LogicalAggregate, logical_filter::LogicalFilter, logical_join::LogicalJoin,
     logical_limit::LogicalLimit, logical_order::LogicalOrder,
     logical_projection::LogicalProjection, logical_seq_scan::LogicalSeqScan,
 };
 
+pub(crate) mod dummy;
 pub(crate) mod logical_aggregate;
 pub(crate) mod logical_copy_from_file;
 pub(crate) mod logical_copy_to_file;
@@ -40,7 +43,7 @@ pub(super) trait LogicalPlanNode {
 pub(crate) type LogicalPlanRef = Rc<LogicalPlan>;
 #[derive(Debug, PartialEq, Clone)]
 pub enum LogicalPlan {
-    Dummy,
+    Dummy(Dummy),
     LogicalSeqScan(LogicalSeqScan),
     LogicalInsert(LogicalInsert),
     LogicalValues(LogicalValues),
@@ -62,7 +65,7 @@ pub enum LogicalPlan {
 impl LogicalPlan {
     pub fn get_children(&self) -> Vec<LogicalPlanRef> {
         match self {
-            LogicalPlan::Dummy => vec![],
+            LogicalPlan::Dummy(plan) => plan.get_children(),
             LogicalPlan::LogicalCreateTable(plan) => plan.get_children(),
             LogicalPlan::LogicalDrop(plan) => plan.get_children(),
             LogicalPlan::LogicalInsert(plan) => plan.get_children(),
@@ -83,7 +86,7 @@ impl LogicalPlan {
 
     pub fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
         match self {
-            LogicalPlan::Dummy => LogicalPlan::Dummy.into(),
+            LogicalPlan::Dummy(plan) => plan.copy_with_children(children),
             LogicalPlan::LogicalCreateTable(plan) => plan.copy_with_children(children),
             LogicalPlan::LogicalDrop(plan) => plan.copy_with_children(children),
             LogicalPlan::LogicalInsert(plan) => plan.copy_with_children(children),
@@ -159,6 +162,7 @@ macro_rules! impl_plan_node_for_binary {
     };
 }
 
+impl_plan_node_for_leaf! {Dummy}
 impl_plan_node_for_leaf! {LogicalCreateTable}
 impl_plan_node_for_leaf! {LogicalDrop}
 impl_plan_node_for_leaf! {LogicalSeqScan}

@@ -29,7 +29,7 @@ pub trait PlanRewriter {
     // If the node do not need rewrite, return None.
     fn rewrite_plan_inner(&mut self, plan: LogicalPlanRef) -> Option<LogicalPlanRef> {
         match plan.as_ref() {
-            LogicalPlan::Dummy => None,
+            LogicalPlan::Dummy(_) => None,
             LogicalPlan::LogicalCreateTable(plan) => self.rewrite_create_table(plan),
             LogicalPlan::LogicalDrop(plan) => self.rewrite_drop(plan),
             LogicalPlan::LogicalInsert(plan) => self.rewrite_insert(plan),
