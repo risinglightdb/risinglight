@@ -38,75 +38,64 @@ pub(super) trait LogicalPlanNode {
     fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef;
 }
 
+#[macro_export]
+macro_rules! for_all_plan_nodes {
+  ($macro:tt $(, $x:tt)*) => {
+    $macro! {
+      [$($x),*],
+      {Dummy},
+      {LogicalSeqScan},
+      {LogicalInsert},
+      {LogicalValues},
+      {LogicalCreateTable},
+      {LogicalDrop},
+      {LogicalProjection},
+      {LogicalFilter},
+      {LogicalExplain},
+      {LogicalJoin},
+      {LogicalAggregate},
+      {LogicalOrder},
+      {LogicalLimit},
+      {LogicalDelete},
+      {LogicalCopyFromFile},
+      {LogicalCopyToFile}
+    }
+  };
+}
+
 /// An enumeration which record all necessary information of execution plan,
 /// which will be used by optimizer and executor.
+macro_rules! logical_plan_enum {
+  ([], $( { $node_name:ident } ),*) => {
+    /// `ArrayImpl` embeds all possible array in `array` module.
+    #[derive(Debug, PartialEq, Clone)]
+    pub enum LogicalPlan {
+      $( $node_name($node_name) ),*
+    }
+  };
+}
+
+for_all_plan_nodes! {logical_plan_enum}
 pub(crate) type LogicalPlanRef = Rc<LogicalPlan>;
-#[derive(Debug, PartialEq, Clone)]
-pub enum LogicalPlan {
-    Dummy(Dummy),
-    LogicalSeqScan(LogicalSeqScan),
-    LogicalInsert(LogicalInsert),
-    LogicalValues(LogicalValues),
-    LogicalCreateTable(LogicalCreateTable),
-    LogicalDrop(LogicalDrop),
-    LogicalProjection(LogicalProjection),
-    LogicalFilter(LogicalFilter),
-    LogicalExplain(LogicalExplain),
-    LogicalJoin(LogicalJoin),
-    LogicalAggregate(LogicalAggregate),
-    LogicalOrder(LogicalOrder),
-    LogicalLimit(LogicalLimit),
-    LogicalDelete(LogicalDelete),
-    LogicalCopyFromFile(LogicalCopyFromFile),
-    LogicalCopyToFile(LogicalCopyToFile),
-}
 
-// TODO: refactor with macro
-impl LogicalPlan {
-    pub fn get_children(&self) -> Vec<LogicalPlanRef> {
-        match self {
-            LogicalPlan::Dummy(plan) => plan.get_children(),
-            LogicalPlan::LogicalCreateTable(plan) => plan.get_children(),
-            LogicalPlan::LogicalDrop(plan) => plan.get_children(),
-            LogicalPlan::LogicalInsert(plan) => plan.get_children(),
-            LogicalPlan::LogicalJoin(plan) => plan.get_children(),
-            LogicalPlan::LogicalSeqScan(plan) => plan.get_children(),
-            LogicalPlan::LogicalProjection(plan) => plan.get_children(),
-            LogicalPlan::LogicalFilter(plan) => plan.get_children(),
-            LogicalPlan::LogicalOrder(plan) => plan.get_children(),
-            LogicalPlan::LogicalLimit(plan) => plan.get_children(),
-            LogicalPlan::LogicalExplain(plan) => plan.get_children(),
-            LogicalPlan::LogicalAggregate(plan) => plan.get_children(),
-            LogicalPlan::LogicalDelete(plan) => plan.get_children(),
-            LogicalPlan::LogicalValues(plan) => plan.get_children(),
-            LogicalPlan::LogicalCopyFromFile(plan) => plan.get_children(),
-            LogicalPlan::LogicalCopyToFile(plan) => plan.get_children(),
+macro_rules! impl_plan_node {
+    ([], $( { $node_name:ident } ),*) => {
+        impl LogicalPlan {
+            pub fn get_children(&self) -> Vec<LogicalPlanRef> {
+                match self {
+                    $( Self::$node_name(inner) => inner.get_children(),)*
+                }
+            }
+            pub fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
+                match self {
+                    $( Self::$node_name(inner) => inner.copy_with_children(children),)*
+                }
+            }
         }
-    }
-
-    pub fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
-        match self {
-            LogicalPlan::Dummy(plan) => plan.copy_with_children(children),
-            LogicalPlan::LogicalCreateTable(plan) => plan.copy_with_children(children),
-            LogicalPlan::LogicalDrop(plan) => plan.copy_with_children(children),
-            LogicalPlan::LogicalInsert(plan) => plan.copy_with_children(children),
-            LogicalPlan::LogicalJoin(plan) => plan.copy_with_children(children),
-            LogicalPlan::LogicalSeqScan(plan) => plan.copy_with_children(children),
-            LogicalPlan::LogicalProjection(plan) => plan.copy_with_children(children),
-            LogicalPlan::LogicalFilter(plan) => plan.copy_with_children(children),
-            LogicalPlan::LogicalOrder(plan) => plan.copy_with_children(children),
-            LogicalPlan::LogicalLimit(plan) => plan.copy_with_children(children),
-            LogicalPlan::LogicalExplain(plan) => plan.copy_with_children(children),
-            LogicalPlan::LogicalAggregate(plan) => plan.copy_with_children(children),
-            LogicalPlan::LogicalDelete(plan) => plan.copy_with_children(children),
-            LogicalPlan::LogicalValues(plan) => plan.copy_with_children(children),
-            LogicalPlan::LogicalCopyFromFile(plan) => plan.copy_with_children(children),
-            LogicalPlan::LogicalCopyToFile(plan) => plan.copy_with_children(children),
-        }
-    }
+  }
 }
+for_all_plan_nodes! { impl_plan_node }
 
-// use marco to represent negative trait bounds
 pub(super) trait LeafLogicalPlanNode: Clone {}
 macro_rules! impl_plan_node_for_leaf {
     ($leaf_node_type:ident) => {
