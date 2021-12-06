@@ -1,0 +1,10 @@
+[book]
+authors = ["Runji Wang"]
+language = "cn"
+multilingual = false
+src = "src"
+title = "RisingLight Tutorial"
+
+[preprocessor.toc]
+command = "mdbook-toc"
+renderer = ["html"]
