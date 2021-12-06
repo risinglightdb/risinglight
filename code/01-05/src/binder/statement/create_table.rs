@@ -9,7 +9,6 @@ use std::collections::HashSet;
 /// A bound `CREATE TABLE` statement.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundCreateTable {
-    pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_name: String,
     pub columns: Vec<(String, ColumnDesc)>,
@@ -23,12 +22,9 @@ impl Binder {
                 if columns.is_empty() {
                     return Err(BindError::EmptyColumns);
                 }
-                let (database_name, schema_name, table_name) = split_name(name)?;
-                let db = self
+                let (schema_name, table_name) = split_name(name)?;
+                let schema = self
                     .catalog
-                    .get_database_by_name(database_name)
-                    .ok_or_else(|| BindError::DatabaseNotFound(database_name.into()))?;
-                let schema = db
                     .get_schema_by_name(schema_name)
                     .ok_or_else(|| BindError::SchemaNotFound(schema_name.into()))?;
                 // check duplicated table name
@@ -47,7 +43,6 @@ impl Binder {
                     .map(|col| (col.name.value.clone(), ColumnDesc::from(col)))
                     .collect();
                 Ok(BoundCreateTable {
-                    database_id: db.id(),
                     schema_id: schema.id(),
                     table_name: table_name.into(),
                     columns,
@@ -80,14 +75,14 @@ impl From<&ColumnDef> for ColumnDesc {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::catalog::RootCatalog;
+    use crate::catalog::DatabaseCatalog;
     use crate::parser::parse;
     use crate::types::{DataTypeExt, DataTypeKind};
     use std::sync::Arc;
 
     #[test]
     fn bind_create_table() {
-        let catalog = Arc::new(RootCatalog::new());
+        let catalog = Arc::new(DatabaseCatalog::new());
         let mut binder = Binder::new(catalog.clone());
         let sql = "
             create table t1 (v1 int not null, v2 int); 
@@ -98,7 +93,6 @@ mod tests {
         assert_eq!(
             binder.bind_create_table(&stmts[0]).unwrap(),
             BoundCreateTable {
-                database_id: 0,
                 schema_id: 0,
                 table_name: "t1".into(),
                 columns: vec![
@@ -113,8 +107,7 @@ mod tests {
             Err(BindError::DuplicatedColumn("a".into()))
         );
 
-        let db = catalog.get_database(0).unwrap();
-        let schema = db.get_schema(0).unwrap();
+        let schema = catalog.get_schema(0).unwrap();
         schema.add_table("t3").unwrap();
         assert_eq!(
             binder.bind_create_table(&stmts[2]),

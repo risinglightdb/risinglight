@@ -3,7 +3,7 @@
 use crate::{
     array::DataChunk,
     binder::BoundStatement,
-    catalog::RootCatalogRef,
+    catalog::CatalogRef,
     storage::{StorageError, StorageRef},
 };
 
@@ -31,13 +31,13 @@ pub type BoxedExecutor = Box<dyn Executor>;
 
 /// The builder of executor.
 pub struct ExecutorBuilder {
-    catalog: RootCatalogRef,
+    catalog: CatalogRef,
     storage: StorageRef,
 }
 
 impl ExecutorBuilder {
     /// Create a new executor builder.
-    pub fn new(catalog: RootCatalogRef, storage: StorageRef) -> ExecutorBuilder {
+    pub fn new(catalog: CatalogRef, storage: StorageRef) -> ExecutorBuilder {
         ExecutorBuilder { catalog, storage }
     }
 
@@ -52,6 +52,7 @@ impl ExecutorBuilder {
             BoundStatement::Insert(stmt) => Box::new(InsertExecutor {
                 table_ref_id: stmt.table_ref_id,
                 column_ids: stmt.column_ids,
+                catalog: self.catalog.clone(),
                 storage: self.storage.clone(),
                 child: Box::new(ValuesExecutor {
                     column_types: stmt.column_types,

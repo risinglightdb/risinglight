@@ -1,0 +1,15 @@
+# 01-06: EXPLAIN test
+
+query T
+EXPLAIN CREATE TABLE t (a INT NOT NULL, b DOUBLE)
+----
+CreateTable: name: t, columns: [a: Int(None), b: Double (null)]
+
+statement ok
+CREATE TABLE t (a INT NOT NULL, b DOUBLE)
+
+query T
+EXPLAIN INSERT INTO t VALUES (1, 1.0), (2, 2.0)
+----
+Insert: table 0, columns [0, 1]
+  Values: 2 rows

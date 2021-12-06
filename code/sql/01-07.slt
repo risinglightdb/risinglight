@@ -1,0 +1,73 @@
+# 01-07: basic SELECT test
+
+statement ok
+CREATE TABLE t (a INT NOT NULL, b INT, c INT)
+
+statement ok
+INSERT INTO t VALUES (1,10,100), (2,20,200), (3,30,300)
+
+# select all
+query III
+SELECT * FROM t
+----
+1 10 100
+2 20 200
+3 30 300
+
+# select one column
+query I
+SELECT a FROM t
+----
+1
+2
+3
+
+# select two columns
+query II
+SELECT b, a FROM t
+----
+10 1
+20 2
+30 3
+
+# select column and constant
+query II
+SELECT b, 1 FROM t
+----
+10 1
+20 1
+30 1
+
+# select from nowhere
+query IBTR
+SELECT 1, false, 'char', 0.2
+----
+1   false char 0.2
+
+# table.column
+query I
+SELECT t.a FROM t
+----
+1
+2
+3
+
+# table alias
+query I
+SELECT t1.a FROM t AS t1
+----
+1
+2
+3
+
+# invalid table name
+statement error
+SELECT * FROM t1
+
+# invalid column name
+statement error
+SELECT v FROM t
+
+# without selection list
+statement error
+SELECT FROM t

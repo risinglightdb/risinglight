@@ -1,0 +1,45 @@
+name: Tutorial
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'code/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'code/**'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fmt:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          components: rustfmt, clippy
+      - name: Check code format
+        working-directory: ./code
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        working-directory: ./code
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  test:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path code/Cargo.toml --release --no-fail-fast --all-features
