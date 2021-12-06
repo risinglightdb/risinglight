@@ -64,12 +64,6 @@ pub enum LogicalPlan {
     LogicalCopyToFile(LogicalCopyToFile),
 }
 
-impl Default for LogicalPlan {
-    fn default() -> Self {
-        LogicalPlan::Dummy
-    }
-}
-
 #[derive(Default)]
 pub struct LogicalPlaner;
 
