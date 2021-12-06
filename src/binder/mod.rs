@@ -8,7 +8,7 @@ use std::{
 };
 
 mod expression;
-mod statement;
+pub(crate) mod statement;
 mod table_ref;
 
 pub use self::expression::*;

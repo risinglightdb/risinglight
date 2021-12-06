@@ -1,8 +1,6 @@
 use itertools::Itertools;
 
-use crate::logical_planner::LogicalPlanRef;
-
-use super::rules::BoxedRule;
+use super::{plan_nodes::LogicalPlanRef, rules::BoxedRule};
 #[allow(dead_code)]
 struct HeuristicOptimizer {
     rules: Vec<BoxedRule>,

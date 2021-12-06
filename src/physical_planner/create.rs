@@ -2,7 +2,7 @@ use itertools::Itertools;
 
 use super::*;
 use crate::catalog::ColumnCatalog;
-use crate::logical_planner::LogicalCreateTable;
+use crate::logical_optimizer::plan_nodes::logical_create_table::LogicalCreateTable;
 use crate::types::{DatabaseId, SchemaId};
 
 /// The physical plan of `create table`.

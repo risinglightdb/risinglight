@@ -1,5 +1,7 @@
 use super::*;
 use crate::binder::{BoundBinaryOp, BoundExpr, BoundExpr::*};
+use crate::logical_optimizer::plan_nodes::logical_filter::LogicalFilter;
+use crate::logical_optimizer::plan_nodes::LogicalPlan;
 use crate::parser::BinaryOperator::*;
 use crate::types::DataValue::*;
 

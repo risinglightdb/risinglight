@@ -1,5 +1,5 @@
-use super::*;
-use crate::{binder::BoundExpr, logical_optimizer::plan_node::UnaryLogicalPlanNode};
+use super::{LogicalPlan, LogicalPlanRef};
+use crate::{binder::BoundExpr, logical_optimizer::plan_nodes::UnaryLogicalPlanNode};
 
 /// The logical plan of filter operation.
 #[derive(Debug, PartialEq, Clone)]

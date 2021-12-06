@@ -5,7 +5,6 @@ mod delete;
 mod drop;
 mod explain;
 mod filter;
-mod input_ref_resolver;
 mod insert;
 mod join;
 mod limit;
@@ -20,7 +19,7 @@ pub use delete::*;
 pub use drop::*;
 pub use explain::*;
 pub use filter::*;
-pub use input_ref_resolver::*;
+pub use crate::logical_optimizer::plan_rewriter::input_ref_resolver::*;
 pub use insert::*;
 pub use join::*;
 pub use limit::*;
@@ -28,7 +27,7 @@ pub use order::*;
 pub use projection::*;
 pub use seq_scan::*;
 
-use crate::{logical_optimizer::plan_rewriter::PlanRewriter, logical_planner::LogicalPlan};
+use crate::logical_optimizer::{plan_nodes::LogicalPlan, plan_rewriter::PlanRewriter};
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum PhysicalPlanError {

@@ -1,6 +1,6 @@
-use super::*;
+use super::{LogicalPlan, LogicalPlanRef, UnaryLogicalPlanNode};
 use crate::binder::{BoundAggCall, BoundExpr};
-use crate::logical_optimizer::plan_node::UnaryLogicalPlanNode;
+
 /// The logical plan of hash aggregate operation.
 #[derive(Debug, PartialEq, Clone)]
 pub struct LogicalAggregate {

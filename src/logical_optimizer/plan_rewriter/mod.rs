@@ -1,19 +1,19 @@
-use crate::{
-    binder::{BoundAggCall, BoundExpr, BoundOrderBy},
-    logical_planner::{
-        LogicalAggregate, LogicalCopyFromFile, LogicalCopyToFile, LogicalCreateTable,
-        LogicalDelete, LogicalDrop, LogicalExplain, LogicalFilter, LogicalInsert, LogicalJoin,
-        LogicalLimit, LogicalOrder, LogicalPlan, LogicalPlanRef, LogicalProjection, LogicalSeqScan,
-        LogicalValues,
-    },
+use super::plan_nodes::{
+    logical_aggregate::LogicalAggregate, logical_copy_from_file::LogicalCopyFromFile,
+    logical_copy_to_file::LogicalCopyToFile, logical_create_table::LogicalCreateTable,
+    logical_delete::LogicalDelete, logical_drop::LogicalDrop, logical_explain::LogicalExplain,
+    logical_filter::LogicalFilter, logical_insert::LogicalInsert, logical_join::LogicalJoin,
+    logical_limit::LogicalLimit, logical_order::LogicalOrder,
+    logical_projection::LogicalProjection, logical_seq_scan::LogicalSeqScan,
+    logical_values::LogicalValues, LogicalPlan, LogicalPlanRef, UnaryLogicalPlanNode,
 };
-
-use super::plan_node::UnaryLogicalPlanNode;
+use crate::binder::{BoundAggCall, BoundExpr, BoundOrderBy};
 
 pub(super) mod arith_expr_simplification;
 pub(super) mod bool_expr_simplification;
 pub(super) mod constant_folding;
 pub(super) mod constant_moving;
+pub mod input_ref_resolver;
 
 // PlanRewriter is a plan visitor.
 // User could implement the own optimization rules by implement PlanRewriter trait easily.

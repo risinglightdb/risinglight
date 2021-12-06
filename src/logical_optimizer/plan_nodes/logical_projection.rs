@@ -1,5 +1,6 @@
-use super::*;
-use crate::{binder::BoundExpr, logical_optimizer::plan_node::UnaryLogicalPlanNode};
+use crate::{binder::BoundExpr, logical_optimizer::plan_nodes::UnaryLogicalPlanNode};
+
+use super::{LogicalPlan, LogicalPlanRef};
 
 /// The logical plan of project operation.
 #[derive(Debug, PartialEq, Clone)]

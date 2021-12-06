@@ -1,4 +1,4 @@
-use crate::logical_planner::LogicalPlanRef;
+use super::plan_nodes::LogicalPlanRef;
 
 pub(super) trait Rule: Send {
     fn matches(&self, plan: LogicalPlanRef) -> bool;

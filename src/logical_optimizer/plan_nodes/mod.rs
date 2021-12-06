@@ -1,12 +1,42 @@
-use crate::logical_planner::*;
+use logical_copy_from_file::LogicalCopyFromFile;
+use logical_copy_to_file::LogicalCopyToFile;
+use logical_create_table::LogicalCreateTable;
+use logical_delete::LogicalDelete;
+use logical_drop::LogicalDrop;
+use logical_explain::LogicalExplain;
+use logical_insert::LogicalInsert;
+use logical_values::LogicalValues;
+use std::rc::Rc;
 
-pub trait LogicalPlanNode {
+use self::{
+    logical_aggregate::LogicalAggregate, logical_filter::LogicalFilter, logical_join::LogicalJoin,
+    logical_limit::LogicalLimit, logical_order::LogicalOrder,
+    logical_projection::LogicalProjection, logical_seq_scan::LogicalSeqScan,
+};
+
+pub(crate) mod logical_aggregate;
+pub(crate) mod logical_copy_from_file;
+pub(crate) mod logical_copy_to_file;
+pub(crate) mod logical_create_table;
+pub(crate) mod logical_delete;
+pub(crate) mod logical_drop;
+pub(crate) mod logical_explain;
+pub(crate) mod logical_filter;
+pub(crate) mod logical_insert;
+pub(crate) mod logical_join;
+pub(crate) mod logical_limit;
+pub(crate) mod logical_order;
+pub(crate) mod logical_projection;
+pub(crate) mod logical_seq_scan;
+pub(crate) mod logical_values;
+
+pub(super) trait LogicalPlanNode {
     fn get_children(&self) -> Vec<LogicalPlanRef>;
     fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef;
 }
 
 // use marco to represent negative trait bounds
-pub trait LeafLogicalPlanNode: Clone {}
+pub(super) trait LeafLogicalPlanNode: Clone {}
 macro_rules! impl_plan_node_for_leaf {
     ($leaf_node_type:ident) => {
         impl LogicalPlanNode for $leaf_node_type {
@@ -21,7 +51,7 @@ macro_rules! impl_plan_node_for_leaf {
         }
     };
 }
-pub trait UnaryLogicalPlanNode {
+pub(super) trait UnaryLogicalPlanNode {
     fn get_child(&self) -> LogicalPlanRef;
     fn copy_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef;
 }
@@ -78,6 +108,29 @@ impl_plan_node_for_unary! {LogicalDelete}
 impl_plan_node_for_unary! {LogicalCopyToFile}
 
 impl_plan_node_for_binary! {LogicalJoin}
+
+/// An enumeration which record all necessary information of execution plan,
+/// which will be used by optimizer and executor.
+pub(crate) type LogicalPlanRef = Rc<LogicalPlan>;
+#[derive(Debug, PartialEq, Clone)]
+pub enum LogicalPlan {
+    Dummy,
+    LogicalSeqScan(LogicalSeqScan),
+    LogicalInsert(LogicalInsert),
+    LogicalValues(LogicalValues),
+    LogicalCreateTable(LogicalCreateTable),
+    LogicalDrop(LogicalDrop),
+    LogicalProjection(LogicalProjection),
+    LogicalFilter(LogicalFilter),
+    LogicalExplain(LogicalExplain),
+    LogicalJoin(LogicalJoin),
+    LogicalAggregate(LogicalAggregate),
+    LogicalOrder(LogicalOrder),
+    LogicalLimit(LogicalLimit),
+    LogicalDelete(LogicalDelete),
+    LogicalCopyFromFile(LogicalCopyFromFile),
+    LogicalCopyToFile(LogicalCopyToFile),
+}
 
 // TODO: refactor with macro
 impl LogicalPlan {

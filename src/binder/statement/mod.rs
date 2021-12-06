@@ -1,9 +1,9 @@
 use super::*;
 
-mod copy;
+pub(crate) mod copy;
 mod create_table;
 mod delete;
-mod drop;
+pub(crate) mod drop;
 mod insert;
 mod select;
 
