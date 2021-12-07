@@ -7,11 +7,11 @@ pub struct LogicalExplain {
 }
 
 impl UnaryLogicalPlanNode for LogicalExplain {
-    fn get_child(&self) -> LogicalPlanRef {
+    fn child(&self) -> LogicalPlanRef {
         self.plan.clone()
     }
 
-    fn copy_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
+    fn clone_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
         LogicalPlan::LogicalExplain(LogicalExplain { plan: child }).into()
     }
 }

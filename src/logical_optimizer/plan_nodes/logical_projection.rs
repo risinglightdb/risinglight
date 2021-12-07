@@ -10,11 +10,11 @@ pub struct LogicalProjection {
 }
 
 impl UnaryLogicalPlanNode for LogicalProjection {
-    fn get_child(&self) -> LogicalPlanRef {
+    fn child(&self) -> LogicalPlanRef {
         self.child.clone()
     }
 
-    fn copy_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
+    fn clone_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
         LogicalPlan::LogicalProjection(LogicalProjection {
             child,
             project_expressions: self.project_expressions.clone(),

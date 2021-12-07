@@ -9,11 +9,11 @@ pub struct LogicalOrder {
 }
 
 impl UnaryLogicalPlanNode for LogicalOrder {
-    fn get_child(&self) -> LogicalPlanRef {
+    fn child(&self) -> LogicalPlanRef {
         self.child.clone()
     }
 
-    fn copy_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
+    fn clone_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
         LogicalPlan::LogicalOrder(LogicalOrder {
             child,
             comparators: self.comparators.clone(),

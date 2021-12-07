@@ -28,11 +28,11 @@ impl PlanRewriter for BoolExprSimplification {
                 })
                 .into(),
             ),
-            Constant(Bool(true)) => Some(self.rewrite_plan(plan.get_child())),
+            Constant(Bool(true)) => Some(self.rewrite_plan(plan.child())),
             _ => Some(
                 LogicalPlan::LogicalFilter(LogicalFilter {
                     expr: new_expr,
-                    child: self.rewrite_plan(plan.get_child()),
+                    child: self.rewrite_plan(plan.child()),
                 })
                 .into(),
             ),

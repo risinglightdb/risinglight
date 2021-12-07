@@ -53,7 +53,7 @@ impl PlanRewriter for InputRefResolver {
     }
 
     fn rewrite_projection(&mut self, plan: &LogicalProjection) -> Option<LogicalPlanRef> {
-        let child = self.rewrite_plan(plan.get_child());
+        let child = self.rewrite_plan(plan.child());
         let mut bindings = vec![];
         let project_expressions = plan
             .project_expressions
@@ -78,7 +78,7 @@ impl PlanRewriter for InputRefResolver {
     }
 
     fn rewrite_aggregate(&mut self, plan: &LogicalAggregate) -> Option<LogicalPlanRef> {
-        let child = self.rewrite_plan(plan.get_child());
+        let child = self.rewrite_plan(plan.child());
 
         let agg_calls = plan
             .agg_calls

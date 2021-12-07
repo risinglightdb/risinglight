@@ -11,11 +11,11 @@ pub struct LogicalDelete {
 }
 
 impl UnaryLogicalPlanNode for LogicalDelete {
-    fn get_child(&self) -> LogicalPlanRef {
+    fn child(&self) -> LogicalPlanRef {
         self.child.clone()
     }
 
-    fn copy_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
+    fn clone_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
         LogicalPlan::LogicalDelete(LogicalDelete {
             table_ref_id: self.table_ref_id,
             child,

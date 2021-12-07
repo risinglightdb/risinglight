@@ -34,8 +34,8 @@ pub(crate) mod logical_seq_scan;
 pub(crate) mod logical_values;
 
 pub(super) trait LogicalPlanNode {
-    fn get_children(&self) -> Vec<LogicalPlanRef>;
-    fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef;
+    fn children(&self) -> Vec<LogicalPlanRef>;
+    fn clone_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef;
 }
 
 #[macro_export]
@@ -81,14 +81,14 @@ pub(crate) type LogicalPlanRef = Rc<LogicalPlan>;
 macro_rules! impl_plan_node {
     ([], $( { $node_name:ident } ),*) => {
         impl LogicalPlan {
-            pub fn get_children(&self) -> Vec<LogicalPlanRef> {
+            pub fn children(&self) -> Vec<LogicalPlanRef> {
                 match self {
-                    $( Self::$node_name(inner) => inner.get_children(),)*
+                    $( Self::$node_name(inner) => inner.children(),)*
                 }
             }
-            pub fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
+            pub fn clone_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
                 match self {
-                    $( Self::$node_name(inner) => inner.copy_with_children(children),)*
+                    $( Self::$node_name(inner) => inner.clone_with_children(children),)*
                 }
             }
         }
@@ -100,11 +100,11 @@ pub(super) trait LeafLogicalPlanNode: Clone {}
 macro_rules! impl_plan_node_for_leaf {
     ($leaf_node_type:ident) => {
         impl LogicalPlanNode for $leaf_node_type {
-            fn get_children(&self) -> Vec<LogicalPlanRef> {
+            fn children(&self) -> Vec<LogicalPlanRef> {
                 vec![]
             }
 
-            fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
+            fn clone_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
                 assert!(children.is_empty());
                 LogicalPlan::$leaf_node_type(self.clone()).into()
             }
@@ -112,40 +112,40 @@ macro_rules! impl_plan_node_for_leaf {
     };
 }
 pub(super) trait UnaryLogicalPlanNode {
-    fn get_child(&self) -> LogicalPlanRef;
-    fn copy_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef;
+    fn child(&self) -> LogicalPlanRef;
+    fn clone_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef;
 }
 macro_rules! impl_plan_node_for_unary {
     ($unary_node_type:ident) => {
         impl LogicalPlanNode for $unary_node_type {
-            fn get_children(&self) -> Vec<LogicalPlanRef> {
-                vec![self.get_child()]
+            fn children(&self) -> Vec<LogicalPlanRef> {
+                vec![self.child()]
             }
 
-            fn copy_with_children(&self, mut children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
+            fn clone_with_children(&self, mut children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
                 assert_eq!(children.len(), 1);
-                self.copy_with_child(children.pop().unwrap())
+                self.clone_with_child(children.pop().unwrap())
             }
         }
     };
 }
 
 pub trait BinaryLogicalPlanNode {
-    fn get_left(&self) -> LogicalPlanRef;
-    fn get_right(&self) -> LogicalPlanRef;
-    fn copy_with_left_right(&self, left: LogicalPlanRef, right: LogicalPlanRef) -> LogicalPlanRef;
+    fn left(&self) -> LogicalPlanRef;
+    fn right(&self) -> LogicalPlanRef;
+    fn clone_with_left_right(&self, left: LogicalPlanRef, right: LogicalPlanRef) -> LogicalPlanRef;
 }
 macro_rules! impl_plan_node_for_binary {
     ($binary_node_type:ident) => {
         impl LogicalPlanNode for $binary_node_type {
-            fn get_children(&self) -> Vec<LogicalPlanRef> {
-                vec![self.get_left(), self.get_right()]
+            fn children(&self) -> Vec<LogicalPlanRef> {
+                vec![self.left(), self.right()]
             }
 
-            fn copy_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
+            fn clone_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
                 assert_eq!(children.len(), 2);
                 let mut iter = children.into_iter();
-                self.copy_with_left_right(iter.next().unwrap(), iter.next().unwrap())
+                self.clone_with_left_right(iter.next().unwrap(), iter.next().unwrap())
             }
         }
     };

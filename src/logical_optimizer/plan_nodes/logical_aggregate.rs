@@ -12,11 +12,11 @@ pub struct LogicalAggregate {
 }
 
 impl UnaryLogicalPlanNode for LogicalAggregate {
-    fn get_child(&self) -> LogicalPlanRef {
+    fn child(&self) -> LogicalPlanRef {
         self.child.clone()
     }
 
-    fn copy_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
+    fn clone_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
         LogicalPlan::LogicalAggregate(LogicalAggregate {
             child,
             agg_calls: self.agg_calls.clone(),

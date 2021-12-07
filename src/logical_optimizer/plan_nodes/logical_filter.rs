@@ -9,11 +9,11 @@ pub struct LogicalFilter {
 }
 
 impl UnaryLogicalPlanNode for LogicalFilter {
-    fn get_child(&self) -> LogicalPlanRef {
+    fn child(&self) -> LogicalPlanRef {
         self.child.clone()
     }
 
-    fn copy_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
+    fn clone_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
         LogicalPlan::LogicalFilter(LogicalFilter {
             child,
             expr: self.expr.clone(),

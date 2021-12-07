@@ -17,10 +17,10 @@ impl HeuristicOptimizer {
             }
         }
         let children = root
-            .get_children()
+            .children()
             .into_iter()
             .map(|sub_tree| self.optimize(sub_tree))
             .collect_vec();
-        root.copy_with_children(children)
+        root.clone_with_children(children)
     }
 }

@@ -12,15 +12,15 @@ pub struct LogicalJoin {
 }
 
 impl BinaryLogicalPlanNode for LogicalJoin {
-    fn get_left(&self) -> LogicalPlanRef {
+    fn left(&self) -> LogicalPlanRef {
         self.left_plan.clone()
     }
 
-    fn get_right(&self) -> LogicalPlanRef {
+    fn right(&self) -> LogicalPlanRef {
         self.right_plan.clone()
     }
 
-    fn copy_with_left_right(&self, left: LogicalPlanRef, right: LogicalPlanRef) -> LogicalPlanRef {
+    fn clone_with_left_right(&self, left: LogicalPlanRef, right: LogicalPlanRef) -> LogicalPlanRef {
         LogicalPlan::LogicalJoin(LogicalJoin {
             left_plan: left,
             right_plan: right,
