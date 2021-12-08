@@ -1,7 +1,7 @@
 use super::*;
 use crate::binder::{BoundBinaryOp, BoundExpr, BoundExpr::*};
+use crate::logical_optimizer::plan_nodes::Dummy;
 use crate::parser::BinaryOperator::*;
-use crate::physical_planner::Dummy;
 use crate::types::DataValue::*;
 
 /// Boolean expression simplification rule will rewrite expression which compares ('>=', '<' and

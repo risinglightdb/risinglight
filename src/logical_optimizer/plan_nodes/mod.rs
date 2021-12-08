@@ -1,85 +1,97 @@
-use logical_copy_from_file::LogicalCopyFromFile;
-use logical_copy_to_file::LogicalCopyToFile;
-use logical_create_table::LogicalCreateTable;
-use logical_delete::LogicalDelete;
-use logical_drop::LogicalDrop;
-use logical_explain::LogicalExplain;
-use logical_insert::LogicalInsert;
-use logical_values::LogicalValues;
 use std::rc::Rc;
 
-use crate::physical_planner::Dummy;
+pub use dummy::*;
+pub mod dummy;
+pub use logical_values::*;
+pub mod logical_aggregate;
+pub use logical_seq_scan::*;
+pub mod logical_copy_from_file;
+pub use logical_projection::*;
+pub mod logical_copy_to_file;
+pub use logical_order::*;
+pub mod logical_create_table;
+pub use logical_limit::*;
+pub mod logical_delete;
+pub use logical_join::*;
+pub mod logical_drop;
+pub use logical_insert::*;
+pub mod logical_explain;
+pub use logical_filter::*;
+pub mod logical_filter;
+pub use logical_explain::*;
+pub mod logical_insert;
+pub use logical_drop::*;
+pub mod logical_join;
+pub use logical_delete::*;
+pub mod logical_limit;
+pub use logical_create_table::*;
+pub mod logical_order;
+pub use logical_copy_to_file::*;
+pub mod logical_projection;
+pub use logical_copy_from_file::*;
+pub mod logical_seq_scan;
+pub use logical_aggregate::*;
+pub mod logical_values;
 
-use self::{
-    logical_aggregate::LogicalAggregate, logical_filter::LogicalFilter, logical_join::LogicalJoin,
-    logical_limit::LogicalLimit, logical_order::LogicalOrder,
-    logical_projection::LogicalProjection, logical_seq_scan::LogicalSeqScan,
-};
-
-pub(crate) mod dummy;
-pub(crate) mod logical_aggregate;
-pub(crate) mod logical_copy_from_file;
-pub(crate) mod logical_copy_to_file;
-pub(crate) mod logical_create_table;
-pub(crate) mod logical_delete;
-pub(crate) mod logical_drop;
-pub(crate) mod logical_explain;
-pub(crate) mod logical_filter;
-pub(crate) mod logical_insert;
-pub(crate) mod logical_join;
-pub(crate) mod logical_limit;
-pub(crate) mod logical_order;
-pub(crate) mod logical_projection;
-pub(crate) mod logical_seq_scan;
-pub(crate) mod logical_values;
-
-pub(super) trait LogicalPlanNode {
+pub trait LogicalPlanNode {
     fn children(&self) -> Vec<LogicalPlanRef>;
     fn clone_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef;
 }
 
+/// All LogicalPlan nodes
+///
+/// You can use it as follows:
+///
+/// ```rust
+/// macro_rules! use_logical_plan {
+///     ([], $({ $node_name:ident, $node_type:ty }),*) => {};
+/// }
+/// risinglight::for_all_plan_nodes! { use_logical_plan }
+/// ```
 #[macro_export]
 macro_rules! for_all_plan_nodes {
-  ($macro:tt $(, $x:tt)*) => {
-    $macro! {
-      [$($x),*],
-      {Dummy},
-      {LogicalSeqScan},
-      {LogicalInsert},
-      {LogicalValues},
-      {LogicalCreateTable},
-      {LogicalDrop},
-      {LogicalProjection},
-      {LogicalFilter},
-      {LogicalExplain},
-      {LogicalJoin},
-      {LogicalAggregate},
-      {LogicalOrder},
-      {LogicalLimit},
-      {LogicalDelete},
-      {LogicalCopyFromFile},
-      {LogicalCopyToFile}
-    }
-  };
+    ($macro:tt $(, $x:tt)*) => {
+        $macro! {
+            [$($x),*],
+            { Dummy, Dummy },
+            { LogicalSeqScan, LogicalSeqScan },
+            { LogicalInsert, LogicalInsert },
+            { LogicalValues, LogicalValues },
+            { LogicalCreateTable, LogicalCreateTable },
+            { LogicalDrop, LogicalDrop },
+            { LogicalProjection, LogicalProjection },
+            { LogicalFilter, LogicalFilter },
+            { LogicalExplain, LogicalExplain },
+            { LogicalJoin, LogicalJoin },
+            { LogicalAggregate, LogicalAggregate },
+            { LogicalOrder, LogicalOrder },
+            { LogicalLimit, LogicalLimit },
+            { LogicalDelete, LogicalDelete },
+            { LogicalCopyFromFile, LogicalCopyFromFile },
+            { LogicalCopyToFile, LogicalCopyToFile }
+        }
+    };
 }
 
 /// An enumeration which record all necessary information of execution plan,
 /// which will be used by optimizer and executor.
 macro_rules! logical_plan_enum {
-  ([], $( { $node_name:ident } ),*) => {
-    /// `ArrayImpl` embeds all possible array in `array` module.
-    #[derive(Debug, PartialEq, Clone)]
-    pub enum LogicalPlan {
-      $( $node_name($node_name) ),*
-    }
-  };
+    ([], $( { $node_name:ident, $node_type:ty } ),*) => {
+        /// `LogicalPlan` embeds all possible plans in `logical_plan` module.
+        #[derive(Debug, PartialEq, Clone)]
+        pub enum LogicalPlan {
+            $( $node_name($node_type) ),*
+        }
+    };
 }
 
 for_all_plan_nodes! {logical_plan_enum}
-pub(crate) type LogicalPlanRef = Rc<LogicalPlan>;
+
+pub type LogicalPlanRef = Rc<LogicalPlan>;
 
 macro_rules! impl_plan_node {
-    ([], $( { $node_name:ident } ),*) => {
+    ([], $( { $node_name:ident, $node_type:ty } ),*) => {
+        /// Implement `LogicalPlan` for the structs.
         impl LogicalPlan {
             pub fn children(&self) -> Vec<LogicalPlanRef> {
                 match self {
@@ -92,8 +104,39 @@ macro_rules! impl_plan_node {
                 }
             }
         }
-  }
+
+        $(
+            impl From<$node_type> for LogicalPlan {
+                fn from(plan: $node_type) -> Self {
+                    Self::$node_name(plan)
+                }
+            }
+
+            impl TryFrom<LogicalPlan> for $node_type {
+                type Error = ();
+
+                fn try_from(plan: LogicalPlan) -> Result<Self, Self::Error> {
+                    match plan {
+                        LogicalPlan::$node_name(plan) => Ok(plan),
+                        _ => Err(()),
+                    }
+                }
+            }
+
+            impl<'a> TryFrom<&'a LogicalPlan> for &'a $node_type {
+                type Error = ();
+
+                fn try_from(plan: &'a LogicalPlan) -> Result<Self, Self::Error> {
+                    match plan {
+                        LogicalPlan::$node_name(plan) => Ok(plan),
+                        _ => Err(()),
+                    }
+                }
+            }
+        )*
+    }
 }
+
 for_all_plan_nodes! { impl_plan_node }
 
 pub(super) trait LeafLogicalPlanNode: Clone {}
@@ -135,6 +178,7 @@ pub trait BinaryLogicalPlanNode {
     fn right(&self) -> LogicalPlanRef;
     fn clone_with_left_right(&self, left: LogicalPlanRef, right: LogicalPlanRef) -> LogicalPlanRef;
 }
+
 macro_rules! impl_plan_node_for_binary {
     ($binary_node_type:ident) => {
         impl LogicalPlanNode for $binary_node_type {
