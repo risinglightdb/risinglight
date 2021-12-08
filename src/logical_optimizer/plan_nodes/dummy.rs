@@ -1,2 +1,2 @@
 #[derive(Debug, PartialEq, Clone)]
-struct Dummy {}
+pub struct Dummy {}
