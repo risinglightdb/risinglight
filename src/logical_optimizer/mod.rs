@@ -1,12 +1,16 @@
 pub(crate) mod plan_rewriter;
-use crate::{binder::*, logical_planner::*};
+use crate::binder::*;
+
 mod heuristic;
-pub(crate) mod plan_node;
+pub(crate) mod plan_nodes;
 mod rules;
-use self::plan_rewriter::{
-    arith_expr_simplification::ArithExprSimplification,
-    bool_expr_simplification::BoolExprSimplification, constant_folding::ConstantFolding,
-    constant_moving::ConstantMovingRule, PlanRewriter,
+use self::{
+    plan_nodes::LogicalPlan,
+    plan_rewriter::{
+        arith_expr_simplification::ArithExprSimplification,
+        bool_expr_simplification::BoolExprSimplification, constant_folding::ConstantFolding,
+        constant_moving::ConstantMovingRule, PlanRewriter,
+    },
 };
 
 /// The optimizer will do query optimization.

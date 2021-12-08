@@ -1,6 +1,5 @@
-use crate::logical_optimizer::plan_node::UnaryLogicalPlanNode;
-
-use super::*;
+use super::{LogicalPlan, LogicalPlanRef};
+use crate::logical_optimizer::plan_nodes::UnaryLogicalPlanNode;
 
 /// The logical plan of limit operation.
 #[derive(Debug, PartialEq, Clone)]
@@ -11,11 +10,11 @@ pub struct LogicalLimit {
 }
 
 impl UnaryLogicalPlanNode for LogicalLimit {
-    fn get_child(&self) -> LogicalPlanRef {
+    fn child(&self) -> LogicalPlanRef {
         self.child.clone()
     }
 
-    fn copy_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
+    fn clone_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
         LogicalPlan::LogicalLimit(LogicalLimit {
             child,
             offset: self.offset,

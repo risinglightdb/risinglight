@@ -1,6 +1,8 @@
 use super::*;
-use crate::binder::{BoundAggCall, BoundExpr};
-use crate::logical_planner::LogicalAggregate;
+use crate::{
+    binder::{BoundAggCall, BoundExpr},
+    logical_optimizer::plan_nodes::logical_aggregate::LogicalAggregate,
+};
 
 /// The physical plan of simple aggregation.
 #[derive(Debug, PartialEq, Clone)]

@@ -1,19 +1,19 @@
-use crate::{
-    binder::{BoundAggCall, BoundExpr, BoundOrderBy},
-    logical_planner::{
-        LogicalAggregate, LogicalCopyFromFile, LogicalCopyToFile, LogicalCreateTable,
-        LogicalDelete, LogicalDrop, LogicalExplain, LogicalFilter, LogicalInsert, LogicalJoin,
-        LogicalLimit, LogicalOrder, LogicalPlan, LogicalPlanRef, LogicalProjection, LogicalSeqScan,
-        LogicalValues,
-    },
+use super::plan_nodes::{
+    logical_aggregate::LogicalAggregate, logical_copy_from_file::LogicalCopyFromFile,
+    logical_copy_to_file::LogicalCopyToFile, logical_create_table::LogicalCreateTable,
+    logical_delete::LogicalDelete, logical_drop::LogicalDrop, logical_explain::LogicalExplain,
+    logical_filter::LogicalFilter, logical_insert::LogicalInsert, logical_join::LogicalJoin,
+    logical_limit::LogicalLimit, logical_order::LogicalOrder,
+    logical_projection::LogicalProjection, logical_seq_scan::LogicalSeqScan,
+    logical_values::LogicalValues, LogicalPlan, LogicalPlanRef, UnaryLogicalPlanNode,
 };
-
-use super::plan_node::UnaryLogicalPlanNode;
+use crate::binder::{BoundAggCall, BoundExpr, BoundOrderBy};
 
 pub(super) mod arith_expr_simplification;
 pub(super) mod bool_expr_simplification;
 pub(super) mod constant_folding;
 pub(super) mod constant_moving;
+pub mod input_ref_resolver;
 
 // PlanRewriter is a plan visitor.
 // User could implement the own optimization rules by implement PlanRewriter trait easily.
@@ -29,7 +29,7 @@ pub trait PlanRewriter {
     // If the node do not need rewrite, return None.
     fn rewrite_plan_inner(&mut self, plan: LogicalPlanRef) -> Option<LogicalPlanRef> {
         match plan.as_ref() {
-            LogicalPlan::Dummy => None,
+            LogicalPlan::Dummy(_) => None,
             LogicalPlan::LogicalCreateTable(plan) => self.rewrite_create_table(plan),
             LogicalPlan::LogicalDrop(plan) => self.rewrite_drop(plan),
             LogicalPlan::LogicalInsert(plan) => self.rewrite_insert(plan),
@@ -57,8 +57,8 @@ pub trait PlanRewriter {
     }
 
     fn rewrite_insert(&mut self, plan: &LogicalInsert) -> Option<LogicalPlanRef> {
-        if let Some(child) = self.rewrite_plan_inner(plan.get_child()) {
-            return Some(plan.copy_with_child(child));
+        if let Some(child) = self.rewrite_plan_inner(plan.child()) {
+            return Some(plan.clone_with_child(child));
         }
         None
     }
@@ -86,7 +86,7 @@ pub trait PlanRewriter {
     }
 
     fn rewrite_projection(&mut self, plan: &LogicalProjection) -> Option<LogicalPlanRef> {
-        let child = self.rewrite_plan(plan.get_child());
+        let child = self.rewrite_plan(plan.child());
         Some(
             LogicalPlan::LogicalProjection(LogicalProjection {
                 child,
@@ -102,7 +102,7 @@ pub trait PlanRewriter {
     }
 
     fn rewrite_filter(&mut self, plan: &LogicalFilter) -> Option<LogicalPlanRef> {
-        let child = self.rewrite_plan(plan.get_child());
+        let child = self.rewrite_plan(plan.child());
         Some(
             LogicalPlan::LogicalFilter(LogicalFilter {
                 child,
@@ -113,7 +113,7 @@ pub trait PlanRewriter {
     }
 
     fn rewrite_order(&mut self, plan: &LogicalOrder) -> Option<LogicalPlanRef> {
-        let child = self.rewrite_plan(plan.get_child());
+        let child = self.rewrite_plan(plan.child());
         Some(
             LogicalPlan::LogicalOrder(LogicalOrder {
                 child,
@@ -132,21 +132,21 @@ pub trait PlanRewriter {
     }
 
     fn rewrite_limit(&mut self, plan: &LogicalLimit) -> Option<LogicalPlanRef> {
-        if let Some(child) = self.rewrite_plan_inner(plan.get_child()) {
-            return Some(plan.copy_with_child(child));
+        if let Some(child) = self.rewrite_plan_inner(plan.child()) {
+            return Some(plan.clone_with_child(child));
         }
         None
     }
 
     fn rewrite_explain(&mut self, plan: &LogicalExplain) -> Option<LogicalPlanRef> {
-        if let Some(child) = self.rewrite_plan_inner(plan.get_child()) {
-            return Some(plan.copy_with_child(child));
+        if let Some(child) = self.rewrite_plan_inner(plan.child()) {
+            return Some(plan.clone_with_child(child));
         }
         None
     }
 
     fn rewrite_aggregate(&mut self, plan: &LogicalAggregate) -> Option<LogicalPlanRef> {
-        let child = self.rewrite_plan(plan.get_child());
+        let child = self.rewrite_plan(plan.child());
         Some(
             LogicalPlan::LogicalAggregate(LogicalAggregate {
                 child,
@@ -171,8 +171,8 @@ pub trait PlanRewriter {
     }
 
     fn rewrite_delete(&mut self, plan: &LogicalDelete) -> Option<LogicalPlanRef> {
-        if let Some(child) = self.rewrite_plan_inner(plan.get_child()) {
-            return Some(plan.copy_with_child(child));
+        if let Some(child) = self.rewrite_plan_inner(plan.child()) {
+            return Some(plan.clone_with_child(child));
         }
         None
     }
@@ -186,8 +186,8 @@ pub trait PlanRewriter {
     }
 
     fn rewrite_copy_to_file(&mut self, plan: &LogicalCopyToFile) -> Option<LogicalPlanRef> {
-        if let Some(child) = self.rewrite_plan_inner(plan.get_child()) {
-            return Some(plan.copy_with_child(child));
+        if let Some(child) = self.rewrite_plan_inner(plan.child()) {
+            return Some(plan.clone_with_child(child));
         }
         None
     }

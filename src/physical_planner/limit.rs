@@ -1,5 +1,6 @@
+use crate::logical_optimizer::plan_nodes::logical_limit::LogicalLimit;
+
 use super::*;
-use crate::logical_planner::LogicalLimit;
 
 /// The physical plan of limit operation.
 #[derive(Debug, PartialEq, Clone)]

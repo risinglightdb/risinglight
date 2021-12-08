@@ -1,5 +1,5 @@
 use super::*;
-use crate::{binder::BoundExpr, logical_planner::LogicalFilter};
+use crate::{binder::BoundExpr, logical_optimizer::plan_nodes::logical_filter::LogicalFilter};
 
 /// The physical plan of filter operation.
 #[derive(Debug, PartialEq, Clone)]

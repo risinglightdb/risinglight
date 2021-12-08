@@ -1,5 +1,5 @@
-use super::*;
-use crate::{binder::BoundOrderBy, logical_optimizer::plan_node::UnaryLogicalPlanNode};
+use super::{LogicalPlan, LogicalPlanRef};
+use crate::{binder::BoundOrderBy, logical_optimizer::plan_nodes::UnaryLogicalPlanNode};
 
 /// The logical plan of order.
 #[derive(Debug, PartialEq, Clone)]
@@ -9,11 +9,11 @@ pub struct LogicalOrder {
 }
 
 impl UnaryLogicalPlanNode for LogicalOrder {
-    fn get_child(&self) -> LogicalPlanRef {
+    fn child(&self) -> LogicalPlanRef {
         self.child.clone()
     }
 
-    fn copy_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
+    fn clone_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
         LogicalPlan::LogicalOrder(LogicalOrder {
             child,
             comparators: self.comparators.clone(),

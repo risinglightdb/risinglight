@@ -1,6 +1,7 @@
 use super::*;
 use crate::binder::{BoundBinaryOp, BoundExpr, BoundExpr::*};
 use crate::parser::BinaryOperator::*;
+use crate::physical_planner::Dummy;
 use crate::types::DataValue::*;
 
 /// Boolean expression simplification rule will rewrite expression which compares ('>=', '<' and
@@ -23,15 +24,15 @@ impl PlanRewriter for BoolExprSimplification {
             Constant(Bool(false) | Null) => Some(
                 LogicalPlan::LogicalFilter(LogicalFilter {
                     expr: new_expr,
-                    child: (LogicalPlan::Dummy.into()),
+                    child: (LogicalPlan::Dummy(Dummy {}).into()),
                 })
                 .into(),
             ),
-            Constant(Bool(true)) => Some(self.rewrite_plan(plan.get_child())),
+            Constant(Bool(true)) => Some(self.rewrite_plan(plan.child())),
             _ => Some(
                 LogicalPlan::LogicalFilter(LogicalFilter {
                     expr: new_expr,
-                    child: self.rewrite_plan(plan.get_child()),
+                    child: self.rewrite_plan(plan.child()),
                 })
                 .into(),
             ),

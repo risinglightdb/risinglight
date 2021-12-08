@@ -1,9 +1,7 @@
 use super::*;
-use crate::{
-    binder::FileFormat,
-    logical_planner::{LogicalCopyFromFile, LogicalCopyToFile},
-    types::DataType,
-};
+use crate::logical_optimizer::plan_nodes::logical_copy_from_file::LogicalCopyFromFile;
+use crate::logical_optimizer::plan_nodes::logical_copy_to_file::LogicalCopyToFile;
+use crate::{binder::FileFormat, types::DataType};
 use std::path::PathBuf;
 
 /// The physical plan of `COPY FROM`.

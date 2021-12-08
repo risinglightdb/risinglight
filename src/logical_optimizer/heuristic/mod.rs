@@ -1,8 +1,6 @@
 use itertools::Itertools;
 
-use crate::logical_planner::LogicalPlanRef;
-
-use super::rules::BoxedRule;
+use super::{plan_nodes::LogicalPlanRef, rules::BoxedRule};
 #[allow(dead_code)]
 struct HeuristicOptimizer {
     rules: Vec<BoxedRule>,
@@ -19,10 +17,10 @@ impl HeuristicOptimizer {
             }
         }
         let children = root
-            .get_children()
+            .children()
             .into_iter()
             .map(|sub_tree| self.optimize(sub_tree))
             .collect_vec();
-        root.copy_with_children(children)
+        root.clone_with_children(children)
     }
 }
