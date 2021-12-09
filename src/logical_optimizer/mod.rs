@@ -1,6 +1,6 @@
 pub(crate) mod plan_rewriter;
 use crate::binder::*;
-
+mod expr_utils;
 mod heuristic;
 pub(crate) mod plan_nodes;
 mod rules;
