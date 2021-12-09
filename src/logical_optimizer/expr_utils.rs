@@ -1,6 +1,7 @@
 use crate::logical_optimizer::BoundExpr;
 use crate::logical_optimizer::BoundExpr::BinaryOp;
 use crate::parser::BinaryOperator::And;
+use bit_set::BitSet;
 pub fn conjunctions_inner(expr: BoundExpr, rets: &mut Vec<BoundExpr>) {
     let mut is_and = false;
     if let BinaryOp(ref bin_expr) = expr {
@@ -30,4 +31,37 @@ pub fn conjunctions(expr: BoundExpr) -> Vec<BoundExpr> {
 pub fn to_cnf(expr: BoundExpr) -> Vec<BoundExpr> {
     // FIXME：TODO it is just convering to conjunctions now
     conjunctions(expr)
+}
+
+#[allow(dead_code)]
+pub fn input_col_refs(expr: &BoundExpr) -> BitSet {
+    let mut set = BitSet::default();
+    input_col_refs_inner(expr, &mut set);
+    set
+}
+
+pub fn input_col_refs_inner(expr: &BoundExpr, input_set: &mut BitSet) {
+    use BoundExpr::*;
+
+    match expr {
+        ColumnRef(_) => {
+            unreachable!()
+        }
+        InputRef(input_ref) => {
+            input_set.insert(input_ref.index);
+        }
+        AggCall(agg) => {
+            for arg in agg.args.iter() {
+                input_col_refs_inner(arg, input_set);
+            }
+        }
+        BinaryOp(binary_op) => {
+            input_col_refs_inner(binary_op.left_expr.as_ref(), input_set);
+            input_col_refs_inner(binary_op.right_expr.as_ref(), input_set);
+        }
+        UnaryOp(unary_op) => input_col_refs_inner(unary_op.expr.as_ref(), input_set),
+        TypeCast(cast) => input_col_refs_inner(cast.expr.as_ref(), input_set),
+        IsNull(isnull) => input_col_refs_inner(isnull.expr.as_ref(), input_set),
+        _ => unreachable!(),
+    };
 }
