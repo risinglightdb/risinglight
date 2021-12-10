@@ -1,8 +1,12 @@
-use super::plan_nodes::LogicalPlanRef;
+pub use filter_join_rule::*;
 
-pub(super) trait Rule: Send {
-    fn matches(&self, plan: LogicalPlanRef) -> bool;
-    fn apply(&self, plan: LogicalPlanRef) -> LogicalPlanRef;
+use super::plan_nodes::LogicalPlanRef;
+pub mod filter_join_rule;
+
+pub trait Rule: Send + Sync + 'static {
+    /// if the plan matches
+    fn matches(&self, plan: LogicalPlanRef) -> Result<(), ()>;
+    fn apply(&self, plan: LogicalPlanRef) -> Result<LogicalPlanRef, ()>;
 }
 
 pub(super) type BoxedRule = Box<dyn Rule>;

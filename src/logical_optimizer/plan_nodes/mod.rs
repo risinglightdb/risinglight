@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 pub use dummy::*;
+use paste::paste;
 pub mod dummy;
 pub use logical_values::*;
 pub mod logical_aggregate;
@@ -103,12 +104,27 @@ macro_rules! impl_plan_node {
                     $( Self::$node_name(inner) => inner.clone_with_children(children),)*
                 }
             }
+            $(
+                paste! {
+                    #[allow(dead_code)]
+                    pub fn [<try_as_ $node_name:lower>]<'a>(&'a self) -> Result<&'a $node_name, ()> {
+                        self.try_into() as Result<&'a $node_name, ()>
+                    }
+                }
+            )*
+
         }
 
         $(
             impl From<$node_type> for LogicalPlan {
                 fn from(plan: $node_type) -> Self {
                     Self::$node_name(plan)
+                }
+            }
+
+            impl From<$node_type> for LogicalPlanRef {
+                fn from(plan: $node_type) -> LogicalPlanRef {
+                    Rc::new(plan.into())
                 }
             }
 

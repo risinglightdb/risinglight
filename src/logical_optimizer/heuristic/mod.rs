@@ -1,19 +1,18 @@
 use itertools::Itertools;
 
 use super::{plan_nodes::LogicalPlanRef, rules::BoxedRule};
-#[allow(dead_code)]
-struct HeuristicOptimizer {
-    rules: Vec<BoxedRule>,
+pub struct HeuristicOptimizer {
+    pub rules: Vec<BoxedRule>,
 }
 
-#[allow(dead_code)]
 impl HeuristicOptimizer {
-    fn optimize(&self, mut root: LogicalPlanRef) -> LogicalPlanRef {
+    pub fn optimize(&self, mut root: LogicalPlanRef) -> LogicalPlanRef {
         for rule in &self.rules {
-            if rule.matches(root.clone()) {
-                root = rule.apply(root);
-                // we will not try to apply rules on a new node after a rule applyed
-                break;
+            if rule.matches(root.clone()).is_ok() {
+                if let Ok(applied) = rule.apply(root.clone()) {
+                    root = applied;
+                    break;
+                }
             }
         }
         let children = root

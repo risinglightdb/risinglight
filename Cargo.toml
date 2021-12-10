@@ -14,6 +14,7 @@ async-recursion = "0.3"
 async-stream = "0.3"
 async-trait = "0.1"
 bitvec = {version = "0.22", features = ["serde"]}
+bit-set = "0.5"
 btreemultimap = "0.1.0"
 bytes = "1"
 csv = "1.1"
@@ -26,6 +27,7 @@ jemallocator = "0.3"
 log = "0.4"
 moka = {version = "0.6", features = ["future"]}
 num-traits = "0.2"
+paste = "1"
 parking_lot = "0.11"
 prettytable-rs = {version = "0.8", default-features = false}
 prost = "0.9"

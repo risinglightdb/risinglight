@@ -1,11 +1,14 @@
 pub(crate) mod plan_rewriter;
 use crate::binder::*;
-
+mod expr_utils;
 mod heuristic;
+use heuristic::HeuristicOptimizer;
 pub(crate) mod plan_nodes;
 mod rules;
+use rules::*;
+
 use self::{
-    plan_nodes::LogicalPlan,
+    plan_nodes::LogicalPlanRef,
     plan_rewriter::{
         arith_expr_simplification::ArithExprSimplification,
         bool_expr_simplification::BoolExprSimplification, constant_folding::ConstantFolding,
@@ -23,15 +26,15 @@ use self::{
 pub struct Optimizer {}
 
 impl Optimizer {
-    pub fn optimize(&mut self, plan: LogicalPlan) -> LogicalPlan {
+    pub fn optimize(&mut self, mut plan: LogicalPlanRef) -> LogicalPlanRef {
         // TODO: Add more optimization rules.
-        let mut plan = plan.into();
-
         plan = ConstantFolding.rewrite_plan(plan);
         plan = ArithExprSimplification.rewrite_plan(plan);
         plan = BoolExprSimplification.rewrite_plan(plan);
         plan = ConstantMovingRule.rewrite_plan(plan);
-
-        plan.as_ref().clone()
+        let hep_optimizer = HeuristicOptimizer {
+            rules: vec![Box::new(FilterJoinRule {})],
+        };
+        hep_optimizer.optimize(plan)
     }
 }
