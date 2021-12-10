@@ -113,6 +113,12 @@ macro_rules! impl_plan_node {
                 }
             }
 
+            impl From<$node_type> for LogicalPlanRef {
+                fn from(plan: $node_type) -> LogicalPlanRef {
+                    Rc::new(plan.into())
+                }
+            }
+
             impl TryFrom<LogicalPlan> for $node_type {
                 type Error = ();
 
@@ -145,7 +151,7 @@ macro_rules! impl_plan_try_into {
         $(
             paste! {
                 #[allow(dead_code)]
-                pub fn [<try_into_ $node_name:lower>]<'a>(plan: &'a LogicalPlan) -> Option<&'a $node_name> {
+                pub fn [<try_as_ $node_name:lower>]<'a>(plan: &'a LogicalPlan) -> Option<&'a $node_name> {
                     if let Ok(ret) = plan.try_into() as Result<&'a $node_name, ()> {
                         return Some(ret)
                     }
