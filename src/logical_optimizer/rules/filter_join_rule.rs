@@ -2,8 +2,7 @@ use super::LogicalPlanRef;
 use super::Rule;
 use crate::binder::BoundExpr;
 use crate::logical_optimizer::plan_nodes::{
-    try_as_logicalfilter, try_as_logicaljoin, BinaryLogicalPlanNode, LogicalJoin,
-    UnaryLogicalPlanNode,
+    BinaryLogicalPlanNode, LogicalJoin, UnaryLogicalPlanNode,
 };
 use crate::logical_optimizer::BoundBinaryOp;
 use crate::logical_optimizer::BoundJoinConstraint::On;
@@ -14,12 +13,12 @@ use crate::types::{DataTypeExt, DataTypeKind};
 pub struct FilterJoinRule {}
 impl Rule for FilterJoinRule {
     fn matches(&self, plan: LogicalPlanRef) -> bool {
-        let filter = match try_as_logicalfilter(plan.as_ref()) {
+        let filter = match plan.as_ref().try_as_logicalfilter() {
             Some(filter) => filter,
             _ => return false,
         };
         let filter_child = filter.child();
-        let join = match try_as_logicaljoin(filter_child.as_ref()) {
+        let join = match filter_child.as_ref().try_as_logicaljoin() {
             Some(join) => join,
             _ => return false,
         };
@@ -27,9 +26,9 @@ impl Rule for FilterJoinRule {
         matches!(join.join_op, Inner(_))
     }
     fn apply(&self, plan: LogicalPlanRef) -> LogicalPlanRef {
-        let filter = try_as_logicalfilter(plan.as_ref()).unwrap();
+        let filter = plan.as_ref().try_as_logicalfilter().unwrap();
         let filter_child = filter.child();
-        let join = try_as_logicaljoin(filter_child.as_ref()).unwrap();
+        let join = filter_child.as_ref().try_as_logicaljoin().unwrap();
         let join_cond = match &join.join_op {
             Inner(On(op)) => op.clone(),
             _ => unreachable!(),

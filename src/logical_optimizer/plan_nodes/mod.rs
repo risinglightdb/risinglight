@@ -104,6 +104,18 @@ macro_rules! impl_plan_node {
                     $( Self::$node_name(inner) => inner.clone_with_children(children),)*
                 }
             }
+            $(
+                paste! {
+                    #[allow(dead_code)]
+                    pub fn [<try_as_ $node_name:lower>]<'a>(&'a self) -> Option<&'a $node_name> {
+                        if let Ok(ret) = self.try_into() as Result<&'a $node_name, ()> {
+                            return Some(ret)
+                        }
+                        None
+                    }
+                }
+            )*
+
         }
 
         $(
@@ -145,23 +157,6 @@ macro_rules! impl_plan_node {
 }
 
 for_all_plan_nodes! { impl_plan_node }
-
-macro_rules! impl_plan_try_into {
-    ([], $( { $node_name:ident, $node_type:ty } ),*) => {
-        $(
-            paste! {
-                #[allow(dead_code)]
-                pub fn [<try_as_ $node_name:lower>]<'a>(plan: &'a LogicalPlan) -> Option<&'a $node_name> {
-                    if let Ok(ret) = plan.try_into() as Result<&'a $node_name, ()> {
-                        return Some(ret)
-                    }
-                    None
-                }
-            }
-        )*
-    }
-}
-for_all_plan_nodes! { impl_plan_try_into }
 
 pub(super) trait LeafLogicalPlanNode: Clone {}
 macro_rules! impl_plan_node_for_leaf {
