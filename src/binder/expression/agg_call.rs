@@ -1,7 +1,9 @@
 use super::*;
-use crate::binder::{BindError, Binder, BoundExpr};
-use crate::parser::{BinaryOperator, FunctionArg};
-use crate::types::{DataType, DataTypeKind};
+use crate::{
+    binder::{BindError, Binder, BoundExpr},
+    parser::{BinaryOperator, FunctionArg},
+    types::{DataType, DataTypeKind},
+};
 
 /// Aggregation kind
 #[derive(Debug, PartialEq, Clone)]

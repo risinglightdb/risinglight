@@ -1,6 +1,5 @@
 use super::*;
-use crate::binder::Object;
-use crate::logical_optimizer::plan_nodes::logical_drop::LogicalDrop;
+use crate::{binder::Object, logical_optimizer::plan_nodes::logical_drop::LogicalDrop};
 
 /// The physical plan of `drop`.
 #[derive(Debug, PartialEq, Clone)]

@@ -1,7 +1,9 @@
 use super::*;
-use crate::binder::{BoundExpr, BoundExpr::*};
-use crate::parser::{BinaryOperator::*, UnaryOperator};
-use crate::types::{DataTypeKind as Ty, DataValue::*};
+use crate::{
+    binder::{BoundExpr, BoundExpr::*},
+    parser::{BinaryOperator::*, UnaryOperator},
+    types::{DataTypeKind as Ty, DataValue::*},
+};
 
 /// Arithemtic expression simplification rule prunes the useless constant in the binary expressions.
 ///

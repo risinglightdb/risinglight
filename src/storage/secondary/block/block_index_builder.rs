@@ -1,6 +1,6 @@
-use super::BlockHeader;
-use super::BLOCK_HEADER_SIZE;
 use risinglight_proto::rowset::{block_checksum::ChecksumType, block_index::BlockType, BlockIndex};
+
+use super::{BlockHeader, BLOCK_HEADER_SIZE};
 
 /// Builds the block index.
 pub struct BlockIndexBuilder {

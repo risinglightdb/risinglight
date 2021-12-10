@@ -2,8 +2,7 @@
 
 use log::info;
 use risinglight::{storage::SecondaryStorageOptions, Database};
-use rustyline::error::ReadlineError;
-use rustyline::Editor;
+use rustyline::{error::ReadlineError, Editor};
 
 #[tokio::main]
 async fn main() {

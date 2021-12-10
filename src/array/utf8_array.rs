@@ -1,7 +1,9 @@
-use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt};
+use std::iter::FromIterator;
+
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
-use std::iter::FromIterator;
+
+use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt};
 
 /// A collection of Rust UTF8 `String`s.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

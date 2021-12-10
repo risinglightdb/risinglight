@@ -1,7 +1,11 @@
-use super::*;
+use std::{
+    iter::Sum,
+    simd::{LaneCount, Simd, SimdElement, SupportedLaneCount},
+};
+
 use bitvec::prelude::{BitSlice, Lsb0};
-use std::iter::Sum;
-use std::simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
+
+use super::*;
 
 impl<T: NativeType> PrimitiveArray<T> {
     /// Returns a batch iterator for SIMD.

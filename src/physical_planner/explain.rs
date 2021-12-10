@@ -1,6 +1,5 @@
-use crate::logical_optimizer::plan_nodes::logical_explain::LogicalExplain;
-
 use super::*;
+use crate::logical_optimizer::plan_nodes::logical_explain::LogicalExplain;
 
 /// The physical plan of `explain`.
 #[derive(Debug, PartialEq, Clone)]

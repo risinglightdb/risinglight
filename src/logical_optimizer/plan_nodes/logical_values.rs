@@ -1,5 +1,4 @@
-use crate::binder::BoundExpr;
-use crate::types::DataType;
+use crate::{binder::BoundExpr, types::DataType};
 
 /// The logical plan of `VALUES`.
 #[derive(Debug, PartialEq, Clone)]

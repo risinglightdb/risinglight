@@ -38,9 +38,9 @@ pub mod storage;
 /// Basic type definitions.
 pub mod types;
 
-pub use self::db::{Database, Error};
-
 use jemallocator::Jemalloc;
+
+pub use self::db::{Database, Error};
 
 /// Jemalloc can significantly improve performance compared to the default system allocator.
 #[global_allocator]

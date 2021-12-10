@@ -1,5 +1,6 @@
-use risinglight::{array::*, storage::SecondaryStorageOptions, types::DataValue, Database, Error};
 use std::path::Path;
+
+use risinglight::{array::*, storage::SecondaryStorageOptions, types::DataValue, Database, Error};
 use tempfile::tempdir;
 use test_case::test_case;
 use tokio::runtime::Runtime;

@@ -4,9 +4,8 @@ use bytes::Buf;
 use prost::Message;
 use risinglight_proto::rowset::BlockIndex;
 
-use crate::storage::secondary::INDEX_FOOTER_SIZE;
-
 use super::{ColumnSeekPosition, SECONDARY_INDEX_MAGIC};
+use crate::storage::secondary::INDEX_FOOTER_SIZE;
 
 #[derive(Clone)]
 pub struct ColumnIndex {

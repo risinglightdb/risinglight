@@ -1,6 +1,7 @@
+use bytes::Buf;
+
 use super::{Block, BlockIterator};
 use crate::array::{ArrayBuilder, Utf8Array, Utf8ArrayBuilder};
-use bytes::Buf;
 
 /// Scans one or several arrays from the block content.
 pub struct PlainCharBlockIterator {
@@ -79,12 +80,14 @@ impl BlockIterator<Utf8Array> for PlainCharBlockIterator {
 mod tests {
     use bytes::Bytes;
 
-    use crate::array::ArrayToVecExt;
-    use crate::array::{ArrayBuilder, Utf8ArrayBuilder};
-    use crate::storage::secondary::block::{BlockBuilder, PlainCharBlockBuilder};
-    use crate::storage::secondary::BlockIterator;
-
     use super::*;
+    use crate::{
+        array::{ArrayBuilder, ArrayToVecExt, Utf8ArrayBuilder},
+        storage::secondary::{
+            block::{BlockBuilder, PlainCharBlockBuilder},
+            BlockIterator,
+        },
+    };
 
     #[test]
     fn test_scan_char() {

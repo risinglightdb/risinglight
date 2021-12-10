@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
-
 pub use sqlparser::ast::DataType as DataTypeKind;
 
 mod native;
-pub(crate) use native::*;
 use std::hash::{Hash, Hasher};
+
+pub(crate) use native::*;
 
 /// Data type with nullable.
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

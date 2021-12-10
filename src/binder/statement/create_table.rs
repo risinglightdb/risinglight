@@ -82,11 +82,14 @@ impl From<&ColumnDef> for ColumnCatalog {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::catalog::RootCatalog;
-    use crate::parser::parse;
-    use crate::types::{DataTypeExt, DataTypeKind};
     use std::sync::Arc;
+
+    use super::*;
+    use crate::{
+        catalog::RootCatalog,
+        parser::parse,
+        types::{DataTypeExt, DataTypeKind},
+    };
 
     #[test]
     fn bind_create_table() {

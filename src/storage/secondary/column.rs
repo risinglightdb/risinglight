@@ -12,21 +12,24 @@ mod primitive_column_builder;
 mod primitive_column_iterator;
 mod row_handler_sequencer;
 
+use std::io::{Read, Seek, SeekFrom};
+
 pub use column_builder::*;
 pub use column_iterator::*;
 pub use primitive_column_builder::*;
 pub use primitive_column_iterator::*;
 use risinglight_proto::rowset::BlockIndex;
 pub use row_handler_sequencer::*;
-use std::io::{Read, Seek, SeekFrom};
 mod char_column_iterator;
-pub use char_column_iterator::*;
+use std::{
+    os::unix::fs::FileExt,
+    sync::{Arc, Mutex},
+};
 
 use async_trait::async_trait;
 use bytes::Bytes;
+pub use char_column_iterator::*;
 use moka::future::Cache;
-use std::os::unix::fs::FileExt;
-use std::sync::{Arc, Mutex};
 
 use super::{Block, BlockCacheKey, BlockHeader, ColumnIndex, BLOCK_HEADER_SIZE};
 use crate::array::Array;

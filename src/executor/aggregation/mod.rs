@@ -1,6 +1,5 @@
 use super::*;
-use crate::array::ArrayImpl;
-use crate::types::DataValue;
+use crate::{array::ArrayImpl, types::DataValue};
 
 mod count;
 mod min_max;

@@ -1,6 +1,5 @@
-use crate::storage::StorageChunk;
-
 use super::SecondaryIteratorImpl;
+use crate::storage::StorageChunk;
 
 pub struct TestIterator {
     chunks: Vec<StorageChunk>,

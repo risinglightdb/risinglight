@@ -2,10 +2,8 @@ use std::marker::PhantomData;
 
 use bytes::Buf;
 
+use super::{super::PrimitiveFixedWidthEncode, Block, BlockIterator};
 use crate::array::{Array, ArrayBuilder};
-
-use super::super::PrimitiveFixedWidthEncode;
-use super::{Block, BlockIterator};
 
 /// Scans one or several arrays from the block content.
 pub struct PlainPrimitiveNullableBlockIterator<T: PrimitiveFixedWidthEncode> {
@@ -91,12 +89,14 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType>
 mod tests {
     use bytes::Bytes;
 
-    use crate::array::ArrayToVecExt;
-    use crate::array::{ArrayBuilder, I32ArrayBuilder};
-    use crate::storage::secondary::block::{BlockBuilder, PlainPrimitiveNullableBlockBuilder};
-    use crate::storage::secondary::BlockIterator;
-
     use super::PlainPrimitiveNullableBlockIterator;
+    use crate::{
+        array::{ArrayBuilder, ArrayToVecExt, I32ArrayBuilder},
+        storage::secondary::{
+            block::{BlockBuilder, PlainPrimitiveNullableBlockBuilder},
+            BlockIterator,
+        },
+    };
 
     #[test]
     fn test_scan_i32() {

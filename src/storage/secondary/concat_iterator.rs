@@ -1,6 +1,5 @@
-use crate::storage::StorageChunk;
-
 use super::{RowSetIterator, SecondaryIteratorImpl};
+use crate::storage::StorageChunk;
 
 /// [`ConcatIterator`] concats data from `RowSet`s and yields data
 /// from them one by one. This iterator should only be used on

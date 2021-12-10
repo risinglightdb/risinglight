@@ -64,8 +64,7 @@ pub trait PlanRewriter {
     }
 
     fn rewrite_join(&mut self, plan: &LogicalJoin) -> Option<LogicalPlanRef> {
-        use super::BoundJoinConstraint::*;
-        use super::BoundJoinOperator::*;
+        use super::{BoundJoinConstraint::*, BoundJoinOperator::*};
 
         Some(
             LogicalPlan::LogicalJoin(LogicalJoin {

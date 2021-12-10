@@ -1,8 +1,11 @@
-use super::*;
-use crate::array::{ArrayBuilderImpl, DataChunk};
-use crate::binder::{BoundExpr, BoundOrderBy};
-use crate::types::DataValue;
 use std::cmp::Ordering;
+
+use super::*;
+use crate::{
+    array::{ArrayBuilderImpl, DataChunk},
+    binder::{BoundExpr, BoundOrderBy},
+    types::DataValue,
+};
 
 /// The executor of an order operation.
 pub struct OrderExecutor {

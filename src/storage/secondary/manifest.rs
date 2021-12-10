@@ -5,19 +5,22 @@
 //! catalog implementation, e.g., TableId assignment, will break the manifest. We will
 //! later come up with a better manifest design.
 
-use std::io::SeekFrom;
-use std::path::Path;
+use std::{io::SeekFrom, path::Path};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Deserializer;
-use tokio::fs::OpenOptions;
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
+use tokio::{
+    fs::OpenOptions,
+    io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader},
+};
 
-use crate::catalog::{ColumnCatalog, TableRefId};
-use crate::types::{DatabaseId, SchemaId};
-
-use super::version_manager::EpochOp;
-use super::{SecondaryStorage, SecondaryTable, StorageError, StorageResult};
+use super::{
+    version_manager::EpochOp, SecondaryStorage, SecondaryTable, StorageError, StorageResult,
+};
+use crate::{
+    catalog::{ColumnCatalog, TableRefId},
+    types::{DatabaseId, SchemaId},
+};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct CreateTableEntry {
