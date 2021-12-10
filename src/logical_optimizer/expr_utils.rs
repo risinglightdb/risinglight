@@ -3,13 +3,7 @@ use crate::logical_optimizer::BoundExpr::BinaryOp;
 use crate::parser::BinaryOperator::And;
 use bit_set::BitSet;
 pub fn conjunctions_inner(expr: BoundExpr, rets: &mut Vec<BoundExpr>) {
-    let mut is_and = false;
-    if let BinaryOp(ref bin_expr) = expr {
-        if bin_expr.op == And {
-            is_and = true;
-        }
-    }
-    if is_and {
+    if matches!(expr, BinaryOp(ref binary_expr) if binary_expr.op == And) {
         if let BinaryOp(bin_expr) = expr {
             conjunctions_inner(*bin_expr.left_expr, rets);
             conjunctions_inner(*bin_expr.right_expr, rets);
