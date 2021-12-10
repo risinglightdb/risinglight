@@ -1,12 +1,13 @@
-use crate::{
-    catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME},
-    parser::{Ident, ObjectName, Statement},
-    types::ColumnId,
-};
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
     vec::Vec,
+};
+
+use crate::{
+    catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME},
+    parser::{Ident, ObjectName, Statement},
+    types::ColumnId,
 };
 
 mod expression;

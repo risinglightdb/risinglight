@@ -1,14 +1,16 @@
+use std::{
+    collections::HashSet,
+    sync::{Arc, RwLock},
+    vec::Vec,
+};
+
+use async_trait::async_trait;
+
 use super::*;
 use crate::{
     array::{DataChunk, DataChunkRef},
     catalog::TableRefId,
     storage::Table,
-};
-use async_trait::async_trait;
-use std::{
-    collections::HashSet,
-    sync::{Arc, RwLock},
-    vec::Vec,
 };
 
 /// A table in in-memory engine. This struct can be freely cloned, as it

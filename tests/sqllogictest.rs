@@ -2,10 +2,11 @@
 //!
 //! [Sqllogictest]: https://www.sqlite.org/sqllogictest/doc/trunk/about.wiki
 
+use std::path::Path;
+
 use itertools::Itertools;
 use log::*;
 use risinglight::{array::*, storage::SecondaryStorageOptions, types::DataValue, Database};
-use std::path::Path;
 use tempfile::{tempdir, TempDir};
 use test_case::test_case;
 

@@ -1,9 +1,10 @@
+use std::path::PathBuf;
+
 use crate::{
     binder::statement::copy::FileFormat,
     logical_optimizer::plan_nodes::{LogicalPlan, LogicalPlanRef, UnaryLogicalPlanNode},
     types::DataType,
 };
-use std::path::PathBuf;
 
 /// The logical plan of `COPY TO`.
 #[derive(Debug, PartialEq, Clone)]

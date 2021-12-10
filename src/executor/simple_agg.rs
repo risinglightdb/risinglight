@@ -1,11 +1,12 @@
+use itertools::Itertools;
+use smallvec::SmallVec;
+
 use super::*;
 use crate::{
     array::{ArrayBuilderImpl, ArrayImpl},
     binder::{AggKind, BoundAggCall},
     types::{DataTypeExt, DataTypeKind, DataValue},
 };
-use itertools::Itertools;
-use smallvec::SmallVec;
 
 /// The executor of simple aggregation.
 pub struct SimpleAggExecutor {

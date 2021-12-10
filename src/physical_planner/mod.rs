@@ -12,7 +12,6 @@ mod order;
 mod projection;
 mod seq_scan;
 
-pub use crate::logical_optimizer::plan_rewriter::input_ref_resolver::*;
 pub use aggregate::*;
 pub use copy::*;
 pub use create::*;
@@ -27,6 +26,7 @@ pub use order::*;
 pub use projection::*;
 pub use seq_scan::*;
 
+pub use crate::logical_optimizer::plan_rewriter::input_ref_resolver::*;
 use crate::logical_optimizer::{plan_nodes::LogicalPlan, plan_rewriter::PlanRewriter};
 
 #[derive(thiserror::Error, Debug, PartialEq)]

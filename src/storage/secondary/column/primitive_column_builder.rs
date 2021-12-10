@@ -2,8 +2,6 @@ use std::iter::Peekable;
 
 use risinglight_proto::rowset::{block_index::BlockType, BlockIndex};
 
-use crate::array::Array;
-
 use super::{
     super::{
         BlockBuilder, BlockIndexBuilder, ColumnBuilderOptions, PlainPrimitiveBlockBuilder,
@@ -11,6 +9,7 @@ use super::{
     },
     ColumnBuilder,
 };
+use crate::array::Array;
 
 /// All supported block builders for primitive types.
 pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
@@ -132,10 +131,10 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
 
 #[cfg(test)]
 mod tests {
-    use crate::array::I32Array;
     use std::iter::FromIterator;
 
     use super::*;
+    use crate::array::I32Array;
 
     #[test]
     fn test_i32_column_builder_finish_boundary() {

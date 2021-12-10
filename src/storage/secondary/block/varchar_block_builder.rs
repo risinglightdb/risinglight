@@ -1,8 +1,7 @@
 use bytes::BufMut;
 
-use crate::array::Utf8Array;
-
 use super::BlockBuilder;
+use crate::array::Utf8Array;
 
 /// Encodes offset and data into a block. The data layout is
 /// ```plain

@@ -1,15 +1,15 @@
+use std::sync::Arc;
+
 use bitvec::prelude::BitVec;
 use smallvec::smallvec;
-
-use crate::{
-    array::ArrayImpl,
-    storage::{secondary::DeleteVector, PackedVec, StorageChunk, StorageColumnRef},
-};
-use std::sync::Arc;
 
 use super::{
     super::{ColumnIteratorImpl, ColumnSeekPosition, RowHandlerSequencer, SecondaryIteratorImpl},
     DiskRowset,
+};
+use crate::{
+    array::ArrayImpl,
+    storage::{secondary::DeleteVector, PackedVec, StorageChunk, StorageColumnRef},
 };
 
 /// When `expected_size` is not specified, we should limit the maximum size of the chunk.
@@ -199,12 +199,13 @@ impl SecondaryIteratorImpl for RowSetIterator {}
 
 #[cfg(test)]
 mod tests {
+    use itertools::Itertools;
+
     use super::*;
     use crate::{
         array::{Array, ArrayToVecExt},
         storage::secondary::{rowset::tests::helper_build_rowset, SecondaryRowHandler},
     };
-    use itertools::Itertools;
 
     #[tokio::test]
     async fn test_rowset_iterator() {

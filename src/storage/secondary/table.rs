@@ -1,7 +1,3 @@
-use super::*;
-use crate::{catalog::TableRefId, storage::Table};
-use async_trait::async_trait;
-use moka::future::Cache;
 use std::{
     path::PathBuf,
     sync::{
@@ -9,6 +5,12 @@ use std::{
         Arc,
     },
 };
+
+use async_trait::async_trait;
+use moka::future::Cache;
+
+use super::*;
+use crate::{catalog::TableRefId, storage::Table};
 
 /// A table in Secondary engine.
 ///

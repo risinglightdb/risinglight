@@ -1,9 +1,8 @@
+use super::LogicalPlanRef;
 use crate::{
     catalog::TableRefId,
     logical_optimizer::plan_nodes::{LogicalPlan, UnaryLogicalPlanNode},
 };
-
-use super::LogicalPlanRef;
 
 /// The logical plan of `delete`.
 #[derive(Debug, PartialEq, Clone)]

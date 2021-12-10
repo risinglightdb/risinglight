@@ -1,12 +1,11 @@
+use super::{
+    BoolColumnIterator, CharColumnIterator, Column, ColumnIterator, F64ColumnIterator,
+    I32ColumnIterator,
+};
 use crate::{
     array::{Array, ArrayImpl},
     catalog::ColumnCatalog,
     types::DataTypeKind,
-};
-
-use super::{
-    BoolColumnIterator, CharColumnIterator, Column, ColumnIterator, F64ColumnIterator,
-    I32ColumnIterator,
 };
 
 /// [`ColumnIteratorImpl`] of all types

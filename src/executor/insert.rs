@@ -1,3 +1,7 @@
+use std::sync::Arc;
+
+use itertools::Itertools;
+
 use super::*;
 use crate::{
     array::{ArrayBuilderImpl, DataChunk},
@@ -5,8 +9,6 @@ use crate::{
     storage::{Storage, Table, Transaction},
     types::{ColumnId, DataType, DataValue},
 };
-use itertools::Itertools;
-use std::sync::Arc;
 
 /// The executor of `insert` statement.
 pub struct InsertExecutor<S: Storage> {
@@ -73,6 +75,8 @@ fn transform_chunk(chunk: DataChunk, output_columns: &[Column]) -> DataChunk {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
     use crate::{
         array::{ArrayImpl, DataChunk},
@@ -82,7 +86,6 @@ mod tests {
         storage::InMemoryStorage,
         types::{DataTypeExt, DataTypeKind},
     };
-    use std::sync::Arc;
 
     #[tokio::test]
     async fn simple() {

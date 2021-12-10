@@ -1,5 +1,6 @@
-use crate::{binder::statement::copy::FileFormat, types::DataType};
 use std::path::PathBuf;
+
+use crate::{binder::statement::copy::FileFormat, types::DataType};
 
 /// The logical plan of `copy`.
 #[derive(Debug, PartialEq, Clone)]

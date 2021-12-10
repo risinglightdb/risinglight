@@ -14,13 +14,12 @@ use tokio::{
     io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader},
 };
 
+use super::{
+    version_manager::EpochOp, SecondaryStorage, SecondaryTable, StorageError, StorageResult,
+};
 use crate::{
     catalog::{ColumnCatalog, TableRefId},
     types::{DatabaseId, SchemaId},
-};
-
-use super::{
-    version_manager::EpochOp, SecondaryStorage, SecondaryTable, StorageError, StorageResult,
 };
 
 #[derive(Clone, Serialize, Deserialize)]

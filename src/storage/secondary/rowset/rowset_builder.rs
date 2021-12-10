@@ -1,8 +1,10 @@
-use risinglight_proto::rowset::block_checksum::ChecksumType;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+
+use itertools::Itertools;
+use risinglight_proto::rowset::block_checksum::ChecksumType;
 use tokio::{
     fs::{File, OpenOptions},
     io::{AsyncWriteExt, BufWriter},
@@ -14,8 +16,6 @@ use crate::{
     catalog::ColumnCatalog,
     storage::{secondary::ColumnBuilderOptions, StorageResult},
 };
-
-use itertools::Itertools;
 
 pub fn path_of_data_column(base: impl AsRef<Path>, column_info: &ColumnCatalog) -> PathBuf {
     path_of_column(base, column_info, ".col")
@@ -124,12 +124,11 @@ impl RowsetBuilder {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::{
         array::I32Array,
         types::{DataTypeExt, DataTypeKind},
     };
-
-    use super::*;
 
     #[tokio::test]
     async fn test_rowset_flush() {

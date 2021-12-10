@@ -1,13 +1,14 @@
 use std::{collections::HashSet, sync::Arc};
 
+use async_trait::async_trait;
+use itertools::Itertools;
+
 use super::{table::InMemoryTableInnerRef, InMemoryRowHandler, InMemoryTable, InMemoryTxnIterator};
 use crate::{
     array::{ArrayBuilderImpl, ArrayImplBuilderPickExt, ArrayImplSortExt, DataChunk, DataChunkRef},
     catalog::{find_sort_key_id, ColumnCatalog},
     storage::{StorageColumnRef, StorageResult, Transaction},
 };
-use async_trait::async_trait;
-use itertools::Itertools;
 
 /// A transaction running on `InMemoryStorage`.
 pub struct InMemoryTransaction {

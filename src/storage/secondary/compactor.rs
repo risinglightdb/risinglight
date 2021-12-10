@@ -3,6 +3,7 @@ use std::{sync::Arc, time::Duration};
 use itertools::Itertools;
 use tokio::sync::oneshot::Receiver;
 
+use super::{SecondaryStorage, SecondaryTable, Snapshot};
 use crate::{
     catalog::find_sort_key_id,
     storage::{
@@ -18,8 +19,6 @@ use crate::{
         StorageColumnRef, StorageResult,
     },
 };
-
-use super::{SecondaryStorage, SecondaryTable, Snapshot};
 
 /// Manages all compactions happening in the storage engine.
 pub struct Compactor {

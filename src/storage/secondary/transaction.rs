@@ -1,5 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
+use async_trait::async_trait;
+use itertools::Itertools;
+use risinglight_proto::rowset::{block_statistics::BlockStatisticsType, DeleteRecord};
+
 use super::{
     version_manager::{Snapshot, VersionManager},
     AddDVEntry, AddRowSetEntry, ColumnBuilderOptions, ColumnSeekPosition, ConcatIterator,
@@ -15,9 +19,6 @@ use crate::{
     },
     types::DataValue,
 };
-use async_trait::async_trait;
-use itertools::Itertools;
-use risinglight_proto::rowset::{block_statistics::BlockStatisticsType, DeleteRecord};
 
 /// A transaction running on `SecondaryStorage`.
 pub struct SecondaryTransaction {

@@ -1,9 +1,10 @@
-use super::*;
-use crate::types::{DatabaseId, SchemaId};
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
+
+use super::*;
+use crate::types::{DatabaseId, SchemaId};
 
 /// The catalog of a database.
 pub struct DatabaseCatalog {

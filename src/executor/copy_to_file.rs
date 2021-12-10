@@ -1,7 +1,9 @@
+use std::{fs::File, path::PathBuf};
+
+use tokio::sync::mpsc;
+
 use super::*;
 use crate::binder::FileFormat;
-use std::{fs::File, path::PathBuf};
-use tokio::sync::mpsc;
 
 /// The executor of saving data to file.
 pub struct CopyToFileExecutor {

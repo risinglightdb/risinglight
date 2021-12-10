@@ -1,3 +1,8 @@
+use std::sync::Arc;
+
+use futures::TryStreamExt;
+use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
+
 use crate::{
     array::{ArrayBuilder, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder},
     binder::{BindError, Binder},
@@ -12,9 +17,6 @@ use crate::{
         StorageImpl, Table,
     },
 };
-use futures::TryStreamExt;
-use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
-use std::sync::Arc;
 
 /// The database instance.
 pub struct Database {

@@ -1,15 +1,14 @@
-use crate::{
-    array::{ArrayBuilder, Utf8Array, Utf8ArrayBuilder},
-    storage::secondary::block::{PlainCharBlockIterator, PlainVarcharBlockIterator},
-};
+use async_trait::async_trait;
+use risinglight_proto::rowset::{block_index::BlockType, BlockIndex};
 
 use super::{
     super::{Block, BlockIterator},
     Column, ColumnIterator, ColumnSeekPosition,
 };
-
-use async_trait::async_trait;
-use risinglight_proto::rowset::{block_index::BlockType, BlockIndex};
+use crate::{
+    array::{ArrayBuilder, Utf8Array, Utf8ArrayBuilder},
+    storage::secondary::block::{PlainCharBlockIterator, PlainVarcharBlockIterator},
+};
 
 /// All supported block iterators for char types.
 pub(super) enum PlainCharBlockIteratorImpl {

@@ -1,15 +1,15 @@
 use risinglight_proto::rowset::BlockIndex;
 
 use super::{
-    super::ColumnBuilderOptions, char_column_builder::CharColumnBuilder, BoolColumnBuilder,
-    ColumnBuilder,
+    super::ColumnBuilderOptions,
+    char_column_builder::CharColumnBuilder,
+    primitive_column_builder::{F64ColumnBuilder, I32ColumnBuilder},
+    BoolColumnBuilder, ColumnBuilder,
 };
 use crate::{
     array::ArrayImpl,
     types::{DataType, DataTypeKind},
 };
-
-use super::primitive_column_builder::{F64ColumnBuilder, I32ColumnBuilder};
 
 /// [`ColumnBuilder`] of all types
 pub enum ColumnBuilderImpl {

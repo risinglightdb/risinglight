@@ -1,10 +1,9 @@
+use super::LogicalPlanRef;
 use crate::{
     catalog::TableRefId,
     logical_optimizer::plan_nodes::{LogicalPlan, UnaryLogicalPlanNode},
     types::ColumnId,
 };
-
-use super::LogicalPlanRef;
 
 /// The logical plan of `INSERT`.
 #[derive(Debug, PartialEq, Clone)]

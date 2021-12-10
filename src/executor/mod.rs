@@ -10,15 +10,17 @@
 //!
 //! [`try_stream`]: async_stream::try_stream
 
+use std::sync::Arc;
+
+use async_stream::try_stream;
+use futures::stream::{BoxStream, Stream, StreamExt};
+
 use crate::{
     array::DataChunk,
     physical_planner::PhysicalPlan,
     storage::{Storage, StorageError, StorageImpl},
     types::ConvertError,
 };
-use async_stream::try_stream;
-use futures::stream::{BoxStream, Stream, StreamExt};
-use std::sync::Arc;
 
 mod aggregation;
 mod copy_from_file;

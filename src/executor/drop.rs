@@ -1,6 +1,7 @@
+use std::sync::Arc;
+
 use super::*;
 use crate::{binder::Object, physical_planner::PhysicalDrop, storage::Storage};
-use std::sync::Arc;
 /// The executor of `drop` statement.
 pub struct DropExecutor<S: Storage> {
     pub plan: PhysicalDrop,

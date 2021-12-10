@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
-use crate::array::{Array, ArrayBuilder};
+use async_trait::async_trait;
+use risinglight_proto::rowset::{block_index::BlockType, BlockIndex};
 
 use super::{
     super::{
@@ -9,9 +10,7 @@ use super::{
     },
     Column, ColumnIterator, ColumnSeekPosition,
 };
-
-use async_trait::async_trait;
-use risinglight_proto::rowset::{block_index::BlockType, BlockIndex};
+use crate::array::{Array, ArrayBuilder};
 
 /// All supported block iterators for primitive types.
 pub(super) enum BlockIteratorImpl<T: PrimitiveFixedWidthEncode> {
@@ -163,13 +162,13 @@ impl<T: PrimitiveFixedWidthEncode> ColumnIterator<T::ArrayType> for PrimitiveCol
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use itertools::Itertools;
 
+    use super::*;
     use crate::{
         array::ArrayToVecExt,
         storage::secondary::{rowset::tests::helper_build_rowset, PrimitiveColumnIterator},
     };
-    use itertools::Itertools;
 
     #[tokio::test]
     async fn test_scan_i32() {

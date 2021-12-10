@@ -6,6 +6,11 @@ use std::{
     },
 };
 
+use moka::future::Cache;
+use parking_lot::RwLock;
+use tokio::{fs, sync::Mutex};
+
+use super::{DiskRowset, Manifest, SecondaryStorage, StorageOptions, StorageResult};
 use crate::{
     catalog::RootCatalog,
     storage::secondary::{
@@ -15,11 +20,6 @@ use crate::{
         DeleteVector,
     },
 };
-
-use super::{DiskRowset, Manifest, SecondaryStorage, StorageOptions, StorageResult};
-use moka::future::Cache;
-use parking_lot::RwLock;
-use tokio::{fs, sync::Mutex};
 
 impl SecondaryStorage {
     pub(super) async fn bootstrap(options: StorageOptions) -> StorageResult<Self> {

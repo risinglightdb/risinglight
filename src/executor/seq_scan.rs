@@ -1,11 +1,13 @@
+use std::sync::Arc;
+
+use itertools::Itertools;
+
 use super::*;
 use crate::{
     array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I64ArrayBuilder},
     physical_planner::PhysicalSeqScan,
     storage::{Storage, StorageColumnRef, Table, Transaction, TxnIterator},
 };
-use itertools::Itertools;
-use std::sync::Arc;
 
 /// The executor of sequential scan operation.
 pub struct SeqScanExecutor<S: Storage> {

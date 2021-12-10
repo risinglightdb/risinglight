@@ -1,11 +1,12 @@
 use std::{collections::HashSet, sync::Arc};
 
+use async_trait::async_trait;
+use bitvec::prelude::BitVec;
+
 use crate::{
     array::{ArrayImpl, DataChunk, DataChunkRef, I64Array},
     storage::{StorageColumnRef, StorageResult, TxnIterator},
 };
-use async_trait::async_trait;
-use bitvec::prelude::BitVec;
 
 /// An iterator over all data in a transaction.
 ///

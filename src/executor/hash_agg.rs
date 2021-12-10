@@ -1,3 +1,8 @@
+use std::collections::HashMap;
+
+use itertools::Itertools;
+use smallvec::SmallVec;
+
 use super::*;
 use crate::{
     array::{ArrayBuilderImpl, ArrayImpl},
@@ -5,9 +10,6 @@ use crate::{
     executor::aggregation::AggregationState,
     types::DataValue,
 };
-use itertools::Itertools;
-use smallvec::SmallVec;
-use std::collections::HashMap;
 
 /// The executor of hash aggregation.
 pub struct HashAggExecutor {

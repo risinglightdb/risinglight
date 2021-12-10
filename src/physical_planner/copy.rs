@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::*;
 use crate::{
     binder::FileFormat,
@@ -6,7 +8,6 @@ use crate::{
     },
     types::DataType,
 };
-use std::path::PathBuf;
 
 /// The physical plan of `COPY FROM`.
 #[derive(Debug, PartialEq, Clone)]

@@ -143,13 +143,14 @@ impl Binder {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
     use crate::{
         catalog::{ColumnCatalog, RootCatalog},
         parser::parse,
         types::{DataTypeExt, DataTypeKind},
     };
-    use std::sync::Arc;
 
     #[test]
     fn bind_insert() {

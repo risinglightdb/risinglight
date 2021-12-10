@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::*;
 use crate::{
     binder::BoundCopy,
@@ -7,7 +9,6 @@ use crate::{
     },
     parser::CopyTarget,
 };
-use std::path::PathBuf;
 
 impl LogicalPlaner {
     pub fn plan_copy(&self, stmt: BoundCopy) -> Result<LogicalPlan, LogicalPlanError> {

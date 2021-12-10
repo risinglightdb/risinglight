@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+
 pub use self::{column::*, database::*, root::*, schema::*, table::*};
 use crate::types::*;
-use serde::{Deserialize, Serialize};
 
 pub static DEFAULT_DATABASE_NAME: &str = "postgres";
 pub static DEFAULT_SCHEMA_NAME: &str = "postgres";
