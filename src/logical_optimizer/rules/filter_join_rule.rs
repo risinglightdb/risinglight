@@ -1,14 +1,15 @@
-use super::LogicalPlanRef;
-use super::Rule;
-use crate::binder::BoundExpr;
-use crate::logical_optimizer::plan_nodes::{
-    BinaryLogicalPlanNode, LogicalJoin, UnaryLogicalPlanNode,
+use super::{LogicalPlanRef, Rule};
+use crate::{
+    binder::BoundExpr,
+    logical_optimizer::{
+        plan_nodes::{BinaryLogicalPlanNode, LogicalJoin, UnaryLogicalPlanNode},
+        BoundBinaryOp,
+        BoundJoinConstraint::On,
+        BoundJoinOperator::Inner,
+    },
+    parser::BinaryOperator::And,
+    types::{DataTypeExt, DataTypeKind},
 };
-use crate::logical_optimizer::BoundBinaryOp;
-use crate::logical_optimizer::BoundJoinConstraint::On;
-use crate::logical_optimizer::BoundJoinOperator::Inner;
-use crate::parser::BinaryOperator::And;
-use crate::types::{DataTypeExt, DataTypeKind};
 
 pub struct FilterJoinRule {}
 impl Rule for FilterJoinRule {

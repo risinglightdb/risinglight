@@ -1,7 +1,7 @@
-use paste::paste;
 use std::rc::Rc;
 
 pub use dummy::*;
+use paste::paste;
 pub mod dummy;
 pub use logical_values::*;
 pub mod logical_aggregate;

@@ -5,6 +5,8 @@ mod heuristic;
 use heuristic::HeuristicOptimizer;
 pub(crate) mod plan_nodes;
 mod rules;
+use rules::*;
+
 use self::{
     plan_nodes::LogicalPlanRef,
     plan_rewriter::{
@@ -13,7 +15,6 @@ use self::{
         constant_moving::ConstantMovingRule, PlanRewriter,
     },
 };
-use rules::*;
 
 /// The optimizer will do query optimization.
 ///

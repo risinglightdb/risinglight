@@ -1,5 +1,6 @@
-use super::plan_nodes::LogicalPlanRef;
 pub use filter_join_rule::*;
+
+use super::plan_nodes::LogicalPlanRef;
 pub mod filter_join_rule;
 
 pub trait Rule: Send + Sync + 'static {
