@@ -1456,6 +1456,7 @@ dependencies = [
  "serde",
  "serde_json",
  "smallvec",
+ "sqllogictest",
  "sqlparser",
  "tempfile",
  "test-case",
@@ -1660,6 +1661,18 @@ checksum = "5dc90fe6c7be1a323296982db1836d1ea9e47b6839496dde9a541bc496df3516"
 dependencies = [
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "sqllogictest"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "611a6a68cbbe005e8862169ee817d0b87cad26cd25e71ac668fe995f93a10706"
+dependencies = [
+ "itertools",
+ "log",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]

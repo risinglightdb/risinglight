@@ -1,6 +1,6 @@
-use crate::array::ArrayImplValidExt;
 // use crate::array::ArrayImplValidExt;
 use super::*;
+use crate::array::ArrayImplValidExt;
 
 /// State for row count aggregation
 pub struct CountAggregationState {

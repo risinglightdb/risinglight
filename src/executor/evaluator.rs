@@ -1,10 +1,11 @@
+use std::borrow::Borrow;
+
 use crate::{
     array::*,
     binder::BoundExpr,
     parser::{BinaryOperator, UnaryOperator},
     types::{ConvertError, DataTypeKind, DataValue},
 };
-use std::borrow::Borrow;
 
 impl BoundExpr {
     /// Evaluate the given expression as a constant value.
@@ -229,9 +230,10 @@ impl ArrayImpl {
 }
 
 #[cfg(feature = "simd")]
-use crate::types::NativeType;
-#[cfg(feature = "simd")]
 use std::simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
+
+#[cfg(feature = "simd")]
+use crate::types::NativeType;
 
 #[cfg(feature = "simd")]
 pub fn simd_op<T, O, F, const N: usize>(

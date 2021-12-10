@@ -1,7 +1,10 @@
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::Mutex,
+};
+
 use super::*;
 use crate::types::{ColumnId, TableId};
-use std::collections::{BTreeMap, HashMap};
-use std::sync::Mutex;
 
 /// The catalog of a table.
 pub struct TableCatalog {

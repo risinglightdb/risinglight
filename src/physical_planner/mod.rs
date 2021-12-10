@@ -12,7 +12,6 @@ mod order;
 mod projection;
 mod seq_scan;
 
-pub use crate::logical_optimizer::plan_rewriter::input_ref_resolver::*;
 pub use aggregate::*;
 pub use copy::*;
 pub use create::*;

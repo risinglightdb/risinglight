@@ -1,5 +1,4 @@
-use crate::catalog::TableRefId;
-use crate::types::ColumnId;
+use crate::{catalog::TableRefId, types::ColumnId};
 
 /// The logical plan of sequential scan operation.
 #[derive(Debug, PartialEq, Clone)]

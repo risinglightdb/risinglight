@@ -1,15 +1,16 @@
+use std::sync::Arc;
+
 use bitvec::prelude::BitVec;
 use smallvec::smallvec;
 
-use crate::array::ArrayImpl;
-use crate::storage::secondary::DeleteVector;
-use crate::storage::{PackedVec, StorageChunk, StorageColumnRef};
-use std::sync::Arc;
-
-use super::super::{
-    ColumnIteratorImpl, ColumnSeekPosition, RowHandlerSequencer, SecondaryIteratorImpl,
+use super::{
+    super::{ColumnIteratorImpl, ColumnSeekPosition, RowHandlerSequencer, SecondaryIteratorImpl},
+    DiskRowset,
 };
-use super::DiskRowset;
+use crate::{
+    array::ArrayImpl,
+    storage::{secondary::DeleteVector, PackedVec, StorageChunk, StorageColumnRef},
+};
 
 /// When `expected_size` is not specified, we should limit the maximum size of the chunk.
 const ROWSET_MAX_OUTPUT: usize = 65536;
@@ -198,11 +199,13 @@ impl SecondaryIteratorImpl for RowSetIterator {}
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::array::{Array, ArrayToVecExt};
-    use crate::storage::secondary::rowset::tests::helper_build_rowset;
-    use crate::storage::secondary::SecondaryRowHandler;
     use itertools::Itertools;
+
+    use super::*;
+    use crate::{
+        array::{Array, ArrayToVecExt},
+        storage::secondary::{rowset::tests::helper_build_rowset, SecondaryRowHandler},
+    };
 
     #[tokio::test]
     async fn test_rowset_iterator() {

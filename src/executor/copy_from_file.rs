@@ -1,11 +1,11 @@
+use std::{fs::File, io::BufReader};
+
 use indicatif::{ProgressBar, ProgressStyle};
 use itertools::Itertools;
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::*;
 use crate::{array::ArrayBuilderImpl, binder::FileFormat, physical_planner::PhysicalCopyFromFile};
-use std::fs::File;
-use std::io::BufReader;
 
 /// The executor of loading file data.
 pub struct CopyFromFileExecutor {
@@ -131,12 +131,13 @@ impl CopyFromFileExecutor {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write;
+
     use super::*;
     use crate::{
         array::ArrayImpl,
         types::{DataTypeExt, DataTypeKind},
     };
-    use std::io::Write;
 
     #[tokio::test]
     async fn read_csv() {

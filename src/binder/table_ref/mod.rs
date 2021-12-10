@@ -1,6 +1,7 @@
+use std::vec::Vec;
+
 use super::*;
 use crate::parser::{JoinConstraint, JoinOperator, TableFactor, TableWithJoins};
-use std::vec::Vec;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundedSingleJoinTableRef {

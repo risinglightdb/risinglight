@@ -1,5 +1,4 @@
 use crate::{array::DataChunk, types::DataValue, Database, Error};
-use sqllogictest::SqlLogicTester;
 use std::path::Path;
 use test_case::test_case;
 
@@ -11,15 +10,15 @@ use test_case::test_case;
 fn test(name: &str) {
     init_logger();
     let script = std::fs::read_to_string(Path::new("../sql").join(name)).unwrap();
-    let mut tester = SqlLogicTester::new(Database::new());
-    tester.test_script(&script);
+    let mut tester = sqllogictest::Runner::new(Database::new());
+    tester.run_script(&script);
 }
 
 impl sqllogictest::DB for Database {
     type Error = Error;
-    fn run(&self, sql: &str) -> Result<Vec<String>, Self::Error> {
+    fn run(&self, sql: &str) -> Result<String, Self::Error> {
         let chunks = self.run(sql)?;
-        let strings = chunks.iter().map(datachunk_to_strings).flatten().collect();
+        let strings = chunks.iter().map(datachunk_to_string).collect();
         Ok(strings)
     }
 }
@@ -30,26 +29,25 @@ fn init_logger() {
     INIT.call_once(env_logger::init);
 }
 
-fn datachunk_to_strings(chunk: &DataChunk) -> Vec<String> {
-    let mut lines = vec![];
+fn datachunk_to_string(chunk: &DataChunk) -> String {
+    use std::fmt::Write;
+    let mut string = String::new();
     for row in 0..chunk.cardinality() {
-        let mut line = String::new();
         for (col, array) in chunk.arrays().iter().enumerate() {
-            use std::fmt::Write;
             if col != 0 {
-                write!(line, " ").unwrap();
+                write!(string, " ").unwrap();
             }
             match array.get(row) {
-                DataValue::Null => write!(line, "NULL"),
-                DataValue::Bool(v) => write!(line, "{}", v),
-                DataValue::Int32(v) => write!(line, "{}", v),
-                DataValue::Float64(v) => write!(line, "{}", v),
-                DataValue::String(s) if s.is_empty() => write!(line, "(empty)"),
-                DataValue::String(s) => write!(line, "{}", s),
+                DataValue::Null => write!(string, "NULL"),
+                DataValue::Bool(v) => write!(string, "{}", v),
+                DataValue::Int32(v) => write!(string, "{}", v),
+                DataValue::Float64(v) => write!(string, "{}", v),
+                DataValue::String(s) if s.is_empty() => write!(string, "(empty)"),
+                DataValue::String(s) => write!(string, "{}", s),
             }
             .unwrap();
         }
-        lines.push(line);
+        writeln!(string).unwrap();
     }
-    lines
+    string
 }

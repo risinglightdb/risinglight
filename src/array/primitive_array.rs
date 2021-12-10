@@ -1,8 +1,10 @@
-use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt};
-use crate::types::NativeType;
+use std::iter::FromIterator;
+
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
-use std::iter::FromIterator;
+
+use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt};
+use crate::types::NativeType;
 
 #[cfg(feature = "simd")]
 mod simd;
@@ -96,8 +98,9 @@ impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use num_traits::cast::FromPrimitive;
+
+    use super::*;
 
     fn test_builder<T: FromPrimitive + NativeType>() {
         let iter = (0..1000).map(|x| if x % 2 == 0 { None } else { T::from_usize(x) });

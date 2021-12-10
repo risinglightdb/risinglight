@@ -15,11 +15,16 @@
 //! * reverse scan
 //! * `RowHandler` scan
 
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
+
 use super::{Storage, StorageError, StorageResult};
-use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};
-use crate::types::{DatabaseId, SchemaId};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use crate::{
+    catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId},
+    types::{DatabaseId, SchemaId},
+};
 
 mod table;
 pub use table::InMemoryTable;
@@ -31,9 +36,8 @@ mod iterator;
 pub use iterator::InMemoryTxnIterator;
 
 mod row_handler;
-pub use row_handler::InMemoryRowHandler;
-
 use async_trait::async_trait;
+pub use row_handler::InMemoryRowHandler;
 
 /// In-memory storage of RisingLight.
 pub struct InMemoryStorage {

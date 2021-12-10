@@ -45,6 +45,7 @@ tokio = {version = "1", features = ["full"]}
 criterion = {version = "0.3", features = ["async_tokio"]}
 tempfile = "3"
 test-case = "1.2"
+sqllogictest = "0.1"
 
 [[bench]]
 harness = false

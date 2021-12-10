@@ -46,10 +46,10 @@ impl Binder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::catalog::RootCatalog;
-    use crate::parser::parse;
     use std::sync::Arc;
+
+    use super::*;
+    use crate::{catalog::RootCatalog, parser::parse};
 
     #[test]
     fn bind_drop_table() {

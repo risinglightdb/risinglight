@@ -1,6 +1,5 @@
 use super::*;
-use crate::catalog::TableRefId;
-use crate::logical_optimizer::plan_nodes::logical_delete::LogicalDelete;
+use crate::{catalog::TableRefId, logical_optimizer::plan_nodes::logical_delete::LogicalDelete};
 
 /// The physical plan of `delete`.
 #[derive(Debug, PartialEq, Clone)]

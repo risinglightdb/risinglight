@@ -1,11 +1,10 @@
-use super::*;
+use std::{fmt, ops::RangeBounds, sync::Arc};
 
-use crate::types::DataValue;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use std::fmt;
-use std::ops::RangeBounds;
-use std::sync::Arc;
+
+use super::*;
+use crate::types::DataValue;
 
 /// A collection of arrays.
 ///

@@ -45,18 +45,27 @@ mod statistics;
 #[cfg(test)]
 mod tests;
 
-use super::{Storage, StorageError, StorageResult};
-use crate::catalog::{ColumnCatalog, RootCatalogRef, TableRefId};
-use crate::types::{ColumnId, DatabaseId, SchemaId};
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicU32, AtomicU64},
+        Arc,
+    },
+};
+
 use async_trait::async_trait;
 use moka::future::Cache;
 use parking_lot::RwLock;
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, AtomicU64};
-use std::sync::Arc;
-use tokio::sync::oneshot::Sender;
-use tokio::sync::Mutex;
-use tokio::task::JoinHandle;
+use tokio::{
+    sync::{oneshot::Sender, Mutex},
+    task::JoinHandle,
+};
+
+use super::{Storage, StorageError, StorageResult};
+use crate::{
+    catalog::{ColumnCatalog, RootCatalogRef, TableRefId},
+    types::{ColumnId, DatabaseId, SchemaId},
+};
 
 /// Secondary storage of RisingLight.
 pub struct SecondaryStorage {

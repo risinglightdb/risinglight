@@ -38,11 +38,13 @@ impl LimitExecutor {
 
 #[cfg(test)]
 mod tests {
+    use std::ops::Range;
+
+    use futures::TryStreamExt;
+    use test_case::test_case;
+
     use super::*;
     use crate::array::ArrayImpl;
-    use futures::TryStreamExt;
-    use std::ops::Range;
-    use test_case::test_case;
 
     #[test_case(&[(0..6)], 1, 4, &[(1..5)])]
     #[test_case(&[(0..6)], 0, 10, &[(0..6)])]

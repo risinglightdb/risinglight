@@ -1,11 +1,15 @@
-use super::*;
-use crate::array::{ArrayBuilderImpl, ArrayImpl};
-use crate::binder::{BoundAggCall, BoundExpr};
-use crate::executor::aggregation::AggregationState;
-use crate::types::DataValue;
+use std::collections::HashMap;
+
 use itertools::Itertools;
 use smallvec::SmallVec;
-use std::collections::HashMap;
+
+use super::*;
+use crate::{
+    array::{ArrayBuilderImpl, ArrayImpl},
+    binder::{BoundAggCall, BoundExpr},
+    executor::aggregation::AggregationState,
+    types::DataValue,
+};
 
 /// The executor of hash aggregation.
 pub struct HashAggExecutor {

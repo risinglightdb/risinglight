@@ -1,5 +1,7 @@
-use crate::array::{Array, ArrayImpl};
-use crate::storage::RowHandler;
+use crate::{
+    array::{Array, ArrayImpl},
+    storage::RowHandler,
+};
 
 pub struct InMemoryRowHandler(pub u64);
 

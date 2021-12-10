@@ -1,16 +1,16 @@
 use std::marker::PhantomData;
 
-use crate::array::{Array, ArrayBuilder};
-
-use super::super::{
-    Block, BlockIterator, PlainPrimitiveBlockIterator, PlainPrimitiveNullableBlockIterator,
-    PrimitiveFixedWidthEncode,
-};
-use super::{Column, ColumnIterator, ColumnSeekPosition};
-
 use async_trait::async_trait;
-use risinglight_proto::rowset::block_index::BlockType;
-use risinglight_proto::rowset::BlockIndex;
+use risinglight_proto::rowset::{block_index::BlockType, BlockIndex};
+
+use super::{
+    super::{
+        Block, BlockIterator, PlainPrimitiveBlockIterator, PlainPrimitiveNullableBlockIterator,
+        PrimitiveFixedWidthEncode,
+    },
+    Column, ColumnIterator, ColumnSeekPosition,
+};
+use crate::array::{Array, ArrayBuilder};
 
 /// All supported block iterators for primitive types.
 pub(super) enum BlockIteratorImpl<T: PrimitiveFixedWidthEncode> {
@@ -162,12 +162,13 @@ impl<T: PrimitiveFixedWidthEncode> ColumnIterator<T::ArrayType> for PrimitiveCol
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    use crate::array::ArrayToVecExt;
-    use crate::storage::secondary::rowset::tests::helper_build_rowset;
-    use crate::storage::secondary::PrimitiveColumnIterator;
     use itertools::Itertools;
+
+    use super::*;
+    use crate::{
+        array::ArrayToVecExt,
+        storage::secondary::{rowset::tests::helper_build_rowset, PrimitiveColumnIterator},
+    };
 
     #[tokio::test]
     async fn test_scan_i32() {

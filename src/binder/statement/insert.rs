@@ -1,9 +1,11 @@
 use itertools::Itertools;
 
 use super::*;
-use crate::catalog::{ColumnCatalog, TableCatalog};
-use crate::parser::{SetExpr, Statement};
-use crate::types::{ColumnId, DataType, DataTypeKind};
+use crate::{
+    catalog::{ColumnCatalog, TableCatalog},
+    parser::{SetExpr, Statement},
+    types::{ColumnId, DataType, DataTypeKind},
+};
 
 /// A bound `insert` statement.
 #[derive(Debug, PartialEq, Clone)]
@@ -141,11 +143,14 @@ impl Binder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::catalog::{ColumnCatalog, RootCatalog};
-    use crate::parser::parse;
-    use crate::types::{DataTypeExt, DataTypeKind};
     use std::sync::Arc;
+
+    use super::*;
+    use crate::{
+        catalog::{ColumnCatalog, RootCatalog},
+        parser::parse,
+        types::{DataTypeExt, DataTypeKind},
+    };
 
     #[test]
     fn bind_insert() {

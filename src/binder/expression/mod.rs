@@ -1,7 +1,9 @@
 use super::*;
-use crate::catalog::ColumnRefId;
-use crate::parser::{Expr, Function, UnaryOperator, Value};
-use crate::types::{DataType, DataTypeExt, DataTypeKind, DataValue};
+use crate::{
+    catalog::ColumnRefId,
+    parser::{Expr, Function, UnaryOperator, Value},
+    types::{DataType, DataTypeExt, DataTypeKind, DataValue},
+};
 
 mod agg_call;
 mod binary_op;
@@ -11,13 +13,9 @@ mod isnull;
 mod type_cast;
 mod unary_op;
 
-pub use self::agg_call::*;
-pub use self::binary_op::*;
-pub use self::column_ref::*;
-pub use self::input_ref::*;
-pub use self::isnull::*;
-pub use self::type_cast::*;
-pub use self::unary_op::*;
+pub use self::{
+    agg_call::*, binary_op::*, column_ref::*, input_ref::*, isnull::*, type_cast::*, unary_op::*,
+};
 
 /// A bound expression.
 #[derive(PartialEq, Clone)]

@@ -1,17 +1,18 @@
-use crate::types::{ConvertError, DataType, DataTypeExt, DataTypeKind, DataValue};
+use std::{
+    convert::TryFrom,
+    ops::{Bound, RangeBounds},
+};
+
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
-use std::ops::{Bound, RangeBounds};
+
+use crate::types::{ConvertError, DataType, DataTypeExt, DataTypeKind, DataValue};
 
 mod data_chunk;
 mod iterator;
 mod primitive_array;
 mod utf8_array;
 
-pub use self::data_chunk::*;
-pub use self::iterator::ArrayIter;
-pub use self::primitive_array::*;
-pub use self::utf8_array::*;
+pub use self::{data_chunk::*, iterator::ArrayIter, primitive_array::*, utf8_array::*};
 
 mod internal_ext;
 pub use internal_ext::*;
@@ -432,9 +433,9 @@ mod tests {
         );
     }
 
+    use num_traits::{cast::AsPrimitive, ops::checked::CheckedAdd};
+
     use crate::types::NativeType;
-    use num_traits::cast::AsPrimitive;
-    use num_traits::ops::checked::CheckedAdd;
 
     fn vec_add<T1, T2, T3>(a: &PrimitiveArray<T1>, b: &PrimitiveArray<T2>) -> PrimitiveArray<T3>
     where

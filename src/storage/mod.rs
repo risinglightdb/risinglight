@@ -10,16 +10,17 @@ mod error;
 pub use error::{StorageError, StorageResult};
 
 mod chunk;
-pub use chunk::*;
-
-use crate::array::{ArrayImpl, DataChunk};
-use crate::catalog::{ColumnCatalog, TableRefId};
-use crate::types::{DatabaseId, SchemaId};
+use std::sync::Arc;
 
 use async_trait::async_trait;
+pub use chunk::*;
 use enum_dispatch::enum_dispatch;
 
-use std::sync::Arc;
+use crate::{
+    array::{ArrayImpl, DataChunk},
+    catalog::{ColumnCatalog, TableRefId},
+    types::{DatabaseId, SchemaId},
+};
 
 #[enum_dispatch(StorageDispatch)]
 #[derive(Clone)]

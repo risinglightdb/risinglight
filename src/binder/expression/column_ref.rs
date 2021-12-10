@@ -1,6 +1,7 @@
+use itertools::Itertools;
+
 use super::*;
 use crate::catalog::ColumnDesc;
-use itertools::Itertools;
 
 /// A bound column reference expression.
 #[derive(PartialEq, Clone)]

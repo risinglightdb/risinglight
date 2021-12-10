@@ -1,6 +1,5 @@
 use super::*;
-use crate::array::Array;
-use crate::types::DataTypeKind;
+use crate::{array::Array, types::DataTypeKind};
 
 /// State for min or max aggregation
 pub struct MinMaxAggregationState {
