@@ -12,40 +12,36 @@ use crate::types::{DataTypeExt, DataTypeKind};
 
 pub struct FilterJoinRule {}
 impl Rule for FilterJoinRule {
-    fn matches(&self, plan: LogicalPlanRef) -> bool {
-        let filter = match plan.as_ref().try_as_logicalfilter() {
-            Some(filter) => filter,
-            _ => return false,
-        };
+    fn matches(&self, plan: LogicalPlanRef) -> Result<(), ()> {
+        let filter = plan.as_ref().try_as_logicalfilter()?;
         let filter_child = filter.child();
-        let join = match filter_child.as_ref().try_as_logicaljoin() {
-            Some(join) => join,
-            _ => return false,
-        };
+        let join = filter_child.as_ref().try_as_logicaljoin()?;
         // TODO: we just support inner join now.
-        matches!(join.join_op, Inner(_))
+        match join.join_op {
+            Inner(_) => Ok(()),
+            _ => Err(()),
+        }
     }
-    fn apply(&self, plan: LogicalPlanRef) -> LogicalPlanRef {
-        let filter = plan.as_ref().try_as_logicalfilter().unwrap();
+    fn apply(&self, plan: LogicalPlanRef) -> Result<LogicalPlanRef, ()> {
+        let filter = plan.as_ref().try_as_logicalfilter()?;
         let filter_child = filter.child();
-        let join = filter_child.as_ref().try_as_logicaljoin().unwrap();
+        let join = filter_child.as_ref().try_as_logicaljoin()?;
         let join_cond = match &join.join_op {
             Inner(On(op)) => op.clone(),
             _ => unreachable!(),
         };
-
         let join_cond = BoundExpr::BinaryOp(BoundBinaryOp {
             op: And,
             left_expr: Box::new(join_cond),
             right_expr: Box::new(filter.expr.clone()),
             return_type: Some(DataTypeKind::Boolean.nullable()),
         });
-        LogicalJoin {
+        Ok(LogicalJoin {
             left_plan: join.left(),
             right_plan: join.right(),
             join_op: Inner(On(join_cond)),
         }
-        .into()
+        .into())
 
         // TODO: we need schema of operator to push condition to each side.
         // let filter_conds = to_cnf(filter.expr.clone());

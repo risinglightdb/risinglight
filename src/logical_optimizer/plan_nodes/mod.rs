@@ -107,11 +107,8 @@ macro_rules! impl_plan_node {
             $(
                 paste! {
                     #[allow(dead_code)]
-                    pub fn [<try_as_ $node_name:lower>]<'a>(&'a self) -> Option<&'a $node_name> {
-                        if let Ok(ret) = self.try_into() as Result<&'a $node_name, ()> {
-                            return Some(ret)
-                        }
-                        None
+                    pub fn [<try_as_ $node_name:lower>]<'a>(&'a self) -> Result<&'a $node_name, ()> {
+                        self.try_into() as Result<&'a $node_name, ()>
                     }
                 }
             )*
