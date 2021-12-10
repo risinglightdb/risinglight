@@ -11,7 +11,7 @@ use crate::logical_optimizer::BoundJoinOperator::Inner;
 use crate::parser::BinaryOperator::And;
 use crate::types::{DataTypeExt, DataTypeKind};
 
-struct FilterJoinRule {}
+pub struct FilterJoinRule {}
 impl Rule for FilterJoinRule {
     fn matches(&self, plan: LogicalPlanRef) -> bool {
         let filter = match try_as_logicalfilter(plan.as_ref()) {

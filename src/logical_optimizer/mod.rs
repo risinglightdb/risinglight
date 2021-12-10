@@ -2,6 +2,7 @@ pub(crate) mod plan_rewriter;
 use crate::binder::*;
 mod expr_utils;
 mod heuristic;
+use heuristic::HeuristicOptimizer;
 pub(crate) mod plan_nodes;
 mod rules;
 use self::{
@@ -12,6 +13,7 @@ use self::{
         constant_moving::ConstantMovingRule, PlanRewriter,
     },
 };
+use rules::*;
 
 /// The optimizer will do query optimization.
 ///
@@ -29,7 +31,9 @@ impl Optimizer {
         plan = ArithExprSimplification.rewrite_plan(plan);
         plan = BoolExprSimplification.rewrite_plan(plan);
         plan = ConstantMovingRule.rewrite_plan(plan);
-
-        plan
+        let hep_optimizer = HeuristicOptimizer {
+            rules: vec![Box::new(FilterJoinRule {})],
+        };
+        hep_optimizer.optimize(plan)
     }
 }
