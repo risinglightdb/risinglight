@@ -51,7 +51,7 @@ pub fn input_col_refs_inner(expr: &BoundExpr, input_set: &mut BitSet) {
             input_set.insert(input_ref.index);
         }
         AggCall(agg) => {
-            for arg in agg.args.iter() {
+            for arg in &agg.args {
                 input_col_refs_inner(arg, input_set);
             }
         }

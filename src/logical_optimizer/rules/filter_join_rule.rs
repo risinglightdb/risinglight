@@ -24,10 +24,7 @@ impl Rule for FilterJoinRule {
             _ => return false,
         };
         // TODO: we just support inner join now.
-        match join.join_op {
-            Inner(_) => true,
-            _ => false,
-        }
+        matches!(join.join_op, Inner(_))
     }
     fn apply(&self, plan: LogicalPlanRef) -> LogicalPlanRef {
         let filter = try_as_logicalfilter(plan.as_ref()).unwrap();
