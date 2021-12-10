@@ -1,14 +1,19 @@
 use risinglight_proto::rowset::block_checksum::ChecksumType;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use tokio::fs::{File, OpenOptions};
-use tokio::io::{AsyncWriteExt, BufWriter};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
+use tokio::{
+    fs::{File, OpenOptions},
+    io::{AsyncWriteExt, BufWriter},
+};
 
 use super::super::{ColumnBuilderImpl, IndexBuilder};
-use crate::array::DataChunk;
-use crate::catalog::ColumnCatalog;
-use crate::storage::secondary::ColumnBuilderOptions;
-use crate::storage::StorageResult;
+use crate::{
+    array::DataChunk,
+    catalog::ColumnCatalog,
+    storage::{secondary::ColumnBuilderOptions, StorageResult},
+};
 
 use itertools::Itertools;
 
@@ -119,8 +124,10 @@ impl RowsetBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::array::I32Array;
-    use crate::types::{DataTypeExt, DataTypeKind};
+    use crate::{
+        array::I32Array,
+        types::{DataTypeExt, DataTypeKind},
+    };
 
     use super::*;
 

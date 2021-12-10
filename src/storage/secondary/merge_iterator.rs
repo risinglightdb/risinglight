@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
-use crate::array::{ArrayBuilderImpl, ArrayImpl, ArrayImplBuilderPickExt, I32Array};
-use crate::storage::{PackedVec, StorageChunk};
+use crate::{
+    array::{ArrayBuilderImpl, ArrayImpl, ArrayImplBuilderPickExt, I32Array},
+    storage::{PackedVec, StorageChunk},
+};
 
 use super::{SecondaryIterator, SecondaryIteratorImpl};
 
@@ -295,10 +297,11 @@ impl SecondaryIteratorImpl for MergeIterator {}
 
 #[cfg(test)]
 mod tests {
-    use crate::array::{Array, ArrayImpl, ArrayToVecExt, I32Array};
-    use crate::storage::secondary::tests::TestIterator;
-    use bitvec::prelude::BitVec;
-    use bitvec::prelude::*;
+    use crate::{
+        array::{Array, ArrayImpl, ArrayToVecExt, I32Array},
+        storage::secondary::tests::TestIterator,
+    };
+    use bitvec::prelude::{BitVec, *};
     use itertools::Itertools;
     use smallvec::smallvec;
 

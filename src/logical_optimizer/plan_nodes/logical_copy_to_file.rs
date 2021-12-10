@@ -1,6 +1,8 @@
-use crate::binder::statement::copy::FileFormat;
-use crate::logical_optimizer::plan_nodes::{LogicalPlan, LogicalPlanRef, UnaryLogicalPlanNode};
-use crate::types::DataType;
+use crate::{
+    binder::statement::copy::FileFormat,
+    logical_optimizer::plan_nodes::{LogicalPlan, LogicalPlanRef, UnaryLogicalPlanNode},
+    types::DataType,
+};
 use std::path::PathBuf;
 
 /// The logical plan of `COPY TO`.

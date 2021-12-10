@@ -1,6 +1,8 @@
-use crate::catalog::TableRefId;
-use crate::logical_optimizer::plan_nodes::{LogicalPlan, UnaryLogicalPlanNode};
-use crate::types::ColumnId;
+use crate::{
+    catalog::TableRefId,
+    logical_optimizer::plan_nodes::{LogicalPlan, UnaryLogicalPlanNode},
+    types::ColumnId,
+};
 
 use super::LogicalPlanRef;
 

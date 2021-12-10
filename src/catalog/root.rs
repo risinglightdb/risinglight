@@ -1,7 +1,9 @@
 use super::*;
 use crate::types::DatabaseId;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 /// The root of all catalogs.
 pub struct RootCatalog {

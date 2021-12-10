@@ -1,6 +1,5 @@
 use super::*;
-use crate::array::DataChunk;
-use crate::binder::BoundExpr;
+use crate::{array::DataChunk, binder::BoundExpr};
 
 /// The executor of project operation.
 pub struct ProjectionExecutor {

@@ -12,9 +12,11 @@ pub use error::{StorageError, StorageResult};
 mod chunk;
 pub use chunk::*;
 
-use crate::array::{ArrayImpl, DataChunk};
-use crate::catalog::{ColumnCatalog, TableRefId};
-use crate::types::{DatabaseId, SchemaId};
+use crate::{
+    array::{ArrayImpl, DataChunk},
+    catalog::{ColumnCatalog, TableRefId},
+    types::{DatabaseId, SchemaId},
+};
 
 use async_trait::async_trait;
 use enum_dispatch::enum_dispatch;

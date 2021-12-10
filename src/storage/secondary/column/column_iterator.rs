@@ -1,6 +1,8 @@
-use crate::array::{Array, ArrayImpl};
-use crate::catalog::ColumnCatalog;
-use crate::types::DataTypeKind;
+use crate::{
+    array::{Array, ArrayImpl},
+    catalog::ColumnCatalog,
+    types::DataTypeKind,
+};
 
 use super::{
     BoolColumnIterator, CharColumnIterator, Column, ColumnIterator, F64ColumnIterator,

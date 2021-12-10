@@ -1,5 +1,7 @@
-use crate::array::DataChunk;
-use crate::storage::{StorageChunk, StorageResult, TxnIterator};
+use crate::{
+    array::DataChunk,
+    storage::{StorageChunk, StorageResult, TxnIterator},
+};
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use enum_dispatch::enum_dispatch;

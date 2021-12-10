@@ -1,11 +1,14 @@
 use super::*;
-use crate::catalog::TableRefId;
-use crate::storage::Table;
+use crate::{catalog::TableRefId, storage::Table};
 use async_trait::async_trait;
 use moka::future::Cache;
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicU32, AtomicU64};
-use std::sync::Arc;
+use std::{
+    path::PathBuf,
+    sync::{
+        atomic::{AtomicU32, AtomicU64},
+        Arc,
+    },
+};
 
 /// A table in Secondary engine.
 ///

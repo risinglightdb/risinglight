@@ -47,8 +47,7 @@ impl Binder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::catalog::RootCatalog;
-    use crate::parser::parse;
+    use crate::{catalog::RootCatalog, parser::parse};
     use std::sync::Arc;
 
     #[test]

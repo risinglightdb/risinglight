@@ -4,8 +4,7 @@ use bytes::Buf;
 
 use crate::array::{Array, ArrayBuilder};
 
-use super::super::PrimitiveFixedWidthEncode;
-use super::{Block, BlockIterator};
+use super::{super::PrimitiveFixedWidthEncode, Block, BlockIterator};
 
 /// Scans one or several arrays from the block content.
 pub struct PlainPrimitiveNullableBlockIterator<T: PrimitiveFixedWidthEncode> {
@@ -91,10 +90,13 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType>
 mod tests {
     use bytes::Bytes;
 
-    use crate::array::ArrayToVecExt;
-    use crate::array::{ArrayBuilder, I32ArrayBuilder};
-    use crate::storage::secondary::block::{BlockBuilder, PlainPrimitiveNullableBlockBuilder};
-    use crate::storage::secondary::BlockIterator;
+    use crate::{
+        array::{ArrayBuilder, ArrayToVecExt, I32ArrayBuilder},
+        storage::secondary::{
+            block::{BlockBuilder, PlainPrimitiveNullableBlockBuilder},
+            BlockIterator,
+        },
+    };
 
     use super::PlainPrimitiveNullableBlockIterator;
 

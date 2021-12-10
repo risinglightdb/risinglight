@@ -1,7 +1,9 @@
 use super::{CatalogError, ColumnCatalog, TableCatalog};
 use crate::types::{SchemaId, TableId};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 /// The catalog of a schema.
 pub struct SchemaCatalog {

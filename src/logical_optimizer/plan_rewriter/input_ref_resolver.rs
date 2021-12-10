@@ -3,9 +3,7 @@ use super::super::plan_nodes::{
     logical_projection::LogicalProjection, logical_seq_scan::LogicalSeqScan, LogicalPlan,
     LogicalPlanRef, UnaryLogicalPlanNode,
 };
-use crate::binder::*;
-use crate::catalog::ColumnRefId;
-use crate::logical_optimizer::plan_rewriter::PlanRewriter;
+use crate::{binder::*, catalog::ColumnRefId, logical_optimizer::plan_rewriter::PlanRewriter};
 /// Resolves column references into physical indices into the `DataChunk`.
 ///
 /// This will rewrite all `ColumnRef` expressions to `InputRef`.

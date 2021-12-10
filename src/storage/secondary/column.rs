@@ -25,8 +25,10 @@ pub use char_column_iterator::*;
 use async_trait::async_trait;
 use bytes::Bytes;
 use moka::future::Cache;
-use std::os::unix::fs::FileExt;
-use std::sync::{Arc, Mutex};
+use std::{
+    os::unix::fs::FileExt,
+    sync::{Arc, Mutex},
+};
 
 use super::{Block, BlockCacheKey, BlockHeader, ColumnIndex, BLOCK_HEADER_SIZE};
 use crate::array::Array;

@@ -79,10 +79,13 @@ impl BlockIterator<Utf8Array> for PlainCharBlockIterator {
 mod tests {
     use bytes::Bytes;
 
-    use crate::array::ArrayToVecExt;
-    use crate::array::{ArrayBuilder, Utf8ArrayBuilder};
-    use crate::storage::secondary::block::{BlockBuilder, PlainCharBlockBuilder};
-    use crate::storage::secondary::BlockIterator;
+    use crate::{
+        array::{ArrayBuilder, ArrayToVecExt, Utf8ArrayBuilder},
+        storage::secondary::{
+            block::{BlockBuilder, PlainCharBlockBuilder},
+            BlockIterator,
+        },
+    };
 
     use super::*;
 

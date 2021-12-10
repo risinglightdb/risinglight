@@ -1,10 +1,13 @@
 use risinglight_proto::rowset::BlockIndex;
 
-use super::super::ColumnBuilderOptions;
-use super::char_column_builder::CharColumnBuilder;
-use super::{BoolColumnBuilder, ColumnBuilder};
-use crate::array::ArrayImpl;
-use crate::types::{DataType, DataTypeKind};
+use super::{
+    super::ColumnBuilderOptions, char_column_builder::CharColumnBuilder, BoolColumnBuilder,
+    ColumnBuilder,
+};
+use crate::{
+    array::ArrayImpl,
+    types::{DataType, DataTypeKind},
+};
 
 use super::primitive_column_builder::{F64ColumnBuilder, I32ColumnBuilder};
 

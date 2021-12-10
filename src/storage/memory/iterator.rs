@@ -1,8 +1,9 @@
-use std::collections::HashSet;
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
-use crate::array::{ArrayImpl, DataChunk, DataChunkRef, I64Array};
-use crate::storage::{StorageColumnRef, StorageResult, TxnIterator};
+use crate::{
+    array::{ArrayImpl, DataChunk, DataChunkRef, I64Array},
+    storage::{StorageColumnRef, StorageResult, TxnIterator},
+};
 use async_trait::async_trait;
 use bitvec::prelude::BitVec;
 

@@ -1,10 +1,6 @@
 use std::sync::Arc;
 
-pub use self::column::*;
-pub use self::database::*;
-pub use self::root::*;
-pub use self::schema::*;
-pub use self::table::*;
+pub use self::{column::*, database::*, root::*, schema::*, table::*};
 use crate::types::*;
 use serde::{Deserialize, Serialize};
 

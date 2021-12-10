@@ -16,10 +16,14 @@
 //! * `RowHandler` scan
 
 use super::{Storage, StorageError, StorageResult};
-use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};
-use crate::types::{DatabaseId, SchemaId};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use crate::{
+    catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId},
+    types::{DatabaseId, SchemaId},
+};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 mod table;
 pub use table::InMemoryTable;

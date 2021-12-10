@@ -1,7 +1,9 @@
 use super::*;
-use crate::array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I64ArrayBuilder};
-use crate::physical_planner::PhysicalSeqScan;
-use crate::storage::{Storage, StorageColumnRef, Table, Transaction, TxnIterator};
+use crate::{
+    array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I64ArrayBuilder},
+    physical_planner::PhysicalSeqScan,
+    storage::{Storage, StorageColumnRef, Table, Transaction, TxnIterator},
+};
 use itertools::Itertools;
 use std::sync::Arc;
 

@@ -1,6 +1,5 @@
 use super::StatisticsGlobalAgg;
-use crate::storage::secondary::index::ColumnIndex;
-use crate::types::DataValue;
+use crate::{storage::secondary::index::ColumnIndex, types::DataValue};
 
 /// Gather row count from column index.
 pub struct RowCountGlobalAgg {

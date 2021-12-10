@@ -1,15 +1,16 @@
 use std::iter::Peekable;
 
-use risinglight_proto::rowset::block_index::BlockType;
-use risinglight_proto::rowset::BlockIndex;
+use risinglight_proto::rowset::{block_index::BlockType, BlockIndex};
 
 use crate::array::Array;
 
-use super::super::{
-    BlockBuilder, BlockIndexBuilder, ColumnBuilderOptions, PlainPrimitiveBlockBuilder,
-    PlainPrimitiveNullableBlockBuilder, PrimitiveFixedWidthEncode,
+use super::{
+    super::{
+        BlockBuilder, BlockIndexBuilder, ColumnBuilderOptions, PlainPrimitiveBlockBuilder,
+        PlainPrimitiveNullableBlockBuilder, PrimitiveFixedWidthEncode,
+    },
+    ColumnBuilder,
 };
-use super::ColumnBuilder;
 
 /// All supported block builders for primitive types.
 pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {

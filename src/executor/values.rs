@@ -1,7 +1,9 @@
 use super::*;
-use crate::array::{ArrayBuilderImpl, DataChunk};
-use crate::binder::BoundExpr;
-use crate::types::DataType;
+use crate::{
+    array::{ArrayBuilderImpl, DataChunk},
+    binder::BoundExpr,
+    types::DataType,
+};
 
 /// The executor of `values`.
 pub struct ValuesExecutor {
@@ -37,9 +39,11 @@ impl ValuesExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::array::ArrayImpl;
-    use crate::binder::BoundExpr;
-    use crate::types::{DataTypeExt, DataTypeKind, DataValue};
+    use crate::{
+        array::ArrayImpl,
+        binder::BoundExpr,
+        types::{DataTypeExt, DataTypeKind, DataValue},
+    };
 
     #[tokio::test]
     async fn values() {

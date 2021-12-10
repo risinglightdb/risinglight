@@ -1,5 +1,4 @@
-use crate::binder::statement::copy::FileFormat;
-use crate::types::DataType;
+use crate::{binder::statement::copy::FileFormat, types::DataType};
 use std::path::PathBuf;
 
 /// The logical plan of `copy`.

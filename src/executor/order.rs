@@ -1,7 +1,9 @@
 use super::*;
-use crate::array::{ArrayBuilderImpl, DataChunk};
-use crate::binder::{BoundExpr, BoundOrderBy};
-use crate::types::DataValue;
+use crate::{
+    array::{ArrayBuilderImpl, DataChunk},
+    binder::{BoundExpr, BoundOrderBy},
+    types::DataValue,
+};
 use std::cmp::Ordering;
 
 /// The executor of an order operation.

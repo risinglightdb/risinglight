@@ -1,6 +1,8 @@
 use super::*;
-use crate::array::ArrayImpl;
-use crate::binder::{BoundAggCall, BoundBinaryOp, BoundExpr, BoundTypeCast, BoundUnaryOp};
+use crate::{
+    array::ArrayImpl,
+    binder::{BoundAggCall, BoundBinaryOp, BoundExpr, BoundTypeCast, BoundUnaryOp},
+};
 use std::vec::Vec;
 
 /// Constant folding rule aims to evalute the constant expression before query execution.

@@ -1,7 +1,9 @@
 use super::*;
-use crate::array::{ArrayBuilderImpl, ArrayImpl};
-use crate::binder::{AggKind, BoundAggCall};
-use crate::types::{DataTypeExt, DataTypeKind, DataValue};
+use crate::{
+    array::{ArrayBuilderImpl, ArrayImpl},
+    binder::{AggKind, BoundAggCall},
+    types::{DataTypeExt, DataTypeKind, DataValue},
+};
 use itertools::Itertools;
 use smallvec::SmallVec;
 

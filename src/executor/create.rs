@@ -1,6 +1,5 @@
 use super::*;
-use crate::physical_planner::PhysicalCreateTable;
-use crate::storage::Storage;
+use crate::{physical_planner::PhysicalCreateTable, storage::Storage};
 use std::sync::Arc;
 
 /// The executor of `create table` statement.
@@ -26,9 +25,11 @@ impl<S: Storage> CreateTableExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::catalog::{ColumnCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
-    use crate::storage::InMemoryStorage;
-    use crate::types::{DataTypeExt, DataTypeKind};
+    use crate::{
+        catalog::{ColumnCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME},
+        storage::InMemoryStorage,
+        types::{DataTypeExt, DataTypeKind},
+    };
     use std::sync::Arc;
 
     #[tokio::test]

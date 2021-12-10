@@ -1,10 +1,12 @@
 use super::*;
-use crate::logical_optimizer::plan_nodes::logical_copy_from_file::LogicalCopyFromFile;
-use crate::logical_optimizer::plan_nodes::logical_copy_to_file::LogicalCopyToFile;
-use crate::logical_optimizer::plan_nodes::logical_insert::LogicalInsert;
-use crate::logical_optimizer::plan_nodes::logical_seq_scan::LogicalSeqScan;
-use crate::logical_optimizer::plan_nodes::LogicalPlan;
-use crate::{binder::BoundCopy, parser::CopyTarget};
+use crate::{
+    binder::BoundCopy,
+    logical_optimizer::plan_nodes::{
+        logical_copy_from_file::LogicalCopyFromFile, logical_copy_to_file::LogicalCopyToFile,
+        logical_insert::LogicalInsert, logical_seq_scan::LogicalSeqScan, LogicalPlan,
+    },
+    parser::CopyTarget,
+};
 use std::path::PathBuf;
 
 impl LogicalPlaner {

@@ -1,12 +1,13 @@
-use risinglight_proto::rowset::block_index::BlockType;
-use risinglight_proto::rowset::BlockIndex;
+use risinglight_proto::rowset::{block_index::BlockType, BlockIndex};
 
-use super::super::{
-    BlockBuilder, BlockIndexBuilder, PlainCharBlockBuilder, PlainVarcharBlockBuilder,
+use super::{
+    super::{BlockBuilder, BlockIndexBuilder, PlainCharBlockBuilder, PlainVarcharBlockBuilder},
+    append_one_by_one, ColumnBuilder,
 };
-use super::{append_one_by_one, ColumnBuilder};
-use crate::array::{Array, Utf8Array};
-use crate::storage::secondary::ColumnBuilderOptions;
+use crate::{
+    array::{Array, Utf8Array},
+    storage::secondary::ColumnBuilderOptions,
+};
 
 /// All supported block builders for char types.
 pub(super) enum CharBlockBuilderImpl {

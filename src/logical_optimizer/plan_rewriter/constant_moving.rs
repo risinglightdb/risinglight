@@ -1,6 +1,8 @@
 use super::*;
-use crate::binder::{BoundBinaryOp, BoundExpr, BoundExpr::*};
-use crate::parser::BinaryOperator::*;
+use crate::{
+    binder::{BoundBinaryOp, BoundExpr, BoundExpr::*},
+    parser::BinaryOperator::*,
+};
 
 /// Constant moving rule moves constants in the filtering conditions from one side to the other
 /// side.
