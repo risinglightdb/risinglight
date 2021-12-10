@@ -1,5 +1,4 @@
 use crate::{Database, Error};
-use sqllogictest::SqlLogicTester;
 use std::path::Path;
 use test_case::test_case;
 
@@ -7,14 +6,15 @@ use test_case::test_case;
 fn test(name: &str) {
     init_logger();
     let script = std::fs::read_to_string(Path::new("../sql").join(name)).unwrap();
-    let mut tester = SqlLogicTester::new(Database::new());
-    tester.test_script(&script);
+    let mut tester = sqllogictest::Runner::new(Database::new());
+    tester.run_script(&script);
 }
 
 impl sqllogictest::DB for Database {
     type Error = Error;
-    fn run(&self, sql: &str) -> Result<Vec<String>, Self::Error> {
-        self.run(sql)
+    fn run(&self, sql: &str) -> Result<String, Self::Error> {
+        let mut outputs = self.run(sql)?;
+        Ok(outputs.remove(0))
     }
 }
 
