@@ -90,13 +90,9 @@ mod tests {
     use bytes::Bytes;
 
     use super::*;
-    use crate::{
-        array::{ArrayBuilder, ArrayToVecExt, Utf8ArrayBuilder},
-        storage::secondary::{
-            block::{BlockBuilder, PlainVarcharBlockBuilder},
-            BlockIterator,
-        },
-    };
+    use crate::array::{ArrayBuilder, ArrayToVecExt, Utf8ArrayBuilder};
+    use crate::storage::secondary::block::{BlockBuilder, PlainVarcharBlockBuilder};
+    use crate::storage::secondary::BlockIterator;
 
     #[test]
     fn test_scan_varchar() {

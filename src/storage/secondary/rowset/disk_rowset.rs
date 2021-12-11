@@ -1,23 +1,17 @@
-use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use itertools::Itertools;
 use moka::future::Cache;
-use tokio::{fs::OpenOptions, io::AsyncReadExt};
+use tokio::fs::OpenOptions;
+use tokio::io::AsyncReadExt;
 
-use super::{
-    super::{Block, BlockCacheKey, Column, ColumnIndex, ColumnSeekPosition, IOBackend},
-    path_of_data_column, path_of_index_column, RowSetIterator,
-};
-use crate::{
-    catalog::ColumnCatalog,
-    storage::{
-        secondary::{column::ColumnReadableFile, DeleteVector},
-        StorageColumnRef, StorageResult,
-    },
-};
+use super::super::{Block, BlockCacheKey, Column, ColumnIndex, ColumnSeekPosition, IOBackend};
+use super::{path_of_data_column, path_of_index_column, RowSetIterator};
+use crate::catalog::ColumnCatalog;
+use crate::storage::secondary::column::ColumnReadableFile;
+use crate::storage::secondary::DeleteVector;
+use crate::storage::{StorageColumnRef, StorageResult};
 
 /// Represents a column in Secondary.
 ///
@@ -113,11 +107,10 @@ pub mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::{
-        array::I32Array,
-        storage::secondary::{rowset::rowset_builder::RowsetBuilder, ColumnBuilderOptions},
-        types::{DataTypeExt, DataTypeKind},
-    };
+    use crate::array::I32Array;
+    use crate::storage::secondary::rowset::rowset_builder::RowsetBuilder;
+    use crate::storage::secondary::ColumnBuilderOptions;
+    use crate::types::{DataTypeExt, DataTypeKind};
 
     pub async fn helper_build_rowset(tempdir: &TempDir, nullable: bool) -> DiskRowset {
         let columns = vec![

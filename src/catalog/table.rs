@@ -1,7 +1,5 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    sync::Mutex,
-};
+use std::collections::{BTreeMap, HashMap};
+use std::sync::Mutex;
 
 use super::*;
 use crate::types::{ColumnId, TableId};

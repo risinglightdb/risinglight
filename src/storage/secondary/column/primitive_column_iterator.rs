@@ -1,15 +1,14 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use risinglight_proto::rowset::{block_index::BlockType, BlockIndex};
+use risinglight_proto::rowset::block_index::BlockType;
+use risinglight_proto::rowset::BlockIndex;
 
-use super::{
-    super::{
-        Block, BlockIterator, PlainPrimitiveBlockIterator, PlainPrimitiveNullableBlockIterator,
-        PrimitiveFixedWidthEncode,
-    },
-    Column, ColumnIterator, ColumnSeekPosition,
+use super::super::{
+    Block, BlockIterator, PlainPrimitiveBlockIterator, PlainPrimitiveNullableBlockIterator,
+    PrimitiveFixedWidthEncode,
 };
+use super::{Column, ColumnIterator, ColumnSeekPosition};
 use crate::array::{Array, ArrayBuilder};
 
 /// All supported block iterators for primitive types.
@@ -165,10 +164,9 @@ mod tests {
     use itertools::Itertools;
 
     use super::*;
-    use crate::{
-        array::ArrayToVecExt,
-        storage::secondary::{rowset::tests::helper_build_rowset, PrimitiveColumnIterator},
-    };
+    use crate::array::ArrayToVecExt;
+    use crate::storage::secondary::rowset::tests::helper_build_rowset;
+    use crate::storage::secondary::PrimitiveColumnIterator;
 
     #[tokio::test]
     async fn test_scan_i32() {

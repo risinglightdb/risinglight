@@ -1,7 +1,5 @@
-use std::{
-    iter::Sum,
-    simd::{LaneCount, Simd, SimdElement, SupportedLaneCount},
-};
+use std::iter::Sum;
+use std::simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
 
 use bitvec::prelude::{BitSlice, Lsb0};
 

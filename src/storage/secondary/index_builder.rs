@@ -1,6 +1,7 @@
 use bytes::BufMut;
 use prost::Message;
-use risinglight_proto::rowset::{block_checksum::ChecksumType, BlockIndex};
+use risinglight_proto::rowset::block_checksum::ChecksumType;
+use risinglight_proto::rowset::BlockIndex;
 
 pub const SECONDARY_INDEX_MAGIC: u32 = 0x2333;
 pub const INDEX_FOOTER_SIZE: usize = 4 + 8 + 4 + 8;

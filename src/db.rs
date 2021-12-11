@@ -3,22 +3,19 @@ use std::sync::Arc;
 use futures::TryStreamExt;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 
-use crate::{
-    array::{ArrayBuilder, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder},
-    binder::{BindError, Binder},
-    catalog::RootCatalogRef,
-    executor::{ExecutorBuilder, ExecutorError, GlobalEnv},
-    logical_optimizer::{
-        plan_rewriter::{input_ref_resolver::InputRefResolver, PlanRewriter},
-        Optimizer,
-    },
-    logical_planner::{LogicalPlanError, LogicalPlaner},
-    parser::{parse, ParserError},
-    physical_planner::{PhysicalPlanError, PhysicalPlaner},
-    storage::{
-        InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
-        StorageImpl, Table,
-    },
+use crate::array::{ArrayBuilder, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder};
+use crate::binder::{BindError, Binder};
+use crate::catalog::RootCatalogRef;
+use crate::executor::{ExecutorBuilder, ExecutorError, GlobalEnv};
+use crate::logical_optimizer::plan_rewriter::input_ref_resolver::InputRefResolver;
+use crate::logical_optimizer::plan_rewriter::PlanRewriter;
+use crate::logical_optimizer::Optimizer;
+use crate::logical_planner::{LogicalPlanError, LogicalPlaner};
+use crate::parser::{parse, ParserError};
+use crate::physical_planner::{PhysicalPlanError, PhysicalPlaner};
+use crate::storage::{
+    InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
+    StorageImpl, Table,
 };
 
 /// The database instance.

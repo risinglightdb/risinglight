@@ -1,12 +1,19 @@
-use super::plan_nodes::{
-    logical_aggregate::LogicalAggregate, logical_copy_from_file::LogicalCopyFromFile,
-    logical_copy_to_file::LogicalCopyToFile, logical_create_table::LogicalCreateTable,
-    logical_delete::LogicalDelete, logical_drop::LogicalDrop, logical_explain::LogicalExplain,
-    logical_filter::LogicalFilter, logical_insert::LogicalInsert, logical_join::LogicalJoin,
-    logical_limit::LogicalLimit, logical_order::LogicalOrder,
-    logical_projection::LogicalProjection, logical_seq_scan::LogicalSeqScan,
-    logical_values::LogicalValues, LogicalPlan, LogicalPlanRef, UnaryLogicalPlanNode,
-};
+use super::plan_nodes::logical_aggregate::LogicalAggregate;
+use super::plan_nodes::logical_copy_from_file::LogicalCopyFromFile;
+use super::plan_nodes::logical_copy_to_file::LogicalCopyToFile;
+use super::plan_nodes::logical_create_table::LogicalCreateTable;
+use super::plan_nodes::logical_delete::LogicalDelete;
+use super::plan_nodes::logical_drop::LogicalDrop;
+use super::plan_nodes::logical_explain::LogicalExplain;
+use super::plan_nodes::logical_filter::LogicalFilter;
+use super::plan_nodes::logical_insert::LogicalInsert;
+use super::plan_nodes::logical_join::LogicalJoin;
+use super::plan_nodes::logical_limit::LogicalLimit;
+use super::plan_nodes::logical_order::LogicalOrder;
+use super::plan_nodes::logical_projection::LogicalProjection;
+use super::plan_nodes::logical_seq_scan::LogicalSeqScan;
+use super::plan_nodes::logical_values::LogicalValues;
+use super::plan_nodes::{LogicalPlan, LogicalPlanRef, UnaryLogicalPlanNode};
 use crate::binder::{BoundAggCall, BoundExpr, BoundOrderBy};
 
 pub(super) mod arith_expr_simplification;
@@ -64,7 +71,8 @@ pub trait PlanRewriter {
     }
 
     fn rewrite_join(&mut self, plan: &LogicalJoin) -> Option<LogicalPlanRef> {
-        use super::{BoundJoinConstraint::*, BoundJoinOperator::*};
+        use super::BoundJoinConstraint::*;
+        use super::BoundJoinOperator::*;
 
         Some(
             LogicalPlan::LogicalJoin(LogicalJoin {

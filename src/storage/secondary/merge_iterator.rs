@@ -1,10 +1,8 @@
 use std::sync::Arc;
 
 use super::{SecondaryIterator, SecondaryIteratorImpl};
-use crate::{
-    array::{ArrayBuilderImpl, ArrayImpl, ArrayImplBuilderPickExt, I32Array},
-    storage::{PackedVec, StorageChunk},
-};
+use crate::array::{ArrayBuilderImpl, ArrayImpl, ArrayImplBuilderPickExt, I32Array};
+use crate::storage::{PackedVec, StorageChunk};
 
 /// [`MergeIterator`] merges data from multiple sorted `RowSet`s.
 /// This iterator should be used on sorted mode with overlapping sort keys.
@@ -301,10 +299,8 @@ mod tests {
     use smallvec::smallvec;
 
     use super::*;
-    use crate::{
-        array::{Array, ArrayImpl, ArrayToVecExt, I32Array},
-        storage::secondary::tests::TestIterator,
-    };
+    use crate::array::{Array, ArrayImpl, ArrayToVecExt, I32Array};
+    use crate::storage::secondary::tests::TestIterator;
 
     pub fn array_to_chunk(
         visibility: Option<BitVec>,

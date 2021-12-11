@@ -1,7 +1,6 @@
 use super::*;
-use crate::{
-    binder::BoundExpr, logical_optimizer::plan_nodes::logical_projection::LogicalProjection,
-};
+use crate::binder::BoundExpr;
+use crate::logical_optimizer::plan_nodes::logical_projection::LogicalProjection;
 
 /// The physical plan of project operation.
 #[derive(Debug, PartialEq, Clone)]

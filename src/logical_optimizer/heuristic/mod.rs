@@ -1,6 +1,7 @@
 use itertools::Itertools;
 
-use super::{plan_nodes::LogicalPlanRef, rules::BoxedRule};
+use super::plan_nodes::LogicalPlanRef;
+use super::rules::BoxedRule;
 pub struct HeuristicOptimizer {
     pub rules: Vec<BoxedRule>,
 }

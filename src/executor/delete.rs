@@ -1,11 +1,9 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::{
-    array::DataChunk,
-    catalog::TableRefId,
-    storage::{RowHandler, Storage, Table, Transaction},
-};
+use crate::array::DataChunk;
+use crate::catalog::TableRefId;
+use crate::storage::{RowHandler, Storage, Table, Transaction};
 
 /// The executor of `delete` statement.
 pub struct DeleteExecutor<S: Storage> {

@@ -7,14 +7,12 @@ pub(crate) mod plan_nodes;
 mod rules;
 use rules::*;
 
-use self::{
-    plan_nodes::LogicalPlanRef,
-    plan_rewriter::{
-        arith_expr_simplification::ArithExprSimplification,
-        bool_expr_simplification::BoolExprSimplification, constant_folding::ConstantFolding,
-        constant_moving::ConstantMovingRule, PlanRewriter,
-    },
-};
+use self::plan_nodes::LogicalPlanRef;
+use self::plan_rewriter::arith_expr_simplification::ArithExprSimplification;
+use self::plan_rewriter::bool_expr_simplification::BoolExprSimplification;
+use self::plan_rewriter::constant_folding::ConstantFolding;
+use self::plan_rewriter::constant_moving::ConstantMovingRule;
+use self::plan_rewriter::PlanRewriter;
 
 /// The optimizer will do query optimization.
 ///

@@ -1,8 +1,6 @@
 use super::*;
-use crate::{
-    catalog::ColumnCatalog,
-    parser::{CopyOption, CopyTarget, Statement},
-};
+use crate::catalog::ColumnCatalog;
+use crate::parser::{CopyOption, CopyTarget, Statement};
 
 /// A bound `COPY` statement.
 #[derive(Debug, PartialEq, Clone)]

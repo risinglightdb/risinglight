@@ -1,4 +1,6 @@
-use risinglight_proto::rowset::{block_checksum::ChecksumType, block_index::BlockType, BlockIndex};
+use risinglight_proto::rowset::block_checksum::ChecksumType;
+use risinglight_proto::rowset::block_index::BlockType;
+use risinglight_proto::rowset::BlockIndex;
 
 use super::{BlockHeader, BLOCK_HEADER_SIZE};
 

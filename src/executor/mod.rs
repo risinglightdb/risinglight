@@ -15,12 +15,10 @@ use std::sync::Arc;
 use async_stream::try_stream;
 use futures::stream::{BoxStream, Stream, StreamExt};
 
-use crate::{
-    array::DataChunk,
-    physical_planner::PhysicalPlan,
-    storage::{Storage, StorageError, StorageImpl},
-    types::ConvertError,
-};
+use crate::array::DataChunk;
+use crate::physical_planner::PhysicalPlan;
+use crate::storage::{Storage, StorageError, StorageImpl};
+use crate::types::ConvertError;
 
 mod aggregation;
 mod copy_from_file;
@@ -43,11 +41,23 @@ mod simple_agg;
 mod values;
 
 pub use self::aggregation::*;
-use self::{
-    copy_from_file::*, copy_to_file::*, create::*, delete::*, drop::*, dummy_scan::*, explain::*,
-    filter::*, hash_agg::*, insert::*, limit::*, nested_loop_join::*, order::*, projection::*,
-    seq_scan::*, simple_agg::*, values::*,
-};
+use self::copy_from_file::*;
+use self::copy_to_file::*;
+use self::create::*;
+use self::delete::*;
+use self::drop::*;
+use self::dummy_scan::*;
+use self::explain::*;
+use self::filter::*;
+use self::hash_agg::*;
+use self::insert::*;
+use self::limit::*;
+use self::nested_loop_join::*;
+use self::order::*;
+use self::projection::*;
+use self::seq_scan::*;
+use self::simple_agg::*;
+use self::values::*;
 
 /// The error type of execution.
 #[derive(thiserror::Error, Debug)]

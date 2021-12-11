@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::{physical_planner::PhysicalCreateTable, storage::Storage};
+use crate::physical_planner::PhysicalCreateTable;
+use crate::storage::Storage;
 
 /// The executor of `create table` statement.
 pub struct CreateTableExecutor<S: Storage> {
@@ -28,11 +29,9 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::{
-        catalog::{ColumnCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME},
-        storage::InMemoryStorage,
-        types::{DataTypeExt, DataTypeKind},
-    };
+    use crate::catalog::{ColumnCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
+    use crate::storage::InMemoryStorage;
+    use crate::types::{DataTypeExt, DataTypeKind};
 
     #[tokio::test]
     async fn test_create() {

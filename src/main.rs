@@ -1,8 +1,10 @@
 //! A simple interactive shell of the database.
 
 use log::info;
-use risinglight::{storage::SecondaryStorageOptions, Database};
-use rustyline::{error::ReadlineError, Editor};
+use risinglight::storage::SecondaryStorageOptions;
+use risinglight::Database;
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
 
 #[tokio::main]
 async fn main() {

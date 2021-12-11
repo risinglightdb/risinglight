@@ -1,14 +1,11 @@
 use async_trait::async_trait;
-use risinglight_proto::rowset::{block_index::BlockType, BlockIndex};
+use risinglight_proto::rowset::block_index::BlockType;
+use risinglight_proto::rowset::BlockIndex;
 
-use super::{
-    super::{Block, BlockIterator},
-    Column, ColumnIterator, ColumnSeekPosition,
-};
-use crate::{
-    array::{ArrayBuilder, Utf8Array, Utf8ArrayBuilder},
-    storage::secondary::block::{PlainCharBlockIterator, PlainVarcharBlockIterator},
-};
+use super::super::{Block, BlockIterator};
+use super::{Column, ColumnIterator, ColumnSeekPosition};
+use crate::array::{ArrayBuilder, Utf8Array, Utf8ArrayBuilder};
+use crate::storage::secondary::block::{PlainCharBlockIterator, PlainVarcharBlockIterator};
 
 /// All supported block iterators for char types.
 pub(super) enum PlainCharBlockIteratorImpl {

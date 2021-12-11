@@ -1,10 +1,9 @@
 use itertools::Itertools;
 
 use super::*;
-use crate::{
-    catalog::TableRefId, logical_optimizer::plan_nodes::logical_seq_scan::LogicalSeqScan,
-    types::ColumnId,
-};
+use crate::catalog::TableRefId;
+use crate::logical_optimizer::plan_nodes::logical_seq_scan::LogicalSeqScan;
+use crate::types::ColumnId;
 
 /// The physical plan of sequential scan operation.
 #[derive(Debug, PartialEq, Clone)]

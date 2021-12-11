@@ -1,12 +1,11 @@
 use itertools::Itertools;
 
 use super::*;
-use crate::{
-    binder::BoundExpr,
-    catalog::TableRefId,
-    logical_optimizer::plan_nodes::{logical_insert::LogicalInsert, logical_values::LogicalValues},
-    types::{ColumnId, DataType},
-};
+use crate::binder::BoundExpr;
+use crate::catalog::TableRefId;
+use crate::logical_optimizer::plan_nodes::logical_insert::LogicalInsert;
+use crate::logical_optimizer::plan_nodes::logical_values::LogicalValues;
+use crate::types::{ColumnId, DataType};
 
 /// The physical plan of `insert`.
 #[derive(Debug, PartialEq, Clone)]

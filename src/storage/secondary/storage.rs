@@ -1,25 +1,18 @@
-use std::{
-    collections::HashMap,
-    sync::{
-        atomic::{AtomicU32, AtomicU64},
-        Arc,
-    },
-};
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU32, AtomicU64};
+use std::sync::Arc;
 
 use moka::future::Cache;
 use parking_lot::RwLock;
-use tokio::{fs, sync::Mutex};
+use tokio::fs;
+use tokio::sync::Mutex;
 
 use super::{DiskRowset, Manifest, SecondaryStorage, StorageOptions, StorageResult};
-use crate::{
-    catalog::RootCatalog,
-    storage::secondary::{
-        manifest::*,
-        transaction_manager::TransactionManager,
-        version_manager::{EpochOp, VersionManager},
-        DeleteVector,
-    },
-};
+use crate::catalog::RootCatalog;
+use crate::storage::secondary::manifest::*;
+use crate::storage::secondary::transaction_manager::TransactionManager;
+use crate::storage::secondary::version_manager::{EpochOp, VersionManager};
+use crate::storage::secondary::DeleteVector;
 
 impl SecondaryStorage {
     pub(super) async fn bootstrap(options: StorageOptions) -> StorageResult<Self> {

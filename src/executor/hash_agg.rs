@@ -4,12 +4,10 @@ use itertools::Itertools;
 use smallvec::SmallVec;
 
 use super::*;
-use crate::{
-    array::{ArrayBuilderImpl, ArrayImpl},
-    binder::{BoundAggCall, BoundExpr},
-    executor::aggregation::AggregationState,
-    types::DataValue,
-};
+use crate::array::{ArrayBuilderImpl, ArrayImpl};
+use crate::binder::{BoundAggCall, BoundExpr};
+use crate::executor::aggregation::AggregationState;
+use crate::types::DataValue;
 
 /// The executor of hash aggregation.
 pub struct HashAggExecutor {

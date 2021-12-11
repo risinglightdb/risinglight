@@ -1,13 +1,12 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use futures::lock::Mutex;
 use parking_lot::Mutex as PLMutex;
 use tokio::select;
 
-use super::{manifest::*, DeleteVector, DiskRowset, StorageOptions, StorageResult};
+use super::manifest::*;
+use super::{DeleteVector, DiskRowset, StorageOptions, StorageResult};
 
 /// The operations sent to the version manager. Compared with manifest entries, operations
 /// like `AddRowSet` needs to be associated with a `DiskRowSet` struct.

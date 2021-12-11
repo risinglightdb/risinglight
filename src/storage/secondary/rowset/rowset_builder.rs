@@ -1,21 +1,16 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use itertools::Itertools;
 use risinglight_proto::rowset::block_checksum::ChecksumType;
-use tokio::{
-    fs::{File, OpenOptions},
-    io::{AsyncWriteExt, BufWriter},
-};
+use tokio::fs::{File, OpenOptions};
+use tokio::io::{AsyncWriteExt, BufWriter};
 
 use super::super::{ColumnBuilderImpl, IndexBuilder};
-use crate::{
-    array::DataChunk,
-    catalog::ColumnCatalog,
-    storage::{secondary::ColumnBuilderOptions, StorageResult},
-};
+use crate::array::DataChunk;
+use crate::catalog::ColumnCatalog;
+use crate::storage::secondary::ColumnBuilderOptions;
+use crate::storage::StorageResult;
 
 pub fn path_of_data_column(base: impl AsRef<Path>, column_info: &ColumnCatalog) -> PathBuf {
     path_of_column(base, column_info, ".col")
@@ -125,10 +120,8 @@ impl RowsetBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        array::I32Array,
-        types::{DataTypeExt, DataTypeKind},
-    };
+    use crate::array::I32Array;
+    use crate::types::{DataTypeExt, DataTypeKind};
 
     #[tokio::test]
     async fn test_rowset_flush() {

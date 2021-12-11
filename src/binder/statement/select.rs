@@ -1,8 +1,6 @@
 use super::*;
-use crate::{
-    binder::BoundTableRef,
-    parser::{Query, SelectItem, SetExpr},
-};
+use crate::binder::BoundTableRef;
+use crate::parser::{Query, SelectItem, SetExpr};
 
 /// A bound `select` statement.
 #[derive(Debug, PartialEq, Clone)]

@@ -1,9 +1,11 @@
-use super::super::plan_nodes::{
-    logical_aggregate::LogicalAggregate, logical_join::LogicalJoin,
-    logical_projection::LogicalProjection, logical_seq_scan::LogicalSeqScan, LogicalPlan,
-    LogicalPlanRef, UnaryLogicalPlanNode,
-};
-use crate::{binder::*, catalog::ColumnRefId, logical_optimizer::plan_rewriter::PlanRewriter};
+use super::super::plan_nodes::logical_aggregate::LogicalAggregate;
+use super::super::plan_nodes::logical_join::LogicalJoin;
+use super::super::plan_nodes::logical_projection::LogicalProjection;
+use super::super::plan_nodes::logical_seq_scan::LogicalSeqScan;
+use super::super::plan_nodes::{LogicalPlan, LogicalPlanRef, UnaryLogicalPlanNode};
+use crate::binder::*;
+use crate::catalog::ColumnRefId;
+use crate::logical_optimizer::plan_rewriter::PlanRewriter;
 /// Resolves column references into physical indices into the `DataChunk`.
 ///
 /// This will rewrite all `ColumnRef` expressions to `InputRef`.

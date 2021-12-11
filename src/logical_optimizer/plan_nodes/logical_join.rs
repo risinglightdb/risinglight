@@ -1,5 +1,6 @@
 use super::{LogicalPlan, LogicalPlanRef};
-use crate::{binder::BoundJoinOperator, logical_optimizer::plan_nodes::BinaryLogicalPlanNode};
+use crate::binder::BoundJoinOperator;
+use crate::logical_optimizer::plan_nodes::BinaryLogicalPlanNode;
 
 /// The logical plan of join, it only records join tables and operators.
 /// The query optimizer should decide the join orders and specific algorithms (hash join, nested

@@ -2,7 +2,11 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-pub use self::{column::*, database::*, root::*, schema::*, table::*};
+pub use self::column::*;
+pub use self::database::*;
+pub use self::root::*;
+pub use self::schema::*;
+pub use self::table::*;
 use crate::types::*;
 
 pub static DEFAULT_DATABASE_NAME: &str = "postgres";

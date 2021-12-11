@@ -7,15 +7,15 @@
 //! - [`LogicalProjection`] (select *)
 //! - [`LogicalOrder`] (order by *)
 use super::*;
-use crate::{
-    binder::{BoundAggCall, BoundExpr, BoundInputRef, BoundSelect, BoundTableRef},
-    logical_optimizer::plan_nodes::{
-        logical_aggregate::LogicalAggregate, logical_filter::LogicalFilter,
-        logical_join::LogicalJoin, logical_limit::LogicalLimit, logical_order::LogicalOrder,
-        logical_projection::LogicalProjection, logical_seq_scan::LogicalSeqScan, Dummy,
-        LogicalPlan,
-    },
-};
+use crate::binder::{BoundAggCall, BoundExpr, BoundInputRef, BoundSelect, BoundTableRef};
+use crate::logical_optimizer::plan_nodes::logical_aggregate::LogicalAggregate;
+use crate::logical_optimizer::plan_nodes::logical_filter::LogicalFilter;
+use crate::logical_optimizer::plan_nodes::logical_join::LogicalJoin;
+use crate::logical_optimizer::plan_nodes::logical_limit::LogicalLimit;
+use crate::logical_optimizer::plan_nodes::logical_order::LogicalOrder;
+use crate::logical_optimizer::plan_nodes::logical_projection::LogicalProjection;
+use crate::logical_optimizer::plan_nodes::logical_seq_scan::LogicalSeqScan;
+use crate::logical_optimizer::plan_nodes::{Dummy, LogicalPlan};
 
 impl LogicalPlaner {
     pub fn plan_select(&self, mut stmt: Box<BoundSelect>) -> Result<LogicalPlan, LogicalPlanError> {

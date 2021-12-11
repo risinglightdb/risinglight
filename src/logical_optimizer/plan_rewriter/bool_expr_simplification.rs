@@ -1,10 +1,9 @@
 use super::*;
-use crate::{
-    binder::{BoundBinaryOp, BoundExpr, BoundExpr::*},
-    logical_optimizer::plan_nodes::Dummy,
-    parser::BinaryOperator::*,
-    types::DataValue::*,
-};
+use crate::binder::BoundExpr::*;
+use crate::binder::{BoundBinaryOp, BoundExpr};
+use crate::logical_optimizer::plan_nodes::Dummy;
+use crate::parser::BinaryOperator::*;
+use crate::types::DataValue::*;
 
 /// Boolean expression simplification rule will rewrite expression which compares ('>=', '<' and
 /// '=') with null. (You need `a is null`!)

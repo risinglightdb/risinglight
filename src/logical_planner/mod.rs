@@ -1,6 +1,6 @@
-use crate::{
-    binder::BoundStatement, logical_optimizer::plan_nodes::LogicalPlan, types::ConvertError,
-};
+use crate::binder::BoundStatement;
+use crate::logical_optimizer::plan_nodes::LogicalPlan;
+use crate::types::ConvertError;
 
 mod copy;
 mod create;
