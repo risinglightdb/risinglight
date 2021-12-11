@@ -1,5 +1,6 @@
 use super::*;
-use crate::{binder::BoundOrderBy, logical_optimizer::plan_nodes::logical_order::LogicalOrder};
+use crate::binder::BoundOrderBy;
+use crate::logical_optimizer::plan_nodes::logical_order::LogicalOrder;
 
 /// The physical plan of order.
 #[derive(Debug, PartialEq, Clone)]

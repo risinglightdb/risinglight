@@ -1,4 +1,6 @@
-use std::{fmt, ops::RangeBounds, sync::Arc};
+use std::fmt;
+use std::ops::RangeBounds;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;

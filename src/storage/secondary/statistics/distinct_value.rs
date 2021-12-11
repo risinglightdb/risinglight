@@ -1,5 +1,7 @@
 use super::{StatisticsGlobalAgg, StatisticsPartialAgg};
-use crate::{array::ArrayImpl, storage::secondary::index::ColumnIndex, types::DataValue};
+use crate::array::ArrayImpl;
+use crate::storage::secondary::index::ColumnIndex;
+use crate::types::DataValue;
 
 pub struct DistinctValueGlobalAgg;
 

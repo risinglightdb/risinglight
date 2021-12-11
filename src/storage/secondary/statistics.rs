@@ -12,7 +12,8 @@
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 
 use super::index::ColumnIndex;
-use crate::{array::ArrayImpl, types::DataValue};
+use crate::array::ArrayImpl;
+use crate::types::DataValue;
 
 mod row_count;
 use row_count::*;

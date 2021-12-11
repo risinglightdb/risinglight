@@ -1,24 +1,19 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
+use std::time::Duration;
 
 use itertools::Itertools;
 use tokio::sync::oneshot::Receiver;
 
 use super::{SecondaryStorage, SecondaryTable, Snapshot};
-use crate::{
-    catalog::find_sort_key_id,
-    storage::{
-        secondary::{
-            column::ColumnSeekPosition,
-            concat_iterator::ConcatIterator,
-            manifest::{AddRowSetEntry, DeleteRowsetEntry},
-            merge_iterator::MergeIterator,
-            rowset::{DiskRowset, RowsetBuilder},
-            version_manager::EpochOp,
-            ColumnBuilderOptions, SecondaryIterator,
-        },
-        StorageColumnRef, StorageResult,
-    },
-};
+use crate::catalog::find_sort_key_id;
+use crate::storage::secondary::column::ColumnSeekPosition;
+use crate::storage::secondary::concat_iterator::ConcatIterator;
+use crate::storage::secondary::manifest::{AddRowSetEntry, DeleteRowsetEntry};
+use crate::storage::secondary::merge_iterator::MergeIterator;
+use crate::storage::secondary::rowset::{DiskRowset, RowsetBuilder};
+use crate::storage::secondary::version_manager::EpochOp;
+use crate::storage::secondary::{ColumnBuilderOptions, SecondaryIterator};
+use crate::storage::{StorageColumnRef, StorageResult};
 
 /// Manages all compactions happening in the storage engine.
 pub struct Compactor {

@@ -1,7 +1,5 @@
-use crate::{
-    catalog::ColumnCatalog,
-    types::{DatabaseId, SchemaId},
-};
+use crate::catalog::ColumnCatalog;
+use crate::types::{DatabaseId, SchemaId};
 /// The logical plan of `create table`.
 #[derive(Debug, PartialEq, Clone)]
 pub struct LogicalCreateTable {

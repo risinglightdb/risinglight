@@ -2,11 +2,9 @@ use super::{
     BoolColumnIterator, CharColumnIterator, Column, ColumnIterator, F64ColumnIterator,
     I32ColumnIterator,
 };
-use crate::{
-    array::{Array, ArrayImpl},
-    catalog::ColumnCatalog,
-    types::DataTypeKind,
-};
+use crate::array::{Array, ArrayImpl};
+use crate::catalog::ColumnCatalog;
+use crate::types::DataTypeKind;
 
 /// [`ColumnIteratorImpl`] of all types
 pub enum ColumnIteratorImpl {

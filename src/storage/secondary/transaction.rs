@@ -1,24 +1,22 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use itertools::Itertools;
-use risinglight_proto::rowset::{block_statistics::BlockStatisticsType, DeleteRecord};
+use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
+use risinglight_proto::rowset::DeleteRecord;
 
+use super::version_manager::{Snapshot, VersionManager};
 use super::{
-    version_manager::{Snapshot, VersionManager},
     AddDVEntry, AddRowSetEntry, ColumnBuilderOptions, ColumnSeekPosition, ConcatIterator,
     DeleteVector, DiskRowset, EpochOp, MergeIterator, RowSetIterator, SecondaryMemRowsetImpl,
     SecondaryRowHandler, SecondaryTable, SecondaryTableTxnIterator, TransactionLock,
 };
-use crate::{
-    array::DataChunk,
-    catalog::find_sort_key_id,
-    storage::{
-        secondary::statistics::create_statistics_global_aggregator, StorageColumnRef,
-        StorageResult, Transaction,
-    },
-    types::DataValue,
-};
+use crate::array::DataChunk;
+use crate::catalog::find_sort_key_id;
+use crate::storage::secondary::statistics::create_statistics_global_aggregator;
+use crate::storage::{StorageColumnRef, StorageResult, Transaction};
+use crate::types::DataValue;
 
 /// A transaction running on `SecondaryStorage`.
 pub struct SecondaryTransaction {

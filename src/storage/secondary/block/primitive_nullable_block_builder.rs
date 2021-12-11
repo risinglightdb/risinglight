@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
-use super::{super::PrimitiveFixedWidthEncode, BlockBuilder};
+use super::super::PrimitiveFixedWidthEncode;
+use super::BlockBuilder;
 
 /// Encodes fixed-width data into a block, with null element support.
 ///

@@ -1,8 +1,6 @@
 use super::*;
-use crate::{
-    array::{ArrayImpl, Utf8Array},
-    physical_planner::PhysicalExplain,
-};
+use crate::array::{ArrayImpl, Utf8Array};
+use crate::physical_planner::PhysicalExplain;
 
 /// The executor of `explain` statement.
 pub struct ExplainExecutor {

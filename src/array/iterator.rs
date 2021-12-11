@@ -1,4 +1,5 @@
-use std::{iter::Iterator, marker::PhantomData};
+use std::iter::Iterator;
+use std::marker::PhantomData;
 
 use super::Array;
 

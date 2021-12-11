@@ -1,13 +1,12 @@
 use std::vec::Vec;
 
-use bitvec::{bitvec, vec::BitVec};
+use bitvec::bitvec;
+use bitvec::vec::BitVec;
 
 use super::*;
-use crate::{
-    array::{ArrayBuilderImpl, DataChunk},
-    binder::{BoundJoinConstraint, BoundJoinOperator},
-    types::DataValue,
-};
+use crate::array::{ArrayBuilderImpl, DataChunk};
+use crate::binder::{BoundJoinConstraint, BoundJoinOperator};
+use crate::types::DataValue;
 // The executor for nested loop join
 pub struct NestedLoopJoinExecutor {
     pub left_child: BoxedExecutor,

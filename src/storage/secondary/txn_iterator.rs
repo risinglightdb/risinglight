@@ -3,10 +3,8 @@ use async_trait::async_trait;
 use enum_dispatch::enum_dispatch;
 
 use super::{ConcatIterator, MergeIterator, RowSetIterator};
-use crate::{
-    array::DataChunk,
-    storage::{StorageChunk, StorageResult, TxnIterator},
-};
+use crate::array::DataChunk;
+use crate::storage::{StorageChunk, StorageResult, TxnIterator};
 
 #[enum_dispatch]
 pub enum SecondaryIterator {

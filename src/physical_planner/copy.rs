@@ -1,13 +1,10 @@
 use std::path::PathBuf;
 
 use super::*;
-use crate::{
-    binder::FileFormat,
-    logical_optimizer::plan_nodes::{
-        logical_copy_from_file::LogicalCopyFromFile, logical_copy_to_file::LogicalCopyToFile,
-    },
-    types::DataType,
-};
+use crate::binder::FileFormat;
+use crate::logical_optimizer::plan_nodes::logical_copy_from_file::LogicalCopyFromFile;
+use crate::logical_optimizer::plan_nodes::logical_copy_to_file::LogicalCopyToFile;
+use crate::types::DataType;
 
 /// The physical plan of `COPY FROM`.
 #[derive(Debug, PartialEq, Clone)]

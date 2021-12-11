@@ -49,7 +49,8 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::{catalog::RootCatalog, parser::parse};
+    use crate::catalog::RootCatalog;
+    use crate::parser::parse;
 
     #[test]
     fn bind_drop_table() {

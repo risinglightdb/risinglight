@@ -1,11 +1,9 @@
 use std::borrow::Borrow;
 
-use crate::{
-    array::*,
-    binder::BoundExpr,
-    parser::{BinaryOperator, UnaryOperator},
-    types::{ConvertError, DataTypeKind, DataValue},
-};
+use crate::array::*;
+use crate::binder::BoundExpr;
+use crate::parser::{BinaryOperator, UnaryOperator};
+use crate::types::{ConvertError, DataTypeKind, DataValue};
 
 impl BoundExpr {
     /// Evaluate the given expression as a constant value.

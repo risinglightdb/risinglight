@@ -1,14 +1,13 @@
 use std::iter::Peekable;
 
-use risinglight_proto::rowset::{block_index::BlockType, BlockIndex};
+use risinglight_proto::rowset::block_index::BlockType;
+use risinglight_proto::rowset::BlockIndex;
 
-use super::{
-    super::{
-        BlockBuilder, BlockIndexBuilder, ColumnBuilderOptions, PlainPrimitiveBlockBuilder,
-        PlainPrimitiveNullableBlockBuilder, PrimitiveFixedWidthEncode,
-    },
-    ColumnBuilder,
+use super::super::{
+    BlockBuilder, BlockIndexBuilder, ColumnBuilderOptions, PlainPrimitiveBlockBuilder,
+    PlainPrimitiveNullableBlockBuilder, PrimitiveFixedWidthEncode,
 };
+use super::ColumnBuilder;
 use crate::array::Array;
 
 /// All supported block builders for primitive types.

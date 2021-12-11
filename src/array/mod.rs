@@ -1,7 +1,5 @@
-use std::{
-    convert::TryFrom,
-    ops::{Bound, RangeBounds},
-};
+use std::convert::TryFrom;
+use std::ops::{Bound, RangeBounds};
 
 use serde::{Deserialize, Serialize};
 
@@ -12,7 +10,10 @@ mod iterator;
 mod primitive_array;
 mod utf8_array;
 
-pub use self::{data_chunk::*, iterator::ArrayIter, primitive_array::*, utf8_array::*};
+pub use self::data_chunk::*;
+pub use self::iterator::ArrayIter;
+pub use self::primitive_array::*;
+pub use self::utf8_array::*;
 
 mod internal_ext;
 pub use internal_ext::*;
@@ -433,7 +434,8 @@ mod tests {
         );
     }
 
-    use num_traits::{cast::AsPrimitive, ops::checked::CheckedAdd};
+    use num_traits::cast::AsPrimitive;
+    use num_traits::ops::checked::CheckedAdd;
 
     use crate::types::NativeType;
 

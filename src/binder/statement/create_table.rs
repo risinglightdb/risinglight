@@ -1,9 +1,7 @@
 use super::*;
-use crate::{
-    catalog::{ColumnCatalog, ColumnDesc},
-    parser::{ColumnDef, ColumnOption, Statement},
-    types::{DataType, DatabaseId, SchemaId},
-};
+use crate::catalog::{ColumnCatalog, ColumnDesc};
+use crate::parser::{ColumnDef, ColumnOption, Statement};
+use crate::types::{DataType, DatabaseId, SchemaId};
 
 /// A bound `create table` statement.
 #[derive(Debug, PartialEq, Clone)]
@@ -85,11 +83,9 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::{
-        catalog::RootCatalog,
-        parser::parse,
-        types::{DataTypeExt, DataTypeKind},
-    };
+    use crate::catalog::RootCatalog;
+    use crate::parser::parse;
+    use crate::types::{DataTypeExt, DataTypeKind};
 
     #[test]
     fn bind_create_table() {

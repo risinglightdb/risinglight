@@ -1,7 +1,5 @@
-use crate::{
-    array::{ArrayBuilder, I64Array, I64ArrayBuilder},
-    storage::secondary::SecondaryRowHandler,
-};
+use crate::array::{ArrayBuilder, I64Array, I64ArrayBuilder};
+use crate::storage::secondary::SecondaryRowHandler;
 
 /// Generates a sequence of row-ids
 pub struct RowHandlerSequencer {}

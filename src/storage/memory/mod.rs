@@ -15,16 +15,12 @@
 //! * reverse scan
 //! * `RowHandler` scan
 
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use super::{Storage, StorageError, StorageResult};
-use crate::{
-    catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId},
-    types::{DatabaseId, SchemaId},
-};
+use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};
+use crate::types::{DatabaseId, SchemaId};
 
 mod table;
 pub use table::InMemoryTable;

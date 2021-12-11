@@ -1,8 +1,6 @@
 use super::*;
-use crate::{
-    parser::BinaryOperator,
-    types::{DataTypeExt, DataTypeKind},
-};
+use crate::parser::BinaryOperator;
+use crate::types::{DataTypeExt, DataTypeKind};
 
 /// A bound binary operation expression.
 #[derive(PartialEq, Clone)]

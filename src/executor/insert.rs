@@ -3,12 +3,10 @@ use std::sync::Arc;
 use itertools::Itertools;
 
 use super::*;
-use crate::{
-    array::{ArrayBuilderImpl, DataChunk},
-    catalog::TableRefId,
-    storage::{Storage, Table, Transaction},
-    types::{ColumnId, DataType, DataValue},
-};
+use crate::array::{ArrayBuilderImpl, DataChunk};
+use crate::catalog::TableRefId;
+use crate::storage::{Storage, Table, Transaction};
+use crate::types::{ColumnId, DataType, DataValue};
 
 /// The executor of `insert` statement.
 pub struct InsertExecutor<S: Storage> {
@@ -78,14 +76,12 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::{
-        array::{ArrayImpl, DataChunk},
-        catalog::{ColumnCatalog, TableRefId},
-        executor::{CreateTableExecutor, GlobalEnv, GlobalEnvRef},
-        physical_planner::PhysicalCreateTable,
-        storage::InMemoryStorage,
-        types::{DataTypeExt, DataTypeKind},
-    };
+    use crate::array::{ArrayImpl, DataChunk};
+    use crate::catalog::{ColumnCatalog, TableRefId};
+    use crate::executor::{CreateTableExecutor, GlobalEnv, GlobalEnvRef};
+    use crate::physical_planner::PhysicalCreateTable;
+    use crate::storage::InMemoryStorage;
+    use crate::types::{DataTypeExt, DataTypeKind};
 
     #[tokio::test]
     async fn simple() {

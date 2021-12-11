@@ -2,7 +2,8 @@ use std::marker::PhantomData;
 
 use bytes::Buf;
 
-use super::{super::PrimitiveFixedWidthEncode, Block, BlockIterator};
+use super::super::PrimitiveFixedWidthEncode;
+use super::{Block, BlockIterator};
 use crate::array::{Array, ArrayBuilder};
 
 /// Scans one or several arrays from the block content.
@@ -90,13 +91,9 @@ mod tests {
     use bytes::Bytes;
 
     use super::PlainPrimitiveNullableBlockIterator;
-    use crate::{
-        array::{ArrayBuilder, ArrayToVecExt, I32ArrayBuilder},
-        storage::secondary::{
-            block::{BlockBuilder, PlainPrimitiveNullableBlockBuilder},
-            BlockIterator,
-        },
-    };
+    use crate::array::{ArrayBuilder, ArrayToVecExt, I32ArrayBuilder};
+    use crate::storage::secondary::block::{BlockBuilder, PlainPrimitiveNullableBlockBuilder};
+    use crate::storage::secondary::BlockIterator;
 
     #[test]
     fn test_scan_i32() {

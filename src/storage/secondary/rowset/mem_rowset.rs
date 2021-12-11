@@ -1,15 +1,16 @@
-use std::{cmp::Ordering, path::Path, sync::Arc};
+use std::cmp::Ordering;
+use std::path::Path;
+use std::sync::Arc;
 
 use btreemultimap::BTreeMultiMap;
 use itertools::Itertools;
 
 use super::rowset_builder::RowsetBuilder;
-use crate::{
-    array::{ArrayBuilderImpl, DataChunk},
-    catalog::{find_sort_key_id, ColumnCatalog},
-    storage::{secondary::ColumnBuilderOptions, StorageResult},
-    types::{DataValue, Row},
-};
+use crate::array::{ArrayBuilderImpl, DataChunk};
+use crate::catalog::{find_sort_key_id, ColumnCatalog};
+use crate::storage::secondary::ColumnBuilderOptions;
+use crate::storage::StorageResult;
+use crate::types::{DataValue, Row};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ComparableDataValue(DataValue);

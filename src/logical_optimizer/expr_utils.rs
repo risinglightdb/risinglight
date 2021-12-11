@@ -1,9 +1,8 @@
 use bit_set::BitSet;
 
-use crate::{
-    logical_optimizer::{BoundExpr, BoundExpr::BinaryOp},
-    parser::BinaryOperator::And,
-};
+use crate::logical_optimizer::BoundExpr;
+use crate::logical_optimizer::BoundExpr::BinaryOp;
+use crate::parser::BinaryOperator::And;
 pub fn conjunctions_inner(expr: BoundExpr, rets: &mut Vec<BoundExpr>) {
     match expr {
         BinaryOp(bin_expr) if bin_expr.op == And => {

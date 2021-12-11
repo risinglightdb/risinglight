@@ -1,7 +1,5 @@
-use crate::{
-    array::{Array, ArrayImpl},
-    storage::RowHandler,
-};
+use crate::array::{Array, ArrayImpl};
+use crate::storage::RowHandler;
 
 /// RowHandler of Secondary is a tuple of rowset id and row id.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
