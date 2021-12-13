@@ -1,10 +1,12 @@
-use super::*;
+use std::fmt;
+
 use crate::logical_optimizer::plan_nodes::logical_explain::LogicalExplain;
+use crate::physical_planner::*;
 
 /// The physical plan of `explain`.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalExplain {
-    pub plan: Box<PhysicalPlan>,
+    pub plan: PlanRef,
 }
 
 impl PhysicalPlaner {
@@ -15,8 +17,8 @@ impl PhysicalPlaner {
     }
 }
 
-impl PlanExplainable for PhysicalExplain {
-    fn explain_inner(&self, _level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for PhysicalExplain {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Huh, explain myself?")
     }
 }

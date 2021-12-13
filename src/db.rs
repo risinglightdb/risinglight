@@ -174,9 +174,8 @@ impl Database {
             let logical_plan = InputRefResolver::default().rewrite_plan(logical_plan.into());
             debug!("{:#?}", logical_plan);
             let optimized_plan = optimizer.optimize(logical_plan);
-            let physical_plan = physical_planner.plan(optimized_plan.as_ref().clone())?;
-            debug!("{:#?}", physical_plan);
-            let executor = self.executor_builder.build(physical_plan);
+            debug!("{:#?}", optimized_plan);
+            let executor = self.executor_builder.build(optimized_plan);
             let output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
                 debug!("error: {}", e);
                 e
@@ -198,7 +197,7 @@ pub enum Error {
     #[error("bind error: {0}")]
     Bind(#[from] BindError),
     #[error("logical plan error: {0}")]
-    LogicalPlan(#[from] LogicalPlanError),
+    Plan(#[from] LogicalPlanError),
     #[error("physical plan error: {0}")]
     PhysicalPlan(#[from] PhysicalPlanError),
     #[error("execute error: {0}")]

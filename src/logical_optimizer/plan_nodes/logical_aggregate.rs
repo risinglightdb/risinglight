@@ -1,4 +1,6 @@
-use super::{LogicalPlan, LogicalPlanRef, UnaryLogicalPlanNode};
+use std::fmt;
+
+use super::{Plan, PlanRef, UnaryLogicalPlanNode};
 use crate::binder::{BoundAggCall, BoundExpr};
 
 /// The logical plan of hash aggregate operation.
@@ -8,20 +10,26 @@ pub struct LogicalAggregate {
     pub agg_calls: Vec<BoundAggCall>,
     /// Group keys in hash aggregation (optional)
     pub group_keys: Vec<BoundExpr>,
-    pub child: LogicalPlanRef,
+    pub child: PlanRef,
 }
 
 impl UnaryLogicalPlanNode for LogicalAggregate {
-    fn child(&self) -> LogicalPlanRef {
+    fn child(&self) -> PlanRef {
         self.child.clone()
     }
 
-    fn clone_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
-        LogicalPlan::LogicalAggregate(LogicalAggregate {
+    fn clone_with_child(&self, child: PlanRef) -> PlanRef {
+        Plan::LogicalAggregate(LogicalAggregate {
             child,
             agg_calls: self.agg_calls.clone(),
             group_keys: self.group_keys.clone(),
         })
         .into()
+    }
+}
+
+impl fmt::Display for LogicalAggregate {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "LogicalAggregate: {} agg calls", self.agg_calls.len(),)?;
     }
 }

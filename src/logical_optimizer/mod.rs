@@ -7,7 +7,7 @@ pub(crate) mod plan_nodes;
 mod rules;
 use rules::*;
 
-use self::plan_nodes::LogicalPlanRef;
+use self::plan_nodes::PlanRef;
 use self::plan_rewriter::arith_expr_simplification::ArithExprSimplification;
 use self::plan_rewriter::bool_expr_simplification::BoolExprSimplification;
 use self::plan_rewriter::constant_folding::ConstantFolding;
@@ -18,13 +18,13 @@ use self::plan_rewriter::PlanRewriter;
 ///
 /// It will do both rule-based optimization (predicate pushdown, constant folding and common
 /// expression extraction) , and cost-based optimization (Join reordering and join algorithm
-/// selection). It takes LogicalPlan as input and returns a new LogicalPlan which could be used to
+/// selection). It takes Plan as input and returns a new Plan which could be used to
 /// generate phyiscal plan.
 #[derive(Default)]
 pub struct Optimizer {}
 
 impl Optimizer {
-    pub fn optimize(&mut self, mut plan: LogicalPlanRef) -> LogicalPlanRef {
+    pub fn optimize(&mut self, mut plan: PlanRef) -> PlanRef {
         // TODO: Add more optimization rules.
         plan = ConstantFolding.rewrite_plan(plan);
         plan = ArithExprSimplification.rewrite_plan(plan);

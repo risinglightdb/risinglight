@@ -1,12 +1,14 @@
-use super::*;
+use std::fmt;
+
 use crate::binder::BoundExpr;
 use crate::logical_optimizer::plan_nodes::logical_projection::LogicalProjection;
+use crate::physical_planner::*;
 
 /// The physical plan of project operation.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalProjection {
     pub project_expressions: Vec<BoundExpr>,
-    pub child: Box<PhysicalPlan>,
+    pub child: PlanRef,
 }
 
 impl PhysicalPlaner {
@@ -21,9 +23,12 @@ impl PhysicalPlaner {
     }
 }
 
-impl PlanExplainable for PhysicalProjection {
-    fn explain_inner(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Projection: exprs {:?}", self.project_expressions)?;
-        self.child.explain(level + 1, f)
+impl fmt::Display for PhysicalProjection {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(
+            f,
+            "PhysicalProjection: exprs {:?}",
+            self.project_expressions
+        )?;
     }
 }

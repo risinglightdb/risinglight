@@ -1,3 +1,4 @@
+use std::fmt;
 use std::rc::Rc;
 
 pub use dummy::*;
@@ -33,21 +34,48 @@ pub use logical_copy_from_file::*;
 pub mod logical_seq_scan;
 pub use logical_aggregate::*;
 pub mod logical_values;
+pub mod physical_aggregate;
+pub mod physical_copy;
+pub mod physical_create;
+pub mod physical_delete;
+pub mod physical_drop;
+pub mod physical_explain;
+pub mod physical_filter;
+pub mod physical_insert;
+pub mod physical_join;
+pub mod physical_limit;
+pub mod physical_order;
+pub mod physical_projection;
+pub mod physical_seq_scan;
+pub use physical_aggregate::*;
+pub use physical_copy::*;
+pub use physical_create::*;
+pub use physical_delete::*;
+pub use physical_drop::*;
+pub use physical_explain::*;
+pub use physical_filter::*;
+pub use physical_insert::*;
+pub use physical_join::*;
+pub use physical_limit::*;
+pub use physical_order::*;
+pub use physical_projection::*;
+pub use physical_seq_scan::*;
 
-pub trait LogicalPlanNode {
-    fn children(&self) -> Vec<LogicalPlanRef>;
-    fn clone_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef;
+pub trait PlanTreeNode {
+    fn children(&self) -> Vec<PlanRef>;
+    fn clone_with_children(&self, children: Vec<PlanRef>) -> PlanRef;
 }
 
-/// All LogicalPlan nodes
+pub trait PlanNode: PlanTreeNode + std::fmt::Display {}
+/// All Plan nodes
 ///
 /// You can use it as follows:
 ///
 /// ```rust
-/// macro_rules! use_logical_plan {
+/// macro_rules! use_plan {
 ///     ([], $({ $node_name:ident, $node_type:ty }),*) => {};
 /// }
-/// risinglight::for_all_plan_nodes! { use_logical_plan }
+/// risinglight::for_all_plan_nodes! { use_plan }
 /// ```
 #[macro_export]
 macro_rules! for_all_plan_nodes {
@@ -69,41 +97,64 @@ macro_rules! for_all_plan_nodes {
             { LogicalLimit, LogicalLimit },
             { LogicalDelete, LogicalDelete },
             { LogicalCopyFromFile, LogicalCopyFromFile },
-            { LogicalCopyToFile, LogicalCopyToFile }
+            { LogicalCopyToFile, LogicalCopyToFile },
+            { PhysicalSeqScan, PhysicalSeqScan},
+            { PhysicalInsert, PhysicalInsert},
+            { PhysicalValues, PhysicalValues},
+            { PhysicalCreateTable, PhysicalCreateTable},
+            { PhysicalDrop, PhysicalDrop},
+            { PhysicalProjection, PhysicalProjection},
+            { PhysicalFilter, PhysicalFilter},
+            { PhysicalExplain, PhysicalExplain},
+            { PhysicalJoin, PhysicalJoin},
+            { PhysicalSimpleAgg, PhysicalSimpleAgg},
+            { PhysicalHashAgg, PhysicalHashAgg},
+            { PhysicalOrder, PhysicalOrder},
+            { PhysicalLimit, PhysicalLimit},
+            { PhysicalDelete, PhysicalDelete},
+            { PhysicalCopyFromFile, PhysicalCopyFromFile},
+            { PhysicalCopyToFile, PhysicalCopyToFile}
         }
     };
 }
 
 /// An enumeration which record all necessary information of execution plan,
 /// which will be used by optimizer and executor.
-macro_rules! logical_plan_enum {
+macro_rules! plan_enum {
     ([], $( { $node_name:ident, $node_type:ty } ),*) => {
-        /// `LogicalPlan` embeds all possible plans in `logical_plan` module.
+        /// `Plan` embeds all possible plans in `logical_plan` module.
         #[derive(Debug, PartialEq, Clone)]
-        pub enum LogicalPlan {
+        pub enum Plan {
             $( $node_name($node_type) ),*
         }
     };
 }
 
-for_all_plan_nodes! {logical_plan_enum}
+for_all_plan_nodes! {plan_enum}
 
-pub type LogicalPlanRef = Rc<LogicalPlan>;
+pub type PlanRef = Rc<Plan>;
 
 macro_rules! impl_plan_node {
     ([], $( { $node_name:ident, $node_type:ty } ),*) => {
-        /// Implement `LogicalPlan` for the structs.
-        impl LogicalPlan {
-            pub fn children(&self) -> Vec<LogicalPlanRef> {
+        /// Implement `Plan` for the structs.
+        impl Plan {
+            pub fn fmt_node(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    $( Self::$node_name(inner) => inner.fmt(f),)*
+                }
+            }
+
+            pub fn children(&self) -> Vec<PlanRef> {
                 match self {
                     $( Self::$node_name(inner) => inner.children(),)*
                 }
             }
-            pub fn clone_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
+            pub fn clone_with_children(&self, children: Vec<PlanRef>) -> PlanRef {
                 match self {
                     $( Self::$node_name(inner) => inner.clone_with_children(children),)*
                 }
             }
+
             $(
                 paste! {
                     #[allow(dead_code)]
@@ -116,35 +167,35 @@ macro_rules! impl_plan_node {
         }
 
         $(
-            impl From<$node_type> for LogicalPlan {
+            impl From<$node_type> for Plan {
                 fn from(plan: $node_type) -> Self {
                     Self::$node_name(plan)
                 }
             }
 
-            impl From<$node_type> for LogicalPlanRef {
-                fn from(plan: $node_type) -> LogicalPlanRef {
+            impl From<$node_type> for PlanRef {
+                fn from(plan: $node_type) -> PlanRef {
                     Rc::new(plan.into())
                 }
             }
 
-            impl TryFrom<LogicalPlan> for $node_type {
+            impl TryFrom<Plan> for $node_type {
                 type Error = ();
 
-                fn try_from(plan: LogicalPlan) -> Result<Self, Self::Error> {
+                fn try_from(plan: Plan) -> Result<Self, Self::Error> {
                     match plan {
-                        LogicalPlan::$node_name(plan) => Ok(plan),
+                        Plan::$node_name(plan) => Ok(plan),
                         _ => Err(()),
                     }
                 }
             }
 
-            impl<'a> TryFrom<&'a LogicalPlan> for &'a $node_type {
+            impl<'a> TryFrom<&'a Plan> for &'a $node_type {
                 type Error = ();
 
-                fn try_from(plan: &'a LogicalPlan) -> Result<Self, Self::Error> {
+                fn try_from(plan: &'a Plan) -> Result<Self, Self::Error> {
                     match plan {
-                        LogicalPlan::$node_name(plan) => Ok(plan),
+                        Plan::$node_name(plan) => Ok(plan),
                         _ => Err(()),
                     }
                 }
@@ -152,36 +203,52 @@ macro_rules! impl_plan_node {
         )*
     }
 }
-
 for_all_plan_nodes! { impl_plan_node }
 
+impl fmt::Display for Plan {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.explain(0, f)
+    }
+}
+
+impl Plan {
+    fn explain(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", " ".repeat(level * 2))?;
+        self.fmt(f)?;
+        for child in self.children() {
+            child.explain(level + 1, f)?;
+        }
+        Ok(())
+    }
+}
+
 pub(super) trait LeafLogicalPlanNode: Clone {}
-macro_rules! impl_plan_node_for_leaf {
+macro_rules! impl_plan_tree_node_for_leaf {
     ($leaf_node_type:ident) => {
-        impl LogicalPlanNode for $leaf_node_type {
-            fn children(&self) -> Vec<LogicalPlanRef> {
+        impl PlanTreeNode for $leaf_node_type {
+            fn children(&self) -> Vec<PlanRef> {
                 vec![]
             }
 
-            fn clone_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
+            fn clone_with_children(&self, children: Vec<PlanRef>) -> PlanRef {
                 assert!(children.is_empty());
-                LogicalPlan::$leaf_node_type(self.clone()).into()
+                Plan::$leaf_node_type(self.clone()).into()
             }
         }
     };
 }
 pub(super) trait UnaryLogicalPlanNode {
-    fn child(&self) -> LogicalPlanRef;
-    fn clone_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef;
+    fn child(&self) -> PlanRef;
+    fn clone_with_child(&self, child: PlanRef) -> PlanRef;
 }
-macro_rules! impl_plan_node_for_unary {
+macro_rules! impl_plan_tree_node_for_unary {
     ($unary_node_type:ident) => {
-        impl LogicalPlanNode for $unary_node_type {
-            fn children(&self) -> Vec<LogicalPlanRef> {
+        impl PlanTreeNode for $unary_node_type {
+            fn children(&self) -> Vec<PlanRef> {
                 vec![self.child()]
             }
 
-            fn clone_with_children(&self, mut children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
+            fn clone_with_children(&self, mut children: Vec<PlanRef>) -> PlanRef {
                 assert_eq!(children.len(), 1);
                 self.clone_with_child(children.pop().unwrap())
             }
@@ -190,19 +257,19 @@ macro_rules! impl_plan_node_for_unary {
 }
 
 pub trait BinaryLogicalPlanNode {
-    fn left(&self) -> LogicalPlanRef;
-    fn right(&self) -> LogicalPlanRef;
-    fn clone_with_left_right(&self, left: LogicalPlanRef, right: LogicalPlanRef) -> LogicalPlanRef;
+    fn left(&self) -> PlanRef;
+    fn right(&self) -> PlanRef;
+    fn clone_with_left_right(&self, left: PlanRef, right: PlanRef) -> PlanRef;
 }
 
-macro_rules! impl_plan_node_for_binary {
+macro_rules! impl_plan_tree_node_for_binary {
     ($binary_node_type:ident) => {
-        impl LogicalPlanNode for $binary_node_type {
-            fn children(&self) -> Vec<LogicalPlanRef> {
+        impl PlanTreeNode for $binary_node_type {
+            fn children(&self) -> Vec<PlanRef> {
                 vec![self.left(), self.right()]
             }
 
-            fn clone_with_children(&self, children: Vec<LogicalPlanRef>) -> LogicalPlanRef {
+            fn clone_with_children(&self, children: Vec<PlanRef>) -> PlanRef {
                 assert_eq!(children.len(), 2);
                 let mut iter = children.into_iter();
                 self.clone_with_left_right(iter.next().unwrap(), iter.next().unwrap())
@@ -211,21 +278,21 @@ macro_rules! impl_plan_node_for_binary {
     };
 }
 
-impl_plan_node_for_leaf! {Dummy}
-impl_plan_node_for_leaf! {LogicalCreateTable}
-impl_plan_node_for_leaf! {LogicalDrop}
-impl_plan_node_for_leaf! {LogicalSeqScan}
-impl_plan_node_for_leaf! {LogicalValues}
-impl_plan_node_for_leaf! {LogicalCopyFromFile}
+impl_plan_tree_node_for_leaf! {Dummy}
+impl_plan_tree_node_for_leaf! {LogicalCreateTable}
+impl_plan_tree_node_for_leaf! {LogicalDrop}
+impl_plan_tree_node_for_leaf! {LogicalSeqScan}
+impl_plan_tree_node_for_leaf! {LogicalValues}
+impl_plan_tree_node_for_leaf! {LogicalCopyFromFile}
 
-impl_plan_node_for_unary! {LogicalInsert}
-impl_plan_node_for_unary! {LogicalAggregate}
-impl_plan_node_for_unary! {LogicalProjection}
-impl_plan_node_for_unary! {LogicalFilter}
-impl_plan_node_for_unary! {LogicalOrder}
-impl_plan_node_for_unary! {LogicalExplain}
-impl_plan_node_for_unary! {LogicalLimit}
-impl_plan_node_for_unary! {LogicalDelete}
-impl_plan_node_for_unary! {LogicalCopyToFile}
+impl_plan_tree_node_for_unary! {LogicalInsert}
+impl_plan_tree_node_for_unary! {LogicalAggregate}
+impl_plan_tree_node_for_unary! {LogicalProjection}
+impl_plan_tree_node_for_unary! {LogicalFilter}
+impl_plan_tree_node_for_unary! {LogicalOrder}
+impl_plan_tree_node_for_unary! {LogicalExplain}
+impl_plan_tree_node_for_unary! {LogicalLimit}
+impl_plan_tree_node_for_unary! {LogicalDelete}
+impl_plan_tree_node_for_unary! {LogicalCopyToFile}
 
-impl_plan_node_for_binary! {LogicalJoin}
+impl_plan_tree_node_for_binary! {LogicalJoin}

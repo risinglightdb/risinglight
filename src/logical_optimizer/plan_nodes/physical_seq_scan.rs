@@ -1,8 +1,10 @@
+use std::fmt;
+
 use itertools::Itertools;
 
-use super::*;
 use crate::catalog::TableRefId;
 use crate::logical_optimizer::plan_nodes::logical_seq_scan::LogicalSeqScan;
+use crate::physical_planner::*;
 use crate::types::ColumnId;
 
 /// The physical plan of sequential scan operation.
@@ -25,11 +27,11 @@ impl PhysicalPlaner {
     }
 }
 
-impl PlanExplainable for PhysicalSeqScan {
-    fn explain_inner(&self, _level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for PhysicalSeqScan {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "SeqScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}",
+            "PhysicalSeqScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}",
             self.table_ref_id.table_id,
             self.column_ids.iter().map(ToString::to_string).join(", "),
             self.with_row_handler,

@@ -1,8 +1,10 @@
+use std::fmt;
+
 use itertools::Itertools;
 
-use super::*;
 use crate::catalog::ColumnCatalog;
 use crate::logical_optimizer::plan_nodes::logical_create_table::LogicalCreateTable;
+use crate::physical_planner::*;
 use crate::types::{DatabaseId, SchemaId};
 
 /// The physical plan of `create table`.
@@ -28,11 +30,11 @@ impl PhysicalPlaner {
     }
 }
 
-impl PlanExplainable for PhysicalCreateTable {
-    fn explain_inner(&self, _level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for PhysicalCreateTable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "CreateTable: table {}, columns [{}]",
+            "PhysicalCreateTable: table {}, columns [{}]",
             self.table_name,
             self.columns
                 .iter()

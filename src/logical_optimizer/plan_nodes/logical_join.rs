@@ -1,4 +1,6 @@
-use super::{LogicalPlan, LogicalPlanRef};
+use std::fmt;
+
+use super::{Plan, PlanRef};
 use crate::binder::BoundJoinOperator;
 use crate::logical_optimizer::plan_nodes::BinaryLogicalPlanNode;
 
@@ -7,26 +9,36 @@ use crate::logical_optimizer::plan_nodes::BinaryLogicalPlanNode;
 /// loop join or index join).
 #[derive(Debug, Clone, PartialEq)]
 pub struct LogicalJoin {
-    pub left_plan: LogicalPlanRef,
-    pub right_plan: LogicalPlanRef,
+    pub left_plan: PlanRef,
+    pub right_plan: PlanRef,
     pub join_op: BoundJoinOperator,
 }
 
 impl BinaryLogicalPlanNode for LogicalJoin {
-    fn left(&self) -> LogicalPlanRef {
+    fn left(&self) -> PlanRef {
         self.left_plan.clone()
     }
 
-    fn right(&self) -> LogicalPlanRef {
+    fn right(&self) -> PlanRef {
         self.right_plan.clone()
     }
 
-    fn clone_with_left_right(&self, left: LogicalPlanRef, right: LogicalPlanRef) -> LogicalPlanRef {
-        LogicalPlan::LogicalJoin(LogicalJoin {
+    fn clone_with_left_right(&self, left: PlanRef, right: PlanRef) -> PlanRef {
+        Plan::LogicalJoin(LogicalJoin {
             left_plan: left,
             right_plan: right,
             join_op: self.join_op.clone(),
         })
         .into()
+    }
+}
+
+impl fmt::Display for LogicalJoin {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(
+            f,
+            "LogicalJoin: type {:?}, op {:?}",
+            self.join_type, self.join_op
+        )?;
     }
 }

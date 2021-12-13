@@ -1,12 +1,14 @@
-use super::*;
+use std::fmt;
+
 use crate::logical_optimizer::plan_nodes::logical_limit::LogicalLimit;
+use crate::physical_planner::*;
 
 /// The physical plan of limit operation.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalLimit {
     pub offset: usize,
     pub limit: usize,
-    pub child: Box<PhysicalPlan>,
+    pub child: PlanRef,
 }
 
 impl PhysicalPlaner {
@@ -19,8 +21,8 @@ impl PhysicalPlaner {
     }
 }
 
-impl PlanExplainable for PhysicalLimit {
-    fn explain_inner(&self, _level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for PhysicalLimit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "{:?}", self)
     }
 }

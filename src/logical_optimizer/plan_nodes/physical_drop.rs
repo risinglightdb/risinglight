@@ -1,6 +1,8 @@
-use super::*;
+use std::fmt;
+
 use crate::binder::Object;
 use crate::logical_optimizer::plan_nodes::logical_drop::LogicalDrop;
+use crate::physical_planner::*;
 
 /// The physical plan of `drop`.
 #[derive(Debug, PartialEq, Clone)]
@@ -16,8 +18,8 @@ impl PhysicalPlaner {
     }
 }
 
-impl PlanExplainable for PhysicalDrop {
-    fn explain_inner(&self, _level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for PhysicalDrop {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "{:?}", self)
     }
 }

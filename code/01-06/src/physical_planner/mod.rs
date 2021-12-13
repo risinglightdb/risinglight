@@ -1,5 +1,6 @@
-use crate::logical_planner::{Explain, LogicalPlan};
 use enum_dispatch::enum_dispatch;
+
+use crate::logical_planner::{Explain, Plan};
 
 mod create;
 mod explain;
@@ -34,9 +35,9 @@ pub struct PhysicalPlanner;
 pub enum PhysicalPlanError {}
 
 impl PhysicalPlanner {
-    /// Generate [`PhysicalPlan`] from a [`LogicalPlan`].
-    pub fn plan(&self, plan: &LogicalPlan) -> Result<PhysicalPlan, PhysicalPlanError> {
-        use LogicalPlan::*;
+    /// Generate [`PhysicalPlan`] from a [`Plan`].
+    pub fn plan(&self, plan: &Plan) -> Result<PhysicalPlan, PhysicalPlanError> {
+        use Plan::*;
         match plan {
             LogicalCreateTable(plan) => self.plan_create_table(plan),
             LogicalInsert(plan) => self.plan_insert(plan),

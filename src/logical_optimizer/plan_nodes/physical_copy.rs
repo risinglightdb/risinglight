@@ -1,9 +1,11 @@
+use std::fmt;
 use std::path::PathBuf;
 
-use super::*;
+use super::PlanRef;
 use crate::binder::FileFormat;
 use crate::logical_optimizer::plan_nodes::logical_copy_from_file::LogicalCopyFromFile;
 use crate::logical_optimizer::plan_nodes::logical_copy_to_file::LogicalCopyToFile;
+use crate::physical_planner::*;
 use crate::types::DataType;
 
 /// The physical plan of `COPY FROM`.
@@ -27,7 +29,7 @@ pub struct PhysicalCopyToFile {
     /// The column types.
     pub column_types: Vec<DataType>,
     /// The child plan.
-    pub child: Box<PhysicalPlan>,
+    pub child: PlanRef,
 }
 
 impl PhysicalPlaner {
@@ -55,23 +57,22 @@ impl PhysicalPlaner {
     }
 }
 
-impl PlanExplainable for PhysicalCopyFromFile {
-    fn explain_inner(&self, _level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for PhysicalCopyFromFile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "CopyFromFile: path: {:?}, format: {:?}",
+            "PhysicalCopyFromFile: path: {:?}, format: {:?}",
             self.path, self.format,
         )
     }
 }
 
-impl PlanExplainable for PhysicalCopyToFile {
-    fn explain_inner(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for LogicalCopyToFile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "CopyToFile: path: {:?}, format: {:?}",
+            "PhysicalCopyFromFile: path: {:?}, format: {:?}",
             self.path, self.format,
-        )?;
-        self.child.explain(level + 1, f)
+        )
     }
 }

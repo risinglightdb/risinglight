@@ -1,12 +1,14 @@
-use super::*;
+use std::fmt;
+
 use crate::binder::BoundExpr;
 use crate::logical_optimizer::plan_nodes::logical_filter::LogicalFilter;
+use crate::physical_planner::*;
 
 /// The physical plan of filter operation.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalFilter {
     pub expr: BoundExpr,
-    pub child: Box<PhysicalPlan>,
+    pub child: PlanRef,
 }
 
 impl PhysicalPlaner {
@@ -18,9 +20,8 @@ impl PhysicalPlaner {
     }
 }
 
-impl PlanExplainable for PhysicalFilter {
-    fn explain_inner(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Filter: expr {:?}", self.expr)?;
-        self.child.explain(level + 1, f)
+impl fmt::Display for PhysicalFilter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "PhysicalFilter: expr {:?}", self.expr)?;
     }
 }

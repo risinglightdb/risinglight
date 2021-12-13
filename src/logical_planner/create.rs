@@ -6,8 +6,8 @@ impl LogicalPlaner {
     pub fn plan_create_table(
         &self,
         stmt: BoundCreateTable,
-    ) -> Result<LogicalPlan, LogicalPlanError> {
-        Ok(LogicalPlan::LogicalCreateTable(LogicalCreateTable {
+    ) -> Result<Plan, LogicalPlanError> {
+        Ok(Plan::LogicalCreateTable(LogicalCreateTable {
             database_id: stmt.database_id,
             schema_id: stmt.schema_id,
             table_name: stmt.table_name,

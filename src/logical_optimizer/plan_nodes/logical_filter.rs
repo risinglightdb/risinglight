@@ -1,4 +1,6 @@
-use super::{LogicalPlan, LogicalPlanRef};
+use std::fmt;
+
+use super::{Plan, PlanRef};
 use crate::binder::BoundExpr;
 use crate::logical_optimizer::plan_nodes::UnaryLogicalPlanNode;
 
@@ -6,19 +8,25 @@ use crate::logical_optimizer::plan_nodes::UnaryLogicalPlanNode;
 #[derive(Debug, PartialEq, Clone)]
 pub struct LogicalFilter {
     pub expr: BoundExpr,
-    pub child: LogicalPlanRef,
+    pub child: PlanRef,
 }
 
 impl UnaryLogicalPlanNode for LogicalFilter {
-    fn child(&self) -> LogicalPlanRef {
+    fn child(&self) -> PlanRef {
         self.child.clone()
     }
 
-    fn clone_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
-        LogicalPlan::LogicalFilter(LogicalFilter {
+    fn clone_with_child(&self, child: PlanRef) -> PlanRef {
+        Plan::LogicalFilter(LogicalFilter {
             child,
             expr: self.expr.clone(),
         })
         .into()
+    }
+}
+
+impl fmt::Display for LogicalFilter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "PhysicalFilter: expr {:?}", self.expr)?;
     }
 }

@@ -6,11 +6,11 @@ use crate::logical_optimizer::plan_nodes::logical_copy_from_file::LogicalCopyFro
 use crate::logical_optimizer::plan_nodes::logical_copy_to_file::LogicalCopyToFile;
 use crate::logical_optimizer::plan_nodes::logical_insert::LogicalInsert;
 use crate::logical_optimizer::plan_nodes::logical_seq_scan::LogicalSeqScan;
-use crate::logical_optimizer::plan_nodes::LogicalPlan;
+use crate::logical_optimizer::plan_nodes::Plan;
 use crate::parser::CopyTarget;
 
 impl LogicalPlaner {
-    pub fn plan_copy(&self, stmt: BoundCopy) -> Result<LogicalPlan, LogicalPlanError> {
+    pub fn plan_copy(&self, stmt: BoundCopy) -> Result<Plan, LogicalPlanError> {
         let path = match stmt.target {
             CopyTarget::File { filename } => PathBuf::from(filename),
             t => todo!("unsupported copy target: {:?}", t),
@@ -18,11 +18,11 @@ impl LogicalPlaner {
         let column_ids = stmt.columns.iter().map(|col| col.id()).collect();
         let column_types = stmt.columns.iter().map(|col| col.datatype()).collect();
         if stmt.to {
-            Ok(LogicalPlan::LogicalCopyToFile(LogicalCopyToFile {
+            Ok(Plan::LogicalCopyToFile(LogicalCopyToFile {
                 path,
                 format: stmt.format,
                 column_types,
-                child: LogicalPlan::LogicalSeqScan(LogicalSeqScan {
+                child: Plan::LogicalSeqScan(LogicalSeqScan {
                     table_ref_id: stmt.table_ref_id,
                     column_ids,
                     with_row_handler: false,
@@ -31,10 +31,10 @@ impl LogicalPlaner {
                 .into(),
             }))
         } else {
-            Ok(LogicalPlan::LogicalInsert(LogicalInsert {
+            Ok(Plan::LogicalInsert(LogicalInsert {
                 table_ref_id: stmt.table_ref_id,
                 column_ids,
-                child: LogicalPlan::LogicalCopyFromFile(LogicalCopyFromFile {
+                child: Plan::LogicalCopyFromFile(LogicalCopyFromFile {
                     path,
                     format: stmt.format,
                     column_types,

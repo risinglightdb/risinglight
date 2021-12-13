@@ -1,12 +1,15 @@
-use super::*;
+use std::fmt;
+
+use super::PlanRef;
 use crate::binder::BoundOrderBy;
 use crate::logical_optimizer::plan_nodes::logical_order::LogicalOrder;
+use crate::physical_planner::*;
 
 /// The physical plan of order.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalOrder {
     pub comparators: Vec<BoundOrderBy>,
-    pub child: Box<PhysicalPlan>,
+    pub child: PlanRef,
 }
 
 impl PhysicalPlaner {
@@ -18,9 +21,8 @@ impl PhysicalPlaner {
     }
 }
 
-impl PlanExplainable for PhysicalOrder {
-    fn explain_inner(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "OrderBy: {:?}", self.comparators)?;
-        self.child.explain(level + 1, f)
+impl fmt::Display for PhysicalOrder {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "PhysicalOrder: {:?}", self.comparators)?;
     }
 }

@@ -1,7 +1,8 @@
+use std::fmt;
 use std::path::PathBuf;
 
 use crate::binder::statement::copy::FileFormat;
-use crate::logical_optimizer::plan_nodes::{LogicalPlan, LogicalPlanRef, UnaryLogicalPlanNode};
+use crate::logical_optimizer::plan_nodes::{Plan, PlanRef, UnaryLogicalPlanNode};
 use crate::types::DataType;
 
 /// The logical plan of `COPY TO`.
@@ -14,21 +15,31 @@ pub struct LogicalCopyToFile {
     /// The column types.
     pub column_types: Vec<DataType>,
     /// The child plan.
-    pub child: LogicalPlanRef,
+    pub child: PlanRef,
 }
 
 impl UnaryLogicalPlanNode for LogicalCopyToFile {
-    fn child(&self) -> LogicalPlanRef {
+    fn child(&self) -> PlanRef {
         self.child.clone()
     }
 
-    fn clone_with_child(&self, child: LogicalPlanRef) -> LogicalPlanRef {
-        LogicalPlan::LogicalCopyToFile(LogicalCopyToFile {
+    fn clone_with_child(&self, child: PlanRef) -> PlanRef {
+        Plan::LogicalCopyToFile(LogicalCopyToFile {
             path: self.path.clone(),
             format: self.format.clone(),
             column_types: self.column_types.clone(),
             child,
         })
         .into()
+    }
+}
+
+impl fmt::Display for LogicalCopyToFile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(
+            f,
+            "LogicalCopyToFile: path: {:?}, format: {:?}",
+            self.path, self.format,
+        )
     }
 }

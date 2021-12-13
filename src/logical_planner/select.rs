@@ -15,11 +15,11 @@ use crate::logical_optimizer::plan_nodes::logical_limit::LogicalLimit;
 use crate::logical_optimizer::plan_nodes::logical_order::LogicalOrder;
 use crate::logical_optimizer::plan_nodes::logical_projection::LogicalProjection;
 use crate::logical_optimizer::plan_nodes::logical_seq_scan::LogicalSeqScan;
-use crate::logical_optimizer::plan_nodes::{Dummy, LogicalPlan};
+use crate::logical_optimizer::plan_nodes::{Dummy, Plan};
 
 impl LogicalPlaner {
-    pub fn plan_select(&self, mut stmt: Box<BoundSelect>) -> Result<LogicalPlan, LogicalPlanError> {
-        let mut plan = LogicalPlan::Dummy(Dummy {});
+    pub fn plan_select(&self, mut stmt: Box<BoundSelect>) -> Result<Plan, LogicalPlanError> {
+        let mut plan = Plan::Dummy(Dummy {});
         let mut is_sorted = false;
 
         if let Some(table_ref) = stmt.from_table.get(0) {
@@ -35,7 +35,7 @@ impl LogicalPlaner {
         }
 
         if let Some(expr) = stmt.where_clause {
-            plan = LogicalPlan::LogicalFilter(LogicalFilter {
+            plan = Plan::LogicalFilter(LogicalFilter {
                 expr,
                 child: plan.into(),
             });
@@ -46,7 +46,7 @@ impl LogicalPlaner {
             agg_extractor.visit_expr(expr);
         }
         if !agg_extractor.agg_calls.is_empty() {
-            plan = LogicalPlan::LogicalAggregate(LogicalAggregate {
+            plan = Plan::LogicalAggregate(LogicalAggregate {
                 agg_calls: agg_extractor.agg_calls,
                 group_keys: stmt.group_by,
                 child: plan.into(),
@@ -57,13 +57,13 @@ impl LogicalPlaner {
         assert!(!stmt.select_distinct, "TODO: plan distinct");
 
         if !stmt.select_list.is_empty() {
-            plan = LogicalPlan::LogicalProjection(LogicalProjection {
+            plan = Plan::LogicalProjection(LogicalProjection {
                 project_expressions: stmt.select_list,
                 child: plan.into(),
             });
         }
         if !stmt.orderby.is_empty() && !is_sorted {
-            plan = LogicalPlan::LogicalOrder(LogicalOrder {
+            plan = Plan::LogicalOrder(LogicalOrder {
                 comparators: stmt.orderby,
                 child: plan.into(),
             });
@@ -83,14 +83,14 @@ impl LogicalPlaner {
                 },
                 None => 0,
             };
-            plan = LogicalPlan::LogicalLimit(LogicalLimit {
+            plan = Plan::LogicalLimit(LogicalLimit {
                 offset,
                 limit,
                 child: plan.into(),
             });
         }
 
-        if let LogicalPlan::Dummy(_) = plan {
+        if let Plan::Dummy(_) = plan {
             return Err(LogicalPlanError::InvalidSQL);
         }
         Ok(plan)
@@ -101,13 +101,13 @@ impl LogicalPlaner {
         table_ref: &BoundTableRef,
         with_row_handler: bool,
         is_sorted: bool,
-    ) -> Result<LogicalPlan, LogicalPlanError> {
+    ) -> Result<Plan, LogicalPlanError> {
         match table_ref {
             BoundTableRef::BaseTableRef {
                 ref_id,
                 table_name: _,
                 column_ids,
-            } => Ok(LogicalPlan::LogicalSeqScan(LogicalSeqScan {
+            } => Ok(Plan::LogicalSeqScan(LogicalSeqScan {
                 table_ref_id: *ref_id,
                 column_ids: column_ids.to_vec(),
                 with_row_handler,
@@ -121,7 +121,7 @@ impl LogicalPlaner {
                 for join_table in join_tables.iter() {
                     let table_plan =
                         self.plan_table_ref(&join_table.table_ref, with_row_handler, is_sorted)?;
-                    plan = LogicalPlan::LogicalJoin(LogicalJoin {
+                    plan = Plan::LogicalJoin(LogicalJoin {
                         left_plan: plan.into(),
                         right_plan: table_plan.into(),
                         join_op: join_table.join_op.clone(),

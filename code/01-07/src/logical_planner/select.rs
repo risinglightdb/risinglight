@@ -6,10 +6,8 @@
 //! - [`LogicalProjection`] (select *)
 
 use super::*;
-use crate::{
-    binder::{BoundExpr, BoundSelect},
-    catalog::{ColumnId, TableRefId},
-};
+use crate::binder::{BoundExpr, BoundSelect};
+use crate::catalog::{ColumnId, TableRefId};
 
 /// The logical plan of dummy get.
 #[derive(Debug, PartialEq, Clone)]
@@ -26,12 +24,12 @@ pub struct LogicalGet {
 #[derive(Debug, PartialEq, Clone)]
 pub struct LogicalProjection {
     pub exprs: Vec<BoundExpr>,
-    pub child: LogicalPlanRef,
+    pub child: PlanRef,
 }
 
 impl LogicalPlanner {
-    pub fn plan_select(&self, stmt: BoundSelect) -> Result<LogicalPlan, LogicalPlanError> {
-        let mut plan: LogicalPlan = LogicalDummy.into();
+    pub fn plan_select(&self, stmt: BoundSelect) -> Result<Plan, LogicalPlanError> {
+        let mut plan: Plan = LogicalDummy.into();
 
         if let Some(table_ref) = stmt.from_list.get(0) {
             plan = LogicalGet {

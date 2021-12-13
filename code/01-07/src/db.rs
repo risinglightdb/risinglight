@@ -69,7 +69,7 @@ pub enum Error {
     #[error("bind error: {0}")]
     Bind(#[from] BindError),
     #[error("logical plan error: {0}")]
-    LogicalPlan(#[from] LogicalPlanError),
+    Plan(#[from] LogicalPlanError),
     #[error("physical plan error: {0}")]
     PhysicalPlan(#[from] PhysicalPlanError),
     #[error("execute error: {0}")]

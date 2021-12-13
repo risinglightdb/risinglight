@@ -1,6 +1,8 @@
-use super::*;
+use std::fmt;
+
 use crate::binder::BoundJoinOperator;
 use crate::logical_optimizer::plan_nodes::logical_join::LogicalJoin;
+use crate::physical_planner::*;
 // The type of join algorithm.
 // Before we have query optimzer. We only use nested loop join
 #[derive(Clone, PartialEq, Debug)]
@@ -11,8 +13,8 @@ pub enum PhysicalJoinType {
 #[derive(Clone, PartialEq, Debug)]
 pub struct PhysicalJoin {
     pub join_type: PhysicalJoinType,
-    pub left_plan: Box<PhysicalPlan>,
-    pub right_plan: Box<PhysicalPlan>,
+    pub left_plan: PlanRef,
+    pub right_plan: PlanRef,
     pub join_op: BoundJoinOperator,
 }
 
@@ -33,10 +35,12 @@ impl PhysicalPlaner {
     }
 }
 
-impl PlanExplainable for PhysicalJoin {
-    fn explain_inner(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Join: type {:?}, op {:?}", self.join_type, self.join_op)?;
-        self.left_plan.explain(level + 1, f)?;
-        self.right_plan.explain(level + 1, f)
+impl fmt::Display for PhysicalJoin {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(
+            f,
+            "PhysicalJoin: type {:?}, op {:?}",
+            self.join_type, self.join_op
+        )?;
     }
 }

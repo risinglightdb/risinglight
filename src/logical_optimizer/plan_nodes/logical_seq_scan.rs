@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::catalog::TableRefId;
 use crate::types::ColumnId;
 
@@ -8,4 +10,17 @@ pub struct LogicalSeqScan {
     pub column_ids: Vec<ColumnId>,
     pub with_row_handler: bool,
     pub is_sorted: bool,
+}
+
+impl fmt::Display for LogicalSeqScan {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(
+            f,
+            "LogicalSeqScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}",
+            self.table_ref_id.table_id,
+            self.column_ids.iter().map(ToString::to_string).join(", "),
+            self.with_row_handler,
+            self.is_sorted
+        )
+    }
 }

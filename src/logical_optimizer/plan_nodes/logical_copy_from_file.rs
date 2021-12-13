@@ -1,3 +1,4 @@
+use std::fmt;
 use std::path::PathBuf;
 
 use crate::binder::statement::copy::FileFormat;
@@ -12,4 +13,14 @@ pub struct LogicalCopyFromFile {
     pub format: FileFormat,
     /// The column types.
     pub column_types: Vec<DataType>,
+}
+
+impl fmt::Display for LogicalCopyFromFile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(
+            f,
+            "LogicalCopyFromFile: path: {:?}, format: {:?}",
+            self.path, self.format,
+        )
+    }
 }

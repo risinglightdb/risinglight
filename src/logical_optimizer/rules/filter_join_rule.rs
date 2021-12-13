@@ -1,4 +1,4 @@
-use super::{LogicalPlanRef, Rule};
+use super::{PlanRef, Rule};
 use crate::binder::BoundExpr;
 use crate::logical_optimizer::plan_nodes::{
     BinaryLogicalPlanNode, LogicalJoin, UnaryLogicalPlanNode,
@@ -11,7 +11,7 @@ use crate::types::{DataTypeExt, DataTypeKind};
 
 pub struct FilterJoinRule {}
 impl Rule for FilterJoinRule {
-    fn matches(&self, plan: LogicalPlanRef) -> Result<(), ()> {
+    fn matches(&self, plan: PlanRef) -> Result<(), ()> {
         let filter = plan.as_ref().try_as_logicalfilter()?;
         let filter_child = filter.child();
         let join = filter_child.as_ref().try_as_logicaljoin()?;
@@ -21,7 +21,7 @@ impl Rule for FilterJoinRule {
             _ => Err(()),
         }
     }
-    fn apply(&self, plan: LogicalPlanRef) -> Result<LogicalPlanRef, ()> {
+    fn apply(&self, plan: PlanRef) -> Result<PlanRef, ()> {
         let filter = plan.as_ref().try_as_logicalfilter()?;
         let filter_child = filter.child();
         let join = filter_child.as_ref().try_as_logicaljoin()?;

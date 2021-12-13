@@ -1,12 +1,15 @@
-use super::*;
+use std::fmt;
+
+use super::PlanRef;
 use crate::binder::{BoundAggCall, BoundExpr};
 use crate::logical_optimizer::plan_nodes::logical_aggregate::LogicalAggregate;
+use crate::physical_planner::*;
 
 /// The physical plan of simple aggregation.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalSimpleAgg {
     pub agg_calls: Vec<BoundAggCall>,
-    pub child: Box<PhysicalPlan>,
+    pub child: PlanRef,
 }
 
 /// The physical plan of hash aggregation.
@@ -14,7 +17,7 @@ pub struct PhysicalSimpleAgg {
 pub struct PhysicalHashAgg {
     pub agg_calls: Vec<BoundAggCall>,
     pub group_keys: Vec<BoundExpr>,
-    pub child: Box<PhysicalPlan>,
+    pub child: PlanRef,
 }
 
 impl PhysicalPlaner {
@@ -37,16 +40,13 @@ impl PhysicalPlaner {
     }
 }
 
-impl PlanExplainable for PhysicalSimpleAgg {
-    fn explain_inner(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "SimpleAgg: {:?}", self.agg_calls)?;
-        self.child.explain(level + 1, f)
+impl fmt::Display for PhysicalHashAgg {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "PhysicalHashAgg: {} agg calls", self.agg_calls.len(),)?;
     }
 }
-
-impl PlanExplainable for PhysicalHashAgg {
-    fn explain_inner(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "HashAgg: {} agg calls", self.agg_calls.len(),)?;
-        self.child.explain(level + 1, f)
+impl fmt::Display for PhysicalSimpleAgg {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "PhysicalHashAgg: {} agg calls", self.agg_calls.len(),)?;
     }
 }

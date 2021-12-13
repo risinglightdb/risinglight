@@ -19,19 +19,19 @@ use crate::types::DataValue::*;
 pub struct BoolExprSimplification;
 
 impl PlanRewriter for BoolExprSimplification {
-    fn rewrite_filter(&mut self, plan: &LogicalFilter) -> Option<LogicalPlanRef> {
+    fn rewrite_filter(&mut self, plan: &LogicalFilter) -> Option<PlanRef> {
         let new_expr = self.rewrite_expr(plan.expr.clone());
         match &new_expr {
             Constant(Bool(false) | Null) => Some(
-                LogicalPlan::LogicalFilter(LogicalFilter {
+                Plan::LogicalFilter(LogicalFilter {
                     expr: new_expr,
-                    child: (LogicalPlan::Dummy(Dummy {}).into()),
+                    child: (Plan::Dummy(Dummy {}).into()),
                 })
                 .into(),
             ),
             Constant(Bool(true)) => Some(self.rewrite_plan(plan.child())),
             _ => Some(
-                LogicalPlan::LogicalFilter(LogicalFilter {
+                Plan::LogicalFilter(LogicalFilter {
                     expr: new_expr,
                     child: self.rewrite_plan(plan.child()),
                 })

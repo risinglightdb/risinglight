@@ -1,12 +1,14 @@
-use super::*;
+use std::fmt;
+
 use crate::catalog::TableRefId;
 use crate::logical_optimizer::plan_nodes::logical_delete::LogicalDelete;
+use crate::physical_planner::*;
 
 /// The physical plan of `delete`.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalDelete {
     pub table_ref_id: TableRefId,
-    pub child: Box<PhysicalPlan>,
+    pub child: PlanRef,
 }
 
 impl PhysicalPlaner {
@@ -18,9 +20,8 @@ impl PhysicalPlaner {
     }
 }
 
-impl PlanExplainable for PhysicalDelete {
-    fn explain_inner(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "DeleteTable: table {}", self.table_ref_id.table_id)?;
-        self.child.explain(level + 1, f)
+impl fmt::Display for PhysicalDelete {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "PhysicalDelete: table {}", self.table_ref_id.table_id)?;
     }
 }
