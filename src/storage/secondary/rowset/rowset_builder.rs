@@ -99,7 +99,7 @@ impl RowsetBuilder {
 
             Self::pipe_to_file(path_of_data_column(&self.directory, column_info), data).await?;
 
-            let mut index_builder = IndexBuilder::new(ChecksumType::None, index.len());
+            let mut index_builder = IndexBuilder::new(ChecksumType::Crc32, index.len());
             for index in index {
                 index_builder.append(index);
             }

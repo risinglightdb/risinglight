@@ -18,13 +18,14 @@ pub const INDEX_FOOTER_SIZE: usize = 4 + 8 + 4 + 8;
 pub struct IndexBuilder {
     data: Vec<u8>,
     cnt: usize,
+    checksum_type: ChecksumType,
 }
-
 impl IndexBuilder {
-    pub fn new(_checksum_type: ChecksumType, _target_entries: usize) -> Self {
+    pub fn new(checksum_type: ChecksumType, _target_entries: usize) -> Self {
         Self {
             data: vec![],
             cnt: 0,
+            checksum_type,
         }
     }
 
@@ -35,14 +36,14 @@ impl IndexBuilder {
 
     pub fn finish(self) -> Vec<u8> {
         let mut data = self.data;
+        let checksum = crc32fast::hash(data.as_slice()) as u64;
 
         data.put_u32(SECONDARY_INDEX_MAGIC);
 
         data.put_u64(self.cnt as u64);
 
-        // TODO(chi): add checksum support
-        data.put_i32(ChecksumType::None.into());
-        data.put_u64(0);
+        data.put_i32(self.checksum_type.into());
+        data.put_u64(checksum);
 
         data
     }
