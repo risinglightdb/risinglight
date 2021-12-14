@@ -1,10 +1,11 @@
-use super::*;
 use crate::logical_planner::LogicalExplain;
+
+use super::*;
 
 /// The physical plan of `EXPLAIN`.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalExplain {
-    pub child: PlanRef,
+    pub child: Box<PhysicalPlan>,
 }
 
 impl PhysicalPlanner {

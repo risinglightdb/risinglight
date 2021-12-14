@@ -4,7 +4,7 @@ use crate::physical_planner::PhysicalPlan;
 
 /// The executor of `EXPLAIN` statement.
 pub struct ExplainExecutor {
-    pub plan: PlanRef,
+    pub plan: Box<PhysicalPlan>,
 }
 
 impl Executor for ExplainExecutor {

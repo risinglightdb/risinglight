@@ -1,8 +1,9 @@
-use itertools::Itertools;
-
 use super::*;
-use crate::binder::BoundCreateTable;
-use crate::catalog::{ColumnDesc, SchemaId};
+use crate::{
+    binder::BoundCreateTable,
+    catalog::{ColumnDesc, SchemaId},
+};
+use itertools::Itertools;
 
 /// The logical plan of `CREATE TABLE`.
 #[derive(Debug, PartialEq, Clone)]
@@ -13,7 +14,10 @@ pub struct LogicalCreateTable {
 }
 
 impl LogicalPlanner {
-    pub fn plan_create_table(&self, stmt: BoundCreateTable) -> Result<Plan, LogicalPlanError> {
+    pub fn plan_create_table(
+        &self,
+        stmt: BoundCreateTable,
+    ) -> Result<LogicalPlan, LogicalPlanError> {
         Ok(LogicalCreateTable {
             schema_id: stmt.schema_id,
             table_name: stmt.table_name,

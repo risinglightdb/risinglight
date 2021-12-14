@@ -1,8 +1,6 @@
-use std::rc::Rc;
-
-use enum_dispatch::enum_dispatch;
-
 use crate::binder::BoundStatement;
+use enum_dispatch::enum_dispatch;
+use std::rc::Rc;
 
 mod create;
 mod explain;
@@ -15,7 +13,7 @@ pub use self::insert::*;
 /// The logical plan.
 #[enum_dispatch(Explain)]
 #[derive(Debug, PartialEq, Clone)]
-pub enum Plan {
+pub enum LogicalPlan {
     LogicalCreateTable,
     LogicalInsert,
     LogicalValues,
@@ -23,9 +21,9 @@ pub enum Plan {
 }
 
 /// The reference type of logical plan.
-pub type PlanRef = Rc<Plan>;
+pub type LogicalPlanRef = Rc<LogicalPlan>;
 
-impl std::fmt::Display for Plan {
+impl std::fmt::Display for LogicalPlan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.explain(0, f)
     }
@@ -40,8 +38,8 @@ pub struct LogicalPlanner;
 pub enum LogicalPlanError {}
 
 impl LogicalPlanner {
-    /// Generate [`Plan`] from a [`BoundStatement`].
-    pub fn plan(&self, stmt: BoundStatement) -> Result<Plan, LogicalPlanError> {
+    /// Generate [`LogicalPlan`] from a [`BoundStatement`].
+    pub fn plan(&self, stmt: BoundStatement) -> Result<LogicalPlan, LogicalPlanError> {
         match stmt {
             BoundStatement::CreateTable(stmt) => self.plan_create_table(stmt),
             BoundStatement::Insert(stmt) => self.plan_insert(stmt),

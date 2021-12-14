@@ -3,11 +3,11 @@ use super::*;
 /// The logical plan of `EXPLAIN`.
 #[derive(Debug, PartialEq, Clone)]
 pub struct LogicalExplain {
-    pub child: PlanRef,
+    pub child: LogicalPlanRef,
 }
 
 impl LogicalPlanner {
-    pub fn plan_explain(&self, stmt: BoundStatement) -> Result<Plan, LogicalPlanError> {
+    pub fn plan_explain(&self, stmt: BoundStatement) -> Result<LogicalPlan, LogicalPlanError> {
         Ok(LogicalExplain {
             child: self.plan(stmt)?.into(),
         }

@@ -1,16 +1,15 @@
-use itertools::Itertools;
-
 use super::*;
 use crate::binder::{BoundExpr, BoundInsert};
 use crate::catalog::{ColumnId, TableRefId};
 use crate::types::DataType;
+use itertools::Itertools;
 
 /// The logical plan of `INSERT`.
 #[derive(Debug, PartialEq, Clone)]
 pub struct LogicalInsert {
     pub table_ref_id: TableRefId,
     pub column_ids: Vec<ColumnId>,
-    pub child: PlanRef,
+    pub child: LogicalPlanRef,
 }
 
 /// The logical plan of `VALUES`.
@@ -21,7 +20,7 @@ pub struct LogicalValues {
 }
 
 impl LogicalPlanner {
-    pub fn plan_insert(&self, stmt: BoundInsert) -> Result<Plan, LogicalPlanError> {
+    pub fn plan_insert(&self, stmt: BoundInsert) -> Result<LogicalPlan, LogicalPlanError> {
         Ok(LogicalInsert {
             table_ref_id: stmt.table_ref_id,
             column_ids: stmt.column_ids,

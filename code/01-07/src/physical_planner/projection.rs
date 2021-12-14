@@ -1,12 +1,11 @@
 use super::*;
-use crate::binder::BoundExpr;
-use crate::logical_planner::LogicalProjection;
+use crate::{binder::BoundExpr, logical_planner::LogicalProjection};
 
 /// The physical plan of project operation.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalProjection {
     pub exprs: Vec<BoundExpr>,
-    pub child: PlanRef,
+    pub child: Box<PhysicalPlan>,
 }
 
 impl PhysicalPlanner {
