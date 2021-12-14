@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::logical_optimizer::plan_nodes::{Plan, PlanRef, UnaryLogicalPlanNode};
+use super::{impl_plan_tree_node_for_unary, UnaryLogicalPlanNode};
 
 /// The logical plan of `explain`.
 #[derive(Debug, PartialEq, Clone)]
@@ -17,6 +17,7 @@ impl UnaryLogicalPlanNode for LogicalExplain {
         Plan::LogicalExplain(LogicalExplain { plan: child }).into()
     }
 }
+impl_plan_tree_node_for_unary! {LogicalExplain}
 
 impl fmt::Display for LogicalExplain {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

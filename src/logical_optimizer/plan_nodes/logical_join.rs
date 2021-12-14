@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{Plan, PlanRef};
+use super::impl_plan_tree_node_for_binary;
 use crate::binder::BoundJoinOperator;
 use crate::logical_optimizer::plan_nodes::BinaryLogicalPlanNode;
 
@@ -38,3 +38,4 @@ impl fmt::Display for LogicalJoin {
         writeln!(f, "LogicalJoin: op {:?}", self.join_op)
     }
 }
+impl_plan_tree_node_for_binary! {LogicalJoin}

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{Plan, PlanRef};
+use super::impl_plan_tree_node_for_unary;
 use crate::logical_optimizer::plan_nodes::UnaryLogicalPlanNode;
 
 /// The logical plan of limit operation.
@@ -25,6 +25,8 @@ impl UnaryLogicalPlanNode for LogicalLimit {
         .into()
     }
 }
+impl_plan_tree_node_for_unary! {LogicalLimit}
+
 impl fmt::Display for LogicalLimit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "{:?}", self)

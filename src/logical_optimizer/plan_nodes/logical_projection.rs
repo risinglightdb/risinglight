@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{Plan, PlanRef};
+use super::impl_plan_tree_node_for_unary;
 use crate::binder::BoundExpr;
 use crate::logical_optimizer::plan_nodes::UnaryLogicalPlanNode;
 
@@ -24,6 +24,8 @@ impl UnaryLogicalPlanNode for LogicalProjection {
         .into()
     }
 }
+impl_plan_tree_node_for_unary! {LogicalProjection}
+
 impl fmt::Display for LogicalProjection {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "LogicalProjection: exprs {:?}", self.project_expressions)

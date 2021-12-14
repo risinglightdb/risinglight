@@ -1,8 +1,8 @@
 use std::fmt;
 
-use super::PlanRef;
+use super::impl_plan_tree_node_for_unary;
 use crate::catalog::TableRefId;
-use crate::logical_optimizer::plan_nodes::{Plan, UnaryLogicalPlanNode};
+use crate::logical_optimizer::plan_nodes::UnaryLogicalPlanNode;
 
 /// The logical plan of `delete`.
 #[derive(Debug, PartialEq, Clone)]
@@ -24,6 +24,8 @@ impl UnaryLogicalPlanNode for LogicalDelete {
         .into()
     }
 }
+impl_plan_tree_node_for_unary! {LogicalDelete}
+
 impl fmt::Display for LogicalDelete {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "PhysicalDelete: table {}", self.table_ref_id.table_id)

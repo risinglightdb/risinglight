@@ -1,6 +1,7 @@
 use std::fmt;
 use std::path::PathBuf;
 
+use super::impl_plan_tree_node_for_leaf;
 use crate::binder::statement::copy::FileFormat;
 use crate::types::DataType;
 
@@ -24,3 +25,4 @@ impl fmt::Display for LogicalCopyFromFile {
         )
     }
 }
+impl_plan_tree_node_for_leaf! {LogicalCopyFromFile}

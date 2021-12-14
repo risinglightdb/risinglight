@@ -2,6 +2,7 @@ use std::fmt;
 
 use itertools::Itertools;
 
+use super::impl_plan_tree_node_for_leaf;
 use crate::catalog::TableRefId;
 use crate::types::ColumnId;
 
@@ -26,3 +27,4 @@ impl fmt::Display for LogicalSeqScan {
         )
     }
 }
+impl_plan_tree_node_for_leaf! {LogicalSeqScan}

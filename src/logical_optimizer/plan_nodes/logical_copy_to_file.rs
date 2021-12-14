@@ -1,8 +1,9 @@
 use std::fmt;
 use std::path::PathBuf;
 
+use super::impl_plan_tree_node_for_unary;
 use crate::binder::statement::copy::FileFormat;
-use crate::logical_optimizer::plan_nodes::{Plan, PlanRef, UnaryLogicalPlanNode};
+use crate::logical_optimizer::plan_nodes::UnaryLogicalPlanNode;
 use crate::types::DataType;
 
 /// The logical plan of `COPY TO`.
@@ -33,6 +34,7 @@ impl UnaryLogicalPlanNode for LogicalCopyToFile {
         .into()
     }
 }
+impl_plan_tree_node_for_unary! {LogicalCopyToFile}
 
 impl fmt::Display for LogicalCopyToFile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

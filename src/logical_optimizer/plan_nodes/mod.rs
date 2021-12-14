@@ -226,6 +226,7 @@ impl Plan {
 pub(super) trait LeafLogicalPlanNode: Clone {}
 macro_rules! impl_plan_tree_node_for_leaf {
     ($leaf_node_type:ident) => {
+        use super::{Plan, PlanRef, PlanTreeNode};
         impl PlanTreeNode for $leaf_node_type {
             fn children(&self) -> Vec<PlanRef> {
                 vec![]
@@ -238,12 +239,16 @@ macro_rules! impl_plan_tree_node_for_leaf {
         }
     };
 }
+
+use impl_plan_tree_node_for_leaf;
+
 pub(super) trait UnaryLogicalPlanNode {
     fn child(&self) -> PlanRef;
     fn clone_with_child(&self, child: PlanRef) -> PlanRef;
 }
 macro_rules! impl_plan_tree_node_for_unary {
     ($unary_node_type:ident) => {
+        use super::{Plan, PlanRef, PlanTreeNode};
         impl PlanTreeNode for $unary_node_type {
             fn children(&self) -> Vec<PlanRef> {
                 vec![self.child()]
@@ -256,6 +261,7 @@ macro_rules! impl_plan_tree_node_for_unary {
         }
     };
 }
+use impl_plan_tree_node_for_unary;
 
 pub trait BinaryLogicalPlanNode {
     fn left(&self) -> PlanRef;
@@ -265,6 +271,7 @@ pub trait BinaryLogicalPlanNode {
 
 macro_rules! impl_plan_tree_node_for_binary {
     ($binary_node_type:ident) => {
+        use super::{Plan, PlanRef, PlanTreeNode};
         impl PlanTreeNode for $binary_node_type {
             fn children(&self) -> Vec<PlanRef> {
                 vec![self.left(), self.right()]
@@ -278,22 +285,4 @@ macro_rules! impl_plan_tree_node_for_binary {
         }
     };
 }
-
-impl_plan_tree_node_for_leaf! {Dummy}
-impl_plan_tree_node_for_leaf! {LogicalCreateTable}
-impl_plan_tree_node_for_leaf! {LogicalDrop}
-impl_plan_tree_node_for_leaf! {LogicalSeqScan}
-impl_plan_tree_node_for_leaf! {LogicalValues}
-impl_plan_tree_node_for_leaf! {LogicalCopyFromFile}
-
-impl_plan_tree_node_for_unary! {LogicalInsert}
-impl_plan_tree_node_for_unary! {LogicalAggregate}
-impl_plan_tree_node_for_unary! {LogicalProjection}
-impl_plan_tree_node_for_unary! {LogicalFilter}
-impl_plan_tree_node_for_unary! {LogicalOrder}
-impl_plan_tree_node_for_unary! {LogicalExplain}
-impl_plan_tree_node_for_unary! {LogicalLimit}
-impl_plan_tree_node_for_unary! {LogicalDelete}
-impl_plan_tree_node_for_unary! {LogicalCopyToFile}
-
-impl_plan_tree_node_for_binary! {LogicalJoin}
+use impl_plan_tree_node_for_binary;

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{Plan, PlanRef};
+use super::impl_plan_tree_node_for_unary;
 use crate::binder::BoundExpr;
 use crate::logical_optimizer::plan_nodes::UnaryLogicalPlanNode;
 
@@ -24,6 +24,7 @@ impl UnaryLogicalPlanNode for LogicalFilter {
         .into()
     }
 }
+impl_plan_tree_node_for_unary! {LogicalFilter}
 
 impl fmt::Display for LogicalFilter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

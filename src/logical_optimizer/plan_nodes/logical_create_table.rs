@@ -2,6 +2,7 @@ use std::fmt;
 
 use itertools::Itertools;
 
+use super::impl_plan_tree_node_for_leaf;
 use crate::catalog::ColumnCatalog;
 use crate::types::{DatabaseId, SchemaId};
 /// The logical plan of `create table`.
@@ -25,3 +26,4 @@ impl fmt::Display for LogicalCreateTable {
         )
     }
 }
+impl_plan_tree_node_for_leaf! {LogicalCreateTable}

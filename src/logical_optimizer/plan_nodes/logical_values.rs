@@ -1,5 +1,6 @@
 use std::fmt;
 
+use super::impl_plan_tree_node_for_leaf;
 use crate::binder::BoundExpr;
 use crate::types::DataType;
 
@@ -15,3 +16,4 @@ impl fmt::Display for LogicalValues {
         writeln!(f, "LogicalValues: {} rows", self.values.len())
     }
 }
+impl_plan_tree_node_for_leaf! {LogicalValues}
