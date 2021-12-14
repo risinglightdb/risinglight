@@ -12,6 +12,7 @@ use self::plan_rewriter::arith_expr_simplification::ArithExprSimplification;
 use self::plan_rewriter::bool_expr_simplification::BoolExprSimplification;
 use self::plan_rewriter::constant_folding::ConstantFolding;
 use self::plan_rewriter::constant_moving::ConstantMovingRule;
+use self::plan_rewriter::convert_physical::PhysicalConverter;
 use self::plan_rewriter::PlanRewriter;
 
 /// The optimizer will do query optimization.
@@ -33,6 +34,7 @@ impl Optimizer {
         let hep_optimizer = HeuristicOptimizer {
             rules: vec![Box::new(FilterJoinRule {})],
         };
-        hep_optimizer.optimize(plan)
+        plan = hep_optimizer.optimize(plan);
+        PhysicalConverter.rewrite_plan(plan)
     }
 }

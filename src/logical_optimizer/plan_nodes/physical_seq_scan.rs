@@ -3,7 +3,6 @@ use std::fmt;
 use itertools::Itertools;
 
 use crate::catalog::TableRefId;
-use crate::logical_optimizer::plan_nodes::logical_seq_scan::LogicalSeqScan;
 use crate::types::ColumnId;
 
 /// The physical plan of sequential scan operation.
@@ -13,17 +12,6 @@ pub struct PhysicalSeqScan {
     pub column_ids: Vec<ColumnId>,
     pub with_row_handler: bool,
     pub is_sorted: bool,
-}
-
-impl PhysicalPlaner {
-    pub fn plan_seq_scan(&self, plan: LogicalSeqScan) -> Result<PhysicalPlan, PhysicalPlanError> {
-        Ok(PhysicalPlan::SeqScan(PhysicalSeqScan {
-            table_ref_id: plan.table_ref_id,
-            column_ids: plan.column_ids,
-            with_row_handler: plan.with_row_handler,
-            is_sorted: plan.is_sorted,
-        }))
-    }
 }
 
 impl fmt::Display for PhysicalSeqScan {

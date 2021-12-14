@@ -1,7 +1,7 @@
 use std::fmt;
 
+use super::PlanRef;
 use crate::binder::BoundJoinOperator;
-use crate::logical_optimizer::plan_nodes::logical_join::LogicalJoin;
 
 // The type of join algorithm.
 // Before we have query optimzer. We only use nested loop join
@@ -20,20 +20,6 @@ pub struct PhysicalJoin {
 
 /// Currently, we only use default join ordering.
 /// We will implement DP or DFS algorithms for join orders.
-impl PhysicalPlaner {
-    pub fn plan_join(&self, logical_join: LogicalJoin) -> Result<PhysicalPlan, PhysicalPlanError> {
-        Ok(PhysicalPlan::Join(PhysicalJoin {
-            join_type: PhysicalJoinType::NestedLoop,
-            left_plan: self
-                .plan_inner(logical_join.left_plan.as_ref().clone())?
-                .into(),
-            right_plan: self
-                .plan_inner(logical_join.right_plan.as_ref().clone())?
-                .into(),
-            join_op: logical_join.join_op.clone(),
-        }))
-    }
-}
 
 impl fmt::Display for PhysicalJoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

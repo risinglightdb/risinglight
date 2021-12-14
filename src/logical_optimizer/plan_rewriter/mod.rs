@@ -20,6 +20,7 @@ pub(super) mod arith_expr_simplification;
 pub(super) mod bool_expr_simplification;
 pub(super) mod constant_folding;
 pub(super) mod constant_moving;
+pub(super) mod convert_physical;
 pub mod input_ref_resolver;
 
 // PlanRewriter is a plan visitor.
@@ -52,6 +53,7 @@ pub trait PlanRewriter {
             Plan::LogicalValues(plan) => self.rewrite_values(plan),
             Plan::LogicalCopyFromFile(plan) => self.rewrite_copy_from_file(plan),
             Plan::LogicalCopyToFile(plan) => self.rewrite_copy_to_file(plan),
+            _ => panic!("unsupported plan for visitor  "),
         }
     }
 

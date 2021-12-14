@@ -12,7 +12,6 @@ use crate::logical_optimizer::plan_rewriter::PlanRewriter;
 use crate::logical_optimizer::Optimizer;
 use crate::logical_planner::{LogicalPlanError, LogicalPlaner};
 use crate::parser::{parse, ParserError};
-use crate::physical_planner::{PhysicalPlanError, PhysicalPlaner};
 use crate::storage::{
     InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
     StorageImpl, Table,
@@ -163,7 +162,6 @@ impl Database {
         let mut binder = Binder::new(self.catalog.clone());
         let logical_planner = LogicalPlaner::default();
         let mut optimizer = Optimizer::default();
-        let physical_planner = PhysicalPlaner::default();
         // TODO: parallelize
         let mut outputs = vec![];
         for stmt in stmts {
@@ -198,8 +196,6 @@ pub enum Error {
     Bind(#[from] BindError),
     #[error("logical plan error: {0}")]
     Plan(#[from] LogicalPlanError),
-    #[error("physical plan error: {0}")]
-    PhysicalPlan(#[from] PhysicalPlanError),
     #[error("execute error: {0}")]
     Execute(#[from] ExecutorError),
     #[error("Storage error: {0}")]

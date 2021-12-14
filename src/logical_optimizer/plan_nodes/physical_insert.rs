@@ -2,11 +2,9 @@ use std::fmt;
 
 use itertools::Itertools;
 
+use super::PlanRef;
 use crate::binder::BoundExpr;
 use crate::catalog::TableRefId;
-use crate::logical_optimizer::plan_nodes::logical_insert::LogicalInsert;
-use crate::logical_optimizer::plan_nodes::logical_values::LogicalValues;
-
 use crate::types::{ColumnId, DataType};
 
 /// The physical plan of `insert`.
@@ -22,23 +20,6 @@ pub struct PhysicalInsert {
 pub struct PhysicalValues {
     pub column_types: Vec<DataType>,
     pub values: Vec<Vec<BoundExpr>>,
-}
-
-impl PhysicalPlaner {
-    pub fn plan_insert(&self, plan: LogicalInsert) -> Result<PhysicalPlan, PhysicalPlanError> {
-        Ok(PhysicalPlan::Insert(PhysicalInsert {
-            table_ref_id: plan.table_ref_id,
-            column_ids: plan.column_ids,
-            child: self.plan_inner(plan.child.as_ref().clone())?.into(),
-        }))
-    }
-
-    pub fn plan_values(&self, plan: LogicalValues) -> Result<PhysicalPlan, PhysicalPlanError> {
-        Ok(PhysicalPlan::Values(PhysicalValues {
-            column_types: plan.column_types,
-            values: plan.values,
-        }))
-    }
 }
 
 impl fmt::Display for PhysicalValues {
