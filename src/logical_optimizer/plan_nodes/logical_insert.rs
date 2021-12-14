@@ -2,7 +2,7 @@ use std::fmt;
 
 use itertools::Itertools;
 
-use super::impl_plan_tree_node_for_unary;
+use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode};
 use crate::catalog::TableRefId;
 use crate::logical_optimizer::plan_nodes::UnaryLogicalPlanNode;
 use crate::types::ColumnId;
@@ -29,6 +29,7 @@ impl UnaryLogicalPlanNode for LogicalInsert {
         .into()
     }
 }
+impl_plan_tree_node_for_unary! {LogicalInsert}
 
 impl fmt::Display for LogicalInsert {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -40,4 +41,3 @@ impl fmt::Display for LogicalInsert {
         )
     }
 }
-impl_plan_tree_node_for_unary! {LogicalInsert}

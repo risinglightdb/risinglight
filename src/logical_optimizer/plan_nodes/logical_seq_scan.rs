@@ -2,7 +2,7 @@ use std::fmt;
 
 use itertools::Itertools;
 
-use super::impl_plan_tree_node_for_leaf;
+use super::{impl_plan_tree_node_for_leaf, Plan, PlanRef, PlanTreeNode};
 use crate::catalog::TableRefId;
 use crate::types::ColumnId;
 
@@ -14,6 +14,7 @@ pub struct LogicalSeqScan {
     pub with_row_handler: bool,
     pub is_sorted: bool,
 }
+impl_plan_tree_node_for_leaf! {LogicalSeqScan}
 
 impl fmt::Display for LogicalSeqScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -27,4 +28,3 @@ impl fmt::Display for LogicalSeqScan {
         )
     }
 }
-impl_plan_tree_node_for_leaf! {LogicalSeqScan}

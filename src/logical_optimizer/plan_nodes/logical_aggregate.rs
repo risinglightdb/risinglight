@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{impl_plan_tree_node_for_unary, UnaryLogicalPlanNode};
+use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode, UnaryLogicalPlanNode};
 use crate::binder::{BoundAggCall, BoundExpr};
 
 /// The logical plan of hash aggregate operation.
@@ -27,10 +27,10 @@ impl UnaryLogicalPlanNode for LogicalAggregate {
         .into()
     }
 }
+impl_plan_tree_node_for_unary! {LogicalAggregate}
 
 impl fmt::Display for LogicalAggregate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "LogicalAggregate: {} agg calls", self.agg_calls.len(),)
     }
 }
-impl_plan_tree_node_for_unary! {LogicalAggregate}

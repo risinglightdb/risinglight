@@ -226,7 +226,6 @@ impl Plan {
 pub(super) trait LeafLogicalPlanNode: Clone {}
 macro_rules! impl_plan_tree_node_for_leaf {
     ($leaf_node_type:ident) => {
-        use super::{Plan, PlanRef, PlanTreeNode};
         impl PlanTreeNode for $leaf_node_type {
             fn children(&self) -> Vec<PlanRef> {
                 vec![]
@@ -248,7 +247,6 @@ pub(super) trait UnaryLogicalPlanNode {
 }
 macro_rules! impl_plan_tree_node_for_unary {
     ($unary_node_type:ident) => {
-        use super::{Plan, PlanRef, PlanTreeNode};
         impl PlanTreeNode for $unary_node_type {
             fn children(&self) -> Vec<PlanRef> {
                 vec![self.child()]
@@ -271,7 +269,6 @@ pub trait BinaryLogicalPlanNode {
 
 macro_rules! impl_plan_tree_node_for_binary {
     ($binary_node_type:ident) => {
-        use super::{Plan, PlanRef, PlanTreeNode};
         impl PlanTreeNode for $binary_node_type {
             fn children(&self) -> Vec<PlanRef> {
                 vec![self.left(), self.right()]

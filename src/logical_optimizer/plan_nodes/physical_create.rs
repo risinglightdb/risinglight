@@ -2,6 +2,7 @@ use std::fmt;
 
 use itertools::Itertools;
 
+use super::{impl_plan_tree_node_for_leaf, Plan, PlanRef, PlanTreeNode};
 use crate::catalog::ColumnCatalog;
 use crate::types::{DatabaseId, SchemaId};
 
@@ -13,6 +14,7 @@ pub struct PhysicalCreateTable {
     pub table_name: String,
     pub columns: Vec<ColumnCatalog>,
 }
+impl_plan_tree_node_for_leaf! {PhysicalCreateTable}
 
 impl fmt::Display for PhysicalCreateTable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

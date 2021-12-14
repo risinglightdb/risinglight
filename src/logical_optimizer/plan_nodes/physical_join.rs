@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::PlanRef;
+use super::{impl_plan_tree_node_for_binary, BinaryLogicalPlanNode, Plan, PlanRef, PlanTreeNode};
 use crate::binder::BoundJoinOperator;
 
 // The type of join algorithm.
@@ -18,9 +18,29 @@ pub struct PhysicalJoin {
     pub join_op: BoundJoinOperator,
 }
 
+impl BinaryLogicalPlanNode for PhysicalJoin {
+    fn left(&self) -> PlanRef {
+        self.left_plan.clone()
+    }
+
+    fn right(&self) -> PlanRef {
+        self.right_plan.clone()
+    }
+
+    fn clone_with_left_right(&self, left: PlanRef, right: PlanRef) -> PlanRef {
+        Plan::PhysicalJoin(PhysicalJoin {
+            left_plan: left,
+            right_plan: right,
+            join_op: self.join_op.clone(),
+            join_type: self.join_type,
+        })
+        .into()
+    }
+}
+impl_plan_tree_node_for_binary! {PhysicalJoin}
+
 /// Currently, we only use default join ordering.
 /// We will implement DP or DFS algorithms for join orders.
-
 impl fmt::Display for PhysicalJoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(

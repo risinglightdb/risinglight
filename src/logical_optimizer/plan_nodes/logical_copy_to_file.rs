@@ -1,7 +1,7 @@
 use std::fmt;
 use std::path::PathBuf;
 
-use super::impl_plan_tree_node_for_unary;
+use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode};
 use crate::binder::statement::copy::FileFormat;
 use crate::logical_optimizer::plan_nodes::UnaryLogicalPlanNode;
 use crate::types::DataType;

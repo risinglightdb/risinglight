@@ -2,9 +2,9 @@ use std::fmt;
 
 use itertools::Itertools;
 
+use super::{impl_plan_tree_node_for_leaf, Plan, PlanRef, PlanTreeNode};
 use crate::catalog::TableRefId;
 use crate::types::ColumnId;
-
 /// The physical plan of sequential scan operation.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PhysicalSeqScan {
@@ -13,6 +13,7 @@ pub struct PhysicalSeqScan {
     pub with_row_handler: bool,
     pub is_sorted: bool,
 }
+impl_plan_tree_node_for_leaf! {PhysicalSeqScan}
 
 impl fmt::Display for PhysicalSeqScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

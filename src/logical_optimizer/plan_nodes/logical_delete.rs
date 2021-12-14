@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::impl_plan_tree_node_for_unary;
+use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode};
 use crate::catalog::TableRefId;
 use crate::logical_optimizer::plan_nodes::UnaryLogicalPlanNode;
 

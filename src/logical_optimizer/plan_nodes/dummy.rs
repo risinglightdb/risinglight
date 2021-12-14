@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::impl_plan_tree_node_for_leaf;
+use super::{impl_plan_tree_node_for_leaf, Plan, PlanRef, PlanTreeNode};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Dummy {}

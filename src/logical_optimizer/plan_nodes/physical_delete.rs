@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::PlanRef;
+use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode, UnaryLogicalPlanNode};
 use crate::catalog::TableRefId;
 
 /// The physical plan of `delete`.
@@ -9,6 +9,20 @@ pub struct PhysicalDelete {
     pub table_ref_id: TableRefId,
     pub child: PlanRef,
 }
+impl UnaryLogicalPlanNode for PhysicalDelete {
+    fn child(&self) -> PlanRef {
+        self.child.clone()
+    }
+
+    fn clone_with_child(&self, child: PlanRef) -> PlanRef {
+        Plan::PhysicalDelete(PhysicalDelete {
+            table_ref_id: self.table_ref_id,
+            child,
+        })
+        .into()
+    }
+}
+impl_plan_tree_node_for_unary! {PhysicalDelete}
 
 impl fmt::Display for PhysicalDelete {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

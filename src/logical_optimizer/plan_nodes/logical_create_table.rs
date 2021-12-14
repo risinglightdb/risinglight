@@ -2,7 +2,7 @@ use std::fmt;
 
 use itertools::Itertools;
 
-use super::impl_plan_tree_node_for_leaf;
+use super::{impl_plan_tree_node_for_leaf, Plan, PlanRef, PlanTreeNode};
 use crate::catalog::ColumnCatalog;
 use crate::types::{DatabaseId, SchemaId};
 /// The logical plan of `create table`.
@@ -13,6 +13,8 @@ pub struct LogicalCreateTable {
     pub table_name: String,
     pub columns: Vec<ColumnCatalog>,
 }
+impl_plan_tree_node_for_leaf! {LogicalCreateTable}
+
 impl fmt::Display for LogicalCreateTable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
@@ -26,4 +28,3 @@ impl fmt::Display for LogicalCreateTable {
         )
     }
 }
-impl_plan_tree_node_for_leaf! {LogicalCreateTable}

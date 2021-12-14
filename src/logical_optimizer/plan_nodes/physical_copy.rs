@@ -1,7 +1,10 @@
 use std::fmt;
 use std::path::PathBuf;
 
-use super::PlanRef;
+use super::{
+    impl_plan_tree_node_for_leaf, impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode,
+    UnaryLogicalPlanNode,
+};
 use crate::binder::FileFormat;
 use crate::types::DataType;
 
@@ -15,6 +18,7 @@ pub struct PhysicalCopyFromFile {
     /// The column types.
     pub column_types: Vec<DataType>,
 }
+impl_plan_tree_node_for_leaf! {PhysicalCopyFromFile}
 
 /// The physical plan of `COPY TO`.
 #[derive(Debug, PartialEq, Clone)]
@@ -28,6 +32,23 @@ pub struct PhysicalCopyToFile {
     /// The child plan.
     pub child: PlanRef,
 }
+
+impl UnaryLogicalPlanNode for PhysicalCopyToFile {
+    fn child(&self) -> PlanRef {
+        self.child.clone()
+    }
+
+    fn clone_with_child(&self, child: PlanRef) -> PlanRef {
+        Plan::PhysicalCopyToFile(PhysicalCopyToFile {
+            path: self.path.clone(),
+            format: self.format.clone(),
+            column_types: self.column_types.clone(),
+            child,
+        })
+        .into()
+    }
+}
+impl_plan_tree_node_for_unary! {PhysicalCopyToFile}
 
 impl fmt::Display for PhysicalCopyFromFile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
