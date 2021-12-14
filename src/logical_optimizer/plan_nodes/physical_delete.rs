@@ -12,6 +12,6 @@ pub struct PhysicalDelete {
 
 impl fmt::Display for PhysicalDelete {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "PhysicalDelete: table {}", self.table_ref_id.table_id)?;
+        writeln!(f, "PhysicalDelete: table {}", self.table_ref_id.table_id)
     }
 }

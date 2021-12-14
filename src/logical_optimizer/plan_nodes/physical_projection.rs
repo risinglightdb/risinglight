@@ -16,6 +16,6 @@ impl fmt::Display for PhysicalProjection {
             f,
             "PhysicalProjection: exprs {:?}",
             self.project_expressions
-        )?;
+        )
     }
 }

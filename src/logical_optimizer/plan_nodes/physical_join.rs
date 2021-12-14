@@ -27,6 +27,6 @@ impl fmt::Display for PhysicalJoin {
             f,
             "PhysicalJoin: type {:?}, op {:?}",
             self.join_type, self.join_op
-        )?;
+        )
     }
 }

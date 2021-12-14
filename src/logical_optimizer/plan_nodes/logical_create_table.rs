@@ -1,5 +1,7 @@
 use std::fmt;
 
+use itertools::Itertools;
+
 use crate::catalog::ColumnCatalog;
 use crate::types::{DatabaseId, SchemaId};
 /// The logical plan of `create table`.

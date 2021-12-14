@@ -35,6 +35,6 @@ impl fmt::Display for PhysicalInsert {
             "PhysicalInsert: table {}, columns [{}]",
             self.table_ref_id.table_id,
             self.column_ids.iter().map(ToString::to_string).join(", ")
-        )?;
+        )
     }
 }

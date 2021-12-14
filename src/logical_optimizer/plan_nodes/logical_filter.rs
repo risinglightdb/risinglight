@@ -27,6 +27,6 @@ impl UnaryLogicalPlanNode for LogicalFilter {
 
 impl fmt::Display for LogicalFilter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "PhysicalFilter: expr {:?}", self.expr)?;
+        writeln!(f, "PhysicalFilter: expr {:?}", self.expr)
     }
 }

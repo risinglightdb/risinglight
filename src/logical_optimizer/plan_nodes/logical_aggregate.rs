@@ -30,6 +30,6 @@ impl UnaryLogicalPlanNode for LogicalAggregate {
 
 impl fmt::Display for LogicalAggregate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "LogicalAggregate: {} agg calls", self.agg_calls.len(),)?;
+        writeln!(f, "LogicalAggregate: {} agg calls", self.agg_calls.len(),)
     }
 }

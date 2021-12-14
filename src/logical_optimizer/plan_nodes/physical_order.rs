@@ -12,6 +12,6 @@ pub struct PhysicalOrder {
 
 impl fmt::Display for PhysicalOrder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "PhysicalOrder: {:?}", self.comparators)?;
+        writeln!(f, "PhysicalOrder: {:?}", self.comparators)
     }
 }

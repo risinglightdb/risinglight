@@ -26,6 +26,6 @@ impl UnaryLogicalPlanNode for LogicalProjection {
 }
 impl fmt::Display for LogicalProjection {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "LogicalProjection: exprs {:?}", self.project_expressions)?;
+        writeln!(f, "LogicalProjection: exprs {:?}", self.project_expressions)
     }
 }

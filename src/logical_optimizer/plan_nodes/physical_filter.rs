@@ -12,6 +12,6 @@ pub struct PhysicalFilter {
 
 impl fmt::Display for PhysicalFilter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "PhysicalFilter: expr {:?}", self.expr)?;
+        writeln!(f, "PhysicalFilter: expr {:?}", self.expr)
     }
 }

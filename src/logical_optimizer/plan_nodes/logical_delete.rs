@@ -26,6 +26,6 @@ impl UnaryLogicalPlanNode for LogicalDelete {
 }
 impl fmt::Display for LogicalDelete {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "PhysicalDelete: table {}", self.table_ref_id.table_id)?;
+        writeln!(f, "PhysicalDelete: table {}", self.table_ref_id.table_id)
     }
 }

@@ -1,5 +1,7 @@
 use std::fmt;
 
+use itertools::Itertools;
+
 use crate::catalog::TableRefId;
 use crate::types::ColumnId;
 

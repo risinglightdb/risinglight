@@ -27,6 +27,6 @@ impl UnaryLogicalPlanNode for LogicalOrder {
 
 impl fmt::Display for LogicalOrder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "LogicalOrder: {:?}", self.comparators)?;
+        writeln!(f, "LogicalOrder: {:?}", self.comparators)
     }
 }

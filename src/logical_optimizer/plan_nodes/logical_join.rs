@@ -35,10 +35,6 @@ impl BinaryLogicalPlanNode for LogicalJoin {
 
 impl fmt::Display for LogicalJoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(
-            f,
-            "LogicalJoin: type {:?}, op {:?}",
-            self.join_type, self.join_op
-        )?;
+        writeln!(f, "LogicalJoin: op {:?}", self.join_op)
     }
 }
