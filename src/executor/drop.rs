@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::*;
 use crate::binder::Object;
-use crate::physical_planner::PhysicalDrop;
+use crate::logical_optimizer::plan_nodes::PhysicalDrop;
 use crate::storage::Storage;
 /// The executor of `drop` statement.
 pub struct DropExecutor<S: Storage> {

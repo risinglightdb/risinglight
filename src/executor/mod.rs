@@ -16,7 +16,6 @@ use async_stream::try_stream;
 use futures::stream::{BoxStream, Stream, StreamExt};
 
 use crate::array::DataChunk;
-use crate::physical_planner::PhysicalPlan;
 use crate::storage::{Storage, StorageError, StorageImpl};
 use crate::types::ConvertError;
 
