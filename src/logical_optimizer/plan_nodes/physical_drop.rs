@@ -2,7 +2,6 @@ use std::fmt;
 
 use crate::binder::Object;
 use crate::logical_optimizer::plan_nodes::logical_drop::LogicalDrop;
-use crate::physical_planner::*;
 
 /// The physical plan of `drop`.
 #[derive(Debug, PartialEq, Clone)]

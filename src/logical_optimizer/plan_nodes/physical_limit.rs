@@ -1,7 +1,6 @@
 use std::fmt;
 
 use crate::logical_optimizer::plan_nodes::logical_limit::LogicalLimit;
-use crate::physical_planner::*;
 
 /// The physical plan of limit operation.
 #[derive(Debug, PartialEq, Clone)]

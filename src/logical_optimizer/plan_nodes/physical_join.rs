@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::binder::BoundJoinOperator;
 use crate::logical_optimizer::plan_nodes::logical_join::LogicalJoin;
-use crate::physical_planner::*;
+
 // The type of join algorithm.
 // Before we have query optimzer. We only use nested loop join
 #[derive(Clone, PartialEq, Debug)]

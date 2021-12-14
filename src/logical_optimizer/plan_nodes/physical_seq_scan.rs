@@ -4,7 +4,6 @@ use itertools::Itertools;
 
 use crate::catalog::TableRefId;
 use crate::logical_optimizer::plan_nodes::logical_seq_scan::LogicalSeqScan;
-use crate::physical_planner::*;
 use crate::types::ColumnId;
 
 /// The physical plan of sequential scan operation.

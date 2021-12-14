@@ -4,7 +4,6 @@ use itertools::Itertools;
 
 use crate::catalog::ColumnCatalog;
 use crate::logical_optimizer::plan_nodes::logical_create_table::LogicalCreateTable;
-use crate::physical_planner::*;
 use crate::types::{DatabaseId, SchemaId};
 
 /// The physical plan of `create table`.

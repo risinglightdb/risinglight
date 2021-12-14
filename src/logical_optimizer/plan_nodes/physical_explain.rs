@@ -1,7 +1,6 @@
 use std::fmt;
 
 use crate::logical_optimizer::plan_nodes::logical_explain::LogicalExplain;
-use crate::physical_planner::*;
 
 /// The physical plan of `explain`.
 #[derive(Debug, PartialEq, Clone)]

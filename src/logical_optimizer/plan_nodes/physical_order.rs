@@ -3,7 +3,6 @@ use std::fmt;
 use super::PlanRef;
 use crate::binder::BoundOrderBy;
 use crate::logical_optimizer::plan_nodes::logical_order::LogicalOrder;
-use crate::physical_planner::*;
 
 /// The physical plan of order.
 #[derive(Debug, PartialEq, Clone)]

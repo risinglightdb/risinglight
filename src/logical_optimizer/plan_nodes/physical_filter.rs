@@ -2,7 +2,6 @@ use std::fmt;
 
 use crate::binder::BoundExpr;
 use crate::logical_optimizer::plan_nodes::logical_filter::LogicalFilter;
-use crate::physical_planner::*;
 
 /// The physical plan of filter operation.
 #[derive(Debug, PartialEq, Clone)]

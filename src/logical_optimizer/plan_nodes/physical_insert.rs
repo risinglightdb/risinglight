@@ -6,7 +6,7 @@ use crate::binder::BoundExpr;
 use crate::catalog::TableRefId;
 use crate::logical_optimizer::plan_nodes::logical_insert::LogicalInsert;
 use crate::logical_optimizer::plan_nodes::logical_values::LogicalValues;
-use crate::physical_planner::*;
+
 use crate::types::{ColumnId, DataType};
 
 /// The physical plan of `insert`.

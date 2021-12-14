@@ -5,7 +5,6 @@ use super::PlanRef;
 use crate::binder::FileFormat;
 use crate::logical_optimizer::plan_nodes::logical_copy_from_file::LogicalCopyFromFile;
 use crate::logical_optimizer::plan_nodes::logical_copy_to_file::LogicalCopyToFile;
-use crate::physical_planner::*;
 use crate::types::DataType;
 
 /// The physical plan of `COPY FROM`.

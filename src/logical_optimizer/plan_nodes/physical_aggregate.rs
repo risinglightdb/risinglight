@@ -3,7 +3,6 @@ use std::fmt;
 use super::PlanRef;
 use crate::binder::{BoundAggCall, BoundExpr};
 use crate::logical_optimizer::plan_nodes::logical_aggregate::LogicalAggregate;
-use crate::physical_planner::*;
 
 /// The physical plan of simple aggregation.
 #[derive(Debug, PartialEq, Clone)]
