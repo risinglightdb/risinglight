@@ -17,6 +17,7 @@ pub use chunk::*;
 use enum_dispatch::enum_dispatch;
 
 use crate::array::{ArrayImpl, DataChunk};
+use crate::binder::BoundExpr;
 use crate::catalog::{ColumnCatalog, TableRefId};
 use crate::types::{DatabaseId, SchemaId};
 
@@ -117,6 +118,7 @@ pub trait Transaction: Sync + Send + 'static {
         col_idx: &[StorageColumnRef],
         is_sorted: bool,
         reversed: bool,
+        expr: Option<BoundExpr>,
     ) -> StorageResult<Self::TxnIteratorType>;
 
     /// Append data to the table. Generally, `columns` should be in the same order as

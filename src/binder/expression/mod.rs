@@ -1,3 +1,5 @@
+use bitvec::prelude::BitVec;
+
 use super::*;
 use crate::catalog::ColumnRefId;
 use crate::parser::{Expr, Function, UnaryOperator, Value};
@@ -44,6 +46,19 @@ impl BoundExpr {
             Self::AggCall(expr) => Some(expr.return_type.clone()),
             Self::InputRef(expr) => Some(expr.return_type.clone()),
             Self::IsNull(_) => Some(DataTypeKind::Boolean.not_null()),
+        }
+    }
+
+    pub fn get_filter_column(&self, filter_column: &mut BitVec) {
+        // TODO: match other conditions
+        match self {
+            Self::InputRef(expr) => filter_column[expr.index] = true,
+            Self::BinaryOp(expr) => {
+                expr.left_expr.get_filter_column(filter_column);
+                expr.right_expr.get_filter_column(filter_column);
+            },
+            Self::IsNull(expr) => expr.expr.get_filter_column(filter_column),
+            _ => return,
         }
     }
 }

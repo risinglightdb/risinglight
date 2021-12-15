@@ -8,6 +8,7 @@ use tokio::io::AsyncReadExt;
 
 use super::super::{Block, BlockCacheKey, Column, ColumnIndex, ColumnSeekPosition, IOBackend};
 use super::{path_of_data_column, path_of_index_column, RowSetIterator};
+use crate::binder::BoundExpr;
 use crate::catalog::ColumnCatalog;
 use crate::storage::secondary::column::ColumnReadableFile;
 use crate::storage::secondary::DeleteVector;
@@ -89,8 +90,9 @@ impl DiskRowset {
         column_refs: Arc<[StorageColumnRef]>,
         dvs: Vec<Arc<DeleteVector>>,
         seek_pos: ColumnSeekPosition,
+        expr: Option<BoundExpr>,
     ) -> RowSetIterator {
-        RowSetIterator::new(self.clone(), column_refs, dvs, seek_pos).await
+        RowSetIterator::new(self.clone(), column_refs, dvs, seek_pos, expr).await
     }
 
     pub fn on_disk_size(&self) -> u64 {

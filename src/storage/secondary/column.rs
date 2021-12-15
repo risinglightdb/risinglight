@@ -15,6 +15,7 @@ mod row_handler_sequencer;
 
 use std::io::{Read, Seek, SeekFrom};
 
+use bitvec::prelude::BitVec;
 pub use column_builder::*;
 pub use column_iterator::*;
 pub use concrete_column_iterator::*;
@@ -58,7 +59,7 @@ pub trait ColumnIterator<A: Array> {
     /// Get a batch and the starting row id from the column. A `None` return value means that
     /// there are no more elements from the block. By using `expected_size`, developers can
     /// get an array of NO MORE THAN the `expected_size` on supported column types.
-    async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<(u32, A)>;
+    async fn next_batch(&mut self, expected_size: Option<usize>, filter_bitmap: Option<&BitVec>) -> Option<(u32, A)>;
 
     /// Number of items that can be fetched without I/O. When the column iterator has finished
     /// iterating, the returned value should be 0.
