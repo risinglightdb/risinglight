@@ -1,4 +1,5 @@
 pub(crate) mod logical_plan_rewriter;
+pub(crate) mod physical_plan_rewriter;
 use crate::binder::*;
 mod expr_utils;
 mod heuristic;

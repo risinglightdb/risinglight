@@ -1,27 +1,18 @@
-use super::plan_nodes::physical_aggregate::PhysicalAggregate;
-use super::plan_nodes::physical_copy_from_file::PhysicalCopyFromFile;
-use super::plan_nodes::physical_copy_to_file::PhysicalCopyToFile;
-use super::plan_nodes::physical_create_table::PhysicalCreateTable;
+use super::plan_nodes::physical_aggregate::{PhysicalHashAgg, PhysicalSimpleAgg};
+use super::plan_nodes::physical_copy::{PhysicalCopyFromFile, PhysicalCopyToFile};
+use super::plan_nodes::physical_create::PhysicalCreateTable;
 use super::plan_nodes::physical_delete::PhysicalDelete;
 use super::plan_nodes::physical_drop::PhysicalDrop;
 use super::plan_nodes::physical_explain::PhysicalExplain;
 use super::plan_nodes::physical_filter::PhysicalFilter;
-use super::plan_nodes::physical_insert::PhysicalInsert;
+use super::plan_nodes::physical_insert::{PhysicalInsert, PhysicalValues};
 use super::plan_nodes::physical_join::PhysicalJoin;
 use super::plan_nodes::physical_limit::PhysicalLimit;
 use super::plan_nodes::physical_order::PhysicalOrder;
 use super::plan_nodes::physical_projection::PhysicalProjection;
 use super::plan_nodes::physical_seq_scan::PhysicalSeqScan;
-use super::plan_nodes::physical_values::PhysicalValues;
-use super::plan_nodes::{Plan, PlanRef, UnaryPhysicalPlanNode};
+use super::plan_nodes::{Plan, PlanRef, UnaryPlanNode};
 use crate::binder::{BoundAggCall, BoundExpr, BoundOrderBy};
-
-pub(super) mod arith_expr_simplification;
-pub(super) mod bool_expr_simplification;
-pub(super) mod constant_folding;
-pub(super) mod constant_moving;
-pub(super) mod convert_physical;
-pub mod input_ref_resolver;
 
 // PlanRewriter is a plan visitor.
 // User could implement the own optimization rules by implement PlanRewriter trait easily.
@@ -48,12 +39,13 @@ pub trait PhysicalPlanRewriter {
             Plan::PhysicalOrder(plan) => self.rewrite_order(plan),
             Plan::PhysicalLimit(plan) => self.rewrite_limit(plan),
             Plan::PhysicalExplain(plan) => self.rewrite_explain(plan),
-            Plan::PhysicalAggregate(plan) => self.rewrite_aggregate(plan),
+            Plan::PhysicalHashAgg(plan) => self.rewrite_hash_agg(plan),
+            Plan::PhysicalSimpleAgg(plan) => self.rewrite_simple_agg(plan),
             Plan::PhysicalDelete(plan) => self.rewrite_delete(plan),
             Plan::PhysicalValues(plan) => self.rewrite_values(plan),
             Plan::PhysicalCopyFromFile(plan) => self.rewrite_copy_from_file(plan),
             Plan::PhysicalCopyToFile(plan) => self.rewrite_copy_to_file(plan),
-            _ => panic!("unsupported plan for visitor  "),
+            _ => panic!("unsupported plan {} for physical visitor", plan.to_string()),
         }
     }
 
@@ -86,6 +78,7 @@ pub trait PhysicalPlanRewriter {
                     RightOuter(On(expr)) => RightOuter(On(self.rewrite_expr(expr))),
                     CrossJoin => CrossJoin,
                 },
+                join_type: plan.join_type,
             })
             .into(),
         )
@@ -155,10 +148,10 @@ pub trait PhysicalPlanRewriter {
         None
     }
 
-    fn rewrite_aggregate(&mut self, plan: &PhysicalAggregate) -> Option<PlanRef> {
+    fn rewrite_hash_agg(&mut self, plan: &PhysicalHashAgg) -> Option<PlanRef> {
         let child = self.rewrite_plan(plan.child());
         Some(
-            Plan::PhysicalAggregate(PhysicalAggregate {
+            Plan::PhysicalHashAgg(PhysicalHashAgg {
                 child,
                 agg_calls: plan
                     .agg_calls
@@ -175,6 +168,30 @@ pub trait PhysicalPlanRewriter {
                     })
                     .collect(),
                 group_keys: plan.group_keys.clone(),
+            })
+            .into(),
+        )
+    }
+
+    fn rewrite_simple_agg(&mut self, plan: &PhysicalSimpleAgg) -> Option<PlanRef> {
+        let child = self.rewrite_plan(plan.child());
+        Some(
+            Plan::PhysicalSimpleAgg(PhysicalSimpleAgg {
+                child,
+                agg_calls: plan
+                    .agg_calls
+                    .iter()
+                    .cloned()
+                    .map(|agg| BoundAggCall {
+                        kind: agg.kind,
+                        args: agg
+                            .args
+                            .into_iter()
+                            .map(|expr| self.rewrite_expr(expr))
+                            .collect(),
+                        return_type: agg.return_type,
+                    })
+                    .collect(),
             })
             .into(),
         )
