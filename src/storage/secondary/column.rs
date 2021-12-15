@@ -18,6 +18,7 @@ pub use column_builder::*;
 pub use column_iterator::*;
 pub use primitive_column_builder::*;
 pub use primitive_column_iterator::*;
+use risinglight_proto::rowset::block_checksum::ChecksumType;
 use risinglight_proto::rowset::BlockIndex;
 pub use row_handler_sequencer::*;
 mod char_column_iterator;
@@ -133,7 +134,11 @@ impl Column {
 
         if let Some(block) = self.block_cache.get(&key) {
             let mut header = &block[..BLOCK_HEADER_SIZE];
+            let block_data = &block[BLOCK_HEADER_SIZE..];
             block_header.decode(&mut header);
+            let checksum_expected = crc32fast::hash(block_data) as u64;
+            assert_eq!(block_header.checksum_type, ChecksumType::Crc32);
+            assert_eq!(block_header.checksum, checksum_expected);
             (block_header, block.slice(BLOCK_HEADER_SIZE..))
         } else {
             // block has not been in cache, so we fetch it from disk
@@ -163,7 +168,11 @@ impl Column {
             self.block_cache.insert(key, block.clone()).await;
 
             let mut header = &block[..BLOCK_HEADER_SIZE];
+            let block_data = &block[BLOCK_HEADER_SIZE..];
             block_header.decode(&mut header);
+            let checksum_expected = crc32fast::hash(block_data) as u64;
+            assert_eq!(block_header.checksum_type, ChecksumType::Crc32);
+            assert_eq!(block_header.checksum, checksum_expected);
             (block_header, block.slice(BLOCK_HEADER_SIZE..))
         }
     }

@@ -6,7 +6,7 @@ use crate::parser::{Query, SelectItem, SetExpr};
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundSelect {
     pub select_list: Vec<BoundExpr>,
-    pub from_table: Vec<BoundTableRef>,
+    pub from_table: Option<BoundTableRef>,
     pub where_clause: Option<BoundExpr>,
     pub select_distinct: bool,
     pub group_by: Vec<BoundExpr>,
@@ -29,17 +29,33 @@ impl Binder {
             SetExpr::Select(select) => &**select,
             _ => todo!("not select"),
         };
-        // Bind table ref
-        let mut from_table = vec![];
-        // We don't support cross join now.
-        // The cross join will have multiple TableWithJoin in "from" struct.
-        // Other types of join will onyl have one TableWithJoin in "from" struct.
-        assert!(select.from.len() <= 1);
 
-        for table_with_join in &select.from {
-            let table_ref = self.bind_table_with_joins(table_with_join)?;
-            from_table.push(table_ref);
-        }
+        // Bind table ref
+        let mut from_table = if select.from.is_empty() {
+            None
+        } else if select.from.len() == 1 {
+            Some(self.bind_table_with_joins(&select.from[0])?)
+        } else {
+            // Bind cross join
+            let relation = self.bind_table_ref(&select.from[0].relation)?;
+            assert!(select.from[0].joins.is_empty());
+            let mut join_tables = vec![];
+            for table_with_join in &select.from[1..] {
+                let join_table = self.bind_table_ref(&table_with_join.relation)?;
+                assert!(table_with_join.joins.is_empty());
+                let join_op = BoundJoinOperator::CrossJoin;
+                let join_ref = BoundedSingleJoinTableRef {
+                    table_ref: (join_table.into()),
+                    join_op,
+                };
+                join_tables.push(join_ref);
+            }
+            Some(BoundTableRef::JoinTableRef {
+                relation: (relation.into()),
+                join_tables,
+            })
+        };
+
         let where_clause = match &select.selection {
             Some(expr) => Some(self.bind_expr(expr)?),
             None => None,
@@ -84,8 +100,9 @@ impl Binder {
             };
             // return_names.push(expr.get_name());
         }
+
         // Add referred columns for base table reference
-        for table_ref in &mut from_table {
+        if let Some(table_ref) = &mut from_table {
             self.bind_column_ids(table_ref);
         }
 

@@ -37,6 +37,7 @@ impl LogicalPlanRewriter for InputRefResolver {
                     Inner(On(expr)) => Inner(On(self.rewrite_expr(expr))),
                     LeftOuter(On(expr)) => LeftOuter(On(self.rewrite_expr(expr))),
                     RightOuter(On(expr)) => RightOuter(On(self.rewrite_expr(expr))),
+                    CrossJoin => CrossJoin,
                 },
             })
             .into(),

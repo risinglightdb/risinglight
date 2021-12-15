@@ -55,9 +55,8 @@ impl BlockIndexBuilder {
 
         BlockHeader {
             block_type,
-            checksum_type: ChecksumType::None,
-            // TODO(chi): add checksum support
-            checksum: 0,
+            checksum_type: ChecksumType::Crc32,
+            checksum: crc32fast::hash(block_data) as u64,
         }
         .encode(&mut block_header_ref);
 

@@ -22,7 +22,7 @@ impl LogicalPlaner {
         let mut plan = Plan::Dummy(Dummy {});
         let mut is_sorted = false;
 
-        if let Some(table_ref) = stmt.from_table.get(0) {
+        if let Some(table_ref) = &stmt.from_table {
             // use `sorted` mode from the storage engine if the order by column is the primary key
             if stmt.orderby.len() == 1 && !stmt.orderby[0].descending {
                 if let BoundExpr::ColumnRef(col_ref) = &stmt.orderby[0].expr {

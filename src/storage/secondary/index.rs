@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use bytes::Buf;
 use prost::Message;
+use risinglight_proto::rowset::block_checksum::ChecksumType;
 use risinglight_proto::rowset::BlockIndex;
 
 use super::{ColumnSeekPosition, SECONDARY_INDEX_MAGIC};
@@ -31,7 +32,11 @@ impl ColumnIndex {
         let mut footer = &data[data.len() - INDEX_FOOTER_SIZE..];
         assert_eq!(footer.get_u32(), SECONDARY_INDEX_MAGIC);
         let length = footer.get_u64() as usize;
-        // TODO: verify checksum
+        let checksum_type = ChecksumType::from_i32(footer.get_i32()).unwrap();
+        let checksum = footer.get_u64();
+        let checksum_expected = crc32fast::hash(index_data) as u64;
+        assert_eq!(checksum_type, ChecksumType::Crc32);
+        assert_eq!(checksum, checksum_expected);
 
         let mut indexes = vec![];
         for _ in 0..length {
