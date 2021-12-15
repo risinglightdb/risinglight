@@ -18,7 +18,7 @@ use crate::types::DataValue::*;
 /// `select * from t`
 pub struct BoolExprSimplification;
 
-impl PlanRewriter for BoolExprSimplification {
+impl LogicalPlanRewriter for BoolExprSimplification {
     fn rewrite_filter(&mut self, plan: &LogicalFilter) -> Option<PlanRef> {
         let new_expr = self.rewrite_expr(plan.expr.clone());
         match &new_expr {

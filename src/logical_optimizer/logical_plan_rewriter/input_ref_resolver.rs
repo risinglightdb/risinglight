@@ -5,7 +5,7 @@ use super::super::plan_nodes::logical_seq_scan::LogicalSeqScan;
 use super::super::plan_nodes::{Plan, PlanRef, UnaryLogicalPlanNode};
 use crate::binder::*;
 use crate::catalog::ColumnRefId;
-use crate::logical_optimizer::plan_rewriter::PlanRewriter;
+use crate::logical_optimizer::logical_plan_rewriter::LogicalPlanRewriter;
 /// Resolves column references into physical indices into the `DataChunk`.
 ///
 /// This will rewrite all `ColumnRef` expressions to `InputRef`.
@@ -19,7 +19,7 @@ pub struct InputRefResolver {
     bindings: Vec<Option<ColumnRefId>>,
 }
 
-impl PlanRewriter for InputRefResolver {
+impl LogicalPlanRewriter for InputRefResolver {
     fn rewrite_join(&mut self, plan: &LogicalJoin) -> Option<PlanRef> {
         use BoundJoinConstraint::*;
         use BoundJoinOperator::*;

@@ -14,7 +14,7 @@ use crate::types::DataValue::*;
 /// `select a, b, c, d from t;`
 pub struct ArithExprSimplification;
 
-impl PlanRewriter for ArithExprSimplification {
+impl LogicalPlanRewriter for ArithExprSimplification {
     fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
         // TODO: support more data types.
         match &expr {

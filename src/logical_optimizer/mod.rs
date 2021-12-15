@@ -1,4 +1,4 @@
-pub(crate) mod plan_rewriter;
+pub(crate) mod logical_plan_rewriter;
 use crate::binder::*;
 mod expr_utils;
 mod heuristic;
@@ -7,13 +7,13 @@ pub(crate) mod plan_nodes;
 mod rules;
 use rules::*;
 
+use self::logical_plan_rewriter::arith_expr_simplification::ArithExprSimplification;
+use self::logical_plan_rewriter::bool_expr_simplification::BoolExprSimplification;
+use self::logical_plan_rewriter::constant_folding::ConstantFolding;
+use self::logical_plan_rewriter::constant_moving::ConstantMovingRule;
+use self::logical_plan_rewriter::convert_physical::PhysicalConverter;
+use self::logical_plan_rewriter::LogicalPlanRewriter;
 use self::plan_nodes::PlanRef;
-use self::plan_rewriter::arith_expr_simplification::ArithExprSimplification;
-use self::plan_rewriter::bool_expr_simplification::BoolExprSimplification;
-use self::plan_rewriter::constant_folding::ConstantFolding;
-use self::plan_rewriter::constant_moving::ConstantMovingRule;
-use self::plan_rewriter::convert_physical::PhysicalConverter;
-use self::plan_rewriter::PlanRewriter;
 
 /// The optimizer will do query optimization.
 ///

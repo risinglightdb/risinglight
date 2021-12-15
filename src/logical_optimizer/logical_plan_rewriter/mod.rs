@@ -26,7 +26,7 @@ pub mod input_ref_resolver;
 // PlanRewriter is a plan visitor.
 // User could implement the own optimization rules by implement PlanRewriter trait easily.
 // NOTE: the visitor should always visit child plan first.
-pub trait PlanRewriter {
+pub trait LogicalPlanRewriter {
     fn rewrite_plan(&mut self, plan: PlanRef) -> PlanRef {
         match self.rewrite_plan_inner(plan.clone()) {
             Some(new_plan) => new_plan,

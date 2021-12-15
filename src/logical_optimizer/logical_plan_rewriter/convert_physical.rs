@@ -1,9 +1,9 @@
-use super::PlanRewriter;
+use super::LogicalPlanRewriter;
 use crate::logical_optimizer::plan_nodes::*;
 
 pub struct PhysicalConverter;
 
-impl PlanRewriter for PhysicalConverter {
+impl LogicalPlanRewriter for PhysicalConverter {
     fn rewrite_seqscan(&mut self, plan: &LogicalSeqScan) -> Option<PlanRef> {
         Some(
             Plan::PhysicalSeqScan(PhysicalSeqScan {

@@ -13,7 +13,7 @@ use crate::binder::{BoundAggCall, BoundBinaryOp, BoundExpr, BoundTypeCast, Bound
 #[derive(Default)]
 pub struct ConstantFolding;
 
-impl PlanRewriter for ConstantFolding {
+impl LogicalPlanRewriter for ConstantFolding {
     fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
         use BoundExpr::*;
         match expr {
