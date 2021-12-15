@@ -105,6 +105,11 @@ impl NestedLoopJoinExecutor {
                                     }
                                 }
                             },
+                            BoundJoinOperator::CrossJoin => {
+                                for (idx, builder) in chunk_builders.iter_mut().enumerate() {
+                                    builder.push(&left_row[idx]);
+                                }
+                            }
                         }
                     }
                 }
