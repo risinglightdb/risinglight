@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode, UnaryLogicalPlanNode};
+use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode, UnaryPlanNode};
 use crate::binder::{BoundAggCall, BoundExpr};
 
 /// The logical plan of hash aggregate operation.
@@ -13,7 +13,7 @@ pub struct LogicalAggregate {
     pub child: PlanRef,
 }
 
-impl UnaryLogicalPlanNode for LogicalAggregate {
+impl UnaryPlanNode for LogicalAggregate {
     fn child(&self) -> PlanRef {
         self.child.clone()
     }

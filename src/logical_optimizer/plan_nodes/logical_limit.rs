@@ -1,7 +1,7 @@
 use std::fmt;
 
 use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode};
-use crate::logical_optimizer::plan_nodes::UnaryLogicalPlanNode;
+use crate::logical_optimizer::plan_nodes::UnaryPlanNode;
 
 /// The logical plan of limit operation.
 #[derive(Debug, PartialEq, Clone)]
@@ -11,7 +11,7 @@ pub struct LogicalLimit {
     pub child: PlanRef,
 }
 
-impl UnaryLogicalPlanNode for LogicalLimit {
+impl UnaryPlanNode for LogicalLimit {
     fn child(&self) -> PlanRef {
         self.child.clone()
     }

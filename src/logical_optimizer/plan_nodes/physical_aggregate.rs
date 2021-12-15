@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode, UnaryLogicalPlanNode};
+use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode, UnaryPlanNode};
 use crate::binder::{BoundAggCall, BoundExpr};
 
 /// The physical plan of simple aggregation.
@@ -18,7 +18,7 @@ pub struct PhysicalHashAgg {
     pub child: PlanRef,
 }
 
-impl UnaryLogicalPlanNode for PhysicalSimpleAgg {
+impl UnaryPlanNode for PhysicalSimpleAgg {
     fn child(&self) -> PlanRef {
         self.child.clone()
     }
@@ -33,7 +33,7 @@ impl UnaryLogicalPlanNode for PhysicalSimpleAgg {
 }
 impl_plan_tree_node_for_unary! {PhysicalSimpleAgg}
 
-impl UnaryLogicalPlanNode for PhysicalHashAgg {
+impl UnaryPlanNode for PhysicalHashAgg {
     fn child(&self) -> PlanRef {
         self.child.clone()
     }

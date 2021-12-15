@@ -2,7 +2,7 @@ use super::super::plan_nodes::logical_aggregate::LogicalAggregate;
 use super::super::plan_nodes::logical_join::LogicalJoin;
 use super::super::plan_nodes::logical_projection::LogicalProjection;
 use super::super::plan_nodes::logical_seq_scan::LogicalSeqScan;
-use super::super::plan_nodes::{Plan, PlanRef, UnaryLogicalPlanNode};
+use super::super::plan_nodes::{Plan, PlanRef, UnaryPlanNode};
 use crate::binder::*;
 use crate::catalog::ColumnRefId;
 use crate::logical_optimizer::logical_plan_rewriter::LogicalPlanRewriter;

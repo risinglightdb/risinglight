@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 use super::{
     impl_plan_tree_node_for_leaf, impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode,
-    UnaryLogicalPlanNode,
+    UnaryPlanNode,
 };
 use crate::binder::BoundExpr;
 use crate::catalog::TableRefId;
@@ -18,7 +18,7 @@ pub struct PhysicalInsert {
     pub child: PlanRef,
 }
 
-impl UnaryLogicalPlanNode for PhysicalInsert {
+impl UnaryPlanNode for PhysicalInsert {
     fn child(&self) -> PlanRef {
         self.child.clone()
     }

@@ -123,7 +123,7 @@ macro_rules! for_all_plan_nodes {
 /// which will be used by optimizer and executor.
 macro_rules! plan_enum {
     ([], $( { $node_name:ident, $node_type:ty } ),*) => {
-        /// `Plan` embeds all possible plans in `logical_plan` module.
+        /// `Plan` embeds all possible plans in `plam_nodes` module.
         #[derive(Debug, PartialEq, Clone)]
         pub enum Plan {
             $( $node_name($node_type) ),*
@@ -223,7 +223,7 @@ impl Plan {
     }
 }
 
-pub(super) trait LeafLogicalPlanNode: Clone {}
+pub(super) trait LeafPlanNode: Clone {}
 macro_rules! impl_plan_tree_node_for_leaf {
     ($leaf_node_type:ident) => {
         impl PlanTreeNode for $leaf_node_type {
@@ -241,7 +241,7 @@ macro_rules! impl_plan_tree_node_for_leaf {
 
 use impl_plan_tree_node_for_leaf;
 
-pub(super) trait UnaryLogicalPlanNode {
+pub(super) trait UnaryPlanNode {
     fn child(&self) -> PlanRef;
     fn clone_with_child(&self, child: PlanRef) -> PlanRef;
 }
@@ -261,7 +261,7 @@ macro_rules! impl_plan_tree_node_for_unary {
 }
 use impl_plan_tree_node_for_unary;
 
-pub trait BinaryLogicalPlanNode {
+pub trait BinaryPlanNode {
     fn left(&self) -> PlanRef;
     fn right(&self) -> PlanRef;
     fn clone_with_left_right(&self, left: PlanRef, right: PlanRef) -> PlanRef;

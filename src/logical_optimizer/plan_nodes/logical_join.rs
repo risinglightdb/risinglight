@@ -2,7 +2,7 @@ use std::fmt;
 
 use super::{impl_plan_tree_node_for_binary, Plan, PlanRef, PlanTreeNode};
 use crate::binder::BoundJoinOperator;
-use crate::logical_optimizer::plan_nodes::BinaryLogicalPlanNode;
+use crate::logical_optimizer::plan_nodes::BinaryPlanNode;
 
 /// The logical plan of join, it only records join tables and operators.
 /// The query optimizer should decide the join orders and specific algorithms (hash join, nested
@@ -14,7 +14,7 @@ pub struct LogicalJoin {
     pub join_op: BoundJoinOperator,
 }
 
-impl BinaryLogicalPlanNode for LogicalJoin {
+impl BinaryPlanNode for LogicalJoin {
     fn left(&self) -> PlanRef {
         self.left_plan.clone()
     }

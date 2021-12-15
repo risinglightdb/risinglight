@@ -2,7 +2,7 @@ use std::fmt;
 
 use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode};
 use crate::catalog::TableRefId;
-use crate::logical_optimizer::plan_nodes::UnaryLogicalPlanNode;
+use crate::logical_optimizer::plan_nodes::UnaryPlanNode;
 
 /// The logical plan of `delete`.
 #[derive(Debug, PartialEq, Clone)]
@@ -11,7 +11,7 @@ pub struct LogicalDelete {
     pub child: PlanRef,
 }
 
-impl UnaryLogicalPlanNode for LogicalDelete {
+impl UnaryPlanNode for LogicalDelete {
     fn child(&self) -> PlanRef {
         self.child.clone()
     }

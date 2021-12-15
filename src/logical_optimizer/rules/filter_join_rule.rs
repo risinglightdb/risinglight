@@ -1,8 +1,6 @@
 use super::{PlanRef, Rule};
 use crate::binder::BoundExpr;
-use crate::logical_optimizer::plan_nodes::{
-    BinaryLogicalPlanNode, LogicalJoin, UnaryLogicalPlanNode,
-};
+use crate::logical_optimizer::plan_nodes::{BinaryPlanNode, LogicalJoin, UnaryPlanNode};
 use crate::logical_optimizer::BoundBinaryOp;
 use crate::logical_optimizer::BoundJoinConstraint::On;
 use crate::logical_optimizer::BoundJoinOperator::Inner;

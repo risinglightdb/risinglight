@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode, UnaryLogicalPlanNode};
+use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode, UnaryPlanNode};
 
 /// The physical plan of limit operation.
 #[derive(Debug, PartialEq, Clone)]
@@ -9,7 +9,7 @@ pub struct PhysicalLimit {
     pub limit: usize,
     pub child: PlanRef,
 }
-impl UnaryLogicalPlanNode for PhysicalLimit {
+impl UnaryPlanNode for PhysicalLimit {
     fn child(&self) -> PlanRef {
         self.child.clone()
     }

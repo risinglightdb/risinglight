@@ -1,19 +1,19 @@
-use super::plan_nodes::logical_aggregate::LogicalAggregate;
-use super::plan_nodes::logical_copy_from_file::LogicalCopyFromFile;
-use super::plan_nodes::logical_copy_to_file::LogicalCopyToFile;
-use super::plan_nodes::logical_create_table::LogicalCreateTable;
-use super::plan_nodes::logical_delete::LogicalDelete;
-use super::plan_nodes::logical_drop::LogicalDrop;
-use super::plan_nodes::logical_explain::LogicalExplain;
-use super::plan_nodes::logical_filter::LogicalFilter;
-use super::plan_nodes::logical_insert::LogicalInsert;
-use super::plan_nodes::logical_join::LogicalJoin;
-use super::plan_nodes::logical_limit::LogicalLimit;
-use super::plan_nodes::logical_order::LogicalOrder;
-use super::plan_nodes::logical_projection::LogicalProjection;
-use super::plan_nodes::logical_seq_scan::LogicalSeqScan;
-use super::plan_nodes::logical_values::LogicalValues;
-use super::plan_nodes::{Plan, PlanRef, UnaryPlanNode};
+use super::plan_nodes::physical_aggregate::PhysicalAggregate;
+use super::plan_nodes::physical_copy_from_file::PhysicalCopyFromFile;
+use super::plan_nodes::physical_copy_to_file::PhysicalCopyToFile;
+use super::plan_nodes::physical_create_table::PhysicalCreateTable;
+use super::plan_nodes::physical_delete::PhysicalDelete;
+use super::plan_nodes::physical_drop::PhysicalDrop;
+use super::plan_nodes::physical_explain::PhysicalExplain;
+use super::plan_nodes::physical_filter::PhysicalFilter;
+use super::plan_nodes::physical_insert::PhysicalInsert;
+use super::plan_nodes::physical_join::PhysicalJoin;
+use super::plan_nodes::physical_limit::PhysicalLimit;
+use super::plan_nodes::physical_order::PhysicalOrder;
+use super::plan_nodes::physical_projection::PhysicalProjection;
+use super::plan_nodes::physical_seq_scan::PhysicalSeqScan;
+use super::plan_nodes::physical_values::PhysicalValues;
+use super::plan_nodes::{Plan, PlanRef, UnaryPhysicalPlanNode};
 use crate::binder::{BoundAggCall, BoundExpr, BoundOrderBy};
 
 pub(super) mod arith_expr_simplification;
@@ -26,7 +26,7 @@ pub mod input_ref_resolver;
 // PlanRewriter is a plan visitor.
 // User could implement the own optimization rules by implement PlanRewriter trait easily.
 // NOTE: the visitor should always visit child plan first.
-pub trait LogicalPlanRewriter {
+pub trait PhysicalPlanRewriter {
     fn rewrite_plan(&mut self, plan: PlanRef) -> PlanRef {
         match self.rewrite_plan_inner(plan.clone()) {
             Some(new_plan) => new_plan,
@@ -38,46 +38,46 @@ pub trait LogicalPlanRewriter {
     fn rewrite_plan_inner(&mut self, plan: PlanRef) -> Option<PlanRef> {
         match plan.as_ref() {
             Plan::Dummy(_) => None,
-            Plan::LogicalCreateTable(plan) => self.rewrite_create_table(plan),
-            Plan::LogicalDrop(plan) => self.rewrite_drop(plan),
-            Plan::LogicalInsert(plan) => self.rewrite_insert(plan),
-            Plan::LogicalJoin(plan) => self.rewrite_join(plan),
-            Plan::LogicalSeqScan(plan) => self.rewrite_seqscan(plan),
-            Plan::LogicalProjection(plan) => self.rewrite_projection(plan),
-            Plan::LogicalFilter(plan) => self.rewrite_filter(plan),
-            Plan::LogicalOrder(plan) => self.rewrite_order(plan),
-            Plan::LogicalLimit(plan) => self.rewrite_limit(plan),
-            Plan::LogicalExplain(plan) => self.rewrite_explain(plan),
-            Plan::LogicalAggregate(plan) => self.rewrite_aggregate(plan),
-            Plan::LogicalDelete(plan) => self.rewrite_delete(plan),
-            Plan::LogicalValues(plan) => self.rewrite_values(plan),
-            Plan::LogicalCopyFromFile(plan) => self.rewrite_copy_from_file(plan),
-            Plan::LogicalCopyToFile(plan) => self.rewrite_copy_to_file(plan),
+            Plan::PhysicalCreateTable(plan) => self.rewrite_create_table(plan),
+            Plan::PhysicalDrop(plan) => self.rewrite_drop(plan),
+            Plan::PhysicalInsert(plan) => self.rewrite_insert(plan),
+            Plan::PhysicalJoin(plan) => self.rewrite_join(plan),
+            Plan::PhysicalSeqScan(plan) => self.rewrite_seqscan(plan),
+            Plan::PhysicalProjection(plan) => self.rewrite_projection(plan),
+            Plan::PhysicalFilter(plan) => self.rewrite_filter(plan),
+            Plan::PhysicalOrder(plan) => self.rewrite_order(plan),
+            Plan::PhysicalLimit(plan) => self.rewrite_limit(plan),
+            Plan::PhysicalExplain(plan) => self.rewrite_explain(plan),
+            Plan::PhysicalAggregate(plan) => self.rewrite_aggregate(plan),
+            Plan::PhysicalDelete(plan) => self.rewrite_delete(plan),
+            Plan::PhysicalValues(plan) => self.rewrite_values(plan),
+            Plan::PhysicalCopyFromFile(plan) => self.rewrite_copy_from_file(plan),
+            Plan::PhysicalCopyToFile(plan) => self.rewrite_copy_to_file(plan),
             _ => panic!("unsupported plan for visitor  "),
         }
     }
 
-    fn rewrite_create_table(&mut self, _plan: &LogicalCreateTable) -> Option<PlanRef> {
+    fn rewrite_create_table(&mut self, _plan: &PhysicalCreateTable) -> Option<PlanRef> {
         None
     }
 
-    fn rewrite_drop(&mut self, _plan: &LogicalDrop) -> Option<PlanRef> {
+    fn rewrite_drop(&mut self, _plan: &PhysicalDrop) -> Option<PlanRef> {
         None
     }
 
-    fn rewrite_insert(&mut self, plan: &LogicalInsert) -> Option<PlanRef> {
+    fn rewrite_insert(&mut self, plan: &PhysicalInsert) -> Option<PlanRef> {
         if let Some(child) = self.rewrite_plan_inner(plan.child()) {
             return Some(plan.clone_with_child(child));
         }
         None
     }
 
-    fn rewrite_join(&mut self, plan: &LogicalJoin) -> Option<PlanRef> {
+    fn rewrite_join(&mut self, plan: &PhysicalJoin) -> Option<PlanRef> {
         use super::BoundJoinConstraint::*;
         use super::BoundJoinOperator::*;
 
         Some(
-            Plan::LogicalJoin(LogicalJoin {
+            Plan::PhysicalJoin(PhysicalJoin {
                 left_plan: self.rewrite_plan(plan.left_plan.clone()),
                 right_plan: self.rewrite_plan(plan.right_plan.clone()),
                 join_op: match plan.join_op.clone() {
@@ -91,14 +91,14 @@ pub trait LogicalPlanRewriter {
         )
     }
 
-    fn rewrite_seqscan(&mut self, _plan: &LogicalSeqScan) -> Option<PlanRef> {
+    fn rewrite_seqscan(&mut self, _plan: &PhysicalSeqScan) -> Option<PlanRef> {
         None
     }
 
-    fn rewrite_projection(&mut self, plan: &LogicalProjection) -> Option<PlanRef> {
+    fn rewrite_projection(&mut self, plan: &PhysicalProjection) -> Option<PlanRef> {
         let child = self.rewrite_plan(plan.child());
         Some(
-            Plan::LogicalProjection(LogicalProjection {
+            Plan::PhysicalProjection(PhysicalProjection {
                 child,
                 project_expressions: plan
                     .project_expressions
@@ -111,10 +111,10 @@ pub trait LogicalPlanRewriter {
         )
     }
 
-    fn rewrite_filter(&mut self, plan: &LogicalFilter) -> Option<PlanRef> {
+    fn rewrite_filter(&mut self, plan: &PhysicalFilter) -> Option<PlanRef> {
         let child = self.rewrite_plan(plan.child());
         Some(
-            Plan::LogicalFilter(LogicalFilter {
+            Plan::PhysicalFilter(PhysicalFilter {
                 child,
                 expr: self.rewrite_expr(plan.expr.clone()),
             })
@@ -122,10 +122,10 @@ pub trait LogicalPlanRewriter {
         )
     }
 
-    fn rewrite_order(&mut self, plan: &LogicalOrder) -> Option<PlanRef> {
+    fn rewrite_order(&mut self, plan: &PhysicalOrder) -> Option<PlanRef> {
         let child = self.rewrite_plan(plan.child());
         Some(
-            Plan::LogicalOrder(LogicalOrder {
+            Plan::PhysicalOrder(PhysicalOrder {
                 child,
                 comparators: plan
                     .comparators
@@ -141,24 +141,24 @@ pub trait LogicalPlanRewriter {
         )
     }
 
-    fn rewrite_limit(&mut self, plan: &LogicalLimit) -> Option<PlanRef> {
+    fn rewrite_limit(&mut self, plan: &PhysicalLimit) -> Option<PlanRef> {
         if let Some(child) = self.rewrite_plan_inner(plan.child()) {
             return Some(plan.clone_with_child(child));
         }
         None
     }
 
-    fn rewrite_explain(&mut self, plan: &LogicalExplain) -> Option<PlanRef> {
+    fn rewrite_explain(&mut self, plan: &PhysicalExplain) -> Option<PlanRef> {
         if let Some(child) = self.rewrite_plan_inner(plan.child()) {
             return Some(plan.clone_with_child(child));
         }
         None
     }
 
-    fn rewrite_aggregate(&mut self, plan: &LogicalAggregate) -> Option<PlanRef> {
+    fn rewrite_aggregate(&mut self, plan: &PhysicalAggregate) -> Option<PlanRef> {
         let child = self.rewrite_plan(plan.child());
         Some(
-            Plan::LogicalAggregate(LogicalAggregate {
+            Plan::PhysicalAggregate(PhysicalAggregate {
                 child,
                 agg_calls: plan
                     .agg_calls
@@ -180,22 +180,22 @@ pub trait LogicalPlanRewriter {
         )
     }
 
-    fn rewrite_delete(&mut self, plan: &LogicalDelete) -> Option<PlanRef> {
+    fn rewrite_delete(&mut self, plan: &PhysicalDelete) -> Option<PlanRef> {
         if let Some(child) = self.rewrite_plan_inner(plan.child()) {
             return Some(plan.clone_with_child(child));
         }
         None
     }
 
-    fn rewrite_values(&mut self, _plan: &LogicalValues) -> Option<PlanRef> {
+    fn rewrite_values(&mut self, _plan: &PhysicalValues) -> Option<PlanRef> {
         None
     }
 
-    fn rewrite_copy_from_file(&mut self, _plan: &LogicalCopyFromFile) -> Option<PlanRef> {
+    fn rewrite_copy_from_file(&mut self, _plan: &PhysicalCopyFromFile) -> Option<PlanRef> {
         None
     }
 
-    fn rewrite_copy_to_file(&mut self, plan: &LogicalCopyToFile) -> Option<PlanRef> {
+    fn rewrite_copy_to_file(&mut self, plan: &PhysicalCopyToFile) -> Option<PlanRef> {
         if let Some(child) = self.rewrite_plan_inner(plan.child()) {
             return Some(plan.clone_with_child(child));
         }

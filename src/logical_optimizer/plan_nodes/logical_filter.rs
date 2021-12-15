@@ -2,7 +2,7 @@ use std::fmt;
 
 use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode};
 use crate::binder::BoundExpr;
-use crate::logical_optimizer::plan_nodes::UnaryLogicalPlanNode;
+use crate::logical_optimizer::plan_nodes::UnaryPlanNode;
 
 /// The logical plan of filter operation.
 #[derive(Debug, PartialEq, Clone)]
@@ -11,7 +11,7 @@ pub struct LogicalFilter {
     pub child: PlanRef,
 }
 
-impl UnaryLogicalPlanNode for LogicalFilter {
+impl UnaryPlanNode for LogicalFilter {
     fn child(&self) -> PlanRef {
         self.child.clone()
     }

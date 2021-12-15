@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{impl_plan_tree_node_for_binary, BinaryLogicalPlanNode, Plan, PlanRef, PlanTreeNode};
+use super::{impl_plan_tree_node_for_binary, BinaryPlanNode, Plan, PlanRef, PlanTreeNode};
 use crate::binder::BoundJoinOperator;
 
 // The type of join algorithm.
@@ -18,7 +18,7 @@ pub struct PhysicalJoin {
     pub join_op: BoundJoinOperator,
 }
 
-impl BinaryLogicalPlanNode for PhysicalJoin {
+impl BinaryPlanNode for PhysicalJoin {
     fn left(&self) -> PlanRef {
         self.left_plan.clone()
     }

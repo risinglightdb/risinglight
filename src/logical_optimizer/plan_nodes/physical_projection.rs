@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode, UnaryLogicalPlanNode};
+use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode, UnaryPlanNode};
 use crate::binder::BoundExpr;
 
 /// The physical plan of project operation.
@@ -9,7 +9,7 @@ pub struct PhysicalProjection {
     pub project_expressions: Vec<BoundExpr>,
     pub child: PlanRef,
 }
-impl UnaryLogicalPlanNode for PhysicalProjection {
+impl UnaryPlanNode for PhysicalProjection {
     fn child(&self) -> PlanRef {
         self.child.clone()
     }

@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode};
 use crate::catalog::TableRefId;
-use crate::logical_optimizer::plan_nodes::UnaryLogicalPlanNode;
+use crate::logical_optimizer::plan_nodes::UnaryPlanNode;
 use crate::types::ColumnId;
 
 /// The logical plan of `INSERT`.
@@ -15,7 +15,7 @@ pub struct LogicalInsert {
     pub child: PlanRef,
 }
 
-impl UnaryLogicalPlanNode for LogicalInsert {
+impl UnaryPlanNode for LogicalInsert {
     fn child(&self) -> PlanRef {
         self.child.clone()
     }
