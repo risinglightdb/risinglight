@@ -107,14 +107,6 @@ pub struct ExecutorBuilder {
     env: GlobalEnvRef,
     executor: Option<BoxedExecutor>,
 }
-impl Clone for ExecutorBuilder {
-    fn clone(&self) -> Self {
-        Self {
-            env: self.env.clone(),
-            executor: None,
-        }
-    }
-}
 impl PhysicalPlanRewriter for ExecutorBuilder {
     fn rewrite_dummy(&mut self, _plan: &Dummy) -> Option<PlanRef> {
         self.executor = Some(DummyScanExecutor.execute().boxed());
@@ -370,6 +362,13 @@ impl ExecutorBuilder {
     pub fn new(env: GlobalEnvRef) -> ExecutorBuilder {
         ExecutorBuilder {
             env,
+            executor: None,
+        }
+    }
+
+    pub fn clone_and_reset(&self) -> Self {
+        Self {
+            env: self.env.clone(),
             executor: None,
         }
     }
