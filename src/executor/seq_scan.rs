@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 use super::*;
 use crate::array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I64ArrayBuilder};
-use crate::physical_planner::PhysicalSeqScan;
+use crate::logical_optimizer::plan_nodes::PhysicalSeqScan;
 use crate::storage::{Storage, StorageColumnRef, Table, Transaction, TxnIterator};
 
 /// The executor of sequential scan operation.

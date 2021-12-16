@@ -5,22 +5,21 @@ use itertools::Itertools;
 use super::{impl_plan_tree_node_for_leaf, Plan, PlanRef, PlanTreeNode};
 use crate::catalog::TableRefId;
 use crate::types::ColumnId;
-
-/// The logical plan of sequential scan operation.
+/// The physical plan of sequential scan operation.
 #[derive(Debug, PartialEq, Clone)]
-pub struct LogicalSeqScan {
+pub struct PhysicalSeqScan {
     pub table_ref_id: TableRefId,
     pub column_ids: Vec<ColumnId>,
     pub with_row_handler: bool,
     pub is_sorted: bool,
 }
-impl_plan_tree_node_for_leaf! {LogicalSeqScan}
+impl_plan_tree_node_for_leaf! {PhysicalSeqScan}
 
-impl fmt::Display for LogicalSeqScan {
+impl fmt::Display for PhysicalSeqScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "LogicalSeqScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}",
+            "PhysicalSeqScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}",
             self.table_ref_id.table_id,
             self.column_ids.iter().map(ToString::to_string).join(", "),
             self.with_row_handler,

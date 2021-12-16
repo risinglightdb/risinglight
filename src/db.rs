@@ -7,12 +7,11 @@ use crate::array::{ArrayBuilder, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder};
 use crate::binder::{BindError, Binder};
 use crate::catalog::RootCatalogRef;
 use crate::executor::{ExecutorBuilder, ExecutorError, GlobalEnv};
-use crate::logical_optimizer::plan_rewriter::input_ref_resolver::InputRefResolver;
-use crate::logical_optimizer::plan_rewriter::PlanRewriter;
+use crate::logical_optimizer::logical_plan_rewriter::input_ref_resolver::InputRefResolver;
+use crate::logical_optimizer::logical_plan_rewriter::LogicalPlanRewriter;
 use crate::logical_optimizer::Optimizer;
 use crate::logical_planner::{LogicalPlanError, LogicalPlaner};
 use crate::parser::{parse, ParserError};
-use crate::physical_planner::{PhysicalPlanError, PhysicalPlaner};
 use crate::storage::{
     InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
     StorageImpl, Table,
@@ -163,7 +162,6 @@ impl Database {
         let mut binder = Binder::new(self.catalog.clone());
         let logical_planner = LogicalPlaner::default();
         let mut optimizer = Optimizer::default();
-        let physical_planner = PhysicalPlaner::default();
         // TODO: parallelize
         let mut outputs = vec![];
         for stmt in stmts {
@@ -174,9 +172,11 @@ impl Database {
             let logical_plan = InputRefResolver::default().rewrite_plan(logical_plan.into());
             debug!("{:#?}", logical_plan);
             let optimized_plan = optimizer.optimize(logical_plan);
-            let physical_plan = physical_planner.plan(optimized_plan.as_ref().clone())?;
-            debug!("{:#?}", physical_plan);
-            let executor = self.executor_builder.build(physical_plan);
+            debug!("{:#?}", optimized_plan);
+            let executor = self
+                .executor_builder
+                .clone_and_reset()
+                .build(optimized_plan);
             let output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
                 debug!("error: {}", e);
                 e
@@ -198,9 +198,7 @@ pub enum Error {
     #[error("bind error: {0}")]
     Bind(#[from] BindError),
     #[error("logical plan error: {0}")]
-    LogicalPlan(#[from] LogicalPlanError),
-    #[error("physical plan error: {0}")]
-    PhysicalPlan(#[from] PhysicalPlanError),
+    Plan(#[from] LogicalPlanError),
     #[error("execute error: {0}")]
     Execute(#[from] ExecutorError),
     #[error("Storage error: {0}")]

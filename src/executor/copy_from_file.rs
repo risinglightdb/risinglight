@@ -8,7 +8,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use super::*;
 use crate::array::ArrayBuilderImpl;
 use crate::binder::FileFormat;
-use crate::physical_planner::PhysicalCopyFromFile;
+use crate::logical_optimizer::plan_nodes::PhysicalCopyFromFile;
 
 /// The executor of loading file data.
 pub struct CopyFromFileExecutor {

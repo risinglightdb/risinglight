@@ -1,13 +1,13 @@
 use itertools::Itertools;
 
-use super::plan_nodes::LogicalPlanRef;
+use super::plan_nodes::PlanRef;
 use super::rules::BoxedRule;
 pub struct HeuristicOptimizer {
     pub rules: Vec<BoxedRule>,
 }
 
 impl HeuristicOptimizer {
-    pub fn optimize(&self, mut root: LogicalPlanRef) -> LogicalPlanRef {
+    pub fn optimize(&self, mut root: PlanRef) -> PlanRef {
         for rule in &self.rules {
             if rule.matches(root.clone()).is_ok() {
                 if let Ok(applied) = rule.apply(root.clone()) {

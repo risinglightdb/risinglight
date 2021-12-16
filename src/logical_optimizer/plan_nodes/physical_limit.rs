@@ -1,23 +1,21 @@
 use std::fmt;
 
-use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode};
-use crate::logical_optimizer::plan_nodes::UnaryPlanNode;
+use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode, UnaryPlanNode};
 
-/// The logical plan of limit operation.
+/// The physical plan of limit operation.
 #[derive(Debug, PartialEq, Clone)]
-pub struct LogicalLimit {
+pub struct PhysicalLimit {
     pub offset: usize,
     pub limit: usize,
     pub child: PlanRef,
 }
-
-impl UnaryPlanNode for LogicalLimit {
+impl UnaryPlanNode for PhysicalLimit {
     fn child(&self) -> PlanRef {
         self.child.clone()
     }
 
     fn clone_with_child(&self, child: PlanRef) -> PlanRef {
-        Plan::LogicalLimit(LogicalLimit {
+        Plan::PhysicalLimit(PhysicalLimit {
             child,
             offset: self.offset,
             limit: self.limit,
@@ -25,9 +23,9 @@ impl UnaryPlanNode for LogicalLimit {
         .into()
     }
 }
-impl_plan_tree_node_for_unary! {LogicalLimit}
+impl_plan_tree_node_for_unary! {PhysicalLimit}
 
-impl fmt::Display for LogicalLimit {
+impl fmt::Display for PhysicalLimit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "{:?}", self)
     }

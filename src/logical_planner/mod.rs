@@ -1,5 +1,5 @@
 use crate::binder::BoundStatement;
-use crate::logical_optimizer::plan_nodes::LogicalPlan;
+use crate::logical_optimizer::plan_nodes::Plan;
 use crate::types::ConvertError;
 
 mod copy;
@@ -31,7 +31,7 @@ pub struct LogicalPlaner;
 
 impl LogicalPlaner {
     /// Generate the logical plan from a bound statement.
-    pub fn plan(&self, stmt: BoundStatement) -> Result<LogicalPlan, LogicalPlanError> {
+    pub fn plan(&self, stmt: BoundStatement) -> Result<Plan, LogicalPlanError> {
         match stmt {
             BoundStatement::CreateTable(stmt) => self.plan_create_table(stmt),
             BoundStatement::Drop(stmt) => self.plan_drop(stmt),
