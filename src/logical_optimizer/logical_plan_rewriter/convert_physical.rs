@@ -92,7 +92,7 @@ impl LogicalPlanRewriter for PhysicalConverter {
     fn rewrite_explain(&mut self, plan: &LogicalExplain) -> Option<PlanRef> {
         Some(
             Plan::PhysicalExplain(PhysicalExplain {
-                plan: self.rewrite_plan(plan.child().clone()),
+                plan: self.rewrite_plan(plan.child()),
             })
             .into(),
         )

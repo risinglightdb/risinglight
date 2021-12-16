@@ -46,7 +46,7 @@ pub trait PhysicalPlanRewriter {
             Plan::PhysicalValues(plan) => self.rewrite_values(plan),
             Plan::PhysicalCopyFromFile(plan) => self.rewrite_copy_from_file(plan),
             Plan::PhysicalCopyToFile(plan) => self.rewrite_copy_to_file(plan),
-            _ => panic!("unsupported plan {} for physical visitor", plan.to_string()),
+            _ => panic!("unsupported plan {} for physical visitor", plan),
         }
     }
 
