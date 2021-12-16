@@ -266,7 +266,7 @@ impl PhysicalPlanRewriter for ExecutorBuilder {
         self.executor = Some(
             LimitExecutor {
                 child: self.executor.take().unwrap(),
-                offset: plan.limit,
+                offset: plan.offset,
                 limit: plan.limit,
             }
             .execute()
