@@ -32,7 +32,7 @@ impl BinaryPlanNode for PhysicalJoin {
             left_plan: left,
             right_plan: right,
             join_op: self.join_op.clone(),
-            join_type: self.join_type,
+            join_type: self.join_type.clone(),
         })
         .into()
     }

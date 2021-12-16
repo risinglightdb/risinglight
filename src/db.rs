@@ -173,7 +173,7 @@ impl Database {
             debug!("{:#?}", logical_plan);
             let optimized_plan = optimizer.optimize(logical_plan);
             debug!("{:#?}", optimized_plan);
-            let executor = self.executor_builder.build(optimized_plan);
+            let executor = self.executor_builder.clone().build(optimized_plan);
             let output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
                 debug!("error: {}", e);
                 e

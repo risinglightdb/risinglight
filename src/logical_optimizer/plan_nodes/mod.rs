@@ -241,7 +241,7 @@ macro_rules! impl_plan_tree_node_for_leaf {
 
 use impl_plan_tree_node_for_leaf;
 
-pub(super) trait UnaryPlanNode {
+pub(crate) trait UnaryPlanNode {
     fn child(&self) -> PlanRef;
     fn clone_with_child(&self, child: PlanRef) -> PlanRef;
 }
@@ -261,7 +261,7 @@ macro_rules! impl_plan_tree_node_for_unary {
 }
 use impl_plan_tree_node_for_unary;
 
-pub trait BinaryPlanNode {
+pub(crate) trait BinaryPlanNode {
     fn left(&self) -> PlanRef;
     fn right(&self) -> PlanRef;
     fn clone_with_left_right(&self, left: PlanRef, right: PlanRef) -> PlanRef;

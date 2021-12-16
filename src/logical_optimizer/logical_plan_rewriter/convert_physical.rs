@@ -8,7 +8,7 @@ impl LogicalPlanRewriter for PhysicalConverter {
         Some(
             Plan::PhysicalSeqScan(PhysicalSeqScan {
                 table_ref_id: plan.table_ref_id,
-                column_ids: plan.column_ids,
+                column_ids: plan.column_ids.clone(),
                 with_row_handler: plan.with_row_handler,
                 is_sorted: plan.is_sorted,
             })
@@ -18,7 +18,7 @@ impl LogicalPlanRewriter for PhysicalConverter {
     fn rewrite_projection(&mut self, plan: &LogicalProjection) -> Option<PlanRef> {
         Some(
             Plan::PhysicalProjection(PhysicalProjection {
-                project_expressions: plan.project_expressions,
+                project_expressions: plan.project_expressions.clone(),
                 child: self.rewrite_plan(plan.child.clone()),
             })
             .into(),
@@ -28,7 +28,7 @@ impl LogicalPlanRewriter for PhysicalConverter {
     fn rewrite_order(&mut self, plan: &LogicalOrder) -> Option<PlanRef> {
         Some(
             Plan::PhysicalOrder(PhysicalOrder {
-                comparators: plan.comparators,
+                comparators: plan.comparators.clone(),
                 child: self.rewrite_plan(plan.child.clone()),
             })
             .into(),
@@ -62,7 +62,7 @@ impl LogicalPlanRewriter for PhysicalConverter {
         Some(
             Plan::PhysicalInsert(PhysicalInsert {
                 table_ref_id: plan.table_ref_id,
-                column_ids: plan.column_ids,
+                column_ids: plan.column_ids.clone(),
                 child: self.rewrite_plan(plan.child.clone()),
             })
             .into(),
@@ -72,8 +72,8 @@ impl LogicalPlanRewriter for PhysicalConverter {
     fn rewrite_values(&mut self, plan: &LogicalValues) -> Option<PlanRef> {
         Some(
             Plan::PhysicalValues(PhysicalValues {
-                column_types: plan.column_types,
-                values: plan.values,
+                column_types: plan.column_types.clone(),
+                values: plan.values.clone(),
             })
             .into(),
         )
@@ -82,7 +82,7 @@ impl LogicalPlanRewriter for PhysicalConverter {
     fn rewrite_filter(&mut self, plan: &LogicalFilter) -> Option<PlanRef> {
         Some(
             Plan::PhysicalFilter(PhysicalFilter {
-                expr: plan.expr,
+                expr: plan.expr.clone(),
                 child: self.rewrite_plan(plan.child.clone()),
             })
             .into(),
@@ -101,7 +101,7 @@ impl LogicalPlanRewriter for PhysicalConverter {
     fn rewrite_drop(&mut self, plan: &LogicalDrop) -> Option<PlanRef> {
         Some(
             Plan::PhysicalDrop(PhysicalDrop {
-                object: plan.object,
+                object: plan.object.clone(),
             })
             .into(),
         )
@@ -122,8 +122,8 @@ impl LogicalPlanRewriter for PhysicalConverter {
             Plan::PhysicalCreateTable(PhysicalCreateTable {
                 database_id: plan.database_id,
                 schema_id: plan.schema_id,
-                table_name: plan.table_name,
-                columns: plan.columns,
+                table_name: plan.table_name.clone(),
+                columns: plan.columns.clone(),
             })
             .into(),
         )
@@ -132,9 +132,9 @@ impl LogicalPlanRewriter for PhysicalConverter {
     fn rewrite_copy_from_file(&mut self, plan: &LogicalCopyFromFile) -> Option<PlanRef> {
         Some(
             Plan::PhysicalCopyFromFile(PhysicalCopyFromFile {
-                path: plan.path,
-                format: plan.format,
-                column_types: plan.column_types,
+                path: plan.path.clone(),
+                format: plan.format.clone(),
+                column_types: plan.column_types.clone(),
             })
             .into(),
         )
@@ -143,9 +143,9 @@ impl LogicalPlanRewriter for PhysicalConverter {
     fn rewrite_copy_to_file(&mut self, plan: &LogicalCopyToFile) -> Option<PlanRef> {
         Some(
             Plan::PhysicalCopyToFile(PhysicalCopyToFile {
-                path: plan.path,
-                format: plan.format,
-                column_types: plan.column_types,
+                path: plan.path.clone(),
+                format: plan.format.clone(),
+                column_types: plan.column_types.clone(),
                 child: self.rewrite_plan(plan.child.clone()),
             })
             .into(),
@@ -156,7 +156,7 @@ impl LogicalPlanRewriter for PhysicalConverter {
         if plan.group_keys.is_empty() {
             Some(
                 Plan::PhysicalSimpleAgg(PhysicalSimpleAgg {
-                    agg_calls: plan.agg_calls,
+                    agg_calls: plan.agg_calls.clone(),
                     child: self.rewrite_plan(plan.child.clone()),
                 })
                 .into(),
@@ -164,8 +164,8 @@ impl LogicalPlanRewriter for PhysicalConverter {
         } else {
             Some(
                 Plan::PhysicalHashAgg(PhysicalHashAgg {
-                    agg_calls: plan.agg_calls,
-                    group_keys: plan.group_keys,
+                    agg_calls: plan.agg_calls.clone(),
+                    group_keys: plan.group_keys.clone(),
                     child: self.rewrite_plan(plan.child.clone()),
                 })
                 .into(),

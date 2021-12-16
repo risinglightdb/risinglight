@@ -14,6 +14,7 @@ use self::logical_plan_rewriter::constant_folding::ConstantFolding;
 use self::logical_plan_rewriter::constant_moving::ConstantMovingRule;
 use self::logical_plan_rewriter::convert_physical::PhysicalConverter;
 use self::logical_plan_rewriter::LogicalPlanRewriter;
+pub use self::physical_plan_rewriter::PhysicalPlanRewriter;
 use self::plan_nodes::PlanRef;
 
 /// The optimizer will do query optimization.

@@ -1,3 +1,4 @@
+use super::plan_nodes::dummy::Dummy;
 use super::plan_nodes::physical_aggregate::{PhysicalHashAgg, PhysicalSimpleAgg};
 use super::plan_nodes::physical_copy::{PhysicalCopyFromFile, PhysicalCopyToFile};
 use super::plan_nodes::physical_create::PhysicalCreateTable;
@@ -28,7 +29,7 @@ pub trait PhysicalPlanRewriter {
     // If the node do not need rewrite, return None.
     fn rewrite_plan_inner(&mut self, plan: PlanRef) -> Option<PlanRef> {
         match plan.as_ref() {
-            Plan::Dummy(_) => None,
+            Plan::Dummy(plan) => self.rewrite_dummy(plan),
             Plan::PhysicalCreateTable(plan) => self.rewrite_create_table(plan),
             Plan::PhysicalDrop(plan) => self.rewrite_drop(plan),
             Plan::PhysicalInsert(plan) => self.rewrite_insert(plan),
@@ -47,6 +48,10 @@ pub trait PhysicalPlanRewriter {
             Plan::PhysicalCopyToFile(plan) => self.rewrite_copy_to_file(plan),
             _ => panic!("unsupported plan {} for physical visitor", plan.to_string()),
         }
+    }
+
+    fn rewrite_dummy(&mut self, _plan: &Dummy) -> Option<PlanRef> {
+        None
     }
 
     fn rewrite_create_table(&mut self, _plan: &PhysicalCreateTable) -> Option<PlanRef> {
@@ -78,7 +83,7 @@ pub trait PhysicalPlanRewriter {
                     RightOuter(On(expr)) => RightOuter(On(self.rewrite_expr(expr))),
                     CrossJoin => CrossJoin,
                 },
-                join_type: plan.join_type,
+                join_type: plan.join_type.clone(),
             })
             .into(),
         )

@@ -16,7 +16,14 @@ use async_stream::try_stream;
 use futures::stream::{BoxStream, Stream, StreamExt};
 
 use crate::array::DataChunk;
-use crate::storage::{Storage, StorageError, StorageImpl};
+use crate::logical_optimizer::plan_nodes::{
+    BinaryPlanNode, Dummy, PhysicalCopyFromFile, PhysicalCopyToFile, PhysicalCreateTable,
+    PhysicalDelete, PhysicalDrop, PhysicalExplain, PhysicalFilter, PhysicalHashAgg, PhysicalInsert,
+    PhysicalJoin, PhysicalLimit, PhysicalOrder, PhysicalProjection, PhysicalSeqScan,
+    PhysicalSimpleAgg, PhysicalValues, PlanRef, UnaryPlanNode,
+};
+use crate::logical_optimizer::PhysicalPlanRewriter;
+use crate::storage::{StorageError, StorageImpl};
 use crate::types::ConvertError;
 
 mod aggregation;
@@ -98,106 +105,277 @@ pub struct GlobalEnv {
 /// The builder of executor.
 pub struct ExecutorBuilder {
     env: GlobalEnvRef,
+    executor: Option<BoxedExecutor>,
+}
+impl Clone for ExecutorBuilder {
+    fn clone(&self) -> Self {
+        Self {
+            env: self.env.clone(),
+            executor: None,
+        }
+    }
+}
+impl PhysicalPlanRewriter for ExecutorBuilder {
+    fn rewrite_dummy(&mut self, _plan: &Dummy) -> Option<PlanRef> {
+        self.executor = Some(DummyScanExecutor.execute().boxed());
+        None
+    }
+    fn rewrite_create_table(&mut self, plan: &PhysicalCreateTable) -> Option<PlanRef> {
+        match &self.env.storage {
+            StorageImpl::InMemoryStorage(storage) => {
+                self.executor = Some(
+                    CreateTableExecutor {
+                        plan: plan.clone(),
+                        storage: storage.clone(),
+                    }
+                    .execute()
+                    .boxed(),
+                )
+            }
+            StorageImpl::SecondaryStorage(storage) => {
+                self.executor = Some(
+                    CreateTableExecutor {
+                        plan: plan.clone(),
+                        storage: storage.clone(),
+                    }
+                    .execute()
+                    .boxed(),
+                )
+            }
+        }
+        None
+    }
+    fn rewrite_drop(&mut self, plan: &PhysicalDrop) -> Option<PlanRef> {
+        self.executor = Some(match &self.env.storage {
+            StorageImpl::InMemoryStorage(storage) => DropExecutor {
+                plan: plan.clone(),
+                storage: storage.clone(),
+            }
+            .execute()
+            .boxed(),
+            StorageImpl::SecondaryStorage(storage) => DropExecutor {
+                plan: plan.clone(),
+                storage: storage.clone(),
+            }
+            .execute()
+            .boxed(),
+        });
+        None
+    }
+
+    fn rewrite_insert(&mut self, plan: &PhysicalInsert) -> Option<PlanRef> {
+        self.rewrite_plan_inner(plan.child());
+        self.executor = Some(match &self.env.storage {
+            StorageImpl::InMemoryStorage(storage) => InsertExecutor {
+                table_ref_id: plan.table_ref_id,
+                column_ids: plan.column_ids.clone(),
+                storage: storage.clone(),
+                child: self.executor.take().unwrap(),
+            }
+            .execute()
+            .boxed(),
+            StorageImpl::SecondaryStorage(storage) => InsertExecutor {
+                table_ref_id: plan.table_ref_id,
+                column_ids: plan.column_ids.clone(),
+                storage: storage.clone(),
+                child: self.executor.take().unwrap(),
+            }
+            .execute()
+            .boxed(),
+        });
+        None
+    }
+
+    fn rewrite_join(&mut self, plan: &PhysicalJoin) -> Option<PlanRef> {
+        self.rewrite_plan_inner(plan.left());
+        let left = self.executor.take().unwrap();
+        self.rewrite_plan_inner(plan.right());
+        let right = self.executor.take().unwrap();
+        self.executor = Some(
+            NestedLoopJoinExecutor {
+                left_child: left,
+                right_child: right,
+                join_op: plan.join_op.clone(),
+            }
+            .execute()
+            .boxed(),
+        );
+
+        None
+    }
+
+    fn rewrite_seqscan(&mut self, plan: &PhysicalSeqScan) -> Option<PlanRef> {
+        self.executor = Some(match &self.env.storage {
+            StorageImpl::InMemoryStorage(storage) => SeqScanExecutor {
+                plan: plan.clone(),
+                storage: storage.clone(),
+            }
+            .execute()
+            .boxed(),
+            StorageImpl::SecondaryStorage(storage) => SeqScanExecutor {
+                plan: plan.clone(),
+                storage: storage.clone(),
+            }
+            .execute()
+            .boxed(),
+        });
+        None
+    }
+
+    fn rewrite_projection(&mut self, plan: &PhysicalProjection) -> Option<PlanRef> {
+        self.rewrite_plan_inner(plan.child());
+        self.executor = Some(
+            ProjectionExecutor {
+                project_expressions: plan.project_expressions.clone(),
+                child: self.executor.take().unwrap(),
+            }
+            .execute()
+            .boxed(),
+        );
+        None
+    }
+
+    fn rewrite_filter(&mut self, plan: &PhysicalFilter) -> Option<PlanRef> {
+        self.rewrite_plan_inner(plan.child());
+        self.executor = Some(
+            FilterExecutor {
+                expr: plan.expr.clone(),
+                child: self.executor.take().unwrap(),
+            }
+            .execute()
+            .boxed(),
+        );
+        None
+    }
+
+    fn rewrite_order(&mut self, plan: &PhysicalOrder) -> Option<PlanRef> {
+        self.rewrite_plan_inner(plan.child());
+        self.executor = Some(
+            OrderExecutor {
+                comparators: plan.comparators.clone(),
+                child: self.executor.take().unwrap(),
+            }
+            .execute()
+            .boxed(),
+        );
+        None
+    }
+
+    fn rewrite_limit(&mut self, plan: &PhysicalLimit) -> Option<PlanRef> {
+        self.rewrite_plan_inner(plan.child());
+        self.executor = Some(
+            LimitExecutor {
+                child: self.executor.take().unwrap(),
+                offset: plan.limit,
+                limit: plan.limit,
+            }
+            .execute()
+            .boxed(),
+        );
+        None
+    }
+
+    fn rewrite_explain(&mut self, plan: &PhysicalExplain) -> Option<PlanRef> {
+        self.executor = Some(ExplainExecutor { plan: plan.clone() }.execute().boxed());
+        None
+    }
+
+    fn rewrite_hash_agg(&mut self, plan: &PhysicalHashAgg) -> Option<PlanRef> {
+        self.rewrite_plan_inner(plan.child());
+        self.executor = Some(
+            HashAggExecutor {
+                agg_calls: plan.agg_calls.clone(),
+                group_keys: plan.group_keys.clone(),
+                child: self.executor.take().unwrap(),
+            }
+            .execute()
+            .boxed(),
+        );
+        None
+    }
+
+    fn rewrite_simple_agg(&mut self, plan: &PhysicalSimpleAgg) -> Option<PlanRef> {
+        self.rewrite_plan_inner(plan.child());
+        self.executor = Some(
+            SimpleAggExecutor {
+                agg_calls: plan.agg_calls.clone(),
+                child: self.executor.take().unwrap(),
+            }
+            .execute()
+            .boxed(),
+        );
+        None
+    }
+
+    fn rewrite_delete(&mut self, plan: &PhysicalDelete) -> Option<PlanRef> {
+        self.rewrite_plan_inner(plan.child());
+
+        self.executor = Some(match &self.env.storage {
+            StorageImpl::InMemoryStorage(storage) => DeleteExecutor {
+                child: self.executor.take().unwrap(),
+                table_ref_id: plan.table_ref_id,
+                storage: storage.clone(),
+            }
+            .execute()
+            .boxed(),
+            StorageImpl::SecondaryStorage(storage) => DeleteExecutor {
+                child: self.executor.take().unwrap(),
+                table_ref_id: plan.table_ref_id,
+                storage: storage.clone(),
+            }
+            .execute()
+            .boxed(),
+        });
+        None
+    }
+
+    fn rewrite_values(&mut self, plan: &PhysicalValues) -> Option<PlanRef> {
+        self.executor = Some(
+            ValuesExecutor {
+                column_types: plan.column_types.clone(),
+                values: plan.values.clone(),
+            }
+            .execute()
+            .boxed(),
+        );
+        None
+    }
+
+    fn rewrite_copy_from_file(&mut self, plan: &PhysicalCopyFromFile) -> Option<PlanRef> {
+        self.executor = Some(
+            CopyFromFileExecutor { plan: plan.clone() }
+                .execute()
+                .boxed(),
+        );
+        None
+    }
+
+    fn rewrite_copy_to_file(&mut self, plan: &PhysicalCopyToFile) -> Option<PlanRef> {
+        self.rewrite_plan_inner(plan.child());
+        self.executor = Some(
+            CopyToFileExecutor {
+                child: self.executor.take().unwrap(),
+                path: plan.path.clone(),
+                format: plan.format.clone(),
+            }
+            .execute()
+            .boxed(),
+        );
+        None
+    }
 }
 
 impl ExecutorBuilder {
     /// Create a new executor builder.
     pub fn new(env: GlobalEnvRef) -> ExecutorBuilder {
-        ExecutorBuilder { env }
-    }
-
-    /// Build executor from a physical plan with given concrete [`Storage`] type.
-    fn build_with_storage(&self, plan: PhysicalPlan, storage: Arc<impl Storage>) -> BoxedExecutor {
-        match plan {
-            PhysicalPlan::Dummy(_) => DummyScanExecutor.execute().boxed(),
-            PhysicalPlan::CreateTable(plan) => {
-                CreateTableExecutor { plan, storage }.execute().boxed()
-            }
-            PhysicalPlan::Drop(plan) => DropExecutor { plan, storage }.execute().boxed(),
-            PhysicalPlan::Insert(plan) => InsertExecutor {
-                table_ref_id: plan.table_ref_id,
-                column_ids: plan.column_ids,
-                storage: storage.clone(),
-                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
-            }
-            .execute()
-            .boxed(),
-            PhysicalPlan::Values(plan) => ValuesExecutor {
-                column_types: plan.column_types,
-                values: plan.values,
-            }
-            .execute()
-            .boxed(),
-            PhysicalPlan::Projection(plan) => ProjectionExecutor {
-                project_expressions: plan.project_expressions,
-                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
-            }
-            .execute()
-            .boxed(),
-            PhysicalPlan::SeqScan(plan) => SeqScanExecutor { plan, storage }.execute().boxed(),
-            PhysicalPlan::Filter(plan) => FilterExecutor {
-                expr: plan.expr,
-                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
-            }
-            .execute()
-            .boxed(),
-            PhysicalPlan::Order(plan) => OrderExecutor {
-                comparators: plan.comparators,
-                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
-            }
-            .execute()
-            .boxed(),
-            PhysicalPlan::Limit(plan) => LimitExecutor {
-                offset: plan.offset,
-                limit: plan.limit,
-                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
-            }
-            .execute()
-            .boxed(),
-            PhysicalPlan::Explain(plan) => ExplainExecutor { plan }.execute().boxed(),
-            PhysicalPlan::Join(plan) => NestedLoopJoinExecutor {
-                left_child: self.build_with_storage(*plan.left_plan, storage.clone()),
-                right_child: self.build_with_storage(*plan.right_plan, storage),
-                join_op: plan.join_op.clone(),
-            }
-            .execute()
-            .boxed(),
-            PhysicalPlan::SimpleAgg(plan) => SimpleAggExecutor {
-                agg_calls: plan.agg_calls,
-                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
-            }
-            .execute()
-            .boxed(),
-            PhysicalPlan::HashAgg(plan) => HashAggExecutor {
-                agg_calls: plan.agg_calls,
-                group_keys: plan.group_keys,
-                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
-            }
-            .execute()
-            .boxed(),
-            PhysicalPlan::Delete(plan) => DeleteExecutor {
-                storage: storage.clone(),
-                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
-                table_ref_id: plan.table_ref_id,
-            }
-            .execute()
-            .boxed(),
-            PhysicalPlan::CopyFromFile(plan) => CopyFromFileExecutor { plan }.execute().boxed(),
-            PhysicalPlan::CopyToFile(plan) => CopyToFileExecutor {
-                path: plan.path,
-                format: plan.format,
-                child: self.build_with_storage(plan.child.as_ref().clone(), storage),
-            }
-            .execute()
-            .boxed(),
+        ExecutorBuilder {
+            env,
+            executor: None,
         }
     }
 
-    pub fn build(&self, plan: PhysicalPlan) -> BoxedExecutor {
-        use StorageImpl::*;
-        match self.env.storage.clone() {
-            InMemoryStorage(storage) => self.build_with_storage(plan, storage),
-            SecondaryStorage(storage) => self.build_with_storage(plan, storage),
-        }
+    pub fn build(&mut self, plan: PlanRef) -> BoxedExecutor {
+        self.rewrite_plan_inner(plan);
+        self.executor.take().unwrap()
     }
 }
