@@ -1,5 +1,3 @@
-use bytes::BufMut;
-
 use super::BlockBuilder;
 use crate::array::Utf8Array;
 
@@ -18,8 +16,7 @@ pub struct PlainCharBlockBuilder {
 
 impl PlainCharBlockBuilder {
     pub fn new(target_size: usize, char_width: u64) -> Self {
-        let data = Vec::with_capacity(target_size);
-        assert!(char_width < 256);
+        let data = Vec::with_capacity(target_size * char_width as usize);
         Self {
             data,
             char_width: char_width as usize,
@@ -40,7 +37,6 @@ impl BlockBuilder<Utf8Array> for PlainCharBlockBuilder {
                 self.char_width
             );
         }
-        self.data.put_u8(item.len() as u8);
         self.data.extend(item);
         self.data.extend(
             [0].iter()
@@ -55,9 +51,7 @@ impl BlockBuilder<Utf8Array> for PlainCharBlockBuilder {
     }
 
     fn should_finish(&self, _next_item: &Option<&str>) -> bool {
-        !self.data.is_empty()
-            && self.estimated_size() + 1 /* length of an item */ + self.char_width
-                > self.target_size
+        !self.data.is_empty() && self.estimated_size() + self.char_width > self.target_size
     }
 
     fn finish(self) -> Vec<u8> {
@@ -67,15 +61,18 @@ impl BlockBuilder<Utf8Array> for PlainCharBlockBuilder {
 
 #[cfg(test)]
 mod tests {
+    use itertools::Itertools;
+
     use super::*;
 
     #[test]
     fn test_build_char() {
         let mut builder = PlainCharBlockBuilder::new(128, 40);
+        let width_40_char = ["2"].iter().cycle().take(40).join("");
         builder.append(Some("233"));
         builder.append(Some("2333"));
-        builder.append(Some("23333"));
-        assert_eq!(builder.estimated_size(), 123);
+        builder.append(Some(&width_40_char));
+        assert_eq!(builder.estimated_size(), 120);
         assert!(builder.should_finish(&Some("2333333")));
         builder.finish();
     }
