@@ -1,4 +1,4 @@
-use bytes::Buf;
+use itertools::Itertools;
 
 use super::{Block, BlockIterator};
 use crate::array::{ArrayBuilder, Utf8Array, Utf8ArrayBuilder};
@@ -42,7 +42,7 @@ impl BlockIterator<Utf8Array> for PlainCharBlockIterator {
         // TODO(chi): error handling on corrupted block
 
         let mut cnt = 0;
-        let mut buffer = &self.block[self.next_row * (self.char_width + 1)..];
+        let mut buffer = &self.block[self.next_row * self.char_width..];
 
         loop {
             if let Some(expected_size) = expected_size {
@@ -56,8 +56,16 @@ impl BlockIterator<Utf8Array> for PlainCharBlockIterator {
                 break;
             }
 
-            let length = buffer.get_u8() as usize;
-            builder.push(Some(std::str::from_utf8(&buffer[..length]).unwrap()));
+            // take a slice out of the buffer
+            let data_buffer = &buffer[..self.char_width];
+            // find the first `\0` inside
+            let pos = data_buffer
+                .iter()
+                .find_position(|x| **x == 0)
+                .map(|x| x.0)
+                .unwrap_or(self.char_width);
+
+            builder.push(Some(std::str::from_utf8(&buffer[..pos]).unwrap()));
             buffer = &buffer[self.char_width..];
 
             cnt += 1;
@@ -88,25 +96,31 @@ mod tests {
     #[test]
     fn test_scan_char() {
         let mut builder = PlainCharBlockBuilder::new(128, 20);
+        let width_20_char = ["2"].iter().cycle().take(20).join("");
+
         builder.append(Some("233"));
         builder.append(Some("2333"));
         builder.append(Some("23333"));
+        builder.append(Some(&width_20_char));
         let data = builder.finish();
 
-        let mut scanner = PlainCharBlockIterator::new(Bytes::from(data), 3, 20);
+        let mut scanner = PlainCharBlockIterator::new(Bytes::from(data), 4, 20);
 
         let mut builder = Utf8ArrayBuilder::new();
 
         scanner.skip(1);
-        assert_eq!(scanner.remaining_items(), 2);
+        assert_eq!(scanner.remaining_items(), 3);
 
         assert_eq!(scanner.next_batch(Some(1), &mut builder), 1);
         assert_eq!(builder.finish().to_vec(), vec![Some("2333".to_string())]);
 
         let mut builder = Utf8ArrayBuilder::new();
-        assert_eq!(scanner.next_batch(Some(2), &mut builder), 1);
-
+        assert_eq!(scanner.next_batch(Some(1), &mut builder), 1);
         assert_eq!(builder.finish().to_vec(), vec![Some("23333".to_string())]);
+
+        let mut builder = Utf8ArrayBuilder::new();
+        assert_eq!(scanner.next_batch(Some(2), &mut builder), 1);
+        assert_eq!(builder.finish().to_vec(), vec![Some(width_20_char)]);
 
         let mut builder = Utf8ArrayBuilder::new();
         assert_eq!(scanner.next_batch(None, &mut builder), 0);
