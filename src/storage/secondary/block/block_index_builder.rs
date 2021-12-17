@@ -61,7 +61,7 @@ impl BlockIndexBuilder {
 
         BlockHeader {
             block_type,
-            checksum_type: checksum_type,
+            checksum_type,
             checksum: build_checksum(checksum_type, block_data),
         }
         .encode(&mut block_header_ref);
