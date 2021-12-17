@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use risinglight_proto::rowset::block_checksum::ChecksumType;
+
 /// IO Backend of the rowset readers
 #[derive(Clone, Copy)]
 pub enum IOBackend {
@@ -26,6 +28,9 @@ pub struct StorageOptions {
 
     /// I/O Backend used by the storage engine
     pub io_backend: IOBackend,
+
+    /// Checksum type used by columns
+    pub checksum_type: ChecksumType,
 }
 
 impl StorageOptions {
@@ -41,6 +46,7 @@ impl StorageOptions {
             } else {
                 IOBackend::PositionedRead
             },
+            checksum_type: ChecksumType::Crc32,
         }
     }
 
@@ -51,6 +57,7 @@ impl StorageOptions {
             target_rowset_size: 1 << 20,       // 1MB
             target_block_size: 16 * (1 << 10), // 16KB
             io_backend: IOBackend::NormalRead,
+            checksum_type: ChecksumType::None,
         }
     }
 }
@@ -58,13 +65,34 @@ impl StorageOptions {
 /// Options for `ColumnBuilder`s.
 #[derive(Clone)]
 pub struct ColumnBuilderOptions {
+    /// Target size (in bytes) of blocks
     pub target_block_size: usize,
+
+    /// Checksum type used by columns
+    pub checksum_type: ChecksumType,
 }
 
 impl ColumnBuilderOptions {
     pub fn from_storage_options(options: &StorageOptions) -> Self {
         Self {
             target_block_size: options.target_block_size,
+            checksum_type: options.checksum_type,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn default_for_test() -> Self {
+        Self {
+            target_block_size: 4096,
+            checksum_type: ChecksumType::Crc32,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn default_for_block_test() -> Self {
+        Self {
+            target_block_size: 128,
+            checksum_type: ChecksumType::None,
         }
     }
 }

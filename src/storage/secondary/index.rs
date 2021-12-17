@@ -6,7 +6,7 @@ use risinglight_proto::rowset::block_checksum::ChecksumType;
 use risinglight_proto::rowset::BlockIndex;
 
 use super::{ColumnSeekPosition, SECONDARY_INDEX_MAGIC};
-use crate::storage::secondary::INDEX_FOOTER_SIZE;
+use crate::storage::secondary::{verify_checksum, INDEX_FOOTER_SIZE};
 
 #[derive(Clone)]
 pub struct ColumnIndex {
@@ -34,9 +34,7 @@ impl ColumnIndex {
         let length = footer.get_u64() as usize;
         let checksum_type = ChecksumType::from_i32(footer.get_i32()).unwrap();
         let checksum = footer.get_u64();
-        let checksum_expected = crc32fast::hash(index_data) as u64;
-        assert_eq!(checksum_type, ChecksumType::Crc32);
-        assert_eq!(checksum, checksum_expected);
+        verify_checksum(checksum_type, index_data, checksum);
 
         let mut indexes = vec![];
         for _ in 0..length {

@@ -2,7 +2,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use itertools::Itertools;
-use risinglight_proto::rowset::block_checksum::ChecksumType;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncWriteExt, BufWriter};
 
@@ -42,6 +41,9 @@ pub struct RowsetBuilder {
 
     /// Count of rows in this rowset
     row_cnt: u32,
+
+    /// Column builder options
+    column_options: ColumnBuilderOptions,
 }
 
 impl RowsetBuilder {
@@ -60,6 +62,7 @@ impl RowsetBuilder {
             directory: directory.as_ref().to_path_buf(),
             columns,
             row_cnt: 0,
+            column_options,
         }
     }
 
@@ -99,7 +102,8 @@ impl RowsetBuilder {
 
             Self::pipe_to_file(path_of_data_column(&self.directory, column_info), data).await?;
 
-            let mut index_builder = IndexBuilder::new(ChecksumType::Crc32, index.len());
+            let mut index_builder =
+                IndexBuilder::new(self.column_options.checksum_type, index.len());
             for index in index {
                 index_builder.append(index);
             }
@@ -135,9 +139,7 @@ mod tests {
             )]
             .into(),
             tempdir.path(),
-            ColumnBuilderOptions {
-                target_block_size: 4096,
-            },
+            ColumnBuilderOptions::default_for_test(),
         );
 
         for _ in 0..1000 {
