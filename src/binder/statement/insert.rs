@@ -73,6 +73,8 @@ impl Binder {
                                     // For char types, no need to cast
                                     (DataTypeKind::Char(_), DataTypeKind::Varchar(_)) => {}
                                     (DataTypeKind::Varchar(_), DataTypeKind::Char(_)) => {}
+                                    (DataTypeKind::Varchar(_), DataTypeKind::Varchar(_)) => {}
+                                    (DataTypeKind::Char(_), DataTypeKind::Char(_)) => {}
                                     _ => todo!("type cast: {} {}", left_kind, right_kind),
                                 }
                             }
