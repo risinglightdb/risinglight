@@ -146,9 +146,7 @@ pub mod tests {
         let mut builder = RowsetBuilder::new(
             columns.clone().into(),
             tempdir.path(),
-            ColumnBuilderOptions {
-                target_block_size: 4096,
-            },
+            ColumnBuilderOptions::default_for_test(),
         );
 
         for _ in 0..100 {

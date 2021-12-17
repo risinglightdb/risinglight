@@ -36,9 +36,9 @@ impl CharColumnBuilder {
     pub fn new(nullable: bool, char_width: Option<u64>, options: ColumnBuilderOptions) -> Self {
         Self {
             data: vec![],
+            block_index_builder: BlockIndexBuilder::new(options.clone()),
             options,
             current_builder: None,
-            block_index_builder: BlockIndexBuilder::new(),
             nullable,
             char_width,
         }
@@ -124,9 +124,7 @@ mod tests {
         let mut builder = CharColumnBuilder::new(
             false,
             Some(7),
-            ColumnBuilderOptions {
-                target_block_size: 128,
-            },
+            ColumnBuilderOptions::default_for_block_test(),
         );
         for _ in 0..10 {
             builder.append(&Utf8Array::from_iter(
@@ -145,9 +143,7 @@ mod tests {
         let mut builder = CharColumnBuilder::new(
             false,
             Some(233),
-            ColumnBuilderOptions {
-                target_block_size: 128,
-            },
+            ColumnBuilderOptions::default_for_block_test(),
         );
         for _ in 0..10 {
             builder.append(&Utf8Array::from_iter([Some("2333")]));

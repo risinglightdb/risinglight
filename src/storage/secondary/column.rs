@@ -18,7 +18,6 @@ pub use column_builder::*;
 pub use column_iterator::*;
 pub use primitive_column_builder::*;
 pub use primitive_column_iterator::*;
-use risinglight_proto::rowset::block_checksum::ChecksumType;
 use risinglight_proto::rowset::BlockIndex;
 pub use row_handler_sequencer::*;
 mod char_column_iterator;
@@ -32,6 +31,7 @@ use moka::future::Cache;
 
 use super::{Block, BlockCacheKey, BlockHeader, ColumnIndex, BLOCK_HEADER_SIZE};
 use crate::array::Array;
+use crate::storage::secondary::verify_checksum;
 
 /// Builds a column. [`ColumnBuilder`] will automatically chunk [`Array`] into
 /// blocks, calls `BlockBuilder` to generate a block, and builds index for a
@@ -136,9 +136,11 @@ impl Column {
             let mut header = &block[..BLOCK_HEADER_SIZE];
             let block_data = &block[BLOCK_HEADER_SIZE..];
             block_header.decode(&mut header);
-            let checksum_expected = crc32fast::hash(block_data) as u64;
-            assert_eq!(block_header.checksum_type, ChecksumType::Crc32);
-            assert_eq!(block_header.checksum, checksum_expected);
+            verify_checksum(
+                block_header.checksum_type,
+                block_data,
+                block_header.checksum,
+            );
             (block_header, block.slice(BLOCK_HEADER_SIZE..))
         } else {
             // block has not been in cache, so we fetch it from disk
@@ -170,9 +172,11 @@ impl Column {
             let mut header = &block[..BLOCK_HEADER_SIZE];
             let block_data = &block[BLOCK_HEADER_SIZE..];
             block_header.decode(&mut header);
-            let checksum_expected = crc32fast::hash(block_data) as u64;
-            assert_eq!(block_header.checksum_type, ChecksumType::Crc32);
-            assert_eq!(block_header.checksum, checksum_expected);
+            verify_checksum(
+                block_header.checksum_type,
+                block_data,
+                block_header.checksum,
+            );
             (block_header, block.slice(BLOCK_HEADER_SIZE..))
         }
     }

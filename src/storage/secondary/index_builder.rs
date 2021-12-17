@@ -3,6 +3,8 @@ use prost::Message;
 use risinglight_proto::rowset::block_checksum::ChecksumType;
 use risinglight_proto::rowset::BlockIndex;
 
+use super::build_checksum;
+
 pub const SECONDARY_INDEX_MAGIC: u32 = 0x2333;
 pub const INDEX_FOOTER_SIZE: usize = 4 + 8 + 4 + 8;
 
@@ -36,7 +38,7 @@ impl IndexBuilder {
 
     pub fn finish(self) -> Vec<u8> {
         let mut data = self.data;
-        let checksum = crc32fast::hash(data.as_slice()) as u64;
+        let checksum = build_checksum(self.checksum_type, data.as_slice());
 
         data.put_u32(SECONDARY_INDEX_MAGIC);
 

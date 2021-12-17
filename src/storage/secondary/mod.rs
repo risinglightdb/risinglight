@@ -40,7 +40,9 @@ mod version_manager;
 use version_manager::*;
 mod transaction_manager;
 use transaction_manager::*;
+mod checksum;
 mod statistics;
+pub use checksum::*;
 
 #[cfg(test)]
 mod tests;

@@ -1,8 +1,8 @@
-use risinglight_proto::rowset::block_checksum::ChecksumType;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 
 use super::{BlockHeader, BLOCK_HEADER_SIZE};
+use crate::storage::secondary::{build_checksum, ColumnBuilderOptions};
 
 /// Builds the block index.
 pub struct BlockIndexBuilder {
@@ -17,15 +17,19 @@ pub struct BlockIndexBuilder {
 
     /// Buffer for each block header, so as to reduce allocation overhead
     block_header: Vec<u8>,
+
+    /// Builder options
+    options: ColumnBuilderOptions,
 }
 
 impl BlockIndexBuilder {
-    pub fn new() -> Self {
+    pub fn new(options: ColumnBuilderOptions) -> Self {
         Self {
             row_count: 0,
             last_row_count: 0,
             indexes: vec![],
             block_header: vec![],
+            options,
         }
     }
 
@@ -53,10 +57,12 @@ impl BlockIndexBuilder {
         self.block_header.resize(BLOCK_HEADER_SIZE, 0);
         let mut block_header_ref = &mut self.block_header[..];
 
+        let checksum_type = self.options.checksum_type;
+
         BlockHeader {
             block_type,
-            checksum_type: ChecksumType::Crc32,
-            checksum: crc32fast::hash(block_data) as u64,
+            checksum_type: checksum_type,
+            checksum: build_checksum(checksum_type, block_data),
         }
         .encode(&mut block_header_ref);
 
