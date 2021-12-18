@@ -41,6 +41,7 @@ pub enum BoundJoinOperator {
     Inner(BoundJoinConstraint),
     LeftOuter(BoundJoinConstraint),
     RightOuter(BoundJoinConstraint),
+    FullOuter(BoundJoinConstraint),
     CrossJoin,
 }
 
@@ -50,6 +51,7 @@ impl std::fmt::Debug for BoundJoinOperator {
             Self::Inner(constraint) => write!(f, "Inner {:?}", constraint),
             Self::LeftOuter(constraint) => write!(f, "Left Outer {:?}", constraint),
             Self::RightOuter(constraint) => write!(f, "Right Outer {:?}", constraint),
+            Self::FullOuter(constraint) => write!(f, "Full Outer {:?}", constraint),
             Self::CrossJoin => write!(f, "Cross Join"),
         }
     }
@@ -89,6 +91,10 @@ impl Binder {
             JoinOperator::RightOuter(constraint) => {
                 let constraint = self.bind_join_constraint(constraint)?;
                 Ok(BoundJoinOperator::RightOuter(constraint))
+            }
+            JoinOperator::FullOuter(constraint) => {
+                let constraint = self.bind_join_constraint(constraint)?;
+                Ok(BoundJoinOperator::FullOuter(constraint))
             }
             JoinOperator::CrossJoin => Ok(BoundJoinOperator::CrossJoin),
             _ => todo!("Support more join types"),
