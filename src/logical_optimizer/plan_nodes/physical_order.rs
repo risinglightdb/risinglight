@@ -1,29 +1,16 @@
 use std::fmt;
 
-use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode, UnaryPlanNode};
+use super::*;
 use crate::binder::BoundOrderBy;
 
 /// The physical plan of order.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct PhysicalOrder {
     pub comparators: Vec<BoundOrderBy>,
     pub child: PlanRef,
 }
 
-impl UnaryPlanNode for PhysicalOrder {
-    fn child(&self) -> PlanRef {
-        self.child.clone()
-    }
-
-    fn clone_with_child(&self, child: PlanRef) -> PlanRef {
-        Plan::PhysicalOrder(PhysicalOrder {
-            child,
-            comparators: self.comparators.clone(),
-        })
-        .into()
-    }
-}
-impl_plan_tree_node_for_unary! {PhysicalOrder}
+impl_plan_node!(PhysicalOrder, [child]);
 
 impl fmt::Display for PhysicalOrder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

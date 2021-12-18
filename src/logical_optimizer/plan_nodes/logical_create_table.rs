@@ -2,18 +2,20 @@ use std::fmt;
 
 use itertools::Itertools;
 
-use super::{impl_plan_tree_node_for_leaf, Plan, PlanRef, PlanTreeNode};
+use super::*;
 use crate::catalog::ColumnCatalog;
 use crate::types::{DatabaseId, SchemaId};
-/// The logical plan of `create table`.
-#[derive(Debug, PartialEq, Clone)]
+
+/// The logical plan of `CREATE TABLE`.
+#[derive(Debug, Clone)]
 pub struct LogicalCreateTable {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_name: String,
     pub columns: Vec<ColumnCatalog>,
 }
-impl_plan_tree_node_for_leaf! {LogicalCreateTable}
+
+impl_plan_node!(LogicalCreateTable);
 
 impl fmt::Display for LogicalCreateTable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

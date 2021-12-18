@@ -2,27 +2,29 @@ use std::fmt;
 use std::path::PathBuf;
 
 use super::*;
-use crate::binder::statement::copy::FileFormat;
+use crate::binder::FileFormat;
 use crate::types::DataType;
 
-/// The logical plan of `COPY FROM`.
+/// The physical plan of `COPY TO`.
 #[derive(Debug, Clone)]
-pub struct LogicalCopyFromFile {
-    /// The file path to copy from.
+pub struct PhysicalCopyToFile {
+    /// The file path to copy to.
     pub path: PathBuf,
     /// The file format.
     pub format: FileFormat,
     /// The column types.
     pub column_types: Vec<DataType>,
+    /// The child plan.
+    pub child: PlanRef,
 }
 
-impl_plan_node!(LogicalCopyFromFile);
+impl_plan_node!(PhysicalCopyToFile, [child]);
 
-impl fmt::Display for LogicalCopyFromFile {
+impl fmt::Display for PhysicalCopyToFile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "LogicalCopyFromFile: path: {:?}, format: {:?}",
+            "PhysicalCopyToFile: path: {:?}, format: {:?}",
             self.path, self.format,
         )
     }

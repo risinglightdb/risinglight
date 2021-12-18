@@ -14,9 +14,9 @@ use crate::parser::BinaryOperator::*;
 /// `select a from t where a > 200;`
 pub struct ConstantMovingRule;
 
-impl LogicalPlanRewriter for ConstantMovingRule {
-    fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
-        match &expr {
+impl Rewriter for ConstantMovingRule {
+    fn rewrite_expr(&mut self, expr: &mut BoundExpr) {
+        let new = match expr {
             BinaryOp(op) => match (&op.op, &*op.left_expr, &*op.right_expr) {
                 (Eq | NotEq | Gt | Lt | GtEq | LtEq, BinaryOp(bin_op), Constant(rval)) => {
                     match (&bin_op.op, &*bin_op.left_expr, &*bin_op.right_expr) {
@@ -51,12 +51,13 @@ impl LogicalPlanRewriter for ConstantMovingRule {
                                 return_type: op.return_type.clone(),
                             })
                         }
-                        _ => expr,
+                        _ => return,
                     }
                 }
-                _ => expr,
+                _ => return,
             },
-            _ => expr,
-        }
+            _ => return,
+        };
+        *expr = new;
     }
 }

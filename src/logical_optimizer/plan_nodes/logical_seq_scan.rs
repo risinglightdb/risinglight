@@ -2,19 +2,20 @@ use std::fmt;
 
 use itertools::Itertools;
 
-use super::{impl_plan_tree_node_for_leaf, Plan, PlanRef, PlanTreeNode};
+use super::*;
 use crate::catalog::TableRefId;
 use crate::types::ColumnId;
 
 /// The logical plan of sequential scan operation.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct LogicalSeqScan {
     pub table_ref_id: TableRefId,
     pub column_ids: Vec<ColumnId>,
     pub with_row_handler: bool,
     pub is_sorted: bool,
 }
-impl_plan_tree_node_for_leaf! {LogicalSeqScan}
+
+impl_plan_node!(LogicalSeqScan);
 
 impl fmt::Display for LogicalSeqScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

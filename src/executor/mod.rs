@@ -16,13 +16,7 @@ use async_stream::try_stream;
 use futures::stream::{BoxStream, Stream, StreamExt};
 
 use crate::array::DataChunk;
-use crate::logical_optimizer::plan_nodes::{
-    BinaryPlanNode, Dummy, PhysicalCopyFromFile, PhysicalCopyToFile, PhysicalCreateTable,
-    PhysicalDelete, PhysicalDrop, PhysicalExplain, PhysicalFilter, PhysicalHashAgg, PhysicalInsert,
-    PhysicalJoin, PhysicalLimit, PhysicalOrder, PhysicalProjection, PhysicalSeqScan,
-    PhysicalSimpleAgg, PhysicalValues, PlanRef, UnaryPlanNode,
-};
-use crate::logical_optimizer::PhysicalPlanRewriter;
+use crate::logical_optimizer::plan_nodes::*;
 use crate::storage::{StorageError, StorageImpl};
 use crate::types::ConvertError;
 
@@ -107,12 +101,12 @@ pub struct ExecutorBuilder {
     env: GlobalEnvRef,
     executor: Option<BoxedExecutor>,
 }
-impl PhysicalPlanRewriter for ExecutorBuilder {
-    fn rewrite_dummy(&mut self, _plan: &Dummy) -> Option<PlanRef> {
+
+impl Visitor for ExecutorBuilder {
+    fn visit_dummy(&mut self, _plan: &Dummy) {
         self.executor = Some(DummyScanExecutor.execute().boxed());
-        None
     }
-    fn rewrite_create_table(&mut self, plan: &PhysicalCreateTable) -> Option<PlanRef> {
+    fn visit_physical_create_table(&mut self, plan: &PhysicalCreateTable) {
         match &self.env.storage {
             StorageImpl::InMemoryStorage(storage) => {
                 self.executor = Some(
@@ -135,9 +129,8 @@ impl PhysicalPlanRewriter for ExecutorBuilder {
                 )
             }
         }
-        None
     }
-    fn rewrite_drop(&mut self, plan: &PhysicalDrop) -> Option<PlanRef> {
+    fn visit_physical_drop(&mut self, plan: &PhysicalDrop) {
         self.executor = Some(match &self.env.storage {
             StorageImpl::InMemoryStorage(storage) => DropExecutor {
                 plan: plan.clone(),
@@ -152,11 +145,9 @@ impl PhysicalPlanRewriter for ExecutorBuilder {
             .execute()
             .boxed(),
         });
-        None
     }
 
-    fn rewrite_insert(&mut self, plan: &PhysicalInsert) -> Option<PlanRef> {
-        self.rewrite_plan_inner(plan.child());
+    fn visit_physical_insert(&mut self, plan: &PhysicalInsert) {
         self.executor = Some(match &self.env.storage {
             StorageImpl::InMemoryStorage(storage) => InsertExecutor {
                 table_ref_id: plan.table_ref_id,
@@ -175,28 +166,28 @@ impl PhysicalPlanRewriter for ExecutorBuilder {
             .execute()
             .boxed(),
         });
-        None
     }
 
-    fn rewrite_join(&mut self, plan: &PhysicalJoin) -> Option<PlanRef> {
-        self.rewrite_plan_inner(plan.left());
-        let left = self.executor.take().unwrap();
-        self.rewrite_plan_inner(plan.right());
-        let right = self.executor.take().unwrap();
+    fn visit_physical_join_is_nested(&mut self) -> bool {
+        true
+    }
+    fn visit_physical_join(&mut self, plan: &PhysicalJoin) {
+        plan.left_plan.walk(self);
+        let left_child = self.executor.take().unwrap();
+        plan.right_plan.walk(self);
+        let right_child = self.executor.take().unwrap();
         self.executor = Some(
             NestedLoopJoinExecutor {
-                left_child: left,
-                right_child: right,
+                left_child,
+                right_child,
                 join_op: plan.join_op.clone(),
             }
             .execute()
             .boxed(),
         );
-
-        None
     }
 
-    fn rewrite_seqscan(&mut self, plan: &PhysicalSeqScan) -> Option<PlanRef> {
+    fn visit_physical_seq_scan(&mut self, plan: &PhysicalSeqScan) {
         self.executor = Some(match &self.env.storage {
             StorageImpl::InMemoryStorage(storage) => SeqScanExecutor {
                 plan: plan.clone(),
@@ -211,11 +202,9 @@ impl PhysicalPlanRewriter for ExecutorBuilder {
             .execute()
             .boxed(),
         });
-        None
     }
 
-    fn rewrite_projection(&mut self, plan: &PhysicalProjection) -> Option<PlanRef> {
-        self.rewrite_plan_inner(plan.child());
+    fn visit_physical_projection(&mut self, plan: &PhysicalProjection) {
         self.executor = Some(
             ProjectionExecutor {
                 project_expressions: plan.project_expressions.clone(),
@@ -224,11 +213,9 @@ impl PhysicalPlanRewriter for ExecutorBuilder {
             .execute()
             .boxed(),
         );
-        None
     }
 
-    fn rewrite_filter(&mut self, plan: &PhysicalFilter) -> Option<PlanRef> {
-        self.rewrite_plan_inner(plan.child());
+    fn visit_physical_filter(&mut self, plan: &PhysicalFilter) {
         self.executor = Some(
             FilterExecutor {
                 expr: plan.expr.clone(),
@@ -237,11 +224,9 @@ impl PhysicalPlanRewriter for ExecutorBuilder {
             .execute()
             .boxed(),
         );
-        None
     }
 
-    fn rewrite_order(&mut self, plan: &PhysicalOrder) -> Option<PlanRef> {
-        self.rewrite_plan_inner(plan.child());
+    fn visit_physical_order(&mut self, plan: &PhysicalOrder) {
         self.executor = Some(
             OrderExecutor {
                 comparators: plan.comparators.clone(),
@@ -250,11 +235,9 @@ impl PhysicalPlanRewriter for ExecutorBuilder {
             .execute()
             .boxed(),
         );
-        None
     }
 
-    fn rewrite_limit(&mut self, plan: &PhysicalLimit) -> Option<PlanRef> {
-        self.rewrite_plan_inner(plan.child());
+    fn visit_physical_limit(&mut self, plan: &PhysicalLimit) {
         self.executor = Some(
             LimitExecutor {
                 child: self.executor.take().unwrap(),
@@ -264,16 +247,13 @@ impl PhysicalPlanRewriter for ExecutorBuilder {
             .execute()
             .boxed(),
         );
-        None
     }
 
-    fn rewrite_explain(&mut self, plan: &PhysicalExplain) -> Option<PlanRef> {
+    fn visit_physical_explain(&mut self, plan: &PhysicalExplain) {
         self.executor = Some(ExplainExecutor { plan: plan.clone() }.execute().boxed());
-        None
     }
 
-    fn rewrite_hash_agg(&mut self, plan: &PhysicalHashAgg) -> Option<PlanRef> {
-        self.rewrite_plan_inner(plan.child());
+    fn visit_physical_hash_agg(&mut self, plan: &PhysicalHashAgg) {
         self.executor = Some(
             HashAggExecutor {
                 agg_calls: plan.agg_calls.clone(),
@@ -283,11 +263,9 @@ impl PhysicalPlanRewriter for ExecutorBuilder {
             .execute()
             .boxed(),
         );
-        None
     }
 
-    fn rewrite_simple_agg(&mut self, plan: &PhysicalSimpleAgg) -> Option<PlanRef> {
-        self.rewrite_plan_inner(plan.child());
+    fn visit_physical_simple_agg(&mut self, plan: &PhysicalSimpleAgg) {
         self.executor = Some(
             SimpleAggExecutor {
                 agg_calls: plan.agg_calls.clone(),
@@ -296,12 +274,9 @@ impl PhysicalPlanRewriter for ExecutorBuilder {
             .execute()
             .boxed(),
         );
-        None
     }
 
-    fn rewrite_delete(&mut self, plan: &PhysicalDelete) -> Option<PlanRef> {
-        self.rewrite_plan_inner(plan.child());
-
+    fn visit_physical_delete(&mut self, plan: &PhysicalDelete) {
         self.executor = Some(match &self.env.storage {
             StorageImpl::InMemoryStorage(storage) => DeleteExecutor {
                 child: self.executor.take().unwrap(),
@@ -318,10 +293,9 @@ impl PhysicalPlanRewriter for ExecutorBuilder {
             .execute()
             .boxed(),
         });
-        None
     }
 
-    fn rewrite_values(&mut self, plan: &PhysicalValues) -> Option<PlanRef> {
+    fn visit_physical_values(&mut self, plan: &PhysicalValues) {
         self.executor = Some(
             ValuesExecutor {
                 column_types: plan.column_types.clone(),
@@ -330,20 +304,17 @@ impl PhysicalPlanRewriter for ExecutorBuilder {
             .execute()
             .boxed(),
         );
-        None
     }
 
-    fn rewrite_copy_from_file(&mut self, plan: &PhysicalCopyFromFile) -> Option<PlanRef> {
+    fn visit_physical_copy_from_file(&mut self, plan: &PhysicalCopyFromFile) {
         self.executor = Some(
             CopyFromFileExecutor { plan: plan.clone() }
                 .execute()
                 .boxed(),
         );
-        None
     }
 
-    fn rewrite_copy_to_file(&mut self, plan: &PhysicalCopyToFile) -> Option<PlanRef> {
-        self.rewrite_plan_inner(plan.child());
+    fn visit_physical_copy_to_file(&mut self, plan: &PhysicalCopyToFile) {
         self.executor = Some(
             CopyToFileExecutor {
                 child: self.executor.take().unwrap(),
@@ -353,7 +324,6 @@ impl PhysicalPlanRewriter for ExecutorBuilder {
             .execute()
             .boxed(),
         );
-        None
     }
 }
 
@@ -374,7 +344,7 @@ impl ExecutorBuilder {
     }
 
     pub fn build(&mut self, plan: PlanRef) -> BoxedExecutor {
-        self.rewrite_plan_inner(plan);
+        plan.walk(self);
         self.executor.take().unwrap()
     }
 }

@@ -1,5 +1,7 @@
+use std::rc::Rc;
+
 use crate::binder::BoundStatement;
-use crate::logical_optimizer::plan_nodes::Plan;
+use crate::logical_optimizer::plan_nodes::PlanRef;
 use crate::types::ConvertError;
 
 mod copy;
@@ -31,15 +33,16 @@ pub struct LogicalPlaner;
 
 impl LogicalPlaner {
     /// Generate the logical plan from a bound statement.
-    pub fn plan(&self, stmt: BoundStatement) -> Result<Plan, LogicalPlanError> {
+    pub fn plan(&self, stmt: BoundStatement) -> Result<PlanRef, LogicalPlanError> {
+        use BoundStatement::*;
         match stmt {
-            BoundStatement::CreateTable(stmt) => self.plan_create_table(stmt),
-            BoundStatement::Drop(stmt) => self.plan_drop(stmt),
-            BoundStatement::Insert(stmt) => self.plan_insert(stmt),
-            BoundStatement::Copy(stmt) => self.plan_copy(stmt),
-            BoundStatement::Select(stmt) => self.plan_select(stmt),
-            BoundStatement::Explain(stmt) => self.plan_explain(*stmt),
-            BoundStatement::Delete(stmt) => self.plan_delete(*stmt),
+            CreateTable(stmt) => self.plan_create_table(stmt),
+            Drop(stmt) => self.plan_drop(stmt),
+            Insert(stmt) => self.plan_insert(stmt),
+            Copy(stmt) => self.plan_copy(stmt),
+            Select(stmt) => self.plan_select(stmt),
+            Explain(stmt) => self.plan_explain(*stmt),
+            Delete(stmt) => self.plan_delete(*stmt),
         }
     }
 }

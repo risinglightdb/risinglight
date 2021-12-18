@@ -1,175 +1,128 @@
-use super::LogicalPlanRewriter;
-use crate::logical_optimizer::plan_nodes::*;
+use super::*;
 
+/// Convert all logical plan nodes to physical.
 pub struct PhysicalConverter;
 
-impl LogicalPlanRewriter for PhysicalConverter {
-    fn rewrite_seqscan(&mut self, plan: &LogicalSeqScan) -> Option<PlanRef> {
-        Some(
-            Plan::PhysicalSeqScan(PhysicalSeqScan {
-                table_ref_id: plan.table_ref_id,
-                column_ids: plan.column_ids.clone(),
-                with_row_handler: plan.with_row_handler,
-                is_sorted: plan.is_sorted,
-            })
-            .into(),
-        )
+impl Rewriter for PhysicalConverter {
+    fn rewrite_logical_seq_scan(&mut self, plan: LogicalSeqScan) -> PlanRef {
+        Rc::new(PhysicalSeqScan {
+            table_ref_id: plan.table_ref_id,
+            column_ids: plan.column_ids,
+            with_row_handler: plan.with_row_handler,
+            is_sorted: plan.is_sorted,
+        })
     }
-    fn rewrite_projection(&mut self, plan: &LogicalProjection) -> Option<PlanRef> {
-        Some(
-            Plan::PhysicalProjection(PhysicalProjection {
-                project_expressions: plan.project_expressions.clone(),
-                child: self.rewrite_plan(plan.child.clone()),
-            })
-            .into(),
-        )
+    fn rewrite_logical_projection(&mut self, plan: LogicalProjection) -> PlanRef {
+        Rc::new(PhysicalProjection {
+            project_expressions: plan.project_expressions,
+            child: plan.child,
+        })
     }
 
-    fn rewrite_order(&mut self, plan: &LogicalOrder) -> Option<PlanRef> {
-        Some(
-            Plan::PhysicalOrder(PhysicalOrder {
-                comparators: plan.comparators.clone(),
-                child: self.rewrite_plan(plan.child.clone()),
-            })
-            .into(),
-        )
+    fn rewrite_logical_order(&mut self, plan: LogicalOrder) -> PlanRef {
+        Rc::new(PhysicalOrder {
+            comparators: plan.comparators,
+            child: plan.child,
+        })
     }
 
-    fn rewrite_limit(&mut self, plan: &LogicalLimit) -> Option<PlanRef> {
-        Some(
-            Plan::PhysicalLimit(PhysicalLimit {
-                offset: plan.offset,
-                limit: plan.limit,
-                child: self.rewrite_plan(plan.child.clone()),
-            })
-            .into(),
-        )
+    fn rewrite_logical_limit(&mut self, plan: LogicalLimit) -> PlanRef {
+        Rc::new(PhysicalLimit {
+            offset: plan.offset,
+            limit: plan.limit,
+            child: plan.child,
+        })
     }
 
-    fn rewrite_join(&mut self, logical_join: &LogicalJoin) -> Option<PlanRef> {
-        Some(
-            Plan::PhysicalJoin(PhysicalJoin {
-                join_type: PhysicalJoinType::NestedLoop,
-                left_plan: self.rewrite_plan(logical_join.left_plan.clone()),
-                right_plan: self.rewrite_plan(logical_join.right_plan.clone()),
-                join_op: logical_join.join_op.clone(),
-            })
-            .into(),
-        )
+    fn rewrite_logical_join_is_nested(&mut self) -> bool {
+        true
+    }
+    fn rewrite_logical_join(&mut self, logical_join: LogicalJoin) -> PlanRef {
+        Rc::new(PhysicalJoin {
+            join_type: PhysicalJoinType::NestedLoop,
+            left_plan: logical_join.left_plan.rewrite(self),
+            right_plan: logical_join.right_plan.rewrite(self),
+            join_op: logical_join.join_op,
+        })
     }
 
-    fn rewrite_insert(&mut self, plan: &LogicalInsert) -> Option<PlanRef> {
-        Some(
-            Plan::PhysicalInsert(PhysicalInsert {
-                table_ref_id: plan.table_ref_id,
-                column_ids: plan.column_ids.clone(),
-                child: self.rewrite_plan(plan.child.clone()),
-            })
-            .into(),
-        )
+    fn rewrite_logical_insert(&mut self, plan: LogicalInsert) -> PlanRef {
+        Rc::new(PhysicalInsert {
+            table_ref_id: plan.table_ref_id,
+            column_ids: plan.column_ids,
+            child: plan.child,
+        })
     }
 
-    fn rewrite_values(&mut self, plan: &LogicalValues) -> Option<PlanRef> {
-        Some(
-            Plan::PhysicalValues(PhysicalValues {
-                column_types: plan.column_types.clone(),
-                values: plan.values.clone(),
-            })
-            .into(),
-        )
+    fn rewrite_logical_values(&mut self, plan: LogicalValues) -> PlanRef {
+        Rc::new(PhysicalValues {
+            column_types: plan.column_types,
+            values: plan.values,
+        })
     }
 
-    fn rewrite_filter(&mut self, plan: &LogicalFilter) -> Option<PlanRef> {
-        Some(
-            Plan::PhysicalFilter(PhysicalFilter {
-                expr: plan.expr.clone(),
-                child: self.rewrite_plan(plan.child.clone()),
-            })
-            .into(),
-        )
+    fn rewrite_logical_filter(&mut self, plan: LogicalFilter) -> PlanRef {
+        Rc::new(PhysicalFilter {
+            expr: plan.expr,
+            child: plan.child,
+        })
     }
 
-    fn rewrite_explain(&mut self, plan: &LogicalExplain) -> Option<PlanRef> {
-        Some(
-            Plan::PhysicalExplain(PhysicalExplain {
-                plan: self.rewrite_plan(plan.child()),
-            })
-            .into(),
-        )
+    fn rewrite_logical_explain(&mut self, plan: LogicalExplain) -> PlanRef {
+        Rc::new(PhysicalExplain { plan: plan.plan })
     }
 
-    fn rewrite_drop(&mut self, plan: &LogicalDrop) -> Option<PlanRef> {
-        Some(
-            Plan::PhysicalDrop(PhysicalDrop {
-                object: plan.object.clone(),
-            })
-            .into(),
-        )
+    fn rewrite_logical_drop(&mut self, plan: LogicalDrop) -> PlanRef {
+        Rc::new(PhysicalDrop {
+            object: plan.object,
+        })
     }
 
-    fn rewrite_delete(&mut self, plan: &LogicalDelete) -> Option<PlanRef> {
-        Some(
-            Plan::PhysicalDelete(PhysicalDelete {
-                table_ref_id: plan.table_ref_id,
-                child: self.rewrite_plan(plan.child.clone()),
-            })
-            .into(),
-        )
+    fn rewrite_logical_delete(&mut self, plan: LogicalDelete) -> PlanRef {
+        Rc::new(PhysicalDelete {
+            table_ref_id: plan.table_ref_id,
+            child: plan.child,
+        })
     }
 
-    fn rewrite_create_table(&mut self, plan: &LogicalCreateTable) -> Option<PlanRef> {
-        Some(
-            Plan::PhysicalCreateTable(PhysicalCreateTable {
-                database_id: plan.database_id,
-                schema_id: plan.schema_id,
-                table_name: plan.table_name.clone(),
-                columns: plan.columns.clone(),
-            })
-            .into(),
-        )
+    fn rewrite_logical_create_table(&mut self, plan: LogicalCreateTable) -> PlanRef {
+        Rc::new(PhysicalCreateTable {
+            database_id: plan.database_id,
+            schema_id: plan.schema_id,
+            table_name: plan.table_name,
+            columns: plan.columns,
+        })
     }
 
-    fn rewrite_copy_from_file(&mut self, plan: &LogicalCopyFromFile) -> Option<PlanRef> {
-        Some(
-            Plan::PhysicalCopyFromFile(PhysicalCopyFromFile {
-                path: plan.path.clone(),
-                format: plan.format.clone(),
-                column_types: plan.column_types.clone(),
-            })
-            .into(),
-        )
+    fn rewrite_logical_copy_from_file(&mut self, plan: LogicalCopyFromFile) -> PlanRef {
+        Rc::new(PhysicalCopyFromFile {
+            path: plan.path,
+            format: plan.format,
+            column_types: plan.column_types,
+        })
     }
 
-    fn rewrite_copy_to_file(&mut self, plan: &LogicalCopyToFile) -> Option<PlanRef> {
-        Some(
-            Plan::PhysicalCopyToFile(PhysicalCopyToFile {
-                path: plan.path.clone(),
-                format: plan.format.clone(),
-                column_types: plan.column_types.clone(),
-                child: self.rewrite_plan(plan.child.clone()),
-            })
-            .into(),
-        )
+    fn rewrite_logical_copy_to_file(&mut self, plan: LogicalCopyToFile) -> PlanRef {
+        Rc::new(PhysicalCopyToFile {
+            path: plan.path,
+            format: plan.format,
+            column_types: plan.column_types,
+            child: plan.child,
+        })
     }
 
-    fn rewrite_aggregate(&mut self, plan: &LogicalAggregate) -> Option<PlanRef> {
+    fn rewrite_logical_aggregate(&mut self, plan: LogicalAggregate) -> PlanRef {
         if plan.group_keys.is_empty() {
-            Some(
-                Plan::PhysicalSimpleAgg(PhysicalSimpleAgg {
-                    agg_calls: plan.agg_calls.clone(),
-                    child: self.rewrite_plan(plan.child.clone()),
-                })
-                .into(),
-            )
+            Rc::new(PhysicalSimpleAgg {
+                agg_calls: plan.agg_calls,
+                child: plan.child,
+            })
         } else {
-            Some(
-                Plan::PhysicalHashAgg(PhysicalHashAgg {
-                    agg_calls: plan.agg_calls.clone(),
-                    group_keys: plan.group_keys.clone(),
-                    child: self.rewrite_plan(plan.child.clone()),
-                })
-                .into(),
-            )
+            Rc::new(PhysicalHashAgg {
+                agg_calls: plan.agg_calls,
+                group_keys: plan.group_keys,
+                child: plan.child,
+            })
         }
     }
 }

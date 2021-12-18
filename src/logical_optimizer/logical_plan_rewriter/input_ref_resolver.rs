@@ -1,11 +1,7 @@
-use super::super::plan_nodes::logical_aggregate::LogicalAggregate;
-use super::super::plan_nodes::logical_join::LogicalJoin;
-use super::super::plan_nodes::logical_projection::LogicalProjection;
-use super::super::plan_nodes::logical_seq_scan::LogicalSeqScan;
-use super::super::plan_nodes::{Plan, PlanRef, UnaryPlanNode};
+use super::*;
 use crate::binder::*;
 use crate::catalog::ColumnRefId;
-use crate::logical_optimizer::logical_plan_rewriter::LogicalPlanRewriter;
+
 /// Resolves column references into physical indices into the `DataChunk`.
 ///
 /// This will rewrite all `ColumnRef` expressions to `InputRef`.
@@ -19,147 +15,100 @@ pub struct InputRefResolver {
     bindings: Vec<Option<ColumnRefId>>,
 }
 
-impl LogicalPlanRewriter for InputRefResolver {
-    fn rewrite_join(&mut self, plan: &LogicalJoin) -> Option<PlanRef> {
-        use BoundJoinConstraint::*;
-        use BoundJoinOperator::*;
-
-        let left_plan = self.rewrite_plan(plan.left_plan.clone());
+impl Rewriter for InputRefResolver {
+    fn rewrite_logical_join_is_nested(&mut self) -> bool {
+        true
+    }
+    fn rewrite_logical_join(&mut self, mut plan: LogicalJoin) -> PlanRef {
+        plan.left_plan = plan.left_plan.rewrite(self);
         let mut resolver = Self::default();
-        let right_plan = resolver.rewrite_plan(plan.right_plan.clone());
+        plan.right_plan = plan.right_plan.rewrite(&mut resolver);
         self.bindings.append(&mut resolver.bindings);
 
-        Some(
-            Plan::LogicalJoin(LogicalJoin {
-                left_plan,
-                right_plan,
-                join_op: match plan.join_op.clone() {
-                    Inner(On(expr)) => Inner(On(self.rewrite_expr(expr))),
-                    LeftOuter(On(expr)) => LeftOuter(On(self.rewrite_expr(expr))),
-                    RightOuter(On(expr)) => RightOuter(On(self.rewrite_expr(expr))),
-                    FullOuter(On(expr)) => FullOuter(On(self.rewrite_expr(expr))),
-                    CrossJoin => CrossJoin,
-                },
-            })
-            .into(),
-        )
+        plan.rewrite_expr(self);
+        Rc::new(plan)
     }
 
-    fn rewrite_seqscan(&mut self, plan: &LogicalSeqScan) -> Option<PlanRef> {
+    fn rewrite_logical_seq_scan_is_nested(&mut self) -> bool {
+        true
+    }
+    fn rewrite_logical_seq_scan(&mut self, plan: LogicalSeqScan) -> PlanRef {
         self.bindings = plan
             .column_ids
             .iter()
             .map(|col_id| Some(ColumnRefId::from_table(plan.table_ref_id, *col_id)))
             .collect();
-        None
+        Rc::new(plan)
     }
 
-    fn rewrite_projection(&mut self, plan: &LogicalProjection) -> Option<PlanRef> {
-        let child = self.rewrite_plan(plan.child());
-        let mut bindings = vec![];
-        let project_expressions = plan
+    fn rewrite_logical_projection_is_nested(&mut self) -> bool {
+        true
+    }
+    fn rewrite_logical_projection(&mut self, mut plan: LogicalProjection) -> PlanRef {
+        plan.child = plan.child.rewrite(self);
+        let bindings = plan
             .project_expressions
             .iter()
-            .cloned()
-            .map(|expr| {
-                bindings.push(match &expr {
-                    BoundExpr::ColumnRef(col) => Some(col.column_ref_id),
-                    _ => None,
-                });
-                self.rewrite_expr(expr)
+            .map(|expr| match &expr {
+                BoundExpr::ColumnRef(col) => Some(col.column_ref_id),
+                _ => None,
             })
             .collect();
+        plan.rewrite_expr(self);
         self.bindings = bindings;
-        Some(
-            Plan::LogicalProjection(LogicalProjection {
-                project_expressions,
-                child,
-            })
-            .into(),
-        )
+        Rc::new(plan)
     }
 
-    fn rewrite_aggregate(&mut self, plan: &LogicalAggregate) -> Option<PlanRef> {
-        let child = self.rewrite_plan(plan.child());
-
-        let agg_calls = plan
-            .agg_calls
-            .iter()
-            .cloned()
-            .map(|agg| BoundAggCall {
-                kind: agg.kind,
-                args: agg
-                    .args
-                    .into_iter()
-                    .map(|expr| self.rewrite_expr(expr))
-                    .collect(),
-                return_type: agg.return_type,
-            })
-            .collect();
-
-        let group_keys = plan
-            .group_keys
-            .iter()
-            .cloned()
-            .map(|expr| {
-                match &expr {
-                    BoundExpr::ColumnRef(col) => self.bindings.push(Some(col.column_ref_id)),
-                    _ => panic!("{:?} cannot be a group key", expr),
-                }
-                self.rewrite_expr(expr)
-            })
-            .collect();
-        Some(
-            Plan::LogicalAggregate(LogicalAggregate {
-                agg_calls,
-                group_keys,
-                child,
-            })
-            .into(),
-        )
+    fn rewrite_logical_aggregate_is_nested(&mut self) -> bool {
+        true
+    }
+    fn rewrite_logical_aggregate(&mut self, mut plan: LogicalAggregate) -> PlanRef {
+        plan.child = plan.child.rewrite(self);
+        for expr in &plan.group_keys {
+            match &expr {
+                BoundExpr::ColumnRef(col) => self.bindings.push(Some(col.column_ref_id)),
+                _ => panic!("{:?} cannot be a group key", expr),
+            }
+        }
+        plan.rewrite_expr(self);
+        Rc::new(plan)
     }
 
     /// Transform expr referring to input chunk into `BoundInputRef`
-    fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
+    fn rewrite_expr(&mut self, expr: &mut BoundExpr) {
         use BoundExpr::*;
         match expr {
-            ColumnRef(column_ref) => InputRef(BoundInputRef {
-                index: self
-                    .bindings
-                    .iter()
-                    .position(|col| *col == Some(column_ref.column_ref_id))
-                    .expect("column reference not found"),
-                return_type: column_ref.desc.datatype().clone(),
-            }),
-            AggCall(agg) => AggCall(BoundAggCall {
-                kind: agg.kind,
-                args: agg
-                    .args
-                    .into_iter()
-                    .map(|expr| self.rewrite_expr(expr))
-                    .collect(),
-                return_type: agg.return_type,
-            }),
+            ColumnRef(column_ref) => {
+                let new = InputRef(BoundInputRef {
+                    index: self
+                        .bindings
+                        .iter()
+                        .position(|col| *col == Some(column_ref.column_ref_id))
+                        .expect("column reference not found"),
+                    return_type: column_ref.desc.datatype().clone(),
+                });
+                *expr = new;
+            }
+            AggCall(agg) => {
+                for expr in &mut agg.args {
+                    self.rewrite_expr(expr);
+                }
+            }
             // rewrite sub-expressions
-            BinaryOp(binary_op) => BinaryOp(BoundBinaryOp {
-                op: binary_op.op,
-                left_expr: (self.rewrite_expr(*binary_op.left_expr).into()),
-                right_expr: (self.rewrite_expr(*binary_op.right_expr).into()),
-                return_type: binary_op.return_type,
-            }),
-            UnaryOp(unary_op) => UnaryOp(BoundUnaryOp {
-                op: unary_op.op,
-                expr: (self.rewrite_expr(*unary_op.expr).into()),
-                return_type: unary_op.return_type,
-            }),
-            TypeCast(cast) => TypeCast(BoundTypeCast {
-                expr: (self.rewrite_expr(*cast.expr).into()),
-                ty: cast.ty,
-            }),
-            IsNull(isnull) => IsNull(BoundIsNull {
-                expr: Box::new(self.rewrite_expr(*isnull.expr)),
-            }),
-            expr => expr,
+            BinaryOp(binary_op) => {
+                self.rewrite_expr(&mut *binary_op.left_expr);
+                self.rewrite_expr(&mut *binary_op.right_expr);
+            }
+            UnaryOp(unary_op) => {
+                self.rewrite_expr(&mut *unary_op.expr);
+            }
+            TypeCast(cast) => {
+                self.rewrite_expr(&mut *cast.expr);
+            }
+            IsNull(isnull) => {
+                self.rewrite_expr(&mut *isnull.expr);
+            }
+            _ => {}
         }
     }
 }

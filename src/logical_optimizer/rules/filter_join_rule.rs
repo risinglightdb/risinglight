@@ -1,6 +1,6 @@
-use super::{PlanRef, Rule};
+use super::*;
 use crate::binder::BoundExpr;
-use crate::logical_optimizer::plan_nodes::{BinaryPlanNode, LogicalJoin, UnaryPlanNode};
+use crate::logical_optimizer::plan_nodes::{LogicalFilter, LogicalJoin};
 use crate::logical_optimizer::BoundBinaryOp;
 use crate::logical_optimizer::BoundJoinConstraint::On;
 use crate::logical_optimizer::BoundJoinOperator::Inner;
@@ -8,24 +8,18 @@ use crate::parser::BinaryOperator::And;
 use crate::types::{DataTypeExt, DataTypeKind};
 
 pub struct FilterJoinRule {}
+
 impl Rule for FilterJoinRule {
-    fn matches(&self, plan: PlanRef) -> Result<(), ()> {
-        let filter = plan.as_ref().try_as_logicalfilter()?;
-        let filter_child = filter.child();
-        let join = filter_child.as_ref().try_as_logicaljoin()?;
-        // TODO: we just support inner join now.
-        match join.join_op {
-            Inner(_) => Ok(()),
-            _ => Err(()),
-        }
-    }
     fn apply(&self, plan: PlanRef) -> Result<PlanRef, ()> {
-        let filter = plan.as_ref().try_as_logicalfilter()?;
-        let filter_child = filter.child();
-        let join = filter_child.as_ref().try_as_logicaljoin()?;
+        let filter = plan.downcast_rc::<LogicalFilter>().map_err(|_| ())?;
+        let join = filter
+            .child
+            .clone()
+            .downcast_rc::<LogicalJoin>()
+            .map_err(|_| ())?;
         let join_cond = match &join.join_op {
             Inner(On(op)) => op.clone(),
-            _ => unreachable!(),
+            _ => return Err(()),
         };
         let join_cond = BoundExpr::BinaryOp(BoundBinaryOp {
             op: And,
@@ -33,12 +27,11 @@ impl Rule for FilterJoinRule {
             right_expr: Box::new(filter.expr.clone()),
             return_type: Some(DataTypeKind::Boolean.nullable()),
         });
-        Ok(LogicalJoin {
-            left_plan: join.left(),
-            right_plan: join.right(),
+        Ok(Rc::new(LogicalJoin {
+            left_plan: join.left_plan.clone(),
+            right_plan: join.right_plan.clone(),
             join_op: Inner(On(join_cond)),
-        }
-        .into())
+        }))
 
         // TODO: we need schema of operator to push condition to each side.
         // let filter_conds = to_cnf(filter.expr.clone());

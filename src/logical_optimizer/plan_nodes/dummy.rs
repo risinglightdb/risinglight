@@ -1,12 +1,14 @@
 use std::fmt;
 
-use super::{impl_plan_tree_node_for_leaf, Plan, PlanRef, PlanTreeNode};
+use super::*;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct Dummy {}
+
+impl_plan_node!(Dummy);
+
 impl fmt::Display for Dummy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Dummy")
+        writeln!(f, "Dummy:")
     }
 }
-impl_plan_tree_node_for_leaf! {Dummy}

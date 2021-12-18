@@ -1,8 +1,6 @@
-use std::vec::Vec;
-
 use super::*;
 use crate::array::ArrayImpl;
-use crate::binder::{BoundAggCall, BoundBinaryOp, BoundExpr, BoundTypeCast, BoundUnaryOp};
+use crate::binder::BoundExpr;
 
 /// Constant folding rule aims to evalute the constant expression before query execution.
 ///
@@ -13,67 +11,40 @@ use crate::binder::{BoundAggCall, BoundBinaryOp, BoundExpr, BoundTypeCast, Bound
 #[derive(Default)]
 pub struct ConstantFolding;
 
-impl LogicalPlanRewriter for ConstantFolding {
-    fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
+impl Rewriter for ConstantFolding {
+    fn rewrite_expr(&mut self, expr: &mut BoundExpr) {
         use BoundExpr::*;
         match expr {
-            BinaryOp(binary_op) => {
-                let new_left_expr = self.rewrite_expr(*binary_op.left_expr);
-                let new_right_expr = self.rewrite_expr(*binary_op.right_expr);
-
-                if let (Constant(v1), Constant(v2)) = (&new_left_expr, &new_right_expr) {
+            BinaryOp(op) => {
+                self.rewrite_expr(&mut *op.left_expr);
+                self.rewrite_expr(&mut *op.right_expr);
+                if let (Constant(v1), Constant(v2)) = (&*op.left_expr, &*op.right_expr) {
                     let res = ArrayImpl::from(v1)
-                        .binary_op(&binary_op.op, &ArrayImpl::from(v2))
+                        .binary_op(&op.op, &ArrayImpl::from(v2))
                         .get(0);
-                    Constant(res)
-                } else {
-                    BinaryOp(BoundBinaryOp {
-                        op: binary_op.op,
-                        left_expr: (new_left_expr.into()),
-                        right_expr: (new_right_expr.into()),
-                        return_type: binary_op.return_type.clone(),
-                    })
+                    *expr = Constant(res);
                 }
             }
-            UnaryOp(unary_op) => {
-                let new_expr = self.rewrite_expr(*unary_op.expr);
-
-                if let Constant(v) = &new_expr {
-                    let res = ArrayImpl::from(v).unary_op(&unary_op.op).get(0);
-                    Constant(res)
-                } else {
-                    UnaryOp(BoundUnaryOp {
-                        op: unary_op.op,
-                        expr: (new_expr.into()),
-                        return_type: unary_op.return_type.clone(),
-                    })
+            UnaryOp(op) => {
+                self.rewrite_expr(&mut *op.expr);
+                if let Constant(v) = &*op.expr {
+                    let res = ArrayImpl::from(v).unary_op(&op.op).get(0);
+                    *expr = Constant(res);
                 }
             }
             TypeCast(cast) => {
-                let new_expr = self.rewrite_expr(*cast.expr);
-
-                if let Constant(v) = &new_expr {
-                    let res = ArrayImpl::from(v).try_cast(cast.ty).unwrap().get(0);
-                    Constant(res)
-                } else {
-                    TypeCast(BoundTypeCast {
-                        ty: cast.ty,
-                        expr: (new_expr.into()),
-                    })
+                self.rewrite_expr(&mut *cast.expr);
+                if let Constant(v) = &*cast.expr {
+                    let res = ArrayImpl::from(v).try_cast(cast.ty.clone()).unwrap().get(0);
+                    *expr = Constant(res);
                 }
             }
             AggCall(agg_call) => {
-                let mut new_exprs: Vec<BoundExpr> = vec![];
-                for expr in agg_call.args {
-                    new_exprs.push(self.rewrite_expr(expr));
+                for expr in &mut agg_call.args {
+                    self.rewrite_expr(expr);
                 }
-                AggCall(BoundAggCall {
-                    kind: agg_call.kind,
-                    args: new_exprs,
-                    return_type: agg_call.return_type,
-                })
             }
-            _ => expr,
+            _ => {}
         }
     }
 }

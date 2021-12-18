@@ -1,25 +1,17 @@
 use std::fmt;
 
-use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode, UnaryPlanNode};
+use super::*;
 
-/// The physical plan of `explain`.
-#[derive(Debug, PartialEq, Clone)]
+/// The physical plan of `EXPLAIN`.
+#[derive(Debug, Clone)]
 pub struct PhysicalExplain {
     pub plan: PlanRef,
 }
-impl UnaryPlanNode for PhysicalExplain {
-    fn child(&self) -> PlanRef {
-        self.plan.clone()
-    }
 
-    fn clone_with_child(&self, child: PlanRef) -> PlanRef {
-        Plan::PhysicalExplain(PhysicalExplain { plan: child }).into()
-    }
-}
-impl_plan_tree_node_for_unary! {PhysicalExplain}
+impl_plan_node!(PhysicalExplain, [plan]);
 
 impl fmt::Display for PhysicalExplain {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Huh, explain myself?")
+        writeln!(f, "PhysicalExplain:")
     }
 }

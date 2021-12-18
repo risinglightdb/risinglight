@@ -7,8 +7,7 @@ use crate::array::{ArrayBuilder, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder};
 use crate::binder::{BindError, Binder};
 use crate::catalog::RootCatalogRef;
 use crate::executor::{ExecutorBuilder, ExecutorError, GlobalEnv};
-use crate::logical_optimizer::logical_plan_rewriter::input_ref_resolver::InputRefResolver;
-use crate::logical_optimizer::logical_plan_rewriter::LogicalPlanRewriter;
+use crate::logical_optimizer::logical_plan_rewriter::InputRefResolver;
 use crate::logical_optimizer::Optimizer;
 use crate::logical_planner::{LogicalPlanError, LogicalPlaner};
 use crate::parser::{parse, ParserError};
@@ -169,7 +168,7 @@ impl Database {
             debug!("{:#?}", stmt);
             let logical_plan = logical_planner.plan(stmt)?;
             // Resolve input reference
-            let logical_plan = InputRefResolver::default().rewrite_plan(logical_plan.into());
+            let logical_plan = logical_plan.rewrite(&mut InputRefResolver::default());
             debug!("{:#?}", logical_plan);
             let optimized_plan = optimizer.optimize(logical_plan);
             debug!("{:#?}", optimized_plan);

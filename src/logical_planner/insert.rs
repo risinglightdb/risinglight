@@ -1,18 +1,16 @@
 use super::*;
 use crate::binder::BoundInsert;
-use crate::logical_optimizer::plan_nodes::logical_insert::LogicalInsert;
-use crate::logical_optimizer::plan_nodes::logical_values::LogicalValues;
+use crate::logical_optimizer::plan_nodes::{LogicalInsert, LogicalValues};
 
 impl LogicalPlaner {
-    pub fn plan_insert(&self, stmt: BoundInsert) -> Result<Plan, LogicalPlanError> {
-        Ok(Plan::LogicalInsert(LogicalInsert {
+    pub fn plan_insert(&self, stmt: BoundInsert) -> Result<PlanRef, LogicalPlanError> {
+        Ok(Rc::new(LogicalInsert {
             table_ref_id: stmt.table_ref_id,
             column_ids: stmt.column_ids,
-            child: Plan::LogicalValues(LogicalValues {
+            child: Rc::new(LogicalValues {
                 column_types: stmt.column_types,
                 values: stmt.values,
-            })
-            .into(),
+            }),
         }))
     }
 }

@@ -1,10 +1,10 @@
 use super::*;
-use crate::logical_optimizer::plan_nodes::logical_explain::LogicalExplain;
+use crate::logical_optimizer::plan_nodes::LogicalExplain;
 
 impl LogicalPlaner {
-    pub fn plan_explain(&self, stmt: BoundStatement) -> Result<Plan, LogicalPlanError> {
-        Ok(Plan::LogicalExplain(LogicalExplain {
-            plan: (self.plan(stmt)?.into()),
+    pub fn plan_explain(&self, stmt: BoundStatement) -> Result<PlanRef, LogicalPlanError> {
+        Ok(Rc::new(LogicalExplain {
+            plan: self.plan(stmt)?,
         }))
     }
 }
