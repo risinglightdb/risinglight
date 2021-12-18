@@ -8,6 +8,7 @@ use crate::binder::BoundJoinOperator;
 #[derive(Clone, PartialEq, Debug)]
 pub enum PhysicalJoinType {
     NestedLoop,
+    HashJoin,
 }
 // The phyiscal plan of join
 #[derive(Clone, PartialEq, Debug)]

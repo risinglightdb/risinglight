@@ -1,6 +1,9 @@
 use super::LogicalPlanRewriter;
+use crate::binder::BoundJoinOperator;
 use crate::logical_optimizer::plan_nodes::*;
-
+use crate::logical_optimizer::BoundExpr::{BinaryOp, ColumnRef};
+use crate::logical_optimizer::BoundJoinConstraint::On;
+use crate::parser::BinaryOperator::*;
 pub struct PhysicalConverter;
 
 impl LogicalPlanRewriter for PhysicalConverter {
@@ -47,9 +50,25 @@ impl LogicalPlanRewriter for PhysicalConverter {
     }
 
     fn rewrite_join(&mut self, logical_join: &LogicalJoin) -> Option<PlanRef> {
+        let mut join_type = PhysicalJoinType::NestedLoop;
+        // Hash join is only used for equal join.
+        // We only support hash join when it comes to inner join. 
+        match &logical_join.join_op {
+            BoundJoinOperator::Inner(On(expr)) => match &expr {
+                BinaryOp(op) => match (&op.op, &*op.left_expr, &*op.right_expr) {
+                    (Eq, ColumnRef(_), ColumnRef(_)) => {
+                        join_type = PhysicalJoinType::HashJoin;
+                    }
+                    _ => {}
+                },
+                _ => {}
+            },
+            _ => {}
+        }
+
         Some(
             Plan::PhysicalJoin(PhysicalJoin {
-                join_type: PhysicalJoinType::NestedLoop,
+                join_type: join_type,
                 left_plan: self.rewrite_plan(logical_join.left_plan.clone()),
                 right_plan: self.rewrite_plan(logical_join.right_plan.clone()),
                 join_op: logical_join.join_op.clone(),
