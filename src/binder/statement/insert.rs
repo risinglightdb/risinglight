@@ -3,7 +3,7 @@ use itertools::Itertools;
 use super::*;
 use crate::catalog::{ColumnCatalog, TableCatalog};
 use crate::parser::{SetExpr, Statement};
-use crate::types::{ColumnId, DataType, DataTypeKind};
+use crate::types::{ColumnId, DataType};
 
 /// A bound `insert` statement.
 #[derive(Debug, PartialEq, Clone)]
@@ -66,17 +66,10 @@ impl Binder {
                             // table t1(a float, b float)
                             // for example: insert into values (1, 1);
                             // 1 should be casted to float.
-                            let left_kind = data_type.kind();
-                            let right_kind = column_types[idx].kind();
+                            let left_kind = data_type.physical_kind();
+                            let right_kind = column_types[idx].physical_kind();
                             if left_kind != right_kind {
-                                match (&left_kind, &right_kind) {
-                                    // For char types, no need to cast
-                                    (DataTypeKind::Char(_), DataTypeKind::Varchar(_)) => {}
-                                    (DataTypeKind::Varchar(_), DataTypeKind::Char(_)) => {}
-                                    (DataTypeKind::Varchar(_), DataTypeKind::Varchar(_)) => {}
-                                    (DataTypeKind::Char(_), DataTypeKind::Char(_)) => {}
-                                    _ => todo!("type cast: {} {}", left_kind, right_kind),
-                                }
+                                todo!("type cast: {:?} {:?}", left_kind, right_kind);
                             }
                         } else {
                             // If the data value is null, the column must be nullable.
