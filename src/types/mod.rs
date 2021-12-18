@@ -6,10 +6,21 @@ use std::hash::{Hash, Hasher};
 
 pub(crate) use native::*;
 
+/// Physical data type
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PhysicalDataTypeKind {
+    Int32,
+    Int64,
+    Float64,
+    String,
+    Boolean,
+}
+
 /// Data type with nullable.
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DataType {
     pub kind: DataTypeKind,
+    pub physical_kind: PhysicalDataTypeKind,
     pub nullable: bool,
 }
 
@@ -24,8 +35,22 @@ impl std::fmt::Debug for DataType {
 }
 
 impl DataType {
-    pub const fn new(kind: DataTypeKind, nullable: bool) -> DataType {
-        DataType { kind, nullable }
+    pub fn new(kind: DataTypeKind, nullable: bool) -> DataType {
+        let physical_kind = match &kind {
+            DataTypeKind::Char(_) | DataTypeKind::Varchar(_) | DataTypeKind::String => {
+                PhysicalDataTypeKind::String
+            }
+            DataTypeKind::Float(_) | DataTypeKind::Double => PhysicalDataTypeKind::Float64,
+            DataTypeKind::Int(_) => PhysicalDataTypeKind::Int32,
+            DataTypeKind::BigInt(_) => PhysicalDataTypeKind::Int64,
+            DataTypeKind::Boolean => PhysicalDataTypeKind::Boolean,
+            _ => todo!("physical type for {:?} is not supported", kind),
+        };
+        DataType {
+            kind,
+            physical_kind,
+            nullable,
+        }
     }
 
     pub fn is_nullable(&self) -> bool {
@@ -34,6 +59,11 @@ impl DataType {
 
     pub fn kind(&self) -> DataTypeKind {
         self.kind.clone()
+    }
+
+    /// Get physical data type
+    pub fn physical_kind(&self) -> PhysicalDataTypeKind {
+        self.physical_kind.clone()
     }
 }
 
