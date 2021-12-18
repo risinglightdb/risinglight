@@ -2,6 +2,7 @@ use std::fmt;
 
 use super::*;
 
+/// A dummy plan.
 #[derive(Debug, Clone)]
 pub struct Dummy {}
 

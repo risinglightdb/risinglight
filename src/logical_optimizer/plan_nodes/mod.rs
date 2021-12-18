@@ -9,20 +9,36 @@ use smallvec::SmallVec;
 
 use crate::binder::BoundExpr;
 
+/// The common trait over all plan nodes.
 pub trait PlanNode: Debug + Display + Downcast {
+    /// Get child nodes of the plan.
     fn children(&self) -> SmallVec<[PlanRef; 2]>;
+
+    /// Clone the node with a list of new children.
     fn clone_with_children(&self, children: &[PlanRef]) -> PlanRef;
+
+    /// Call the associated function on [`Visitor`].
     fn visit(&self, visitor: &mut dyn Visitor);
+
+    /// Walk through the plan tree recursively.
     fn walk(&self, visitor: &mut dyn Visitor);
+
+    /// Rewrite the plan tree recursively.
     fn rewrite(&self, rewriter: &mut dyn Rewriter) -> PlanRef;
+
+    /// Call [`rewrite_expr`] on each expressions of the plan.
+    ///
+    /// [`rewrite_expr`]: Rewriter::rewrite_expr
     fn rewrite_expr(&mut self, _rewriter: &mut dyn Rewriter) {}
 }
 
 impl_downcast!(PlanNode);
 
+/// The type of reference to a plan node.
 pub type PlanRef = Rc<dyn PlanNode>;
 
 impl dyn PlanNode {
+    /// Write explain string of the plan.
     pub fn explain(&self, level: usize, f: &mut dyn std::fmt::Write) -> std::fmt::Result {
         write!(f, "{}{}", " ".repeat(level * 2), self)?;
         for child in self.children() {
@@ -129,7 +145,8 @@ macro_rules! for_all_plan_nodes {
     };
 }
 
-macro_rules! mod_and_use {
+/// Define module for each node.
+macro_rules! def_mod_and_use {
     ([], $($node_name:ty),*) => {
         $(paste! {
             mod [<$node_name:snake>];
@@ -137,20 +154,24 @@ macro_rules! mod_and_use {
         })*
     }
 }
-for_all_plan_nodes! { mod_and_use }
+for_all_plan_nodes! { def_mod_and_use }
 
+/// Define `Visitor` trait.
 macro_rules! def_visitor {
     ([], $($node_name:ty),*) => {
+        /// The visitor for plan nodes.
+        ///
+        /// Call `plan.walk(&mut visitor)` to walk through the plan tree.
         pub trait Visitor {
             $(paste! {
-                /// Whether the associated visit function is nested.
+                #[doc = "Whether the `" [<rewrite_ $node_name:snake>] "` function is nested."]
                 ///
-                /// If returns false, the associated visit function will be called after visiting its children.
-                /// If returns true, the associated visit function should visit children by itself.
+                /// If returns `false`, this function will be called after rewriting its children.
+                /// If returns `true`, this function should rewrite children by itself.
                 fn [<visit_ $node_name:snake _is_nested>](&mut self) -> bool {
                     false
                 }
-                /// Visit [`$node_name`] itself (is_nested = false) or nested nodes (is_nested = true).
+                #[doc = "Visit [`" $node_name "`] itself (is_nested = false) or nested nodes (is_nested = true)."]
                 ///
                 /// The default implementation is empty.
                 fn [<visit_ $node_name:snake>](&mut self, _plan: &$node_name) {}
@@ -160,19 +181,23 @@ macro_rules! def_visitor {
 }
 for_all_plan_nodes! { def_visitor }
 
+/// Define `Rewriter` trait.
 macro_rules! def_rewriter {
     ([], $($node_name:ty),*) => {
+        /// Rewrites a plan tree into another.
+        ///
+        /// Call `plan.rewrite(&mut rewriter)` to rewrite the plan tree.
         pub trait Rewriter {
             fn rewrite_expr(&mut self, _expr: &mut BoundExpr) {}
             $(paste! {
-                /// Whether the associated rewrite function is nested.
+                #[doc = "Whether the `" [<rewrite_ $node_name:snake>] "` function is nested."]
                 ///
-                /// If returns false, the associated rewrite function will be called after rewriting its children.
-                /// If returns true, the associated rewrite function should rewrite children by itself.
+                /// If returns `false`, this function will be called after rewriting its children.
+                /// If returns `true`, this function should rewrite children by itself.
                 fn [<rewrite_ $node_name:snake _is_nested>](&mut self) -> bool {
                     false
                 }
-                /// Visit [`$node_name`] and return a new plan node.
+                #[doc = "Visit [`" $node_name "`] and return a new plan node."]
                 ///
                 /// The default implementation is to return `plan` directly.
                 fn [<rewrite_ $node_name:snake>](&mut self, plan: $node_name) -> PlanRef {

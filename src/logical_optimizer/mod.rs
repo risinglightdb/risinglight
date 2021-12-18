@@ -1,14 +1,15 @@
-pub(crate) mod logical_plan_rewriter;
 use crate::binder::*;
+
 mod expr_utils;
 mod heuristic;
-use heuristic::HeuristicOptimizer;
-pub(crate) mod plan_nodes;
+pub mod logical_plan_rewriter;
+pub mod plan_nodes;
 mod rules;
-use rules::*;
 
+use self::heuristic::HeuristicOptimizer;
 use self::logical_plan_rewriter::*;
 use self::plan_nodes::PlanRef;
+use self::rules::*;
 
 /// The optimizer will do query optimization.
 ///

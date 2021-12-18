@@ -4,6 +4,7 @@ use super::*;
 use crate::binder::{BoundJoinConstraint, BoundJoinOperator};
 
 /// The logical plan of join, it only records join tables and operators.
+/// 
 /// The query optimizer should decide the join orders and specific algorithms (hash join, nested
 /// loop join or index join).
 #[derive(Debug, Clone)]

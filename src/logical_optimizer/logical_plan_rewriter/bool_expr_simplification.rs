@@ -7,15 +7,14 @@ use crate::types::DataValue::*;
 
 /// Boolean expression simplification rule will rewrite expression which compares ('>=', '<' and
 /// '=') with null. (You need `a is null`!)
+///
 /// Moroever, when the filtering condition is always false, we will prune the child logical plan,
 /// when the filtering condition is always true, we will prune logical filter plan.
+///
 /// For example:
-/// `select * from t where a == null`
-/// The query will be converted to:
-/// `select '';`
-/// `select * from t where 1 == 1`
-/// The query will be converted to:
-/// `select * from t`
+///
+/// - `select * from t where a == null` => `select ''`
+/// - `select * from t where 1 == 1` => `select * from t`
 pub struct BoolExprSimplification;
 
 impl Rewriter for BoolExprSimplification {

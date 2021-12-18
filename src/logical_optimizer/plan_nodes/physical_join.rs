@@ -3,14 +3,15 @@ use std::fmt;
 use super::*;
 use crate::binder::BoundJoinOperator;
 
-// The type of join algorithm.
-// Before we have query optimzer. We only use nested loop join
+/// The type of join algorithm.
+/// 
+/// Before we have query optimzer, we only use nested loop join.
 #[derive(Clone, Debug)]
 pub enum PhysicalJoinType {
     NestedLoop,
 }
 
-// The phyiscal plan of join
+/// The phyiscal plan of join.
 #[derive(Clone, Debug)]
 pub struct PhysicalJoin {
     pub join_type: PhysicalJoinType,

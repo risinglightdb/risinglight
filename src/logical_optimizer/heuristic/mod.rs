@@ -2,6 +2,7 @@ use itertools::Itertools;
 
 use super::plan_nodes::PlanRef;
 use super::rules::BoxedRule;
+
 pub struct HeuristicOptimizer {
     pub rules: Vec<BoxedRule>,
 }
