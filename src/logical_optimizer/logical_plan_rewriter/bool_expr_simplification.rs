@@ -1,51 +1,38 @@
 use super::*;
+use crate::binder::BoundExpr;
 use crate::binder::BoundExpr::*;
-use crate::binder::{BoundBinaryOp, BoundExpr};
 use crate::logical_optimizer::plan_nodes::Dummy;
 use crate::parser::BinaryOperator::*;
 use crate::types::DataValue::*;
 
 /// Boolean expression simplification rule will rewrite expression which compares ('>=', '<' and
 /// '=') with null. (You need `a is null`!)
+///
 /// Moroever, when the filtering condition is always false, we will prune the child logical plan,
 /// when the filtering condition is always true, we will prune logical filter plan.
+///
 /// For example:
-/// `select * from t where a == null`
-/// The query will be converted to:
-/// `select '';`
-/// `select * from t where 1 == 1`
-/// The query will be converted to:
-/// `select * from t`
+///
+/// - `select * from t where a == null` => `select ''`
+/// - `select * from t where 1 == 1` => `select * from t`
 pub struct BoolExprSimplification;
 
-impl LogicalPlanRewriter for BoolExprSimplification {
-    fn rewrite_filter(&mut self, plan: &LogicalFilter) -> Option<PlanRef> {
-        let new_expr = self.rewrite_expr(plan.expr.clone());
-        match &new_expr {
-            Constant(Bool(false) | Null) => Some(
-                Plan::LogicalFilter(LogicalFilter {
-                    expr: new_expr,
-                    child: (Plan::Dummy(Dummy {}).into()),
-                })
-                .into(),
-            ),
-            Constant(Bool(true)) => Some(self.rewrite_plan(plan.child())),
-            _ => Some(
-                Plan::LogicalFilter(LogicalFilter {
-                    expr: new_expr,
-                    child: self.rewrite_plan(plan.child()),
-                })
-                .into(),
-            ),
+impl Rewriter for BoolExprSimplification {
+    fn rewrite_logical_filter(&mut self, mut plan: LogicalFilter) -> PlanRef {
+        match &plan.expr {
+            Constant(Bool(false) | Null) => plan.child = Rc::new(Dummy {}),
+            Constant(Bool(true)) => return plan.child,
+            _ => {}
         }
+        Rc::new(plan)
     }
 
-    fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
-        match expr {
+    fn rewrite_expr(&mut self, expr: &mut BoundExpr) {
+        let new = match expr {
             BinaryOp(op) => {
-                let left = self.rewrite_expr(*op.left_expr);
-                let right = self.rewrite_expr(*op.right_expr);
-                match (op.op, &left, &right) {
+                self.rewrite_expr(&mut *op.left_expr);
+                self.rewrite_expr(&mut *op.right_expr);
+                match (&op.op, &*op.left_expr, &*op.right_expr) {
                     (And, Constant(Bool(false)), _) => Constant(Bool(false)),
                     (And, _, Constant(Bool(false))) => Constant(Bool(false)),
                     (And, Constant(Bool(true)), other) => other.clone(),
@@ -56,16 +43,12 @@ impl LogicalPlanRewriter for BoolExprSimplification {
                     (Or, other, Constant(Bool(false))) => other.clone(),
                     (Eq | NotEq | Gt | Lt | GtEq | LtEq, Constant(Null), _) => Constant(Null),
                     (Eq | NotEq | Gt | Lt | GtEq | LtEq, _, Constant(Null)) => Constant(Null),
-                    (op0, _, _) => BinaryOp(BoundBinaryOp {
-                        op: op0,
-                        left_expr: Box::new(left),
-                        right_expr: Box::new(right),
-                        return_type: op.return_type.clone(),
-                    }),
+                    _ => BinaryOp(op.clone()),
                 }
             }
             // FIXME: rewrite child expressions
-            _ => expr,
-        }
+            _ => expr.clone(),
+        };
+        *expr = new;
     }
 }

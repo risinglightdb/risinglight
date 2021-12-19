@@ -14,10 +14,10 @@ use crate::types::DataValue::*;
 /// `select a, b, c, d from t;`
 pub struct ArithExprSimplification;
 
-impl LogicalPlanRewriter for ArithExprSimplification {
-    fn rewrite_expr(&mut self, expr: BoundExpr) -> BoundExpr {
+impl Rewriter for ArithExprSimplification {
+    fn rewrite_expr(&mut self, expr: &mut BoundExpr) {
         // TODO: support more data types.
-        match &expr {
+        let new = match &expr {
             BinaryOp(op) => match (&op.op, &*op.left_expr, &*op.right_expr) {
                 // x + 0, 0 + x
                 (Plus, Constant(Int32(0)), other) => other.clone(),
@@ -41,11 +41,11 @@ impl LogicalPlanRewriter for ArithExprSimplification {
                 (Divide, other, Constant(Int32(1))) => other.clone(),
                 (Divide, other, Constant(Float64(f))) if *f == 1.0 => other.clone(),
 
-                _ => expr.clone(),
+                _ => return,
             },
             UnaryOp(op) => match (&op.op, &*op.expr) {
                 (UnaryOperator::Plus, other) => other.clone(),
-                _ => expr.clone(),
+                _ => return,
             },
             TypeCast(op) => match (&op.ty, &*op.expr) {
                 (Ty::Boolean, k @ Constant(Bool(_))) => k.clone(),
@@ -53,9 +53,10 @@ impl LogicalPlanRewriter for ArithExprSimplification {
                 (Ty::BigInt(_), k @ Constant(Int64(_))) => k.clone(),
                 (Ty::Double, k @ Constant(Float64(_))) => k.clone(),
                 (Ty::String, k @ Constant(String(_))) => k.clone(),
-                _ => expr.clone(),
+                _ => return,
             },
-            _ => expr.clone(),
-        }
+            _ => return,
+        };
+        *expr = new;
     }
 }

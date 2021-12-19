@@ -1,80 +1,100 @@
-use std::fmt;
-use std::fmt::Display;
+//! Defines all plan nodes and provides tools to visit plan tree.
+
+use std::fmt::{Debug, Display};
 use std::rc::Rc;
 
-pub use dummy::*;
+use downcast_rs::{impl_downcast, Downcast};
 use paste::paste;
-pub mod dummy;
-pub use logical_values::*;
-pub mod logical_aggregate;
-pub use logical_seq_scan::*;
-pub mod logical_copy_from_file;
-pub use logical_projection::*;
-pub mod logical_copy_to_file;
-pub use logical_order::*;
-pub mod logical_create_table;
-pub use logical_limit::*;
-pub mod logical_delete;
-pub use logical_join::*;
-pub mod logical_drop;
-pub use logical_insert::*;
-pub mod logical_explain;
-pub use logical_filter::*;
-pub mod logical_filter;
-pub use logical_explain::*;
-pub mod logical_insert;
-pub use logical_drop::*;
-pub mod logical_join;
-pub use logical_delete::*;
-pub mod logical_limit;
-pub use logical_create_table::*;
-pub mod logical_order;
-pub use logical_copy_to_file::*;
-pub mod logical_projection;
-pub use logical_copy_from_file::*;
-pub mod logical_seq_scan;
-pub use logical_aggregate::*;
-pub mod logical_values;
-pub mod physical_aggregate;
-pub mod physical_copy;
-pub mod physical_create;
-pub mod physical_delete;
-pub mod physical_drop;
-pub mod physical_explain;
-pub mod physical_filter;
-pub mod physical_insert;
-pub mod physical_join;
-pub mod physical_limit;
-pub mod physical_order;
-pub mod physical_projection;
-pub mod physical_seq_scan;
-pub use physical_aggregate::*;
-pub use physical_copy::*;
-pub use physical_create::*;
-pub use physical_delete::*;
-pub use physical_drop::*;
-pub use physical_explain::*;
-pub use physical_filter::*;
-pub use physical_insert::*;
-pub use physical_join::*;
-pub use physical_limit::*;
-pub use physical_order::*;
-pub use physical_projection::*;
-pub use physical_seq_scan::*;
+use smallvec::SmallVec;
 
-pub trait PlanTreeNode {
-    fn children(&self) -> Vec<PlanRef>;
-    fn clone_with_children(&self, children: Vec<PlanRef>) -> PlanRef;
+use crate::binder::BoundExpr;
+
+/// The common trait over all plan nodes.
+pub trait PlanNode: Debug + Display + Downcast {
+    /// Get child nodes of the plan.
+    fn children(&self) -> SmallVec<[PlanRef; 2]>;
+
+    /// Clone the node with a list of new children.
+    fn clone_with_children(&self, children: &[PlanRef]) -> PlanRef;
+
+    /// Walk through the plan tree recursively.
+    fn accept(&self, visitor: &mut dyn Visitor);
+
+    /// Rewrite the plan tree recursively.
+    fn rewrite(&self, rewriter: &mut dyn Rewriter) -> PlanRef;
+
+    /// Call [`rewrite_expr`] on each expressions of the plan.
+    ///
+    /// [`rewrite_expr`]: Rewriter::rewrite_expr
+    fn rewrite_expr(&mut self, _rewriter: &mut dyn Rewriter) {}
 }
 
-pub trait PlanNode: PlanTreeNode + std::fmt::Display {}
+impl_downcast!(PlanNode);
+
+/// The type of reference to a plan node.
+pub type PlanRef = Rc<dyn PlanNode>;
+
+impl dyn PlanNode {
+    /// Write explain string of the plan.
+    pub fn explain(&self, level: usize, f: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        write!(f, "{}{}", " ".repeat(level * 2), self)?;
+        for child in self.children() {
+            child.explain(level + 1, f)?;
+        }
+        Ok(())
+    }
+}
+
+/// Implement `PlanNode` trait for a plan node structure.
+macro_rules! impl_plan_node {
+    ($type:ident) => {
+        impl_plan_node!($type,[]);
+    };
+    ($type:ident, [$($child:ident),*] $($fn:tt)*) => {
+        impl PlanNode for $type {
+            fn children(&self) -> SmallVec<[PlanRef; 2]> {
+                smallvec::smallvec![$(self.$child.clone()),*]
+            }
+            #[allow(unused_mut)]
+            fn clone_with_children(&self, children: &[PlanRef]) -> PlanRef {
+                let mut iter = children.iter();
+                let mut new = self.clone();
+                $(
+                    new.$child = iter.next().expect("invalid children number").clone();
+                )*
+                assert!(iter.next().is_none(), "invalid children number");
+                Rc::new(new)
+            }
+            fn accept(&self, visitor: &mut dyn Visitor) {
+                if paste! { !visitor.[<visit_ $type:snake _is_nested>]() } {
+                    $(
+                        self.$child.accept(visitor);
+                    )*
+                }
+                paste! { visitor.[<visit_ $type:snake>](self); }
+            }
+            fn rewrite(&self, rewriter: &mut dyn Rewriter) -> PlanRef {
+                let mut new = self.clone();
+                if paste! { !rewriter.[<rewrite_ $type:snake _is_nested>]() } {
+                    $(
+                        new.$child = self.$child.rewrite(rewriter);
+                    )*
+                    new.rewrite_expr(rewriter);
+                }
+                paste! { rewriter.[<rewrite_ $type:snake>](new) }
+            }
+            $($fn)*
+        }
+    };
+}
+
 /// All Plan nodes
 ///
 /// You can use it as follows:
 ///
 /// ```rust
 /// macro_rules! use_plan {
-///     ([], $({ $node_name:ident, $node_type:ty }),*) => {};
+///     ([], $($node_name:ty),*) => {};
 /// }
 /// risinglight::for_all_plan_nodes! { use_plan }
 /// ```
@@ -83,203 +103,102 @@ macro_rules! for_all_plan_nodes {
     ($macro:tt $(, $x:tt)*) => {
         $macro! {
             [$($x),*],
-            { Dummy, Dummy },
-            { LogicalSeqScan, LogicalSeqScan },
-            { LogicalInsert, LogicalInsert },
-            { LogicalValues, LogicalValues },
-            { LogicalCreateTable, LogicalCreateTable },
-            { LogicalDrop, LogicalDrop },
-            { LogicalProjection, LogicalProjection },
-            { LogicalFilter, LogicalFilter },
-            { LogicalExplain, LogicalExplain },
-            { LogicalJoin, LogicalJoin },
-            { LogicalAggregate, LogicalAggregate },
-            { LogicalOrder, LogicalOrder },
-            { LogicalLimit, LogicalLimit },
-            { LogicalDelete, LogicalDelete },
-            { LogicalCopyFromFile, LogicalCopyFromFile },
-            { LogicalCopyToFile, LogicalCopyToFile },
-            { PhysicalSeqScan, PhysicalSeqScan},
-            { PhysicalInsert, PhysicalInsert},
-            { PhysicalValues, PhysicalValues},
-            { PhysicalCreateTable, PhysicalCreateTable},
-            { PhysicalDrop, PhysicalDrop},
-            { PhysicalProjection, PhysicalProjection},
-            { PhysicalFilter, PhysicalFilter},
-            { PhysicalExplain, PhysicalExplain},
-            { PhysicalJoin, PhysicalJoin},
-            { PhysicalSimpleAgg, PhysicalSimpleAgg},
-            { PhysicalHashAgg, PhysicalHashAgg},
-            { PhysicalOrder, PhysicalOrder},
-            { PhysicalLimit, PhysicalLimit},
-            { PhysicalDelete, PhysicalDelete},
-            { PhysicalCopyFromFile, PhysicalCopyFromFile},
-            { PhysicalCopyToFile, PhysicalCopyToFile}
+            Dummy,
+            LogicalSeqScan,
+            LogicalInsert,
+            LogicalValues,
+            LogicalCreateTable,
+            LogicalDrop,
+            LogicalProjection,
+            LogicalFilter,
+            LogicalExplain,
+            LogicalJoin,
+            LogicalAggregate,
+            LogicalOrder,
+            LogicalLimit,
+            LogicalDelete,
+            LogicalCopyFromFile,
+            LogicalCopyToFile,
+            PhysicalSeqScan,
+            PhysicalInsert,
+            PhysicalValues,
+            PhysicalCreateTable,
+            PhysicalDrop,
+            PhysicalProjection,
+            PhysicalFilter,
+            PhysicalExplain,
+            PhysicalJoin,
+            PhysicalSimpleAgg,
+            PhysicalHashAgg,
+            PhysicalOrder,
+            PhysicalLimit,
+            PhysicalDelete,
+            PhysicalCopyFromFile,
+            PhysicalCopyToFile
         }
     };
 }
 
-/// An enumeration which record all necessary information of execution plan,
-/// which will be used by optimizer and executor.
-macro_rules! plan_enum {
-    ([], $( { $node_name:ident, $node_type:ty } ),*) => {
-        /// `Plan` embeds all possible plans in `plam_nodes` module.
-        #[derive(Debug, PartialEq, Clone)]
-        pub enum Plan {
-            $( $node_name($node_type) ),*
-        }
-    };
-}
-
-for_all_plan_nodes! {plan_enum}
-
-pub type PlanRef = Rc<Plan>;
-
-macro_rules! impl_plan_node {
-    ([], $( { $node_name:ident, $node_type:ty } ),*) => {
-        /// Implement `Plan` for the structs.
-        impl Plan {
-            pub fn fmt_node(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                match self {
-                    $( Self::$node_name(inner) => inner.fmt(f),)*
-                }
-            }
-
-            pub fn children(&self) -> Vec<PlanRef> {
-                match self {
-                    $( Self::$node_name(inner) => inner.children(),)*
-                }
-            }
-            pub fn clone_with_children(&self, children: Vec<PlanRef>) -> PlanRef {
-                match self {
-                    $( Self::$node_name(inner) => inner.clone_with_children(children),)*
-                }
-            }
-
-            $(
-                paste! {
-                    #[allow(dead_code)]
-                    pub fn [<try_as_ $node_name:lower>]<'a>(&'a self) -> Result<&'a $node_name, ()> {
-                        self.try_into() as Result<&'a $node_name, ()>
-                    }
-                }
-            )*
-
-        }
-
-        $(
-            impl From<$node_type> for Plan {
-                fn from(plan: $node_type) -> Self {
-                    Self::$node_name(plan)
-                }
-            }
-
-            impl From<$node_type> for PlanRef {
-                fn from(plan: $node_type) -> PlanRef {
-                    Rc::new(plan.into())
-                }
-            }
-
-            impl TryFrom<Plan> for $node_type {
-                type Error = ();
-
-                fn try_from(plan: Plan) -> Result<Self, Self::Error> {
-                    match plan {
-                        Plan::$node_name(plan) => Ok(plan),
-                        _ => Err(()),
-                    }
-                }
-            }
-
-            impl<'a> TryFrom<&'a Plan> for &'a $node_type {
-                type Error = ();
-
-                fn try_from(plan: &'a Plan) -> Result<Self, Self::Error> {
-                    match plan {
-                        Plan::$node_name(plan) => Ok(plan),
-                        _ => Err(()),
-                    }
-                }
-            }
-        )*
+/// Define module for each node.
+macro_rules! def_mod_and_use {
+    ([], $($node_name:ty),*) => {
+        $(paste! {
+            mod [<$node_name:snake>];
+            pub use [<$node_name:snake>]::*;
+        })*
     }
 }
-for_all_plan_nodes! { impl_plan_node }
+for_all_plan_nodes! { def_mod_and_use }
 
-impl fmt::Display for Plan {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.explain(0, f)
+/// Define `Visitor` trait.
+macro_rules! def_visitor {
+    ([], $($node_name:ty),*) => {
+        /// The visitor for plan nodes.
+        ///
+        /// Call `plan.walk(&mut visitor)` to walk through the plan tree.
+        pub trait Visitor {
+            $(paste! {
+                #[doc = "Whether the `" [<rewrite_ $node_name:snake>] "` function is nested."]
+                ///
+                /// If returns `false`, this function will be called after rewriting its children.
+                /// If returns `true`, this function should rewrite children by itself.
+                fn [<visit_ $node_name:snake _is_nested>](&mut self) -> bool {
+                    false
+                }
+                #[doc = "Visit [`" $node_name "`] itself (is_nested = false) or nested nodes (is_nested = true)."]
+                ///
+                /// The default implementation is empty.
+                fn [<visit_ $node_name:snake>](&mut self, _plan: &$node_name) {}
+            })*
+        }
     }
 }
+for_all_plan_nodes! { def_visitor }
 
-impl Plan {
-    fn explain(&self, level: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", " ".repeat(level * 2))?;
-        self.fmt(f)?;
-        for child in self.children() {
-            child.explain(level + 1, f)?;
+/// Define `Rewriter` trait.
+macro_rules! def_rewriter {
+    ([], $($node_name:ty),*) => {
+        /// Rewrites a plan tree into another.
+        ///
+        /// Call `plan.rewrite(&mut rewriter)` to rewrite the plan tree.
+        pub trait Rewriter {
+            fn rewrite_expr(&mut self, _expr: &mut BoundExpr) {}
+            $(paste! {
+                #[doc = "Whether the `" [<rewrite_ $node_name:snake>] "` function is nested."]
+                ///
+                /// If returns `false`, this function will be called after rewriting its children.
+                /// If returns `true`, this function should rewrite children by itself.
+                fn [<rewrite_ $node_name:snake _is_nested>](&mut self) -> bool {
+                    false
+                }
+                #[doc = "Visit [`" $node_name "`] and return a new plan node."]
+                ///
+                /// The default implementation is to return `plan` directly.
+                fn [<rewrite_ $node_name:snake>](&mut self, plan: $node_name) -> PlanRef {
+                    Rc::new(plan)
+                }
+            })*
         }
-        Ok(())
     }
 }
-
-pub(super) trait LeafPlanNode: Clone {}
-macro_rules! impl_plan_tree_node_for_leaf {
-    ($leaf_node_type:ident) => {
-        impl PlanTreeNode for $leaf_node_type {
-            fn children(&self) -> Vec<PlanRef> {
-                vec![]
-            }
-
-            fn clone_with_children(&self, children: Vec<PlanRef>) -> PlanRef {
-                assert!(children.is_empty());
-                Plan::$leaf_node_type(self.clone()).into()
-            }
-        }
-    };
-}
-
-use impl_plan_tree_node_for_leaf;
-
-pub(crate) trait UnaryPlanNode {
-    fn child(&self) -> PlanRef;
-    fn clone_with_child(&self, child: PlanRef) -> PlanRef;
-}
-macro_rules! impl_plan_tree_node_for_unary {
-    ($unary_node_type:ident) => {
-        impl PlanTreeNode for $unary_node_type {
-            fn children(&self) -> Vec<PlanRef> {
-                vec![self.child()]
-            }
-
-            fn clone_with_children(&self, mut children: Vec<PlanRef>) -> PlanRef {
-                assert_eq!(children.len(), 1);
-                self.clone_with_child(children.pop().unwrap())
-            }
-        }
-    };
-}
-use impl_plan_tree_node_for_unary;
-
-pub(crate) trait BinaryPlanNode {
-    fn left(&self) -> PlanRef;
-    fn right(&self) -> PlanRef;
-    fn clone_with_left_right(&self, left: PlanRef, right: PlanRef) -> PlanRef;
-}
-
-macro_rules! impl_plan_tree_node_for_binary {
-    ($binary_node_type:ident) => {
-        impl PlanTreeNode for $binary_node_type {
-            fn children(&self) -> Vec<PlanRef> {
-                vec![self.left(), self.right()]
-            }
-
-            fn clone_with_children(&self, children: Vec<PlanRef>) -> PlanRef {
-                assert_eq!(children.len(), 2);
-                let mut iter = children.into_iter();
-                self.clone_with_left_right(iter.next().unwrap(), iter.next().unwrap())
-            }
-        }
-    };
-}
-use impl_plan_tree_node_for_binary;
+for_all_plan_nodes! { def_rewriter }

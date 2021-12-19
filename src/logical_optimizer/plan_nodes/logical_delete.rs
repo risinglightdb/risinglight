@@ -1,30 +1,16 @@
 use std::fmt;
 
-use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode};
+use super::*;
 use crate::catalog::TableRefId;
-use crate::logical_optimizer::plan_nodes::UnaryPlanNode;
 
-/// The logical plan of `delete`.
-#[derive(Debug, PartialEq, Clone)]
+/// The logical plan of `DELETE`.
+#[derive(Debug, Clone)]
 pub struct LogicalDelete {
     pub table_ref_id: TableRefId,
     pub child: PlanRef,
 }
 
-impl UnaryPlanNode for LogicalDelete {
-    fn child(&self) -> PlanRef {
-        self.child.clone()
-    }
-
-    fn clone_with_child(&self, child: PlanRef) -> PlanRef {
-        Plan::LogicalDelete(LogicalDelete {
-            table_ref_id: self.table_ref_id,
-            child,
-        })
-        .into()
-    }
-}
-impl_plan_tree_node_for_unary! {LogicalDelete}
+impl_plan_node!(LogicalDelete, [child]);
 
 impl fmt::Display for LogicalDelete {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

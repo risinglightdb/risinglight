@@ -1,30 +1,22 @@
 use std::fmt;
 
-use super::{impl_plan_tree_node_for_unary, Plan, PlanRef, PlanTreeNode};
+use super::*;
 use crate::binder::BoundOrderBy;
-use crate::logical_optimizer::plan_nodes::UnaryPlanNode;
 
 /// The logical plan of order.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct LogicalOrder {
     pub comparators: Vec<BoundOrderBy>,
     pub child: PlanRef,
 }
 
-impl UnaryPlanNode for LogicalOrder {
-    fn child(&self) -> PlanRef {
-        self.child.clone()
+impl_plan_node!(LogicalOrder, [child]
+    fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
+        for cmp in &mut self.comparators {
+            rewriter.rewrite_expr(&mut cmp.expr);
+        }
     }
-
-    fn clone_with_child(&self, child: PlanRef) -> PlanRef {
-        Plan::LogicalOrder(LogicalOrder {
-            child,
-            comparators: self.comparators.clone(),
-        })
-        .into()
-    }
-}
-impl_plan_tree_node_for_unary! {LogicalOrder}
+);
 
 impl fmt::Display for LogicalOrder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

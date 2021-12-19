@@ -8,18 +8,14 @@
 //! - [`LogicalOrder`] (order by *)
 use super::*;
 use crate::binder::{BoundAggCall, BoundExpr, BoundInputRef, BoundSelect, BoundTableRef};
-use crate::logical_optimizer::plan_nodes::logical_aggregate::LogicalAggregate;
-use crate::logical_optimizer::plan_nodes::logical_filter::LogicalFilter;
-use crate::logical_optimizer::plan_nodes::logical_join::LogicalJoin;
-use crate::logical_optimizer::plan_nodes::logical_limit::LogicalLimit;
-use crate::logical_optimizer::plan_nodes::logical_order::LogicalOrder;
-use crate::logical_optimizer::plan_nodes::logical_projection::LogicalProjection;
-use crate::logical_optimizer::plan_nodes::logical_seq_scan::LogicalSeqScan;
-use crate::logical_optimizer::plan_nodes::{Dummy, Plan};
+use crate::logical_optimizer::plan_nodes::{
+    Dummy, LogicalAggregate, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder,
+    LogicalProjection, LogicalSeqScan,
+};
 
 impl LogicalPlaner {
-    pub fn plan_select(&self, mut stmt: Box<BoundSelect>) -> Result<Plan, LogicalPlanError> {
-        let mut plan = Plan::Dummy(Dummy {});
+    pub fn plan_select(&self, mut stmt: Box<BoundSelect>) -> Result<PlanRef, LogicalPlanError> {
+        let mut plan: PlanRef = Rc::new(Dummy {});
         let mut is_sorted = false;
 
         if let Some(table_ref) = &stmt.from_table {
@@ -35,10 +31,7 @@ impl LogicalPlaner {
         }
 
         if let Some(expr) = stmt.where_clause {
-            plan = Plan::LogicalFilter(LogicalFilter {
-                expr,
-                child: plan.into(),
-            });
+            plan = Rc::new(LogicalFilter { expr, child: plan });
         }
 
         let mut agg_extractor = AggExtractor::new(stmt.group_by.len());
@@ -46,10 +39,10 @@ impl LogicalPlaner {
             agg_extractor.visit_expr(expr);
         }
         if !agg_extractor.agg_calls.is_empty() {
-            plan = Plan::LogicalAggregate(LogicalAggregate {
+            plan = Rc::new(LogicalAggregate {
                 agg_calls: agg_extractor.agg_calls,
                 group_keys: stmt.group_by,
-                child: plan.into(),
+                child: plan,
             })
         }
 
@@ -57,15 +50,15 @@ impl LogicalPlaner {
         assert!(!stmt.select_distinct, "TODO: plan distinct");
 
         if !stmt.select_list.is_empty() {
-            plan = Plan::LogicalProjection(LogicalProjection {
+            plan = Rc::new(LogicalProjection {
                 project_expressions: stmt.select_list,
-                child: plan.into(),
+                child: plan,
             });
         }
         if !stmt.orderby.is_empty() && !is_sorted {
-            plan = Plan::LogicalOrder(LogicalOrder {
+            plan = Rc::new(LogicalOrder {
                 comparators: stmt.orderby,
-                child: plan.into(),
+                child: plan,
             });
         }
         if stmt.limit.is_some() || stmt.offset.is_some() {
@@ -83,15 +76,11 @@ impl LogicalPlaner {
                 },
                 None => 0,
             };
-            plan = Plan::LogicalLimit(LogicalLimit {
+            plan = Rc::new(LogicalLimit {
                 offset,
                 limit,
-                child: plan.into(),
+                child: plan,
             });
-        }
-
-        if let Plan::Dummy(_) = plan {
-            return Err(LogicalPlanError::InvalidSQL);
         }
         Ok(plan)
     }
@@ -101,13 +90,13 @@ impl LogicalPlaner {
         table_ref: &BoundTableRef,
         with_row_handler: bool,
         is_sorted: bool,
-    ) -> Result<Plan, LogicalPlanError> {
+    ) -> Result<PlanRef, LogicalPlanError> {
         match table_ref {
             BoundTableRef::BaseTableRef {
                 ref_id,
                 table_name: _,
                 column_ids,
-            } => Ok(Plan::LogicalSeqScan(LogicalSeqScan {
+            } => Ok(Rc::new(LogicalSeqScan {
                 table_ref_id: *ref_id,
                 column_ids: column_ids.to_vec(),
                 with_row_handler,
@@ -121,9 +110,9 @@ impl LogicalPlaner {
                 for join_table in join_tables.iter() {
                     let table_plan =
                         self.plan_table_ref(&join_table.table_ref, with_row_handler, is_sorted)?;
-                    plan = Plan::LogicalJoin(LogicalJoin {
-                        left_plan: plan.into(),
-                        right_plan: table_plan.into(),
+                    plan = Rc::new(LogicalJoin {
+                        left_plan: plan,
+                        right_plan: table_plan,
                         join_op: join_table.join_op.clone(),
                     });
                 }

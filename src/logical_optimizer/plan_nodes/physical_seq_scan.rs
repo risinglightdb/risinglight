@@ -2,18 +2,20 @@ use std::fmt;
 
 use itertools::Itertools;
 
-use super::{impl_plan_tree_node_for_leaf, Plan, PlanRef, PlanTreeNode};
+use super::*;
 use crate::catalog::TableRefId;
 use crate::types::ColumnId;
+
 /// The physical plan of sequential scan operation.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct PhysicalSeqScan {
     pub table_ref_id: TableRefId,
     pub column_ids: Vec<ColumnId>,
     pub with_row_handler: bool,
     pub is_sorted: bool,
 }
-impl_plan_tree_node_for_leaf! {PhysicalSeqScan}
+
+impl_plan_node!(PhysicalSeqScan);
 
 impl fmt::Display for PhysicalSeqScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -2,6 +2,7 @@ use itertools::Itertools;
 
 use super::plan_nodes::PlanRef;
 use super::rules::BoxedRule;
+
 pub struct HeuristicOptimizer {
     pub rules: Vec<BoxedRule>,
 }
@@ -9,11 +10,9 @@ pub struct HeuristicOptimizer {
 impl HeuristicOptimizer {
     pub fn optimize(&self, mut root: PlanRef) -> PlanRef {
         for rule in &self.rules {
-            if rule.matches(root.clone()).is_ok() {
-                if let Ok(applied) = rule.apply(root.clone()) {
-                    root = applied;
-                    break;
-                }
+            if let Ok(applied) = rule.apply(root.clone()) {
+                root = applied;
+                break;
             }
         }
         let children = root
@@ -21,6 +20,6 @@ impl HeuristicOptimizer {
             .into_iter()
             .map(|sub_tree| self.optimize(sub_tree))
             .collect_vec();
-        root.clone_with_children(children)
+        root.clone_with_children(&children)
     }
 }

@@ -43,7 +43,7 @@ impl ArrayEstimateExt for Utf8Array {
     }
 }
 
-/// A builder that uses `&str` to build an [`UTF8Array`].
+/// A builder that uses `&str` to build an [`Utf8Array`].
 pub struct Utf8ArrayBuilder {
     offset: Vec<usize>,
     valid: BitVec,

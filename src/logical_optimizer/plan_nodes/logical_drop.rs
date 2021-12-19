@@ -1,14 +1,15 @@
 use std::fmt;
 
-use super::{impl_plan_tree_node_for_leaf, Plan, PlanRef, PlanTreeNode};
+use super::*;
 use crate::binder::statement::drop::Object;
 
-/// The logical plan of `drop`.
-#[derive(Debug, PartialEq, Clone)]
+/// The logical plan of `DROP`.
+#[derive(Debug, Clone)]
 pub struct LogicalDrop {
     pub object: Object,
 }
-impl_plan_tree_node_for_leaf! {LogicalDrop}
+
+impl_plan_node!(LogicalDrop);
 
 impl fmt::Display for LogicalDrop {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
