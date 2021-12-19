@@ -9,7 +9,6 @@ use smallvec::SmallVec;
 
 use crate::binder::BoundExpr;
 use crate::types::DataType;
-
 /// The common trait over all plan nodes.
 pub trait PlanNode: PlanTreeNode + Debug + Display + Downcast {
     /// Call [`rewrite_expr`] on each expressions of the plan.

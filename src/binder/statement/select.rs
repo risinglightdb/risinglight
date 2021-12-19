@@ -123,9 +123,11 @@ impl Binder {
             BoundTableRef::BaseTableRef {
                 table_name,
                 column_ids,
+                column_descs,
                 ..
             } => {
                 *column_ids = self.context.column_ids.get(table_name).unwrap().clone();
+                *column_descs = self.context.column_descs.get(table_name).unwrap().clone();
             }
             BoundTableRef::JoinTableRef {
                 relation,
