@@ -57,6 +57,8 @@ pub enum BindError {
     InvalidTableName(Vec<Ident>),
     #[error("invalid SQL")]
     InvalidSQL,
+    #[error("failed type casting")]
+    InvalidTypeCast,
 }
 
 /// The context of binder execution.
