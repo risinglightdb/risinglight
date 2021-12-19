@@ -1,6 +1,9 @@
 use std::convert::TryFrom;
+use std::fmt::Debug;
 use std::ops::{Bound, RangeBounds};
 
+use rust_decimal::prelude::FromStr;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{ConvertError, DataType, DataTypeExt, DataTypeKind, DataValue};
@@ -136,6 +139,7 @@ pub type BoolArray = PrimitiveArray<bool>;
 pub type I32Array = PrimitiveArray<i32>;
 pub type I64Array = PrimitiveArray<i64>;
 pub type F64Array = PrimitiveArray<f64>;
+pub type DecimalArray = PrimitiveArray<Decimal>;
 
 /// Embeds all types of arrays in `array` module.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -147,12 +151,14 @@ pub enum ArrayImpl {
     // Float32(PrimitiveArray<f32>),
     Float64(F64Array),
     Utf8(Utf8Array),
+    Decimal(DecimalArray),
 }
 
 pub type BoolArrayBuilder = PrimitiveArrayBuilder<bool>;
 pub type I32ArrayBuilder = PrimitiveArrayBuilder<i32>;
 pub type I64ArrayBuilder = PrimitiveArrayBuilder<i64>;
 pub type F64ArrayBuilder = PrimitiveArrayBuilder<f64>;
+pub type DecimalArrayBuilder = PrimitiveArrayBuilder<Decimal>;
 
 /// Embeds all types of array builders in `array` module.
 pub enum ArrayBuilderImpl {
@@ -163,6 +169,7 @@ pub enum ArrayBuilderImpl {
     // Float32(PrimitiveArrayBuilder<f32>),
     Float64(F64ArrayBuilder),
     Utf8(Utf8ArrayBuilder),
+    Decimal(DecimalArrayBuilder),
 }
 
 /// An error which can be returned when downcasting an [`ArrayImpl`] into a concrete type array.
@@ -208,6 +215,7 @@ impl_into! { PrimitiveArray<i64>, Int64 }
 // impl_into! { PrimitiveArray<f32>, Float32 }
 impl_into! { PrimitiveArray<f64>, Float64 }
 impl_into! { Utf8Array, Utf8 }
+impl_into! { DecimalArray, Decimal }
 
 impl ArrayBuilderImpl {
     /// Create a new array builder from data type.
@@ -227,6 +235,9 @@ impl ArrayBuilderImpl {
             DataTypeKind::Char(_) | DataTypeKind::Varchar(_) | DataTypeKind::String => {
                 Self::Utf8(Utf8ArrayBuilder::with_capacity(capacity))
             }
+            DataTypeKind::Decimal(_, _) => {
+                Self::Decimal(DecimalArrayBuilder::with_capacity(capacity))
+            }
             _ => panic!("unsupported data type"),
         }
     }
@@ -239,6 +250,7 @@ impl ArrayBuilderImpl {
             ArrayImpl::Int64(_) => Self::Int64(I64ArrayBuilder::new()),
             ArrayImpl::Float64(_) => Self::Float64(F64ArrayBuilder::new()),
             ArrayImpl::Utf8(_) => Self::Utf8(Utf8ArrayBuilder::new()),
+            ArrayImpl::Decimal(_) => Self::Decimal(DecimalArrayBuilder::new()),
         }
     }
 
@@ -250,11 +262,13 @@ impl ArrayBuilderImpl {
             (Self::Int32(a), DataValue::Int32(v)) => a.push(Some(v)),
             (Self::Float64(a), DataValue::Float64(v)) => a.push(Some(v)),
             (Self::Utf8(a), DataValue::String(v)) => a.push(Some(v)),
+            (Self::Decimal(a), DataValue::Decimal(v)) => a.push(Some(v)),
             (Self::Bool(a), DataValue::Null) => a.push(None),
             (Self::Int32(a), DataValue::Null) => a.push(None),
             (Self::Int64(a), DataValue::Null) => a.push(None),
             (Self::Float64(a), DataValue::Null) => a.push(None),
             (Self::Utf8(a), DataValue::Null) => a.push(None),
+            (Self::Decimal(a), DataValue::Null) => a.push(None),
             _ => panic!("failed to push value: type mismatch"),
         }
     }
@@ -268,6 +282,7 @@ impl ArrayBuilderImpl {
             Self::Int64(a) if null => a.push(None),
             Self::Float64(a) if null => a.push(None),
             Self::Utf8(a) if null => a.push(None),
+            Self::Decimal(a) if null => a.push(None),
             Self::Bool(a) => a.push(Some(
                 &s.parse::<bool>()
                     .map_err(|e| ConvertError::ParseBool(s.to_string(), e))?,
@@ -285,6 +300,9 @@ impl ArrayBuilderImpl {
                     .map_err(|e| ConvertError::ParseFloat(s.to_string(), e))?,
             )),
             Self::Utf8(a) => a.push(Some(s)),
+            Self::Decimal(a) => a.push(Some(
+                &Decimal::from_str(s).map_err(|e| ConvertError::ParseDecimal(s.to_string(), e))?,
+            )),
         }
         Ok(())
     }
@@ -297,6 +315,7 @@ impl ArrayBuilderImpl {
             Self::Int64(a) => ArrayImpl::Int64(a.finish()),
             Self::Float64(a) => ArrayImpl::Float64(a.finish()),
             Self::Utf8(a) => ArrayImpl::Utf8(a.finish()),
+            Self::Decimal(a) => ArrayImpl::Decimal(a.finish()),
         }
     }
 
@@ -308,6 +327,7 @@ impl ArrayBuilderImpl {
             (Self::Int64(builder), ArrayImpl::Int64(arr)) => builder.append(arr),
             (Self::Float64(builder), ArrayImpl::Float64(arr)) => builder.append(arr),
             (Self::Utf8(builder), ArrayImpl::Utf8(arr)) => builder.append(arr),
+            (Self::Decimal(builder), ArrayImpl::Decimal(arr)) => builder.append(arr),
             _ => panic!("failed to push value: type mismatch"),
         }
     }
@@ -322,6 +342,7 @@ impl ArrayImpl {
             Self::Int64(a) => a.get(idx).map(|v| v.to_string()),
             Self::Float64(a) => a.get(idx).map(|v| v.to_string()),
             Self::Utf8(a) => a.get(idx).map(|v| v.to_string()),
+            Self::Decimal(a) => a.get(idx).map(|v| v.to_string()),
         }
         .unwrap_or_else(|| "NULL".into())
     }
@@ -349,6 +370,10 @@ impl ArrayImpl {
                 Some(val) => DataValue::String(val.to_string()),
                 None => DataValue::Null,
             },
+            Self::Decimal(a) => match a.get(idx) {
+                Some(val) => DataValue::Decimal(*val),
+                None => DataValue::Null,
+            },
         }
     }
 
@@ -360,6 +385,7 @@ impl ArrayImpl {
             Self::Int64(a) => a.len(),
             Self::Float64(a) => a.len(),
             Self::Utf8(a) => a.len(),
+            Self::Decimal(a) => a.len(),
         }
     }
 
@@ -376,6 +402,7 @@ impl ArrayImpl {
             Self::Int64(a) => Self::Int64(a.filter(visibility)),
             Self::Float64(a) => Self::Float64(a.filter(visibility)),
             Self::Utf8(a) => Self::Utf8(a.filter(visibility)),
+            Self::Decimal(a) => Self::Decimal(a.filter(visibility)),
         }
     }
 
@@ -387,6 +414,7 @@ impl ArrayImpl {
             Self::Int64(a) => Self::Int64(a.slice(range)),
             Self::Float64(a) => Self::Float64(a.slice(range)),
             Self::Utf8(a) => Self::Utf8(a.slice(range)),
+            Self::Decimal(a) => Self::Decimal(a.slice(range)),
         }
     }
 
@@ -398,6 +426,7 @@ impl ArrayImpl {
             Self::Int64(_) => Some(DataTypeKind::BigInt(None).not_null()),
             Self::Float64(_) => Some(DataTypeKind::Double.not_null()),
             Self::Utf8(_) => Some(DataTypeKind::String.not_null()),
+            Self::Decimal(_) => Some(DataTypeKind::Decimal(None, None).not_null()),
         }
     }
 }
@@ -411,6 +440,7 @@ impl From<&DataValue> for ArrayImpl {
             &DataValue::Int64(v) => Self::Int64([v].into_iter().collect()),
             &DataValue::Float64(v) => Self::Float64([v].into_iter().collect()),
             DataValue::String(v) => Self::Utf8([Some(v)].into_iter().collect()),
+            &DataValue::Decimal(v) => Self::Decimal([v].into_iter().collect()),
             DataValue::Null => panic!("can not build array from NULL"),
         }
     }

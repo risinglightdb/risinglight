@@ -1,3 +1,4 @@
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 pub use sqlparser::ast::DataType as DataTypeKind;
 
@@ -5,6 +6,8 @@ mod native;
 use std::hash::{Hash, Hasher};
 
 pub(crate) use native::*;
+use num_traits::ToPrimitive;
+use rust_decimal::prelude::FromStr;
 
 /// Physical data type
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -14,6 +17,7 @@ pub enum PhysicalDataTypeKind {
     Float64,
     String,
     Boolean,
+    Decimal(Option<u64>, Option<u64>),
 }
 
 /// Data type with nullable.
@@ -44,6 +48,9 @@ impl DataType {
             DataTypeKind::Int(_) => PhysicalDataTypeKind::Int32,
             DataTypeKind::BigInt(_) => PhysicalDataTypeKind::Int64,
             DataTypeKind::Boolean => PhysicalDataTypeKind::Boolean,
+            DataTypeKind::Decimal(precision, scale) => {
+                PhysicalDataTypeKind::Decimal(*precision, *scale)
+            }
             _ => todo!("physical type for {:?} is not supported", kind),
         };
         DataType {
@@ -102,6 +109,7 @@ pub enum DataValue {
     Int64(i64),
     Float64(f64),
     String(String),
+    Decimal(Decimal),
 }
 
 impl PartialEq for DataValue {
@@ -113,6 +121,7 @@ impl PartialEq for DataValue {
             (Self::Int64(left), Self::Int64(right)) => left == right,
             (Self::String(left), Self::String(right)) => left == right,
             (Self::Float64(left), Self::Float64(right)) => left == right,
+            (Self::Decimal(left), Self::Decimal(right)) => left == right,
             _ => false,
         }
     }
@@ -141,6 +150,7 @@ macro_rules! impl_arith_for_datavalue {
                 match (self, rhs) {
                     (&Int32(x), &Int32(y)) => Int32(x.$name(y)),
                     (&Float64(x), &Float64(y)) => Float64(x.$name(y)),
+                    (&Decimal(x), &Decimal(y)) => Decimal(x.$name(y)),
                     _ => panic!(
                         "invalid operation: {:?} {} {:?}",
                         self,
@@ -165,6 +175,10 @@ impl DataValue {
         match (self, other) {
             (&Int32(x), &Int32(y)) => y != 0 && x % y == 0,
             (&Float64(x), &Float64(y)) => y != 0.0 && x % y == 0.0,
+            (&Decimal(x), &Decimal(y)) => {
+                y != rust_decimal::Decimal::from_str("0.0").unwrap()
+                    && x % y == rust_decimal::Decimal::from_str("0.0").unwrap()
+            }
             _ => false,
         }
     }
@@ -177,6 +191,7 @@ impl DataValue {
             Self::Int64(v) => v.is_positive(),
             Self::Float64(v) => v.is_sign_positive(),
             Self::String(_) => false,
+            Self::Decimal(v) => v.is_sign_positive(),
             Self::Null => false,
         }
     }
@@ -189,6 +204,7 @@ impl DataValue {
             Self::Int64(_) => Some(DataTypeKind::BigInt(None).not_null()),
             Self::Float64(_) => Some(DataTypeKind::Double.not_null()),
             Self::String(_) => Some(DataTypeKind::Varchar(Some(VARCHAR_DEFAULT_LEN)).not_null()),
+            Self::Decimal(_) => Some(DataTypeKind::Decimal(None, None).not_null()),
             Self::Null => None,
         }
     }
@@ -208,6 +224,10 @@ impl DataValue {
                 return Err(ConvertError::Cast(f.to_string(), "usize"));
             }
             &DataValue::Float64(f) => f as usize,
+            &DataValue::Decimal(d) if d.is_sign_negative() => {
+                return Err(ConvertError::Cast(d.to_string(), "usize"));
+            }
+            &DataValue::Decimal(d) => d.to_f64().unwrap() as usize,
             DataValue::String(s) => s
                 .parse::<usize>()
                 .map_err(|e| ConvertError::ParseInt(s.clone(), e))?,
@@ -224,6 +244,8 @@ pub enum ConvertError {
     ParseFloat(String, std::num::ParseFloatError),
     #[error("failed to convert string {0:?} to bool: {:?}")]
     ParseBool(String, std::str::ParseBoolError),
+    #[error("failed to convert string {0:?} to decimal: {:?}")]
+    ParseDecimal(String, rust_decimal::Error),
     #[error("failed to cast {0} to type {1}")]
     Cast(String, &'static str),
 }

@@ -178,6 +178,7 @@ impl ArrayImpl {
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::Utf8(unary_op(a, |&b| if b { "true" } else { "false" }))
                 }
+                Type::Decimal(_, _) => Self::Decimal(unary_op(a, |&b| Decimal::from(b as u8))),
                 _ => todo!("cast array"),
             },
             Self::Int32(a) => match data_type {
@@ -187,6 +188,7 @@ impl ArrayImpl {
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::Utf8(unary_op(a, |&i| i.to_string()))
                 }
+                Type::Decimal(_, _) => Self::Decimal(unary_op(a, |&i| Decimal::from(i))),
                 _ => todo!("cast array"),
             },
             Self::Int64(a) => match data_type {
@@ -196,6 +198,7 @@ impl ArrayImpl {
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::Utf8(unary_op(a, |&i| i.to_string()))
                 }
+                Type::Decimal(_, _) => Self::Decimal(unary_op(a, |&i| Decimal::from(i))),
                 _ => todo!("cast array"),
             },
             Self::Float64(a) => match data_type {
@@ -204,6 +207,9 @@ impl ArrayImpl {
                 Type::Float(_) | Type::Double => Self::Float64(a.clone()),
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::Utf8(unary_op(a, |&f| f.to_string()))
+                }
+                Type::Decimal(_, _) => {
+                    Self::Decimal(unary_op(a, |&f| Decimal::from_f64_retain(f).unwrap()))
                 }
                 _ => todo!("cast array"),
             },
@@ -221,6 +227,21 @@ impl ArrayImpl {
                         .map_err(|e| ConvertError::ParseFloat(s.to_string(), e))
                 })?),
                 Type::String | Type::Char(_) | Type::Varchar(_) => Self::Utf8(a.clone()),
+                Type::Decimal(_, _) => Self::Decimal(try_unary_op(a, |s| {
+                    Decimal::from_str(s).map_err(|e| ConvertError::ParseDecimal(s.to_string(), e))
+                })?),
+                _ => todo!("cast array"),
+            },
+            Self::Decimal(a) => match data_type {
+                Type::Boolean => Self::Bool(unary_op(a, |&d| d != Decimal::from(0))),
+                Type::Int(_) => Self::Int32(unary_op(a, |&d| d.to_i32().unwrap())),
+                Type::Float(_) | Type::Double => {
+                    Self::Float64(unary_op(a, |&d| d.to_f64().unwrap()))
+                }
+                Type::String | Type::Char(_) | Type::Varchar(_) => {
+                    Self::Utf8(unary_op(a, |d| d.to_string()))
+                }
+                Type::Decimal(_, _) => Self::Decimal(a.clone()),
                 _ => todo!("cast array"),
             },
         })
@@ -229,6 +250,10 @@ impl ArrayImpl {
 
 #[cfg(feature = "simd")]
 use std::simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
+
+use num_traits::ToPrimitive;
+use rust_decimal::prelude::FromStr;
+use rust_decimal::Decimal;
 
 #[cfg(feature = "simd")]
 use crate::types::NativeType;

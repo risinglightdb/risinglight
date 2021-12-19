@@ -1,9 +1,10 @@
 use itertools::Itertools;
+use rust_decimal::Decimal;
 
 use super::*;
 use crate::catalog::{ColumnCatalog, TableCatalog};
 use crate::parser::{SetExpr, Statement};
-use crate::types::{ColumnId, DataType};
+use crate::types::{ColumnId, DataType, DataValue, PhysicalDataTypeKind};
 
 /// A bound `insert` statement.
 #[derive(Debug, PartialEq, Clone)]
@@ -59,7 +60,7 @@ impl Binder {
                     bound_row.reserve(row.len());
                     for (idx, expr) in row.iter().enumerate() {
                         // Bind expression
-                        let expr = self.bind_expr(expr)?;
+                        let mut expr = self.bind_expr(expr)?;
 
                         if let Some(data_type) = &expr.return_type() {
                             // TODO: support valid type cast
@@ -69,7 +70,59 @@ impl Binder {
                             let left_kind = data_type.physical_kind();
                             let right_kind = column_types[idx].physical_kind();
                             if left_kind != right_kind {
-                                todo!("type cast: {:?} {:?}", left_kind, right_kind);
+                                // TODO: convert other expr (e.g. BoundUnaryOp) into decimal
+                                match (&left_kind, &right_kind) {
+                                    (
+                                        PhysicalDataTypeKind::Int32,
+                                        PhysicalDataTypeKind::Decimal(_, scale),
+                                    ) => {
+                                        if let BoundExpr::Constant(DataValue::Int32(i)) = expr {
+                                            // TODO: support customized precision
+                                            let d = if let Some(s) = scale {
+                                                let scale_val = *s as u32;
+                                                Decimal::new(
+                                                    i as i64 * i64::pow(10, scale_val),
+                                                    scale_val,
+                                                )
+                                            } else {
+                                                Decimal::from(i)
+                                            };
+                                            expr = BoundExpr::Constant(DataValue::Decimal(d));
+                                        }
+                                    }
+                                    (
+                                        PhysicalDataTypeKind::Int64,
+                                        PhysicalDataTypeKind::Decimal(_, scale),
+                                    ) => {
+                                        if let BoundExpr::Constant(DataValue::Int64(i)) = expr {
+                                            let d = if let Some(s) = scale {
+                                                let scale_val = *s as u32;
+                                                Decimal::new(i * i64::pow(10, scale_val), scale_val)
+                                            } else {
+                                                Decimal::from(i)
+                                            };
+                                            expr = BoundExpr::Constant(DataValue::Decimal(d));
+                                        }
+                                    }
+                                    (
+                                        PhysicalDataTypeKind::Float64,
+                                        PhysicalDataTypeKind::Decimal(_, scale),
+                                    ) => {
+                                        if let BoundExpr::Constant(DataValue::Float64(f)) = expr {
+                                            let d = if let Some(s) = scale {
+                                                let scale_val = *s as u32;
+                                                Decimal::new(
+                                                    (f * i64::pow(10, scale_val) as f64) as i64,
+                                                    scale_val,
+                                                )
+                                            } else {
+                                                Decimal::from_f64_retain(f).unwrap()
+                                            };
+                                            expr = BoundExpr::Constant(DataValue::Decimal(d));
+                                        }
+                                    }
+                                    _ => todo!("type cast: {:?} {:?}", left_kind, right_kind),
+                                }
                             }
                         } else {
                             // If the data value is null, the column must be nullable.
