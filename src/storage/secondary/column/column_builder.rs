@@ -2,7 +2,7 @@ use risinglight_proto::rowset::BlockIndex;
 
 use super::super::ColumnBuilderOptions;
 use super::char_column_builder::CharColumnBuilder;
-use super::primitive_column_builder::{F64ColumnBuilder, I32ColumnBuilder};
+use super::primitive_column_builder::{DecimalColumnBuilder, F64ColumnBuilder, I32ColumnBuilder};
 use super::{BoolColumnBuilder, ColumnBuilder};
 use crate::array::ArrayImpl;
 use crate::types::{DataType, DataTypeKind};
@@ -13,6 +13,7 @@ pub enum ColumnBuilderImpl {
     Float64(F64ColumnBuilder),
     Bool(BoolColumnBuilder),
     Utf8(CharColumnBuilder),
+    Decimal(DecimalColumnBuilder),
 }
 
 impl ColumnBuilderImpl {
@@ -40,6 +41,9 @@ impl ColumnBuilderImpl {
                     options,
                 ))
             }
+            DataTypeKind::Decimal(_, _) => {
+                Self::Decimal(DecimalColumnBuilder::new(datatype.is_nullable(), options))
+            }
             other_datatype => todo!("column builder for {:?} is not implemented", other_datatype),
         }
     }
@@ -50,6 +54,7 @@ impl ColumnBuilderImpl {
             (Self::Bool(builder), ArrayImpl::Bool(array)) => builder.append(array),
             (Self::Float64(builder), ArrayImpl::Float64(array)) => builder.append(array),
             (Self::Utf8(builder), ArrayImpl::Utf8(array)) => builder.append(array),
+            (Self::Decimal(builder), ArrayImpl::Decimal(array)) => builder.append(array),
             _ => todo!(),
         }
     }
@@ -60,6 +65,7 @@ impl ColumnBuilderImpl {
             Self::Bool(builder) => builder.finish(),
             Self::Float64(builder) => builder.finish(),
             Self::Utf8(builder) => builder.finish(),
+            Self::Decimal(builder) => builder.finish(),
         }
     }
 }

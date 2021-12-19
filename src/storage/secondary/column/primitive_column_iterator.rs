@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use async_trait::async_trait;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
+use rust_decimal::Decimal;
 
 use super::super::{
     Block, BlockIterator, PlainPrimitiveBlockIterator, PlainPrimitiveNullableBlockIterator,
@@ -29,6 +30,7 @@ pub struct PrimitiveColumnIterator<T: PrimitiveFixedWidthEncode> {
 pub type I32ColumnIterator = PrimitiveColumnIterator<i32>;
 pub type F64ColumnIterator = PrimitiveColumnIterator<f64>;
 pub type BoolColumnIterator = PrimitiveColumnIterator<bool>;
+pub type DecimalColumnIterator = PrimitiveColumnIterator<Decimal>;
 
 impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnIterator<T> {
     fn get_iterator_for(
