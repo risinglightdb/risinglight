@@ -16,7 +16,7 @@ pub enum BoundTableRef {
         ref_id: TableRefId,
         table_name: String,
         column_ids: Vec<ColumnId>,
-        column_descs: Vec<ColumnDesc>
+        column_descs: Vec<ColumnDesc>,
     },
     JoinTableRef {
         relation: Box<BoundTableRef>,
@@ -145,7 +145,7 @@ impl Binder {
             ref_id,
             table_name: table_name.into(),
             column_ids: vec![],
-            column_descs: vec![]
+            column_descs: vec![],
         };
         self.base_table_refs.push(table_name.into());
         Ok(base_table_ref)

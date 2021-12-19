@@ -11,6 +11,7 @@ use crate::types::ColumnId;
 pub struct PhysicalSeqScan {
     pub table_ref_id: TableRefId,
     pub column_ids: Vec<ColumnId>,
+    pub column_descs: Vec<ColumnDesc>,
     pub with_row_handler: bool,
     pub is_sorted: bool,
 }

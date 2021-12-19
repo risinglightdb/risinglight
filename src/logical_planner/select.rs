@@ -96,7 +96,7 @@ impl LogicalPlaner {
                 ref_id,
                 table_name: _,
                 column_ids,
-                column_descs
+                column_descs,
             } => Ok(Rc::new(LogicalSeqScan {
                 table_ref_id: *ref_id,
                 column_ids: column_ids.to_vec(),

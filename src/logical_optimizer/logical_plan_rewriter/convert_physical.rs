@@ -8,6 +8,7 @@ impl Rewriter for PhysicalConverter {
         Rc::new(PhysicalSeqScan {
             table_ref_id: plan.table_ref_id,
             column_ids: plan.column_ids,
+            column_descs: plan.column_descs,
             with_row_handler: plan.with_row_handler,
             is_sorted: plan.is_sorted,
         })
