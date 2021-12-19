@@ -209,9 +209,10 @@ impl ArrayImpl {
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::Utf8(unary_op(a, |&f| f.to_string()))
                 }
-                Type::Decimal(_, _) => {
-                    Self::Decimal(unary_op(a, |&f| Decimal::from_f64_retain(f).unwrap()))
-                }
+                Type::Decimal(_, _) => Self::Decimal(try_unary_op(a, |&f| {
+                    Decimal::from_f64_retain(f)
+                        .ok_or(ConvertError::ToDecimalError(DataValue::Float64(f)))
+                })?),
                 _ => todo!("cast array"),
             },
             Self::Utf8(a) => match data_type {
@@ -235,10 +236,18 @@ impl ArrayImpl {
             },
             Self::Decimal(a) => match data_type {
                 Type::Boolean => Self::Bool(unary_op(a, |&d| d != Decimal::from(0))),
-                Type::Int(_) => Self::Int32(unary_op(a, |&d| d.to_i32().unwrap())),
-                Type::Float(_) | Type::Double => {
-                    Self::Float64(unary_op(a, |&d| d.to_f64().unwrap()))
-                }
+                Type::Int(_) => Self::Int32(try_unary_op(a, |&d| {
+                    d.to_i32().ok_or(ConvertError::FromDecimalError(
+                        DataTypeKind::Int(None),
+                        DataValue::Decimal(d),
+                    ))
+                })?),
+                Type::Float(_) | Type::Double => Self::Float64(try_unary_op(a, |&d| {
+                    d.to_f64().ok_or(ConvertError::FromDecimalError(
+                        DataTypeKind::Double,
+                        DataValue::Decimal(d),
+                    ))
+                })?),
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::Utf8(unary_op(a, |d| d.to_string()))
                 }

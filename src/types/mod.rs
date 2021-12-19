@@ -225,7 +225,10 @@ impl DataValue {
             &DataValue::Decimal(d) if d.is_sign_negative() => {
                 return Err(ConvertError::Cast(d.to_string(), "usize"));
             }
-            &DataValue::Decimal(d) => d.to_f64().unwrap() as usize,
+            &DataValue::Decimal(d) => d.to_f64().ok_or(ConvertError::FromDecimalError(
+                DataTypeKind::Double,
+                DataValue::Decimal(d),
+            ))? as usize,
             DataValue::String(s) => s
                 .parse::<usize>()
                 .map_err(|e| ConvertError::ParseInt(s.clone(), e))?,
@@ -244,6 +247,10 @@ pub enum ConvertError {
     ParseBool(String, std::str::ParseBoolError),
     #[error("failed to convert string {0:?} to decimal: {:?}")]
     ParseDecimal(String, rust_decimal::Error),
+    #[error("failed to convert {0:?} to decimal")]
+    ToDecimalError(DataValue),
+    #[error("failed to convert {0:?} from decimal {1:?}")]
+    FromDecimalError(DataTypeKind, DataValue),
     #[error("failed to cast {0} to type {1}")]
     Cast(String, &'static str),
 }
