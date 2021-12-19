@@ -1,9 +1,10 @@
 use itertools::Itertools;
+use rust_decimal::Decimal;
 
 use super::*;
 use crate::catalog::{ColumnCatalog, TableCatalog};
 use crate::parser::{SetExpr, Statement};
-use crate::types::{ColumnId, DataType};
+use crate::types::{ColumnId, DataType, DataValue, PhysicalDataTypeKind};
 
 /// A bound `insert` statement.
 #[derive(Debug, PartialEq, Clone)]
@@ -59,7 +60,7 @@ impl Binder {
                     bound_row.reserve(row.len());
                     for (idx, expr) in row.iter().enumerate() {
                         // Bind expression
-                        let expr = self.bind_expr(expr)?;
+                        let mut expr = self.bind_expr(expr)?;
 
                         if let Some(data_type) = &expr.return_type() {
                             // TODO: support valid type cast
@@ -69,7 +70,13 @@ impl Binder {
                             let left_kind = data_type.physical_kind();
                             let right_kind = column_types[idx].physical_kind();
                             if left_kind != right_kind {
-                                todo!("type cast: {:?} {:?}", left_kind, right_kind);
+                                // TODO: convert other expr (e.g. BoundUnaryOp) into decimal
+                                match (&left_kind, &right_kind) {
+                                    (_, PhysicalDataTypeKind::Decimal(scale)) => {
+                                        expr = Self::cast_expr_to_decimal(expr, *scale);
+                                    }
+                                    _ => todo!("type cast: {:?} {:?}", left_kind, right_kind),
+                                }
                             }
                         } else {
                             // If the data value is null, the column must be nullable.
@@ -131,6 +138,50 @@ impl Binder {
             column_catalogs
         };
         Ok((table_ref_id, table, columns))
+    }
+
+    fn cast_expr_to_decimal(expr: BoundExpr, scale: Option<u64>) -> BoundExpr {
+        match expr {
+            BoundExpr::Constant(DataValue::Int32(i)) => {
+                let d = if let Some(s) = scale {
+                    let scale_val = s as u32;
+                    Decimal::new(i as i64 * i64::pow(10, scale_val), scale_val)
+                } else {
+                    Decimal::from(i)
+                };
+                BoundExpr::Constant(DataValue::Decimal(d))
+            }
+            BoundExpr::Constant(DataValue::Int64(i)) => {
+                let d = if let Some(s) = scale {
+                    let scale_val = s as u32;
+                    Decimal::new(i * i64::pow(10, scale_val), scale_val)
+                } else {
+                    Decimal::from(i)
+                };
+                BoundExpr::Constant(DataValue::Decimal(d))
+            }
+            BoundExpr::Constant(DataValue::Float64(f)) => {
+                let d = if let Some(s) = scale {
+                    let scale_val = s as u32;
+                    Decimal::new((f * i64::pow(10, scale_val) as f64) as i64, scale_val)
+                } else {
+                    Decimal::from_f64_retain(f).unwrap()
+                };
+                BoundExpr::Constant(DataValue::Decimal(d))
+            }
+            BoundExpr::UnaryOp(op) => {
+                // To support insert negative values into decimal column, we need to convert the
+                // inner expr into decimal value
+                let op_expr = Self::cast_expr_to_decimal(*op.expr, scale);
+                let return_type = op_expr.return_type();
+                BoundExpr::UnaryOp(BoundUnaryOp {
+                    op: op.op,
+                    expr: Box::new(op_expr),
+                    return_type,
+                })
+            }
+            _ => panic!("cannot cast into decimal"),
+        }
     }
 }
 

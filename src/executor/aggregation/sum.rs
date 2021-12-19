@@ -1,3 +1,5 @@
+use rust_decimal::Decimal;
+
 use super::*;
 #[allow(unused_imports)]
 use crate::array::{Array, ArrayValidExt};
@@ -32,6 +34,7 @@ macro_rules! sum_func_gen {
 
 sum_func_gen!(sum_i32, i32, i32);
 sum_func_gen!(sum_f64, f64, f64);
+sum_func_gen!(sum_decimal, Decimal, Decimal);
 
 impl AggregationState for SumAggregationState {
     fn update(&mut self, array: &ArrayImpl) -> Result<(), ExecutorError> {
@@ -83,6 +86,17 @@ impl AggregationState for SumAggregationState {
                     }
                 }
             }
+            (ArrayImpl::Decimal(arr), DataTypeKind::Decimal(_, _)) => {
+                let mut temp: Option<Decimal> = None;
+                temp = arr.iter().fold(temp, sum_decimal);
+                if let Some(val) = temp {
+                    self.result = match self.result {
+                        DataValue::Null => DataValue::Decimal(val),
+                        DataValue::Decimal(res) => DataValue::Decimal(res + val),
+                        _ => panic!("Mismatched type"),
+                    }
+                }
+            }
             _ => panic!("Mismatched type"),
         }
         Ok(())
@@ -101,6 +115,13 @@ impl AggregationState for SumAggregationState {
                 self.result = match self.result {
                     DataValue::Null => DataValue::Float64(*val),
                     DataValue::Float64(res) => DataValue::Float64(res + val),
+                    _ => panic!("Mismatched type"),
+                }
+            }
+            (DataValue::Decimal(val), DataTypeKind::Decimal(_, _)) => {
+                self.result = match self.result {
+                    DataValue::Null => DataValue::Decimal(*val),
+                    DataValue::Decimal(res) => DataValue::Decimal(res + val),
                     _ => panic!("Mismatched type"),
                 }
             }

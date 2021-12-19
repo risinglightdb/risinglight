@@ -99,6 +99,7 @@ impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
 #[cfg(test)]
 mod tests {
     use num_traits::cast::FromPrimitive;
+    use rust_decimal::Decimal;
 
     use super::*;
 
@@ -134,5 +135,10 @@ mod tests {
     #[test]
     fn test_builder_f64() {
         test_builder::<f64>();
+    }
+
+    #[test]
+    fn test_builder_decimal() {
+        test_builder::<Decimal>();
     }
 }
