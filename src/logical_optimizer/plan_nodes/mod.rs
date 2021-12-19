@@ -17,11 +17,8 @@ pub trait PlanNode: Debug + Display + Downcast {
     /// Clone the node with a list of new children.
     fn clone_with_children(&self, children: &[PlanRef]) -> PlanRef;
 
-    /// Call the associated function on [`Visitor`].
-    fn visit(&self, visitor: &mut dyn Visitor);
-
     /// Walk through the plan tree recursively.
-    fn walk(&self, visitor: &mut dyn Visitor);
+    fn accept(&self, visitor: &mut dyn Visitor);
 
     /// Rewrite the plan tree recursively.
     fn rewrite(&self, rewriter: &mut dyn Rewriter) -> PlanRef;
@@ -68,16 +65,13 @@ macro_rules! impl_plan_node {
                 assert!(iter.next().is_none(), "invalid children number");
                 Rc::new(new)
             }
-            fn visit(&self, visitor: &mut dyn Visitor) {
-                paste! { visitor.[<visit_ $type:snake>](self); }
-            }
-            fn walk(&self, visitor: &mut dyn Visitor) {
+            fn accept(&self, visitor: &mut dyn Visitor) {
                 if paste! { !visitor.[<visit_ $type:snake _is_nested>]() } {
                     $(
-                        self.$child.walk(visitor);
+                        self.$child.accept(visitor);
                     )*
                 }
-                self.visit(visitor);
+                paste! { visitor.[<visit_ $type:snake>](self); }
             }
             fn rewrite(&self, rewriter: &mut dyn Rewriter) -> PlanRef {
                 let mut new = self.clone();

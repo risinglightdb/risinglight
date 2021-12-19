@@ -172,9 +172,9 @@ impl Visitor for ExecutorBuilder {
         true
     }
     fn visit_physical_join(&mut self, plan: &PhysicalJoin) {
-        plan.left_plan.walk(self);
+        plan.left_plan.accept(self);
         let left_child = self.executor.take().unwrap();
-        plan.right_plan.walk(self);
+        plan.right_plan.accept(self);
         let right_child = self.executor.take().unwrap();
         self.executor = Some(
             NestedLoopJoinExecutor {
@@ -344,7 +344,7 @@ impl ExecutorBuilder {
     }
 
     pub fn build(&mut self, plan: PlanRef) -> BoxedExecutor {
-        plan.walk(self);
+        plan.accept(self);
         self.executor.take().unwrap()
     }
 }
