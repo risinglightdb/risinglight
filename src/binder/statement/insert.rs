@@ -72,54 +72,8 @@ impl Binder {
                             if left_kind != right_kind {
                                 // TODO: convert other expr (e.g. BoundUnaryOp) into decimal
                                 match (&left_kind, &right_kind) {
-                                    (
-                                        PhysicalDataTypeKind::Int32,
-                                        PhysicalDataTypeKind::Decimal(_, scale),
-                                    ) => {
-                                        if let BoundExpr::Constant(DataValue::Int32(i)) = expr {
-                                            // TODO: support customized precision
-                                            let d = if let Some(s) = scale {
-                                                let scale_val = *s as u32;
-                                                Decimal::new(
-                                                    i as i64 * i64::pow(10, scale_val),
-                                                    scale_val,
-                                                )
-                                            } else {
-                                                Decimal::from(i)
-                                            };
-                                            expr = BoundExpr::Constant(DataValue::Decimal(d));
-                                        }
-                                    }
-                                    (
-                                        PhysicalDataTypeKind::Int64,
-                                        PhysicalDataTypeKind::Decimal(_, scale),
-                                    ) => {
-                                        if let BoundExpr::Constant(DataValue::Int64(i)) = expr {
-                                            let d = if let Some(s) = scale {
-                                                let scale_val = *s as u32;
-                                                Decimal::new(i * i64::pow(10, scale_val), scale_val)
-                                            } else {
-                                                Decimal::from(i)
-                                            };
-                                            expr = BoundExpr::Constant(DataValue::Decimal(d));
-                                        }
-                                    }
-                                    (
-                                        PhysicalDataTypeKind::Float64,
-                                        PhysicalDataTypeKind::Decimal(_, scale),
-                                    ) => {
-                                        if let BoundExpr::Constant(DataValue::Float64(f)) = expr {
-                                            let d = if let Some(s) = scale {
-                                                let scale_val = *s as u32;
-                                                Decimal::new(
-                                                    (f * i64::pow(10, scale_val) as f64) as i64,
-                                                    scale_val,
-                                                )
-                                            } else {
-                                                Decimal::from_f64_retain(f).unwrap()
-                                            };
-                                            expr = BoundExpr::Constant(DataValue::Decimal(d));
-                                        }
+                                    (_, PhysicalDataTypeKind::Decimal(scale)) => {
+                                        expr = Self::cast_expr_to_decimal(expr, *scale);
                                     }
                                     _ => todo!("type cast: {:?} {:?}", left_kind, right_kind),
                                 }
@@ -184,6 +138,50 @@ impl Binder {
             column_catalogs
         };
         Ok((table_ref_id, table, columns))
+    }
+
+    fn cast_expr_to_decimal(expr: BoundExpr, scale: Option<u64>) -> BoundExpr {
+        match expr {
+            BoundExpr::Constant(DataValue::Int32(i)) => {
+                let d = if let Some(s) = scale {
+                    let scale_val = s as u32;
+                    Decimal::new(i as i64 * i64::pow(10, scale_val), scale_val)
+                } else {
+                    Decimal::from(i)
+                };
+                BoundExpr::Constant(DataValue::Decimal(d))
+            }
+            BoundExpr::Constant(DataValue::Int64(i)) => {
+                let d = if let Some(s) = scale {
+                    let scale_val = s as u32;
+                    Decimal::new(i * i64::pow(10, scale_val), scale_val)
+                } else {
+                    Decimal::from(i)
+                };
+                BoundExpr::Constant(DataValue::Decimal(d))
+            }
+            BoundExpr::Constant(DataValue::Float64(f)) => {
+                let d = if let Some(s) = scale {
+                    let scale_val = s as u32;
+                    Decimal::new((f * i64::pow(10, scale_val) as f64) as i64, scale_val)
+                } else {
+                    Decimal::from_f64_retain(f).unwrap()
+                };
+                BoundExpr::Constant(DataValue::Decimal(d))
+            }
+            BoundExpr::UnaryOp(op) => {
+                // To support insert negative values into decimal column, we need to convert the
+                // inner expr into decimal value
+                let op_expr = Self::cast_expr_to_decimal(*op.expr, scale);
+                let return_type = op_expr.return_type();
+                BoundExpr::UnaryOp(BoundUnaryOp {
+                    op: op.op,
+                    expr: Box::new(op_expr),
+                    return_type,
+                })
+            }
+            _ => panic!("cannot cast into decimal"),
+        }
     }
 }
 

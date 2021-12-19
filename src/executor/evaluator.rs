@@ -16,6 +16,7 @@ impl BoundExpr {
             BoundExpr::UnaryOp(v) => match (&v.op, v.expr.eval()) {
                 (UnaryOperator::Minus, Int32(i)) => Int32(-i),
                 (UnaryOperator::Minus, Float64(f)) => Float64(-f),
+                (UnaryOperator::Minus, Decimal(d)) => Decimal(-d),
                 _ => todo!("evaluate expression: {:?}", self),
             },
             BoundExpr::BinaryOp(v) => match (&v.op, v.left_expr.eval(), v.right_expr.eval()) {

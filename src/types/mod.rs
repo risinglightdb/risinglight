@@ -17,7 +17,7 @@ pub enum PhysicalDataTypeKind {
     Float64,
     String,
     Boolean,
-    Decimal(Option<u64>, Option<u64>),
+    Decimal(Option<u64>),
 }
 
 /// Data type with nullable.
@@ -48,9 +48,7 @@ impl DataType {
             DataTypeKind::Int(_) => PhysicalDataTypeKind::Int32,
             DataTypeKind::BigInt(_) => PhysicalDataTypeKind::Int64,
             DataTypeKind::Boolean => PhysicalDataTypeKind::Boolean,
-            DataTypeKind::Decimal(precision, scale) => {
-                PhysicalDataTypeKind::Decimal(*precision, *scale)
-            }
+            DataTypeKind::Decimal(_, scale) => PhysicalDataTypeKind::Decimal(*scale),
             _ => todo!("physical type for {:?} is not supported", kind),
         };
         DataType {
