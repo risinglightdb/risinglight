@@ -1,6 +1,7 @@
 use bytes::{Buf, BufMut};
+use rust_decimal::Decimal;
 
-use crate::array::{Array, BoolArray, F64Array, I32Array};
+use crate::array::{Array, BoolArray, DecimalArray, F64Array, I32Array};
 
 /// Encode a primitive value into fixed-width buffer
 pub trait PrimitiveFixedWidthEncode: Copy + Clone + 'static + Send + Sync {
@@ -58,5 +59,20 @@ impl PrimitiveFixedWidthEncode for f64 {
 
     fn decode(buffer: &mut impl Buf) -> Self {
         buffer.get_f64_le()
+    }
+}
+
+impl PrimitiveFixedWidthEncode for Decimal {
+    const WIDTH: usize = std::mem::size_of::<Decimal>();
+    const DEAFULT_VALUE: &'static Self = &Decimal::from_parts(0, 0, 0, false, 0);
+
+    type ArrayType = DecimalArray;
+
+    fn encode(&self, buffer: &mut impl BufMut) {
+        buffer.put_u128(u128::from_be_bytes(self.serialize()))
+    }
+
+    fn decode(buffer: &mut impl Buf) -> Self {
+        Decimal::deserialize(buffer.get_u128().to_be_bytes())
     }
 }

@@ -2,6 +2,7 @@ use std::iter::Peekable;
 
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
+use rust_decimal::Decimal;
 
 use super::super::{
     BlockBuilder, BlockIndexBuilder, ColumnBuilderOptions, PlainPrimitiveBlockBuilder,
@@ -19,6 +20,7 @@ pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
 pub type I32ColumnBuilder = PrimitiveColumnBuilder<i32>;
 pub type F64ColumnBuilder = PrimitiveColumnBuilder<f64>;
 pub type BoolColumnBuilder = PrimitiveColumnBuilder<bool>;
+pub type DecimalColumnBuilder = PrimitiveColumnBuilder<Decimal>;
 
 /// Column builder of primitive types.
 pub struct PrimitiveColumnBuilder<T: PrimitiveFixedWidthEncode> {

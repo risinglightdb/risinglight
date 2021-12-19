@@ -1,6 +1,6 @@
 use super::{
-    BoolColumnIterator, CharColumnIterator, Column, ColumnIterator, F64ColumnIterator,
-    I32ColumnIterator,
+    BoolColumnIterator, CharColumnIterator, Column, ColumnIterator, DecimalColumnIterator,
+    F64ColumnIterator, I32ColumnIterator,
 };
 use crate::array::{Array, ArrayImpl};
 use crate::catalog::ColumnCatalog;
@@ -12,6 +12,7 @@ pub enum ColumnIteratorImpl {
     Float64(F64ColumnIterator),
     Bool(BoolColumnIterator),
     Char(CharColumnIterator),
+    Decimal(DecimalColumnIterator),
 }
 
 impl ColumnIteratorImpl {
@@ -28,6 +29,9 @@ impl ColumnIteratorImpl {
             DataTypeKind::Varchar(width) => Self::Char(
                 CharColumnIterator::new(column, start_pos, width.map(|x| x as usize)).await,
             ),
+            DataTypeKind::Decimal(_, _) => {
+                Self::Decimal(DecimalColumnIterator::new(column, start_pos).await)
+            }
             other_datatype => todo!(
                 "column iterator for {:?} is not implemented",
                 other_datatype
@@ -47,6 +51,7 @@ impl ColumnIteratorImpl {
             Self::Float64(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
             Self::Bool(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
             Self::Char(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
+            Self::Decimal(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
         }
     }
 
@@ -56,6 +61,7 @@ impl ColumnIteratorImpl {
             Self::Float64(it) => it.fetch_hint(),
             Self::Bool(it) => it.fetch_hint(),
             Self::Char(it) => it.fetch_hint(),
+            Self::Decimal(it) => it.fetch_hint(),
         }
     }
 }

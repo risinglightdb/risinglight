@@ -86,12 +86,14 @@ impl ArrayImpl {
             UnaryOperator::Plus => match self {
                 A::Int32(_) => self.clone(),
                 A::Float64(_) => self.clone(),
-                _ => panic!("+ can only be applied to Int or Float array"),
+                A::Decimal(_) => self.clone(),
+                _ => panic!("+ can only be applied to Int, Float or Decimal array"),
             },
             UnaryOperator::Minus => match self {
                 A::Int32(a) => A::Int32(unary_op(a, |v| -v)),
                 A::Float64(a) => A::Float64(unary_op(a, |v| -v)),
-                _ => panic!("- can only be applied to Int or Float array"),
+                A::Decimal(a) => A::Decimal(unary_op(a, |v| -v)),
+                _ => panic!("- can only be applied to Int, Float or Decimal array"),
             },
             UnaryOperator::Not => match self {
                 A::Bool(a) => A::Bool(unary_op(a, |b| !b)),
