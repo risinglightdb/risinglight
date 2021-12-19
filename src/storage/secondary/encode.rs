@@ -69,10 +69,10 @@ impl PrimitiveFixedWidthEncode for Decimal {
     type ArrayType = DecimalArray;
 
     fn encode(&self, buffer: &mut impl BufMut) {
-        buffer.put_u128(u128::from_be_bytes(self.serialize()))
+        buffer.put_u128_le(u128::from_le_bytes(self.serialize()))
     }
 
     fn decode(buffer: &mut impl Buf) -> Self {
-        Decimal::deserialize(buffer.get_u128().to_be_bytes())
+        Decimal::deserialize(buffer.get_u128_le().to_le_bytes())
     }
 }
