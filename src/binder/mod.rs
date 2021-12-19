@@ -4,7 +4,7 @@ use std::vec::Vec;
 
 use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
 use crate::parser::{Ident, ObjectName, Statement};
-use crate::types::ColumnId;
+use crate::types::{ColumnId, DataTypeKind, DataValue};
 
 mod expression;
 pub(crate) mod statement;
@@ -57,8 +57,8 @@ pub enum BindError {
     InvalidTableName(Vec<Ident>),
     #[error("invalid SQL")]
     InvalidSQL,
-    #[error("failed type casting")]
-    InvalidTypeCast,
+    #[error("cannot cast {0:?} to {1:?}")]
+    CastError(DataValue, DataTypeKind),
 }
 
 /// The context of binder execution.

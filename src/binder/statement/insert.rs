@@ -165,7 +165,10 @@ impl Binder {
                     let scale_val = s as u32;
                     Decimal::new((f * i64::pow(10, scale_val) as f64) as i64, scale_val)
                 } else {
-                    Decimal::from_f64_retain(f).ok_or(BindError::InvalidTypeCast)?
+                    Decimal::from_f64_retain(f).ok_or(BindError::CastError(
+                        DataValue::Float64(f),
+                        DataTypeKind::Decimal(None, None),
+                    ))?
                 };
                 Ok(BoundExpr::Constant(DataValue::Decimal(d)))
             }
