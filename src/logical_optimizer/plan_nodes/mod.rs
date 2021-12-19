@@ -49,7 +49,7 @@ impl dyn PlanNode {
     /// The data types are very helpful in optimizer and executors.
     pub fn column_types(&self) -> Vec<DataType> {
         // Logical Plan
-        if let Some(_) = self.downcast_ref::<Dummy>() {
+        if self.downcast_ref::<Dummy>().is_some() {
             return vec![];
         }
         if let Some(node) = self.downcast_ref::<LogicalAggregate>() {
@@ -65,13 +65,13 @@ impl dyn PlanNode {
         if let Some(node) = self.downcast_ref::<LogicalCopyToFile>() {
             return node.column_types.to_vec();
         }
-        if let Some(_) = self.downcast_ref::<LogicalDelete>() {
+        if self.downcast_ref::<LogicalDelete>().is_some() {
             return vec![];
         }
-        if let Some(_) = self.downcast_ref::<LogicalDrop>() {
+        if self.downcast_ref::<LogicalDrop>().is_some() {
             return vec![];
         }
-        if let Some(_) = self.downcast_ref::<LogicalExplain>() {
+        if self.downcast_ref::<LogicalExplain>().is_some() {
             return vec![];
         }
         if let Some(node) = self.downcast_ref::<LogicalFilter>() {
@@ -110,7 +110,7 @@ impl dyn PlanNode {
         }
 
         // Physical Plan
-        if let Some(_) = self.downcast_ref::<Dummy>() {
+        if self.downcast_ref::<Dummy>().is_some() {
             return vec![];
         }
         if let Some(node) = self.downcast_ref::<PhysicalCopyFromFile>() {
@@ -119,13 +119,13 @@ impl dyn PlanNode {
         if let Some(node) = self.downcast_ref::<PhysicalCopyToFile>() {
             return node.column_types.to_vec();
         }
-        if let Some(_) = self.downcast_ref::<PhysicalDelete>() {
+        if self.downcast_ref::<PhysicalDelete>().is_some() {
             return vec![];
         }
-        if let Some(_) = self.downcast_ref::<PhysicalDrop>() {
+        if self.downcast_ref::<PhysicalDrop>().is_some() {
             return vec![];
         }
-        if let Some(_) = self.downcast_ref::<PhysicalExplain>() {
+        if self.downcast_ref::<PhysicalExplain>().is_some() {
             return vec![];
         }
         if let Some(node) = self.downcast_ref::<PhysicalFilter>() {
