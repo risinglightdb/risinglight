@@ -8,7 +8,7 @@ use paste::paste;
 use smallvec::SmallVec;
 
 use crate::binder::BoundExpr;
-
+use crate::types::DataType;
 /// The common trait over all plan nodes.
 pub trait PlanNode: Debug + Display + Downcast {
     /// Get child nodes of the plan.
@@ -42,6 +42,15 @@ impl dyn PlanNode {
             child.explain(level + 1, f)?;
         }
         Ok(())
+    }
+    pub fn schema(&self) -> Vec<DataType> {
+        if let Some(_) = self.downcast_ref::<Dummy>() {
+            return vec![];  
+        }
+        if let Some(node) = self.downcast_ref::<LogicalSeqScan>() {
+            return vec![];  
+        }
+        vec![]
     }
 }
 

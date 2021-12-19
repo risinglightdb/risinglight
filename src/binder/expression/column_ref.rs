@@ -25,7 +25,7 @@ impl Binder {
             let table = self.catalog.get_table(&ref_id).unwrap();
             for (col_id, col) in &table.all_columns() {
                 let column_ref_id = ColumnRefId::from_table(ref_id, *col_id);
-                self.record_regular_table_column(&table.name(), col.name(), *col_id);
+                self.record_regular_table_column(&table.name(), col.name(), *col_id, col.desc().clone());
                 let expr = BoundExpr::ColumnRef(BoundColumnRef {
                     table_name: table.name().clone(),
                     column_ref_id,
@@ -56,7 +56,7 @@ impl Binder {
                 .get_column_by_name(column_name)
                 .ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
             let column_ref_id = ColumnRefId::from_table(table_ref_id, col.id());
-            self.record_regular_table_column(name, column_name, col.id());
+            self.record_regular_table_column(name, column_name, col.id(), col.desc().clone());
             Ok(BoundExpr::ColumnRef(BoundColumnRef {
                 table_name: name.clone(),
                 column_ref_id,
@@ -82,7 +82,7 @@ impl Binder {
             }
             let (table_name, column_ref_id, is_primary_key, desc) =
                 info.ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
-            self.record_regular_table_column(&table_name, column_name, column_ref_id.column_id);
+            self.record_regular_table_column(&table_name, column_name, column_ref_id.column_id, desc.clone());
 
             Ok(BoundExpr::ColumnRef(BoundColumnRef {
                 table_name: table_name.clone(),
@@ -98,13 +98,16 @@ impl Binder {
         table_name: &str,
         col_name: &str,
         column_id: ColumnId,
+        desc: ColumnDesc
     ) -> ColumnId {
         let names = self.context.column_names.get_mut(table_name).unwrap();
+        let descs = self.context.column_descs.get_mut(table_name).unwrap();
         if !names.contains(col_name) {
             let idx = names.len() as u32;
             names.insert(col_name.to_string());
             let idxs = self.context.column_ids.get_mut(table_name).unwrap();
             idxs.push(column_id);
+            descs.push(desc);
             assert!(!idxs.is_empty());
             idx
         } else {
