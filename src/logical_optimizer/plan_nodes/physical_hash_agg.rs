@@ -11,8 +11,19 @@ pub struct PhysicalHashAgg {
     pub child: PlanRef,
 }
 
-impl_plan_node!(PhysicalHashAgg, [child]);
-
+impl_plan_tree_node!(PhysicalHashAgg, [child]);
+impl PlanNode for PhysicalHashAgg {
+    fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
+        for agg in &mut self.agg_calls {
+            for arg in &mut agg.args {
+                rewriter.rewrite_expr(arg);
+            }
+        }
+        for keys in &mut self.group_keys {
+            rewriter.rewrite_expr(keys);
+        }
+    }
+}
 impl fmt::Display for PhysicalHashAgg {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "PhysicalHashAgg: {} agg calls", self.agg_calls.len(),)

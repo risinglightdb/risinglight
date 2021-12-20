@@ -16,8 +16,8 @@ pub struct PhysicalCopyFromFile {
     pub column_types: Vec<DataType>,
 }
 
-impl_plan_node!(PhysicalCopyFromFile);
-
+impl_plan_tree_node!(PhysicalCopyFromFile);
+impl PlanNode for PhysicalCopyFromFile {}
 impl fmt::Display for PhysicalCopyFromFile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(

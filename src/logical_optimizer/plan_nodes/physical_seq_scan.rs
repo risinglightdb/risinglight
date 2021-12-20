@@ -15,7 +15,8 @@ pub struct PhysicalSeqScan {
     pub is_sorted: bool,
 }
 
-impl_plan_node!(PhysicalSeqScan);
+impl_plan_tree_node!(PhysicalSeqScan);
+impl PlanNode for PhysicalSeqScan {}
 
 impl fmt::Display for PhysicalSeqScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

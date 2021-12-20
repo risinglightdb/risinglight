@@ -18,7 +18,8 @@ pub struct PhysicalCopyToFile {
     pub child: PlanRef,
 }
 
-impl_plan_node!(PhysicalCopyToFile, [child]);
+impl_plan_tree_node!(PhysicalCopyToFile, [child]);
+impl PlanNode for PhysicalCopyToFile {}
 
 impl fmt::Display for PhysicalCopyToFile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

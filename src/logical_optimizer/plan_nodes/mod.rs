@@ -10,19 +10,7 @@ use smallvec::SmallVec;
 use crate::binder::BoundExpr;
 
 /// The common trait over all plan nodes.
-pub trait PlanNode: Debug + Display + Downcast {
-    /// Get child nodes of the plan.
-    fn children(&self) -> SmallVec<[PlanRef; 2]>;
-
-    /// Clone the node with a list of new children.
-    fn clone_with_children(&self, children: &[PlanRef]) -> PlanRef;
-
-    /// Walk through the plan tree recursively.
-    fn accept(&self, visitor: &mut dyn Visitor);
-
-    /// Rewrite the plan tree recursively.
-    fn rewrite(&self, rewriter: &mut dyn Rewriter) -> PlanRef;
-
+pub trait PlanNode: PlanTreeNode + Debug + Display + Downcast {
     /// Call [`rewrite_expr`] on each expressions of the plan.
     ///
     /// [`rewrite_expr`]: Rewriter::rewrite_expr
@@ -31,7 +19,7 @@ pub trait PlanNode: Debug + Display + Downcast {
 
 impl_downcast!(PlanNode);
 
-/// The type of reference to a plan node.
+/// The type of reference to a plan node.$
 pub type PlanRef = Rc<dyn PlanNode>;
 
 impl dyn PlanNode {
@@ -45,13 +33,27 @@ impl dyn PlanNode {
     }
 }
 
+pub trait PlanTreeNode {
+    /// Get child nodes of the plan.
+    fn children(&self) -> SmallVec<[PlanRef; 2]>;
+
+    /// Clone the node with a list of new children.
+    fn clone_with_children(&self, children: &[PlanRef]) -> PlanRef;
+
+    /// Walk through the plan tree recursively.
+    fn accept(&self, visitor: &mut dyn Visitor);
+
+    /// Rewrite the plan tree recursively.
+    fn rewrite(&self, rewriter: &mut dyn Rewriter) -> PlanRef;
+}
+
 /// Implement `PlanNode` trait for a plan node structure.
-macro_rules! impl_plan_node {
+macro_rules! impl_plan_tree_node {
     ($type:ident) => {
-        impl_plan_node!($type,[]);
+        impl_plan_tree_node!($type,[]);
     };
     ($type:ident, [$($child:ident),*] $($fn:tt)*) => {
-        impl PlanNode for $type {
+        impl PlanTreeNode for $type {
             fn children(&self) -> SmallVec<[PlanRef; 2]> {
                 smallvec::smallvec![$(self.$child.clone()),*]
             }

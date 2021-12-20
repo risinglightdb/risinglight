@@ -12,7 +12,8 @@ pub struct LogicalAggregate {
     pub child: PlanRef,
 }
 
-impl_plan_node!(LogicalAggregate, [child]
+impl_plan_tree_node!(LogicalAggregate, [child]);
+impl PlanNode for LogicalAggregate {
     fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
         for agg in &mut self.agg_calls {
             for arg in &mut agg.args {
@@ -23,8 +24,7 @@ impl_plan_node!(LogicalAggregate, [child]
             rewriter.rewrite_expr(keys);
         }
     }
-);
-
+}
 impl fmt::Display for LogicalAggregate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "LogicalAggregate: {} agg calls", self.agg_calls.len(),)

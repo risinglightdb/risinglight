@@ -18,7 +18,8 @@ pub struct LogicalCopyToFile {
     pub child: PlanRef,
 }
 
-impl_plan_node!(LogicalCopyToFile, [child]);
+impl_plan_tree_node!(LogicalCopyToFile, [child]);
+impl PlanNode for LogicalCopyToFile {}
 
 impl fmt::Display for LogicalCopyToFile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

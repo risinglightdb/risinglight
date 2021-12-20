@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 use super::*;
 use crate::catalog::TableRefId;
-use crate::types::{ColumnId};
+use crate::types::ColumnId;
 
 /// The physical plan of `INSERT`.
 #[derive(Debug, Clone)]
@@ -14,7 +14,8 @@ pub struct PhysicalInsert {
     pub child: PlanRef,
 }
 
-impl_plan_node!(PhysicalInsert, [child]);
+impl_plan_tree_node!(PhysicalInsert, [child]);
+impl PlanNode for PhysicalInsert {}
 
 impl fmt::Display for PhysicalInsert {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

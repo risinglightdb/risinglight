@@ -10,7 +10,14 @@ pub struct PhysicalProjection {
     pub child: PlanRef,
 }
 
-impl_plan_node!(PhysicalProjection, [child]);
+impl_plan_tree_node!(PhysicalProjection, [child]);
+impl PlanNode for PhysicalProjection {
+    fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
+        for expr in &mut self.project_expressions {
+            rewriter.rewrite_expr(expr);
+        }
+    }
+}
 
 impl fmt::Display for PhysicalProjection {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

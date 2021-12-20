@@ -9,7 +9,8 @@ pub struct PhysicalDrop {
     pub object: Object,
 }
 
-impl_plan_node!(PhysicalDrop);
+impl_plan_tree_node!(PhysicalDrop);
+impl PlanNode for PhysicalDrop {}
 
 impl fmt::Display for PhysicalDrop {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

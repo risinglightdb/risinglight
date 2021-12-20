@@ -10,7 +10,8 @@ pub struct PhysicalLimit {
     pub child: PlanRef,
 }
 
-impl_plan_node!(PhysicalLimit, [child]);
+impl_plan_tree_node!(PhysicalLimit, [child]);
+impl PlanNode for PhysicalLimit {}
 
 impl fmt::Display for PhysicalLimit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

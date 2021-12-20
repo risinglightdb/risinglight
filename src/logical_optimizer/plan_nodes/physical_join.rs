@@ -1,10 +1,10 @@
 use std::fmt;
 
 use super::*;
-use crate::binder::BoundJoinOperator;
+use crate::binder::{BoundJoinConstraint, BoundJoinOperator};
 
 /// The type of join algorithm.
-/// 
+///
 /// Before we have query optimzer, we only use nested loop join.
 #[derive(Clone, Debug)]
 pub enum PhysicalJoinType {
@@ -20,8 +20,21 @@ pub struct PhysicalJoin {
     pub join_op: BoundJoinOperator,
 }
 
-impl_plan_node!(PhysicalJoin, [left_plan, right_plan]);
+impl_plan_tree_node!(PhysicalJoin, [left_plan, right_plan]);
+impl PlanNode for PhysicalJoin {
+    fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
+        use BoundJoinConstraint::*;
+        use BoundJoinOperator::*;
 
+        match &mut self.join_op {
+            Inner(On(expr)) => rewriter.rewrite_expr(expr),
+            LeftOuter(On(expr)) => rewriter.rewrite_expr(expr),
+            RightOuter(On(expr)) => rewriter.rewrite_expr(expr),
+            FullOuter(On(expr)) => rewriter.rewrite_expr(expr),
+            CrossJoin => {}
+        }
+    }
+}
 /// Currently, we only use default join ordering.
 /// We will implement DP or DFS algorithms for join orders.
 impl fmt::Display for PhysicalJoin {

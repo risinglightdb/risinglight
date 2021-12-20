@@ -10,7 +10,8 @@ pub struct LogicalDelete {
     pub child: PlanRef,
 }
 
-impl_plan_node!(LogicalDelete, [child]);
+impl_plan_tree_node!(LogicalDelete, [child]);
+impl PlanNode for LogicalDelete {}
 
 impl fmt::Display for LogicalDelete {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

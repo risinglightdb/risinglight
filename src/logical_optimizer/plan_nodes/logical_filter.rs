@@ -10,11 +10,12 @@ pub struct LogicalFilter {
     pub child: PlanRef,
 }
 
-impl_plan_node!(LogicalFilter, [child]
+impl_plan_tree_node!(LogicalFilter, [child]);
+impl PlanNode for LogicalFilter {
     fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
         rewriter.rewrite_expr(&mut self.expr);
     }
-);
+}
 
 impl fmt::Display for LogicalFilter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

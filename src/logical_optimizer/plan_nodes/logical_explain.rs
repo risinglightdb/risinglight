@@ -8,7 +8,8 @@ pub struct LogicalExplain {
     pub plan: PlanRef,
 }
 
-impl_plan_node!(LogicalExplain, [plan]);
+impl_plan_tree_node!(LogicalExplain, [plan]);
+impl PlanNode for LogicalExplain {}
 
 impl fmt::Display for LogicalExplain {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

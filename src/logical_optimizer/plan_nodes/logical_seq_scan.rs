@@ -15,8 +15,8 @@ pub struct LogicalSeqScan {
     pub is_sorted: bool,
 }
 
-impl_plan_node!(LogicalSeqScan);
-
+impl_plan_tree_node!(LogicalSeqScan);
+impl PlanNode for LogicalSeqScan {}
 impl fmt::Display for LogicalSeqScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(

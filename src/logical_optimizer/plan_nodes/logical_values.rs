@@ -11,7 +11,8 @@ pub struct LogicalValues {
     pub values: Vec<Vec<BoundExpr>>,
 }
 
-impl_plan_node!(LogicalValues, []
+impl_plan_tree_node!(LogicalValues, []);
+impl PlanNode for LogicalValues {
     fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
         for row in &mut self.values {
             for expr in row {
@@ -19,7 +20,7 @@ impl_plan_node!(LogicalValues, []
             }
         }
     }
-);
+}
 
 impl fmt::Display for LogicalValues {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

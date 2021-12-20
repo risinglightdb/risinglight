@@ -14,7 +14,8 @@ pub struct LogicalInsert {
     pub child: PlanRef,
 }
 
-impl_plan_node!(LogicalInsert, [child]);
+impl_plan_tree_node!(LogicalInsert, [child]);
+impl PlanNode for LogicalInsert {}
 
 impl fmt::Display for LogicalInsert {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

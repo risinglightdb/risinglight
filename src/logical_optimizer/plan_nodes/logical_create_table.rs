@@ -15,7 +15,8 @@ pub struct LogicalCreateTable {
     pub columns: Vec<ColumnCatalog>,
 }
 
-impl_plan_node!(LogicalCreateTable);
+impl_plan_tree_node!(LogicalCreateTable);
+impl PlanNode for LogicalCreateTable {}
 
 impl fmt::Display for LogicalCreateTable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

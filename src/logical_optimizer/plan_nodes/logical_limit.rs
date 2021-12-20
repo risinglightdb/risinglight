@@ -10,7 +10,8 @@ pub struct LogicalLimit {
     pub child: PlanRef,
 }
 
-impl_plan_node!(LogicalLimit, [child]);
+impl_plan_tree_node!(LogicalLimit, [child]);
+impl PlanNode for LogicalLimit {}
 
 impl fmt::Display for LogicalLimit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

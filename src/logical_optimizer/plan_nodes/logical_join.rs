@@ -4,7 +4,7 @@ use super::*;
 use crate::binder::{BoundJoinConstraint, BoundJoinOperator};
 
 /// The logical plan of join, it only records join tables and operators.
-/// 
+///
 /// The query optimizer should decide the join orders and specific algorithms (hash join, nested
 /// loop join or index join).
 #[derive(Debug, Clone)]
@@ -14,10 +14,11 @@ pub struct LogicalJoin {
     pub join_op: BoundJoinOperator,
 }
 
-impl_plan_node!(LogicalJoin, [left_plan, right_plan]
+impl_plan_tree_node!(LogicalJoin, [left_plan, right_plan]);
+impl PlanNode for LogicalJoin {
     fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
-        use BoundJoinOperator::*;
         use BoundJoinConstraint::*;
+        use BoundJoinOperator::*;
 
         match &mut self.join_op {
             Inner(On(expr)) => rewriter.rewrite_expr(expr),
@@ -27,7 +28,7 @@ impl_plan_node!(LogicalJoin, [left_plan, right_plan]
             CrossJoin => {}
         }
     }
-);
+}
 
 impl fmt::Display for LogicalJoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

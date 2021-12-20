@@ -10,8 +10,12 @@ pub struct PhysicalFilter {
     pub child: PlanRef,
 }
 
-impl_plan_node!(PhysicalFilter, [child]);
-
+impl_plan_tree_node!(PhysicalFilter, [child]);
+impl PlanNode for PhysicalFilter {
+    fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
+        rewriter.rewrite_expr(&mut self.expr);
+    }
+}
 impl fmt::Display for PhysicalFilter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "PhysicalFilter: expr {:?}", self.expr)

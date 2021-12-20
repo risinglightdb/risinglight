@@ -9,7 +9,8 @@ pub struct LogicalDrop {
     pub object: Object,
 }
 
-impl_plan_node!(LogicalDrop);
+impl_plan_tree_node!(LogicalDrop);
+impl PlanNode for LogicalDrop {}
 
 impl fmt::Display for LogicalDrop {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

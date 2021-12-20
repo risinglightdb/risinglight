@@ -15,7 +15,8 @@ pub struct PhysicalCreateTable {
     pub columns: Vec<ColumnCatalog>,
 }
 
-impl_plan_node!(PhysicalCreateTable);
+impl_plan_tree_node!(PhysicalCreateTable);
+impl PlanNode for PhysicalCreateTable {}
 
 impl fmt::Display for PhysicalCreateTable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

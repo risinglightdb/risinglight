@@ -10,13 +10,14 @@ pub struct LogicalProjection {
     pub child: PlanRef,
 }
 
-impl_plan_node!(LogicalProjection, [child]
+impl_plan_tree_node!(LogicalProjection, [child]);
+impl PlanNode for LogicalProjection {
     fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
         for expr in &mut self.project_expressions {
             rewriter.rewrite_expr(expr);
         }
     }
-);
+}
 
 impl fmt::Display for LogicalProjection {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
