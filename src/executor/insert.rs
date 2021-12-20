@@ -79,7 +79,7 @@ mod tests {
     use crate::array::{ArrayImpl, DataChunk};
     use crate::catalog::{ColumnCatalog, TableRefId};
     use crate::executor::{CreateTableExecutor, GlobalEnv, GlobalEnvRef};
-    use crate::logical_optimizer::plan_nodes::PhysicalCreateTable;
+    use crate::optimizer::plan_nodes::PhysicalCreateTable;
     use crate::storage::InMemoryStorage;
     use crate::types::{DataTypeExt, DataTypeKind};
 

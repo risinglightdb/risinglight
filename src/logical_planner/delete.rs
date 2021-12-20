@@ -1,6 +1,6 @@
 use super::*;
 use crate::binder::{BoundDelete, BoundTableRef};
-use crate::logical_optimizer::plan_nodes::{LogicalDelete, LogicalFilter};
+use crate::optimizer::plan_nodes::{LogicalDelete, LogicalFilter};
 
 impl LogicalPlaner {
     pub fn plan_delete(&self, stmt: BoundDelete) -> Result<PlanRef, LogicalPlanError> {

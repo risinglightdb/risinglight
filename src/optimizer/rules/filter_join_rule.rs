@@ -1,9 +1,9 @@
 use super::*;
 use crate::binder::BoundExpr;
-use crate::logical_optimizer::plan_nodes::{LogicalFilter, LogicalJoin};
-use crate::logical_optimizer::BoundBinaryOp;
-use crate::logical_optimizer::BoundJoinConstraint::On;
-use crate::logical_optimizer::BoundJoinOperator::Inner;
+use crate::optimizer::plan_nodes::{LogicalFilter, LogicalJoin};
+use crate::optimizer::BoundBinaryOp;
+use crate::optimizer::BoundJoinConstraint::On;
+use crate::optimizer::BoundJoinOperator::Inner;
 use crate::parser::BinaryOperator::And;
 use crate::types::{DataTypeExt, DataTypeKind};
 

@@ -22,7 +22,7 @@ pub mod binder;
 pub mod logical_planner;
 
 /// Stage 4: Do query optimization.
-pub mod logical_optimizer;
+pub mod optimizer;
 
 /// Stage 5: Execute the queries.
 pub mod executor;

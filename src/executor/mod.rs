@@ -16,7 +16,7 @@ use async_stream::try_stream;
 use futures::stream::{BoxStream, Stream, StreamExt};
 
 use crate::array::DataChunk;
-use crate::logical_optimizer::plan_nodes::*;
+use crate::optimizer::plan_nodes::*;
 use crate::storage::{StorageError, StorageImpl};
 use crate::types::ConvertError;
 

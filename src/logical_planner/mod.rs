@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::binder::BoundStatement;
-use crate::logical_optimizer::plan_nodes::PlanRef;
+use crate::optimizer::plan_nodes::PlanRef;
 use crate::types::ConvertError;
 
 mod copy;

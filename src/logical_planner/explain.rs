@@ -1,5 +1,5 @@
 use super::*;
-use crate::logical_optimizer::plan_nodes::LogicalExplain;
+use crate::optimizer::plan_nodes::LogicalExplain;
 
 impl LogicalPlaner {
     pub fn plan_explain(&self, stmt: BoundStatement) -> Result<PlanRef, LogicalPlanError> {
