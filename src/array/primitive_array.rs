@@ -6,9 +6,7 @@ use serde::{Deserialize, Serialize};
 use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt};
 use crate::types::NativeType;
 
-#[cfg(feature = "simd")]
 mod simd;
-#[cfg(feature = "simd")]
 pub use self::simd::*;
 
 /// A collection of primitive types, such as `i32`, `f32`.

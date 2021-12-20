@@ -260,17 +260,14 @@ impl ArrayImpl {
     }
 }
 
-#[cfg(feature = "simd")]
 use std::simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
 
 use num_traits::ToPrimitive;
 use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 
-#[cfg(feature = "simd")]
 use crate::types::NativeType;
 
-#[cfg(feature = "simd")]
 pub fn simd_op<T, O, F, const N: usize>(
     a: &PrimitiveArray<T>,
     b: &PrimitiveArray<T>,
