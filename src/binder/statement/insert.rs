@@ -72,8 +72,10 @@ impl Binder {
                             if left_kind != right_kind {
                                 // TODO: convert other expr (e.g. BoundUnaryOp) into decimal
                                 match (&left_kind, &right_kind) {
-                                    (_, PhysicalDataTypeKind::Decimal(scale)) => {
-                                        expr = Self::cast_expr_to_decimal(expr, *scale)?;
+                                    (_, PhysicalDataTypeKind::Decimal) => {
+                                        // TODO: Decimal cast should not be done in binder, so we
+                                        // pass `scale: None` here for now.
+                                        expr = Self::cast_expr_to_decimal(expr, None)?;
                                     }
                                     _ => todo!("type cast: {:?} {:?}", left_kind, right_kind),
                                 }

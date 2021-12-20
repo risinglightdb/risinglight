@@ -6,7 +6,7 @@ use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{ConvertError, DataType, DataTypeExt, DataTypeKind, DataValue};
+use crate::types::{ConvertError, DataType, DataValue, PhysicalDataTypeKind};
 
 mod data_chunk;
 mod iterator;
@@ -172,50 +172,160 @@ pub enum ArrayBuilderImpl {
     Decimal(DecimalArrayBuilder),
 }
 
-/// An error which can be returned when downcasting an [`ArrayImpl`] into a concrete type array.
-#[derive(Debug, Clone)]
-pub struct TypeMismatch;
-
-macro_rules! impl_into {
-    ($x:ty, $y:ident) => {
-        impl From<$x> for ArrayImpl {
-            fn from(array: $x) -> Self {
-                Self::$y(array)
-            }
-        }
-
-        impl TryFrom<ArrayImpl> for $x {
-            type Error = TypeMismatch;
-
-            fn try_from(array: ArrayImpl) -> Result<Self, Self::Error> {
-                match array {
-                    ArrayImpl::$y(array) => Ok(array),
-                    _ => Err(TypeMismatch),
-                }
-            }
-        }
-
-        impl<'a> TryFrom<&'a ArrayImpl> for &'a $x {
-            type Error = TypeMismatch;
-
-            fn try_from(array: &'a ArrayImpl) -> Result<Self, Self::Error> {
-                match array {
-                    ArrayImpl::$y(array) => Ok(array),
-                    _ => Err(TypeMismatch),
-                }
-            }
+/// `for_all_variants` includes all variants of our array types. If you added a new array
+/// type inside the project, be sure to add a variant here.
+///
+/// Every tuple has four elements, where
+/// `{ enum variant name, function suffix name, array type, builder type, scalar type }`
+///
+/// There are typically two ways of using this macro, pass token or pass no token.
+/// See the following implementations for example.
+#[macro_export]
+macro_rules! for_all_variants {
+    ($macro:tt $(, $x:tt)*) => {
+        $macro! {
+            [$($x),*],
+            { Int32, int32, I32Array, I32ArrayBuilder, Int32 },
+            { Int64, int64, I64Array, I64ArrayBuilder, Int64 },
+            { Float64, float64, F64Array, F64ArrayBuilder, Float64 },
+            { Utf8, utf8, Utf8Array, Utf8ArrayBuilder, String },
+            { Bool, bool, BoolArray, BoolArrayBuilder, Bool },
+            { Decimal, decimal, DecimalArray, DecimalArrayBuilder, Decimal }
         }
     };
 }
 
-impl_into! { PrimitiveArray<bool>, Bool }
-// impl_into! { PrimitiveArray<i16>, Int16 }
-impl_into! { PrimitiveArray<i32>, Int32 }
-impl_into! { PrimitiveArray<i64>, Int64 }
-// impl_into! { PrimitiveArray<f32>, Float32 }
-impl_into! { PrimitiveArray<f64>, Float64 }
-impl_into! { Utf8Array, Utf8 }
-impl_into! { DecimalArray, Decimal }
+/// An error which can be returned when downcasting an [`ArrayImpl`] into a concrete type array.
+#[derive(Debug, Clone)]
+pub struct TypeMismatch;
+
+/// Implement `From` and `TryFrom` between conversions of concrete array types and enum sum type.
+macro_rules! impl_from {
+    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident } ),*) => {
+        $(
+            /// Implement `AbcArray -> ArrayImpl`
+            impl From<$AbcArray> for ArrayImpl {
+                fn from(array: $AbcArray) -> Self {
+                    Self::$Abc(array)
+                }
+            }
+
+            /// Implement `ArrayImpl -> AbcArray`
+            impl TryFrom<ArrayImpl> for $AbcArray {
+                type Error = TypeMismatch;
+
+                fn try_from(array: ArrayImpl) -> Result<Self, Self::Error> {
+                    match array {
+                        ArrayImpl::$Abc(array) => Ok(array),
+                        _ => Err(TypeMismatch),
+                    }
+                }
+            }
+
+            /// Implement `&ArrayImpl -> &AbcArray`
+            impl<'a> TryFrom<&'a ArrayImpl> for &'a $AbcArray {
+                type Error = TypeMismatch;
+
+                fn try_from(array: &'a ArrayImpl) -> Result<Self, Self::Error> {
+                    match array {
+                        ArrayImpl::$Abc(array) => Ok(array),
+                        _ => Err(TypeMismatch),
+                    }
+                }
+            }
+
+            /// Implement `AbcArrayBuilder -> ArrayBuilderImpl`
+            impl From<$AbcArrayBuilder> for ArrayBuilderImpl {
+                fn from(array: $AbcArrayBuilder) -> Self {
+                    Self::$Abc(array)
+                }
+            }
+
+            /// Implement `ArrayBuilderImpl -> AbcBuilder`
+            impl TryFrom<ArrayBuilderImpl> for $AbcArrayBuilder {
+                type Error = TypeMismatch;
+
+                fn try_from(array: ArrayBuilderImpl) -> Result<Self, Self::Error> {
+                    match array {
+                        ArrayBuilderImpl::$Abc(array) => Ok(array),
+                        _ => Err(TypeMismatch),
+                    }
+                }
+            }
+
+            /// Implement `&ArrayBuilderImpl -> &AbcBuilder`
+            impl<'a> TryFrom<&'a ArrayBuilderImpl> for &'a $AbcArrayBuilder {
+                type Error = TypeMismatch;
+
+                fn try_from(array: &'a ArrayBuilderImpl) -> Result<Self, Self::Error> {
+                    match array {
+                        ArrayBuilderImpl::$Abc(array) => Ok(array),
+                        _ => Err(TypeMismatch),
+                    }
+                }
+            }
+        )*
+    };
+}
+
+for_all_variants! { impl_from }
+
+/// Implement dispatch functions for `ArrayBuilderImpl`.
+macro_rules! impl_array_builder {
+    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident } ),*) => {
+        impl ArrayBuilderImpl {
+            /// Create a new array builder with the same type of given array.
+            pub fn from_type_of_array(array: &ArrayImpl) -> Self {
+                match array {
+                   $(
+                       ArrayImpl::$Abc(_) => Self::$Abc(<$AbcArrayBuilder>::new()),
+                   )*
+                }
+            }
+
+            /// Create a new array builder with the physical type
+            pub fn with_capacity_and_physical(capacity: usize, physical_type: PhysicalDataTypeKind) -> Self {
+                match physical_type {
+                    $(
+                        PhysicalDataTypeKind::$Value => Self::$Abc(<$AbcArrayBuilder>::with_capacity(capacity)),
+                    )*
+                }
+            }
+
+            /// Appends an element to the back of array.
+            pub fn push(&mut self, v: &DataValue) {
+                match (self, v) {
+                    $(
+                        (Self::$Abc(a), DataValue::$Value(v)) => a.push(Some(v)),
+                        (Self::$Abc(a), DataValue::Null) => a.push(None),
+                    )*
+                    _ => panic!("failed to push value: type mismatch"),
+                }
+            }
+
+            /// Finish build and return a new array.
+            pub fn finish(self) -> ArrayImpl {
+                match self {
+                    $(
+                        Self::$Abc(a) => ArrayImpl::$Abc(a.finish()),
+                    )*
+                }
+            }
+
+            /// Appends an `ArrayImpl`
+            pub fn append(&mut self, array_impl: &ArrayImpl) {
+                match (self, array_impl) {
+                    $(
+                        (Self::$Abc(builder), ArrayImpl::$Abc(arr)) => builder.append(arr),
+                    )*
+                    _ => panic!("failed to push value: type mismatch"),
+                }
+            }
+        }
+    }
+}
+
+for_all_variants! { impl_array_builder }
 
 impl ArrayBuilderImpl {
     /// Create a new array builder from data type.
@@ -225,52 +335,7 @@ impl ArrayBuilderImpl {
 
     /// Create a new array builder from data type with capacity.
     pub fn with_capacity(capacity: usize, ty: &DataType) -> Self {
-        match ty.kind() {
-            DataTypeKind::Boolean => Self::Bool(BoolArrayBuilder::with_capacity(capacity)),
-            DataTypeKind::Int(_) => Self::Int32(I32ArrayBuilder::with_capacity(capacity)),
-            DataTypeKind::BigInt(_) => Self::Int64(I64ArrayBuilder::with_capacity(capacity)),
-            DataTypeKind::Float(_) | DataTypeKind::Double => {
-                Self::Float64(F64ArrayBuilder::with_capacity(capacity))
-            }
-            DataTypeKind::Char(_) | DataTypeKind::Varchar(_) | DataTypeKind::String => {
-                Self::Utf8(Utf8ArrayBuilder::with_capacity(capacity))
-            }
-            DataTypeKind::Decimal(_, _) => {
-                Self::Decimal(DecimalArrayBuilder::with_capacity(capacity))
-            }
-            _ => panic!("unsupported data type"),
-        }
-    }
-
-    /// Create a new array builder with the same type of given array.
-    pub fn from_type_of_array(array: &ArrayImpl) -> Self {
-        match array {
-            ArrayImpl::Bool(_) => Self::Bool(BoolArrayBuilder::new()),
-            ArrayImpl::Int32(_) => Self::Int32(I32ArrayBuilder::new()),
-            ArrayImpl::Int64(_) => Self::Int64(I64ArrayBuilder::new()),
-            ArrayImpl::Float64(_) => Self::Float64(F64ArrayBuilder::new()),
-            ArrayImpl::Utf8(_) => Self::Utf8(Utf8ArrayBuilder::new()),
-            ArrayImpl::Decimal(_) => Self::Decimal(DecimalArrayBuilder::new()),
-        }
-    }
-
-    /// Appends an element to the back of array.
-    pub fn push(&mut self, v: &DataValue) {
-        match (self, v) {
-            (Self::Bool(a), DataValue::Bool(v)) => a.push(Some(v)),
-            (Self::Int64(a), DataValue::Int64(v)) => a.push(Some(v)),
-            (Self::Int32(a), DataValue::Int32(v)) => a.push(Some(v)),
-            (Self::Float64(a), DataValue::Float64(v)) => a.push(Some(v)),
-            (Self::Utf8(a), DataValue::String(v)) => a.push(Some(v)),
-            (Self::Decimal(a), DataValue::Decimal(v)) => a.push(Some(v)),
-            (Self::Bool(a), DataValue::Null) => a.push(None),
-            (Self::Int32(a), DataValue::Null) => a.push(None),
-            (Self::Int64(a), DataValue::Null) => a.push(None),
-            (Self::Float64(a), DataValue::Null) => a.push(None),
-            (Self::Utf8(a), DataValue::Null) => a.push(None),
-            (Self::Decimal(a), DataValue::Null) => a.push(None),
-            _ => panic!("failed to push value: type mismatch"),
-        }
+        Self::with_capacity_and_physical(capacity, ty.physical_kind())
     }
 
     /// Appends an element in string.
@@ -306,128 +371,70 @@ impl ArrayBuilderImpl {
         }
         Ok(())
     }
+}
 
-    /// Finish build and return a new array.
-    pub fn finish(self) -> ArrayImpl {
-        match self {
-            Self::Bool(a) => ArrayImpl::Bool(a.finish()),
-            Self::Int32(a) => ArrayImpl::Int32(a.finish()),
-            Self::Int64(a) => ArrayImpl::Int64(a.finish()),
-            Self::Float64(a) => ArrayImpl::Float64(a.finish()),
-            Self::Utf8(a) => ArrayImpl::Utf8(a.finish()),
-            Self::Decimal(a) => ArrayImpl::Decimal(a.finish()),
-        }
-    }
+/// Implement dispatch functions for `ArrayImpl`.
+macro_rules! impl_array {
+    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident } ),*) => {
+        impl ArrayImpl {
+            /// Get the value and convert it to string.
+            pub fn get_to_string(&self, idx: usize) -> String {
+                match self {
+                    $(
+                        Self::$Abc(a) => a.get(idx).map(|v| v.to_string()),
+                    )*
+                }
+                .unwrap_or_else(|| "NULL".into())
+            }
 
-    /// Appends a DataArrayImpl
-    pub fn append(&mut self, array_impl: &ArrayImpl) {
-        match (self, array_impl) {
-            (Self::Bool(builder), ArrayImpl::Bool(arr)) => builder.append(arr),
-            (Self::Int32(builder), ArrayImpl::Int32(arr)) => builder.append(arr),
-            (Self::Int64(builder), ArrayImpl::Int64(arr)) => builder.append(arr),
-            (Self::Float64(builder), ArrayImpl::Float64(arr)) => builder.append(arr),
-            (Self::Utf8(builder), ArrayImpl::Utf8(arr)) => builder.append(arr),
-            (Self::Decimal(builder), ArrayImpl::Decimal(arr)) => builder.append(arr),
-            _ => panic!("failed to push value: type mismatch"),
+            /// Get the value at the given index.
+            pub fn get(&self, idx: usize) -> DataValue {
+                match self {
+                    $(
+                        Self::$Abc(a) => match a.get(idx) {
+                            Some(val) => DataValue::$Value(val.to_owned()),
+                            None => DataValue::Null,
+                        },
+                    )*
+                }
+            }
+
+            /// Number of items of array.
+            pub fn len(&self) -> usize {
+                match self {
+                    $(
+                        Self::$Abc(a) => a.len(),
+                    )*
+                }
+            }
+
+            /// Filter the elements and return a new array.
+            pub fn filter(&self, visibility: impl Iterator<Item = bool>) -> Self {
+                match self {
+                    $(
+                        Self::$Abc(a) => Self::$Abc(a.filter(visibility)),
+                    )*
+                }
+            }
+
+            /// Return a slice of self for the provided range.
+            pub fn slice(&self, range: impl RangeBounds<usize>) -> Self {
+                match self {
+                    $(
+                        Self::$Abc(a) => Self::$Abc(a.slice(range)),
+                    )*
+                }
+            }
         }
     }
 }
 
+for_all_variants! { impl_array }
+
 impl ArrayImpl {
-    /// Get the value and convert it to string.
-    pub fn get_to_string(&self, idx: usize) -> String {
-        match self {
-            Self::Bool(a) => a.get(idx).map(|v| v.to_string()),
-            Self::Int32(a) => a.get(idx).map(|v| v.to_string()),
-            Self::Int64(a) => a.get(idx).map(|v| v.to_string()),
-            Self::Float64(a) => a.get(idx).map(|v| v.to_string()),
-            Self::Utf8(a) => a.get(idx).map(|v| v.to_string()),
-            Self::Decimal(a) => a.get(idx).map(|v| v.to_string()),
-        }
-        .unwrap_or_else(|| "NULL".into())
-    }
-
-    /// Get the value at the given index.
-    pub fn get(&self, idx: usize) -> DataValue {
-        match self {
-            Self::Bool(a) => match a.get(idx) {
-                Some(val) => DataValue::Bool(*val),
-                None => DataValue::Null,
-            },
-            Self::Int32(a) => match a.get(idx) {
-                Some(val) => DataValue::Int32(*val),
-                None => DataValue::Null,
-            },
-            Self::Int64(a) => match a.get(idx) {
-                Some(val) => DataValue::Int64(*val),
-                None => DataValue::Null,
-            },
-            Self::Float64(a) => match a.get(idx) {
-                Some(val) => DataValue::Float64(*val),
-                None => DataValue::Null,
-            },
-            Self::Utf8(a) => match a.get(idx) {
-                Some(val) => DataValue::String(val.to_string()),
-                None => DataValue::Null,
-            },
-            Self::Decimal(a) => match a.get(idx) {
-                Some(val) => DataValue::Decimal(*val),
-                None => DataValue::Null,
-            },
-        }
-    }
-
-    /// Number of items of array.
-    pub fn len(&self) -> usize {
-        match self {
-            Self::Bool(a) => a.len(),
-            Self::Int32(a) => a.len(),
-            Self::Int64(a) => a.len(),
-            Self::Float64(a) => a.len(),
-            Self::Utf8(a) => a.len(),
-            Self::Decimal(a) => a.len(),
-        }
-    }
-
     /// Check if array is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
-    }
-
-    /// Filter the elements and return a new array.
-    pub fn filter(&self, visibility: impl Iterator<Item = bool>) -> Self {
-        match self {
-            Self::Bool(a) => Self::Bool(a.filter(visibility)),
-            Self::Int32(a) => Self::Int32(a.filter(visibility)),
-            Self::Int64(a) => Self::Int64(a.filter(visibility)),
-            Self::Float64(a) => Self::Float64(a.filter(visibility)),
-            Self::Utf8(a) => Self::Utf8(a.filter(visibility)),
-            Self::Decimal(a) => Self::Decimal(a.filter(visibility)),
-        }
-    }
-
-    /// Return a slice of self for the provided range.
-    pub fn slice(&self, range: impl RangeBounds<usize>) -> Self {
-        match self {
-            Self::Bool(a) => Self::Bool(a.slice(range)),
-            Self::Int32(a) => Self::Int32(a.slice(range)),
-            Self::Int64(a) => Self::Int64(a.slice(range)),
-            Self::Float64(a) => Self::Float64(a.slice(range)),
-            Self::Utf8(a) => Self::Utf8(a.slice(range)),
-            Self::Decimal(a) => Self::Decimal(a.slice(range)),
-        }
-    }
-
-    /// Get the type of value.
-    pub fn data_type(&self) -> Option<DataType> {
-        match self {
-            Self::Bool(_) => Some(DataTypeKind::Boolean.not_null()),
-            Self::Int32(_) => Some(DataTypeKind::Int(None).not_null()),
-            Self::Int64(_) => Some(DataTypeKind::BigInt(None).not_null()),
-            Self::Float64(_) => Some(DataTypeKind::Double.not_null()),
-            Self::Utf8(_) => Some(DataTypeKind::String.not_null()),
-            Self::Decimal(_) => Some(DataTypeKind::Decimal(None, None).not_null()),
-        }
     }
 }
 
