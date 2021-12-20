@@ -16,8 +16,24 @@ pub enum PhysicalDataTypeKind {
     Int64,
     Float64,
     String,
-    Boolean,
-    Decimal(Option<u64>),
+    Bool,
+    Decimal,
+}
+
+impl From<DataTypeKind> for PhysicalDataTypeKind {
+    fn from(kind: DataTypeKind) -> Self {
+        match kind {
+            DataTypeKind::Char(_) | DataTypeKind::Varchar(_) | DataTypeKind::String => {
+                PhysicalDataTypeKind::String
+            }
+            DataTypeKind::Float(_) | DataTypeKind::Double => PhysicalDataTypeKind::Float64,
+            DataTypeKind::Int(_) => PhysicalDataTypeKind::Int32,
+            DataTypeKind::BigInt(_) => PhysicalDataTypeKind::Int64,
+            DataTypeKind::Boolean => PhysicalDataTypeKind::Bool,
+            DataTypeKind::Decimal(_, _) => PhysicalDataTypeKind::Decimal,
+            _ => todo!("physical type for {:?} is not supported", kind),
+        }
+    }
 }
 
 /// Data type with nullable.
@@ -40,17 +56,7 @@ impl std::fmt::Debug for DataType {
 
 impl DataType {
     pub fn new(kind: DataTypeKind, nullable: bool) -> DataType {
-        let physical_kind = match &kind {
-            DataTypeKind::Char(_) | DataTypeKind::Varchar(_) | DataTypeKind::String => {
-                PhysicalDataTypeKind::String
-            }
-            DataTypeKind::Float(_) | DataTypeKind::Double => PhysicalDataTypeKind::Float64,
-            DataTypeKind::Int(_) => PhysicalDataTypeKind::Int32,
-            DataTypeKind::BigInt(_) => PhysicalDataTypeKind::Int64,
-            DataTypeKind::Boolean => PhysicalDataTypeKind::Boolean,
-            DataTypeKind::Decimal(_, scale) => PhysicalDataTypeKind::Decimal(*scale),
-            _ => todo!("physical type for {:?} is not supported", kind),
-        };
+        let physical_kind = kind.clone().into();
         DataType {
             kind,
             physical_kind,
