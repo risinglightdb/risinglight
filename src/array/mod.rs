@@ -6,9 +6,7 @@ use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{
-    ConvertError, DataType, DataValue, PhysicalDataTypeKind,
-};
+use crate::types::{ConvertError, DataType, DataValue, PhysicalDataTypeKind};
 
 mod data_chunk;
 mod iterator;
