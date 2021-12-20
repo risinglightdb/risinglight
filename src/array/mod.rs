@@ -7,7 +7,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    ConvertError, DataType, DataTypeExt, DataTypeKind, DataValue, PhysicalDataTypeKind,
+    ConvertError, DataType, DataValue, PhysicalDataTypeKind,
 };
 
 mod data_chunk;
