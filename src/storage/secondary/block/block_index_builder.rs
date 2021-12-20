@@ -41,7 +41,6 @@ impl BlockIndexBuilder {
         block_data: &mut Vec<u8>,
     ) {
         self.indexes.push(BlockIndex {
-            block_type: block_type.into(),
             offset: column_data.len() as u64,
             length: block_data.len() as u64 + BLOCK_HEADER_SIZE as u64,
             first_rowid: self.last_row_count as u32,
