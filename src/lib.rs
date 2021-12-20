@@ -3,7 +3,7 @@
 #![deny(clippy::explicit_into_iter_loop)]
 #![deny(clippy::explicit_iter_loop)]
 #![deny(unused_must_use)]
-#![cfg_attr(feature = "simd", feature(portable_simd))]
+#![feature(portable_simd)]
 
 // Enable macros for logging.
 #[macro_use]
