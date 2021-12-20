@@ -1,6 +1,6 @@
 use super::*;
 use crate::binder::BoundInsert;
-use crate::logical_optimizer::plan_nodes::{LogicalInsert, LogicalValues};
+use crate::optimizer::plan_nodes::{LogicalInsert, LogicalValues};
 
 impl LogicalPlaner {
     pub fn plan_insert(&self, stmt: BoundInsert) -> Result<PlanRef, LogicalPlanError> {

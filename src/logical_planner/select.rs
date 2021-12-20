@@ -8,7 +8,7 @@
 //! - [`LogicalOrder`] (order by *)
 use super::*;
 use crate::binder::{BoundAggCall, BoundExpr, BoundInputRef, BoundSelect, BoundTableRef};
-use crate::logical_optimizer::plan_nodes::{
+use crate::optimizer::plan_nodes::{
     Dummy, LogicalAggregate, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder,
     LogicalProjection, LogicalSeqScan,
 };

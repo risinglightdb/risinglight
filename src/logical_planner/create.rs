@@ -1,6 +1,6 @@
 use super::*;
 use crate::binder::BoundCreateTable;
-use crate::logical_optimizer::plan_nodes::LogicalCreateTable;
+use crate::optimizer::plan_nodes::LogicalCreateTable;
 
 impl LogicalPlaner {
     pub fn plan_create_table(&self, stmt: BoundCreateTable) -> Result<PlanRef, LogicalPlanError> {

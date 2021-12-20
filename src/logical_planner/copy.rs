@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use super::*;
 use crate::binder::BoundCopy;
-use crate::logical_optimizer::plan_nodes::{
+use crate::optimizer::plan_nodes::{
     LogicalCopyFromFile, LogicalCopyToFile, LogicalInsert, LogicalSeqScan,
 };
 use crate::parser::CopyTarget;

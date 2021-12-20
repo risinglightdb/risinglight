@@ -7,9 +7,9 @@ use crate::array::{ArrayBuilder, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder};
 use crate::binder::{BindError, Binder};
 use crate::catalog::RootCatalogRef;
 use crate::executor::{ExecutorBuilder, ExecutorError, GlobalEnv};
-use crate::logical_optimizer::logical_plan_rewriter::InputRefResolver;
-use crate::logical_optimizer::Optimizer;
 use crate::logical_planner::{LogicalPlanError, LogicalPlaner};
+use crate::optimizer::logical_plan_rewriter::InputRefResolver;
+use crate::optimizer::Optimizer;
 use crate::parser::{parse, ParserError};
 use crate::storage::{
     InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,

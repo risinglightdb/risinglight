@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::logical_optimizer::plan_nodes::PhysicalCreateTable;
+use crate::optimizer::plan_nodes::PhysicalCreateTable;
 use crate::storage::Storage;
 
 /// The executor of `create table` statement.
@@ -30,7 +30,7 @@ mod tests {
 
     use super::*;
     use crate::catalog::{ColumnCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
-    use crate::logical_optimizer::plan_nodes::PhysicalCreateTable;
+    use crate::optimizer::plan_nodes::PhysicalCreateTable;
     use crate::storage::InMemoryStorage;
     use crate::types::{DataTypeExt, DataTypeKind};
 
