@@ -2,7 +2,6 @@ use std::fmt;
 use std::ops::RangeBounds;
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use super::*;
@@ -11,7 +10,7 @@ use crate::types::DataValue;
 /// A collection of arrays.
 ///
 /// A chunk is a horizontal subset of a query result.
-#[derive(Default, Serialize, Deserialize, PartialEq)]
+#[derive(Default, PartialEq)]
 pub struct DataChunk {
     arrays: SmallVec<[ArrayImpl; 16]>,
 }

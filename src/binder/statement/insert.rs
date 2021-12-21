@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 use super::*;
 use crate::catalog::{ColumnCatalog, TableCatalog};
 use crate::parser::{SetExpr, Statement};
-use crate::types::{ColumnId, DataType, DataValue, PhysicalDataTypeKind};
+use crate::types::{ColumnId, DataType, DataValue, Date, PhysicalDataTypeKind};
 
 /// A bound `insert` statement.
 #[derive(Debug, PartialEq, Clone)]
@@ -76,6 +76,9 @@ impl Binder {
                                         // TODO: Decimal cast should not be done in binder, so we
                                         // pass `scale: None` here for now.
                                         expr = Self::cast_expr_to_decimal(expr, None)?;
+                                    }
+                                    (_, PhysicalDataTypeKind::Date) => {
+                                        expr = Self::cast_expr_to_date(expr)?;
                                     }
                                     _ => todo!("type cast: {:?} {:?}", left_kind, right_kind),
                                 }
@@ -186,6 +189,16 @@ impl Binder {
                 }))
             }
             _ => panic!("cannot cast into decimal"),
+        }
+    }
+
+    fn cast_expr_to_date(expr: BoundExpr) -> Result<BoundExpr, BindError> {
+        match expr {
+            BoundExpr::Constant(DataValue::String(s)) => Ok(BoundExpr::Constant(DataValue::Date(
+                Date::from_str(s.as_str())
+                    .map_err(|_| BindError::CastError(DataValue::String(s), DataTypeKind::Date))?,
+            ))),
+            _ => panic!("cannot cast into date"),
         }
     }
 }

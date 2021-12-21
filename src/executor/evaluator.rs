@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use crate::array::*;
 use crate::binder::BoundExpr;
 use crate::parser::{BinaryOperator, UnaryOperator};
-use crate::types::{ConvertError, DataTypeKind, DataValue};
+use crate::types::{ConvertError, DataTypeKind, DataValue, Date};
 
 impl BoundExpr {
     /// Evaluate the given expression as a constant value.
@@ -182,6 +182,7 @@ impl ArrayImpl {
                     Self::Utf8(unary_op(a, |&b| if b { "true" } else { "false" }))
                 }
                 Type::Decimal(_, _) => Self::Decimal(unary_op(a, |&b| Decimal::from(b as u8))),
+                Type::Date => return Err(ConvertError::ToDateError(Type::Boolean)),
                 _ => todo!("cast array"),
             },
             Self::Int32(a) => match data_type {
@@ -192,6 +193,7 @@ impl ArrayImpl {
                     Self::Utf8(unary_op(a, |&i| i.to_string()))
                 }
                 Type::Decimal(_, _) => Self::Decimal(unary_op(a, |&i| Decimal::from(i))),
+                Type::Date => return Err(ConvertError::ToDateError(Type::Int(None))),
                 _ => todo!("cast array"),
             },
             Self::Int64(a) => match data_type {
@@ -202,6 +204,7 @@ impl ArrayImpl {
                     Self::Utf8(unary_op(a, |&i| i.to_string()))
                 }
                 Type::Decimal(_, _) => Self::Decimal(unary_op(a, |&i| Decimal::from(i))),
+                Type::Date => return Err(ConvertError::ToDateError(Type::BigInt(None))),
                 _ => todo!("cast array"),
             },
             Self::Float64(a) => match data_type {
@@ -215,6 +218,7 @@ impl ArrayImpl {
                     Decimal::from_f64_retain(f)
                         .ok_or(ConvertError::ToDecimalError(DataValue::Float64(f)))
                 })?),
+                Type::Date => return Err(ConvertError::ToDateError(Type::Double)),
                 _ => todo!("cast array"),
             },
             Self::Utf8(a) => match data_type {
@@ -234,10 +238,13 @@ impl ArrayImpl {
                 Type::Decimal(_, _) => Self::Decimal(try_unary_op(a, |s| {
                     Decimal::from_str(s).map_err(|e| ConvertError::ParseDecimal(s.to_string(), e))
                 })?),
+                Type::Date => Self::Date(try_unary_op(a, |s| {
+                    Date::from_str(s).map_err(|e| ConvertError::ParseDate(s.to_string(), e))
+                })?),
                 _ => todo!("cast array"),
             },
             Self::Decimal(a) => match data_type {
-                Type::Boolean => Self::Bool(unary_op(a, |&d| d != Decimal::from(0))),
+                Type::Boolean => Self::Bool(unary_op(a, |&d| d != Decimal::from(0_i32))),
                 Type::Int(_) => Self::Int32(try_unary_op(a, |&d| {
                     d.to_i32().ok_or(ConvertError::FromDecimalError(
                         DataTypeKind::Int(None),
@@ -254,7 +261,14 @@ impl ArrayImpl {
                     Self::Utf8(unary_op(a, |d| d.to_string()))
                 }
                 Type::Decimal(_, _) => Self::Decimal(a.clone()),
+                Type::Date => return Err(ConvertError::ToDateError(Type::Decimal(None, None))),
                 _ => todo!("cast array"),
+            },
+            Self::Date(a) => match data_type {
+                Type::String | Type::Char(_) | Type::Varchar(_) => {
+                    Self::Utf8(unary_op(a, |&d| d.to_string()))
+                }
+                ty => return Err(ConvertError::FromDateError(ty)),
             },
         })
     }
