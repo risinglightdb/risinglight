@@ -1,6 +1,7 @@
-use super::Array;
 use std::iter::Iterator;
 use std::marker::PhantomData;
+
+use super::Array;
 
 /// An iterator over the elements of an [`Array`].
 #[derive(Clone)]

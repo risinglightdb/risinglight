@@ -1,7 +1,9 @@
-use super::{Array, ArrayBuilder};
-use bitvec::vec::BitVec;
 use std::fmt::Debug;
 use std::iter::FromIterator;
+
+use bitvec::vec::BitVec;
+
+use super::{Array, ArrayBuilder};
 
 /// A collection of primitive types, such as `i32`, `f32`.
 #[derive(Debug, Clone, PartialEq)]

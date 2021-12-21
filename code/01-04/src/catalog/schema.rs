@@ -1,6 +1,7 @@
-use super::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
+use super::*;
 
 /// The catalog of a schema.
 pub struct SchemaCatalog {

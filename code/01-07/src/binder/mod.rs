@@ -1,9 +1,10 @@
 //! Resolve all expressions referring with their names.
 
-use crate::catalog::*;
-use crate::parser::{Ident, ObjectName, Statement};
 use std::collections::HashMap;
 use std::vec::Vec;
+
+use crate::catalog::*;
+use crate::parser::{Ident, ObjectName, Statement};
 
 mod expression;
 mod statement;

@@ -1,6 +1,8 @@
-use super::{Array, ArrayBuilder};
-use bitvec::vec::BitVec;
 use std::iter::FromIterator;
+
+use bitvec::vec::BitVec;
+
+use super::{Array, ArrayBuilder};
 
 /// A collection of Rust UTF-8 [`String`]s.
 #[derive(Clone, PartialEq)]

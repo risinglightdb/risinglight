@@ -1,11 +1,10 @@
-use super::*;
-use crate::{
-    array::{ArrayBuilderImpl, DataChunk},
-    catalog::{ColumnId, TableRefId},
-    storage::StorageRef,
-    types::{DataType, DataValue},
-};
 use itertools::Itertools;
+
+use super::*;
+use crate::array::{ArrayBuilderImpl, DataChunk};
+use crate::catalog::{ColumnId, TableRefId};
+use crate::storage::StorageRef;
+use crate::types::{DataType, DataValue};
 
 /// The executor of `INSERT` statement.
 pub struct InsertExecutor {

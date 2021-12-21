@@ -1,11 +1,12 @@
-use super::*;
-use crate::{
-    catalog::{ColumnCatalog, ColumnId, TableCatalog},
-    parser::{SetExpr, Statement},
-    types::{DataType, DataTypeKind},
-};
+use std::collections::HashSet;
+use std::sync::Arc;
+
 use itertools::Itertools;
-use std::{collections::HashSet, sync::Arc};
+
+use super::*;
+use crate::catalog::{ColumnCatalog, ColumnId, TableCatalog};
+use crate::parser::{SetExpr, Statement};
+use crate::types::{DataType, DataTypeKind};
 
 /// A bound `INSERT` statement.
 #[derive(Debug, PartialEq, Clone)]

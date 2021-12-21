@@ -6,10 +6,8 @@
 //! - [`LogicalProjection`] (select *)
 
 use super::*;
-use crate::{
-    binder::{BoundExpr, BoundSelect},
-    catalog::{ColumnId, TableRefId},
-};
+use crate::binder::{BoundExpr, BoundSelect};
+use crate::catalog::{ColumnId, TableRefId};
 
 /// The logical plan of dummy get.
 #[derive(Debug, PartialEq, Clone)]

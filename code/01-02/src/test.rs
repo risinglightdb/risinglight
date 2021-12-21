@@ -1,6 +1,8 @@
-use crate::{Database, Error};
 use std::path::Path;
+
 use test_case::test_case;
+
+use crate::{Database, Error};
 
 #[test_case("01-01.slt")]
 fn test(name: &str) {

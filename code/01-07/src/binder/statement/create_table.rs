@@ -1,10 +1,9 @@
-use super::*;
-use crate::{
-    catalog::ColumnDesc,
-    parser::{ColumnDef, ColumnOption, Statement},
-    types::DataType,
-};
 use std::collections::HashSet;
+
+use super::*;
+use crate::catalog::ColumnDesc;
+use crate::parser::{ColumnDef, ColumnOption, Statement};
+use crate::types::DataType;
 
 /// A bound `CREATE TABLE` statement.
 #[derive(Debug, PartialEq, Clone)]
@@ -74,11 +73,12 @@ impl From<&ColumnDef> for ColumnDesc {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
     use crate::catalog::DatabaseCatalog;
     use crate::parser::parse;
     use crate::types::{DataTypeExt, DataTypeKind};
-    use std::sync::Arc;
 
     #[test]
     fn bind_create_table() {

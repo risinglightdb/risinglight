@@ -1,11 +1,9 @@
 //! Execute the queries.
 
-use crate::{
-    array::DataChunk,
-    binder::BoundStatement,
-    catalog::CatalogRef,
-    storage::{StorageError, StorageRef},
-};
+use crate::array::DataChunk;
+use crate::binder::BoundStatement;
+use crate::catalog::CatalogRef;
+use crate::storage::{StorageError, StorageRef};
 
 mod create;
 

@@ -1,5 +1,6 @@
-use crate::logical_planner::{Explain, LogicalPlan};
 use enum_dispatch::enum_dispatch;
+
+use crate::logical_planner::{Explain, LogicalPlan};
 
 mod create;
 mod dummy;

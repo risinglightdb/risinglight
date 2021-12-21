@@ -1,5 +1,7 @@
 use super::*;
-use crate::{binder::BoundCreateTable, catalog::TableRefId, storage::StorageRef};
+use crate::binder::BoundCreateTable;
+use crate::catalog::TableRefId;
+use crate::storage::StorageRef;
 
 /// The executor of `CREATE TABLE` statement.
 pub struct CreateTableExecutor {

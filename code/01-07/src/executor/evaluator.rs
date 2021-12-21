@@ -1,4 +1,7 @@
-use crate::{array::*, binder::BoundExpr, executor::ExecuteError, types::DataValue};
+use crate::array::*;
+use crate::binder::BoundExpr;
+use crate::executor::ExecuteError;
+use crate::types::DataValue;
 
 impl BoundExpr {
     /// Evaluate the given expression as a constant value.

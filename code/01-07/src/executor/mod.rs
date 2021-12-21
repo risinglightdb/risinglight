@@ -1,11 +1,9 @@
 //! Execute the queries.
 
-use crate::{
-    array::DataChunk,
-    catalog::CatalogRef,
-    physical_planner::PhysicalPlan,
-    storage::{StorageError, StorageRef},
-};
+use crate::array::DataChunk;
+use crate::catalog::CatalogRef;
+use crate::physical_planner::PhysicalPlan;
+use crate::storage::{StorageError, StorageRef};
 
 mod create;
 mod dummy;

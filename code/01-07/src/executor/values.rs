@@ -1,8 +1,9 @@
+use itertools::Itertools;
+
 use super::*;
 use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::binder::BoundExpr;
 use crate::types::DataType;
-use itertools::Itertools;
 
 /// The executor of `VALUES`.
 pub struct ValuesExecutor {

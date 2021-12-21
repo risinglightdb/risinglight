@@ -1,6 +1,7 @@
-use super::*;
 use std::fmt;
 use std::sync::Arc;
+
+use super::*;
 
 /// A collection of arrays.
 ///

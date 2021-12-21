@@ -2,16 +2,14 @@
 
 use std::sync::Arc;
 
-use crate::{
-    array::DataChunk,
-    binder::{BindError, Binder},
-    catalog::{CatalogRef, DatabaseCatalog},
-    executor::{ExecuteError, ExecutorBuilder},
-    logical_planner::{LogicalPlanError, LogicalPlanner},
-    parser::{parse, ParserError},
-    physical_planner::{PhysicalPlanError, PhysicalPlanner},
-    storage::InMemoryStorage,
-};
+use crate::array::DataChunk;
+use crate::binder::{BindError, Binder};
+use crate::catalog::{CatalogRef, DatabaseCatalog};
+use crate::executor::{ExecuteError, ExecutorBuilder};
+use crate::logical_planner::{LogicalPlanError, LogicalPlanner};
+use crate::parser::{parse, ParserError};
+use crate::physical_planner::{PhysicalPlanError, PhysicalPlanner};
+use crate::storage::InMemoryStorage;
 
 /// The database instance.
 pub struct Database {

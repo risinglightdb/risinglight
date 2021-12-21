@@ -1,7 +1,8 @@
 //! A simple interactive shell of the database.
 
 use risinglight_01_04::Database;
-use rustyline::{error::ReadlineError, Editor};
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
 
 fn main() {
     env_logger::init();

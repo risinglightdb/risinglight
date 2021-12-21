@@ -1,7 +1,8 @@
 //! In-memory representations of a column values.
 
-use crate::types::{DataType, DataTypeKind, DataValue};
 use std::convert::TryFrom;
+
+use crate::types::{DataType, DataTypeKind, DataValue};
 
 mod data_chunk;
 mod iter;

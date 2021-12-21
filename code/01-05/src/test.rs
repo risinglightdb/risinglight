@@ -1,6 +1,10 @@
-use crate::{array::DataChunk, types::DataValue, Database, Error};
 use std::path::Path;
+
 use test_case::test_case;
+
+use crate::array::DataChunk;
+use crate::types::DataValue;
+use crate::{Database, Error};
 
 #[test_case("01-03.slt")]
 #[test_case("01-05.slt")]

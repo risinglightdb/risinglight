@@ -1,9 +1,8 @@
-use super::*;
-use crate::{
-    binder::BoundCreateTable,
-    catalog::{ColumnDesc, SchemaId},
-};
 use itertools::Itertools;
+
+use super::*;
+use crate::binder::BoundCreateTable;
+use crate::catalog::{ColumnDesc, SchemaId};
 
 /// The logical plan of `CREATE TABLE`.
 #[derive(Debug, PartialEq, Clone)]

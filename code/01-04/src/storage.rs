@@ -4,10 +4,11 @@
 //! it is simple a vector of `DataChunk`. Upon insertion, users' data are
 //! simply appended to the end of the vector.
 
-use crate::array::DataChunk;
-use crate::catalog::TableRefId;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
+
+use crate::array::DataChunk;
+use crate::catalog::TableRefId;
 
 /// The error type of storage operations.
 #[derive(thiserror::Error, Debug)]

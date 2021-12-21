@@ -1,8 +1,9 @@
+use itertools::Itertools;
+
 use super::*;
 use crate::binder::{BoundExpr, BoundInsert};
 use crate::catalog::{ColumnId, TableRefId};
 use crate::types::DataType;
-use itertools::Itertools;
 
 /// The logical plan of `INSERT`.
 #[derive(Debug, PartialEq, Clone)]

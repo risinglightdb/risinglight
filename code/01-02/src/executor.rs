@@ -1,7 +1,8 @@
 //! Execute the queries.
 
-use crate::parser::{Expr, SelectItem, SetExpr, Statement, Value};
 use std::fmt::Write;
+
+use crate::parser::{Expr, SelectItem, SetExpr, Statement, Value};
 
 pub fn execute(stmt: &Statement) -> Result<String, ExecuteError> {
     match stmt {

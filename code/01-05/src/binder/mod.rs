@@ -1,8 +1,9 @@
 //! Resolve all expressions referring with their names.
 
+use std::vec::Vec;
+
 use crate::catalog::*;
 use crate::parser::{Ident, ObjectName, Statement};
-use std::vec::Vec;
 
 mod expression;
 mod statement;

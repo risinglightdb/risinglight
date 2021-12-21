@@ -1,9 +1,7 @@
 //! Top-level structure of the database.
 
-use crate::{
-    executor::{execute, ExecuteError},
-    parser::{parse, ParserError},
-};
+use crate::executor::{execute, ExecuteError};
+use crate::parser::{parse, ParserError};
 
 /// The database instance.
 #[derive(Default)]

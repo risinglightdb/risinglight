@@ -1,7 +1,8 @@
+use itertools::Itertools;
+
 use super::*;
 use crate::catalog::{ColumnDesc, SchemaId};
 use crate::logical_planner::LogicalCreateTable;
-use itertools::Itertools;
 
 /// The physical plan of `CREATE TABLE`.
 #[derive(Debug, PartialEq, Clone)]

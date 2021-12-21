@@ -1,7 +1,9 @@
-use super::*;
-use itertools::Itertools;
 use std::fmt;
 use std::sync::Arc;
+
+use itertools::Itertools;
+
+use super::*;
 
 /// A collection of arrays.
 ///

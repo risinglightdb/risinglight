@@ -1,6 +1,8 @@
-use crate::binder::BoundStatement;
-use enum_dispatch::enum_dispatch;
 use std::rc::Rc;
+
+use enum_dispatch::enum_dispatch;
+
+use crate::binder::BoundStatement;
 
 mod create;
 mod explain;

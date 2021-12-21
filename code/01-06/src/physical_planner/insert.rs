@@ -1,9 +1,10 @@
+use itertools::Itertools;
+
 use super::*;
 use crate::binder::BoundExpr;
 use crate::catalog::{ColumnId, TableRefId};
 use crate::logical_planner::{LogicalInsert, LogicalValues};
 use crate::types::DataType;
-use itertools::Itertools;
 
 /// The physical plan of `INSERT`.
 #[derive(Debug, PartialEq, Clone)]

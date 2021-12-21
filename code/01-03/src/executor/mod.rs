@@ -1,6 +1,7 @@
 //! Execute the queries.
 
-use crate::{binder::BoundStatement, catalog::CatalogRef};
+use crate::binder::BoundStatement;
+use crate::catalog::CatalogRef;
 
 mod create;
 

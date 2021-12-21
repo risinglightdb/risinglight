@@ -1,6 +1,7 @@
-use super::*;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
+
+use super::*;
 
 /// The catalog of a table.
 pub struct TableCatalog {
