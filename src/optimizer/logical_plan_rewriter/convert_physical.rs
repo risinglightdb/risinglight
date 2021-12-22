@@ -39,7 +39,6 @@ impl Rewriter for PhysicalConverter {
         true
     }
     fn rewrite_logical_join(&mut self, logical_join: LogicalJoin) -> PlanRef {
-        //
         Rc::new(PhysicalNestedLoopJoin::new(
             logical_join.left_plan.rewrite(self),
             logical_join.right_plan.rewrite(self),
