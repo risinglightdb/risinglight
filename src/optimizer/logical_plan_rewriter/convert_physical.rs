@@ -10,6 +10,7 @@ impl Rewriter for PhysicalConverter {
             column_ids: plan.column_ids,
             with_row_handler: plan.with_row_handler,
             is_sorted: plan.is_sorted,
+            column_descs: plan.column_descs,
         })
     }
     fn rewrite_logical_projection(&mut self, plan: LogicalProjection) -> PlanRef {
@@ -38,12 +39,12 @@ impl Rewriter for PhysicalConverter {
         true
     }
     fn rewrite_logical_join(&mut self, logical_join: LogicalJoin) -> PlanRef {
-        Rc::new(PhysicalJoin {
-            join_type: PhysicalJoinType::NestedLoop,
-            left_plan: logical_join.left_plan.rewrite(self),
-            right_plan: logical_join.right_plan.rewrite(self),
-            join_op: logical_join.join_op,
-        })
+        Rc::new(PhysicalJoin::new(
+            PhysicalJoinType::NestedLoop,
+            logical_join.left_plan.rewrite(self),
+            logical_join.right_plan.rewrite(self),
+            logical_join.join_op,
+        ))
     }
 
     fn rewrite_logical_insert(&mut self, plan: LogicalInsert) -> PlanRef {
@@ -113,16 +114,13 @@ impl Rewriter for PhysicalConverter {
 
     fn rewrite_logical_aggregate(&mut self, plan: LogicalAggregate) -> PlanRef {
         if plan.group_keys.is_empty() {
-            Rc::new(PhysicalSimpleAgg {
-                agg_calls: plan.agg_calls,
-                child: plan.child,
-            })
+            Rc::new(PhysicalSimpleAgg::new(plan.agg_calls, plan.child))
         } else {
-            Rc::new(PhysicalHashAgg {
-                agg_calls: plan.agg_calls,
-                group_keys: plan.group_keys,
-                child: plan.child,
-            })
+            Rc::new(PhysicalHashAgg::new(
+                plan.agg_calls,
+                plan.group_keys,
+                plan.child,
+            ))
         }
     }
 }

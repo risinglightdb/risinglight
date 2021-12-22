@@ -8,13 +8,16 @@ use paste::paste;
 use smallvec::SmallVec;
 
 use crate::binder::BoundExpr;
-
+use crate::types::DataType;
 /// The common trait over all plan nodes.
 pub trait PlanNode: PlanTreeNode + Debug + Display + Downcast {
     /// Call [`rewrite_expr`] on each expressions of the plan.
     ///
     /// [`rewrite_expr`]: Rewriter::rewrite_expr
     fn rewrite_expr(&mut self, _rewriter: &mut dyn Rewriter) {}
+    fn out_types(&self) -> Vec<DataType> {
+        vec![]
+    }
 }
 
 impl_downcast!(PlanNode);

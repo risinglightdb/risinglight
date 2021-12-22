@@ -8,6 +8,21 @@ use crate::binder::BoundAggCall;
 pub struct PhysicalSimpleAgg {
     pub agg_calls: Vec<BoundAggCall>,
     pub child: PlanRef,
+    data_types: Vec<DataType>,
+}
+
+impl PhysicalSimpleAgg {
+    pub fn new(agg_calls: Vec<BoundAggCall>, child: PlanRef) -> Self {
+        let data_types = agg_calls
+            .iter()
+            .map(|agg_call| agg_call.return_type.clone())
+            .collect();
+        PhysicalSimpleAgg {
+            agg_calls,
+            child,
+            data_types,
+        }
+    }
 }
 
 impl_plan_tree_node!(PhysicalSimpleAgg, [child]);
@@ -18,6 +33,9 @@ impl PlanNode for PhysicalSimpleAgg {
                 rewriter.rewrite_expr(arg);
             }
         }
+    }
+    fn out_types(&self) -> Vec<DataType> {
+        self.data_types.clone()
     }
 }
 

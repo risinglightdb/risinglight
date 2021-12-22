@@ -9,6 +9,27 @@ pub struct PhysicalHashAgg {
     pub agg_calls: Vec<BoundAggCall>,
     pub group_keys: Vec<BoundExpr>,
     pub child: PlanRef,
+    data_types: Vec<DataType>,
+}
+
+impl PhysicalHashAgg {
+    pub fn new(agg_calls: Vec<BoundAggCall>, group_keys: Vec<BoundExpr>, child: PlanRef) -> Self {
+        let data_types = group_keys
+            .iter()
+            .map(|expr| expr.return_type().unwrap())
+            .chain(
+                agg_calls
+                    .iter()
+                    .map(|agg_call| agg_call.return_type.clone()),
+            )
+            .collect();
+        PhysicalHashAgg {
+            agg_calls,
+            group_keys,
+            child,
+            data_types,
+        }
+    }
 }
 
 impl_plan_tree_node!(PhysicalHashAgg, [child]);
@@ -22,6 +43,9 @@ impl PlanNode for PhysicalHashAgg {
         for keys in &mut self.group_keys {
             rewriter.rewrite_expr(keys);
         }
+    }
+    fn out_types(&self) -> Vec<DataType> {
+        self.data_types.clone()
     }
 }
 impl fmt::Display for PhysicalHashAgg {

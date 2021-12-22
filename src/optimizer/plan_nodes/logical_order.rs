@@ -17,6 +17,9 @@ impl PlanNode for LogicalOrder {
             rewriter.rewrite_expr(&mut cmp.expr);
         }
     }
+    fn out_types(&self) -> Vec<DataType> {
+        self.child.out_types()
+    }
 }
 
 impl fmt::Display for LogicalOrder {

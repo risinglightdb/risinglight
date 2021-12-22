@@ -20,6 +20,9 @@ impl PlanNode for LogicalValues {
             }
         }
     }
+    fn out_types(&self) -> Vec<DataType> {
+        self.column_types.clone()
+    }
 }
 
 impl fmt::Display for LogicalValues {

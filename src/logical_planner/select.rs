@@ -39,11 +39,11 @@ impl LogicalPlaner {
             agg_extractor.visit_expr(expr);
         }
         if !agg_extractor.agg_calls.is_empty() {
-            plan = Rc::new(LogicalAggregate {
-                agg_calls: agg_extractor.agg_calls,
-                group_keys: stmt.group_by,
-                child: plan,
-            })
+            plan = Rc::new(LogicalAggregate::new(
+                agg_extractor.agg_calls,
+                stmt.group_by,
+                plan,
+            ));
         }
 
         // TODO: support the following clauses
@@ -96,9 +96,11 @@ impl LogicalPlaner {
                 ref_id,
                 table_name: _,
                 column_ids,
+                column_descs,
             } => Ok(Rc::new(LogicalSeqScan {
                 table_ref_id: *ref_id,
                 column_ids: column_ids.to_vec(),
+                column_descs: column_descs.to_vec(),
                 with_row_handler,
                 is_sorted,
             })),
@@ -110,11 +112,11 @@ impl LogicalPlaner {
                 for join_table in join_tables.iter() {
                     let table_plan =
                         self.plan_table_ref(&join_table.table_ref, with_row_handler, is_sorted)?;
-                    plan = Rc::new(LogicalJoin {
-                        left_plan: plan,
-                        right_plan: table_plan,
-                        join_op: join_table.join_op.clone(),
-                    });
+                    plan = Rc::new(LogicalJoin::new(
+                        plan,
+                        table_plan,
+                        join_table.join_op.clone(),
+                    ));
                 }
                 Ok(plan)
             }

@@ -15,6 +15,7 @@ impl LogicalPlaner {
         };
         let column_ids = stmt.columns.iter().map(|col| col.id()).collect();
         let column_types = stmt.columns.iter().map(|col| col.datatype()).collect();
+        let column_descs = stmt.columns.iter().map(|col| col.desc().clone()).collect();
         if stmt.to {
             Ok(Rc::new(LogicalCopyToFile {
                 path,
@@ -23,6 +24,7 @@ impl LogicalPlaner {
                 child: Rc::new(LogicalSeqScan {
                     table_ref_id: stmt.table_ref_id,
                     column_ids,
+                    column_descs,
                     with_row_handler: false,
                     is_sorted: false,
                 }),

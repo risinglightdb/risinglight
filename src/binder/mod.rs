@@ -2,7 +2,9 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::vec::Vec;
 
-use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
+use crate::catalog::{
+    ColumnDesc, RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME,
+};
 use crate::parser::{Ident, ObjectName, Statement};
 use crate::types::{ColumnId, DataTypeKind, DataValue};
 
@@ -69,6 +71,8 @@ struct BinderContext {
     column_names: HashMap<String, HashSet<String>>,
     // Mapping table name to its column ids
     column_ids: HashMap<String, Vec<ColumnId>>,
+    // Mapping table name to its column descrptions
+    column_descs: HashMap<String, Vec<ColumnDesc>>,
 }
 
 /// The binder resolves all expressions referring to schema objects such as

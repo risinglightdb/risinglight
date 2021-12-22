@@ -17,7 +17,11 @@ pub struct LogicalCopyFromFile {
 }
 
 impl_plan_tree_node!(LogicalCopyFromFile);
-impl PlanNode for LogicalCopyFromFile {}
+impl PlanNode for LogicalCopyFromFile {
+    fn out_types(&self) -> Vec<DataType> {
+        self.column_types.clone()
+    }
+}
 
 impl fmt::Display for LogicalCopyFromFile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
