@@ -58,7 +58,12 @@ impl Binder {
                         let table = self.catalog.get_table(ref_id).unwrap();
                         if let Some(col) = table.get_column_by_id(0) {
                             let column_ref_id = ColumnRefId::from_table(*ref_id, col.id());
-                            self.record_regular_table_column(&table.name(), col.name(), col.id(), col.desc().clone());
+                            self.record_regular_table_column(
+                                &table.name(),
+                                col.name(),
+                                col.id(),
+                                col.desc().clone(),
+                            );
                             let expr = BoundExpr::ColumnRef(BoundColumnRef {
                                 table_name: table.name(),
                                 column_ref_id,

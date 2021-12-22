@@ -3,9 +3,8 @@ use std::fmt;
 use itertools::Itertools;
 
 use super::*;
-use crate::catalog::TableRefId;
+use crate::catalog::{ColumnDesc, TableRefId};
 use crate::types::ColumnId;
-use crate::catalog::ColumnDesc;
 /// The logical plan of sequential scan operation.
 #[derive(Debug, Clone)]
 pub struct LogicalSeqScan {
@@ -17,7 +16,15 @@ pub struct LogicalSeqScan {
 }
 
 impl_plan_tree_node!(LogicalSeqScan);
-impl PlanNode for LogicalSeqScan {}
+impl PlanNode for LogicalSeqScan {
+    fn out_types(&self) -> Vec<DataType> {
+        return self
+            .column_descs
+            .iter()
+            .map(|desc| desc.datatype().clone())
+            .collect();
+    }
+}
 impl fmt::Display for LogicalSeqScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(

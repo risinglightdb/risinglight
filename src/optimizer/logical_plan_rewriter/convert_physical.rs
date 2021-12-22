@@ -10,6 +10,7 @@ impl Rewriter for PhysicalConverter {
             column_ids: plan.column_ids,
             with_row_handler: plan.with_row_handler,
             is_sorted: plan.is_sorted,
+            column_descs: plan.column_descs,
         })
     }
     fn rewrite_logical_projection(&mut self, plan: LogicalProjection) -> PlanRef {
