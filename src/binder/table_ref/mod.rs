@@ -1,7 +1,9 @@
 use std::vec::Vec;
 
+use super::BoundExpr::*;
 use super::*;
 use crate::parser::{JoinConstraint, JoinOperator, TableFactor, TableWithJoins};
+use crate::types::DataValue::Bool;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundedSingleJoinTableRef {
@@ -43,7 +45,6 @@ pub enum BoundJoinOperator {
     LeftOuter(BoundJoinConstraint),
     RightOuter(BoundJoinConstraint),
     FullOuter(BoundJoinConstraint),
-    CrossJoin,
 }
 
 impl std::fmt::Debug for BoundJoinOperator {
@@ -53,7 +54,6 @@ impl std::fmt::Debug for BoundJoinOperator {
             Self::LeftOuter(constraint) => write!(f, "Left Outer {:?}", constraint),
             Self::RightOuter(constraint) => write!(f, "Right Outer {:?}", constraint),
             Self::FullOuter(constraint) => write!(f, "Full Outer {:?}", constraint),
-            Self::CrossJoin => write!(f, "Cross Join"),
         }
     }
 }
@@ -97,7 +97,10 @@ impl Binder {
                 let constraint = self.bind_join_constraint(constraint)?;
                 Ok(BoundJoinOperator::FullOuter(constraint))
             }
-            JoinOperator::CrossJoin => Ok(BoundJoinOperator::CrossJoin),
+            JoinOperator::CrossJoin => Ok(BoundJoinOperator::Inner(BoundJoinConstraint::On(
+                Constant(Bool(true)),
+            ))),
+
             _ => todo!("Support more join types"),
         }
     }

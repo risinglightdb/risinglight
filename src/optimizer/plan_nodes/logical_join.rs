@@ -39,7 +39,6 @@ impl PlanNode for LogicalJoin {
             LeftOuter(On(expr)) => rewriter.rewrite_expr(expr),
             RightOuter(On(expr)) => rewriter.rewrite_expr(expr),
             FullOuter(On(expr)) => rewriter.rewrite_expr(expr),
-            CrossJoin => {}
         }
     }
     fn out_types(&self) -> Vec<DataType> {
