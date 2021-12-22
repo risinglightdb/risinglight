@@ -17,6 +17,12 @@ impl PlanNode for LogicalProjection {
             rewriter.rewrite_expr(expr);
         }
     }
+    fn out_types(&self) -> Vec<DataType> {
+        self.project_expressions
+            .iter()
+            .map(|expr| expr.return_type().unwrap())
+            .collect()
+    }
 }
 
 impl fmt::Display for LogicalProjection {

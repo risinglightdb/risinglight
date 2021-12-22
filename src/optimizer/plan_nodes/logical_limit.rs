@@ -11,7 +11,11 @@ pub struct LogicalLimit {
 }
 
 impl_plan_tree_node!(LogicalLimit, [child]);
-impl PlanNode for LogicalLimit {}
+impl PlanNode for LogicalLimit {
+    fn out_types(&self) -> Vec<DataType> {
+        self.child.out_types()
+    }
+}
 
 impl fmt::Display for LogicalLimit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -12,7 +12,11 @@ pub struct PhysicalValues {
 }
 
 impl_plan_tree_node!(PhysicalValues);
-impl PlanNode for PhysicalValues {}
+impl PlanNode for PhysicalValues {
+    fn out_types(&self) -> Vec<DataType> {
+        self.column_types.clone()
+    }
+}
 impl fmt::Display for PhysicalValues {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "PhysicalValues: {} rows", self.values.len())

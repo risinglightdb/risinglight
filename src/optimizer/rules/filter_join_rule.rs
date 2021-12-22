@@ -27,11 +27,11 @@ impl Rule for FilterJoinRule {
             right_expr: Box::new(filter.expr.clone()),
             return_type: Some(DataTypeKind::Boolean.nullable()),
         });
-        Ok(Rc::new(LogicalJoin {
-            left_plan: join.left_plan.clone(),
-            right_plan: join.right_plan.clone(),
-            join_op: Inner(On(join_cond)),
-        }))
+        Ok(Rc::new(LogicalJoin::new(
+            join.left_plan.clone(),
+            join.right_plan.clone(),
+            Inner(On(join_cond)),
+        )))
 
         // TODO: we need schema of operator to push condition to each side.
         // let filter_conds = to_cnf(filter.expr.clone());

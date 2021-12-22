@@ -10,6 +10,27 @@ pub struct LogicalAggregate {
     /// Group keys in hash aggregation (optional)
     pub group_keys: Vec<BoundExpr>,
     pub child: PlanRef,
+    data_types: Vec<DataType>,
+}
+
+impl LogicalAggregate {
+    pub fn new(agg_calls: Vec<BoundAggCall>, group_keys: Vec<BoundExpr>, child: PlanRef) -> Self {
+        let data_types = group_keys
+            .iter()
+            .map(|expr| expr.return_type().unwrap())
+            .chain(
+                agg_calls
+                    .iter()
+                    .map(|agg_call| agg_call.return_type.clone()),
+            )
+            .collect();
+        LogicalAggregate {
+            agg_calls,
+            group_keys,
+            child,
+            data_types,
+        }
+    }
 }
 
 impl_plan_tree_node!(LogicalAggregate, [child]);
@@ -23,6 +44,9 @@ impl PlanNode for LogicalAggregate {
         for keys in &mut self.group_keys {
             rewriter.rewrite_expr(keys);
         }
+    }
+    fn out_types(&self) -> Vec<DataType> {
+        self.data_types.clone()
     }
 }
 impl fmt::Display for LogicalAggregate {

@@ -17,6 +17,9 @@ impl PlanNode for PhysicalOrder {
             rewriter.rewrite_expr(&mut cmp.expr);
         }
     }
+    fn out_types(&self) -> Vec<DataType> {
+        self.child.out_types()
+    }
 }
 impl fmt::Display for PhysicalOrder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

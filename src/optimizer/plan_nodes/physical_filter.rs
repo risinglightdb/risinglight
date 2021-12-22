@@ -15,6 +15,9 @@ impl PlanNode for PhysicalFilter {
     fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
         rewriter.rewrite_expr(&mut self.expr);
     }
+    fn out_types(&self) -> Vec<DataType> {
+        self.child.out_types()
+    }
 }
 impl fmt::Display for PhysicalFilter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
