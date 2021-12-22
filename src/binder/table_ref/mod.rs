@@ -9,6 +9,7 @@ use crate::types::DataValue::Bool;
 pub struct BoundedSingleJoinTableRef {
     pub table_ref: Box<BoundTableRef>,
     pub join_op: BoundJoinOperator,
+    pub join_cond: BoundExpr,
 }
 
 /// A bound table reference.
@@ -26,34 +27,21 @@ pub enum BoundTableRef {
     },
 }
 
-#[derive(PartialEq, Clone)]
-pub enum BoundJoinConstraint {
-    On(BoundExpr),
-}
-
-impl std::fmt::Debug for BoundJoinConstraint {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::On(expr) => write!(f, "On {:?}", expr),
-        }
-    }
-}
-
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum BoundJoinOperator {
-    Inner(BoundJoinConstraint),
-    LeftOuter(BoundJoinConstraint),
-    RightOuter(BoundJoinConstraint),
-    FullOuter(BoundJoinConstraint),
+    Inner,
+    LeftOuter,
+    RightOuter,
+    FullOuter,
 }
 
 impl std::fmt::Debug for BoundJoinOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Inner(constraint) => write!(f, "Inner {:?}", constraint),
-            Self::LeftOuter(constraint) => write!(f, "Left Outer {:?}", constraint),
-            Self::RightOuter(constraint) => write!(f, "Right Outer {:?}", constraint),
-            Self::FullOuter(constraint) => write!(f, "Full Outer {:?}", constraint),
+            Self::Inner => write!(f, "Inner"),
+            Self::LeftOuter => write!(f, "Left Outer"),
+            Self::RightOuter => write!(f, "Right Outer"),
+            Self::FullOuter => write!(f, "Full Outer"),
         }
     }
 }
@@ -67,10 +55,11 @@ impl Binder {
         let mut join_tables = vec![];
         for join in &table_with_joins.joins {
             let join_table = self.bind_table_ref(&join.relation)?;
-            let join_op = self.bind_join_op(&join.join_operator)?;
+            let (join_op, join_cond) = self.bind_join_op(&join.join_operator)?;
             let join_ref = BoundedSingleJoinTableRef {
                 table_ref: (join_table.into()),
                 join_op,
+                join_cond,
             };
             join_tables.push(join_ref);
         }
@@ -79,28 +68,28 @@ impl Binder {
             join_tables,
         })
     }
-    pub fn bind_join_op(&mut self, join_op: &JoinOperator) -> Result<BoundJoinOperator, BindError> {
+    pub fn bind_join_op(
+        &mut self,
+        join_op: &JoinOperator,
+    ) -> Result<(BoundJoinOperator, BoundExpr), BindError> {
         match join_op {
             JoinOperator::Inner(constraint) => {
-                let constraint = self.bind_join_constraint(constraint)?;
-                Ok(BoundJoinOperator::Inner(constraint))
+                let condition = self.bind_join_constraint(constraint)?;
+                Ok((BoundJoinOperator::Inner, condition))
             }
             JoinOperator::LeftOuter(constraint) => {
-                let constraint = self.bind_join_constraint(constraint)?;
-                Ok(BoundJoinOperator::LeftOuter(constraint))
+                let condition = self.bind_join_constraint(constraint)?;
+                Ok((BoundJoinOperator::LeftOuter, condition))
             }
             JoinOperator::RightOuter(constraint) => {
-                let constraint = self.bind_join_constraint(constraint)?;
-                Ok(BoundJoinOperator::RightOuter(constraint))
+                let condition = self.bind_join_constraint(constraint)?;
+                Ok((BoundJoinOperator::RightOuter, condition))
             }
             JoinOperator::FullOuter(constraint) => {
-                let constraint = self.bind_join_constraint(constraint)?;
-                Ok(BoundJoinOperator::FullOuter(constraint))
+                let condition = self.bind_join_constraint(constraint)?;
+                Ok((BoundJoinOperator::FullOuter, condition))
             }
-            JoinOperator::CrossJoin => Ok(BoundJoinOperator::Inner(BoundJoinConstraint::On(
-                Constant(Bool(true)),
-            ))),
-
+            JoinOperator::CrossJoin => Ok((BoundJoinOperator::Inner, Constant(Bool(true)))),
             _ => todo!("Support more join types"),
         }
     }
@@ -108,11 +97,11 @@ impl Binder {
     pub fn bind_join_constraint(
         &mut self,
         join_constraint: &JoinConstraint,
-    ) -> Result<BoundJoinConstraint, BindError> {
+    ) -> Result<BoundExpr, BindError> {
         match join_constraint {
             JoinConstraint::On(expr) => {
                 let expr = self.bind_expr(expr)?;
-                Ok(BoundJoinConstraint::On(expr))
+                Ok(expr)
             }
             _ => todo!("Support more join constraints"),
         }

@@ -180,7 +180,8 @@ impl Visitor for ExecutorBuilder {
             NestedLoopJoinExecutor {
                 left_child,
                 right_child,
-                join_op: plan.join_op.clone(),
+                join_op: plan.join_op,
+                condition: plan.condition.clone(),
             }
             .execute()
             .boxed(),

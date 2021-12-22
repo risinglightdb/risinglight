@@ -1,7 +1,7 @@
 use std::fmt;
 
 use super::*;
-use crate::binder::{BoundJoinConstraint, BoundJoinOperator};
+use crate::binder::BoundJoinOperator;
 
 /// The type of join algorithm.
 ///
@@ -18,6 +18,7 @@ pub struct PhysicalJoin {
     pub left_plan: PlanRef,
     pub right_plan: PlanRef,
     pub join_op: BoundJoinOperator,
+    pub condition: BoundExpr,
     data_types: Vec<DataType>,
 }
 
@@ -27,6 +28,7 @@ impl PhysicalJoin {
         left_plan: PlanRef,
         right_plan: PlanRef,
         join_op: BoundJoinOperator,
+        condition: BoundExpr,
     ) -> Self {
         let mut data_types = left_plan.out_types();
         data_types.append(&mut right_plan.out_types());
@@ -35,6 +37,7 @@ impl PhysicalJoin {
             left_plan,
             right_plan,
             join_op,
+            condition,
             data_types,
         }
     }
@@ -43,15 +46,7 @@ impl PhysicalJoin {
 impl_plan_tree_node!(PhysicalJoin, [left_plan, right_plan]);
 impl PlanNode for PhysicalJoin {
     fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
-        use BoundJoinConstraint::*;
-        use BoundJoinOperator::*;
-
-        match &mut self.join_op {
-            Inner(On(expr)) => rewriter.rewrite_expr(expr),
-            LeftOuter(On(expr)) => rewriter.rewrite_expr(expr),
-            RightOuter(On(expr)) => rewriter.rewrite_expr(expr),
-            FullOuter(On(expr)) => rewriter.rewrite_expr(expr),
-        }
+        rewriter.rewrite_expr(&mut self.condition);
     }
     fn out_types(&self) -> Vec<DataType> {
         self.data_types.clone()

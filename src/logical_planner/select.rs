@@ -115,7 +115,8 @@ impl LogicalPlaner {
                     plan = Rc::new(LogicalJoin::new(
                         plan,
                         table_plan,
-                        join_table.join_op.clone(),
+                        join_table.join_op,
+                        join_table.join_cond.clone(),
                     ));
                 }
                 Ok(plan)

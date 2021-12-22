@@ -44,11 +44,10 @@ impl Binder {
             for table_with_join in &select.from[1..] {
                 let join_table = self.bind_table_ref(&table_with_join.relation)?;
                 assert!(table_with_join.joins.is_empty());
-                let join_op =
-                    BoundJoinOperator::Inner(BoundJoinConstraint::On(Constant(Bool(true))));
                 let join_ref = BoundedSingleJoinTableRef {
                     table_ref: (join_table.into()),
-                    join_op,
+                    join_op: BoundJoinOperator::Inner,
+                    join_cond: Constant(Bool(true)),
                 };
                 join_tables.push(join_ref);
             }

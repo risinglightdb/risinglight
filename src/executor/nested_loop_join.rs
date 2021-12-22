@@ -5,18 +5,20 @@ use bitvec::vec::BitVec;
 
 use super::*;
 use crate::array::{ArrayBuilderImpl, DataChunk};
-use crate::binder::{BoundJoinConstraint, BoundJoinOperator};
+use crate::binder::{BoundExpr, BoundJoinOperator};
 use crate::types::DataValue;
 // The executor for nested loop join
 pub struct NestedLoopJoinExecutor {
     pub left_child: BoxedExecutor,
     pub right_child: BoxedExecutor,
     pub join_op: BoundJoinOperator,
+    pub condition: BoundExpr,
 }
 
 impl NestedLoopJoinExecutor {
     pub fn execute_loop_join(
         join_op: BoundJoinOperator,
+        join_cond: BoundExpr,
         left_chunks: Vec<DataChunk>,
         right_chunks: Vec<DataChunk>,
     ) -> Result<Option<DataChunk>, ExecutorError> {
@@ -32,7 +34,7 @@ impl NestedLoopJoinExecutor {
         }
 
         let mut left_bitmaps: Option<Vec<BitVec>> = match &join_op {
-            BoundJoinOperator::LeftOuter(_) | BoundJoinOperator::FullOuter(_) => {
+            BoundJoinOperator::LeftOuter | BoundJoinOperator::FullOuter => {
                 let mut vecs = vec![];
                 for left_chunk in &left_chunks {
                     vecs.push(bitvec![0; left_chunk.cardinality()]);
@@ -43,7 +45,7 @@ impl NestedLoopJoinExecutor {
         };
 
         let mut right_bitmaps: Option<Vec<BitVec>> = match &join_op {
-            BoundJoinOperator::RightOuter(_) | BoundJoinOperator::FullOuter(_) => {
+            BoundJoinOperator::RightOuter | BoundJoinOperator::FullOuter => {
                 let mut vecs = vec![];
                 for right_chunk in &right_chunks {
                     vecs.push(bitvec![0; right_chunk.cardinality()]);
@@ -74,38 +76,26 @@ impl NestedLoopJoinExecutor {
                             .into_iter()
                             .map(|builder| builder.finish())
                             .collect();
-                        match &join_op {
-                            BoundJoinOperator::Inner(constraint)
-                            | BoundJoinOperator::LeftOuter(constraint)
-                            | BoundJoinOperator::RightOuter(constraint)
-                            | BoundJoinOperator::FullOuter(constraint) => match constraint {
-                                BoundJoinConstraint::On(expr) => {
-                                    let arr_impl = expr.eval_array(&chunk)?;
-                                    let value = arr_impl.get(0);
-                                    match value {
-                                        DataValue::Bool(true) => {
-                                            matched = true;
-                                            match &mut right_bitmaps {
-                                                Some(right_bitmaps) => {
-                                                    right_bitmaps[right_chunk_idx]
-                                                        .set(right_row_idx, true);
-                                                }
-                                                None => {}
-                                            }
-
-                                            for (idx, builder) in
-                                                chunk_builders.iter_mut().enumerate()
-                                            {
-                                                builder.push(&left_row[idx]);
-                                            }
-                                        }
-                                        DataValue::Bool(false) => {}
-                                        _ => {
-                                            panic!("unsupported value from join condition")
-                                        }
+                        let arr_impl = join_cond.eval_array(&chunk)?;
+                        let value = arr_impl.get(0);
+                        match value {
+                            DataValue::Bool(true) => {
+                                matched = true;
+                                match &mut right_bitmaps {
+                                    Some(right_bitmaps) => {
+                                        right_bitmaps[right_chunk_idx].set(right_row_idx, true);
                                     }
+                                    None => {}
                                 }
-                            },
+
+                                for (idx, builder) in chunk_builders.iter_mut().enumerate() {
+                                    builder.push(&left_row[idx]);
+                                }
+                            }
+                            DataValue::Bool(false) => {}
+                            _ => {
+                                panic!("unsupported value from join condition")
+                            }
                         }
                     }
                 }
@@ -181,7 +171,7 @@ impl NestedLoopJoinExecutor {
                 right_chunks.push(batch?);
             }
 
-            let chunk = Self::execute_loop_join(self.join_op, left_chunks, right_chunks)?;
+            let chunk = Self::execute_loop_join(self.join_op,self.condition, left_chunks, right_chunks)?;
             if let Some(chunk) = chunk {
                 yield chunk;
             }

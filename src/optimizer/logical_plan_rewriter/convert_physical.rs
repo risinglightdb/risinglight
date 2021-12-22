@@ -44,6 +44,7 @@ impl Rewriter for PhysicalConverter {
             logical_join.left_plan.rewrite(self),
             logical_join.right_plan.rewrite(self),
             logical_join.join_op,
+            logical_join.condition,
         ))
     }
 

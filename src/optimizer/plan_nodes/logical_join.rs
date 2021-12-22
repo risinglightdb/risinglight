@@ -1,7 +1,7 @@
 use std::fmt;
 
 use super::*;
-use crate::binder::{BoundJoinConstraint, BoundJoinOperator};
+use crate::binder::BoundJoinOperator;
 
 /// The logical plan of join, it only records join tables and operators.
 ///
@@ -12,11 +12,17 @@ pub struct LogicalJoin {
     pub left_plan: PlanRef,
     pub right_plan: PlanRef,
     pub join_op: BoundJoinOperator,
+    pub condition: BoundExpr,
     data_types: Vec<DataType>,
 }
 
 impl LogicalJoin {
-    pub fn new(left_plan: PlanRef, right_plan: PlanRef, join_op: BoundJoinOperator) -> Self {
+    pub fn new(
+        left_plan: PlanRef,
+        right_plan: PlanRef,
+        join_op: BoundJoinOperator,
+        condition: BoundExpr,
+    ) -> Self {
         let mut data_types = left_plan.out_types();
         data_types.append(&mut right_plan.out_types());
         LogicalJoin {
@@ -24,6 +30,7 @@ impl LogicalJoin {
             right_plan,
             join_op,
             data_types,
+            condition,
         }
     }
 }
@@ -31,15 +38,7 @@ impl LogicalJoin {
 impl_plan_tree_node!(LogicalJoin, [left_plan, right_plan]);
 impl PlanNode for LogicalJoin {
     fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
-        use BoundJoinConstraint::*;
-        use BoundJoinOperator::*;
-
-        match &mut self.join_op {
-            Inner(On(expr)) => rewriter.rewrite_expr(expr),
-            LeftOuter(On(expr)) => rewriter.rewrite_expr(expr),
-            RightOuter(On(expr)) => rewriter.rewrite_expr(expr),
-            FullOuter(On(expr)) => rewriter.rewrite_expr(expr),
-        }
+        rewriter.rewrite_expr(&mut self.condition);
     }
     fn out_types(&self) -> Vec<DataType> {
         self.data_types.clone()
