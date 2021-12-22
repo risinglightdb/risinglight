@@ -8,25 +8,27 @@
 mod char_column_builder;
 mod column_builder;
 mod column_iterator;
+mod concrete_column_iterator;
 mod primitive_column_builder;
-mod primitive_column_iterator;
+mod primitive_column_factory;
 mod row_handler_sequencer;
 
 use std::io::{Read, Seek, SeekFrom};
 
 pub use column_builder::*;
 pub use column_iterator::*;
+pub use concrete_column_iterator::*;
 pub use primitive_column_builder::*;
-pub use primitive_column_iterator::*;
+pub use primitive_column_factory::*;
 use risinglight_proto::rowset::BlockIndex;
 pub use row_handler_sequencer::*;
-mod char_column_iterator;
+mod char_column_factory;
 use std::os::unix::fs::FileExt;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use bytes::Bytes;
-pub use char_column_iterator::*;
+pub use char_column_factory::*;
 use moka::future::Cache;
 
 use super::{Block, BlockCacheKey, BlockHeader, ColumnIndex, BLOCK_HEADER_SIZE};
