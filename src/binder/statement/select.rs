@@ -1,6 +1,7 @@
-use super::*;
-use crate::binder::BoundTableRef;
+use super::BoundExpr::*;
+use super::{BoundExpr, BoundTableRef, *};
 use crate::parser::{Query, SelectItem, SetExpr};
+use crate::types::DataValue::Bool;
 
 /// A bound `select` statement.
 #[derive(Debug, PartialEq, Clone)]
@@ -43,10 +44,10 @@ impl Binder {
             for table_with_join in &select.from[1..] {
                 let join_table = self.bind_table_ref(&table_with_join.relation)?;
                 assert!(table_with_join.joins.is_empty());
-                let join_op = BoundJoinOperator::CrossJoin;
                 let join_ref = BoundedSingleJoinTableRef {
                     table_ref: (join_table.into()),
-                    join_op,
+                    join_op: BoundJoinOperator::Inner,
+                    join_cond: Constant(Bool(true)),
                 };
                 join_tables.push(join_ref);
             }

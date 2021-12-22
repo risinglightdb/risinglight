@@ -168,10 +168,10 @@ impl Visitor for ExecutorBuilder {
         });
     }
 
-    fn visit_physical_join_is_nested(&mut self) -> bool {
+    fn visit_physical_nested_loop_join_is_nested(&mut self) -> bool {
         true
     }
-    fn visit_physical_join(&mut self, plan: &PhysicalJoin) {
+    fn visit_physical_nested_loop_join(&mut self, plan: &PhysicalNestedLoopJoin) {
         plan.left_plan.accept(self);
         let left_child = self.executor.take().unwrap();
         plan.right_plan.accept(self);
@@ -180,7 +180,8 @@ impl Visitor for ExecutorBuilder {
             NestedLoopJoinExecutor {
                 left_child,
                 right_child,
-                join_op: plan.join_op.clone(),
+                join_op: plan.join_op,
+                condition: plan.condition.clone(),
             }
             .execute()
             .boxed(),

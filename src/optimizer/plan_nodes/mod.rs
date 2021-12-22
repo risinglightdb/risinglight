@@ -132,7 +132,7 @@ macro_rules! for_all_plan_nodes {
             PhysicalProjection,
             PhysicalFilter,
             PhysicalExplain,
-            PhysicalJoin,
+            PhysicalNestedLoopJoin,
             PhysicalSimpleAgg,
             PhysicalHashAgg,
             PhysicalOrder,
