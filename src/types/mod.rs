@@ -2,9 +2,11 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 pub use sqlparser::ast::DataType as DataTypeKind;
 
+mod date;
 mod native;
 use std::hash::{Hash, Hasher};
 
+pub(crate) use date::*;
 pub(crate) use native::*;
 use num_traits::ToPrimitive;
 use rust_decimal::prelude::FromStr;
@@ -18,6 +20,7 @@ pub enum PhysicalDataTypeKind {
     String,
     Bool,
     Decimal,
+    Date,
 }
 
 impl From<DataTypeKind> for PhysicalDataTypeKind {
@@ -31,6 +34,7 @@ impl From<DataTypeKind> for PhysicalDataTypeKind {
             DataTypeKind::BigInt(_) => PhysicalDataTypeKind::Int64,
             DataTypeKind::Boolean => PhysicalDataTypeKind::Bool,
             DataTypeKind::Decimal(_, _) => PhysicalDataTypeKind::Decimal,
+            DataTypeKind::Date => PhysicalDataTypeKind::Date,
             _ => todo!("physical type for {:?} is not supported", kind),
         }
     }
@@ -114,6 +118,7 @@ pub enum DataValue {
     Float64(f64),
     String(String),
     Decimal(Decimal),
+    Date(Date),
 }
 
 impl PartialEq for DataValue {
@@ -126,6 +131,7 @@ impl PartialEq for DataValue {
             (Self::String(left), Self::String(right)) => left == right,
             (Self::Float64(left), Self::Float64(right)) => left == right,
             (Self::Decimal(left), Self::Decimal(right)) => left == right,
+            (Self::Date(left), Self::Date(right)) => left == right,
             _ => false,
         }
     }
@@ -196,6 +202,7 @@ impl DataValue {
             Self::Float64(v) => v.is_sign_positive(),
             Self::String(_) => false,
             Self::Decimal(v) => v.is_sign_positive(),
+            Self::Date(_) => false,
             Self::Null => false,
         }
     }
@@ -209,6 +216,7 @@ impl DataValue {
             Self::Float64(_) => Some(DataTypeKind::Double.not_null()),
             Self::String(_) => Some(DataTypeKind::Varchar(Some(VARCHAR_DEFAULT_LEN)).not_null()),
             Self::Decimal(_) => Some(DataTypeKind::Decimal(None, None).not_null()),
+            Self::Date(_) => Some(DataTypeKind::Date.not_null()),
             Self::Null => None,
         }
     }
@@ -235,6 +243,9 @@ impl DataValue {
                 DataTypeKind::Double,
                 DataValue::Decimal(d),
             ))? as usize,
+            &DataValue::Date(d) => {
+                return Err(ConvertError::Cast(d.to_string(), "usize"));
+            }
             DataValue::String(s) => s
                 .parse::<usize>()
                 .map_err(|e| ConvertError::ParseInt(s.clone(), e))?,
@@ -253,10 +264,16 @@ pub enum ConvertError {
     ParseBool(String, std::str::ParseBoolError),
     #[error("failed to convert string {0:?} to decimal: {:?}")]
     ParseDecimal(String, rust_decimal::Error),
+    #[error("failed to convert string {0:?} to date: {:?}")]
+    ParseDate(String, chrono::ParseError),
     #[error("failed to convert {0:?} to decimal")]
     ToDecimalError(DataValue),
     #[error("failed to convert {0:?} from decimal {1:?}")]
     FromDecimalError(DataTypeKind, DataValue),
+    #[error("failed to convert {0:?} to date")]
+    ToDateError(DataTypeKind),
+    #[error("failed to convert {0:?} from date")]
+    FromDateError(DataTypeKind),
     #[error("failed to cast {0} to type {1}")]
     Cast(String, &'static str),
 }

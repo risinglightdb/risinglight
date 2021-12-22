@@ -79,6 +79,7 @@ impl ArrayImplBuilderPickExt for ArrayBuilderImpl {
             (Self::Decimal(builder), ArrayImpl::Decimal(arr)) => {
                 builder.pick_from(arr, logical_rows)
             }
+            (Self::Date(builder), ArrayImpl::Date(arr)) => builder.pick_from(arr, logical_rows),
             _ => panic!("failed to push value: type mismatch"),
         }
     }
@@ -165,6 +166,7 @@ impl ArrayImplSortExt for ArrayImpl {
             Self::Float64(a) => a.get_sorted_indices(),
             Self::Utf8(a) => a.get_sorted_indices(),
             Self::Decimal(a) => a.get_sorted_indices(),
+            Self::Date(a) => a.get_sorted_indices(),
         }
     }
 }

@@ -4,9 +4,8 @@ use std::ops::{Bound, RangeBounds};
 
 use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
 
-use crate::types::{ConvertError, DataType, DataValue, PhysicalDataTypeKind};
+use crate::types::{ConvertError, DataType, DataValue, Date, PhysicalDataTypeKind};
 
 mod data_chunk;
 mod iterator;
@@ -140,9 +139,10 @@ pub type I32Array = PrimitiveArray<i32>;
 pub type I64Array = PrimitiveArray<i64>;
 pub type F64Array = PrimitiveArray<f64>;
 pub type DecimalArray = PrimitiveArray<Decimal>;
+pub type DateArray = PrimitiveArray<Date>;
 
 /// Embeds all types of arrays in `array` module.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ArrayImpl {
     Bool(BoolArray),
     // Int16(PrimitiveArray<i16>),
@@ -152,6 +152,7 @@ pub enum ArrayImpl {
     Float64(F64Array),
     Utf8(Utf8Array),
     Decimal(DecimalArray),
+    Date(DateArray),
 }
 
 pub type BoolArrayBuilder = PrimitiveArrayBuilder<bool>;
@@ -159,6 +160,7 @@ pub type I32ArrayBuilder = PrimitiveArrayBuilder<i32>;
 pub type I64ArrayBuilder = PrimitiveArrayBuilder<i64>;
 pub type F64ArrayBuilder = PrimitiveArrayBuilder<f64>;
 pub type DecimalArrayBuilder = PrimitiveArrayBuilder<Decimal>;
+pub type DateArrayBuilder = PrimitiveArrayBuilder<Date>;
 
 /// Embeds all types of array builders in `array` module.
 pub enum ArrayBuilderImpl {
@@ -170,6 +172,7 @@ pub enum ArrayBuilderImpl {
     Float64(F64ArrayBuilder),
     Utf8(Utf8ArrayBuilder),
     Decimal(DecimalArrayBuilder),
+    Date(DateArrayBuilder),
 }
 
 /// `for_all_variants` includes all variants of our array types. If you added a new array
@@ -190,7 +193,8 @@ macro_rules! for_all_variants {
             { Float64, float64, F64Array, F64ArrayBuilder, Float64 },
             { Utf8, utf8, Utf8Array, Utf8ArrayBuilder, String },
             { Bool, bool, BoolArray, BoolArrayBuilder, Bool },
-            { Decimal, decimal, DecimalArray, DecimalArrayBuilder, Decimal }
+            { Decimal, decimal, DecimalArray, DecimalArrayBuilder, Decimal },
+            { Date, date, DateArray, DateArrayBuilder, Date }
         }
     };
 }
@@ -348,6 +352,7 @@ impl ArrayBuilderImpl {
             Self::Float64(a) if null => a.push(None),
             Self::Utf8(a) if null => a.push(None),
             Self::Decimal(a) if null => a.push(None),
+            Self::Date(a) if null => a.push(None),
             Self::Bool(a) => a.push(Some(
                 &s.parse::<bool>()
                     .map_err(|e| ConvertError::ParseBool(s.to_string(), e))?,
@@ -367,6 +372,9 @@ impl ArrayBuilderImpl {
             Self::Utf8(a) => a.push(Some(s)),
             Self::Decimal(a) => a.push(Some(
                 &Decimal::from_str(s).map_err(|e| ConvertError::ParseDecimal(s.to_string(), e))?,
+            )),
+            Self::Date(a) => a.push(Some(
+                &Date::from_str(s).map_err(|e| ConvertError::ParseDate(s.to_string(), e))?,
             )),
         }
         Ok(())
@@ -448,6 +456,7 @@ impl From<&DataValue> for ArrayImpl {
             &DataValue::Float64(v) => Self::Float64([v].into_iter().collect()),
             DataValue::String(v) => Self::Utf8([Some(v)].into_iter().collect()),
             &DataValue::Decimal(v) => Self::Decimal([v].into_iter().collect()),
+            &DataValue::Date(v) => Self::Date([v].into_iter().collect()),
             DataValue::Null => panic!("can not build array from NULL"),
         }
     }

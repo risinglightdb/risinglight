@@ -42,6 +42,7 @@ sqlparser = { git = "https://github.com/wangrunji0408/sqlparser-rs", rev = "6e35
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
 rust_decimal = "1.18.0"
+chrono = "0.4"
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["async_tokio"] }
