@@ -21,6 +21,7 @@ csv = "1.1"
 downcast-rs = "1.2"
 enum_dispatch = "0.3"
 env_logger = "0.9"
+futures-async-stream = "0.2"
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
 indicatif = { version = "0.16" }
 itertools = "0.10"

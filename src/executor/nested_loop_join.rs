@@ -22,6 +22,7 @@ impl NestedLoopJoinExecutor {
         left_chunks: Vec<DataChunk>,
         right_chunks: Vec<DataChunk>,
     ) -> Result<Option<DataChunk>, ExecutorError> {
+        // TODO: get schema from executor instead of chunks
         let left_row_len = left_chunks[0].column_count();
         let right_row_len = right_chunks[0].column_count();
 
