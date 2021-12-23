@@ -41,48 +41,44 @@ impl AggregationState for SumAggregationState {
         // TODO: refactor into macros
         match (array, &self.input_datatype) {
             (ArrayImpl::Int32(arr), DataTypeKind::Int(_)) => {
+                let mut temp: Option<i32> = None;
                 #[cfg(feature = "simd")]
                 {
                     let bitmap = arr.get_valid_bitmap();
                     if bitmap.any() {
-                        self.result = DataValue::Int32(arr.batch_iter::<32>().sum());
-                    } else {
-                        self.result = DataValue::Null;
+                        temp = Some(arr.batch_iter::<32>().sum());
                     }
                 }
                 #[cfg(not(feature = "simd"))]
                 {
-                    let mut temp: Option<i32> = None;
                     temp = arr.iter().fold(temp, sum_i32);
-                    if let Some(val) = temp {
-                        self.result = match self.result {
-                            DataValue::Null => DataValue::Int32(val),
-                            DataValue::Int32(res) => DataValue::Int32(res + val),
-                            _ => panic!("Mismatched type"),
-                        }
+                }
+                if let Some(val) = temp {
+                    self.result = match self.result {
+                        DataValue::Null => DataValue::Int32(val),
+                        DataValue::Int32(res) => DataValue::Int32(res + val),
+                        _ => panic!("Mismatched type"),
                     }
                 }
             }
             (ArrayImpl::Float64(arr), DataTypeKind::Double) => {
+                let mut temp: Option<f64> = None;
                 #[cfg(feature = "simd")]
                 {
                     let bitmap = arr.get_valid_bitmap();
                     if bitmap.any() {
-                        self.result = DataValue::Float64(arr.batch_iter::<32>().sum());
-                    } else {
-                        self.result = DataValue::Null;
+                        temp = Some(arr.batch_iter::<32>().sum());
                     }
                 }
                 #[cfg(not(feature = "simd"))]
                 {
-                    let mut temp: Option<f64> = None;
                     temp = arr.iter().fold(temp, sum_f64);
-                    if let Some(val) = temp {
-                        self.result = match self.result {
-                            DataValue::Null => DataValue::Float64(val),
-                            DataValue::Float64(res) => DataValue::Float64(res + val),
-                            _ => panic!("Mismatched type"),
-                        }
+                }
+                if let Some(val) = temp {
+                    self.result = match self.result {
+                        DataValue::Null => DataValue::Float64(val),
+                        DataValue::Float64(res) => DataValue::Float64(res + val),
+                        _ => panic!("Mismatched type"),
                     }
                 }
             }
