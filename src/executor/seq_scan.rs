@@ -53,13 +53,6 @@ impl<S: Storage> SeqScanExecutor<S> {
     }
 
     #[try_stream(ok = DataChunk, error = ExecutorError)]
-    async fn execute_inner(self, it: &mut impl TxnIterator) {
-        while let Some(chunk) = it.next_batch(None).await? {
-            yield chunk;
-        }
-    }
-
-    #[try_stream(ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         let table = self.storage.get_table(self.plan.table_ref_id)?;
 
@@ -85,16 +78,19 @@ impl<S: Storage> SeqScanExecutor<S> {
             .scan(None, None, &col_idx, self.plan.is_sorted, false)
             .await?;
 
-        #[for_await]
-        for x in self.execute_inner(&mut it) {
-            match x {
+        loop {
+            match it.next_batch(None).await {
                 Ok(x) => {
-                    yield x;
-                    have_chunk = true;
+                    if let Some(x) = x {
+                        yield x;
+                        have_chunk = true;
+                    } else {
+                        break;
+                    }
                 }
                 Err(err) => {
                     txn.abort().await?;
-                    return Err(err);
+                    return Err(err.into());
                 }
             }
         }
