@@ -4,6 +4,7 @@
 #![deny(clippy::explicit_iter_loop)]
 #![deny(unused_must_use)]
 #![feature(portable_simd)]
+#![feature(generators)]
 
 // Enable macros for logging.
 #[macro_use]

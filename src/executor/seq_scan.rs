@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use futures_async_stream::try_stream;
 use itertools::Itertools;
 
 use super::*;
@@ -14,8 +15,9 @@ pub struct SeqScanExecutor<S: Storage> {
 }
 
 impl<S: Storage> SeqScanExecutor<S> {
-    async fn execute_inner(self) -> Result<DataChunk, ExecutorError> {
-        let table = self.storage.get_table(self.plan.table_ref_id)?;
+    /// Some executors will fail if no chunk is returned from `SeqScanExecutor`. After we have
+    /// schema information in executors, this function can be removed.
+    fn build_empty_chunk(&self, table: &impl Table) -> Result<DataChunk, ExecutorError> {
         let columns = table.columns()?;
         let mut col_idx = self
             .plan
@@ -42,34 +44,65 @@ impl<S: Storage> SeqScanExecutor<S> {
             builders.push(ArrayBuilderImpl::Int64(I64ArrayBuilder::new()));
         }
 
-        let txn = table.read().await?;
-        let mut it = txn
-            .scan(None, None, &col_idx, self.plan.is_sorted, false)
-            .await?;
-
-        // Notice: The column ids may not be ordered.
-        while let Some(chunk) = it.next_batch(None).await? {
-            for (idx, builder) in builders.iter_mut().enumerate() {
-                builder.append(chunk.array_at(idx as usize));
-            }
-        }
-
         let chunk: DataChunk = builders
             .into_iter()
             .map(|builder| builder.finish())
             .collect();
 
-        txn.abort().await?;
-
         Ok(chunk)
     }
-}
 
-impl<S: Storage> SeqScanExecutor<S> {
-    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
-        try_stream! {
-            let chunk = self.execute_inner().await?;
+    #[try_stream(ok = DataChunk, error = ExecutorError)]
+    async fn execute_inner(self, it: &mut impl TxnIterator) {
+        while let Some(chunk) = it.next_batch(None).await? {
             yield chunk;
+        }
+    }
+
+    #[try_stream(ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        let table = self.storage.get_table(self.plan.table_ref_id)?;
+
+        // TODO: remove this when we have schema
+        let empty_chunk = self.build_empty_chunk(&table)?;
+        let mut have_chunk = false;
+
+        let mut col_idx = self
+            .plan
+            .column_ids
+            .iter()
+            .map(|x| StorageColumnRef::Idx(*x))
+            .collect_vec();
+
+        // Add an extra column for RowHandler at the end
+        if self.plan.with_row_handler {
+            col_idx.push(StorageColumnRef::RowHandler);
+        }
+
+        let txn = table.read().await?;
+
+        let mut it = txn
+            .scan(None, None, &col_idx, self.plan.is_sorted, false)
+            .await?;
+
+        #[for_await]
+        for x in self.execute_inner(&mut it) {
+            match x {
+                Ok(x) => {
+                    yield x;
+                    have_chunk = true;
+                }
+                Err(err) => {
+                    txn.abort().await?;
+                    return Err(err);
+                }
+            }
+        }
+
+        txn.abort().await?;
+
+        if !have_chunk {
+            yield empty_chunk;
         }
     }
 }
