@@ -12,25 +12,25 @@ pub struct ValuesExecutor {
 }
 
 impl ValuesExecutor {
-    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
-        try_stream! {
-            let cardinality = self.values.len();
-            let mut builders = self.column_types
-                .iter()
-                .map(|ty| ArrayBuilderImpl::with_capacity(cardinality, ty))
-                .collect::<Vec<ArrayBuilderImpl>>();
-            for row in &self.values {
-                for (expr, builder) in row.iter().zip(&mut builders) {
-                    let value = expr.eval();
-                    builder.push(&value);
-                }
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        let cardinality = self.values.len();
+        let mut builders = self
+            .column_types
+            .iter()
+            .map(|ty| ArrayBuilderImpl::with_capacity(cardinality, ty))
+            .collect::<Vec<ArrayBuilderImpl>>();
+        for row in &self.values {
+            for (expr, builder) in row.iter().zip(&mut builders) {
+                let value = expr.eval();
+                builder.push(&value);
             }
-            let chunk = builders
-                .into_iter()
-                .map(|builder| builder.finish())
-                .collect::<DataChunk>();
-            yield chunk;
         }
+        let chunk = builders
+            .into_iter()
+            .map(|builder| builder.finish())
+            .collect::<DataChunk>();
+        yield chunk;
     }
 }
 
@@ -55,7 +55,7 @@ mod tests {
                 })
                 .collect::<Vec<_>>(),
         };
-        let output = executor.execute().boxed().next().await.unwrap().unwrap();
+        let output = executor.execute().next().await.unwrap().unwrap();
         let expected = [
             ArrayImpl::Int32((0..4).collect()),
             ArrayImpl::Int32((100..104).collect()),

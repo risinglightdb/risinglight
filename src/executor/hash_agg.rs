@@ -89,17 +89,17 @@ impl HashAggExecutor {
             .collect::<DataChunk>()
     }
 
-    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
-        try_stream! {
-            let mut state_entries = HashMap::new();
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        let mut state_entries = HashMap::new();
 
-            for await chunk in self.child {
-                let chunk = chunk?;
-                Self::execute_inner(&mut state_entries, chunk, &self.agg_calls, &self.group_keys)?;
-            }
-
-            let chunk = Self::finish_agg(state_entries, self.agg_calls, self.group_keys);
-            yield chunk;
+        #[for_await]
+        for chunk in self.child {
+            let chunk = chunk?;
+            Self::execute_inner(&mut state_entries, chunk, &self.agg_calls, &self.group_keys)?;
         }
+
+        let chunk = Self::finish_agg(state_entries, self.agg_calls, self.group_keys);
+        yield chunk;
     }
 }

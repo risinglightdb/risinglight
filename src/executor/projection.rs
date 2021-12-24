@@ -9,17 +9,17 @@ pub struct ProjectionExecutor {
 }
 
 impl ProjectionExecutor {
-    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
-        try_stream! {
-            for await batch in self.child {
-                let batch = batch?;
-                let chunk = self
-                    .project_expressions
-                    .iter()
-                    .map(|expr| expr.eval_array(&batch))
-                    .collect::<Result<DataChunk, _>>()?;
-                yield chunk;
-            }
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        #[for_await]
+        for batch in self.child {
+            let batch = batch?;
+            let chunk = self
+                .project_expressions
+                .iter()
+                .map(|expr| expr.eval_array(&batch))
+                .collect::<Result<DataChunk, _>>()?;
+            yield chunk;
         }
     }
 }

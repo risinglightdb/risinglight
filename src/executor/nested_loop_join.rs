@@ -160,22 +160,24 @@ impl NestedLoopJoinExecutor {
         ))
     }
 
-    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
-        try_stream! {
-            let mut left_chunks: Vec<DataChunk> = vec![];
-            let mut right_chunks: Vec<DataChunk> = vec![];
-            for await batch in self.left_child {
-                left_chunks.push(batch?);
-            }
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        let mut left_chunks: Vec<DataChunk> = vec![];
+        let mut right_chunks: Vec<DataChunk> = vec![];
+        #[for_await]
+        for batch in self.left_child {
+            left_chunks.push(batch?);
+        }
 
-            for await batch in self.right_child {
-                right_chunks.push(batch?);
-            }
+        #[for_await]
+        for batch in self.right_child {
+            right_chunks.push(batch?);
+        }
 
-            let chunk = Self::execute_loop_join(self.join_op,self.condition, left_chunks, right_chunks)?;
-            if let Some(chunk) = chunk {
-                yield chunk;
-            }
+        let chunk =
+            Self::execute_loop_join(self.join_op, self.condition, left_chunks, right_chunks)?;
+        if let Some(chunk) = chunk {
+            yield chunk;
         }
     }
 }

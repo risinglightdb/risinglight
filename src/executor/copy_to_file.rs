@@ -14,22 +14,27 @@ pub struct CopyToFileExecutor {
 }
 
 impl CopyToFileExecutor {
-    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
-        try_stream! {
-            let Self { path, format, child } = self;
-            let (sender, recver) = mpsc::channel(1);
-            let writer = tokio::task::spawn_blocking(move || Self::write_file_blocking(path, format, recver));
-            for await batch in child {
-                let res = sender.send(batch?).await;
-                if res.is_err() {
-                    // send error means the background IO task returns error.
-                    break;
-                }
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        let Self {
+            path,
+            format,
+            child,
+        } = self;
+        let (sender, recver) = mpsc::channel(1);
+        let writer =
+            tokio::task::spawn_blocking(move || Self::write_file_blocking(path, format, recver));
+        #[for_await]
+        for batch in child {
+            let res = sender.send(batch?).await;
+            if res.is_err() {
+                // send error means the background IO task returns error.
+                break;
             }
-            drop(sender);
-            let rows = writer.await.unwrap()?;
-            yield DataChunk::single(rows as _);
         }
+        drop(sender);
+        let rows = writer.await.unwrap()?;
+        yield DataChunk::single(rows as _);
     }
 
     fn write_file_blocking(
@@ -83,7 +88,7 @@ mod tests {
                 escape: None,
                 header: false,
             },
-            child: try_stream! {
+            child: async_stream::try_stream! {
                 yield [
                     ArrayImpl::Int32([1, 2].into_iter().collect()),
                     ArrayImpl::Float64([1.5, 2.5].into_iter().collect()),
@@ -94,7 +99,7 @@ mod tests {
             }
             .boxed(),
         };
-        executor.execute().boxed().next().await.unwrap().unwrap();
+        executor.execute().next().await.unwrap().unwrap();
 
         let actual = std::fs::read_to_string(file.path()).unwrap();
         let expected = "1,1.5,one\n2,2.5,two\n";

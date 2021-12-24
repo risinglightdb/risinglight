@@ -12,31 +12,29 @@ pub struct OrderExecutor {
 }
 
 impl OrderExecutor {
-    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
-        try_stream! {
-            // collect all chunks
-            let mut chunks = vec![];
-            for await batch in self.child {
-                chunks.push(batch?);
-            }
-            // sort the indexes
-            let mut indexes = gen_index_array(&chunks);
-            let comparators = self.comparators;
-            indexes.sort_unstable_by(|row1, row2| {
-                row1.cmp_by(row2, &comparators)
-            });
-            // build chunk by the new order
-            let mut arrays = vec![];
-            for col_idx in 0..chunks[0].column_count() {
-                let mut builder = ArrayBuilderImpl::from_type_of_array(chunks[0].array_at(col_idx));
-                for row in indexes.iter() {
-                    builder.push(&row.get(col_idx));
-                }
-                arrays.push(builder.finish());
-            }
-            let chunk: DataChunk = arrays.into_iter().collect();
-            yield chunk;
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        // collect all chunks
+        let mut chunks = vec![];
+        #[for_await]
+        for batch in self.child {
+            chunks.push(batch?);
         }
+        // sort the indexes
+        let mut indexes = gen_index_array(&chunks);
+        let comparators = self.comparators;
+        indexes.sort_unstable_by(|row1, row2| row1.cmp_by(row2, &comparators));
+        // build chunk by the new order
+        let mut arrays = vec![];
+        for col_idx in 0..chunks[0].column_count() {
+            let mut builder = ArrayBuilderImpl::from_type_of_array(chunks[0].array_at(col_idx));
+            for row in &indexes {
+                builder.push(&row.get(col_idx));
+            }
+            arrays.push(builder.finish());
+        }
+        let chunk: DataChunk = arrays.into_iter().collect();
+        yield chunk;
     }
 }
 

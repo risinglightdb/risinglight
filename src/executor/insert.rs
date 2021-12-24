@@ -17,34 +17,38 @@ pub struct InsertExecutor<S: Storage> {
 }
 
 impl<S: Storage> InsertExecutor<S> {
-    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
-        try_stream! {
-            let table = self.storage.get_table(self.table_ref_id)?;
-            let columns = table.columns()?;
-            // Describe each column of the output chunks.
-            // example:
-            //    columns = [0: Int, 1: Bool, 3: Float, 4: String]
-            //    column_ids = [4, 1]
-            // => output_columns = [Null(Int), Pick(1), Null(Float), Pick(0)]
-            let output_columns = columns
-                .iter()
-                .map(|col| match self.column_ids.iter().position(|&id| id == col.id()) {
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        let table = self.storage.get_table(self.table_ref_id)?;
+        let columns = table.columns()?;
+        // Describe each column of the output chunks.
+        // example:
+        //    columns = [0: Int, 1: Bool, 3: Float, 4: String]
+        //    column_ids = [4, 1]
+        // => output_columns = [Null(Int), Pick(1), Null(Float), Pick(0)]
+        let output_columns = columns
+            .iter()
+            .map(
+                |col| match self.column_ids.iter().position(|&id| id == col.id()) {
                     Some(index) => Column::Pick { index },
-                    None => Column::Null { type_: col.datatype() },
-                })
-                .collect_vec();
+                    None => Column::Null {
+                        type_: col.datatype(),
+                    },
+                },
+            )
+            .collect_vec();
 
-            let mut txn = table.write().await?;
-            let mut cnt = 0;
-            for await chunk in self.child {
-                let chunk = transform_chunk(chunk?, &output_columns);
-                cnt += chunk.cardinality();
-                txn.append(chunk).await?;
-            }
-            txn.commit().await?;
-
-            yield DataChunk::single(cnt as i32);
+        let mut txn = table.write().await?;
+        let mut cnt = 0;
+        #[for_await]
+        for chunk in self.child {
+            let chunk = transform_chunk(chunk?, &output_columns);
+            cnt += chunk.cardinality();
+            txn.append(chunk).await?;
         }
+        txn.commit().await?;
+
+        yield DataChunk::single(cnt as i32);
     }
 }
 
@@ -90,7 +94,7 @@ mod tests {
             table_ref_id: TableRefId::new(0, 0, 0),
             column_ids: vec![0, 1],
             storage: env.storage.as_in_memory_storage(),
-            child: try_stream! {
+            child: async_stream::try_stream! {
                 yield [
                     ArrayImpl::Int32((0..4).collect()),
                     ArrayImpl::Int32((100..104).collect()),
@@ -100,7 +104,7 @@ mod tests {
             }
             .boxed(),
         };
-        executor.execute().boxed().next().await.unwrap().unwrap();
+        executor.execute().next().await.unwrap().unwrap();
     }
 
     async fn create_table() -> GlobalEnvRef {
