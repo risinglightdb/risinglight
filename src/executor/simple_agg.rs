@@ -48,18 +48,18 @@ impl SimpleAggExecutor {
             .collect::<DataChunk>()
     }
 
-    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
-        try_stream! {
-            let mut states = create_agg_states(&self.agg_calls);
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        let mut states = create_agg_states(&self.agg_calls);
 
-            for await chunk in self.child {
-                let chunk = chunk?;
-                Self::execute_inner(&mut states, chunk, &self.agg_calls)?;
-            }
-
-            let chunk = Self::finish_agg(states);
-            yield chunk;
+        #[for_await]
+        for chunk in self.child {
+            let chunk = chunk?;
+            Self::execute_inner(&mut states, chunk, &self.agg_calls)?;
         }
+
+        let chunk = Self::finish_agg(states);
+        yield chunk;
     }
 }
 

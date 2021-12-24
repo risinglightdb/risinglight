@@ -11,12 +11,11 @@ pub struct DropExecutor<S: Storage> {
 }
 
 impl<S: Storage> DropExecutor<S> {
-    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
-        try_stream! {
-            match self.plan.object {
-                Object::Table(ref_id) => self.storage.drop_table(ref_id).await?,
-            }
-            yield DataChunk::single(0);
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        match self.plan.object {
+            Object::Table(ref_id) => self.storage.drop_table(ref_id).await?,
         }
+        yield DataChunk::single(0);
     }
 }

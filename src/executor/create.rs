@@ -11,16 +11,17 @@ pub struct CreateTableExecutor<S: Storage> {
 }
 
 impl<S: Storage> CreateTableExecutor<S> {
-    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
-        try_stream! {
-            self.storage.create_table(
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        self.storage
+            .create_table(
                 self.plan.database_id,
                 self.plan.schema_id,
                 &self.plan.table_name,
                 &self.plan.columns,
-            ).await?;
-            yield DataChunk::single(0);
-        }
+            )
+            .await?;
+        yield DataChunk::single(0);
     }
 }
 

@@ -4,9 +4,8 @@ use super::*;
 pub struct DummyScanExecutor;
 
 impl DummyScanExecutor {
-    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
-        try_stream! {
-            yield DataChunk::single(0);
-        }
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        yield DataChunk::single(0);
     }
 }

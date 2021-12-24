@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use futures_async_stream::try_stream;
 use itertools::Itertools;
 
 use super::*;
@@ -52,7 +51,7 @@ impl<S: Storage> SeqScanExecutor<S> {
         Ok(chunk)
     }
 
-    #[try_stream(ok = DataChunk, error = ExecutorError)]
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         let table = self.storage.get_table(self.plan.table_ref_id)?;
 

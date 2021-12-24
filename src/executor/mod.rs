@@ -12,8 +12,8 @@
 
 use std::sync::Arc;
 
-use async_stream::try_stream;
-use futures::stream::{BoxStream, Stream, StreamExt};
+use futures::stream::{BoxStream, StreamExt};
+use futures_async_stream::try_stream;
 
 use crate::array::DataChunk;
 use crate::optimizer::plan_nodes::*;
@@ -104,7 +104,7 @@ pub struct ExecutorBuilder {
 
 impl Visitor for ExecutorBuilder {
     fn visit_dummy(&mut self, _plan: &Dummy) {
-        self.executor = Some(DummyScanExecutor.execute().boxed());
+        self.executor = Some(DummyScanExecutor.execute());
     }
     fn visit_physical_create_table(&mut self, plan: &PhysicalCreateTable) {
         match &self.env.storage {
@@ -114,8 +114,7 @@ impl Visitor for ExecutorBuilder {
                         plan: plan.clone(),
                         storage: storage.clone(),
                     }
-                    .execute()
-                    .boxed(),
+                    .execute(),
                 )
             }
             StorageImpl::SecondaryStorage(storage) => {
@@ -124,8 +123,7 @@ impl Visitor for ExecutorBuilder {
                         plan: plan.clone(),
                         storage: storage.clone(),
                     }
-                    .execute()
-                    .boxed(),
+                    .execute(),
                 )
             }
         }
@@ -136,14 +134,12 @@ impl Visitor for ExecutorBuilder {
                 plan: plan.clone(),
                 storage: storage.clone(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
             StorageImpl::SecondaryStorage(storage) => DropExecutor {
                 plan: plan.clone(),
                 storage: storage.clone(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
         });
     }
 
@@ -155,16 +151,14 @@ impl Visitor for ExecutorBuilder {
                 storage: storage.clone(),
                 child: self.executor.take().unwrap(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
             StorageImpl::SecondaryStorage(storage) => InsertExecutor {
                 table_ref_id: plan.table_ref_id,
                 column_ids: plan.column_ids.clone(),
                 storage: storage.clone(),
                 child: self.executor.take().unwrap(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
         });
     }
 
@@ -183,8 +177,7 @@ impl Visitor for ExecutorBuilder {
                 join_op: plan.join_op,
                 condition: plan.condition.clone(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
         );
     }
 
@@ -194,14 +187,12 @@ impl Visitor for ExecutorBuilder {
                 plan: plan.clone(),
                 storage: storage.clone(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
             StorageImpl::SecondaryStorage(storage) => SeqScanExecutor {
                 plan: plan.clone(),
                 storage: storage.clone(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
         });
     }
 
@@ -211,8 +202,7 @@ impl Visitor for ExecutorBuilder {
                 project_expressions: plan.project_expressions.clone(),
                 child: self.executor.take().unwrap(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
         );
     }
 
@@ -222,8 +212,7 @@ impl Visitor for ExecutorBuilder {
                 expr: plan.expr.clone(),
                 child: self.executor.take().unwrap(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
         );
     }
 
@@ -233,8 +222,7 @@ impl Visitor for ExecutorBuilder {
                 comparators: plan.comparators.clone(),
                 child: self.executor.take().unwrap(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
         );
     }
 
@@ -245,13 +233,12 @@ impl Visitor for ExecutorBuilder {
                 offset: plan.offset,
                 limit: plan.limit,
             }
-            .execute()
-            .boxed(),
+            .execute(),
         );
     }
 
     fn visit_physical_explain(&mut self, plan: &PhysicalExplain) {
-        self.executor = Some(ExplainExecutor { plan: plan.clone() }.execute().boxed());
+        self.executor = Some(ExplainExecutor { plan: plan.clone() }.execute());
     }
 
     fn visit_physical_hash_agg(&mut self, plan: &PhysicalHashAgg) {
@@ -261,8 +248,7 @@ impl Visitor for ExecutorBuilder {
                 group_keys: plan.group_keys.clone(),
                 child: self.executor.take().unwrap(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
         );
     }
 
@@ -272,8 +258,7 @@ impl Visitor for ExecutorBuilder {
                 agg_calls: plan.agg_calls.clone(),
                 child: self.executor.take().unwrap(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
         );
     }
 
@@ -284,15 +269,13 @@ impl Visitor for ExecutorBuilder {
                 table_ref_id: plan.table_ref_id,
                 storage: storage.clone(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
             StorageImpl::SecondaryStorage(storage) => DeleteExecutor {
                 child: self.executor.take().unwrap(),
                 table_ref_id: plan.table_ref_id,
                 storage: storage.clone(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
         });
     }
 
@@ -302,17 +285,12 @@ impl Visitor for ExecutorBuilder {
                 column_types: plan.column_types.clone(),
                 values: plan.values.clone(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
         );
     }
 
     fn visit_physical_copy_from_file(&mut self, plan: &PhysicalCopyFromFile) {
-        self.executor = Some(
-            CopyFromFileExecutor { plan: plan.clone() }
-                .execute()
-                .boxed(),
-        );
+        self.executor = Some(CopyFromFileExecutor { plan: plan.clone() }.execute());
     }
 
     fn visit_physical_copy_to_file(&mut self, plan: &PhysicalCopyToFile) {
@@ -322,8 +300,7 @@ impl Visitor for ExecutorBuilder {
                 path: plan.path.clone(),
                 format: plan.format.clone(),
             }
-            .execute()
-            .boxed(),
+            .execute(),
         );
     }
 }

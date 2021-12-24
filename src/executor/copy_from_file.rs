@@ -22,15 +22,14 @@ const IMPORT_PROGRESS_BAR_LIMIT: u64 = 1024 * 1024;
 const IMPORT_BATCH_SIZE: u64 = 16 * 1024 * 1024;
 
 impl CopyFromFileExecutor {
-    pub fn execute(self) -> impl Stream<Item = Result<DataChunk, ExecutorError>> {
-        try_stream! {
-            let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-            let handle = tokio::task::spawn_blocking(|| self.read_file_blocking(tx));
-            while let Some(chunk) = rx.recv().await {
-                yield chunk;
-            }
-            handle.await.unwrap()?;
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let handle = tokio::task::spawn_blocking(|| self.read_file_blocking(tx));
+        while let Some(chunk) = rx.recv().await {
+            yield chunk;
         }
+        handle.await.unwrap()?;
     }
 
     fn read_file_blocking(self, tx: UnboundedSender<DataChunk>) -> Result<(), ExecutorError> {
@@ -163,7 +162,7 @@ mod tests {
                 ],
             },
         };
-        let actual = executor.execute().boxed().next().await.unwrap().unwrap();
+        let actual = executor.execute().next().await.unwrap().unwrap();
 
         let expected: DataChunk = [
             ArrayImpl::Int32([1, 2].into_iter().collect()),
