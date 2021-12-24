@@ -103,6 +103,7 @@ impl LogicalPlaner {
                 column_descs: column_descs.to_vec(),
                 with_row_handler,
                 is_sorted,
+                expr: None,
             })),
             BoundTableRef::JoinTableRef {
                 relation,

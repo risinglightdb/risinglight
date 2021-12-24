@@ -28,7 +28,7 @@ impl Optimizer {
         plan = plan.rewrite(&mut BoolExprSimplification);
         plan = plan.rewrite(&mut ConstantMovingRule);
         let hep_optimizer = HeuristicOptimizer {
-            rules: vec![Box::new(FilterJoinRule {})],
+            rules: vec![Box::new(FilterJoinRule {}), Box::new(FilterScanRule {})],
         };
         plan = hep_optimizer.optimize(plan);
         plan.rewrite(&mut PhysicalConverter)

@@ -191,11 +191,13 @@ impl Visitor for ExecutorBuilder {
         self.executor = Some(match &self.env.storage {
             StorageImpl::InMemoryStorage(storage) => SeqScanExecutor {
                 plan: plan.clone(),
+                expr: plan.expr.clone(),
                 storage: storage.clone(),
             }
             .execute(),
             StorageImpl::SecondaryStorage(storage) => SeqScanExecutor {
                 plan: plan.clone(),
+                expr: plan.expr.clone(),
                 storage: storage.clone(),
             }
             .execute(),

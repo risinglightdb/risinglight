@@ -6,7 +6,6 @@ use super::*;
 use crate::array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I64ArrayBuilder};
 use crate::optimizer::plan_nodes::PhysicalSeqScan;
 use crate::binder::BoundExpr;
-use crate::logical_optimizer::plan_nodes::PhysicalSeqScan;
 use crate::storage::{Storage, StorageColumnRef, Table, Transaction, TxnIterator};
 
 /// The executor of sequential scan operation.

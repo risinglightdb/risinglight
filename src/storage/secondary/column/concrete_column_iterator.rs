@@ -121,6 +121,85 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         }
     }
 
+    pub async fn next_batch_inner_with_filter(
+        &mut self,
+        expected_size: Option<usize>,
+        filter_bitmap: &BitVec,
+    ) -> Option<(u32, A)> {
+        if self.finished {
+            return None;
+        }
+
+        let capacity = if let Some(expected_size) = expected_size {
+            expected_size
+        } else {
+            self.block_iterator.remaining_items()
+        };
+
+        let mut builder = A::Builder::with_capacity(capacity);
+        let mut total_cnt = 0;
+        let first_row_id = self.current_row_id;
+
+        'outer: loop {
+            let cnt = self
+                .block_iterator
+                .next_batch(expected_size.map(|x| x - total_cnt), &mut builder);
+
+            total_cnt += cnt;
+            self.current_row_id += cnt as u32;
+
+            if let Some(expected_size) = expected_size {
+                if total_cnt >= expected_size {
+                    break;
+                }
+            } else if total_cnt != 0 {
+                break;
+            }
+
+            self.current_block_id += 1;
+
+            while self.current_block_id < self.column.index().len() as u32 {
+                let mut count = self.column.index().index(self.current_block_id).row_count as usize;
+                if let Some(expected_size) = expected_size {
+                    if total_cnt >= expected_size {
+                        break 'outer;
+                    }
+                    count = min(count, expected_size - total_cnt);
+                }
+                
+                let subset = &filter_bitmap[total_cnt..(total_cnt + count)];
+                // if all are unset
+                if subset.not_any() {
+                    self.current_block_id += 1;
+                    total_cnt += count;
+                    self.current_row_id += count as u32;
+                    // Need to be optimized
+                    for i in 0..count {
+                        builder.push(None);
+                    }
+                }
+            }
+
+            if self.current_block_id >= self.column.index().len() as u32 {
+                self.finished = true;
+                break;
+            }
+
+            let (header, block) = self.column.get_block(self.current_block_id).await;
+            self.block_iterator = self.factory.get_iterator_for(
+                header.block_type,
+                block,
+                self.column.index().index(self.current_block_id),
+                self.current_row_id as usize,
+            );
+        }
+
+        if total_cnt == 0 {
+            None
+        } else {
+            Some((first_row_id, builder.finish()))
+        }
+    }
     fn fetch_hint_inner(&self) -> usize {
         if self.finished {
             return 0;
@@ -132,10 +211,16 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
 
 #[async_trait]
 impl<A: Array, F: BlockIteratorFactory<A>> ColumnIterator<A> for ConcreteColumnIterator<A, F> {
-    async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<(u32, A)> {
-        self.next_batch_inner(expected_size).await
+    // async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<(u32, A)> {
+    //     self.next_batch_inner(expected_size).await
+    // }
+    async fn next_batch(&mut self, expected_size: Option<usize>, filter_bitmap: Option<&BitVec>) -> Option<(u32, A)> {
+        if let Some(fb) = filter_bitmap {
+            self.next_batch_inner_with_filter(expected_size, fb).await
+        } else {
+            self.next_batch_inner(expected_size).await
+        }
     }
-
     fn fetch_hint(&self) -> usize {
         self.fetch_hint_inner()
     }

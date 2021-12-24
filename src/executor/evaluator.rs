@@ -80,12 +80,22 @@ impl BoundExpr {
     }
 
     /// Evaluate the given expression as an array.
-    pub fn eval_array_in_storage(&self, chunk: &SmallVec<[Option<ArrayImpl>; 16]>) -> Result<ArrayImpl, ConvertError> {
-        let cardinality = chunk.iter().find(|x| !x.is_none()).unwrap().unwrap().len();
+    pub fn eval_array_in_storage(
+        &self,
+        chunk: &SmallVec<[Option<ArrayImpl>; 16]>,
+    ) -> Result<ArrayImpl, ConvertError> {
+        // Need to be optimized 
+        let cardinality = chunk
+            .iter()
+            .find(|x| x.is_some())
+            .unwrap()
+            .clone()
+            .unwrap()
+            .len();
         match &self {
             BoundExpr::InputRef(input_ref) => Ok(
                 // chunk.array_at(input_ref.index).clone()
-                chunk[input_ref.index].unwrap().clone()
+                chunk[input_ref.index].clone().unwrap(),
             ),
             BoundExpr::BinaryOp(binary_op) => {
                 let left = binary_op.left_expr.eval_array_in_storage(chunk)?;
@@ -97,10 +107,8 @@ impl BoundExpr {
                 Ok(array.unary_op(&op.op))
             }
             BoundExpr::Constant(v) => {
-                let mut builder = ArrayBuilderImpl::with_capacity(
-                    cardinality,
-                    &self.return_type().unwrap(),
-                );
+                let mut builder =
+                    ArrayBuilderImpl::with_capacity(cardinality, &self.return_type().unwrap());
                 // TODO: optimize this
                 for _ in 0..cardinality {
                     builder.push(v);

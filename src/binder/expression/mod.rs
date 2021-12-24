@@ -52,7 +52,7 @@ impl BoundExpr {
     pub fn get_filter_column(&self, filter_column: &mut BitVec) {
         // TODO: match other conditions
         match self {
-            Self::InputRef(expr) => filter_column[expr.index] = true,
+            Self::InputRef(expr) => filter_column.set(expr.index, true),
             Self::BinaryOp(expr) => {
                 expr.left_expr.get_filter_column(filter_column);
                 expr.right_expr.get_filter_column(filter_column);

@@ -14,6 +14,7 @@ pub struct PhysicalSeqScan {
     pub column_descs: Vec<ColumnDesc>,
     pub with_row_handler: bool,
     pub is_sorted: bool,
+    pub expr: Option<BoundExpr>,
 }
 
 impl_plan_tree_node!(PhysicalSeqScan);

@@ -27,6 +27,7 @@ impl LogicalPlaner {
                     column_descs,
                     with_row_handler: false,
                     is_sorted: false,
+                    expr: None,
                 }),
             }))
         } else {
