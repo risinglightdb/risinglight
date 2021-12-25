@@ -57,6 +57,14 @@ impl BoundExpr {
                 expr.left_expr.get_filter_column(filter_column);
                 expr.right_expr.get_filter_column(filter_column);
             },
+            Self::UnaryOp(expr) => {
+                expr.expr.get_filter_column(filter_column);
+            },
+            Self::AggCall(expr) => {
+                for sub_expr in &expr.args {
+                    sub_expr.get_filter_column(filter_column);
+                }
+            },
             Self::IsNull(expr) => expr.expr.get_filter_column(filter_column),
             _ => return,
         }

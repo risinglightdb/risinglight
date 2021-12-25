@@ -41,6 +41,15 @@ impl StorageImpl {
     }
 }
 
+impl StorageImpl {
+    pub fn enable_filter_scan(&self) -> bool {
+        match self {
+            Self::SecondaryStorage(_) => true,
+            Self::InMemoryStorage(_) => false,
+        }
+    }
+}
+
 /// Represents a storage engine.
 #[async_trait]
 pub trait Storage: Sync + Send + 'static {

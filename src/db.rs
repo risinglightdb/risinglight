@@ -160,7 +160,9 @@ impl Database {
 
         let mut binder = Binder::new(self.catalog.clone());
         let logical_planner = LogicalPlaner::default();
-        let mut optimizer = Optimizer::default();
+        let mut optimizer = Optimizer {
+            enable_filter_scan: self.storage.enable_filter_scan()
+        };
         // TODO: parallelize
         let mut outputs = vec![];
         for stmt in stmts {

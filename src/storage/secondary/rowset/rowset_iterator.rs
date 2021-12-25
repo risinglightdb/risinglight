@@ -8,10 +8,11 @@ use super::super::{
     ColumnIteratorImpl, ColumnSeekPosition, RowHandlerSequencer, SecondaryIteratorImpl,
 };
 use super::DiskRowset;
-use crate::array::{ArrayImpl, ArrayValidExt};
+use crate::array::{Array, ArrayImpl};
 use crate::binder::BoundExpr;
 use crate::storage::secondary::DeleteVector;
 use crate::storage::{PackedVec, StorageChunk, StorageColumnRef};
+use bitvec::prelude::Lsb0;
 
 /// When `expected_size` is not specified, we should limit the maximum size of the chunk.
 const ROWSET_MAX_OUTPUT: usize = 65536;
@@ -122,7 +123,6 @@ impl RowSetIterator {
         let mut filter_column = bitvec![0; self.column_refs.len()];
         expr.get_filter_column(&mut filter_column);
 
-        // for (id, flag) in filter_column.iter().enumerate()
         for id in 0..filter_column.len() {
             let flag = filter_column[id];
             if flag == true {
@@ -147,6 +147,10 @@ impl RowSetIterator {
             }
         }
 
+        if common_chunk_range.is_none() {
+            return (true, None);
+        }
+
         let mut visibility = None;
         if !self.dvs.is_empty() {
             if let Some(chunk_range) = common_chunk_range {
@@ -159,20 +163,23 @@ impl RowSetIterator {
             }
         }
 
-        // Evaluate filter_bitmap
-        let mut filter_bitmap = match expr.eval_array_in_storage(&arrays).unwrap() {
+        // Need to rewrite and optimize
+        let bool_array = match expr.eval_array_in_storage(&arrays).unwrap() {
             ArrayImpl::Bool(a) => a,
             _ => panic!("filters can only accept bool array"),
+        };
+        let mut filter_bitmap = bitvec![];
+        for i in bool_array.iter(){
+            filter_bitmap.push(*i.unwrap());
         }
-        .get_valid_bitmap()
-        .clone();
+
         if let Some(vis) = visibility {
             filter_bitmap &= vis;
         }
         // Use filter_bitmap to filter columns
         for (id, column_ref) in self.column_refs.iter().enumerate() {
             match column_ref {
-                StorageColumnRef::RowHandler => panic!("RowHandler"),
+                StorageColumnRef::RowHandler => continue,
                 StorageColumnRef::Idx(_) => {
                     if matches!(arrays[id], None) {
                         if let Some((row_id, array)) = self.column_iterators[id]
@@ -216,7 +223,7 @@ impl RowSetIterator {
 
         // Generate visibility bitmap
         let visibility = if self.dvs.is_empty() {
-            None
+            Some(filter_bitmap)
         } else {
             let mut vis = BitVec::new();
             vis.resize(common_chunk_range.1, true);

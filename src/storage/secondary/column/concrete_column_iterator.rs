@@ -168,13 +168,14 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
                 }
                 
                 let subset = &filter_bitmap[total_cnt..(total_cnt + count)];
-                // if all are unset
+                // If all are unset
+                // This block is not tested yet
                 if subset.not_any() {
                     self.current_block_id += 1;
                     total_cnt += count;
                     self.current_row_id += count as u32;
                     // Need to be optimized
-                    for i in 0..count {
+                    for _ in 0..count {
                         builder.push(None);
                     }
                 }
