@@ -17,6 +17,7 @@ pub struct HashJoinExecutor {
     pub right_column_index: usize,
 }
 
+// TODO : implement real hash join
 impl HashJoinExecutor {
     pub fn execute_hash_join(
         join_op: BoundJoinOperator,
