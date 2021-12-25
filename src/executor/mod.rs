@@ -31,6 +31,7 @@ pub mod evaluator;
 mod explain;
 mod filter;
 mod hash_agg;
+mod hash_join;
 mod insert;
 mod limit;
 mod nested_loop_join;
@@ -50,6 +51,7 @@ use self::dummy_scan::*;
 use self::explain::*;
 use self::filter::*;
 use self::hash_agg::*;
+use self::hash_join::*;
 use self::insert::*;
 use self::limit::*;
 use self::nested_loop_join::*;
@@ -247,6 +249,24 @@ impl Visitor for ExecutorBuilder {
                 agg_calls: plan.agg_calls.clone(),
                 group_keys: plan.group_keys.clone(),
                 child: self.executor.take().unwrap(),
+            }
+            .execute(),
+        );
+    }
+
+    fn visit_physical_hash_join(&mut self, plan: &PhysicalHashJoin) {
+        plan.left_plan.accept(self);
+        let left_child = self.executor.take().unwrap();
+        plan.right_plan.accept(self);
+        let right_child = self.executor.take().unwrap();
+        self.executor = Some(
+            HashJoinExecutor {
+                left_child,
+                right_child,
+                join_op: plan.join_op,
+                condition: plan.condition.clone(),
+                left_column_index: plan.left_column_index,
+                right_column_index: plan.right_column_index,
             }
             .execute(),
         );

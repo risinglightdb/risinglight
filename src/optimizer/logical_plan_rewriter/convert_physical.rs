@@ -1,5 +1,7 @@
 use super::*;
-
+use crate::binder::BoundJoinOperator;
+use crate::optimizer::BoundExpr::{BinaryOp, InputRef};
+use crate::parser::BinaryOperator;
 /// Convert all logical plan nodes to physical.
 pub struct PhysicalConverter;
 
@@ -39,6 +41,43 @@ impl Rewriter for PhysicalConverter {
         true
     }
     fn rewrite_logical_join(&mut self, logical_join: LogicalJoin) -> PlanRef {
+        // Hash join is only used for equal join.
+        // We only support hash join when it comes to inner join.
+        let left_types = logical_join.left_plan.out_types();
+        let mut left_column_index = 0;
+        let mut right_column_index = 0;
+        let mut use_hash_join = false;
+
+        match &logical_join.join_op {
+            BoundJoinOperator::Inner => match &logical_join.condition {
+                BinaryOp(op) => match (&op.op, &*op.left_expr, &*op.right_expr) {
+                    (BinaryOperator::Eq, InputRef(refx), InputRef(refy)) => {
+                        if refx.index < left_types.len() && refy.index >= left_types.len() {
+                            left_column_index = refx.index;
+                            right_column_index = refy.index;
+                            use_hash_join = true;
+                        } else if refy.index < left_types.len() && refx.index >= left_types.len() {
+                            left_column_index = refy.index;
+                            right_column_index = refx.index;
+                            use_hash_join = true;
+                        }
+                    }
+                    _ => {}
+                },
+                _ => {}
+            },
+            _ => {}
+        }
+        if use_hash_join {
+            return Rc::new(PhysicalHashJoin::new(
+                logical_join.left_plan.rewrite(self),
+                logical_join.right_plan.rewrite(self),
+                logical_join.join_op,
+                logical_join.condition,
+                left_column_index,
+                right_column_index,
+            ));
+        }
         Rc::new(PhysicalNestedLoopJoin::new(
             logical_join.left_plan.rewrite(self),
             logical_join.right_plan.rewrite(self),

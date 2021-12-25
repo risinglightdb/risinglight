@@ -135,6 +135,7 @@ macro_rules! for_all_plan_nodes {
             PhysicalNestedLoopJoin,
             PhysicalSimpleAgg,
             PhysicalHashAgg,
+            PhysicalHashJoin,
             PhysicalOrder,
             PhysicalLimit,
             PhysicalDelete,
