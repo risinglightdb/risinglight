@@ -43,7 +43,7 @@ impl Rewriter for PhysicalConverter {
     fn rewrite_logical_join(&mut self, logical_join: LogicalJoin) -> PlanRef {
         // Hash join is only used for equal join.
         // So far, we only support hash join when doing inner join.
-        let left_column_size = logical_join.left_plan.out_types().len;
+        let left_column_size = logical_join.left_plan.out_types().len();
         let mut left_column_index = 0;
         let mut right_column_index = 0;
         let mut use_hash_join = false;
