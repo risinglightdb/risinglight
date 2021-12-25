@@ -43,31 +43,29 @@ impl Rewriter for PhysicalConverter {
     fn rewrite_logical_join(&mut self, logical_join: LogicalJoin) -> PlanRef {
         // Hash join is only used for equal join.
         // So far, we only support hash join when doing inner join.
-        let left_types = logical_join.left_plan.out_types();
+        let left_column_size = logical_join.left_plan.out_types().len;
         let mut left_column_index = 0;
         let mut right_column_index = 0;
         let mut use_hash_join = false;
 
-        match &logical_join.join_op {
-            BoundJoinOperator::Inner => match &logical_join.condition {
-                BinaryOp(op) => match (&op.op, &*op.left_expr, &*op.right_expr) {
-                    (BinaryOperator::Eq, InputRef(refx), InputRef(refy)) => {
-                        if refx.index < left_types.len() && refy.index >= left_types.len() {
-                            left_column_index = refx.index;
-                            right_column_index = refy.index;
-                            use_hash_join = true;
-                        } else if refy.index < left_types.len() && refx.index >= left_types.len() {
-                            left_column_index = refy.index;
-                            right_column_index = refx.index;
-                            use_hash_join = true;
-                        }
+        if logical_join.join_op == BoundJoinOperator::Inner {
+            if let BinaryOp(op) = &logical_join.condition {
+                if let (BinaryOperator::Eq, InputRef(refx), InputRef(refy)) =
+                    (&op.op, &*op.left_expr, &*op.right_expr)
+                {
+                    if refx.index < left_column_size && refy.index >= left_column_size {
+                        left_column_index = refx.index;
+                        right_column_index = refy.index;
+                        use_hash_join = true;
+                    } else if refy.index < left_column_size && refx.index >= left_column_size {
+                        left_column_index = refy.index;
+                        right_column_index = refx.index;
+                        use_hash_join = true;
                     }
-                    _ => {}
-                },
-                _ => {}
-            },
-            _ => {}
+                }
+            }
         }
+
         if use_hash_join {
             return Rc::new(PhysicalHashJoin::new(
                 logical_join.left_plan.rewrite(self),
