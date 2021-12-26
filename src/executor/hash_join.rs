@@ -21,7 +21,7 @@ pub struct HashJoinExecutor {
     pub data_types: Vec<DataType>,
 }
 
-// TODO : implement real hash join
+// TODO : support other types of join: left/right/full join
 impl HashJoinExecutor {
     pub fn execute_hash_join(
         join_op: BoundJoinOperator,
