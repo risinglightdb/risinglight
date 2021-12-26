@@ -55,11 +55,11 @@ impl Rewriter for PhysicalConverter {
                 {
                     if refx.index < left_column_size && refy.index >= left_column_size {
                         left_column_index = refx.index;
-                        right_column_index = refy.index;
+                        right_column_index = refy.index - left_column_size;
                         use_hash_join = true;
                     } else if refy.index < left_column_size && refx.index >= left_column_size {
                         left_column_index = refy.index;
-                        right_column_index = refx.index;
+                        right_column_index = refx.index - left_column_size;
                         use_hash_join = true;
                     }
                 }

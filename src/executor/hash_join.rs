@@ -1,3 +1,6 @@
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::vec::Vec;
 
 use bitvec::bitvec;
@@ -6,7 +9,7 @@ use bitvec::vec::BitVec;
 use super::*;
 use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::binder::{BoundExpr, BoundJoinOperator};
-use crate::types::DataValue;
+use crate::types::{DataType, DataValue};
 // The executor for hash join
 pub struct HashJoinExecutor {
     pub left_child: BoxedExecutor,
@@ -15,6 +18,7 @@ pub struct HashJoinExecutor {
     pub condition: BoundExpr,
     pub left_column_index: usize,
     pub right_column_index: usize,
+    pub data_types: Vec<DataType>,
 }
 
 // TODO : implement real hash join
@@ -24,136 +28,55 @@ impl HashJoinExecutor {
         join_cond: BoundExpr,
         left_chunks: Vec<DataChunk>,
         right_chunks: Vec<DataChunk>,
+        left_column_index: usize,
+        right_column_index: usize,
+        data_types: Vec<DataType>,
     ) -> Result<Option<DataChunk>, ExecutorError> {
-        // TODO: get schema from executor instead of chunks
-        let left_row_len = left_chunks[0].column_count();
-        let right_row_len = right_chunks[0].column_count();
+        // Build hash table
 
-        let mut chunk_builders: Vec<ArrayBuilderImpl> = vec![];
-        for arr in left_chunks[0].arrays() {
-            chunk_builders.push(ArrayBuilderImpl::from_type_of_array(arr));
-        }
-        for arr in right_chunks[0].arrays() {
-            chunk_builders.push(ArrayBuilderImpl::from_type_of_array(arr));
-        }
-
-        let mut left_bitmaps: Option<Vec<BitVec>> = match &join_op {
-            BoundJoinOperator::LeftOuter | BoundJoinOperator::FullOuter => {
-                let mut vecs = vec![];
-                for left_chunk in &left_chunks {
-                    vecs.push(bitvec![0; left_chunk.cardinality()]);
-                }
-                Some(vecs)
-            }
-            _ => None,
-        };
-
-        let mut right_bitmaps: Option<Vec<BitVec>> = match &join_op {
-            BoundJoinOperator::RightOuter | BoundJoinOperator::FullOuter => {
-                let mut vecs = vec![];
-                for right_chunk in &right_chunks {
-                    vecs.push(bitvec![0; right_chunk.cardinality()]);
-                }
-                Some(vecs)
-            }
-            _ => None,
-        };
-
+        let mut hash_map: HashMap<u64, Vec<Vec<DataValue>>> = HashMap::new();
         for left_chunk_idx in 0..left_chunks.len() {
             for left_row_idx in 0..left_chunks[left_chunk_idx].cardinality() {
-                let mut matched = false;
-                for right_chunk_idx in 0..right_chunks.len() {
-                    for right_row_idx in 0..right_chunks[right_chunk_idx].cardinality() {
-                        let mut left_row = left_chunks[left_chunk_idx].get_row_by_idx(left_row_idx);
-                        let mut right_row =
-                            right_chunks[right_chunk_idx].get_row_by_idx(right_row_idx);
-                        left_row.append(&mut right_row);
-                        let mut builders: Vec<ArrayBuilderImpl> = left_row
-                            .iter()
-                            .map(|v| ArrayBuilderImpl::new(&v.data_type().unwrap()))
-                            .collect();
-                        for (idx, builder) in builders.iter_mut().enumerate() {
-                            builder.push(&left_row[idx]);
-                        }
-
-                        let chunk: DataChunk = builders
-                            .into_iter()
-                            .map(|builder| builder.finish())
-                            .collect();
-                        let arr_impl = join_cond.eval_array(&chunk)?;
-                        let value = arr_impl.get(0);
-                        match value {
-                            DataValue::Bool(true) => {
-                                matched = true;
-                                match &mut right_bitmaps {
-                                    Some(right_bitmaps) => {
-                                        right_bitmaps[right_chunk_idx].set(right_row_idx, true);
-                                    }
-                                    None => {}
-                                }
-
-                                for (idx, builder) in chunk_builders.iter_mut().enumerate() {
-                                    builder.push(&left_row[idx]);
-                                }
-                            }
-                            DataValue::Bool(false) => {}
-                            _ => {
-                                panic!("unsupported value from join condition")
-                            }
-                        }
-                    }
+                let row = left_chunks[left_chunk_idx].get_row_by_idx(left_row_idx);
+                let hash_data_value = &row[left_column_index];
+                let mut hasher = DefaultHasher::new();
+                hash_data_value.hash(&mut hasher);
+                let hash_val = hasher.finish();
+                if !hash_map.contains_key(&hash_val) {
+                    hash_map.insert(hash_val, Vec::new());
                 }
-                match &mut left_bitmaps {
-                    Some(left_bitmaps) => {
-                        if matched {
-                            left_bitmaps[left_chunk_idx].set(left_row_idx, true);
-                        }
-                    }
-                    None => {}
-                }
+                let val = hash_map.get_mut(&hash_val).unwrap();
+                val.push(row);
             }
         }
-        match &left_bitmaps {
-            Some(left_bitmaps) => {
-                for left_chunk_idx in 0..left_chunks.len() {
-                    for left_row_idx in 0..left_chunks[left_chunk_idx].cardinality() {
-                        if !left_bitmaps[left_chunk_idx][left_row_idx] {
-                            let mut left_row =
-                                left_chunks[left_chunk_idx].get_row_by_idx(left_row_idx);
-                            for _ in 0..right_row_len {
-                                left_row.push(DataValue::Null);
-                            }
-
-                            for (idx, builder) in chunk_builders.iter_mut().enumerate() {
+        let mut chunk_builders: Vec<ArrayBuilderImpl> = vec![];
+        for ty in &data_types {
+            chunk_builders.push(ArrayBuilderImpl::new(ty));
+        }
+        // Probe
+        for right_chunk_idx in 0..right_chunks.len() {
+            for right_row_idx in 0..right_chunks[right_chunk_idx].cardinality() {
+                let right_row = right_chunks[right_chunk_idx].get_row_by_idx(right_row_idx);
+                let hash_data_value = &right_row[right_column_index];
+                let mut hasher = DefaultHasher::new();
+                hash_data_value.hash(&mut hasher);
+                let hash_val = hasher.finish();
+                if !hash_map.contains_key(&hash_val) {
+                    continue;
+                }
+                let rows = hash_map.get(&hash_val).unwrap();
+                for left_row in rows.iter() {
+                    if left_row[left_column_index] == right_row[right_column_index] {
+                        for (idx, builder) in chunk_builders.iter_mut().enumerate() {
+                            if idx < left_row.len() {
                                 builder.push(&left_row[idx]);
+                            } else {
+                                builder.push(&right_row[idx - left_row.len()]);
                             }
                         }
                     }
                 }
             }
-            None => {}
-        }
-
-        match &right_bitmaps {
-            Some(right_bitmaps) => {
-                for right_chunk_idx in 0..right_chunks.len() {
-                    for right_row_idx in 0..right_chunks[right_chunk_idx].cardinality() {
-                        if !right_bitmaps[right_chunk_idx][right_row_idx] {
-                            let mut row = vec![];
-                            let mut righ_row =
-                                right_chunks[right_chunk_idx].get_row_by_idx(right_row_idx);
-                            for _ in 0..left_row_len {
-                                row.push(DataValue::Null);
-                            }
-                            row.append(&mut righ_row);
-                            for (idx, builder) in chunk_builders.iter_mut().enumerate() {
-                                builder.push(&row[idx]);
-                            }
-                        }
-                    }
-                }
-            }
-            None => {}
         }
         Ok(Some(
             chunk_builders
@@ -177,8 +100,15 @@ impl HashJoinExecutor {
             right_chunks.push(batch?);
         }
 
-        let chunk =
-            Self::execute_hash_join(self.join_op, self.condition, left_chunks, right_chunks)?;
+        let chunk = Self::execute_hash_join(
+            self.join_op,
+            self.condition,
+            left_chunks,
+            right_chunks,
+            self.left_column_index,
+            self.right_column_index,
+            self.data_types,
+        )?;
         if let Some(chunk) = chunk {
             yield chunk;
         }
