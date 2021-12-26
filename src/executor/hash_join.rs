@@ -7,7 +7,7 @@ use super::*;
 use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::binder::{BoundExpr, BoundJoinOperator};
 use crate::types::DataValue;
-// The executor for nested loop join
+// The executor for hash join
 pub struct HashJoinExecutor {
     pub left_child: BoxedExecutor,
     pub right_child: BoxedExecutor,
