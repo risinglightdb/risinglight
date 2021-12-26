@@ -168,8 +168,10 @@ impl Visitor for ExecutorBuilder {
         true
     }
     fn visit_physical_nested_loop_join(&mut self, plan: &PhysicalNestedLoopJoin) {
+        let left_types = plan.left_plan.out_types();
         plan.left_plan.accept(self);
         let left_child = self.executor.take().unwrap();
+        let right_types = plan.right_plan.out_types();
         plan.right_plan.accept(self);
         let right_child = self.executor.take().unwrap();
         self.executor = Some(
@@ -178,6 +180,8 @@ impl Visitor for ExecutorBuilder {
                 right_child,
                 join_op: plan.join_op,
                 condition: plan.condition.clone(),
+                left_types,
+                right_types,
             }
             .execute(),
         );
