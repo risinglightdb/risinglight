@@ -254,6 +254,9 @@ impl Visitor for ExecutorBuilder {
         );
     }
 
+    fn visit_physical_hash_join_is_nested(&mut self) -> bool {
+        true
+    }
     fn visit_physical_hash_join(&mut self, plan: &PhysicalHashJoin) {
         plan.left_plan.accept(self);
         let left_child = self.executor.take().unwrap();
