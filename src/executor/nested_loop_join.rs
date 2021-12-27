@@ -6,13 +6,15 @@ use bitvec::vec::BitVec;
 use super::*;
 use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::binder::{BoundExpr, BoundJoinOperator};
-use crate::types::DataValue;
+use crate::types::{DataType, DataValue};
 // The executor for nested loop join
 pub struct NestedLoopJoinExecutor {
     pub left_child: BoxedExecutor,
     pub right_child: BoxedExecutor,
     pub join_op: BoundJoinOperator,
     pub condition: BoundExpr,
+    pub left_types: Vec<DataType>,
+    pub right_types: Vec<DataType>,
 }
 
 impl NestedLoopJoinExecutor {
@@ -21,17 +23,18 @@ impl NestedLoopJoinExecutor {
         join_cond: BoundExpr,
         left_chunks: Vec<DataChunk>,
         right_chunks: Vec<DataChunk>,
+        left_types: Vec<DataType>,
+        right_types: Vec<DataType>,
     ) -> Result<Option<DataChunk>, ExecutorError> {
-        // TODO: get schema from executor instead of chunks
-        let left_row_len = left_chunks[0].column_count();
-        let right_row_len = right_chunks[0].column_count();
+        let left_row_len = left_types.len();
+        let right_row_len = left_types.len();
 
         let mut chunk_builders: Vec<ArrayBuilderImpl> = vec![];
-        for arr in left_chunks[0].arrays() {
-            chunk_builders.push(ArrayBuilderImpl::from_type_of_array(arr));
+        for ty in &left_types {
+            chunk_builders.push(ArrayBuilderImpl::new(ty));
         }
-        for arr in right_chunks[0].arrays() {
-            chunk_builders.push(ArrayBuilderImpl::from_type_of_array(arr));
+        for ty in &right_types {
+            chunk_builders.push(ArrayBuilderImpl::new(ty));
         }
 
         let mut left_bitmaps: Option<Vec<BitVec>> = match &join_op {
@@ -65,10 +68,13 @@ impl NestedLoopJoinExecutor {
                         let mut right_row =
                             right_chunks[right_chunk_idx].get_row_by_idx(right_row_idx);
                         left_row.append(&mut right_row);
-                        let mut builders: Vec<ArrayBuilderImpl> = left_row
-                            .iter()
-                            .map(|v| ArrayBuilderImpl::new(&v.data_type().unwrap()))
-                            .collect();
+                        let mut builders = vec![];
+                        for ty in &left_types {
+                            builders.push(ArrayBuilderImpl::new(ty));
+                        }
+                        for ty in &right_types {
+                            builders.push(ArrayBuilderImpl::new(ty));
+                        }
                         for (idx, builder) in builders.iter_mut().enumerate() {
                             builder.push(&left_row[idx]);
                         }
@@ -174,8 +180,14 @@ impl NestedLoopJoinExecutor {
             right_chunks.push(batch?);
         }
 
-        let chunk =
-            Self::execute_loop_join(self.join_op, self.condition, left_chunks, right_chunks)?;
+        let chunk = Self::execute_loop_join(
+            self.join_op,
+            self.condition,
+            left_chunks,
+            right_chunks,
+            self.left_types,
+            self.right_types,
+        )?;
         if let Some(chunk) = chunk {
             yield chunk;
         }
