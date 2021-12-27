@@ -6,6 +6,8 @@ version = "0.1.0"
 
 [features]
 simd = []
+enable-tokio-tracing = ["console-subscriber"]
+default = ["simd", "enable-tokio-tracing"]
 
 [dependencies]
 async-channel = "1"
@@ -41,9 +43,10 @@ serde_json = "1.0"
 smallvec = { version = "1.6.1", features = ["serde"] }
 sqlparser = { git = "https://github.com/wangrunji0408/sqlparser-rs", rev = "6e35a32", features = ["serde"] }
 thiserror = "1.0"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["full", "tracing"] }
 rust_decimal = "1.18.0"
 chrono = "0.4"
+console-subscriber = { version = "0.1", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["async_tokio"] }

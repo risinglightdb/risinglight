@@ -10,6 +10,9 @@ use rustyline::Editor;
 async fn main() {
     env_logger::init();
 
+    #[cfg(feature = "enable-tokio-tracing")]
+    console_subscriber::init();
+
     let db = if let Some(x) = std::env::args().nth(1) {
         if x == "--memory" {
             info!("using memory engine");
