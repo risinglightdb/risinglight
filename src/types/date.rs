@@ -1,45 +1,40 @@
 use std::fmt::{Display, Formatter};
-use std::str::FromStr;
 
 use chrono::{Datelike, NaiveDate};
 
-/// A wrapper for [`NaiveDate`]
-#[derive(PartialOrd, PartialEq, Debug, Copy, Clone)]
-pub struct Date(NaiveDate);
+// The same as NaiveDate::from_ymd(1970, 1, 1).num_days_from_ce().
+// Minus this magic number to store the number of days since 1970-01-01.
+pub const UNIX_EPOCH_DAYS: i32 = 719_163;
 
-// TODO: implement customized Date type
+/// Date type
+#[derive(PartialOrd, PartialEq, Debug, Copy, Clone, Default)]
+pub struct Date(i32);
+
 impl Date {
-    pub fn from_ymd(year: i32, month: u32, day: u32) -> Self {
-        Date(NaiveDate::from_ymd(year, month, day))
+    pub const fn new(inner: i32) -> Self {
+        Date(inner)
     }
-    pub fn from_str(s: &str) -> chrono::ParseResult<Date> {
-        match NaiveDate::from_str(s) {
-            Ok(d) => Ok(Date(d)),
-            Err(e) => Err(e),
-        }
-    }
-    pub fn year(&self) -> i32 {
-        self.0.year()
-    }
-    pub fn month(&self) -> u32 {
-        self.0.month()
-    }
-    pub fn day(&self) -> u32 {
-        self.0.day()
-    }
-    pub const fn const_default() -> Self {
-        Date(chrono::naive::MIN_DATE)
-    }
-}
 
-impl Default for Date {
-    fn default() -> Self {
-        Date(chrono::naive::MIN_DATE)
+    /// Convert string to date
+    pub fn from_str(s: &str) -> chrono::ParseResult<Date> {
+        NaiveDate::parse_from_str(s, "%Y-%m-%d")
+            .map(|ret| Date(ret.num_days_from_ce() - UNIX_EPOCH_DAYS))
+    }
+
+    /// Get the inner value of date type
+    pub fn get_inner(&self) -> i32 {
+        self.0
     }
 }
 
 impl Display for Date {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self.0)
+        write!(
+            f,
+            "{}",
+            NaiveDate::from_num_days_from_ce_opt(self.0 + UNIX_EPOCH_DAYS)
+                .unwrap()
+                .format("%Y-%m-%d")
+        )
     }
 }

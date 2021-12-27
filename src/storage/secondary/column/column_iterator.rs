@@ -4,6 +4,7 @@ use super::{
 };
 use crate::array::{Array, ArrayImpl};
 use crate::catalog::ColumnCatalog;
+use crate::storage::secondary::column::DateColumnIterator;
 use crate::types::DataTypeKind;
 
 /// [`ColumnIteratorImpl`] of all types
@@ -13,6 +14,7 @@ pub enum ColumnIteratorImpl {
     Bool(BoolColumnIterator),
     Char(CharColumnIterator),
     Decimal(DecimalColumnIterator),
+    Date(DateColumnIterator),
 }
 
 impl ColumnIteratorImpl {
@@ -50,6 +52,10 @@ impl ColumnIteratorImpl {
                 DecimalColumnIterator::new(column, start_pos, PrimitiveBlockIteratorFactory::new())
                     .await,
             ),
+            DataTypeKind::Date => Self::Date(
+                DateColumnIterator::new(column, start_pos, PrimitiveBlockIteratorFactory::new())
+                    .await,
+            ),
             other_datatype => todo!(
                 "column iterator for {:?} is not implemented",
                 other_datatype
@@ -70,6 +76,7 @@ impl ColumnIteratorImpl {
             Self::Bool(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
             Self::Char(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
             Self::Decimal(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
+            Self::Date(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
         }
     }
 
@@ -80,6 +87,7 @@ impl ColumnIteratorImpl {
             Self::Bool(it) => it.fetch_hint(),
             Self::Char(it) => it.fetch_hint(),
             Self::Decimal(it) => it.fetch_hint(),
+            Self::Date(it) => it.fetch_hint(),
         }
     }
 }
