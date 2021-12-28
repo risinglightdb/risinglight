@@ -1,6 +1,4 @@
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
 use std::vec::Vec;
 
 use super::*;
@@ -31,16 +29,16 @@ impl HashJoinExecutor {
     ) -> Result<Option<DataChunk>, ExecutorError> {
         // Build hash table
 
-        let mut hash_map: HashMap<u64, Vec<Vec<DataValue>>> = HashMap::new();
+        let mut hash_map: HashMap<DataValue, Vec<Vec<DataValue>>> = HashMap::new();
         for left_chunk in &left_chunks {
             for left_row_idx in 0..left_chunk.cardinality() {
                 let row = left_chunk.get_row_by_idx(left_row_idx);
                 let hash_data_value = &row[left_column_index];
-                let mut hasher = DefaultHasher::new();
-                hash_data_value.hash(&mut hasher);
-                let hash_val = hasher.finish();
-                hash_map.entry(hash_val).or_insert_with(Vec::new);
-                let val = hash_map.get_mut(&hash_val).unwrap();
+
+                hash_map
+                    .entry(hash_data_value.clone())
+                    .or_insert_with(Vec::new);
+                let val = hash_map.get_mut(hash_data_value).unwrap();
                 val.push(row);
             }
         }
@@ -53,13 +51,11 @@ impl HashJoinExecutor {
             for right_row_idx in 0..right_chunk.cardinality() {
                 let right_row = right_chunk.get_row_by_idx(right_row_idx);
                 let hash_data_value = &right_row[right_column_index];
-                let mut hasher = DefaultHasher::new();
-                hash_data_value.hash(&mut hasher);
-                let hash_val = hasher.finish();
-                if !hash_map.contains_key(&hash_val) {
+
+                if !hash_map.contains_key(hash_data_value) {
                     continue;
                 }
-                let rows = hash_map.get(&hash_val).unwrap();
+                let rows = hash_map.get(hash_data_value).unwrap();
                 for left_row in rows.iter() {
                     if left_row[left_column_index] == right_row[right_column_index] {
                         for (idx, builder) in chunk_builders.iter_mut().enumerate() {
