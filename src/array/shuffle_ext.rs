@@ -4,6 +4,7 @@ use itertools::Itertools;
 use smallvec::SmallVec;
 
 use super::*;
+use crate::for_all_variants;
 
 /// Transform an [`Array`] to `Vec<Option<Item>>`.
 pub trait ArrayToVecExt: Array {
@@ -66,42 +67,6 @@ pub trait ArrayImplBuilderPickExt {
     );
 }
 
-impl ArrayImplBuilderPickExt for ArrayBuilderImpl {
-    fn pick_from(&mut self, array: &ArrayImpl, logical_rows: &[usize]) {
-        match (self, array) {
-            (Self::Bool(builder), ArrayImpl::Bool(arr)) => builder.pick_from(arr, logical_rows),
-            (Self::Int32(builder), ArrayImpl::Int32(arr)) => builder.pick_from(arr, logical_rows),
-            (Self::Int64(builder), ArrayImpl::Int64(arr)) => builder.pick_from(arr, logical_rows),
-            (Self::Float64(builder), ArrayImpl::Float64(arr)) => {
-                builder.pick_from(arr, logical_rows)
-            }
-            (Self::Utf8(builder), ArrayImpl::Utf8(arr)) => builder.pick_from(arr, logical_rows),
-            (Self::Decimal(builder), ArrayImpl::Decimal(arr)) => {
-                builder.pick_from(arr, logical_rows)
-            }
-            (Self::Date(builder), ArrayImpl::Date(arr)) => builder.pick_from(arr, logical_rows),
-            _ => panic!("failed to push value: type mismatch"),
-        }
-    }
-
-    fn pick_from_multiple(
-        &mut self,
-        arrays: &[impl AsRef<ArrayImpl>],
-        logical_rows: &[(usize, usize)],
-    ) {
-        match self {
-            Self::Int32(builder) => {
-                let typed_arrays = arrays
-                    .iter()
-                    .map(|x| x.as_ref().try_into().unwrap())
-                    .collect::<SmallVec<[_; 8]>>();
-                builder.pick_from_multiple(&typed_arrays, logical_rows);
-            }
-            _ => todo!(),
-        }
-    }
-}
-
 /// Get sorted indices from the current [`Array`]
 pub trait ArraySortExt: Array
 where
@@ -157,16 +122,48 @@ pub trait ArrayImplSortExt {
     fn get_sorted_indices(&self) -> Vec<usize>;
 }
 
-impl ArrayImplSortExt for ArrayImpl {
-    fn get_sorted_indices(&self) -> Vec<usize> {
-        match self {
-            Self::Bool(a) => a.get_sorted_indices(),
-            Self::Int32(a) => a.get_sorted_indices(),
-            Self::Int64(a) => a.get_sorted_indices(),
-            Self::Float64(a) => a.get_sorted_indices(),
-            Self::Utf8(a) => a.get_sorted_indices(),
-            Self::Decimal(a) => a.get_sorted_indices(),
-            Self::Date(a) => a.get_sorted_indices(),
+/// Implement dispatch functions for `ArrayImplBuilderPickExt` and `ArrayImplSortExt`
+macro_rules! impl_array_impl_shuffle_ext {
+    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident } ),*) => {
+        impl ArrayImplBuilderPickExt for ArrayBuilderImpl {
+            fn pick_from(&mut self, array: &ArrayImpl, logical_rows: &[usize]) {
+                match (self, array) {
+                    $(
+                        (Self::$Abc(builder), ArrayImpl::$Abc(arr)) => builder.pick_from(arr, logical_rows),
+                    )*
+                    _ => panic!("failed to push value: type mismatch"),
+                }
+            }
+
+            fn pick_from_multiple(
+                &mut self,
+                arrays: &[impl AsRef<ArrayImpl>],
+                logical_rows: &[(usize, usize)],
+            ) {
+                match self {
+                    $(
+                        Self::$Abc(builder) => {
+                            let typed_arrays = arrays
+                                .iter()
+                                .map(|x| x.as_ref().try_into().unwrap())
+                                .collect::<SmallVec<[_; 8]>>();
+                            builder.pick_from_multiple(&typed_arrays, logical_rows);
+                        }
+                    )*
+                }
+            }
+        }
+
+        impl ArrayImplSortExt for ArrayImpl {
+            fn get_sorted_indices(&self) -> Vec<usize> {
+                match self {
+                    $(
+                        Self::$Abc(a) => a.get_sorted_indices(),
+                    )*
+                }
+            }
         }
     }
 }
+
+for_all_variants! { impl_array_impl_shuffle_ext }

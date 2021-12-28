@@ -3,6 +3,7 @@
 use bitvec::vec::BitVec;
 
 use super::{Array, ArrayImpl};
+use crate::for_all_variants;
 
 pub trait ArrayValidExt: Array {
     fn get_valid_bitmap(&self) -> &BitVec;
@@ -10,20 +11,6 @@ pub trait ArrayValidExt: Array {
 
 pub trait ArrayImplValidExt {
     fn get_valid_bitmap(&self) -> &BitVec;
-}
-
-impl ArrayImplValidExt for ArrayImpl {
-    fn get_valid_bitmap(&self) -> &BitVec {
-        match self {
-            Self::Bool(a) => a.get_valid_bitmap(),
-            Self::Int32(a) => a.get_valid_bitmap(),
-            Self::Int64(a) => a.get_valid_bitmap(),
-            Self::Float64(a) => a.get_valid_bitmap(),
-            Self::Utf8(a) => a.get_valid_bitmap(),
-            Self::Decimal(a) => a.get_valid_bitmap(),
-            Self::Date(a) => a.get_valid_bitmap(),
-        }
-    }
 }
 
 pub trait ArrayEstimateExt: Array {
@@ -36,16 +23,29 @@ pub trait ArrayImplEstimateExt {
     fn get_estimated_size(&self) -> usize;
 }
 
-impl ArrayImplEstimateExt for ArrayImpl {
-    fn get_estimated_size(&self) -> usize {
-        match self {
-            Self::Bool(a) => a.get_estimated_size(),
-            Self::Int32(a) => a.get_estimated_size(),
-            Self::Int64(a) => a.get_estimated_size(),
-            Self::Float64(a) => a.get_estimated_size(),
-            Self::Utf8(a) => a.get_estimated_size(),
-            Self::Decimal(a) => a.get_estimated_size(),
-            Self::Date(a) => a.get_estimated_size(),
+/// Implement dispatch functions for `ArrayImplValidExt` and `ArrayImplEstimateExt`
+macro_rules! impl_array_impl_internal_ext {
+    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident } ),*) => {
+        impl ArrayImplValidExt for ArrayImpl {
+            fn get_valid_bitmap(&self) -> &BitVec {
+                match self {
+                    $(
+                        Self::$Abc(a) => a.get_valid_bitmap(),
+                    )*
+                }
+            }
+        }
+
+        impl ArrayImplEstimateExt for ArrayImpl {
+            fn get_estimated_size(&self) -> usize {
+                match self {
+                    $(
+                        Self::$Abc(a) => a.get_estimated_size(),
+                    )*
+                }
+            }
         }
     }
 }
+
+for_all_variants! { impl_array_impl_internal_ext }

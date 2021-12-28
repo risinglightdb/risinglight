@@ -11,6 +11,8 @@ pub(crate) use native::*;
 use num_traits::ToPrimitive;
 use rust_decimal::prelude::FromStr;
 
+use crate::for_all_variants;
+
 /// Physical data type
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PhysicalDataTypeKind {
@@ -121,21 +123,25 @@ pub enum DataValue {
     Date(Date),
 }
 
-impl PartialEq for DataValue {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Null, Self::Null) => true,
-            (Self::Bool(left), Self::Bool(right)) => left == right,
-            (Self::Int32(left), Self::Int32(right)) => left == right,
-            (Self::Int64(left), Self::Int64(right)) => left == right,
-            (Self::String(left), Self::String(right)) => left == right,
-            (Self::Float64(left), Self::Float64(right)) => left == right,
-            (Self::Decimal(left), Self::Decimal(right)) => left == right,
-            (Self::Date(left), Self::Date(right)) => left == right,
-            _ => false,
+/// Implement dispatch functions for `PartialEq`
+macro_rules! impl_partial_eq {
+    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident } ),*) => {
+        impl PartialEq for DataValue {
+            fn eq(&self, other: &Self) -> bool {
+                match (self, other) {
+                    $(
+                        (Self::$Value(left), Self::$Value(right)) => left == right,
+                    )*
+                    (Self::Null, Self::Null) => true,
+                    _ => false,
+                }
+            }
         }
     }
 }
+
+for_all_variants! { impl_partial_eq }
+
 impl Eq for DataValue {}
 impl Hash for DataValue {
     fn hash<H: Hasher>(&self, state: &mut H) {
