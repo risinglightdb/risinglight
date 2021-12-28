@@ -67,41 +67,6 @@ pub trait ArrayImplBuilderPickExt {
     );
 }
 
-/// Implement dispatch functions for `ArrayImplBuilderPickExt`
-macro_rules! impl_array_impl_builder_pick_ext {
-    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident } ),*) => {
-        impl ArrayImplBuilderPickExt for ArrayBuilderImpl {
-            fn pick_from(&mut self, array: &ArrayImpl, logical_rows: &[usize]) {
-                match (self, array) {
-                    $(
-                        (Self::$Abc(builder), ArrayImpl::$Abc(arr)) => builder.pick_from(arr, logical_rows),
-                    )*
-                    _ => panic!("failed to push value: type mismatch"),
-                }
-            }
-
-            fn pick_from_multiple(
-                &mut self,
-                arrays: &[impl AsRef<ArrayImpl>],
-                logical_rows: &[(usize, usize)],
-            ) {
-                match self {
-                    Self::Int32(builder) => {
-                        let typed_arrays = arrays
-                            .iter()
-                            .map(|x| x.as_ref().try_into().unwrap())
-                            .collect::<SmallVec<[_; 8]>>();
-                        builder.pick_from_multiple(&typed_arrays, logical_rows);
-                    }
-                    _ => todo!(),
-                }
-            }
-        }
-    }
-}
-
-for_all_variants! { impl_array_impl_builder_pick_ext }
-
 /// Get sorted indices from the current [`Array`]
 pub trait ArraySortExt: Array
 where
@@ -157,9 +122,38 @@ pub trait ArrayImplSortExt {
     fn get_sorted_indices(&self) -> Vec<usize>;
 }
 
-/// Implement dispatch functions for `ArrayImplEstimateExt`
-macro_rules! impl_array_impl_sort_ext {
+/// Implement dispatch functions for `ArrayImplBuilderPickExt` and `ArrayImplSortExt`
+macro_rules! impl_array_impl_shuffle_ext {
     ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident } ),*) => {
+        impl ArrayImplBuilderPickExt for ArrayBuilderImpl {
+            fn pick_from(&mut self, array: &ArrayImpl, logical_rows: &[usize]) {
+                match (self, array) {
+                    $(
+                        (Self::$Abc(builder), ArrayImpl::$Abc(arr)) => builder.pick_from(arr, logical_rows),
+                    )*
+                    _ => panic!("failed to push value: type mismatch"),
+                }
+            }
+
+            fn pick_from_multiple(
+                &mut self,
+                arrays: &[impl AsRef<ArrayImpl>],
+                logical_rows: &[(usize, usize)],
+            ) {
+                match self {
+                    $(
+                        Self::$Abc(builder) => {
+                            let typed_arrays = arrays
+                                .iter()
+                                .map(|x| x.as_ref().try_into().unwrap())
+                                .collect::<SmallVec<[_; 8]>>();
+                            builder.pick_from_multiple(&typed_arrays, logical_rows);
+                        }
+                    )*
+                }
+            }
+        }
+
         impl ArrayImplSortExt for ArrayImpl {
             fn get_sorted_indices(&self) -> Vec<usize> {
                 match self {
@@ -172,4 +166,4 @@ macro_rules! impl_array_impl_sort_ext {
     }
 }
 
-for_all_variants! { impl_array_impl_sort_ext }
+for_all_variants! { impl_array_impl_shuffle_ext }
