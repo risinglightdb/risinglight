@@ -16,3 +16,18 @@ true
 
 statement ok
 drop table test1
+
+# date
+statement ok
+create table t (v1 date not null);
+
+statement ok
+insert into t values('2020-01-01');
+
+query I
+select v1 from t
+----
+2020-01-01
+
+statement ok
+drop table t

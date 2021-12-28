@@ -79,21 +79,16 @@ impl PrimitiveFixedWidthEncode for Decimal {
 }
 
 impl PrimitiveFixedWidthEncode for Date {
-    const WIDTH: usize = std::mem::size_of::<Date>();
-    const DEAFULT_VALUE: &'static Self = &Date::const_default();
+    const WIDTH: usize = std::mem::size_of::<i32>();
+    const DEAFULT_VALUE: &'static Self = &Date::new(0);
 
     type ArrayType = DateArray;
 
     fn encode(&self, buffer: &mut impl BufMut) {
-        buffer.put_i32(self.year());
-        buffer.put_u32(self.month());
-        buffer.put_u32(self.day());
+        buffer.put_i32(self.get_inner());
     }
 
     fn decode(buffer: &mut impl Buf) -> Self {
-        let year = buffer.get_i32();
-        let month = buffer.get_u32();
-        let day = buffer.get_u32();
-        Date::from_ymd(year, month, day)
+        Date::new(buffer.get_i32())
     }
 }
