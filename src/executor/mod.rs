@@ -261,6 +261,7 @@ impl Visitor for ExecutorBuilder {
     fn visit_physical_hash_join_is_nested(&mut self) -> bool {
         true
     }
+
     fn visit_physical_hash_join(&mut self, plan: &PhysicalHashJoin) {
         plan.left_plan.accept(self);
         let left_child = self.executor.take().unwrap();
@@ -274,6 +275,7 @@ impl Visitor for ExecutorBuilder {
                 condition: plan.condition.clone(),
                 left_column_index: plan.left_column_index,
                 right_column_index: plan.right_column_index,
+                data_types: plan.out_types(),
             }
             .execute(),
         );
