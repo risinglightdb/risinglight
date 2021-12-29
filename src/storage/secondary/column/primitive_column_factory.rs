@@ -118,7 +118,7 @@ mod tests {
         )
         .await;
         let mut recv_data = vec![];
-        while let Some((_, data)) = scanner.next_batch(None).await {
+        while let Some((_, data)) = scanner.next_batch(None, None).await {
             recv_data.extend(data.to_vec());
         }
 
@@ -142,7 +142,7 @@ mod tests {
         )
         .await;
         for i in 0..10 {
-            let (id, data) = scanner.next_batch(Some(1000)).await.unwrap();
+            let (id, data) = scanner.next_batch(Some(1000), None).await.unwrap();
             assert_eq!(id, 10000 + i * 1000);
             let left = data.to_vec();
             let right = [1, 2, 3]

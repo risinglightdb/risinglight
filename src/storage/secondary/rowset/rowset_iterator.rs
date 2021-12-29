@@ -120,7 +120,7 @@ impl RowSetIterator {
                     if let Some((row_id, array)) = self.column_iterators[id]
                         .as_mut()
                         .unwrap()
-                        .next_batch(Some(fetch_size))
+                        .next_batch(Some(fetch_size), None)
                         .await
                     {
                         if let Some(x) = common_chunk_range {

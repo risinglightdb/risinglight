@@ -1,3 +1,5 @@
+use bitvec::prelude::BitVec;
+
 use super::{
     BoolColumnIterator, CharBlockIteratorFactory, CharColumnIterator, Column, ColumnIterator,
     DecimalColumnIterator, F64ColumnIterator, I32ColumnIterator, PrimitiveBlockIteratorFactory,
@@ -69,14 +71,30 @@ impl ColumnIteratorImpl {
         ret.map(|(row_id, array)| (row_id, array.into()))
     }
 
-    pub async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<(u32, ArrayImpl)> {
+    pub async fn next_batch(
+        &mut self,
+        expected_size: Option<usize>,
+        filter_bitmap: Option<&BitVec>,
+    ) -> Option<(u32, ArrayImpl)> {
         match self {
-            Self::Int32(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
-            Self::Float64(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
-            Self::Bool(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
-            Self::Char(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
-            Self::Decimal(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
-            Self::Date(it) => Self::erase_concrete_type(it.next_batch(expected_size).await),
+            Self::Int32(it) => {
+                Self::erase_concrete_type(it.next_batch(expected_size, filter_bitmap).await)
+            }
+            Self::Float64(it) => {
+                Self::erase_concrete_type(it.next_batch(expected_size, filter_bitmap).await)
+            }
+            Self::Bool(it) => {
+                Self::erase_concrete_type(it.next_batch(expected_size, filter_bitmap).await)
+            }
+            Self::Char(it) => {
+                Self::erase_concrete_type(it.next_batch(expected_size, filter_bitmap).await)
+            }
+            Self::Decimal(it) => {
+                Self::erase_concrete_type(it.next_batch(expected_size, filter_bitmap).await)
+            }
+            Self::Date(it) => {
+                Self::erase_concrete_type(it.next_batch(expected_size, filter_bitmap).await)
+            }
         }
     }
 
