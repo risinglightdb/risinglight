@@ -152,10 +152,10 @@ pub mod tests {
         for _ in 0..100 {
             builder.append(
                 [
-                    I32Array::from_iter([1, 2, 3].iter().cycle().cloned().take(1000).map(Some))
+                    I32Array::from_iter([1, 2, 3].iter().cycle().cloned().take(1020).map(Some))
                         .into(),
                     I32Array::from_iter(
-                        [1, 3, 5, 7, 9].iter().cycle().cloned().take(1000).map(Some),
+                        [1, 3, 5, 7, 9].iter().cycle().cloned().take(1020).map(Some),
                     )
                     .into(),
                     I32Array::from_iter(
@@ -163,7 +163,7 @@ pub mod tests {
                             .iter()
                             .cycle()
                             .cloned()
-                            .take(1000)
+                            .take(1020)
                             .map(Some),
                     )
                     .into(),

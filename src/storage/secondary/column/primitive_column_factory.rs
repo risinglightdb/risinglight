@@ -99,10 +99,13 @@ impl<T: PrimitiveFixedWidthEncode> BlockIteratorFactory<T::ArrayType>
 
 #[cfg(test)]
 mod tests {
+    use bitvec::bitvec;
+    use bitvec::prelude::BitVec;
     use itertools::Itertools;
 
     use super::*;
     use crate::array::ArrayToVecExt;
+    use crate::storage::secondary::column::Column;
     use crate::storage::secondary::rowset::tests::helper_build_rowset;
     use crate::storage::secondary::{ColumnIterator, PrimitiveColumnIterator};
 
@@ -154,6 +157,85 @@ mod tests {
                 .collect_vec();
             assert_eq!(left.len(), right.len());
             assert_eq!(left, right);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_scan_i32_with_filter() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let rowset = helper_build_rowset(&tempdir, false).await;
+        let column = rowset.column(0);
+
+        let none_array = vec![None; 1020];
+        let value_array = [1, 2, 3]
+            .iter()
+            .cycle()
+            .cloned()
+            .take(1020)
+            .map(Some)
+            .collect_vec();
+
+        test_i32_0(column.clone(), &none_array).await;
+        test_i32_1(column.clone(), &value_array).await;
+        test_i32_0_1_0(column.clone(), &none_array, &value_array).await;
+    }
+
+    async fn get_data(column: Column, mut filter_bitmap: BitVec) -> Vec<Option<i32>> {
+        let mut scanner = PrimitiveColumnIterator::<i32>::new(
+            column.clone(),
+            0,
+            PrimitiveBlockIteratorFactory::new(),
+        )
+        .await;
+        let mut recv_data = vec![];
+        while let Some((_, data)) = scanner.next_batch(None, Some(&filter_bitmap)).await {
+            recv_data.extend(data.to_vec());
+            filter_bitmap = filter_bitmap.split_off(data.len());
+        }
+        recv_data
+    }
+
+    async fn test_i32_0_1_0(
+        column: Column,
+        none_array: &Vec<Option<i32>>,
+        value_array: &Vec<Option<i32>>,
+    ) {
+        let mut left_bitmap = bitvec![0; 50 * 1020];
+        let mut middle_bitmap = bitvec![1; 25 * 1020];
+        let mut right_bitmap = bitvec![0; 25 * 1020];
+        middle_bitmap.append(&mut right_bitmap);
+        left_bitmap.append(&mut middle_bitmap);
+
+        let recv_data = get_data(column, left_bitmap).await;
+
+        for i in 1..50 {
+            assert_eq!(recv_data[i * 1020..(i + 1) * 1020], *none_array);
+        }
+        for i in 50..75 {
+            assert_eq!(recv_data[i * 1020..(i + 1) * 1020], *value_array);
+        }
+        for i in 75..100 {
+            assert_eq!(recv_data[i * 1020..(i + 1) * 1020], *none_array);
+        }
+    }
+
+    async fn test_i32_0(column: Column, none_array: &Vec<Option<i32>>) {
+        let filter_bitmap = bitvec![0; 100 * 1020];
+
+        let recv_data = get_data(column, filter_bitmap).await;
+
+        for i in 1..100 {
+            assert_eq!(recv_data[i * 1020..(i + 1) * 1020], *none_array);
+        }
+    }
+
+    async fn test_i32_1(column: Column, value_array: &Vec<Option<i32>>) {
+        let filter_bitmap = bitvec![1; 100 * 1020];
+
+        let recv_data = get_data(column, filter_bitmap).await;
+
+        for i in 0..100 {
+            assert_eq!(recv_data[i * 1020..(i + 1) * 1020], *value_array);
         }
     }
 }

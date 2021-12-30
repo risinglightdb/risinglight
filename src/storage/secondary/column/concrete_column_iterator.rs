@@ -121,6 +121,7 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         }
     }
 
+    // Notice: current_block_id and block_iterator is not sync here
     pub async fn next_batch_inner_with_filter(
         &mut self,
         expected_size: Option<usize>,
@@ -148,6 +149,11 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             total_cnt += cnt;
             self.current_row_id += cnt as u32;
 
+            if cnt != 0 {
+                self.current_block_id += 1;
+                // println!("current_block_id: {} count: {}", self.current_block_id, cnt);
+            }
+
             if let Some(expected_size) = expected_size {
                 if total_cnt >= expected_size {
                     break;
@@ -156,28 +162,35 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
                 break;
             }
 
-            self.current_block_id += 1;
-
             while self.current_block_id < self.column.index().len() as u32 {
+                // row_count or remaining_iterms?
                 let mut count = self.column.index().index(self.current_block_id).row_count as usize;
+
                 if let Some(expected_size) = expected_size {
-                    if total_cnt >= expected_size {
-                        break 'outer;
-                    }
                     count = min(count, expected_size - total_cnt);
                 }
 
                 let subset = &filter_bitmap[total_cnt..(total_cnt + count)];
-                // If all are unset
-                // This block is not tested yet
+
                 if subset.not_any() {
                     self.current_block_id += 1;
+                    // println!("current_block_id: {} count: {}", self.current_block_id, count);
                     total_cnt += count;
                     self.current_row_id += count as u32;
-                    // Need to be optimized
+
                     for _ in 0..count {
                         builder.push(None);
                     }
+                } else {
+                    break;
+                }
+
+                if let Some(expected_size) = expected_size {
+                    if total_cnt >= expected_size {
+                        break 'outer;
+                    }
+                } else if total_cnt != 0 {
+                    break 'outer;
                 }
             }
 
