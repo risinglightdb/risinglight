@@ -73,6 +73,7 @@ impl BoundExpr {
                         .collect(),
                 ))
             }
+            BoundExpr::ExprWithAlias(expr_with_alias) => expr_with_alias.expr.eval_array(chunk),
             _ => panic!("{:?} should not be evaluated in `eval_array`", self),
         }
     }

@@ -6,8 +6,12 @@
 //! - [`LogicalFilter`] (where *)
 //! - [`LogicalProjection`] (select *)
 //! - [`LogicalOrder`] (order by *)
+use itertools::Itertools;
+
 use super::*;
-use crate::binder::{BoundAggCall, BoundExpr, BoundInputRef, BoundSelect, BoundTableRef};
+use crate::binder::{
+    BoundAggCall, BoundExpr, BoundInputRef, BoundOrderBy, BoundSelect, BoundTableRef,
+};
 use crate::optimizer::plan_nodes::{
     Dummy, LogicalAggregate, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder,
     LogicalProjection, LogicalSeqScan,
@@ -46,6 +50,13 @@ impl LogicalPlaner {
             ));
         }
 
+        let mut alias_extractor = AliasExtractor::new(&stmt.select_list);
+        let comparators = stmt
+            .orderby
+            .into_iter()
+            .map(|expr| alias_extractor.visit_expr(expr))
+            .collect_vec();
+
         // TODO: support the following clauses
         assert!(!stmt.select_distinct, "TODO: plan distinct");
 
@@ -55,9 +66,9 @@ impl LogicalPlaner {
                 child: plan,
             });
         }
-        if !stmt.orderby.is_empty() && !is_sorted {
+        if !comparators.is_empty() && !is_sorted {
             plan = Rc::new(LogicalOrder {
-                comparators: stmt.orderby,
+                comparators,
                 child: plan,
             });
         }
@@ -166,7 +177,57 @@ impl AggExtractor {
             }
             UnaryOp(unary_op) => self.visit_expr(&mut unary_op.expr),
             TypeCast(type_cast) => self.visit_expr(&mut type_cast.expr),
-            Constant(_) | ColumnRef(_) | InputRef(_) | IsNull(_) => {}
+            Constant(_) | ColumnRef(_) | InputRef(_) | IsNull(_) | ExprWithAlias(_) | Alias(_) => {}
+        }
+    }
+}
+
+/// And expression visitor that extracts aliases in order-by expressions and replaces them with
+/// `InputRef`.
+///
+/// For example,
+/// In SQL: `select a, b as c from t order by c;`
+/// The expression `c` in the order-by clause will be rewritten to `InputRef(1)`, because the
+/// underlying projection plan will output `(a, b)`, where `b` is alias to `c`.
+#[derive(Default)]
+struct AliasExtractor<'a> {
+    select_list: &'a [BoundExpr],
+}
+
+impl<'a> AliasExtractor<'a> {
+    fn new(select_list: &'a [BoundExpr]) -> Self {
+        AliasExtractor { select_list }
+    }
+
+    fn visit_expr(&mut self, expr: BoundOrderBy) -> BoundOrderBy {
+        use BoundExpr::{Alias, ColumnRef, ExprWithAlias, InputRef};
+        match expr.expr {
+            Alias(alias) => {
+                // Binder has pushed the alias expression to `select_list`, so we can unwrap
+                // directly
+                let index = self
+                    .select_list
+                    .iter()
+                    .position(|inner_expr| {
+                        if let ExprWithAlias(e) = inner_expr {
+                            e.alias == alias.alias
+                        } else {
+                            false
+                        }
+                    })
+                    .unwrap();
+                let select_item = &self.select_list[index];
+                let input_ref = InputRef(BoundInputRef {
+                    index,
+                    return_type: select_item.return_type().unwrap(),
+                });
+                BoundOrderBy {
+                    expr: input_ref,
+                    descending: expr.descending,
+                }
+            }
+            ColumnRef(_) => expr,
+            _ => panic!("order-by expression should be column ref or expr alias"),
         }
     }
 }
