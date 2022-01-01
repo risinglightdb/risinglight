@@ -16,6 +16,7 @@ impl Binder {
     pub fn bind_create_table(&mut self, stmt: &Statement) -> Result<BoundCreateTable, BindError> {
         match stmt {
             Statement::CreateTable { name, columns, .. } => {
+                let name = &lower_case_name(name);
                 let (database_name, schema_name, table_name) = split_name(name)?;
                 let db = self
                     .catalog
@@ -30,7 +31,7 @@ impl Binder {
                 // check duplicated column names
                 let mut set = HashSet::new();
                 for col in columns.iter() {
-                    if !set.insert(col.name.value.clone()) {
+                    if !set.insert(col.name.value.to_lowercase()) {
                         return Err(BindError::DuplicatedColumn(col.name.value.clone()));
                     }
                 }
@@ -69,7 +70,7 @@ impl From<&ColumnDef> for ColumnCatalog {
         }
         ColumnCatalog::new(
             0,
-            cdef.name.value.clone(),
+            cdef.name.value.to_lowercase(),
             ColumnDesc::new(
                 DataType::new(cdef.data_type.clone(), is_nullable),
                 is_primary_,
