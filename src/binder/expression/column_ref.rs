@@ -45,11 +45,15 @@ impl Binder {
     }
 
     pub fn bind_column_ref(&mut self, idents: &[Ident]) -> Result<BoundExpr, BindError> {
-        let (_schema_name, table_name, column_name) = match idents {
+        let idents = idents
+            .iter()
+            .map(|ident| Ident::new(ident.value.to_lowercase()))
+            .collect_vec();
+        let (_schema_name, table_name, column_name) = match idents.as_slice() {
             [column] => (None, None, &column.value),
             [table, column] => (None, Some(&table.value), &column.value),
             [schema, table, column] => (Some(&schema.value), Some(&table.value), &column.value),
-            _ => return Err(BindError::InvalidTableName(idents.into())),
+            _ => return Err(BindError::InvalidTableName(idents)),
         };
         if let Some(name) = table_name {
             if !self.context.regular_tables.contains_key(name) {

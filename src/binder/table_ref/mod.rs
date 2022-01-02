@@ -146,6 +146,7 @@ impl Binder {
     pub fn bind_table_ref(&mut self, table: &TableFactor) -> Result<BoundTableRef, BindError> {
         match table {
             TableFactor::Table { name, alias, .. } => {
+                let name = &lower_case_name(name);
                 let (database_name, schema_name, mut table_name) = split_name(name)?;
                 if let Some(alias) = alias {
                     table_name = &alias.name.value;
