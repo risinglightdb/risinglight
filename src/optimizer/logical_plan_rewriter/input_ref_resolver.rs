@@ -108,6 +108,9 @@ impl Rewriter for InputRefResolver {
             IsNull(isnull) => {
                 self.rewrite_expr(&mut *isnull.expr);
             }
+            ExprWithAlias(expr_with_alias) => {
+                self.rewrite_expr(&mut *expr_with_alias.expr);
+            }
             _ => {}
         }
     }

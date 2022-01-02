@@ -73,6 +73,8 @@ struct BinderContext {
     column_ids: HashMap<String, Vec<ColumnId>>,
     // Mapping table name to its column descrptions
     column_descs: HashMap<String, Vec<ColumnDesc>>,
+    // Stores alias information
+    aliases: Vec<String>,
 }
 
 /// The binder resolves all expressions referring to schema objects such as

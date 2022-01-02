@@ -6,6 +6,7 @@ use crate::types::{DataType, DataTypeExt, DataTypeKind, DataValue};
 mod agg_call;
 mod binary_op;
 mod column_ref;
+mod expr_with_alias;
 mod input_ref;
 mod isnull;
 mod type_cast;
@@ -14,6 +15,7 @@ mod unary_op;
 pub use self::agg_call::*;
 pub use self::binary_op::*;
 pub use self::column_ref::*;
+pub use self::expr_with_alias::*;
 pub use self::input_ref::*;
 pub use self::isnull::*;
 pub use self::type_cast::*;
@@ -31,6 +33,8 @@ pub enum BoundExpr {
     TypeCast(BoundTypeCast),
     AggCall(BoundAggCall),
     IsNull(BoundIsNull),
+    ExprWithAlias(BoundExprWithAlias),
+    Alias(BoundAlias),
 }
 
 impl BoundExpr {
@@ -44,6 +48,8 @@ impl BoundExpr {
             Self::AggCall(expr) => Some(expr.return_type.clone()),
             Self::InputRef(expr) => Some(expr.return_type.clone()),
             Self::IsNull(_) => Some(DataTypeKind::Boolean.not_null()),
+            Self::ExprWithAlias(expr) => expr.expr.return_type(),
+            Self::Alias(_) => None,
         }
     }
 }
@@ -59,6 +65,8 @@ impl std::fmt::Debug for BoundExpr {
             Self::AggCall(expr) => write!(f, "{:?} (agg)", expr)?,
             Self::InputRef(expr) => write!(f, "InputRef #{:?}", expr)?,
             Self::IsNull(expr) => write!(f, "{:?} (isnull)", expr)?,
+            Self::ExprWithAlias(expr) => write!(f, "{:?}", expr)?,
+            Self::Alias(expr) => write!(f, "{:?}", expr)?,
         }
         Ok(())
     }

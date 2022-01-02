@@ -61,13 +61,6 @@ impl Binder {
             Some(expr) => Some(self.bind_expr(expr)?),
             None => None,
         };
-        let mut orderby = vec![];
-        for e in &query.order_by {
-            orderby.push(BoundOrderBy {
-                expr: self.bind_expr(&e.expr)?,
-                descending: e.asc == Some(false),
-            });
-        }
         let limit = match &query.limit {
             Some(expr) => Some(self.bind_expr(expr)?),
             None => None,
@@ -90,8 +83,9 @@ impl Binder {
                     let expr = self.bind_expr(expr)?;
                     select_list.push(expr);
                 }
-                SelectItem::ExprWithAlias { expr, .. } => {
+                SelectItem::ExprWithAlias { expr, alias } => {
                     let expr = self.bind_expr(expr)?;
+                    let expr = self.bind_alias(expr, alias.clone());
                     select_list.push(expr);
                 }
                 SelectItem::Wildcard => {
@@ -102,6 +96,13 @@ impl Binder {
             // return_names.push(expr.get_name());
         }
 
+        let mut orderby = vec![];
+        for e in &query.order_by {
+            orderby.push(BoundOrderBy {
+                expr: self.bind_expr(&e.expr)?,
+                descending: e.asc == Some(false),
+            });
+        }
         // Add referred columns for base table reference
         if let Some(table_ref) = &mut from_table {
             self.bind_column_ids(table_ref);

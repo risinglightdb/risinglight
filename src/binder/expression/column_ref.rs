@@ -85,21 +85,31 @@ impl Binder {
                     ));
                 }
             }
-            let (table_name, column_ref_id, is_primary_key, desc) =
-                info.ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
-            self.record_regular_table_column(
-                &table_name,
-                column_name,
-                column_ref_id.column_id,
-                desc.clone(),
-            );
+            if info == None {
+                if self.context.aliases.contains(column_name) {
+                    Ok(BoundExpr::Alias(BoundAlias {
+                        alias: column_name.clone(),
+                    }))
+                } else {
+                    Err(BindError::InvalidColumn(column_name.clone()))
+                }
+            } else {
+                let (table_name, column_ref_id, is_primary_key, desc) =
+                    info.ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
+                self.record_regular_table_column(
+                    &table_name,
+                    column_name,
+                    column_ref_id.column_id,
+                    desc.clone(),
+                );
 
-            Ok(BoundExpr::ColumnRef(BoundColumnRef {
-                table_name: table_name.clone(),
-                column_ref_id,
-                is_primary_key,
-                desc,
-            }))
+                Ok(BoundExpr::ColumnRef(BoundColumnRef {
+                    table_name: table_name.clone(),
+                    column_ref_id,
+                    is_primary_key,
+                    desc,
+                }))
+            }
         }
     }
 
