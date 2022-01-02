@@ -2,6 +2,7 @@ use std::cmp::min;
 
 use async_trait::async_trait;
 use bitvec::prelude::BitVec;
+use bytes::Bytes;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 
@@ -43,6 +44,14 @@ pub struct ConcreteColumnIterator<A: Array, F: BlockIteratorFactory<A>> {
 
     /// The factory for creating iterators.
     factory: F,
+
+    /// Block Type of this column.
+    block_type: BlockType,
+
+    /// Indicate whether current_block_iter is fake.
+    is_fake_iter: bool,
+
+    start_row_id: u32,
 }
 
 impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
@@ -51,10 +60,10 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             .index()
             .block_of_seek_position(ColumnSeekPosition::RowId(start_pos));
         let (header, block) = column.get_block(current_block_id).await;
-
+        let block_type = header.block_type;
         Self {
             block_iterator: factory.get_iterator_for(
-                header.block_type,
+                block_type,
                 block,
                 column.index().index(current_block_id),
                 start_pos as usize,
@@ -64,6 +73,9 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             current_row_id: start_pos,
             finished: false,
             factory,
+            block_type,
+            is_fake_iter: false,
+            start_row_id: start_pos,
         }
     }
 
@@ -121,7 +133,6 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         }
     }
 
-    // Notice: current_block_id and block_iterator is not sync here
     pub async fn next_batch_inner_with_filter(
         &mut self,
         expected_size: Option<usize>,
@@ -141,18 +152,24 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         let mut total_cnt = 0;
         let first_row_id = self.current_row_id;
 
-        'outer: loop {
-            let cnt = self
-                .block_iterator
-                .next_batch(expected_size.map(|x| x - total_cnt), &mut builder);
+        loop {
+            let cnt = if self.is_fake_iter {
+                let mut count = self.block_iterator.remaining_items();
+                if let Some(expected_size) = expected_size {
+                    count = min(expected_size, count);
+                }
+                self.block_iterator.skip(count);
+                for _ in 0..count {
+                    builder.push(None);
+                }
+                count
+            } else {
+                self.block_iterator
+                    .next_batch(expected_size.map(|x| x - total_cnt), &mut builder)
+            };
 
             total_cnt += cnt;
             self.current_row_id += cnt as u32;
-
-            if cnt != 0 {
-                self.current_block_id += 1;
-                // println!("current_block_id: {} count: {}", self.current_block_id, cnt);
-            }
 
             if let Some(expected_size) = expected_size {
                 if total_cnt >= expected_size {
@@ -162,50 +179,41 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
                 break;
             }
 
-            while self.current_block_id < self.column.index().len() as u32 {
-                // row_count or remaining_iterms?
-                let mut count = self.column.index().index(self.current_block_id).row_count as usize;
-
-                if let Some(expected_size) = expected_size {
-                    count = min(count, expected_size - total_cnt);
-                }
-
-                let subset = &filter_bitmap[total_cnt..(total_cnt + count)];
-
-                if subset.not_any() {
-                    self.current_block_id += 1;
-                    // println!("current_block_id: {} count: {}", self.current_block_id, count);
-                    total_cnt += count;
-                    self.current_row_id += count as u32;
-
-                    for _ in 0..count {
-                        builder.push(None);
-                    }
-                } else {
-                    break;
-                }
-
-                if let Some(expected_size) = expected_size {
-                    if total_cnt >= expected_size {
-                        break 'outer;
-                    }
-                } else if total_cnt != 0 {
-                    break 'outer;
-                }
-            }
+            self.current_block_id += 1;
+            self.is_fake_iter = false;
 
             if self.current_block_id >= self.column.index().len() as u32 {
                 self.finished = true;
                 break;
             }
 
-            let (header, block) = self.column.get_block(self.current_block_id).await;
+            // let count = min(self.column.index().index(self.current_block_id).row_count as usize,
+            // filter_bitmap.len()); let subset = &filter_bitmap[0..count];
+            // if subset.not_any() {
+            //     self.is_fake_iter = true;
+            // }
+            // *filter_bitmap = filter_bitmap.split_off(count);
+            let begin = (self.current_row_id - self.start_row_id) as usize;
+            let count = min(
+                self.column.index().index(self.current_block_id).row_count as usize,
+                filter_bitmap.len() - begin,
+            );
+            let subset = &filter_bitmap[begin..begin + count];
+            if subset.not_any() {
+                self.is_fake_iter = true;
+            }
+
+            let block = if self.is_fake_iter {
+                Bytes::new()
+            } else {
+                self.column.get_block(self.current_block_id).await.1
+            };
             self.block_iterator = self.factory.get_iterator_for(
-                header.block_type,
+                self.block_type,
                 block,
                 self.column.index().index(self.current_block_id),
                 self.current_row_id as usize,
-            );
+            )
         }
 
         if total_cnt == 0 {
