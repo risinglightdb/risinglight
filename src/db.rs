@@ -155,6 +155,8 @@ impl Database {
             return self.run_internal(cmdline).await;
         }
 
+        let sql = &sql.to_lowercase();
+
         // parse
         let stmts = parse(sql)?;
 

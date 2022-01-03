@@ -18,3 +18,21 @@ query III
 select * from t
 ----
 1   10   100
+
+statement ok
+drop table t
+
+# case sensitivity
+statement ok
+create table t(v1 int)
+
+statement ok
+insert into T values (1)
+
+query I
+select V1 from T
+----
+1
+
+statement ok
+drop table T
