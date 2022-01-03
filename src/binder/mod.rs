@@ -135,13 +135,3 @@ fn split_name(name: &ObjectName) -> Result<(&str, &str, &str), BindError> {
         _ => return Err(BindError::InvalidTableName(name.0.clone())),
     })
 }
-
-/// Convert an object name into lower case
-fn lower_case_name(name: &ObjectName) -> ObjectName {
-    ObjectName(
-        name.0
-            .iter()
-            .map(|ident| Ident::new(ident.value.to_lowercase()))
-            .collect::<Vec<_>>(),
-    )
-}

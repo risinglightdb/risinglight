@@ -113,7 +113,6 @@ impl Binder {
         table_name: &ObjectName,
         columns: &[Ident],
     ) -> Result<(TableRefId, Arc<TableCatalog>, Vec<ColumnCatalog>), BindError> {
-        let table_name = &lower_case_name(table_name);
         let (database_name, schema_name, table_name) = split_name(table_name)?;
         let table = self
             .catalog
@@ -136,7 +135,6 @@ impl Binder {
             // Otherwise, we get columns info from the query.
             let mut column_catalogs = vec![];
             for col in columns.iter() {
-                let col = Ident::new(col.value.to_lowercase());
                 let col = table
                     .get_column_by_name(&col.value)
                     .ok_or_else(|| BindError::InvalidColumn(col.value.clone()))?;

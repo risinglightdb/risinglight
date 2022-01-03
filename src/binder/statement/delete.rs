@@ -24,7 +24,6 @@ impl Binder {
             selection,
         } = stmt
         {
-            let table_name = &lower_case_name(table_name);
             let (database_name, schema_name, table_name) = split_name(table_name)?;
             let mut from_table =
                 self.bind_table_ref_with_name(database_name, schema_name, table_name)?;
