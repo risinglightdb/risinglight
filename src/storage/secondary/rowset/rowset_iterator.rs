@@ -120,7 +120,7 @@ impl RowSetIterator {
                     if let Some((row_id, array)) = self.column_iterators[id]
                         .as_mut()
                         .unwrap()
-                        .next_batch(Some(fetch_size))
+                        .next_batch(Some(fetch_size), None)
                         .await
                     {
                         if let Some(x) = common_chunk_range {
@@ -208,7 +208,7 @@ mod tests {
     #[tokio::test]
     async fn test_rowset_iterator() {
         let tempdir = tempfile::tempdir().unwrap();
-        let rowset = Arc::new(helper_build_rowset(&tempdir, false).await);
+        let rowset = Arc::new(helper_build_rowset(&tempdir, false, 1000).await);
         let mut it = rowset
             .iter(
                 vec![

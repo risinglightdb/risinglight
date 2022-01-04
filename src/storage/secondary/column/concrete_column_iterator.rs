@@ -1,4 +1,8 @@
+use std::cmp::min;
+
 use async_trait::async_trait;
+use bitvec::prelude::BitVec;
+use bytes::Bytes;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 
@@ -40,18 +44,30 @@ pub struct ConcreteColumnIterator<A: Array, F: BlockIteratorFactory<A>> {
 
     /// The factory for creating iterators.
     factory: F,
+
+    /// TODO: support multiple block type for one column.
+    /// Block Type of this column.
+    block_type: BlockType,
+
+    /// Indicate whether current_block_iter is fake.
+    is_fake_iter: bool,
 }
 
 impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
+    #[cfg(test)]
+    pub fn get_current_row_id(&self) -> u32 {
+        self.current_row_id
+    }
+
     pub async fn new(column: Column, start_pos: u32, factory: F) -> Self {
         let current_block_id = column
             .index()
             .block_of_seek_position(ColumnSeekPosition::RowId(start_pos));
         let (header, block) = column.get_block(current_block_id).await;
-
+        let block_type = header.block_type;
         Self {
             block_iterator: factory.get_iterator_for(
-                header.block_type,
+                block_type,
                 block,
                 column.index().index(current_block_id),
                 start_pos as usize,
@@ -61,6 +77,8 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             current_row_id: start_pos,
             finished: false,
             factory,
+            block_type,
+            is_fake_iter: false,
         }
     }
 
@@ -118,6 +136,104 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         }
     }
 
+    pub async fn next_batch_inner_with_filter(
+        &mut self,
+        expected_size: Option<usize>,
+        filter_bitmap: &BitVec,
+    ) -> Option<(u32, A)> {
+        if self.finished {
+            return None;
+        }
+
+        let capacity = if let Some(expected_size) = expected_size {
+            expected_size
+        } else {
+            self.block_iterator.remaining_items()
+        };
+
+        let mut builder = A::Builder::with_capacity(capacity);
+        let mut total_cnt = 0;
+        let first_row_id = self.current_row_id;
+
+        if self.is_fake_iter {
+            let count = min(filter_bitmap.len(), self.block_iterator.remaining_items());
+            let subset = &filter_bitmap[..count];
+            if !subset.not_any() {
+                self.is_fake_iter = false;
+                let block = self.column.get_block(self.current_block_id).await.1;
+                self.block_iterator = self.factory.get_iterator_for(
+                    self.block_type,
+                    block,
+                    self.column.index().index(self.current_block_id),
+                    self.current_row_id as usize,
+                )
+            }
+        }
+
+        loop {
+            let cnt = if self.is_fake_iter {
+                let mut count = self.block_iterator.remaining_items();
+                if let Some(expected_size) = expected_size {
+                    count = min(expected_size - total_cnt, count);
+                }
+                self.block_iterator.skip(count);
+                for _ in 0..count {
+                    builder.push(None);
+                }
+                count
+            } else {
+                self.block_iterator
+                    .next_batch(expected_size.map(|x| x - total_cnt), &mut builder)
+            };
+
+            total_cnt += cnt;
+            self.current_row_id += cnt as u32;
+
+            if let Some(expected_size) = expected_size {
+                if total_cnt >= expected_size {
+                    break;
+                }
+            } else if total_cnt != 0 {
+                break;
+            }
+
+            self.current_block_id += 1;
+            self.is_fake_iter = false;
+
+            if self.current_block_id >= self.column.index().len() as u32 {
+                self.finished = true;
+                break;
+            }
+
+            let begin = (self.current_row_id - first_row_id) as usize;
+            let count = min(
+                self.column.index().index(self.current_block_id).row_count as usize,
+                filter_bitmap.len() - begin,
+            );
+            let subset = &filter_bitmap[begin..begin + count];
+            if subset.not_any() {
+                self.is_fake_iter = true;
+            }
+
+            let block = if self.is_fake_iter {
+                Bytes::new()
+            } else {
+                self.column.get_block(self.current_block_id).await.1
+            };
+            self.block_iterator = self.factory.get_iterator_for(
+                self.block_type,
+                block,
+                self.column.index().index(self.current_block_id),
+                self.current_row_id as usize,
+            )
+        }
+
+        if total_cnt == 0 {
+            None
+        } else {
+            Some((first_row_id, builder.finish()))
+        }
+    }
     fn fetch_hint_inner(&self) -> usize {
         if self.finished {
             return 0;
@@ -129,10 +245,17 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
 
 #[async_trait]
 impl<A: Array, F: BlockIteratorFactory<A>> ColumnIterator<A> for ConcreteColumnIterator<A, F> {
-    async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<(u32, A)> {
-        self.next_batch_inner(expected_size).await
+    async fn next_batch(
+        &mut self,
+        expected_size: Option<usize>,
+        filter_bitmap: Option<&BitVec>,
+    ) -> Option<(u32, A)> {
+        if let Some(fb) = filter_bitmap {
+            self.next_batch_inner_with_filter(expected_size, fb).await
+        } else {
+            self.next_batch_inner(expected_size).await
+        }
     }
-
     fn fetch_hint(&self) -> usize {
         self.fetch_hint_inner()
     }

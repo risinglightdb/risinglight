@@ -112,7 +112,7 @@ pub mod tests {
     use crate::storage::secondary::ColumnBuilderOptions;
     use crate::types::{DataTypeExt, DataTypeKind};
 
-    pub async fn helper_build_rowset(tempdir: &TempDir, nullable: bool) -> DiskRowset {
+    pub async fn helper_build_rowset(tempdir: &TempDir, nullable: bool, len: usize) -> DiskRowset {
         let columns = vec![
             ColumnCatalog::new(
                 0,
@@ -152,10 +152,10 @@ pub mod tests {
         for _ in 0..100 {
             builder.append(
                 [
-                    I32Array::from_iter([1, 2, 3].iter().cycle().cloned().take(1000).map(Some))
+                    I32Array::from_iter([1, 2, 3].iter().cycle().cloned().take(len).map(Some))
                         .into(),
                     I32Array::from_iter(
-                        [1, 3, 5, 7, 9].iter().cycle().cloned().take(1000).map(Some),
+                        [1, 3, 5, 7, 9].iter().cycle().cloned().take(len).map(Some),
                     )
                     .into(),
                     I32Array::from_iter(
@@ -163,7 +163,7 @@ pub mod tests {
                             .iter()
                             .cycle()
                             .cloned()
-                            .take(1000)
+                            .take(len)
                             .map(Some),
                     )
                     .into(),
@@ -189,7 +189,7 @@ pub mod tests {
     #[tokio::test]
     async fn test_get_block() {
         let tempdir = tempfile::tempdir().unwrap();
-        let rowset = helper_build_rowset(&tempdir, true).await;
+        let rowset = helper_build_rowset(&tempdir, true, 1000).await;
         let column = rowset.column(0);
         column.get_block(0).await;
     }
