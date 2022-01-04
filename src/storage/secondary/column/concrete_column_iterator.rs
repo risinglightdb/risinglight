@@ -45,16 +45,20 @@ pub struct ConcreteColumnIterator<A: Array, F: BlockIteratorFactory<A>> {
     /// The factory for creating iterators.
     factory: F,
 
+    /// TODO: support multiple block type for one column.
     /// Block Type of this column.
     block_type: BlockType,
 
     /// Indicate whether current_block_iter is fake.
     is_fake_iter: bool,
-
-    start_row_id: u32,
 }
 
 impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
+    #[cfg(test)]
+    pub fn get_current_row_id(&self) -> u32 {
+        self.current_row_id
+    }
+
     pub async fn new(column: Column, start_pos: u32, factory: F) -> Self {
         let current_block_id = column
             .index()
@@ -75,7 +79,6 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             factory,
             block_type,
             is_fake_iter: false,
-            start_row_id: start_pos,
         }
     }
 
@@ -152,11 +155,26 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         let mut total_cnt = 0;
         let first_row_id = self.current_row_id;
 
+        if self.is_fake_iter {
+            let count = min(filter_bitmap.len(), self.block_iterator.remaining_items());
+            let subset = &filter_bitmap[..count];
+            if !subset.not_any() {
+                self.is_fake_iter = false;
+                let block = self.column.get_block(self.current_block_id).await.1;
+                self.block_iterator = self.factory.get_iterator_for(
+                    self.block_type,
+                    block,
+                    self.column.index().index(self.current_block_id),
+                    self.current_row_id as usize,
+                )
+            }
+        }
+
         loop {
             let cnt = if self.is_fake_iter {
                 let mut count = self.block_iterator.remaining_items();
                 if let Some(expected_size) = expected_size {
-                    count = min(expected_size, count);
+                    count = min(expected_size - total_cnt, count);
                 }
                 self.block_iterator.skip(count);
                 for _ in 0..count {
@@ -187,13 +205,7 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
                 break;
             }
 
-            // let count = min(self.column.index().index(self.current_block_id).row_count as usize,
-            // filter_bitmap.len()); let subset = &filter_bitmap[0..count];
-            // if subset.not_any() {
-            //     self.is_fake_iter = true;
-            // }
-            // *filter_bitmap = filter_bitmap.split_off(count);
-            let begin = (self.current_row_id - self.start_row_id) as usize;
+            let begin = (self.current_row_id - first_row_id) as usize;
             let count = min(
                 self.column.index().index(self.current_block_id).row_count as usize,
                 filter_bitmap.len() - begin,

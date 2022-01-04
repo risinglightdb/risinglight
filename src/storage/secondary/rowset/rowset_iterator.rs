@@ -208,7 +208,7 @@ mod tests {
     #[tokio::test]
     async fn test_rowset_iterator() {
         let tempdir = tempfile::tempdir().unwrap();
-        let rowset = Arc::new(helper_build_rowset(&tempdir, false).await);
+        let rowset = Arc::new(helper_build_rowset(&tempdir, false, 1000).await);
         let mut it = rowset
             .iter(
                 vec![

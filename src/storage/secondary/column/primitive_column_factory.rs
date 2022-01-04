@@ -112,7 +112,7 @@ mod tests {
     #[tokio::test]
     async fn test_scan_i32() {
         let tempdir = tempfile::tempdir().unwrap();
-        let rowset = helper_build_rowset(&tempdir, false).await;
+        let rowset = helper_build_rowset(&tempdir, false, 1000).await;
         let column = rowset.column(0);
         let mut scanner = PrimitiveColumnIterator::<i32>::new(
             column.clone(),
@@ -163,7 +163,7 @@ mod tests {
     #[tokio::test]
     async fn test_scan_i32_with_filter() {
         let tempdir = tempfile::tempdir().unwrap();
-        let rowset = helper_build_rowset(&tempdir, false).await;
+        let rowset = helper_build_rowset(&tempdir, false, 1020).await;
         let column = rowset.column(0);
 
         let none_array = vec![None; 1020];
@@ -184,7 +184,7 @@ mod tests {
 
     async fn get_data(
         column: Column,
-        filter_bitmap: BitVec,
+        mut filter_bitmap: BitVec,
         expected_size: Option<usize>,
     ) -> Vec<Option<i32>> {
         let mut scanner = PrimitiveColumnIterator::<i32>::new(
@@ -195,20 +195,18 @@ mod tests {
         .await;
         let mut recv_data = vec![];
 
-        // if start_pos is 0, then we should skip the first block
-        // else skip "start_pos" items
-        // filter_bitmap = filter_bitmap.split_off(1020);
-
-        while let Some((_, data)) = scanner
+        while let Some((start_row_id, data)) = scanner
             .next_batch(expected_size, Some(&filter_bitmap))
             .await
         {
             recv_data.extend(data.to_vec());
+            filter_bitmap =
+                filter_bitmap.split_off((scanner.get_current_row_id() - start_row_id) as usize);
         }
         recv_data
     }
 
-    async fn test_i32_0(column: Column, none_array: &Vec<Option<i32>>) {
+    async fn test_i32_0(column: Column, none_array: &[Option<i32>]) {
         let filter_bitmap = bitvec![0; 100 * 1020];
 
         let recv_data = get_data(column, filter_bitmap, None).await;
@@ -218,7 +216,7 @@ mod tests {
         }
     }
 
-    async fn test_i32_1(column: Column, value_array: &Vec<Option<i32>>) {
+    async fn test_i32_1(column: Column, value_array: &[Option<i32>]) {
         let filter_bitmap = bitvec![1; 100 * 1020];
 
         let recv_data = get_data(column, filter_bitmap, None).await;
@@ -230,8 +228,8 @@ mod tests {
 
     async fn test_i32_0_1_0(
         column: Column,
-        none_array: &Vec<Option<i32>>,
-        value_array: &Vec<Option<i32>>,
+        none_array: &[Option<i32>],
+        value_array: &[Option<i32>],
     ) {
         let mut left_bitmap = bitvec![0; 50 * 1020];
         let mut middle_bitmap = bitvec![1; 25 * 1020];
@@ -254,8 +252,8 @@ mod tests {
 
     async fn test_i32_with_expected_size(
         column: Column,
-        none_array: &Vec<Option<i32>>,
-        value_array: &Vec<Option<i32>>,
+        none_array: &[Option<i32>],
+        value_array: &[Option<i32>],
     ) {
         let mut left_bitmap = bitvec![0; 50 * 1020];
         let mut middle_bitmap = bitvec![1; 25 * 1020];
@@ -276,11 +274,7 @@ mod tests {
         }
     }
 
-    async fn test_i32_mix(
-        column: Column,
-        none_array: &Vec<Option<i32>>,
-        value_array: &Vec<Option<i32>>,
-    ) {
+    async fn test_i32_mix(column: Column, none_array: &[Option<i32>], value_array: &[Option<i32>]) {
         let mut left_bitmap = bitvec![0; 50 * 1020];
         let mut middle_bitmap = bitvec![1; 25 * 1020];
         let mut right_bitmap = bitvec![0; 25 * 1020];
