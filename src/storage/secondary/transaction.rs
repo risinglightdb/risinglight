@@ -193,6 +193,7 @@ impl SecondaryTransaction {
         Ok(())
     }
 
+    // TODO: add a parameter: expr
     async fn scan_inner(
         &self,
         begin_sort_key: Option<&[u8]>,
@@ -230,7 +231,7 @@ impl SecondaryTransaction {
 
                 iters.push(
                     rowset
-                        .iter(col_idx.into(), dvs, ColumnSeekPosition::start())
+                        .iter(col_idx.into(), dvs, ColumnSeekPosition::start(), None)
                         .await,
                 )
             }

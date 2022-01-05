@@ -71,7 +71,7 @@ impl Compactor {
 
             iters.push(
                 rowset
-                    .iter(column_refs.clone(), dvs, ColumnSeekPosition::start())
+                    .iter(column_refs.clone(), dvs, ColumnSeekPosition::start(), None)
                     .await,
             );
         }

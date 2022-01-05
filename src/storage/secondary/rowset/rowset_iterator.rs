@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
-use bitvec::prelude::BitVec;
+use bitvec::bitvec;
+use bitvec::prelude::{BitVec, Lsb0};
 use smallvec::smallvec;
 
 use super::super::{
     ColumnIteratorImpl, ColumnSeekPosition, RowHandlerSequencer, SecondaryIteratorImpl,
 };
 use super::DiskRowset;
-use crate::array::ArrayImpl;
+use crate::array::{Array, ArrayImpl};
+use crate::binder::BoundExpr;
 use crate::storage::secondary::DeleteVector;
 use crate::storage::{PackedVec, StorageChunk, StorageColumnRef};
 
@@ -20,6 +22,7 @@ pub struct RowSetIterator {
     column_refs: Arc<[StorageColumnRef]>,
     dvs: Vec<Arc<DeleteVector>>,
     column_iterators: Vec<Option<ColumnIteratorImpl>>,
+    filter_expr: Option<(BoundExpr, BitVec)>,
 }
 
 impl RowSetIterator {
@@ -28,6 +31,7 @@ impl RowSetIterator {
         column_refs: Arc<[StorageColumnRef]>,
         dvs: Vec<Arc<DeleteVector>>,
         seek_pos: ColumnSeekPosition,
+        expr: Option<BoundExpr>,
     ) -> Self {
         let start_row_id = match seek_pos {
             ColumnSeekPosition::RowId(row_id) => row_id,
@@ -68,12 +72,174 @@ impl RowSetIterator {
             };
         }
 
+        let filter_expr = if let Some(expr) = expr {
+            let filter_column = expr.get_filter_column(column_refs.len());
+            Some((expr, filter_column))
+        } else {
+            None
+        };
+
         Self {
             rowset,
             column_iterators,
             dvs,
             column_refs,
+            filter_expr,
         }
+    }
+
+    pub async fn next_batch_inner_with_filter(
+        &mut self,
+        expected_size: Option<usize>,
+    ) -> (bool, Option<StorageChunk>) {
+        let (expr, filter_column) = self.filter_expr.as_ref().unwrap();
+
+        let fetch_size = if let Some(x) = expected_size {
+            x
+        } else {
+            // When `expected_size` is not available, we try to dispatch
+            // as little I/O as possible. We find the minimum fetch hints
+            // from the column iterators.
+            let mut min = None;
+            for it in self.column_iterators.iter().flatten() {
+                let hint = it.fetch_hint();
+                if hint != 0 {
+                    if min.is_none() {
+                        min = Some(hint);
+                    } else {
+                        min = Some(min.unwrap().min(hint));
+                    }
+                }
+            }
+            min.unwrap_or(ROWSET_MAX_OUTPUT)
+        };
+
+        let mut arrays: PackedVec<Option<ArrayImpl>> = smallvec![];
+        let mut common_chunk_range = None;
+
+        // TODO: parallel fetch
+        // TODO: align unmatched rows
+
+        for id in 0..filter_column.len() {
+            let flag = filter_column[id];
+            if flag {
+                if let Some((row_id, array)) = self.column_iterators[id]
+                    .as_mut()
+                    .unwrap()
+                    .next_batch(Some(fetch_size), None)
+                    .await
+                {
+                    if let Some(x) = common_chunk_range {
+                        if x != (row_id, array.len()) {
+                            panic!("unmatched rowid from column iterator");
+                        }
+                    }
+                    common_chunk_range = Some((row_id, array.len()));
+                    arrays.push(Some(array));
+                } else {
+                    arrays.push(None);
+                }
+            } else {
+                arrays.push(None);
+            }
+        }
+
+        if common_chunk_range.is_none() {
+            return (true, None);
+        }
+
+        // Need to rewrite and optimize
+        let bool_array = match expr.eval_array_in_storage(&arrays).unwrap() {
+            ArrayImpl::Bool(a) => a,
+            _ => panic!("filters can only accept bool array"),
+        };
+        let mut filter_bitmap = bitvec![];
+        for i in bool_array.iter() {
+            if let Some(i) = i {
+                filter_bitmap.push(*i);
+            } else {
+                filter_bitmap.push(false);
+            }
+        }
+
+        // Use filter_bitmap to filter columns
+        for (id, column_ref) in self.column_refs.iter().enumerate() {
+            match column_ref {
+                StorageColumnRef::RowHandler => continue,
+                StorageColumnRef::Idx(_) => {
+                    if matches!(arrays[id], None) {
+                        if let Some((row_id, array)) = self.column_iterators[id]
+                            .as_mut()
+                            .unwrap()
+                            .next_batch(Some(fetch_size), Some(&filter_bitmap))
+                            .await
+                        {
+                            if let Some(x) = common_chunk_range {
+                                if x != (row_id, array.len()) {
+                                    println!(
+                                        "filter_column_row_id: {}   normal_column_row_id: {}",
+                                        x.0, row_id
+                                    );
+                                    println!(
+                                        "filter_column_len: {}   normal_column_len: {}",
+                                        x.1,
+                                        array.len()
+                                    );
+                                    panic!("unmatched rowid from column iterator");
+                                }
+                            }
+                            common_chunk_range = Some((row_id, array.len()));
+                            arrays[id] = Some(array);
+                        }
+                    }
+                }
+            }
+        }
+
+        let common_chunk_range = if let Some(common_chunk_range) = common_chunk_range {
+            common_chunk_range
+        } else {
+            return (true, None);
+        };
+
+        // Fill RowHandlers
+        for (id, column_ref) in self.column_refs.iter().enumerate() {
+            if matches!(column_ref, StorageColumnRef::RowHandler) {
+                arrays[id] = Some(
+                    RowHandlerSequencer::sequence(
+                        self.rowset.rowset_id(),
+                        common_chunk_range.0,
+                        common_chunk_range.1 as u32,
+                    )
+                    .into(),
+                );
+            }
+        }
+
+        // Generate visibility bitmap
+        let visibility = if self.dvs.is_empty() {
+            Some(filter_bitmap)
+        } else {
+            let mut vis = BitVec::new();
+            vis.resize(common_chunk_range.1, true);
+            for dv in &self.dvs {
+                dv.apply_to(&mut vis, common_chunk_range.0);
+            }
+            vis &= filter_bitmap;
+            Some(vis)
+        };
+
+        (
+            false,
+            StorageChunk::construct(
+                visibility,
+                arrays
+                    .into_iter()
+                    .map(Option::unwrap)
+                    .map(Arc::new)
+                    .collect(),
+            ),
+        )
     }
 
     /// Return (finished, data chunk of the current iteration)
@@ -184,7 +350,11 @@ impl RowSetIterator {
 
     pub async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<StorageChunk> {
         loop {
-            let (finished, batch) = self.next_batch_inner(expected_size).await;
+            let (finished, batch) = if self.filter_expr.is_some() {
+                self.next_batch_inner_with_filter(expected_size).await
+            } else {
+                self.next_batch_inner(expected_size).await
+            };
             if finished {
                 return None;
             } else if let Some(batch) = batch {
@@ -219,6 +389,7 @@ mod tests {
                 .into(),
                 vec![],
                 ColumnSeekPosition::RowId(1000),
+                None,
             )
             .await;
         let chunk = it.next_batch(Some(1000)).await.unwrap();
