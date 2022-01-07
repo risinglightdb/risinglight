@@ -79,28 +79,24 @@ impl BoundExpr {
     }
 
     /// Evaluate the given expression as an array in storage engine.
-    /// Shall discuss the implementation of this function with Alex Chi
     pub fn eval_array_in_storage(
         &self,
         chunk: &PackedVec<Option<ArrayImpl>>,
+        cardinality: usize,
     ) -> Result<ArrayImpl, ConvertError> {
-        // Need to be optimized
-        let cardinality = chunk
-            .iter()
-            .find(|x| x.is_some())
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .len();
         match &self {
             BoundExpr::InputRef(input_ref) => Ok(chunk[input_ref.index].clone().unwrap()),
             BoundExpr::BinaryOp(binary_op) => {
-                let left = binary_op.left_expr.eval_array_in_storage(chunk)?;
-                let right = binary_op.right_expr.eval_array_in_storage(chunk)?;
+                let left = binary_op
+                    .left_expr
+                    .eval_array_in_storage(chunk, cardinality)?;
+                let right = binary_op
+                    .right_expr
+                    .eval_array_in_storage(chunk, cardinality)?;
                 Ok(left.binary_op(&binary_op.op, &right))
             }
             BoundExpr::UnaryOp(op) => {
-                let array = op.expr.eval_array_in_storage(chunk)?;
+                let array = op.expr.eval_array_in_storage(chunk, cardinality)?;
                 Ok(array.unary_op(&op.op))
             }
             BoundExpr::Constant(v) => {
@@ -113,14 +109,14 @@ impl BoundExpr {
                 Ok(builder.finish())
             }
             BoundExpr::TypeCast(cast) => {
-                let array = cast.expr.eval_array_in_storage(chunk)?;
+                let array = cast.expr.eval_array_in_storage(chunk, cardinality)?;
                 if self.return_type() == cast.expr.return_type() {
                     return Ok(array);
                 }
                 array.try_cast(cast.ty.clone())
             }
             BoundExpr::IsNull(expr) => {
-                let array = expr.expr.eval_array_in_storage(chunk)?;
+                let array = expr.expr.eval_array_in_storage(chunk, cardinality)?;
                 Ok(ArrayImpl::Bool(
                     (0..array.len())
                         .map(|i| array.get(i) == DataValue::Null)

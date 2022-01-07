@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use bitvec::bitvec;
-use bitvec::prelude::{BitVec, Lsb0};
+use bitvec::prelude::BitVec;
 use smallvec::smallvec;
 
 use super::super::{
@@ -74,6 +73,8 @@ impl RowSetIterator {
 
         let filter_expr = if let Some(expr) = expr {
             let filter_column = expr.get_filter_column(column_refs.len());
+            // assert filter column is not all false
+            assert!(filter_column.any());
             Some((expr, filter_column))
         } else {
             None
@@ -144,16 +145,22 @@ impl RowSetIterator {
             }
         }
 
-        if common_chunk_range.is_none() {
+        // This check is necessary
+        let mut common_chunk_range = if let Some(common_chunk_range) = common_chunk_range {
+            common_chunk_range
+        } else {
             return (true, None);
-        }
+        };
 
-        // Need to rewrite and optimize
-        let bool_array = match expr.eval_array_in_storage(&arrays).unwrap() {
+        // Need to optimize
+        let bool_array = match expr
+            .eval_array_in_storage(&arrays, common_chunk_range.1)
+            .unwrap()
+        {
             ArrayImpl::Bool(a) => a,
             _ => panic!("filters can only accept bool array"),
         };
-        let mut filter_bitmap = bitvec![];
+        let mut filter_bitmap = BitVec::with_capacity(bool_array.len());
         for i in bool_array.iter() {
             if let Some(i) = i {
                 filter_bitmap.push(*i);
@@ -162,45 +169,38 @@ impl RowSetIterator {
             }
         }
 
+        // Apply dv to filter_bitmap
+        if !self.dvs.is_empty() {
+            let mut vis = BitVec::new();
+            vis.resize(common_chunk_range.1, true);
+            for dv in &self.dvs {
+                dv.apply_to(&mut vis, common_chunk_range.0);
+            }
+            filter_bitmap &= vis;
+        }
+
         // Use filter_bitmap to filter columns
         for (id, column_ref) in self.column_refs.iter().enumerate() {
             match column_ref {
                 StorageColumnRef::RowHandler => continue,
                 StorageColumnRef::Idx(_) => {
-                    if matches!(arrays[id], None) {
+                    if arrays[id].is_none() {
                         if let Some((row_id, array)) = self.column_iterators[id]
                             .as_mut()
                             .unwrap()
                             .next_batch(Some(fetch_size), Some(&filter_bitmap))
                             .await
                         {
-                            if let Some(x) = common_chunk_range {
-                                if x != (row_id, array.len()) {
-                                    println!(
-                                        "filter_column_row_id: {}   normal_column_row_id: {}",
-                                        x.0, row_id
-                                    );
-                                    println!(
-                                        "filter_column_len: {}   normal_column_len: {}",
-                                        x.1,
-                                        array.len()
-                                    );
-                                    panic!("unmatched rowid from column iterator");
-                                }
+                            if common_chunk_range != (row_id, array.len()) {
+                                panic!("unmatched rowid from column iterator");
                             }
-                            common_chunk_range = Some((row_id, array.len()));
+                            common_chunk_range = (row_id, array.len());
                             arrays[id] = Some(array);
                         }
                     }
                 }
             }
         }
-
-        let common_chunk_range = if let Some(common_chunk_range) = common_chunk_range {
-            common_chunk_range
-        } else {
-            return (true, None);
-        };
 
         // Fill RowHandlers
         for (id, column_ref) in self.column_refs.iter().enumerate() {
@@ -216,23 +216,10 @@ impl RowSetIterator {
             }
         }
 
-        // Generate visibility bitmap
-        let visibility = if self.dvs.is_empty() {
-            Some(filter_bitmap)
-        } else {
-            let mut vis = BitVec::new();
-            vis.resize(common_chunk_range.1, true);
-            for dv in &self.dvs {
-                dv.apply_to(&mut vis, common_chunk_range.0);
-            }
-            vis &= filter_bitmap;
-            Some(vis)
-        };
-
         (
             false,
             StorageChunk::construct(
-                visibility,
+                Some(filter_bitmap),
                 arrays
                     .into_iter()
                     .map(Option::unwrap)
