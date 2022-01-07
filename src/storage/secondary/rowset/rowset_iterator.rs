@@ -74,7 +74,10 @@ impl RowSetIterator {
         let filter_expr = if let Some(expr) = expr {
             let filter_column = expr.get_filter_column(column_refs.len());
             // assert filter column is not all false
-            assert!(filter_column.any());
+            assert!(
+                filter_column.any(),
+                "There should be at least 1 filter column"
+            );
             Some((expr, filter_column))
         } else {
             None
@@ -122,8 +125,7 @@ impl RowSetIterator {
         // TODO: align unmatched rows
 
         for id in 0..filter_column.len() {
-            let flag = filter_column[id];
-            if flag {
+            if filter_column[id] {
                 if let Some((row_id, array)) = self.column_iterators[id]
                     .as_mut()
                     .unwrap()
@@ -146,7 +148,7 @@ impl RowSetIterator {
         }
 
         // This check is necessary
-        let mut common_chunk_range = if let Some(common_chunk_range) = common_chunk_range {
+        let common_chunk_range = if let Some(common_chunk_range) = common_chunk_range {
             common_chunk_range
         } else {
             return (true, None);
@@ -171,12 +173,9 @@ impl RowSetIterator {
 
         // Apply dv to filter_bitmap
         if !self.dvs.is_empty() {
-            let mut vis = BitVec::new();
-            vis.resize(common_chunk_range.1, true);
             for dv in &self.dvs {
-                dv.apply_to(&mut vis, common_chunk_range.0);
+                dv.apply_to(&mut filter_bitmap, common_chunk_range.0);
             }
-            filter_bitmap &= vis;
         }
 
         // Use filter_bitmap to filter columns
@@ -194,7 +193,6 @@ impl RowSetIterator {
                             if common_chunk_range != (row_id, array.len()) {
                                 panic!("unmatched rowid from column iterator");
                             }
-                            common_chunk_range = (row_id, array.len());
                             arrays[id] = Some(array);
                         }
                     }
@@ -356,11 +354,15 @@ impl SecondaryIteratorImpl for RowSetIterator {}
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
+    use sqlparser::ast::BinaryOperator;
+    pub use sqlparser::ast::DataType as DataTypeKind;
 
     use super::*;
     use crate::array::{Array, ArrayToVecExt};
+    use crate::binder::{BoundBinaryOp, BoundInputRef};
     use crate::storage::secondary::rowset::tests::helper_build_rowset;
     use crate::storage::secondary::SecondaryRowHandler;
+    use crate::types::{DataType, DataValue, PhysicalDataTypeKind};
 
     #[tokio::test]
     async fn test_rowset_iterator() {
@@ -377,6 +379,89 @@ mod tests {
                 vec![],
                 ColumnSeekPosition::RowId(1000),
                 None,
+            )
+            .await;
+        let chunk = it.next_batch(Some(1000)).await.unwrap();
+        if let ArrayImpl::Int32(array) = chunk.array_at(2).as_ref() {
+            let left = array.to_vec();
+            let right = [1, 2, 3]
+                .iter()
+                .cycle()
+                .cloned()
+                .take(1000)
+                .map(Some)
+                .collect_vec();
+            assert_eq!(left.len(), right.len());
+            assert_eq!(left, right);
+        } else {
+            unreachable!()
+        }
+
+        if let ArrayImpl::Int32(array) = chunk.array_at(1).as_ref() {
+            let left = array.to_vec();
+            let right = [2, 3, 3, 3, 3, 3, 3]
+                .iter()
+                .cycle()
+                .cloned()
+                .take(1000)
+                .map(Some)
+                .collect_vec();
+            assert_eq!(left.len(), right.len());
+            assert_eq!(left, right);
+        } else {
+            unreachable!()
+        }
+
+        if let ArrayImpl::Int64(array) = chunk.array_at(0).as_ref() {
+            assert_eq!(array.get(0), Some(&SecondaryRowHandler(0, 1000).as_i64()))
+        } else {
+            unreachable!()
+        }
+    }
+
+    #[tokio::test]
+    async fn test_rowset_iterator_with_filter() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let rowset = Arc::new(helper_build_rowset(&tempdir, false, 1000).await);
+
+        // v3 > 4: it.next_batch will return none, because StorageChunk::construct always return
+        // none. v3 > 2: all blocks will be fetched.
+        let op = BinaryOperator::Gt;
+
+        let left_expr = Box::new(BoundExpr::InputRef(BoundInputRef {
+            index: 2,
+            return_type: DataType {
+                kind: DataTypeKind::Int(None),
+                physical_kind: PhysicalDataTypeKind::Int32,
+                nullable: true,
+            },
+        }));
+
+        let right_expr = Box::new(BoundExpr::Constant(DataValue::Int32(2)));
+
+        let return_type = Some(DataType {
+            kind: DataTypeKind::Boolean,
+            physical_kind: PhysicalDataTypeKind::Bool,
+            nullable: true,
+        });
+        let expr = BoundExpr::BinaryOp(BoundBinaryOp {
+            op,
+            left_expr,
+            right_expr,
+            return_type,
+        });
+
+        let mut it = rowset
+            .iter(
+                vec![
+                    StorageColumnRef::RowHandler,
+                    StorageColumnRef::Idx(2),
+                    StorageColumnRef::Idx(0),
+                ]
+                .into(),
+                vec![],
+                ColumnSeekPosition::RowId(1000),
+                Some(expr),
             )
             .await;
         let chunk = it.next_batch(Some(1000)).await.unwrap();
