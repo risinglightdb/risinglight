@@ -1,3 +1,6 @@
+use bitvec::bitvec;
+use bitvec::prelude::BitVec;
+
 use super::*;
 use crate::catalog::ColumnRefId;
 use crate::parser::{Expr, Function, UnaryOperator, Value};
@@ -51,6 +54,40 @@ impl BoundExpr {
             Self::ExprWithAlias(expr) => expr.expr.return_type(),
             Self::Alias(_) => None,
         }
+    }
+
+    fn get_filter_column_inner(&self, filter_column: &mut BitVec) {
+        match self {
+            Self::Constant(_) => {}
+            Self::ColumnRef(_) => {}
+            Self::InputRef(expr) => filter_column.set(expr.index, true),
+            Self::BinaryOp(expr) => {
+                expr.left_expr.get_filter_column_inner(filter_column);
+                expr.right_expr.get_filter_column_inner(filter_column);
+            }
+            Self::UnaryOp(expr) => {
+                expr.expr.get_filter_column_inner(filter_column);
+            }
+            Self::TypeCast(expr) => {
+                expr.expr.get_filter_column_inner(filter_column);
+            }
+            Self::AggCall(expr) => {
+                for sub_expr in &expr.args {
+                    sub_expr.get_filter_column_inner(filter_column);
+                }
+            }
+            Self::IsNull(expr) => expr.expr.get_filter_column_inner(filter_column),
+            Self::ExprWithAlias(expr) => {
+                expr.expr.get_filter_column_inner(filter_column);
+            }
+            Self::Alias(_) => {}
+        }
+    }
+
+    pub fn get_filter_column(&self, len: usize) -> BitVec {
+        let mut filter_column = bitvec![0; len];
+        self.get_filter_column_inner(&mut filter_column);
+        filter_column
     }
 }
 
