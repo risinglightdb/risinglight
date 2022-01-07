@@ -51,7 +51,6 @@ impl StorageChunk {
                 cardinality,
             })
         } else {
-            println!("construct() returned None");
             None
         }
     }
