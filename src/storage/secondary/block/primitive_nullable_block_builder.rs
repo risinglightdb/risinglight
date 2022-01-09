@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 
+use bitvec::prelude::{BitVec, Lsb0};
+
 use super::super::PrimitiveFixedWidthEncode;
 use super::BlockBuilder;
 
@@ -8,7 +10,7 @@ use super::BlockBuilder;
 /// The layout is fixed-width data and a u8 bitmap, concatenated together.
 pub struct PlainPrimitiveNullableBlockBuilder<T: PrimitiveFixedWidthEncode> {
     data: Vec<u8>,
-    bitmap: Vec<bool>,
+    bitmap: BitVec<Lsb0, u8>,
     target_size: usize,
     _phantom: PhantomData<T>,
 }
@@ -16,7 +18,7 @@ pub struct PlainPrimitiveNullableBlockBuilder<T: PrimitiveFixedWidthEncode> {
 impl<T: PrimitiveFixedWidthEncode> PlainPrimitiveNullableBlockBuilder<T> {
     pub fn new(target_size: usize) -> Self {
         let data = Vec::with_capacity(target_size);
-        let bitmap = Vec::with_capacity(target_size);
+        let bitmap = BitVec::<Lsb0, u8>::with_capacity(target_size);
         Self {
             data,
             target_size,
@@ -40,7 +42,8 @@ impl<T: PrimitiveFixedWidthEncode> BlockBuilder<T::ArrayType>
     }
 
     fn estimated_size(&self) -> usize {
-        self.data.len() + self.bitmap.len()
+        let bitmap_byte_len = (self.bitmap.len() + 7) / 8;
+        self.data.len() + bitmap_byte_len
     }
 
     fn should_finish(&self, _next_item: &Option<&T>) -> bool {
@@ -49,7 +52,27 @@ impl<T: PrimitiveFixedWidthEncode> BlockBuilder<T::ArrayType>
 
     fn finish(self) -> Vec<u8> {
         let mut data = self.data;
-        data.extend(self.bitmap.iter().map(|x| *x as u8));
+        data.extend(self.bitmap.as_raw_slice().iter());
         data
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_i32() {
+        let mut builder = PlainPrimitiveNullableBlockBuilder::<i32>::new(128);
+        builder.append(Some(&1));
+        builder.append(None);
+        builder.append(Some(&3));
+        builder.append(Some(&4));
+        assert_eq!(builder.estimated_size(), 17);
+        assert!(!builder.should_finish(&Some(&5)));
+        let data = builder.finish();
+        // bitmap should be 1011 and Lsb0, so u8 will be 0b1101 = 13
+        let expected_data: Vec<u8> = vec![1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 13];
+        assert_eq!(data, expected_data);
     }
 }
