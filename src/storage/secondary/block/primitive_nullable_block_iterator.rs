@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use bytes::Buf;
+use bitvec::prelude::{BitVec, Lsb0};
 
 use super::super::PrimitiveFixedWidthEncode;
 use super::{Block, BlockIterator};
@@ -10,6 +10,9 @@ use crate::array::{Array, ArrayBuilder};
 pub struct PlainPrimitiveNullableBlockIterator<T: PrimitiveFixedWidthEncode> {
     /// Block content
     block: Block,
+
+    /// bitmap decode from block
+    bitmap: BitVec<Lsb0, u8>,
 
     /// Total count of elements in block
     row_count: usize,
@@ -22,8 +25,11 @@ pub struct PlainPrimitiveNullableBlockIterator<T: PrimitiveFixedWidthEncode> {
 
 impl<T: PrimitiveFixedWidthEncode> PlainPrimitiveNullableBlockIterator<T> {
     pub fn new(block: Block, row_count: usize) -> Self {
+        let mut bitmap = BitVec::<Lsb0, u8>::with_capacity(row_count);
+        bitmap.extend_from_raw_slice(&block[row_count * T::WIDTH..]);
         Self {
             block,
+            bitmap,
             row_count,
             next_row: 0,
             _phantom: PhantomData,
@@ -47,8 +53,6 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType>
 
         let mut cnt = 0;
         let mut buffer = &self.block[self.next_row * T::WIDTH..];
-        let mut bitmap_buffer = &self.block[self.row_count * T::WIDTH + self.next_row..];
-
         loop {
             if let Some(expected_size) = expected_size {
                 assert!(expected_size > 0);
@@ -61,13 +65,12 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType>
                 break;
             }
 
-            let bitmap = bitmap_buffer.get_u8();
             let data = &T::decode(&mut buffer);
 
-            if bitmap == 0 {
-                builder.push(None);
-            } else {
+            if self.bitmap[self.next_row] {
                 builder.push(Some(data));
+            } else {
+                builder.push(None);
             }
 
             cnt += 1;
@@ -101,22 +104,28 @@ mod tests {
         builder.append(Some(&1));
         builder.append(None);
         builder.append(Some(&3));
+        builder.append(Some(&4));
         let data = builder.finish();
 
-        let mut scanner = PlainPrimitiveNullableBlockIterator::<i32>::new(Bytes::from(data), 3);
+        let mut scanner = PlainPrimitiveNullableBlockIterator::<i32>::new(Bytes::from(data), 4);
 
         let mut builder = I32ArrayBuilder::new();
 
         scanner.skip(1);
-        assert_eq!(scanner.remaining_items(), 2);
+        assert_eq!(scanner.remaining_items(), 3);
 
         assert_eq!(scanner.next_batch(Some(1), &mut builder), 1);
         assert_eq!(builder.finish().to_vec(), vec![None]);
 
         let mut builder = I32ArrayBuilder::new();
-        assert_eq!(scanner.next_batch(Some(2), &mut builder), 1);
+        assert_eq!(scanner.next_batch(Some(1), &mut builder), 1);
 
         assert_eq!(builder.finish().to_vec(), vec![Some(3)]);
+
+        let mut builder = I32ArrayBuilder::new();
+        assert_eq!(scanner.next_batch(Some(2), &mut builder), 1);
+
+        assert_eq!(builder.finish().to_vec(), vec![Some(4)]);
 
         let mut builder = I32ArrayBuilder::new();
         assert_eq!(scanner.next_batch(None, &mut builder), 0);
