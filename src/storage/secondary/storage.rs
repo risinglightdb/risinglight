@@ -22,13 +22,13 @@ impl SecondaryStorage {
         // create folder if not exist
         if fs::metadata(&options.path).await.is_err() {
             info!("create db directory at {:?}", options.path);
-            fs::create_dir(&options.path).await.unwrap();
+            fs::create_dir(&options.path).await?;
         }
 
         // create DV folder if not exist
         let dv_directory = options.path.join("dv");
         if fs::metadata(&dv_directory).await.is_err() {
-            fs::create_dir(&dv_directory).await.unwrap();
+            fs::create_dir(&dv_directory).await?;
         }
 
         let mut manifest = Manifest::open(options.path.join("manifest.json")).await?;

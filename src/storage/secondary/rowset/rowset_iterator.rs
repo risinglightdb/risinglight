@@ -10,7 +10,7 @@ use super::DiskRowset;
 use crate::array::{Array, ArrayImpl};
 use crate::binder::BoundExpr;
 use crate::storage::secondary::DeleteVector;
-use crate::storage::{PackedVec, StorageChunk, StorageColumnRef};
+use crate::storage::{PackedVec, StorageChunk, StorageColumnRef, StorageResult};
 
 /// When `expected_size` is not specified, we should limit the maximum size of the chunk.
 const ROWSET_MAX_OUTPUT: usize = 65536;
@@ -31,7 +31,7 @@ impl RowSetIterator {
         dvs: Vec<Arc<DeleteVector>>,
         seek_pos: ColumnSeekPosition,
         expr: Option<BoundExpr>,
-    ) -> Self {
+    ) -> StorageResult<Self> {
         let start_row_id = match seek_pos {
             ColumnSeekPosition::RowId(row_id) => row_id,
             _ => todo!(),
@@ -66,7 +66,7 @@ impl RowSetIterator {
                         rowset.column_info(*idx as usize),
                         start_row_id,
                     )
-                    .await,
+                    .await?,
                 )),
             };
         }
@@ -83,19 +83,19 @@ impl RowSetIterator {
             None
         };
 
-        Self {
+        Ok(Self {
             rowset,
             column_iterators,
             dvs,
             column_refs,
             filter_expr,
-        }
+        })
     }
 
     pub async fn next_batch_inner_with_filter(
         &mut self,
         expected_size: Option<usize>,
-    ) -> (bool, Option<StorageChunk>) {
+    ) -> StorageResult<(bool, Option<StorageChunk>)> {
         let (expr, filter_column) = self.filter_expr.as_ref().unwrap();
 
         let fetch_size = if let Some(x) = expected_size {
@@ -130,7 +130,7 @@ impl RowSetIterator {
                     .as_mut()
                     .unwrap()
                     .next_batch(Some(fetch_size), None)
-                    .await
+                    .await?
                 {
                     if let Some(x) = common_chunk_range {
                         if x != (row_id, array.len()) {
@@ -151,7 +151,7 @@ impl RowSetIterator {
         let common_chunk_range = if let Some(common_chunk_range) = common_chunk_range {
             common_chunk_range
         } else {
-            return (true, None);
+            return Ok((true, None));
         };
 
         // Need to optimize
@@ -188,7 +188,7 @@ impl RowSetIterator {
                             .as_mut()
                             .unwrap()
                             .next_batch(Some(fetch_size), Some(&filter_bitmap))
-                            .await
+                            .await?
                         {
                             if common_chunk_range != (row_id, array.len()) {
                                 panic!("unmatched rowid from column iterator");
@@ -214,7 +214,7 @@ impl RowSetIterator {
             }
         }
 
-        (
+        Ok((
             false,
             StorageChunk::construct(
                 Some(filter_bitmap),
@@ -224,7 +224,7 @@ impl RowSetIterator {
                     .map(Arc::new)
                     .collect(),
             ),
-        )
+        ))
     }
 
     /// Return (finished, data chunk of the current iteration)
@@ -236,7 +236,7 @@ impl RowSetIterator {
     pub async fn next_batch_inner(
         &mut self,
         expected_size: Option<usize>,
-    ) -> (bool, Option<StorageChunk>) {
+    ) -> StorageResult<(bool, Option<StorageChunk>)> {
         let fetch_size = if let Some(x) = expected_size {
             x
         } else {
@@ -272,7 +272,7 @@ impl RowSetIterator {
                         .as_mut()
                         .unwrap()
                         .next_batch(Some(fetch_size), None)
-                        .await
+                        .await?
                     {
                         if let Some(x) = common_chunk_range {
                             if x != (row_id, array.len()) {
@@ -291,7 +291,7 @@ impl RowSetIterator {
         let common_chunk_range = if let Some(common_chunk_range) = common_chunk_range {
             common_chunk_range
         } else {
-            return (true, None);
+            return Ok((true, None));
         };
 
         // Fill RowHandlers
@@ -320,7 +320,7 @@ impl RowSetIterator {
             Some(vis)
         };
 
-        (
+        Ok((
             false,
             StorageChunk::construct(
                 visibility,
@@ -330,20 +330,23 @@ impl RowSetIterator {
                     .map(Arc::new)
                     .collect(),
             ),
-        )
+        ))
     }
 
-    pub async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<StorageChunk> {
+    pub async fn next_batch(
+        &mut self,
+        expected_size: Option<usize>,
+    ) -> StorageResult<Option<StorageChunk>> {
         loop {
             let (finished, batch) = if self.filter_expr.is_some() {
-                self.next_batch_inner_with_filter(expected_size).await
+                self.next_batch_inner_with_filter(expected_size).await?
             } else {
-                self.next_batch_inner(expected_size).await
+                self.next_batch_inner(expected_size).await?
             };
             if finished {
-                return None;
+                return Ok(None);
             } else if let Some(batch) = batch {
-                return Some(batch);
+                return Ok(Some(batch));
             }
         }
     }
@@ -380,8 +383,9 @@ mod tests {
                 ColumnSeekPosition::RowId(1000),
                 None,
             )
-            .await;
-        let chunk = it.next_batch(Some(1000)).await.unwrap();
+            .await
+            .unwrap();
+        let chunk = it.next_batch(Some(1000)).await.unwrap().unwrap();
         if let ArrayImpl::Int32(array) = chunk.array_at(2).as_ref() {
             let left = array.to_vec();
             let right = [1, 2, 3]
@@ -463,8 +467,9 @@ mod tests {
                 ColumnSeekPosition::RowId(1000),
                 Some(expr),
             )
-            .await;
-        let chunk = it.next_batch(Some(1000)).await.unwrap();
+            .await
+            .unwrap();
+        let chunk = it.next_batch(Some(1000)).await.unwrap().unwrap();
         if let ArrayImpl::Int32(array) = chunk.array_at(2).as_ref() {
             let left = array.to_vec();
             let right = [1, 2, 3]

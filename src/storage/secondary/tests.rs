@@ -1,5 +1,5 @@
 use super::SecondaryIteratorImpl;
-use crate::storage::StorageChunk;
+use crate::storage::{StorageChunk, StorageResult};
 
 pub struct TestIterator {
     chunks: Vec<StorageChunk>,
@@ -13,13 +13,16 @@ impl TestIterator {
 }
 
 impl TestIterator {
-    pub async fn next_batch(&mut self, _expected_size: Option<usize>) -> Option<StorageChunk> {
+    pub async fn next_batch(
+        &mut self,
+        _expected_size: Option<usize>,
+    ) -> StorageResult<Option<StorageChunk>> {
         if self.cnt >= self.chunks.len() {
-            return None;
+            return Ok(None);
         }
         let chunk = self.chunks[self.cnt].clone();
         self.cnt += 1;
-        Some(chunk)
+        Ok(Some(chunk))
     }
 }
 

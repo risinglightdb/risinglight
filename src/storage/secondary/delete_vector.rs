@@ -26,11 +26,7 @@ impl DeleteVector {
         let mut deletes = vec![];
 
         while !buf.is_empty() {
-            deletes.push(
-                DeleteRecord::decode_length_delimited(&mut buf)
-                    .unwrap()
-                    .row_id,
-            );
+            deletes.push(DeleteRecord::decode_length_delimited(&mut buf)?.row_id);
         }
 
         deletes.sort_unstable();
@@ -49,7 +45,7 @@ impl DeleteVector {
     ) -> StorageResult<()> {
         let mut data = Vec::new();
         for delete in deletes {
-            delete.encode_length_delimited(&mut data).unwrap();
+            delete.encode_length_delimited(&mut data)?;
         }
         file.write_all(&data).await?;
         Ok(())

@@ -5,6 +5,7 @@
 #![deny(unused_must_use)]
 #![feature(portable_simd)]
 #![feature(generators)]
+#![feature(backtrace)]
 
 // Enable macros for logging.
 #[macro_use]

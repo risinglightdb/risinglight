@@ -35,7 +35,10 @@ impl SecondaryTableTxnIterator {
 
 impl SecondaryIterator {
     #[async_recursion]
-    pub async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<StorageChunk> {
+    pub async fn next_batch(
+        &mut self,
+        expected_size: Option<usize>,
+    ) -> StorageResult<Option<StorageChunk>> {
         match self {
             SecondaryIterator::Concat(iter) => iter.next_batch(expected_size).await,
             SecondaryIterator::Merge(iter) => iter.next_batch(expected_size).await,
@@ -55,7 +58,7 @@ impl TxnIterator for SecondaryTableTxnIterator {
         Ok(self
             .iter
             .next_batch(expected_size)
-            .await
+            .await?
             .map(|x| x.to_data_chunk()))
     }
 }

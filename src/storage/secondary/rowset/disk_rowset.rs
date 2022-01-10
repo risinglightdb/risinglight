@@ -51,7 +51,7 @@ impl DiskRowset {
             index.read_to_end(&mut index_content).await?;
 
             let column = Column::new(
-                ColumnIndex::from_bytes(&index_content),
+                ColumnIndex::from_bytes(&index_content)?,
                 match io_backend {
                     IOBackend::NormalRead => {
                         ColumnReadableFile::NormalRead(Arc::new(Mutex::new(file.into_std().await)))
@@ -91,7 +91,7 @@ impl DiskRowset {
         dvs: Vec<Arc<DeleteVector>>,
         seek_pos: ColumnSeekPosition,
         expr: Option<BoundExpr>,
-    ) -> RowSetIterator {
+    ) -> StorageResult<RowSetIterator> {
         RowSetIterator::new(self.clone(), column_refs, dvs, seek_pos, expr).await
     }
 
@@ -193,6 +193,6 @@ pub mod tests {
         let tempdir = tempfile::tempdir().unwrap();
         let rowset = helper_build_rowset(&tempdir, true, 1000).await;
         let column = rowset.column(0);
-        column.get_block(0).await;
+        column.get_block(0).await.unwrap();
     }
 }

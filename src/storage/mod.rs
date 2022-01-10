@@ -7,7 +7,7 @@ mod secondary;
 pub use secondary::{SecondaryStorage, StorageOptions as SecondaryStorageOptions};
 
 mod error;
-pub use error::{StorageError, StorageResult};
+pub use error::{StorageError, StorageResult, TracedStorageError};
 
 mod chunk;
 use std::sync::Arc;

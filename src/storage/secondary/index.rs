@@ -7,6 +7,7 @@ use risinglight_proto::rowset::BlockIndex;
 
 use super::{ColumnSeekPosition, SECONDARY_INDEX_MAGIC};
 use crate::storage::secondary::{verify_checksum, INDEX_FOOTER_SIZE};
+use crate::storage::{StorageResult, TracedStorageError};
 
 #[derive(Clone)]
 pub struct ColumnIndex {
@@ -26,25 +27,30 @@ impl ColumnIndex {
         self.indexes.len()
     }
 
-    pub fn from_bytes(data: &[u8]) -> Self {
+    pub fn from_bytes(data: &[u8]) -> StorageResult<Self> {
         // TODO(chi): error handling
         let mut index_data = &data[..data.len() - INDEX_FOOTER_SIZE];
         let mut footer = &data[data.len() - INDEX_FOOTER_SIZE..];
-        assert_eq!(footer.get_u32(), SECONDARY_INDEX_MAGIC);
+        if footer.get_u32() != SECONDARY_INDEX_MAGIC {
+            return Err(TracedStorageError::decode(
+                "failed to decode column index: invalid magic",
+            ));
+        }
         let length = footer.get_u64() as usize;
-        let checksum_type = ChecksumType::from_i32(footer.get_i32()).unwrap();
+        let checksum_type = ChecksumType::from_i32(footer.get_i32())
+            .ok_or_else(|| TracedStorageError::decode("invalid checksum type"))?;
         let checksum = footer.get_u64();
-        verify_checksum(checksum_type, index_data, checksum);
+        verify_checksum(checksum_type, index_data, checksum)?;
 
         let mut indexes = vec![];
         for _ in 0..length {
-            let index = BlockIndex::decode_length_delimited(&mut index_data).unwrap();
+            let index = BlockIndex::decode_length_delimited(&mut index_data)?;
             indexes.push(index);
         }
 
-        Self {
+        Ok(Self {
             indexes: indexes.into(),
-        }
+        })
     }
 
     pub fn block_of_seek_position(&self, seek_pos: ColumnSeekPosition) -> u32 {

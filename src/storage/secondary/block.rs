@@ -24,7 +24,9 @@ use risinglight_proto::rowset::block_checksum::ChecksumType;
 use risinglight_proto::rowset::block_index::BlockType;
 pub use varchar_block_iterator::*;
 
+use super::StorageResult;
 use crate::array::Array;
+use crate::storage::TracedStorageError;
 
 /// A block is simply a [`Bytes`] array.
 pub type Block = Bytes;
@@ -111,9 +113,15 @@ impl BlockHeader {
         buf.put_u64(self.checksum);
     }
 
-    pub fn decode(&mut self, buf: &mut impl Buf) {
-        self.block_type = BlockType::from_i32(buf.get_i32()).unwrap();
-        self.checksum_type = ChecksumType::from_i32(buf.get_i32()).unwrap();
+    pub fn decode(&mut self, buf: &mut impl Buf) -> StorageResult<()> {
+        if buf.remaining() < 4 + 4 + 8 {
+            return Err(TracedStorageError::decode("expected 16 bytes"));
+        }
+        self.block_type = BlockType::from_i32(buf.get_i32())
+            .ok_or_else(|| TracedStorageError::decode("expected valid block type"))?;
+        self.checksum_type = ChecksumType::from_i32(buf.get_i32())
+            .ok_or_else(|| TracedStorageError::decode("expected valid checksum type"))?;
         self.checksum = buf.get_u64();
+        Ok(())
     }
 }
