@@ -110,8 +110,9 @@ impl Transaction for InMemoryTransaction {
         col_idx: &[StorageColumnRef],
         is_sorted: bool,
         reversed: bool,
-        _expr: Option<BoundExpr>,
+        expr: Option<BoundExpr>,
     ) -> StorageResult<Self::TxnIteratorType> {
+        assert!(expr.is_none(), "MemTxn doesn't support filter scan");
         assert!(
             begin_sort_key.is_none(),
             "sort_key is not supported in InMemoryEngine for now"

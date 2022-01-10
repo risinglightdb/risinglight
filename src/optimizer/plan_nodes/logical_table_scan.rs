@@ -28,24 +28,14 @@ impl PlanNode for LogicalTableScan {
 }
 impl fmt::Display for LogicalTableScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.expr {
-            Some(expr) => writeln!(
-            f,
-            "LogicalTableScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}, expr: {:?}",
-            self.table_ref_id.table_id,
-            self.column_ids.iter().map(ToString::to_string).join(", "),
-            self.with_row_handler,
-            self.is_sorted,
-            expr
-        ),
-            None => writeln!(
-            f,
-            "LogicalTableScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}, expr: None",
-            self.table_ref_id.table_id,
-            self.column_ids.iter().map(ToString::to_string).join(", "),
-            self.with_row_handler,
-            self.is_sorted
-        )
-        }
+        writeln!(
+                f,
+                "LogicalTableScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}, expr: {}",
+                self.table_ref_id.table_id,
+                self.column_ids.iter().map(ToString::to_string).join(", "),
+                self.with_row_handler,
+                self.is_sorted,
+                self.expr.clone().map_or_else(|| "None".to_string(), |expr| format!("{:?}", expr))
+            )
     }
 }
