@@ -29,10 +29,10 @@ impl Rewriter for InputRefResolver {
         Rc::new(plan)
     }
 
-    fn rewrite_logical_seq_scan_is_nested(&mut self) -> bool {
+    fn rewrite_logical_table_scan_is_nested(&mut self) -> bool {
         true
     }
-    fn rewrite_logical_seq_scan(&mut self, plan: LogicalSeqScan) -> PlanRef {
+    fn rewrite_logical_table_scan(&mut self, plan: LogicalTableScan) -> PlanRef {
         self.bindings = plan
             .column_ids
             .iter()

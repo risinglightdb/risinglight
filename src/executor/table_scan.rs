@@ -4,16 +4,18 @@ use itertools::Itertools;
 
 use super::*;
 use crate::array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I64ArrayBuilder};
-use crate::optimizer::plan_nodes::PhysicalSeqScan;
+use crate::binder::BoundExpr;
+use crate::optimizer::plan_nodes::PhysicalTableScan;
 use crate::storage::{Storage, StorageColumnRef, Table, Transaction, TxnIterator};
 
-/// The executor of sequential scan operation.
-pub struct SeqScanExecutor<S: Storage> {
-    pub plan: PhysicalSeqScan,
+/// The executor of table scan operation.
+pub struct TableScanExecutor<S: Storage> {
+    pub plan: PhysicalTableScan,
+    pub expr: Option<BoundExpr>,
     pub storage: Arc<S>,
 }
 
-impl<S: Storage> SeqScanExecutor<S> {
+impl<S: Storage> TableScanExecutor<S> {
     /// Some executors will fail if no chunk is returned from `SeqScanExecutor`. After we have
     /// schema information in executors, this function can be removed.
     fn build_empty_chunk(&self, table: &impl Table) -> Result<DataChunk, ExecutorError> {
@@ -74,7 +76,7 @@ impl<S: Storage> SeqScanExecutor<S> {
         let txn = table.read().await?;
 
         let mut it = txn
-            .scan(None, None, &col_idx, self.plan.is_sorted, false)
+            .scan(None, None, &col_idx, self.plan.is_sorted, false, self.expr)
             .await?;
 
         loop {

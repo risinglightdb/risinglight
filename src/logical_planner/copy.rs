@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use super::*;
 use crate::binder::BoundCopy;
 use crate::optimizer::plan_nodes::{
-    LogicalCopyFromFile, LogicalCopyToFile, LogicalInsert, LogicalSeqScan,
+    LogicalCopyFromFile, LogicalCopyToFile, LogicalInsert, LogicalTableScan,
 };
 use crate::parser::CopyTarget;
 
@@ -21,12 +21,13 @@ impl LogicalPlaner {
                 path,
                 format: stmt.format,
                 column_types,
-                child: Rc::new(LogicalSeqScan {
+                child: Rc::new(LogicalTableScan {
                     table_ref_id: stmt.table_ref_id,
                     column_ids,
                     column_descs,
                     with_row_handler: false,
                     is_sorted: false,
+                    expr: None,
                 }),
             }))
         } else {

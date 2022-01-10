@@ -6,13 +6,14 @@ use crate::parser::BinaryOperator;
 pub struct PhysicalConverter;
 
 impl Rewriter for PhysicalConverter {
-    fn rewrite_logical_seq_scan(&mut self, plan: LogicalSeqScan) -> PlanRef {
-        Rc::new(PhysicalSeqScan {
+    fn rewrite_logical_table_scan(&mut self, plan: LogicalTableScan) -> PlanRef {
+        Rc::new(PhysicalTableScan {
             table_ref_id: plan.table_ref_id,
             column_ids: plan.column_ids,
             with_row_handler: plan.with_row_handler,
             is_sorted: plan.is_sorted,
             column_descs: plan.column_descs,
+            expr: plan.expr,
         })
     }
     fn rewrite_logical_projection(&mut self, plan: LogicalProjection) -> PlanRef {

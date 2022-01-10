@@ -37,8 +37,8 @@ mod limit;
 mod nested_loop_join;
 mod order;
 mod projection;
-mod seq_scan;
 mod simple_agg;
+mod table_scan;
 mod values;
 
 pub use self::aggregation::*;
@@ -57,8 +57,8 @@ use self::limit::*;
 use self::nested_loop_join::*;
 use self::order::*;
 use self::projection::*;
-use self::seq_scan::*;
 use self::simple_agg::*;
+use self::table_scan::*;
 use self::values::*;
 
 /// The error type of execution.
@@ -200,15 +200,17 @@ impl Visitor for ExecutorBuilder {
         );
     }
 
-    fn visit_physical_seq_scan(&mut self, plan: &PhysicalSeqScan) {
+    fn visit_physical_table_scan(&mut self, plan: &PhysicalTableScan) {
         self.executor = Some(match &self.env.storage {
-            StorageImpl::InMemoryStorage(storage) => SeqScanExecutor {
+            StorageImpl::InMemoryStorage(storage) => TableScanExecutor {
                 plan: plan.clone(),
+                expr: None,
                 storage: storage.clone(),
             }
             .execute(),
-            StorageImpl::SecondaryStorage(storage) => SeqScanExecutor {
+            StorageImpl::SecondaryStorage(storage) => TableScanExecutor {
                 plan: plan.clone(),
+                expr: plan.expr.clone(),
                 storage: storage.clone(),
             }
             .execute(),

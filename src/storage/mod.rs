@@ -17,6 +17,7 @@ pub use chunk::*;
 use enum_dispatch::enum_dispatch;
 
 use crate::array::{ArrayImpl, DataChunk};
+use crate::binder::BoundExpr;
 use crate::catalog::{ColumnCatalog, TableRefId};
 use crate::types::{DatabaseId, SchemaId};
 
@@ -37,6 +38,15 @@ impl<S: Storage> StorageDispatch for S {}
 impl StorageImpl {
     pub fn as_in_memory_storage(&self) -> Arc<InMemoryStorage> {
         self.clone().try_into().unwrap()
+    }
+}
+
+impl StorageImpl {
+    pub fn enable_filter_scan(&self) -> bool {
+        match self {
+            Self::SecondaryStorage(_) => true,
+            Self::InMemoryStorage(_) => false,
+        }
     }
 }
 
@@ -117,6 +127,7 @@ pub trait Transaction: Sync + Send + 'static {
         col_idx: &[StorageColumnRef],
         is_sorted: bool,
         reversed: bool,
+        expr: Option<BoundExpr>,
     ) -> StorageResult<Self::TxnIteratorType>;
 
     /// Append data to the table. Generally, `columns` should be in the same order as
