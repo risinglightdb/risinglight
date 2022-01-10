@@ -9,6 +9,7 @@ use super::{InMemoryRowHandler, InMemoryTable, InMemoryTxnIterator};
 use crate::array::{
     ArrayBuilderImpl, ArrayImplBuilderPickExt, ArrayImplSortExt, DataChunk, DataChunkRef,
 };
+use crate::binder::BoundExpr;
 use crate::catalog::{find_sort_key_id, ColumnCatalog};
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
 
@@ -101,6 +102,7 @@ impl Transaction for InMemoryTransaction {
 
     type RowHandlerType = InMemoryRowHandler;
 
+    // TODO: remove this unused variable
     async fn scan(
         &self,
         begin_sort_key: Option<&[u8]>,
@@ -108,7 +110,9 @@ impl Transaction for InMemoryTransaction {
         col_idx: &[StorageColumnRef],
         is_sorted: bool,
         reversed: bool,
+        expr: Option<BoundExpr>,
     ) -> StorageResult<Self::TxnIteratorType> {
+        assert!(expr.is_none(), "MemTxn doesn't support filter scan");
         assert!(
             begin_sort_key.is_none(),
             "sort_key is not supported in InMemoryEngine for now"

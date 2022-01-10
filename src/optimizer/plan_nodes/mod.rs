@@ -109,7 +109,7 @@ macro_rules! for_all_plan_nodes {
         $macro! {
             [$($x),*],
             Dummy,
-            LogicalSeqScan,
+            LogicalTableScan,
             LogicalInsert,
             LogicalValues,
             LogicalCreateTable,
@@ -124,7 +124,7 @@ macro_rules! for_all_plan_nodes {
             LogicalDelete,
             LogicalCopyFromFile,
             LogicalCopyToFile,
-            PhysicalSeqScan,
+            PhysicalTableScan,
             PhysicalInsert,
             PhysicalValues,
             PhysicalCreateTable,

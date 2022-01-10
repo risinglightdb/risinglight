@@ -18,7 +18,9 @@ use self::rules::*;
 /// selection). It takes Plan as input and returns a new Plan which could be used to
 /// generate phyiscal plan.
 #[derive(Default)]
-pub struct Optimizer {}
+pub struct Optimizer {
+    pub enable_filter_scan: bool,
+}
 
 impl Optimizer {
     pub fn optimize(&mut self, mut plan: PlanRef) -> PlanRef {
@@ -27,9 +29,11 @@ impl Optimizer {
         plan = plan.rewrite(&mut ArithExprSimplification);
         plan = plan.rewrite(&mut BoolExprSimplification);
         plan = plan.rewrite(&mut ConstantMovingRule);
-        let hep_optimizer = HeuristicOptimizer {
-            rules: vec![Box::new(FilterJoinRule {})],
-        };
+        let mut rules: Vec<Box<(dyn rules::Rule + 'static)>> = vec![Box::new(FilterJoinRule {})];
+        if self.enable_filter_scan {
+            rules.push(Box::new(FilterScanRule {}));
+        }
+        let hep_optimizer = HeuristicOptimizer { rules };
         plan = hep_optimizer.optimize(plan);
         plan.rewrite(&mut PhysicalConverter)
     }

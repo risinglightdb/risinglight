@@ -7,16 +7,17 @@ use crate::catalog::{ColumnDesc, TableRefId};
 use crate::types::ColumnId;
 /// The logical plan of sequential scan operation.
 #[derive(Debug, Clone)]
-pub struct LogicalSeqScan {
+pub struct LogicalTableScan {
     pub table_ref_id: TableRefId,
     pub column_ids: Vec<ColumnId>,
     pub column_descs: Vec<ColumnDesc>,
     pub with_row_handler: bool,
     pub is_sorted: bool,
+    pub expr: Option<BoundExpr>,
 }
 
-impl_plan_tree_node!(LogicalSeqScan);
-impl PlanNode for LogicalSeqScan {
+impl_plan_tree_node!(LogicalTableScan);
+impl PlanNode for LogicalTableScan {
     fn out_types(&self) -> Vec<DataType> {
         return self
             .column_descs
@@ -25,15 +26,16 @@ impl PlanNode for LogicalSeqScan {
             .collect();
     }
 }
-impl fmt::Display for LogicalSeqScan {
+impl fmt::Display for LogicalTableScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
-            f,
-            "LogicalSeqScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}",
-            self.table_ref_id.table_id,
-            self.column_ids.iter().map(ToString::to_string).join(", "),
-            self.with_row_handler,
-            self.is_sorted
-        )
+                f,
+                "LogicalTableScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}, expr: {}",
+                self.table_ref_id.table_id,
+                self.column_ids.iter().map(ToString::to_string).join(", "),
+                self.with_row_handler,
+                self.is_sorted,
+                self.expr.clone().map_or_else(|| "None".to_string(), |expr| format!("{:?}", expr))
+            )
     }
 }

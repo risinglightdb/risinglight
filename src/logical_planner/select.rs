@@ -2,7 +2,7 @@
 //!
 //! A `select` statement will be planned to a compose of:
 //!
-//! - [`LogicalSeqScan`] (from *) or dummy plan (no from)
+//! - [`LogicalTableScan`] (from *) or dummy plan (no from)
 //! - [`LogicalFilter`] (where *)
 //! - [`LogicalProjection`] (select *)
 //! - [`LogicalOrder`] (order by *)
@@ -14,7 +14,7 @@ use crate::binder::{
 };
 use crate::optimizer::plan_nodes::{
     Dummy, LogicalAggregate, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder,
-    LogicalProjection, LogicalSeqScan,
+    LogicalProjection, LogicalTableScan,
 };
 
 impl LogicalPlaner {
@@ -108,12 +108,13 @@ impl LogicalPlaner {
                 table_name: _,
                 column_ids,
                 column_descs,
-            } => Ok(Rc::new(LogicalSeqScan {
+            } => Ok(Rc::new(LogicalTableScan {
                 table_ref_id: *ref_id,
                 column_ids: column_ids.to_vec(),
                 column_descs: column_descs.to_vec(),
                 with_row_handler,
                 is_sorted,
+                expr: None,
             })),
             BoundTableRef::JoinTableRef {
                 relation,

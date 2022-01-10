@@ -13,6 +13,7 @@ use super::{
     SecondaryRowHandler, SecondaryTable, SecondaryTableTxnIterator, TransactionLock,
 };
 use crate::array::DataChunk;
+use crate::binder::BoundExpr;
 use crate::catalog::find_sort_key_id;
 use crate::storage::secondary::statistics::create_statistics_global_aggregator;
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
@@ -193,7 +194,6 @@ impl SecondaryTransaction {
         Ok(())
     }
 
-    // TODO: add a parameter: expr
     async fn scan_inner(
         &self,
         begin_sort_key: Option<&[u8]>,
@@ -201,6 +201,7 @@ impl SecondaryTransaction {
         col_idx: &[StorageColumnRef],
         is_sorted: bool,
         reversed: bool,
+        expr: Option<BoundExpr>,
     ) -> StorageResult<SecondaryTableTxnIterator> {
         assert!(
             begin_sort_key.is_none(),
@@ -231,7 +232,12 @@ impl SecondaryTransaction {
 
                 iters.push(
                     rowset
-                        .iter(col_idx.into(), dvs, ColumnSeekPosition::start(), None)
+                        .iter(
+                            col_idx.into(),
+                            dvs,
+                            ColumnSeekPosition::start(),
+                            expr.clone(),
+                        )
                         .await?,
                 )
             }
@@ -325,9 +331,17 @@ impl Transaction for SecondaryTransaction {
         col_idx: &[StorageColumnRef],
         is_sorted: bool,
         reversed: bool,
+        expr: Option<BoundExpr>,
     ) -> StorageResult<Self::TxnIteratorType> {
-        self.scan_inner(begin_sort_key, end_sort_key, col_idx, is_sorted, reversed)
-            .await
+        self.scan_inner(
+            begin_sort_key,
+            end_sort_key,
+            col_idx,
+            is_sorted,
+            reversed,
+            expr,
+        )
+        .await
     }
 
     async fn append(&mut self, columns: DataChunk) -> StorageResult<()> {
