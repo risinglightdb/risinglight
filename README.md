@@ -6,6 +6,12 @@ RisingLight is an OLAP database system for educational purpose.
 
 ### Quick Start
 
+Run interactive shell:
+
+```
+cargo run
+```
+
 Run tests:
 
 ```
@@ -23,8 +29,12 @@ Run benchmarks with SIMD acceleration:
 RUSTFLAGS='-C target-cpu=native' cargo bench --features=simd
 ```
 
-Run interactive shell:
+### Contributing
+
+Developers are required to run unit tests and pass clippy check before submitting PRs.
 
 ```
-cargo run
+cargo test
+cargo fmt
+cargo clippy --all-features --all-targets
 ```
