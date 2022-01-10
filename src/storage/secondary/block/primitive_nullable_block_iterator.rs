@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
-use bitvec::prelude::{BitVec, Lsb0};
+use bitvec::prelude::Lsb0;
+use bitvec::slice::BitSlice;
 
 use super::super::PrimitiveFixedWidthEncode;
 use super::{Block, BlockIterator};
@@ -10,9 +11,6 @@ use crate::array::{Array, ArrayBuilder};
 pub struct PlainPrimitiveNullableBlockIterator<T: PrimitiveFixedWidthEncode> {
     /// Block content
     block: Block,
-
-    /// bitmap decode from block
-    bitmap: BitVec<Lsb0, u8>,
 
     /// Total count of elements in block
     row_count: usize,
@@ -25,11 +23,8 @@ pub struct PlainPrimitiveNullableBlockIterator<T: PrimitiveFixedWidthEncode> {
 
 impl<T: PrimitiveFixedWidthEncode> PlainPrimitiveNullableBlockIterator<T> {
     pub fn new(block: Block, row_count: usize) -> Self {
-        let mut bitmap = BitVec::<Lsb0, u8>::with_capacity(row_count);
-        bitmap.extend_from_raw_slice(&block[row_count * T::WIDTH..]);
         Self {
             block,
-            bitmap,
             row_count,
             next_row: 0,
             _phantom: PhantomData,
@@ -53,6 +48,8 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType>
 
         let mut cnt = 0;
         let mut buffer = &self.block[self.next_row * T::WIDTH..];
+        let bitmap_buffer = &self.block[self.row_count * T::WIDTH..];
+        let bitmap_slice = BitSlice::<Lsb0, u8>::from_slice(bitmap_buffer).unwrap();
         loop {
             if let Some(expected_size) = expected_size {
                 assert!(expected_size > 0);
@@ -67,7 +64,7 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType>
 
             let data = &T::decode(&mut buffer);
 
-            if self.bitmap[self.next_row] {
+            if bitmap_slice[self.next_row] {
                 builder.push(Some(data));
             } else {
                 builder.push(None);
