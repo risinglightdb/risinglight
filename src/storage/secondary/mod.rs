@@ -58,7 +58,7 @@ use tokio::sync::oneshot::Sender;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
-use super::{Storage, StorageError, StorageResult};
+use super::{Storage, StorageResult, TracedStorageError};
 use crate::catalog::{ColumnCatalog, RootCatalogRef, TableRefId};
 use crate::types::{ColumnId, DatabaseId, SchemaId};
 

@@ -96,7 +96,7 @@ impl SecondaryTransaction {
         let rowset_id = self.table.generate_rowset_id();
         let directory = self.table.get_rowset_path(rowset_id);
 
-        tokio::fs::create_dir(&directory).await.unwrap();
+        tokio::fs::create_dir(&directory).await?;
 
         // flush data to disk
         mem.flush(
@@ -232,7 +232,7 @@ impl SecondaryTransaction {
                 iters.push(
                     rowset
                         .iter(col_idx.into(), dvs, ColumnSeekPosition::start(), None)
-                        .await,
+                        .await?,
                 )
             }
         }

@@ -18,7 +18,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use super::{Storage, StorageError, StorageResult};
+use super::{Storage, StorageError, StorageResult, TracedStorageError};
 use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};
 use crate::types::{DatabaseId, SchemaId};
 
@@ -75,12 +75,12 @@ impl Storage for InMemoryStorage {
         let db = self
             .catalog
             .get_database_by_id(database_id)
-            .ok_or(StorageError::NotFound("database", database_id))?;
+            .ok_or_else(|| TracedStorageError::not_found("database", database_id))?;
         let schema = db
             .get_schema_by_id(schema_id)
-            .ok_or(StorageError::NotFound("schema", schema_id))?;
+            .ok_or_else(|| TracedStorageError::not_found("schema", schema_id))?;
         if schema.get_table_by_name(table_name).is_some() {
-            return Err(StorageError::Duplicated("table", table_name.into()));
+            return Err(TracedStorageError::duplicated("table", table_name));
         }
         let table_id = schema
             .add_table(table_name.into(), column_descs.to_vec(), false)
@@ -102,7 +102,7 @@ impl Storage for InMemoryStorage {
             .lock()
             .unwrap()
             .get(&table_id)
-            .ok_or(StorageError::NotFound("table", table_id.table_id))?
+            .ok_or_else(|| TracedStorageError::not_found("table", table_id.table_id))?
             .clone();
         Ok(table)
     }
@@ -112,7 +112,7 @@ impl Storage for InMemoryStorage {
             .lock()
             .unwrap()
             .remove(&table_id)
-            .ok_or(StorageError::NotFound("table", table_id.table_id))?;
+            .ok_or_else(|| TracedStorageError::not_found("table", table_id.table_id))?;
         let db = self
             .catalog
             .get_database_by_id(table_id.database_id)

@@ -119,9 +119,10 @@ mod tests {
             0,
             PrimitiveBlockIteratorFactory::new(),
         )
-        .await;
+        .await
+        .unwrap();
         let mut recv_data = vec![];
-        while let Some((_, data)) = scanner.next_batch(None, None).await {
+        while let Some((_, data)) = scanner.next_batch(None, None).await.unwrap() {
             recv_data.extend(data.to_vec());
         }
 
@@ -143,9 +144,10 @@ mod tests {
             10000,
             PrimitiveBlockIteratorFactory::new(),
         )
-        .await;
+        .await
+        .unwrap();
         for i in 0..10 {
-            let (id, data) = scanner.next_batch(Some(1000), None).await.unwrap();
+            let (id, data) = scanner.next_batch(Some(1000), None).await.unwrap().unwrap();
             assert_eq!(id, 10000 + i * 1000);
             let left = data.to_vec();
             let right = [1, 2, 3]
@@ -192,12 +194,14 @@ mod tests {
             0,
             PrimitiveBlockIteratorFactory::new(),
         )
-        .await;
+        .await
+        .unwrap();
         let mut recv_data = vec![];
 
         while let Some((start_row_id, data)) = scanner
             .next_batch(expected_size, Some(&filter_bitmap))
             .await
+            .unwrap()
         {
             recv_data.extend(data.to_vec());
             filter_bitmap =

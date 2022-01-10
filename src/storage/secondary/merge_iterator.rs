@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::{SecondaryIterator, SecondaryIteratorImpl};
 use crate::array::{ArrayBuilderImpl, ArrayImpl, ArrayImplBuilderPickExt, I32Array};
-use crate::storage::{PackedVec, StorageChunk};
+use crate::storage::{PackedVec, StorageChunk, StorageResult};
 
 /// [`MergeIterator`] merges data from multiple sorted `RowSet`s.
 /// This iterator should be used on sorted mode with overlapping sort keys.
@@ -170,17 +170,21 @@ impl MergeIterator {
     }
 
     /// Fill the chunk_buffer with data from `iter_idx` iterator. If successful, return `true`.
-    async fn request_fill_buffer(&mut self, iter_idx: usize, expected_size: Option<usize>) -> bool {
+    async fn request_fill_buffer(
+        &mut self,
+        iter_idx: usize,
+        expected_size: Option<usize>,
+    ) -> StorageResult<bool> {
         if !self.has_finished[iter_idx] {
-            if let Some(batch) = self.iters[iter_idx].next_batch(expected_size).await {
+            if let Some(batch) = self.iters[iter_idx].next_batch(expected_size).await? {
                 self.chunk_buffer[iter_idx] = Some(batch);
-                return true;
+                return Ok(true);
             } else {
                 self.has_finished[iter_idx] = true;
             }
         }
 
-        false
+        Ok(false)
     }
 
     /// Find the next visible item from chunk buffer of `iter_idx`. When `last_idx` is `None`,
@@ -216,13 +220,16 @@ impl MergeIterator {
     ///
     /// Therefore, except for the first call, each `next_batch` will incur at most one I/O
     /// (if no row is deleted) to the child iterators.
-    pub async fn next_batch(&mut self, expected_size: Option<usize>) -> Option<StorageChunk> {
+    pub async fn next_batch(
+        &mut self,
+        expected_size: Option<usize>,
+    ) -> StorageResult<Option<StorageChunk>> {
         // We must use one of the chunk buffer to construct builders
         let mut reference_chunk_buffer = None;
 
         for idx in 0..self.iters.len() {
             if self.chunk_buffer[idx].is_none() {
-                if self.request_fill_buffer(idx, expected_size).await {
+                if self.request_fill_buffer(idx, expected_size).await? {
                     let next_item = self.next_visible_item(idx, None).unwrap();
                     self.add_pending_data((idx, next_item));
                     reference_chunk_buffer = Some(idx);
@@ -233,7 +240,7 @@ impl MergeIterator {
         }
 
         if self.pending_data_len() == 0 {
-            return None;
+            return Ok(None);
         }
 
         let mut pick_from = vec![];
@@ -286,7 +293,7 @@ impl MergeIterator {
             self.chunk_buffer[reset_chunk_idx] = None;
         }
 
-        Some(StorageChunk::construct(None, arrays).unwrap())
+        Ok(Some(StorageChunk::construct(None, arrays).unwrap()))
     }
 }
 
@@ -320,13 +327,13 @@ mod tests {
             ),
         ]);
         let mut merge_iterator = MergeIterator::new(vec![iter1.into()], 0);
-        let batch = merge_iterator.next_batch(Some(1)).await.unwrap();
+        let batch = merge_iterator.next_batch(Some(1)).await.unwrap().unwrap();
         let array: &I32Array = batch.array_at(0).as_ref().try_into().unwrap();
         assert_eq!(array.to_vec(), vec![Some(1)]);
-        let batch = merge_iterator.next_batch(Some(2)).await.unwrap();
+        let batch = merge_iterator.next_batch(Some(2)).await.unwrap().unwrap();
         let array: &I32Array = batch.array_at(0).as_ref().try_into().unwrap();
         assert_eq!(array.to_vec(), vec![Some(2), Some(3)]);
-        let batch = merge_iterator.next_batch(None).await.unwrap();
+        let batch = merge_iterator.next_batch(None).await.unwrap().unwrap();
         let array: &I32Array = batch.array_at(0).as_ref().try_into().unwrap();
         assert_eq!(array.to_vec(), vec![Some(6)]);
     }
@@ -350,7 +357,7 @@ mod tests {
         let mut merge_iterator = MergeIterator::new(vec![iter1.into(), iter2.into()], 0);
         let answers = vec![vec![1, 2, 3, 4, 4, 5], vec![6], vec![6], vec![7, 9]];
         for answer in answers {
-            let batch = merge_iterator.next_batch(None).await.unwrap();
+            let batch = merge_iterator.next_batch(None).await.unwrap().unwrap();
             let array: &I32Array = batch.array_at(0).as_ref().try_into().unwrap();
             assert_eq!(array.to_vec(), answer.into_iter().map(Some).collect_vec());
         }

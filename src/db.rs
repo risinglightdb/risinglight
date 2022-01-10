@@ -193,15 +193,36 @@ impl Database {
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("parse error: {0}")]
-    Parse(#[from] ParserError),
+    Parse(
+        #[source]
+        #[from]
+        ParserError,
+    ),
     #[error("bind error: {0}")]
-    Bind(#[from] BindError),
+    Bind(
+        #[source]
+        #[from]
+        BindError,
+    ),
     #[error("logical plan error: {0}")]
-    Plan(#[from] LogicalPlanError),
+    Plan(
+        #[source]
+        #[from]
+        LogicalPlanError,
+    ),
     #[error("execute error: {0}")]
-    Execute(#[from] ExecutorError),
+    Execute(
+        #[source]
+        #[from]
+        ExecutorError,
+    ),
     #[error("Storage error: {0}")]
-    StorageError(#[from] crate::storage::StorageError),
+    StorageError(
+        #[source]
+        #[from]
+        #[backtrace]
+        crate::storage::TracedStorageError,
+    ),
     #[error("Internal error: {0}")]
     InternalError(String),
 }

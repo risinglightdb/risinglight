@@ -35,6 +35,7 @@ use moka::future::Cache;
 use super::{Block, BlockCacheKey, BlockHeader, ColumnIndex, BLOCK_HEADER_SIZE};
 use crate::array::Array;
 use crate::storage::secondary::verify_checksum;
+use crate::storage::{StorageResult, TracedStorageError};
 
 /// Builds a column. [`ColumnBuilder`] will automatically chunk [`Array`] into
 /// blocks, calls `BlockBuilder` to generate a block, and builds index for a
@@ -63,7 +64,7 @@ pub trait ColumnIterator<A: Array> {
         &mut self,
         expected_size: Option<usize>,
         filter_bitmap: Option<&BitVec>,
-    ) -> Option<(u32, A)>;
+    ) -> StorageResult<Option<(u32, A)>>;
 
     /// Number of items that can be fetched without I/O. When the column iterator has finished
     /// iterating, the returned value should be 0.
@@ -130,7 +131,7 @@ impl Column {
         lst_idx.offset + lst_idx.length
     }
 
-    pub async fn get_block(&self, block_id: u32) -> (BlockHeader, Block) {
+    pub async fn get_block(&self, block_id: u32) -> StorageResult<(BlockHeader, Block)> {
         // It is possible that there will be multiple futures accessing
         // one block not in cache concurrently, which might cause avalanche
         // in cache. For now, we don't handle it.
@@ -138,17 +139,12 @@ impl Column {
         let key = self.base_block_key.clone().block(block_id);
 
         let mut block_header = BlockHeader::default();
+        let do_verify_checksum;
 
-        if let Some(block) = self.block_cache.get(&key) {
-            let mut header = &block[..BLOCK_HEADER_SIZE];
-            let block_data = &block[BLOCK_HEADER_SIZE..];
-            block_header.decode(&mut header);
-            verify_checksum(
-                block_header.checksum_type,
-                block_data,
-                block_header.checksum,
-            );
-            (block_header, block.slice(BLOCK_HEADER_SIZE..))
+        let block = if let Some(block) = self.block_cache.get(&key) {
+            // No need to verify checksum when read from cache
+            do_verify_checksum = false;
+            block
         } else {
             // block has not been in cache, so we fetch it from disk
             // TODO(chi): support multiple I/O backend
@@ -160,31 +156,43 @@ impl Column {
                 // TODO(chi): handle file system errors
                 match file {
                     ColumnReadableFile::PositionedRead(file) => {
-                        file.read_exact_at(&mut data[..], info.offset).unwrap()
+                        file.read_exact_at(&mut data[..], info.offset)?;
                     }
                     ColumnReadableFile::NormalRead(file) => {
                         let mut file = file.lock().unwrap();
-                        file.seek(SeekFrom::Start(info.offset as u64)).unwrap();
-                        file.read_exact(&mut data[..]).unwrap();
+                        file.seek(SeekFrom::Start(info.offset as u64))?;
+                        file.read_exact(&mut data[..])?;
                     }
                 }
-                Bytes::from(data)
+                Ok::<_, TracedStorageError>(Bytes::from(data))
             })
             .await
-            .unwrap();
+            .unwrap()?;
 
             // TODO(chi): we should invalidate cache item after a RowSet has been compacted.
             self.block_cache.insert(key, block.clone()).await;
 
-            let mut header = &block[..BLOCK_HEADER_SIZE];
-            let block_data = &block[BLOCK_HEADER_SIZE..];
-            block_header.decode(&mut header);
+            do_verify_checksum = true;
+            block
+        };
+
+        if block.len() < BLOCK_HEADER_SIZE {
+            return Err(TracedStorageError::decode(
+                "block is smaller than header size",
+            ));
+        }
+        let mut header = &block[..BLOCK_HEADER_SIZE];
+        let block_data = &block[BLOCK_HEADER_SIZE..];
+        block_header.decode(&mut header)?;
+
+        if do_verify_checksum {
             verify_checksum(
                 block_header.checksum_type,
                 block_data,
                 block_header.checksum,
-            );
-            (block_header, block.slice(BLOCK_HEADER_SIZE..))
+            )?;
         }
+
+        Ok((block_header, block.slice(BLOCK_HEADER_SIZE..)))
     }
 }

@@ -17,7 +17,7 @@ use futures_async_stream::try_stream;
 
 use crate::array::DataChunk;
 use crate::optimizer::plan_nodes::*;
-use crate::storage::{StorageError, StorageImpl};
+use crate::storage::{StorageImpl, TracedStorageError};
 use crate::types::ConvertError;
 
 mod aggregation;
@@ -67,15 +67,28 @@ pub enum ExecutorError {
     #[error("failed to build executors from the physical plan")]
     BuildingPlanError,
     #[error("storage error: {0}")]
-    Storage(#[from] StorageError),
+    Storage(
+        #[from]
+        #[backtrace]
+        #[source]
+        TracedStorageError,
+    ),
     #[error("conversion error: {0}")]
     Convert(#[from] ConvertError),
     #[error("tuple length mismatch: expected {expected} but got {actual}")]
     LengthMismatch { expected: usize, actual: usize },
     #[error("io error")]
-    Io(#[from] std::io::Error),
+    Io(
+        #[from]
+        #[source]
+        std::io::Error,
+    ),
     #[error("csv error")]
-    Csv(#[from] csv::Error),
+    Csv(
+        #[from]
+        #[source]
+        csv::Error,
+    ),
     #[error("value can not be null")]
     NotNullable,
 }

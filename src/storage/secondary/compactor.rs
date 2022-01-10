@@ -72,7 +72,7 @@ impl Compactor {
             iters.push(
                 rowset
                     .iter(column_refs.clone(), dvs, ColumnSeekPosition::start(), None)
-                    .await,
+                    .await?,
             );
         }
 
@@ -90,7 +90,7 @@ impl Compactor {
             ConcatIterator::new(iters).into()
         };
 
-        tokio::fs::create_dir(&directory).await.unwrap();
+        tokio::fs::create_dir(&directory).await?;
 
         let mut builder = RowsetBuilder::new(
             table.columns.clone(),
@@ -98,7 +98,7 @@ impl Compactor {
             ColumnBuilderOptions::from_storage_options(&table.storage_options),
         );
 
-        while let Some(batch) = iter.next_batch(None).await {
+        while let Some(batch) = iter.next_batch(None).await? {
             builder.append(batch.to_data_chunk());
         }
 
@@ -155,7 +155,9 @@ impl Compactor {
                         .txn_mgr
                         .try_lock_for_compaction(table.table_id())
                     {
-                        self.compact_table(&*snapshot, table).await.unwrap();
+                        if let Err(err) = self.compact_table(&*snapshot, table).await {
+                            warn!("failed to compact: {:?}", err);
+                        }
                     }
                 }
                 match self.stop.try_recv() {

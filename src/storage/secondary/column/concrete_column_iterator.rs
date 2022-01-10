@@ -9,6 +9,7 @@ use risinglight_proto::rowset::BlockIndex;
 use super::super::{Block, BlockIterator};
 use super::{Column, ColumnIterator, ColumnSeekPosition};
 use crate::array::{Array, ArrayBuilder};
+use crate::storage::StorageResult;
 
 /// Unifying all iterators of a given type
 pub trait BlockIteratorFactory<A: Array>: Send + Sync + 'static {
@@ -59,13 +60,13 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         self.current_row_id
     }
 
-    pub async fn new(column: Column, start_pos: u32, factory: F) -> Self {
+    pub async fn new(column: Column, start_pos: u32, factory: F) -> StorageResult<Self> {
         let current_block_id = column
             .index()
             .block_of_seek_position(ColumnSeekPosition::RowId(start_pos));
-        let (header, block) = column.get_block(current_block_id).await;
+        let (header, block) = column.get_block(current_block_id).await?;
         let block_type = header.block_type;
-        Self {
+        Ok(Self {
             block_iterator: factory.get_iterator_for(
                 block_type,
                 block,
@@ -79,12 +80,15 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             factory,
             block_type,
             is_fake_iter: false,
-        }
+        })
     }
 
-    pub async fn next_batch_inner(&mut self, expected_size: Option<usize>) -> Option<(u32, A)> {
+    pub async fn next_batch_inner(
+        &mut self,
+        expected_size: Option<usize>,
+    ) -> StorageResult<Option<(u32, A)>> {
         if self.finished {
-            return None;
+            return Ok(None);
         }
 
         let capacity = if let Some(expected_size) = expected_size {
@@ -120,7 +124,7 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
                 break;
             }
 
-            let (header, block) = self.column.get_block(self.current_block_id).await;
+            let (header, block) = self.column.get_block(self.current_block_id).await?;
             self.block_iterator = self.factory.get_iterator_for(
                 header.block_type,
                 block,
@@ -130,9 +134,9 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         }
 
         if total_cnt == 0 {
-            None
+            Ok(None)
         } else {
-            Some((first_row_id, builder.finish()))
+            Ok(Some((first_row_id, builder.finish())))
         }
     }
 
@@ -140,9 +144,9 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         &mut self,
         expected_size: Option<usize>,
         filter_bitmap: &BitVec,
-    ) -> Option<(u32, A)> {
+    ) -> StorageResult<Option<(u32, A)>> {
         if self.finished {
-            return None;
+            return Ok(None);
         }
 
         let capacity = if let Some(expected_size) = expected_size {
@@ -160,9 +164,9 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             let subset = &filter_bitmap[..count];
             if !subset.not_any() {
                 self.is_fake_iter = false;
-                let block = self.column.get_block(self.current_block_id).await.1;
+                let (header, block) = self.column.get_block(self.current_block_id).await?;
                 self.block_iterator = self.factory.get_iterator_for(
-                    self.block_type,
+                    header.block_type,
                     block,
                     self.column.index().index(self.current_block_id),
                     self.current_row_id as usize,
@@ -215,13 +219,15 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
                 self.is_fake_iter = true;
             }
 
-            let block = if self.is_fake_iter {
-                Bytes::new()
+            let (block_type, block) = if self.is_fake_iter {
+                // TODO: should not pass an empty block
+                (self.block_type, Bytes::new())
             } else {
-                self.column.get_block(self.current_block_id).await.1
+                let (header, block) = self.column.get_block(self.current_block_id).await?;
+                (header.block_type, block)
             };
             self.block_iterator = self.factory.get_iterator_for(
-                self.block_type,
+                block_type,
                 block,
                 self.column.index().index(self.current_block_id),
                 self.current_row_id as usize,
@@ -229,9 +235,9 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         }
 
         if total_cnt == 0 {
-            None
+            Ok(None)
         } else {
-            Some((first_row_id, builder.finish()))
+            Ok(Some((first_row_id, builder.finish())))
         }
     }
     fn fetch_hint_inner(&self) -> usize {
@@ -249,7 +255,7 @@ impl<A: Array, F: BlockIteratorFactory<A>> ColumnIterator<A> for ConcreteColumnI
         &mut self,
         expected_size: Option<usize>,
         filter_bitmap: Option<&BitVec>,
-    ) -> Option<(u32, A)> {
+    ) -> StorageResult<Option<(u32, A)>> {
         if let Some(fb) = filter_bitmap {
             self.next_batch_inner_with_filter(expected_size, fb).await
         } else {
