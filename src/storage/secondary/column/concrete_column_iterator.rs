@@ -183,7 +183,9 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             //     self.block_iterator
             //         .next_batch(expected_size.map(|x| x - total_cnt), &mut builder)
             // };
-            let cnt = self.block_iterator.next_batch(expected_size.map(|x| x - total_cnt), &mut builder);
+            let cnt = self
+                .block_iterator
+                .next_batch(expected_size.map(|x| x - total_cnt), &mut builder);
 
             total_cnt += cnt;
             self.current_row_id += cnt as u32;

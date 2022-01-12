@@ -46,7 +46,7 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PrimitiveBloc
         match self {
             Self::Plain(it) => it.remaining_items(),
             Self::PlainNullable(it) => it.remaining_items(),
-            Self::Fake(it) => it.remaining_items(), 
+            Self::Fake(it) => it.remaining_items(),
         }
     }
 }

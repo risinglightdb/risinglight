@@ -5,7 +5,9 @@ use risinglight_proto::rowset::BlockIndex;
 use super::super::{Block, BlockIterator};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::{Utf8Array, Utf8ArrayBuilder};
-use crate::storage::secondary::block::{PlainCharBlockIterator, PlainVarcharBlockIterator, FakeBlockIterator};
+use crate::storage::secondary::block::{
+    FakeBlockIterator, PlainCharBlockIterator, PlainVarcharBlockIterator,
+};
 
 /// All supported block iterators for char types.
 pub enum CharBlockIteratorImpl {
