@@ -8,6 +8,8 @@ mod primitive_block_iterator;
 mod primitive_nullable_block_builder;
 mod primitive_nullable_block_iterator;
 mod varchar_block_builder;
+mod fake_block_iterator;
+pub use fake_block_iterator::*;
 pub use char_block_builder::*;
 pub use primitive_block_builder::*;
 pub use primitive_block_iterator::*;
