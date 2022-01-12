@@ -1,24 +1,26 @@
-use std::cmp::min;
+use std::{cmp::min, marker::PhantomData};
 
-use crate::{array::{Array, ArrayBuilder}, storage::secondary::column::BlockIteratorFactory};
+use crate::array::{Array, ArrayBuilder};
 
 use super::BlockIterator;
 
-pub struct FakeBlockIterator {
+pub struct FakeBlockIterator<A: Array> {
     row_count: usize,
     next_row: usize,
+    _phantom: PhantomData<A>,
 }
 
-impl FakeBlockIterator {
+impl <A: Array> FakeBlockIterator<A> {
     pub fn new(row_count: usize) -> Self {
         Self {
             row_count,
             next_row: 0,
+            _phantom: PhantomData,
         }
     }
 }
 
-impl <A: Array> BlockIterator<A> for FakeBlockIterator {
+impl <A: Array> BlockIterator<A> for FakeBlockIterator<A> {
     fn next_batch(&mut self, expected_size: Option<usize>, builder: &mut A::Builder) -> usize {
         if self.next_row >= self.row_count {
             return 0;

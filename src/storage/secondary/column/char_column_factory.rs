@@ -1,15 +1,17 @@
+use bytes::Bytes;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 
 use super::super::{Block, BlockIterator};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::{Utf8Array, Utf8ArrayBuilder};
-use crate::storage::secondary::block::{PlainCharBlockIterator, PlainVarcharBlockIterator};
+use crate::storage::secondary::block::{PlainCharBlockIterator, PlainVarcharBlockIterator, FakeBlockIterator};
 
 /// All supported block iterators for char types.
 pub enum CharBlockIteratorImpl {
     PlainFixedChar(PlainCharBlockIterator),
     PlainVarchar(PlainVarcharBlockIterator),
+    Fake(FakeBlockIterator<Utf8Array>),
 }
 
 impl BlockIterator<Utf8Array> for CharBlockIteratorImpl {
@@ -21,6 +23,7 @@ impl BlockIterator<Utf8Array> for CharBlockIteratorImpl {
         match self {
             Self::PlainFixedChar(it) => it.next_batch(expected_size, builder),
             Self::PlainVarchar(it) => it.next_batch(expected_size, builder),
+            Self::Fake(it) => it.next_batch(expected_size, builder),
         }
     }
 
@@ -28,6 +31,7 @@ impl BlockIterator<Utf8Array> for CharBlockIteratorImpl {
         match self {
             Self::PlainFixedChar(it) => it.skip(cnt),
             Self::PlainVarchar(it) => it.skip(cnt),
+            Self::Fake(it) => it.skip(cnt),
         }
     }
 
@@ -35,6 +39,7 @@ impl BlockIterator<Utf8Array> for CharBlockIteratorImpl {
         match self {
             Self::PlainFixedChar(it) => it.remaining_items(),
             Self::PlainVarchar(it) => it.remaining_items(),
+            Self::Fake(it) => it.remaining_items(),
         }
     }
 }
@@ -70,6 +75,11 @@ impl BlockIteratorFactory<Utf8Array> for CharBlockIteratorFactory {
             (BlockType::PlainVarchar, _) => {
                 let it = PlainVarcharBlockIterator::new(block, index.row_count as usize);
                 CharBlockIteratorImpl::PlainVarchar(it)
+            }
+            (BlockType::Fake, _) => {
+                assert_eq!(block, Bytes::new());
+                let it = FakeBlockIterator::new(index.row_count as usize);
+                CharBlockIteratorImpl::Fake(it)
             }
             _ => todo!(),
         };

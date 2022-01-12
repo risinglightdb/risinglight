@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use bytes::Bytes;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 use rust_decimal::Decimal;
@@ -10,12 +11,14 @@ use super::super::{
 };
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::Array;
+use crate::storage::secondary::block::FakeBlockIterator;
 use crate::types::Date;
 
 /// All supported block iterators for primitive types.
 pub enum PrimitiveBlockIteratorImpl<T: PrimitiveFixedWidthEncode> {
     Plain(PlainPrimitiveBlockIterator<T>),
     PlainNullable(PlainPrimitiveNullableBlockIterator<T>),
+    Fake(FakeBlockIterator<T::ArrayType>),
 }
 
 impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PrimitiveBlockIteratorImpl<T> {
@@ -27,6 +30,7 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PrimitiveBloc
         match self {
             Self::Plain(it) => it.next_batch(expected_size, builder),
             Self::PlainNullable(it) => it.next_batch(expected_size, builder),
+            Self::Fake(it) => it.next_batch(expected_size, builder),
         }
     }
 
@@ -34,6 +38,7 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PrimitiveBloc
         match self {
             Self::Plain(it) => it.skip(cnt),
             Self::PlainNullable(it) => it.skip(cnt),
+            Self::Fake(it) => it.skip(cnt),
         }
     }
 
@@ -41,6 +46,7 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PrimitiveBloc
         match self {
             Self::Plain(it) => it.remaining_items(),
             Self::PlainNullable(it) => it.remaining_items(),
+            Self::Fake(it) => it.remaining_items(), 
         }
     }
 }
@@ -89,6 +95,11 @@ impl<T: PrimitiveFixedWidthEncode> BlockIteratorFactory<T::ArrayType>
             BlockType::PlainNullable => {
                 let it = PlainPrimitiveNullableBlockIterator::new(block, index.row_count as usize);
                 PrimitiveBlockIteratorImpl::PlainNullable(it)
+            }
+            BlockType::Fake => {
+                assert_eq!(block, Bytes::new());
+                let it = FakeBlockIterator::new(index.row_count as usize);
+                PrimitiveBlockIteratorImpl::Fake(it)
             }
             _ => todo!(),
         };
