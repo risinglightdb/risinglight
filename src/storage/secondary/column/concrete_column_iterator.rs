@@ -169,20 +169,6 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         }
 
         loop {
-            // let cnt = if self.is_fake_iter {
-            //     let mut count = self.block_iterator.remaining_items();
-            //     if let Some(expected_size) = expected_size {
-            //         count = min(expected_size - total_cnt, count);
-            //     }
-            //     self.block_iterator.skip(count);
-            //     for _ in 0..count {
-            //         builder.push(None);
-            //     }
-            //     count
-            // } else {
-            //     self.block_iterator
-            //         .next_batch(expected_size.map(|x| x - total_cnt), &mut builder)
-            // };
             let cnt = self
                 .block_iterator
                 .next_batch(expected_size.map(|x| x - total_cnt), &mut builder);
