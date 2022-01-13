@@ -47,7 +47,7 @@ tokio = { version = "1", features = ["full"] }
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["async_tokio"] }
-sqllogictest = "0.1"
+sqllogictest = "0.2"
 tempfile = "3"
 test-case = "1"
 

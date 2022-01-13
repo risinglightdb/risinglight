@@ -33,7 +33,7 @@ fn test_mem(name: &str) {
         db: Database::new_in_memory(),
     });
     tester.enable_testdir();
-    tester.run_script(&script);
+    tester.run_script(&script).unwrap();
 }
 
 #[test_case("basic_test.slt")]
@@ -63,7 +63,7 @@ fn test_disk(name: &str) {
     ));
     let mut tester = sqllogictest::Runner::new(DatabaseWrapper { rt, db });
     tester.enable_testdir();
-    tester.run_script(&script);
+    tester.run_script(&script).unwrap();
 }
 
 fn init_logger() {
