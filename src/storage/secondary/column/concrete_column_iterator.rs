@@ -46,10 +46,6 @@ pub struct ConcreteColumnIterator<A: Array, F: BlockIteratorFactory<A>> {
     /// The factory for creating iterators.
     factory: F,
 
-    /// TODO: support multiple block type for one column.
-    /// Block Type of this column.
-    block_type: BlockType,
-
     /// Indicate whether current_block_iter is fake.
     is_fake_iter: bool,
 }
@@ -65,10 +61,9 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             .index()
             .block_of_seek_position(ColumnSeekPosition::RowId(start_pos));
         let (header, block) = column.get_block(current_block_id).await?;
-        let block_type = header.block_type;
         Ok(Self {
             block_iterator: factory.get_iterator_for(
-                block_type,
+                header.block_type,
                 block,
                 column.index().index(current_block_id),
                 start_pos as usize,
@@ -78,7 +73,6 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             current_row_id: start_pos,
             finished: false,
             factory,
-            block_type,
             is_fake_iter: false,
         })
     }
@@ -175,20 +169,9 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         }
 
         loop {
-            let cnt = if self.is_fake_iter {
-                let mut count = self.block_iterator.remaining_items();
-                if let Some(expected_size) = expected_size {
-                    count = min(expected_size - total_cnt, count);
-                }
-                self.block_iterator.skip(count);
-                for _ in 0..count {
-                    builder.push(None);
-                }
-                count
-            } else {
-                self.block_iterator
-                    .next_batch(expected_size.map(|x| x - total_cnt), &mut builder)
-            };
+            let cnt = self
+                .block_iterator
+                .next_batch(expected_size.map(|x| x - total_cnt), &mut builder);
 
             total_cnt += cnt;
             self.current_row_id += cnt as u32;
@@ -221,7 +204,7 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
 
             let (block_type, block) = if self.is_fake_iter {
                 // TODO: should not pass an empty block
-                (self.block_type, Bytes::new())
+                (BlockType::Fake, Bytes::new())
             } else {
                 let (header, block) = self.column.get_block(self.current_block_id).await?;
                 (header.block_type, block)
