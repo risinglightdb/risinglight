@@ -1,0 +1,23 @@
+statement ok
+COPY NATION FROM 'target/tpch-dbgen/tbl/nation.tbl' ( DELIMITER '|' );
+
+statement ok
+COPY REGION FROM 'target/tpch-dbgen/tbl/region.tbl' ( DELIMITER '|' );
+
+statement ok
+COPY PART FROM 'target/tpch-dbgen/tbl/part.tbl' ( DELIMITER '|' );
+
+statement ok
+COPY SUPPLIER FROM 'target/tpch-dbgen/tbl/supplier.tbl' ( DELIMITER '|' );
+
+statement ok
+COPY PARTSUPP FROM 'target/tpch-dbgen/tbl/partsupp.tbl' ( DELIMITER '|' );
+
+statement ok
+COPY CUSTOMER FROM 'target/tpch-dbgen/tbl/customer.tbl' ( DELIMITER '|' );
+
+statement ok
+COPY ORDERS FROM 'target/tpch-dbgen/tbl/orders.tbl' ( DELIMITER '|' );
+
+statement ok
+COPY LINEITEM FROM 'target/tpch-dbgen/tbl/lineitem.tbl' ( DELIMITER '|' );
