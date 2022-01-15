@@ -2,7 +2,6 @@ use std::cmp::min;
 
 use async_trait::async_trait;
 use bitvec::prelude::BitVec;
-use bytes::Bytes;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 
@@ -24,6 +23,8 @@ pub trait BlockIteratorFactory<A: Array>: Send + Sync + 'static {
         index: &BlockIndex,
         start_pos: usize,
     ) -> Self::BlockIteratorImpl;
+
+    fn get_fake_iterator(&self, index: &BlockIndex, start_pos: usize) -> Self::BlockIteratorImpl;
 }
 
 /// Column iterator that operates on a concrete type
@@ -202,19 +203,20 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
                 self.is_fake_iter = true;
             }
 
-            let (block_type, block) = if self.is_fake_iter {
-                // TODO: should not pass an empty block
-                (BlockType::Fake, Bytes::new())
+            self.block_iterator = if self.is_fake_iter {
+                self.factory.get_fake_iterator(
+                    self.column.index().index(self.current_block_id),
+                    self.current_row_id as usize,
+                )
             } else {
                 let (header, block) = self.column.get_block(self.current_block_id).await?;
-                (header.block_type, block)
-            };
-            self.block_iterator = self.factory.get_iterator_for(
-                block_type,
-                block,
-                self.column.index().index(self.current_block_id),
-                self.current_row_id as usize,
-            )
+                self.factory.get_iterator_for(
+                    header.block_type,
+                    block,
+                    self.column.index().index(self.current_block_id),
+                    self.current_row_id as usize,
+                )
+            }
         }
 
         if total_cnt == 0 {
@@ -286,9 +288,7 @@ impl<A: Array, F: BlockIteratorFactory<A>> ColumnIterator<A> for ConcreteColumnI
         assert_eq!(cnt, 0);
 
         self.is_fake_iter = true;
-        self.block_iterator = self.factory.get_iterator_for(
-            BlockType::Fake,
-            Bytes::new(),
+        self.block_iterator = self.factory.get_fake_iterator(
             self.column.index().index(self.current_block_id),
             self.current_row_id as usize,
         )

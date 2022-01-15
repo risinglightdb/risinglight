@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use bytes::Bytes;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 use rust_decimal::Decimal;
@@ -96,13 +95,15 @@ impl<T: PrimitiveFixedWidthEncode> BlockIteratorFactory<T::ArrayType>
                 let it = PlainPrimitiveNullableBlockIterator::new(block, index.row_count as usize);
                 PrimitiveBlockIteratorImpl::PlainNullable(it)
             }
-            BlockType::Fake => {
-                assert_eq!(block, Bytes::new());
-                let it = FakeBlockIterator::new(index.row_count as usize);
-                PrimitiveBlockIteratorImpl::Fake(it)
-            }
             _ => todo!(),
         };
+        it.skip(start_pos - index.first_rowid as usize);
+        it
+    }
+
+    fn get_fake_iterator(&self, index: &BlockIndex, start_pos: usize) -> Self::BlockIteratorImpl {
+        let mut it =
+            PrimitiveBlockIteratorImpl::Fake(FakeBlockIterator::new(index.row_count as usize));
         it.skip(start_pos - index.first_rowid as usize);
         it
     }

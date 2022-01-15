@@ -1,4 +1,3 @@
-use bytes::Bytes;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 
@@ -78,13 +77,14 @@ impl BlockIteratorFactory<Utf8Array> for CharBlockIteratorFactory {
                 let it = PlainVarcharBlockIterator::new(block, index.row_count as usize);
                 CharBlockIteratorImpl::PlainVarchar(it)
             }
-            (BlockType::Fake, _) => {
-                assert_eq!(block, Bytes::new());
-                let it = FakeBlockIterator::new(index.row_count as usize);
-                CharBlockIteratorImpl::Fake(it)
-            }
             _ => todo!(),
         };
+        it.skip(start_pos - index.first_rowid as usize);
+        it
+    }
+
+    fn get_fake_iterator(&self, index: &BlockIndex, start_pos: usize) -> Self::BlockIteratorImpl {
+        let mut it = CharBlockIteratorImpl::Fake(FakeBlockIterator::new(index.row_count as usize));
         it.skip(start_pos - index.first_rowid as usize);
         it
     }
