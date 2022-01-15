@@ -248,4 +248,49 @@ impl<A: Array, F: BlockIteratorFactory<A>> ColumnIterator<A> for ConcreteColumnI
     fn fetch_hint(&self) -> usize {
         self.fetch_hint_inner()
     }
+    fn skip(&mut self, mut cnt: usize) {
+        if self.finished {
+            return;
+        }
+        self.current_row_id += cnt as u32;
+        let max_block_id = self.column.index().len() as u32;
+
+        let remaining_items = self.block_iterator.remaining_items();
+        if cnt >= remaining_items {
+            cnt -= remaining_items;
+
+            self.current_block_id += 1;
+            if self.current_block_id >= max_block_id {
+                self.finished = true;
+                return;
+            }
+        } else {
+            self.block_iterator.skip(cnt);
+            return;
+        }
+
+        while cnt > 0 {
+            let row_count = self.column.index().index(self.current_block_id).row_count as usize;
+            if cnt >= row_count {
+                cnt -= row_count;
+
+                self.current_block_id += 1;
+                if self.current_block_id >= max_block_id {
+                    self.finished = true;
+                    return;
+                }
+            } else {
+                cnt = 0;
+            }
+        }
+        assert_eq!(cnt, 0);
+
+        self.is_fake_iter = true;
+        self.block_iterator = self.factory.get_iterator_for(
+            BlockType::Fake,
+            Bytes::new(),
+            self.column.index().index(self.current_block_id),
+            self.current_row_id as usize,
+        )
+    }
 }
