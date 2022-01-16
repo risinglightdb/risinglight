@@ -179,7 +179,6 @@ impl RowSetIterator {
         }
 
         if filter_bitmap.not_any() {
-            // row_id of those non-fetched columns!
             for (id, column_ref) in self.column_refs.iter().enumerate() {
                 match column_ref {
                     StorageColumnRef::RowHandler => continue,
