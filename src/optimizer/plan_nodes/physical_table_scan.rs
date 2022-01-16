@@ -4,8 +4,6 @@ use itertools::Itertools;
 
 use super::*;
 
-
-
 /// The physical plan of table scan operation.
 #[derive(Debug, Clone)]
 pub struct PhysicalTableScan {
@@ -27,7 +25,7 @@ impl PlanTreeNodeLeaf for PhysicalTableScan {}
 impl_plan_tree_node_for_leaf!(PhysicalTableScan);
 impl PlanNode for PhysicalTableScan {
     fn out_types(&self) -> Vec<DataType> {
-        self.out_types()
+        self.logical().out_types()
     }
 }
 

@@ -25,7 +25,7 @@ impl LogicalDelete {
 }
 impl PlanTreeNodeUnary for LogicalDelete {
     fn child(&self) -> PlanRef {
-        self.child()
+        self.child.clone()
     }
 
     fn clone_with_child(&self, child: PlanRef) -> Self {
