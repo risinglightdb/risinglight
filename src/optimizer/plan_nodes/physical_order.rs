@@ -9,6 +9,17 @@ pub struct PhysicalOrder {
     logical: LogicalOrder,
 }
 
+impl PhysicalOrder {
+    pub fn new(logical: LogicalOrder) -> Self {
+        Self { logical }
+    }
+
+    /// Get a reference to the physical order's logical.
+    pub fn logical(&self) -> &LogicalOrder {
+        &self.logical
+    }
+}
+
 impl PlanTreeNodeUnary for PhysicalOrder {
     fn child(&self) -> PlanRef {
         self.logical.child()

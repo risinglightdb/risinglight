@@ -11,7 +11,7 @@ use crate::binder::BoundExpr;
 use crate::types::DataType;
 #[macro_use]
 mod plan_tree_node;
-use plan_tree_node::*;
+pub use plan_tree_node::*;
 /// The common trait over all plan nodes.
 pub trait PlanNode: WithPlanNodeType + PlanTreeNode + Debug + Display + Downcast {
     fn out_types(&self) -> Vec<DataType> {

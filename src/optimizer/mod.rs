@@ -25,10 +25,10 @@ pub struct Optimizer {
 impl Optimizer {
     pub fn optimize(&mut self, mut plan: PlanRef) -> PlanRef {
         // TODO: Add more optimization rules.
-        plan = plan.rewrite(&mut ConstantFolding);
-        plan = plan.rewrite(&mut ArithExprSimplification);
-        plan = plan.rewrite(&mut BoolExprSimplification);
-        plan = plan.rewrite(&mut ConstantMovingRule);
+        // plan = plan.rewrite(&mut ConstantFolding);
+        // plan = plan.rewrite(&mut ArithExprSimplification);
+        // plan = plan.rewrite(&mut BoolExprSimplification);
+        // plan = plan.rewrite(&mut ConstantMovingRule);
         let mut rules: Vec<Box<(dyn rules::Rule + 'static)>> = vec![Box::new(FilterJoinRule {})];
         if self.enable_filter_scan {
             rules.push(Box::new(FilterScanRule {}));
