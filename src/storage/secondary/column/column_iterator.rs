@@ -115,4 +115,15 @@ impl ColumnIteratorImpl {
             Self::Date(it) => it.fetch_hint(),
         }
     }
+
+    pub fn skip(&mut self, cnt: usize) {
+        match self {
+            Self::Int32(it) => it.skip(cnt),
+            Self::Float64(it) => it.skip(cnt),
+            Self::Bool(it) => it.skip(cnt),
+            Self::Char(it) => it.skip(cnt),
+            Self::Decimal(it) => it.skip(cnt),
+            Self::Date(it) => it.skip(cnt),
+        }
+    }
 }

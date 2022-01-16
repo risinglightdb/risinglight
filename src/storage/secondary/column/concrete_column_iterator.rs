@@ -2,7 +2,6 @@ use std::cmp::min;
 
 use async_trait::async_trait;
 use bitvec::prelude::BitVec;
-use bytes::Bytes;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 
@@ -24,6 +23,9 @@ pub trait BlockIteratorFactory<A: Array>: Send + Sync + 'static {
         index: &BlockIndex,
         start_pos: usize,
     ) -> Self::BlockIteratorImpl;
+
+    /// Create a fake_block_iter from block index and seek to 'start_pos'.
+    fn get_fake_iterator(&self, index: &BlockIndex, start_pos: usize) -> Self::BlockIteratorImpl;
 }
 
 /// Column iterator that operates on a concrete type
@@ -184,11 +186,9 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
                 break;
             }
 
-            self.current_block_id += 1;
             self.is_fake_iter = false;
 
-            if self.current_block_id >= self.column.index().len() as u32 {
-                self.finished = true;
+            if self.incre_block_id() {
                 break;
             }
 
@@ -202,19 +202,20 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
                 self.is_fake_iter = true;
             }
 
-            let (block_type, block) = if self.is_fake_iter {
-                // TODO: should not pass an empty block
-                (BlockType::Fake, Bytes::new())
+            self.block_iterator = if self.is_fake_iter {
+                self.factory.get_fake_iterator(
+                    self.column.index().index(self.current_block_id),
+                    self.current_row_id as usize,
+                )
             } else {
                 let (header, block) = self.column.get_block(self.current_block_id).await?;
-                (header.block_type, block)
-            };
-            self.block_iterator = self.factory.get_iterator_for(
-                block_type,
-                block,
-                self.column.index().index(self.current_block_id),
-                self.current_row_id as usize,
-            )
+                self.factory.get_iterator_for(
+                    header.block_type,
+                    block,
+                    self.column.index().index(self.current_block_id),
+                    self.current_row_id as usize,
+                )
+            }
         }
 
         if total_cnt == 0 {
@@ -223,12 +224,64 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             Ok(Some((first_row_id, builder.finish())))
         }
     }
+
     fn fetch_hint_inner(&self) -> usize {
         if self.finished {
             return 0;
         }
         let index = self.column.index().index(self.current_block_id);
         (index.row_count - (self.current_row_id - index.first_rowid)) as usize
+    }
+
+    /// Increment the current_block_id by 1 and check whether it exceeds max block id.
+    fn incre_block_id(&mut self) -> bool {
+        let len = self.column.index().len() as u32;
+        self.current_block_id += 1;
+        if self.current_block_id >= len {
+            self.finished = true;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn skip_inner(&mut self, mut cnt: usize) {
+        if self.finished {
+            return;
+        }
+        self.current_row_id += cnt as u32;
+
+        let remaining_items = self.block_iterator.remaining_items();
+        if cnt >= remaining_items {
+            cnt -= remaining_items;
+
+            if self.incre_block_id() {
+                return;
+            }
+        } else {
+            self.block_iterator.skip(cnt);
+            return;
+        }
+
+        while cnt > 0 {
+            let row_count = self.column.index().index(self.current_block_id).row_count as usize;
+            if cnt >= row_count {
+                cnt -= row_count;
+
+                if self.incre_block_id() {
+                    return;
+                }
+            } else {
+                cnt = 0;
+            }
+        }
+        assert_eq!(cnt, 0);
+
+        self.is_fake_iter = true;
+        self.block_iterator = self.factory.get_fake_iterator(
+            self.column.index().index(self.current_block_id),
+            self.current_row_id as usize,
+        )
     }
 }
 
@@ -247,5 +300,8 @@ impl<A: Array, F: BlockIteratorFactory<A>> ColumnIterator<A> for ConcreteColumnI
     }
     fn fetch_hint(&self) -> usize {
         self.fetch_hint_inner()
+    }
+    fn skip(&mut self, cnt: usize) {
+        self.skip_inner(cnt);
     }
 }

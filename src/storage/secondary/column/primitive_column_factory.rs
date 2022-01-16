@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use bytes::Bytes;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 use rust_decimal::Decimal;
@@ -96,13 +95,15 @@ impl<T: PrimitiveFixedWidthEncode> BlockIteratorFactory<T::ArrayType>
                 let it = PlainPrimitiveNullableBlockIterator::new(block, index.row_count as usize);
                 PrimitiveBlockIteratorImpl::PlainNullable(it)
             }
-            BlockType::Fake => {
-                assert_eq!(block, Bytes::new());
-                let it = FakeBlockIterator::new(index.row_count as usize);
-                PrimitiveBlockIteratorImpl::Fake(it)
-            }
             _ => todo!(),
         };
+        it.skip(start_pos - index.first_rowid as usize);
+        it
+    }
+
+    fn get_fake_iterator(&self, index: &BlockIndex, start_pos: usize) -> Self::BlockIteratorImpl {
+        let mut it =
+            PrimitiveBlockIteratorImpl::Fake(FakeBlockIterator::new(index.row_count as usize));
         it.skip(start_pos - index.first_rowid as usize);
         it
     }
@@ -312,5 +313,51 @@ mod tests {
         for i in 75..100 {
             assert_eq!(recv_data[i * 1020..(i + 1) * 1020], *value_array);
         }
+    }
+
+    #[tokio::test]
+    async fn test_skip() {
+        let len = 1020;
+        let tempdir = tempfile::tempdir().unwrap();
+        let rowset = helper_build_rowset(&tempdir, false, len).await;
+        let column = rowset.column(0);
+
+        skip_helper(column.clone(), len / 2, len).await;
+        skip_helper(column.clone(), len, len).await;
+        skip_helper(column.clone(), len + len / 2, len).await;
+        skip_helper(column.clone(), len * 2, len).await;
+    }
+
+    async fn skip_helper(column: Column, cnt: usize, len: usize) {
+        let mut scanner = PrimitiveColumnIterator::<i32>::new(
+            column.clone(),
+            0,
+            PrimitiveBlockIteratorFactory::new(),
+        )
+        .await
+        .unwrap();
+        let mut recv_data = vec![];
+        let bitmap_len = if cnt % len == 0 { len } else { cnt % len };
+        let filter_bitmap = bitvec![1; bitmap_len];
+
+        scanner.skip(cnt);
+        if let Some((start_row_id, data)) = scanner
+            .next_batch(None, Some(&filter_bitmap))
+            .await
+            .unwrap()
+        {
+            recv_data.extend(data.to_vec());
+            assert_eq!(start_row_id as usize, cnt);
+        }
+
+        let mut value_array = [1, 2, 3]
+            .iter()
+            .cycle()
+            .cloned()
+            .take(len)
+            .map(Some)
+            .collect_vec();
+        value_array = value_array.split_off(cnt % len);
+        assert_eq!(recv_data, value_array);
     }
 }

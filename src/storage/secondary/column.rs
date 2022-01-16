@@ -69,6 +69,9 @@ pub trait ColumnIterator<A: Array> {
     /// Number of items that can be fetched without I/O. When the column iterator has finished
     /// iterating, the returned value should be 0.
     fn fetch_hint(&self) -> usize;
+
+    /// Skip 'cnt' items for this column_iterator.
+    fn skip(&mut self, cnt: usize);
 }
 
 /// When creating an iterator, a [`ColumnSeekPosition`] should be set as the initial location.

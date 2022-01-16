@@ -178,7 +178,26 @@ impl RowSetIterator {
             }
         }
 
+        if filter_bitmap.not_any() {
+            for (id, column_ref) in self.column_refs.iter().enumerate() {
+                match column_ref {
+                    StorageColumnRef::RowHandler => continue,
+                    StorageColumnRef::Idx(_) => {
+                        if arrays[id].is_none() {
+                            self.column_iterators[id]
+                                .as_mut()
+                                .unwrap()
+                                .skip(filter_bitmap.len());
+                        }
+                    }
+                }
+            }
+            return Ok((false, None));
+        }
+
         // Use filter_bitmap to filter columns
+        // TODO: Implement the skip interface for column_iterator and call it here.
+        // For those already fetched columns, they also need to delete corrensponding blocks.
         for (id, column_ref) in self.column_refs.iter().enumerate() {
             match column_ref {
                 StorageColumnRef::RowHandler => continue,
