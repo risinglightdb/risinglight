@@ -98,7 +98,7 @@ impl std::fmt::Debug for BoundExpr {
             Self::ColumnRef(expr) => write!(f, "Column #{:?}", expr)?,
             Self::BinaryOp(expr) => write!(f, "{:?}", expr)?,
             Self::UnaryOp(expr) => write!(f, "{:?}", expr)?,
-            Self::TypeCast(expr) => write!(f, "{:?} (cast)", expr)?,
+            Self::TypeCast(expr) => write!(f, "{:?}", expr)?,
             Self::AggCall(expr) => write!(f, "{:?} (agg)", expr)?,
             Self::InputRef(expr) => write!(f, "InputRef #{:?}", expr)?,
             Self::IsNull(expr) => write!(f, "{:?} (isnull)", expr)?,

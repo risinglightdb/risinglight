@@ -2,7 +2,7 @@ use super::*;
 use crate::types::DataTypeKind;
 
 /// A bound type cast expression.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct BoundTypeCast {
     pub expr: Box<BoundExpr>,
     pub ty: DataTypeKind,
@@ -19,5 +19,11 @@ impl Binder {
             expr: (bound_expr.into()),
             ty,
         }))
+    }
+}
+
+impl std::fmt::Debug for BoundTypeCast {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?} as {:?}", self.expr, self.ty)
     }
 }
