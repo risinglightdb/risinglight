@@ -80,7 +80,7 @@ macro_rules! impl_plan_tree_node_for_unary {
 
 macro_rules! impl_plan_tree_node_for_binary {
     ($binary_node_type:ident) => {
-        impl crate::crate::optimizer::plan_nodes::PlanTreeNode for $binary_node_type {
+        impl crate::optimizer::plan_nodes::PlanTreeNode for $binary_node_type {
             fn children(&self) -> smallvec::SmallVec<[crate::optimizer::plan_nodes::PlanRef; 2]> {
                 smallvec::smallvec![self.left(), self.right()]
             }
