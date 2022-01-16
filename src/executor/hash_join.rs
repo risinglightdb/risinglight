@@ -5,7 +5,8 @@ use super::*;
 use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::binder::{BoundExpr, BoundJoinOperator};
 use crate::types::{DataType, DataValue};
-// The executor for hash join
+
+/// The executor for hash join
 pub struct HashJoinExecutor {
     pub left_child: BoxedExecutor,
     pub right_child: BoxedExecutor,
