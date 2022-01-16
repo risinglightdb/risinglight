@@ -11,7 +11,7 @@ pub struct PhysicalCopyToFile {
     logcial: LogicalCopyToFile,
 }
 
-impl PlanTreeNodeUnary for PhysicalFilter {
+impl PlanTreeNodeUnary for PhysicalCopyToFile {
     fn child(&self) -> PlanRef {
         self.logical.child()
     }
@@ -20,7 +20,7 @@ impl PlanTreeNodeUnary for PhysicalFilter {
         Self::new(self.logcial().clone_with_child(child))
     }
 }
-impl_plan_tree_node_for_unary!(PhysicalFilter);
+impl_plan_tree_node_for_unary!(PhysicalCopyToFile);
 impl PlanNode for PhysicalCopyToFile {}
 
 impl fmt::Display for PhysicalCopyToFile {

@@ -9,8 +9,19 @@ pub struct PhysicalDrop {
     logical: LogicalDrop,
 }
 
-impl PlanTreeNodeLeaf for LogicalCreateTable {}
-impl_plan_tree_node_for_leaf!(LogicalCreateTable);
+impl PhysicalDrop {
+    pub fn new(logical: LogicalDrop) -> Self {
+        Self { logical }
+    }
+
+    /// Get a reference to the physical drop's logical.
+    pub fn logical(&self) -> &LogicalDrop {
+        &self.logical
+    }
+}
+
+impl PlanTreeNodeLeaf for PhysicalDrop {}
+impl_plan_tree_node_for_leaf!(PhysicalDrop);
 impl PlanNode for PhysicalDrop {}
 
 impl fmt::Display for PhysicalDrop {

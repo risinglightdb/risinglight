@@ -1,4 +1,3 @@
-use std::alloc::Global;
 use std::fmt;
 
 use super::*;
@@ -27,7 +26,7 @@ impl LogicalValues {
     }
 
     /// Get a reference to the logical values's values.
-    pub fn values(&self) -> &[Vec<BoundExpr, Global>] {
+    pub fn values(&self) -> &[Vec<BoundExpr>] {
         self.values.as_ref()
     }
     pub fn clone_with_rewrite_expr(&self, rewriter: impl ExprRewriter) -> Self {

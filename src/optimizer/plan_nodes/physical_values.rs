@@ -21,8 +21,8 @@ impl PhysicalValues {
     }
 }
 
-impl PlanTreeNodeLeaf for LogicalCreateTable {}
-impl_plan_tree_node_for_leaf!(LogicalCreateTable);
+impl PlanTreeNodeLeaf for PhysicalValues {}
+impl_plan_tree_node_for_leaf!(PhysicalValues);
 impl PlanNode for PhysicalValues {
     fn out_types(&self) -> Vec<DataType> {
         self.column_types.clone()

@@ -21,8 +21,8 @@ impl PhysicalCopyFromFile {
         &self.logcial
     }
 }
-impl PlanTreeNodeLeaf for LogicalCreateTable {}
-impl_plan_tree_node_for_leaf!(LogicalCreateTable);
+impl PlanTreeNodeLeaf for PhysicalCopyFromFile {}
+impl_plan_tree_node_for_leaf!(PhysicalCopyFromFile);
 
 impl PlanNode for PhysicalCopyFromFile {}
 impl fmt::Display for PhysicalCopyFromFile {

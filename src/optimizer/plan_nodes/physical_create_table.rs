@@ -23,8 +23,8 @@ impl PhysicalCreateTable {
     }
 }
 
-impl PlanTreeNodeLeaf for LogicalCreateTable {}
-impl_plan_tree_node_for_leaf!(LogicalCreateTable);
+impl PlanTreeNodeLeaf for PhysicalCreateTable {}
+impl_plan_tree_node_for_leaf!(PhysicalCreateTable);
 
 impl PlanNode for PhysicalCreateTable {}
 

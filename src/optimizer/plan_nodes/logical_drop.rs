@@ -19,7 +19,8 @@ impl LogicalDrop {
         &self.object
     }
 }
-
+impl PlanTreeNodeLeaf for LogicalDrop {}
+impl_plan_tree_node_for_leaf!(LogicalDrop);
 impl PlanNode for LogicalDrop {}
 
 impl fmt::Display for LogicalDrop {

@@ -38,6 +38,7 @@ impl PlanTreeNodeUnary for PhysicalSimpleAgg {
         Self::new(self.agg_calls(), child)
     }
 }
+impl_plan_tree_node_for_unary!(PhysicalSimpleAgg);
 impl PlanNode for PhysicalSimpleAgg {
     fn out_types(&self) -> Vec<DataType> {
         self.data_types.clone()
