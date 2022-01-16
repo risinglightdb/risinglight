@@ -148,22 +148,20 @@ mod tests {
         write!(file, "{}", csv).expect("failed to write file");
 
         let executor = CopyFromFileExecutor {
-            plan: PhysicalCopyFromFile {
-                logical: LogicalCopyFromFile {
-                    path: file.path().into(),
-                    format: FileFormat::Csv {
-                        delimiter: ',',
-                        quote: '"',
-                        escape: None,
-                        header: false,
-                    },
-                    column_types: vec![
-                        DataTypeKind::Int(None).not_null(),
-                        DataTypeKind::Double.not_null(),
-                        DataTypeKind::String.not_null(),
-                    ],
+            plan: PhysicalCopyFromFile::new(LogicalCopyFromFile::new(
+                file.path().into(),
+                FileFormat::Csv {
+                    delimiter: ',',
+                    quote: '"',
+                    escape: None,
+                    header: false,
                 },
-            },
+                vec![
+                    DataTypeKind::Int(None).not_null(),
+                    DataTypeKind::Double.not_null(),
+                    DataTypeKind::String.not_null(),
+                ],
+            )),
         };
         let actual = executor.execute().next().await.unwrap().unwrap();
 

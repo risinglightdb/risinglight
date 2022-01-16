@@ -1,9 +1,9 @@
 use std::fmt;
-use std::path::PathBuf;
+
 
 use super::*;
-use crate::binder::FileFormat;
-use crate::types::DataType;
+
+
 
 /// The physical plan of `COPY TO`.
 #[derive(Debug, Clone)]

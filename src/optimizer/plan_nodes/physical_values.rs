@@ -1,7 +1,7 @@
 use std::fmt;
 
 use super::*;
-use crate::binder::BoundExpr;
+
 use crate::types::DataType;
 
 /// The physical plan of `VALUES`.

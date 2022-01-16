@@ -1,7 +1,7 @@
 use std::fmt;
 
 use super::*;
-use crate::binder::BoundJoinOperator;
+
 /// The phyiscal plan of join.
 #[derive(Clone, Debug)]
 pub struct PhysicalHashJoin {

@@ -1,7 +1,7 @@
 use paste::paste;
 
 use super::plan_nodes::*;
-use super::*;
+
 use crate::for_all_plan_nodes;
 
 /// Define `PlanVisitor` trait.

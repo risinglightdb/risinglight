@@ -17,8 +17,8 @@ impl<S: Storage> CreateTableExecutor<S> {
             .create_table(
                 self.plan.logical().database_id(),
                 self.plan.logical().schema_id(),
-                &self.plan.logical().table_name(),
-                &self.plan.logical().columns(),
+                self.plan.logical().table_name(),
+                self.plan.logical().columns(),
             )
             .await?;
         yield DataChunk::single(0);
@@ -39,25 +39,23 @@ mod tests {
     async fn test_create() {
         let storage = Arc::new(InMemoryStorage::new());
         let catalog = storage.catalog().clone();
-        let plan = PhysicalCreateTable {
-            logical: LogicalCreateTable {
-                database_id: 0,
-                schema_id: 0,
-                table_name: "t".into(),
-                columns: vec![
-                    ColumnCatalog::new(
-                        0,
-                        "v1".into(),
-                        DataTypeKind::Int(None).not_null().to_column(),
-                    ),
-                    ColumnCatalog::new(
-                        1,
-                        "v2".into(),
-                        DataTypeKind::Int(None).not_null().to_column(),
-                    ),
-                ],
-            },
-        };
+        let plan = PhysicalCreateTable::new(LogicalCreateTable::new(
+            0,
+            0,
+            "t".into(),
+            vec![
+                ColumnCatalog::new(
+                    0,
+                    "v1".into(),
+                    DataTypeKind::Int(None).not_null().to_column(),
+                ),
+                ColumnCatalog::new(
+                    1,
+                    "v2".into(),
+                    DataTypeKind::Int(None).not_null().to_column(),
+                ),
+            ],
+        ));
         let mut executor = CreateTableExecutor { plan, storage }.execute().boxed();
         executor.next().await.unwrap().unwrap();
 

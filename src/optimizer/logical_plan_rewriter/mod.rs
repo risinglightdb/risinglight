@@ -22,7 +22,7 @@ use crate::binder::BoundExpr;
 use crate::for_all_plan_nodes;
 
 pub trait ExprRewriter {
-    fn rewrite_expr(&self, expr: &mut BoundExpr) {}
+    fn rewrite_expr(&self, _expr: &mut BoundExpr) {}
 }
 macro_rules! def_rewriter {
   ([], $($node:ident),*) => {

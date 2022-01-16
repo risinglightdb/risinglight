@@ -1,7 +1,7 @@
 use std::fmt;
 
 use super::*;
-use crate::catalog::TableRefId;
+
 
 /// The physical plan of `DELETE`.
 #[derive(Debug, Clone)]

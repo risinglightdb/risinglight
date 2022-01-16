@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use downcast_rs::{impl_downcast, Downcast};
 use paste::paste;
-use smallvec::SmallVec;
+
 
 use crate::binder::BoundExpr;
 use crate::types::DataType;

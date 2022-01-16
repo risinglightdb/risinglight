@@ -3,8 +3,8 @@ use std::fmt;
 use itertools::Itertools;
 
 use super::*;
-use crate::catalog::ColumnCatalog;
-use crate::types::{DatabaseId, SchemaId};
+
+
 
 /// The physical plan of `CREATE TABLE`.
 #[derive(Debug, Clone)]
