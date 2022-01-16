@@ -169,6 +169,7 @@ impl Database {
             let stmt = binder.bind(&stmt)?;
             debug!("{:#?}", stmt);
             let logical_plan = logical_planner.plan(stmt)?;
+            debug!("{:#?}", logical_plan);
             // Resolve input reference
             let mut input_ref_resolver = InputRefResolver::default();
             let logical_plan = input_ref_resolver.rewrite(logical_plan);
