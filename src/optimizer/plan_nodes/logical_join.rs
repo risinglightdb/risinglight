@@ -2,6 +2,7 @@ use std::fmt;
 
 use super::*;
 use crate::binder::BoundJoinOperator;
+use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 
 /// The logical plan of join, it only records join tables and operators.
 ///
@@ -48,6 +49,16 @@ impl LogicalJoin {
     pub fn data_types(&self) -> &[DataType] {
         self.data_types.as_ref()
     }
+    pub fn clone_with_rewrite_expr(
+        &self,
+        left: PlanRef,
+        right: PlanRef,
+        rewriter: impl ExprRewriter,
+    ) -> Self {
+        let mut new_cond = self.condition().clone();
+        rewriter.rewrite_expr(&mut new_cond);
+        LogicalJoin::new(left, right, self.join_op(), new_cond)
+    }
 }
 impl PlanTreeNodeBinary for LogicalJoin {
     fn left(&self) -> PlanRef {
@@ -64,9 +75,6 @@ impl PlanTreeNodeBinary for LogicalJoin {
 }
 impl_plan_tree_node_for_binary!(LogicalJoin);
 impl PlanNode for LogicalJoin {
-    fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
-        rewriter.rewrite_expr(&mut self.condition);
-    }
     fn out_types(&self) -> Vec<DataType> {
         self.data_types.clone()
     }

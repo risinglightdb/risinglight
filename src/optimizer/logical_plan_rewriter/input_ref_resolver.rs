@@ -15,67 +15,8 @@ pub struct InputRefResolver {
     bindings: Vec<Option<ColumnRefId>>,
 }
 
-impl Rewriter for InputRefResolver {
-    fn rewrite_logical_join_is_nested(&mut self) -> bool {
-        true
-    }
-    fn rewrite_logical_join(&mut self, mut plan: LogicalJoin) -> PlanRef {
-        plan.left_plan = plan.left_plan.rewrite(self);
-        let mut resolver = Self::default();
-        plan.right_plan = plan.right_plan.rewrite(&mut resolver);
-        self.bindings.append(&mut resolver.bindings);
-
-        plan.rewrite_expr(self);
-        Rc::new(plan)
-    }
-
-    fn rewrite_logical_table_scan_is_nested(&mut self) -> bool {
-        true
-    }
-    fn rewrite_logical_table_scan(&mut self, plan: LogicalTableScan) -> PlanRef {
-        self.bindings = plan
-            .column_ids
-            .iter()
-            .map(|col_id| Some(ColumnRefId::from_table(plan.table_ref_id, *col_id)))
-            .collect();
-        Rc::new(plan)
-    }
-
-    fn rewrite_logical_projection_is_nested(&mut self) -> bool {
-        true
-    }
-    fn rewrite_logical_projection(&mut self, mut plan: LogicalProjection) -> PlanRef {
-        plan.child = plan.child.rewrite(self);
-        let bindings = plan
-            .project_expressions
-            .iter()
-            .map(|expr| match &expr {
-                BoundExpr::ColumnRef(col) => Some(col.column_ref_id),
-                _ => None,
-            })
-            .collect();
-        plan.rewrite_expr(self);
-        self.bindings = bindings;
-        Rc::new(plan)
-    }
-
-    fn rewrite_logical_aggregate_is_nested(&mut self) -> bool {
-        true
-    }
-    fn rewrite_logical_aggregate(&mut self, mut plan: LogicalAggregate) -> PlanRef {
-        plan.child = plan.child.rewrite(self);
-        for expr in &plan.group_keys {
-            match &expr {
-                BoundExpr::ColumnRef(col) => self.bindings.push(Some(col.column_ref_id)),
-                _ => panic!("{:?} cannot be a group key", expr),
-            }
-        }
-        plan.rewrite_expr(self);
-        Rc::new(plan)
-    }
-
-    /// Transform expr referring to input chunk into `BoundInputRef`
-    fn rewrite_expr(&mut self, expr: &mut BoundExpr) {
+impl ExprRewriter for InputRefResolver {
+    fn rewrite_expr(&self, expr: &mut BoundExpr) {
         use BoundExpr::*;
         match expr {
             ColumnRef(column_ref) => {
@@ -113,5 +54,61 @@ impl Rewriter for InputRefResolver {
             }
             _ => {}
         }
+    }
+}
+
+impl PlanRewriter for InputRefResolver {
+    fn rewrite_logical_join(&mut self, join: &LogicalJoin) -> PlanRef {
+        let left = self.rewrite(join.left());
+        let mut resolver = Self::default();
+        let right = resolver.rewrite(join.right());
+        self.bindings.append(&mut resolver.bindings);
+        Rc::new(join.clone_with_rewrite_expr(left, right, self))
+    }
+
+    fn rewrite_logical_table_scan(&mut self, plan: &LogicalTableScan) -> PlanRef {
+        self.bindings = plan
+            .column_ids()
+            .iter()
+            .map(|col_id| Some(ColumnRefId::from_table(plan.table_ref_id, *col_id)))
+            .collect();
+        Rc::new(plan)
+    }
+
+    fn rewrite_logical_projection(&mut self, proj: &LogicalProjection) -> PlanRef {
+        let new_child = self.rewrite(proj.child());
+        let bindings = proj
+            .project_expressions()
+            .iter()
+            .map(|expr| match &expr {
+                BoundExpr::ColumnRef(col) => Some(col.column_ref_id),
+                _ => None,
+            })
+            .collect();
+        self.bindings = bindings;
+        Rc::new(proj.clone_with_rewrite_expr(new_child, self))
+    }
+
+    fn rewrite_logical_aggregate(&mut self, agg: &LogicalAggregate) -> PlanRef {
+        let new_child = self.rewrite(agg.child());
+        for expr in &agg.group_keys() {
+            match &expr {
+                BoundExpr::ColumnRef(col) => self.bindings.push(Some(col.column_ref_id)),
+                _ => panic!("{:?} cannot be a group key", expr),
+            }
+        }
+        Rc::new(agg.clone_with_rewrite_expr(new_child, self))
+    }
+    fn rewrite_logical_filter(&mut self, plan: &LogicalFilter) -> PlanRef {
+        let child = self.rewrite(plan.child());
+        plan.clone_with_rewrite_expr(child, self)
+    }
+    fn rewrite_logical_order(&mut self, plan: &LogicalOrder) -> PlanRef {
+        let child = self.rewrite(plan.child());
+        plan.clone_with_rewrite_expr(child, self)
+    }
+    fn rewrite_logical_values(&mut self, plan: &LogicalValues) -> PlanRef {
+        let child = self.rewrite(plan.child());
+        plan.clone_with_rewrite_expr(child, self)
     }
 }

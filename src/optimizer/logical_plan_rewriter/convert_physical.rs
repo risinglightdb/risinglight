@@ -5,25 +5,22 @@ use crate::parser::BinaryOperator;
 /// Convert all logical plan nodes to physical.
 pub struct PhysicalConverter;
 
-impl Rewriter for PhysicalConverter {
-    fn rewrite_logical_table_scan(&mut self, logical: LogicalTableScan) -> PlanRef {
+impl PlanRewriter for PhysicalConverter {
+    fn rewrite_logical_table_scan(&mut self, logical: &LogicalTableScan) -> PlanRef {
         Rc::new(PhysicalTableScan::new(logical))
     }
-    fn rewrite_logical_projection(&mut self, logical: LogicalProjection) -> PlanRef {
+    fn rewrite_logical_projection(&mut self, logical: &LogicalProjection) -> PlanRef {
         Rc::new(PhysicalProjection::new(logical))
     }
 
-    fn rewrite_logical_order(&mut self, logical: LogicalOrder) -> PlanRef {
+    fn rewrite_logical_order(&mut self, logical: &LogicalOrder) -> PlanRef {
         Rc::new(PhysicalOrder::new(logical))
     }
 
-    fn rewrite_logical_limit(&mut self, logical: LogicalLimit) -> PlanRef {
+    fn rewrite_logical_limit(&mut self, logical: &LogicalLimit) -> PlanRef {
         Rc::new(PhysicalLimit::new(logical))
     }
 
-    fn rewrite_logical_join_is_nested(&mut self) -> bool {
-        true
-    }
     fn rewrite_logical_join(&mut self, logical_join: LogicalJoin) -> PlanRef {
         // Hash join is only used for equal join.
         // So far, we only support hash join when doing inner join.
@@ -54,49 +51,49 @@ impl Rewriter for PhysicalConverter {
             return Rc::new(PhysicalHashJoin::new(
                 logical_join,
                 left_column_index,
-                right_column_index
+                right_column_index,
             ));
         }
         Rc::new(PhysicalNestedLoopJoin::new(logical_join))
     }
 
-    fn rewrite_logical_insert(&mut self, logical: LogicalInsert) -> PlanRef {
+    fn rewrite_logical_insert(&mut self, logical: &LogicalInsert) -> PlanRef {
         Rc::new(PhysicalInsert::new(logical))
     }
 
-    fn rewrite_logical_values(&mut self, logical: LogicalValues) -> PlanRef {
+    fn rewrite_logical_values(&mut self, logical: &LogicalValues) -> PlanRef {
         Rc::new(PhysicalValues::new(logical))
     }
 
-    fn rewrite_logical_filter(&mut self, logical: LogicalFilter) -> PlanRef {
+    fn rewrite_logical_filter(&mut self, logical: &LogicalFilter) -> PlanRef {
         Rc::new(PhysicalFilter::new(logical))
     }
 
-    fn rewrite_logical_explain(&mut self, logical: LogicalExplain) -> PlanRef {
-        Rc::new(PhysicalExplain::new(logical) 
+    fn rewrite_logical_explain(&mut self, logical: &LogicalExplain) -> PlanRef {
+        Rc::new(PhysicalExplain::new(logical))
     }
 
-    fn rewrite_logical_drop(&mut self, logical: LogicalDrop) -> PlanRef {
+    fn rewrite_logical_drop(&mut self, logical: &LogicalDrop) -> PlanRef {
         Rc::new(PhysicalDrop::new(logical))
     }
 
-    fn rewrite_logical_delete(&mut self, logical: LogicalDelete) -> PlanRef {
+    fn rewrite_logical_delete(&mut self, logical: &LogicalDelete) -> PlanRef {
         Rc::new(PhysicalDelete::new(logical))
     }
 
-    fn rewrite_logical_create_table(&mut self, logical: LogicalCreateTable) -> PlanRef {
+    fn rewrite_logical_create_table(&mut self, logical: &LogicalCreateTable) -> PlanRef {
         Rc::new(PhysicalCreateTable::new(logical))
     }
 
-    fn rewrite_logical_copy_from_file(&mut self, logical: LogicalCopyFromFile) -> PlanRef {
+    fn rewrite_logical_copy_from_file(&mut self, logical: &LogicalCopyFromFile) -> PlanRef {
         Rc::new(PhysicalCopyFromFile::new(logical))
     }
 
-    fn rewrite_logical_copy_to_file(&mut self, logical: LogicalCopyToFile) -> PlanRef {
+    fn rewrite_logical_copy_to_file(&mut self, logical: &LogicalCopyToFile) -> PlanRef {
         Rc::new(PhysicalCopyToFile::new(logical))
     }
 
-    fn rewrite_logical_aggregate(&mut self, logical: LogicalAggregate) -> PlanRef {
+    fn rewrite_logical_aggregate(&mut self, logical: &LogicalAggregate) -> PlanRef {
         if logical.group_keys.is_empty() {
             Rc::new(PhysicalSimpleAgg::new(logical.agg_calls, logical.child))
         } else {

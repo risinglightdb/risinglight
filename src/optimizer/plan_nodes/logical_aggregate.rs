@@ -2,6 +2,7 @@ use std::fmt;
 
 use super::*;
 use crate::binder::{BoundAggCall, BoundExpr};
+use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 
 /// The logical plan of hash aggregate operation.
 #[derive(Debug, Clone)]
@@ -41,6 +42,31 @@ impl LogicalAggregate {
     pub fn group_keys(&self) -> &[BoundExpr] {
         self.group_keys.as_ref()
     }
+
+    pub fn clone_with_rewrite_expr(&self, new_child: PlanRef, rewriter: impl ExprRewriter) -> Self {
+        let new_agg_calls = self
+            .agg_calls()
+            .iter()
+            .cloned()
+            .map(|agg_call| BoundAggCall {
+                kind: agg_call.kind,
+                args: agg_call
+                    .args
+                    .iter()
+                    .cloned()
+                    .map(|expr| rewriter.rewrite_expr(&mut expr))
+                    .collect(),
+                return_type: agg_call.return_type,
+            })
+            .collect();
+        let new_keys = self
+            .group_keys()
+            .iter()
+            .cloned()
+            .map(|expr| rewriter.rewrite_expr(&mut expr))
+            .collect();
+        LogicalAggregate::new(new_agg_calls, new_keys, new_child)
+    }
 }
 
 impl PlanTreeNodeUnary for LogicalAggregate {
@@ -54,16 +80,6 @@ impl PlanTreeNodeUnary for LogicalAggregate {
 }
 impl_plan_tree_node_for_unary!(LogicalAggregate);
 impl PlanNode for LogicalAggregate {
-    fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
-        for agg in &mut self.agg_calls {
-            for arg in &mut agg.args {
-                rewriter.rewrite_expr(arg);
-            }
-        }
-        for keys in &mut self.group_keys {
-            rewriter.rewrite_expr(keys);
-        }
-    }
     fn out_types(&self) -> Vec<DataType> {
         self.data_types.clone()
     }
