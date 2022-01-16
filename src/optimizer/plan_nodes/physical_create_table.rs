@@ -9,13 +9,23 @@ use crate::types::{DatabaseId, SchemaId};
 /// The physical plan of `CREATE TABLE`.
 #[derive(Debug, Clone)]
 pub struct PhysicalCreateTable {
-    pub database_id: DatabaseId,
-    pub schema_id: SchemaId,
-    pub table_name: String,
-    pub columns: Vec<ColumnCatalog>,
+    logical: LogicalCreateTable,
 }
 
-impl_plan_tree_node!(PhysicalCreateTable);
+impl PhysicalCreateTable {
+    pub fn new(logical: LogicalCreateTable) -> Self {
+        Self { logical }
+    }
+
+    /// Get a reference to the physical create table's logical.
+    pub fn logical(&self) -> &LogicalCreateTable {
+        &self.logical
+    }
+}
+
+impl PlanTreeNodeLeaf for LogicalCreateTable {}
+impl_plan_tree_node_for_leaf!(LogicalCreateTable);
+
 impl PlanNode for PhysicalCreateTable {}
 
 impl fmt::Display for PhysicalCreateTable {

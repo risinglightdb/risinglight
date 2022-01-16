@@ -6,17 +6,32 @@ use crate::binder::BoundExpr;
 /// The physical plan of filter operation.
 #[derive(Debug, Clone)]
 pub struct PhysicalFilter {
-    pub expr: BoundExpr,
-    pub child: PlanRef,
+    logical: LogicalFilter,
 }
 
-impl_plan_tree_node!(PhysicalFilter, [child]);
-impl PlanNode for PhysicalFilter {
-    fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
-        rewriter.rewrite_expr(&mut self.expr);
+impl PhysicalFilter {
+    pub fn new(logical: LogicalFilter) -> Self {
+        Self { logical }
     }
+
+    /// Get a reference to the physical filter's logical.
+    pub fn logical(&self) -> &LogicalFilter {
+        &self.logical
+    }
+}
+impl PlanTreeNodeUnary for PhysicalFilter {
+    fn child(&self) -> PlanRef {
+        self.logical.child()
+    }
+    #[must_use]
+    fn clone_with_child(&self, child: PlanRef) -> Self {
+        Self::new(self.logcial().clone_with_child(child))
+    }
+}
+impl_plan_tree_node_for_unary!(PhysicalFilter);
+impl PlanNode for PhysicalFilter {
     fn out_types(&self) -> Vec<DataType> {
-        self.child.out_types()
+        self.logical.out_types()
     }
 }
 impl fmt::Display for PhysicalFilter {

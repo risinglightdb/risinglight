@@ -62,6 +62,7 @@ impl PlanTreeNodeBinary for LogicalJoin {
         Self::new(left, right, self.join_op(), self.condition())
     }
 }
+impl_plan_tree_node_for_binary!(LogicalJoin);
 impl PlanNode for LogicalJoin {
     fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
         rewriter.rewrite_expr(&mut self.condition);

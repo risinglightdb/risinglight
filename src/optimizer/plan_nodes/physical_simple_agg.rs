@@ -6,8 +6,8 @@ use crate::binder::BoundAggCall;
 /// The physical plan of simple aggregation.
 #[derive(Debug, Clone)]
 pub struct PhysicalSimpleAgg {
-    pub agg_calls: Vec<BoundAggCall>,
-    pub child: PlanRef,
+    agg_calls: Vec<BoundAggCall>,
+    child: PlanRef,
     data_types: Vec<DataType>,
 }
 
@@ -23,17 +23,22 @@ impl PhysicalSimpleAgg {
             data_types,
         }
     }
-}
 
-impl_plan_tree_node!(PhysicalSimpleAgg, [child]);
-impl PlanNode for PhysicalSimpleAgg {
-    fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
-        for agg in &mut self.agg_calls {
-            for arg in &mut agg.args {
-                rewriter.rewrite_expr(arg);
-            }
-        }
+    /// Get a reference to the logical aggregate's agg calls.
+    pub fn agg_calls(&self) -> &[BoundAggCall] {
+        self.agg_calls.as_ref()
     }
+}
+impl PlanTreeNodeUnary for PhysicalSimpleAgg {
+    fn child(&self) -> PlanRef {
+        self.child.clone()
+    }
+    #[must_use]
+    fn clone_with_child(&self, child: PlanRef) -> Self {
+        Self::new(self.agg_calls(), child)
+    }
+}
+impl PlanNode for PhysicalSimpleAgg {
     fn out_types(&self) -> Vec<DataType> {
         self.data_types.clone()
     }

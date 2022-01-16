@@ -9,15 +9,22 @@ use crate::types::ColumnId;
 /// The physical plan of table scan operation.
 #[derive(Debug, Clone)]
 pub struct PhysicalTableScan {
-    pub table_ref_id: TableRefId,
-    pub column_ids: Vec<ColumnId>,
-    pub column_descs: Vec<ColumnDesc>,
-    pub with_row_handler: bool,
-    pub is_sorted: bool,
-    pub expr: Option<BoundExpr>,
+    logical: LogicalTableScan,
 }
 
-impl_plan_tree_node!(PhysicalTableScan);
+impl PhysicalTableScan {
+    pub fn new(logical: LogicalTableScan) -> Self {
+        Self { logical }
+    }
+
+    /// Get a reference to the physical table scan's logical.
+    pub fn logical(&self) -> &LogicalTableScan {
+        &self.logical
+    }
+}
+
+impl PlanTreeNodeLeaf for LogicalCreateTable {}
+impl_plan_tree_node_for_leaf!(LogicalCreateTable);
 impl PlanNode for PhysicalTableScan {
     fn out_types(&self) -> Vec<DataType> {
         return self

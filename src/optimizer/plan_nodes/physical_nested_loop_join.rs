@@ -5,39 +5,37 @@ use crate::binder::BoundJoinOperator;
 /// The phyiscal plan of join.
 #[derive(Clone, Debug)]
 pub struct PhysicalNestedLoopJoin {
-    pub left_plan: PlanRef,
-    pub right_plan: PlanRef,
-    pub join_op: BoundJoinOperator,
-    pub condition: BoundExpr,
-    data_types: Vec<DataType>,
+    logical: LogicalJoin,
 }
 
 impl PhysicalNestedLoopJoin {
-    pub fn new(
-        left_plan: PlanRef,
-        right_plan: PlanRef,
-        join_op: BoundJoinOperator,
-        condition: BoundExpr,
-    ) -> Self {
-        let mut data_types = left_plan.out_types();
-        data_types.append(&mut right_plan.out_types());
-        PhysicalNestedLoopJoin {
-            left_plan,
-            right_plan,
-            join_op,
-            condition,
-            data_types,
-        }
+    pub fn new(logical: LogicalJoin) -> Self {
+        Self { logical }
+    }
+
+    /// Get a reference to the physical nested loop join's logical.
+    pub fn logical(&self) -> &LogicalJoin {
+        &self.logical
     }
 }
 
-impl_plan_tree_node!(PhysicalNestedLoopJoin, [left_plan, right_plan]);
-impl PlanNode for PhysicalNestedLoopJoin {
-    fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
-        rewriter.rewrite_expr(&mut self.condition);
+impl PlanTreeNodeBinary for PhysicalNestedLoopJoin {
+    fn left(&self) -> PlanRef {
+        self.logical.left()
     }
+    fn right(&self) -> PlanRef {
+        self.logical.right()
+    }
+
+    #[must_use]
+    fn clone_with_left_right(&self, left: PlanRef, right: PlanRef) -> Self {
+        Self::new(self.logical.clone_with_left_right(left, right))
+    }
+}
+impl_plan_tree_node_for_binary!(PhysicalNestedLoopJoin);
+impl PlanNode for PhysicalNestedLoopJoin {
     fn out_types(&self) -> Vec<DataType> {
-        self.data_types.clone()
+        self.logical.out_types()
     }
 }
 /// Currently, we only use default join ordering.

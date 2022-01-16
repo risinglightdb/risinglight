@@ -6,17 +6,20 @@ use crate::binder::BoundOrderBy;
 /// The physical plan of order.
 #[derive(Debug, Clone)]
 pub struct PhysicalOrder {
-    pub comparators: Vec<BoundOrderBy>,
-    pub child: PlanRef,
+    logical: LogicalOrder,
 }
 
-impl_plan_tree_node!(PhysicalOrder, [child]);
-impl PlanNode for PhysicalOrder {
-    fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
-        for cmp in &mut self.comparators {
-            rewriter.rewrite_expr(&mut cmp.expr);
-        }
+impl PlanTreeNodeUnary for PhysicalOrder {
+    fn child(&self) -> PlanRef {
+        self.logical.child()
     }
+    #[must_use]
+    fn clone_with_child(&self, child: PlanRef) -> Self {
+        Self::new(self.logcial().clone_with_child(child))
+    }
+}
+impl_plan_tree_node_for_unary!(PhysicalOrder);
+impl PlanNode for PhysicalOrder {
     fn out_types(&self) -> Vec<DataType> {
         self.child.out_types()
     }

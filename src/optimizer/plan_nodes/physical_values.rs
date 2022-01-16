@@ -7,11 +7,22 @@ use crate::types::DataType;
 /// The physical plan of `VALUES`.
 #[derive(Debug, Clone)]
 pub struct PhysicalValues {
-    pub column_types: Vec<DataType>,
-    pub values: Vec<Vec<BoundExpr>>,
+    logical: LogicalValues,
 }
 
-impl_plan_tree_node!(PhysicalValues);
+impl PhysicalValues {
+    pub fn new(logical: LogicalValues) -> Self {
+        Self { logical }
+    }
+
+    /// Get a reference to the physical values's logical.
+    pub fn logical(&self) -> &LogicalValues {
+        &self.logical
+    }
+}
+
+impl PlanTreeNodeLeaf for LogicalCreateTable {}
+impl_plan_tree_node_for_leaf!(LogicalCreateTable);
 impl PlanNode for PhysicalValues {
     fn out_types(&self) -> Vec<DataType> {
         self.column_types.clone()
