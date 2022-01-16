@@ -2,19 +2,41 @@ use std::fmt;
 
 use super::*;
 use crate::binder::BoundExpr;
+use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 
 /// The logical plan of filter operation.
 #[derive(Debug, Clone)]
 pub struct LogicalFilter {
-    pub expr: BoundExpr,
-    pub child: PlanRef,
+    expr: BoundExpr,
+    child: PlanRef,
 }
 
-impl_plan_tree_node!(LogicalFilter, [child]);
-impl PlanNode for LogicalFilter {
-    fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
-        rewriter.rewrite_expr(&mut self.expr);
+impl LogicalFilter {
+    pub fn new(expr: BoundExpr, child: PlanRef) -> Self {
+        Self { expr, child }
     }
+
+    /// Get a reference to the logical filter's expr.
+    pub fn expr(&self) -> &BoundExpr {
+        &self.expr
+    }
+    pub fn clone_with_rewrite_expr(&self, new_child: PlanRef, rewriter: impl ExprRewriter) -> Self {
+        let mut new_expr = self.expr().clone();
+        rewriter.rewrite_expr(&mut new_expr);
+        LogicalFilter::new(new_expr, new_child)
+    }
+}
+impl PlanTreeNodeUnary for LogicalFilter {
+    fn child(&self) -> PlanRef {
+        self.child.clone()
+    }
+    #[must_use]
+    fn clone_with_child(&self, child: PlanRef) -> Self {
+        Self::new(self.expr(), child)
+    }
+}
+impl_plan_tree_node_for_unary!(LogicalFilter);
+impl PlanNode for LogicalFilter {
     fn out_types(&self) -> Vec<DataType> {
         self.child.out_types()
     }

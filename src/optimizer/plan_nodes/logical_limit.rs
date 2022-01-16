@@ -5,12 +5,40 @@ use super::*;
 /// The logical plan of limit operation.
 #[derive(Debug, Clone)]
 pub struct LogicalLimit {
-    pub offset: usize,
-    pub limit: usize,
-    pub child: PlanRef,
+    offset: usize,
+    limit: usize,
+    child: PlanRef,
 }
 
-impl_plan_tree_node!(LogicalLimit, [child]);
+impl LogicalLimit {
+    pub fn new(offset: usize, limit: usize, child: PlanRef) -> Self {
+        Self {
+            offset,
+            limit,
+            child,
+        }
+    }
+
+    /// Get a reference to the logical limit's offset.
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
+    /// Get a reference to the logical limit's limit.
+    pub fn limit(&self) -> usize {
+        self.limit
+    }
+}
+impl PlanTreeNodeUnary for LogicalLimit {
+    fn child(&self) -> PlanRef {
+        self.child.clone()
+    }
+    #[must_use]
+    fn clone_with_child(&self, child: PlanRef) -> Self {
+        Self::new(self.offset(), self.limmit(), child)
+    }
+}
+impl_plan_tree_node_for_unary!(LogicalLimit);
 impl PlanNode for LogicalLimit {
     fn out_types(&self) -> Vec<DataType> {
         self.child.out_types()

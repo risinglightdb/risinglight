@@ -9,12 +9,19 @@ use crate::types::ColumnId;
 /// The physical plan of `INSERT`.
 #[derive(Debug, Clone)]
 pub struct PhysicalInsert {
-    pub table_ref_id: TableRefId,
-    pub column_ids: Vec<ColumnId>,
-    pub child: PlanRef,
+    logical: LogicalInsert,
 }
 
-impl_plan_tree_node!(PhysicalInsert, [child]);
+impl PlanTreeNodeUnary for PhysicalInsert {
+    fn child(&self) -> PlanRef {
+        self.logical.child()
+    }
+    #[must_use]
+    fn clone_with_child(&self, child: PlanRef) -> Self {
+        Self::new(self.logcial().clone_with_child(child))
+    }
+}
+impl_plan_tree_node_for_unary!(PhysicalInsert);
 impl PlanNode for PhysicalInsert {}
 
 impl fmt::Display for PhysicalInsert {

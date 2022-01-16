@@ -6,10 +6,11 @@ use crate::binder::Object;
 /// The physical plan of `DROP`.
 #[derive(Debug, Clone)]
 pub struct PhysicalDrop {
-    pub object: Object,
+    logical: LogicalDrop,
 }
 
-impl_plan_tree_node!(PhysicalDrop);
+impl PlanTreeNodeLeaf for LogicalCreateTable {}
+impl_plan_tree_node_for_leaf!(LogicalCreateTable);
 impl PlanNode for PhysicalDrop {}
 
 impl fmt::Display for PhysicalDrop {

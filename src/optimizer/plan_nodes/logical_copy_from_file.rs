@@ -9,14 +9,33 @@ use crate::types::DataType;
 #[derive(Debug, Clone)]
 pub struct LogicalCopyFromFile {
     /// The file path to copy from.
-    pub path: PathBuf,
+    path: PathBuf,
     /// The file format.
-    pub format: FileFormat,
+    format: FileFormat,
     /// The column types.
-    pub column_types: Vec<DataType>,
+    column_types: Vec<DataType>,
 }
+impl LogicalCopyFromFile {
+    fn new(path: PathBuf, format: FileFormat, column_types: Vec<DataType>) {
+        Self {
+            path,
+            format,
+            column_types,
+        }
+    }
 
-impl_plan_tree_node!(LogicalCopyFromFile);
+    /// Get a reference to the logical copy from file's format.
+    pub fn format(&self) -> &FileFormat {
+        &self.format
+    }
+
+    /// Get a reference to the logical copy from file's column types.
+    pub fn column_types(&self) -> &[DataType] {
+        self.column_types.as_ref()
+    }
+}
+impl PlanTreeNodeLeaf for LogicalCopyFromFile {}
+impl_plan_tree_node_for_leaf!(LogicalCopyFromFile);
 impl PlanNode for LogicalCopyFromFile {
     fn out_types(&self) -> Vec<DataType> {
         self.column_types.clone()
