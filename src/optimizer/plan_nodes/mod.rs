@@ -6,7 +6,6 @@ use std::rc::Rc;
 use downcast_rs::{impl_downcast, Downcast};
 use paste::paste;
 
-
 use crate::binder::BoundExpr;
 use crate::types::DataType;
 #[macro_use]
