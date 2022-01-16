@@ -29,32 +29,55 @@ impl Binder {
         right: &Expr,
     ) -> Result<BoundExpr, BindError> {
         use BinaryOperator as Op;
-        let left_bound_expr = self.bind_expr(left)?;
-        let right_bound_expr = self.bind_expr(right)?;
-        let return_type = match op {
-            Op::Plus | Op::Minus | Op::Multiply | Op::Divide | Op::Modulo => {
-                match (
-                    left_bound_expr.return_type(),
-                    right_bound_expr.return_type(),
-                ) {
-                    (Some(left_data_type), Some(right_data_type)) => {
-                        if left_data_type.kind() != right_data_type.kind() {
-                            return Err(BindError::BinaryOpTypeMismatch(
-                                format!("{:?}", left_data_type),
-                                format!("{:?}", right_data_type),
-                            ));
+
+        use crate::types::PhysicalDataTypeKind::*;
+        let mut left_bound_expr = self.bind_expr(left)?;
+        let mut right_bound_expr = self.bind_expr(right)?;
+
+        // Implicit type cast
+        let left_data_type_kind = match (
+            left_bound_expr.return_type(),
+            right_bound_expr.return_type(),
+        ) {
+            (Some(left_data_type), Some(right_data_type)) => {
+                let left_physical_kind = left_data_type.physical_kind();
+                let right_physical_kind = right_data_type.physical_kind();
+                // Check if implicit type conversion is needed
+                if left_physical_kind != right_physical_kind {
+                    // Insert type cast expr
+                    match (left_physical_kind, right_physical_kind) {
+                        (Float64 | Decimal, Int32 | Int64) | (Date, String) => {
+                            right_bound_expr = BoundExpr::TypeCast(BoundTypeCast {
+                                expr: Box::new(right_bound_expr),
+                                ty: left_data_type.kind(),
+                            });
                         }
-                        Some(left_data_type.kind().nullable())
-                    }
-                    (None, None) => None,
-                    _ => {
-                        return Err(BindError::BinaryOpTypeMismatch(
-                            "None".to_string(),
-                            "None".to_string(),
-                        ))
+                        (Int32 | Int64, Float64 | Decimal) | (String, Date) => {
+                            left_bound_expr = BoundExpr::TypeCast(BoundTypeCast {
+                                expr: Box::new(left_bound_expr),
+                                ty: right_data_type.kind(),
+                            });
+                        }
+                        (left_kind, right_kind) => todo!(
+                            "Support implicit conversion of {:?} and {:?}",
+                            left_kind,
+                            right_kind
+                        ),
                     }
                 }
+                Some(left_data_type.kind().nullable())
             }
+            (None, None) => None,
+            (left, right) => {
+                return Err(BindError::BinaryOpTypeMismatch(
+                    format!("{:?}", left),
+                    format!("{:?}", right),
+                ))
+            }
+        };
+
+        let return_type = match op {
+            Op::Plus | Op::Minus | Op::Multiply | Op::Divide | Op::Modulo => left_data_type_kind,
             Op::Gt | Op::GtEq | Op::Lt | Op::LtEq | Op::Eq | Op::NotEq | Op::And | Op::Or => {
                 Some(DataTypeKind::Boolean.nullable())
             }

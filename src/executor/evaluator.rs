@@ -180,6 +180,7 @@ impl ArrayImpl {
                     #[allow(clippy::float_cmp)]
                     (A::Float64(a), A::Float64(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
                     (A::Utf8(a), A::Utf8(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
+                    (A::Date(a), A::Date(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
                     _ => todo!("Support more types for {}", stringify!($op)),
                 }
             }
