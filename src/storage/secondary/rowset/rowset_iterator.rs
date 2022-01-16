@@ -184,7 +184,10 @@ impl RowSetIterator {
                     StorageColumnRef::RowHandler => continue,
                     StorageColumnRef::Idx(_) => {
                         if arrays[id].is_none() {
-                            self.column_iterators[id].as_mut().unwrap().skip(fetch_size);
+                            self.column_iterators[id]
+                                .as_mut()
+                                .unwrap()
+                                .skip(filter_bitmap.len());
                         }
                     }
                 }
@@ -207,15 +210,6 @@ impl RowSetIterator {
                             .await?
                         {
                             if common_chunk_range != (row_id, array.len()) {
-                                println!(
-                                    "expected row_id: {}, actual row_id: {}",
-                                    common_chunk_range.0, row_id
-                                );
-                                println!(
-                                    "expected len: {}, actual len: {}",
-                                    common_chunk_range.1,
-                                    array.len()
-                                );
                                 panic!("unmatched rowid from column iterator");
                             }
                             arrays[id] = Some(array);

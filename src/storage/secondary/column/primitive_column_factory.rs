@@ -322,13 +322,13 @@ mod tests {
         let rowset = helper_build_rowset(&tempdir, false, len).await;
         let column = rowset.column(0);
 
-        test_skip_helper(column.clone(), len / 2, len).await;
-        test_skip_helper(column.clone(), len, len).await;
-        test_skip_helper(column.clone(), len + len / 2, len).await;
-        test_skip_helper(column.clone(), len * 2, len).await;
+        skip_helper(column.clone(), len / 2, len).await;
+        skip_helper(column.clone(), len, len).await;
+        skip_helper(column.clone(), len + len / 2, len).await;
+        skip_helper(column.clone(), len * 2, len).await;
     }
 
-    async fn test_skip_helper(column: Column, cnt: usize, len: usize) {
+    async fn skip_helper(column: Column, cnt: usize, len: usize) {
         let mut scanner = PrimitiveColumnIterator::<i32>::new(
             column.clone(),
             0,

@@ -24,6 +24,7 @@ pub trait BlockIteratorFactory<A: Array>: Send + Sync + 'static {
         start_pos: usize,
     ) -> Self::BlockIteratorImpl;
 
+    /// Create a fake_block_iter from block index and seek to 'start_pos'.
     fn get_fake_iterator(&self, index: &BlockIndex, start_pos: usize) -> Self::BlockIteratorImpl;
 }
 
@@ -187,7 +188,7 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
 
             self.is_fake_iter = false;
 
-            if self.incre_block_id(self.column.index().len() as u32) {
+            if self.incre_block_id() {
                 break;
             }
 
@@ -232,9 +233,11 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         (index.row_count - (self.current_row_id - index.first_rowid)) as usize
     }
 
-    fn incre_block_id(&mut self, max_block_id: u32) -> bool {
+    /// Increment the current_block_id by 1 and check whether it exceeds max block id.
+    fn incre_block_id(&mut self) -> bool {
+        let len = self.column.index().len() as u32;
         self.current_block_id += 1;
-        if self.current_block_id >= max_block_id {
+        if self.current_block_id >= len {
             self.finished = true;
             true
         } else {
@@ -247,13 +250,12 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             return;
         }
         self.current_row_id += cnt as u32;
-        let max_block_id = self.column.index().len() as u32;
 
         let remaining_items = self.block_iterator.remaining_items();
         if cnt >= remaining_items {
             cnt -= remaining_items;
 
-            if self.incre_block_id(max_block_id) {
+            if self.incre_block_id() {
                 return;
             }
         } else {
@@ -266,7 +268,7 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             if cnt >= row_count {
                 cnt -= row_count;
 
-                if self.incre_block_id(max_block_id) {
+                if self.incre_block_id() {
                     return;
                 }
             } else {
