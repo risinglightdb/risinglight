@@ -11,13 +11,13 @@ impl Rule for FilterScanRule {
             .clone()
             .downcast_rc::<LogicalTableScan>()
             .map_err(|_| ())?;
-        Ok(Rc::new(LogicalTableScan {
-            table_ref_id: scan.table_ref_id(),
-            column_ids: scan.column_ids().to_vec(),
-            column_descs: scan.column_descs().to_vec(),
-            with_row_handler: scan.with_row_handler(),
-            is_sorted: scan.is_sorted(),
-            expr: Some(filter.expr().clone()),
-        }))
+        Ok(Rc::new(LogicalTableScan::new(
+            scan.table_ref_id(),
+            scan.column_ids().to_vec(),
+            scan.column_descs().to_vec(),
+            scan.with_row_handler(),
+            scan.is_sorted(),
+            Some(filter.expr().clone()),
+        )))
     }
 }

@@ -291,15 +291,16 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
     }
 
     fn visit_physical_delete(&mut self, plan: &PhysicalDelete) -> Option<BoxedExecutor> {
+        let child = self.visit(plan.child()).unwrap();
         Some(match &self.env.storage {
             StorageImpl::InMemoryStorage(storage) => DeleteExecutor {
-                child: self.visit(plan.child()).unwrap(),
+                child,
                 table_ref_id: plan.logical().table_ref_id(),
                 storage: storage.clone(),
             }
             .execute(),
             StorageImpl::SecondaryStorage(storage) => DeleteExecutor {
-                child: self.visit(plan.child()).unwrap(),
+                child,
                 table_ref_id: plan.logical().table_ref_id(),
                 storage: storage.clone(),
             }

@@ -17,29 +17,25 @@ impl LogicalPlaner {
         let column_types = stmt.columns.iter().map(|col| col.datatype()).collect();
         let column_descs = stmt.columns.iter().map(|col| col.desc().clone()).collect();
         if stmt.to {
-            Ok(Rc::new(LogicalCopyToFile {
+            Ok(Rc::new(LogicalCopyToFile::new(
                 path,
-                format: stmt.format,
+                stmt.format,
                 column_types,
-                child: Rc::new(LogicalTableScan {
-                    table_ref_id: stmt.table_ref_id,
+                Rc::new(LogicalTableScan::new(
+                    stmt.table_ref_id,
                     column_ids,
                     column_descs,
-                    with_row_handler: false,
-                    is_sorted: false,
-                    expr: None,
-                }),
-            }))
+                    false,
+                    false,
+                    None,
+                )),
+            )))
         } else {
-            Ok(Rc::new(LogicalInsert {
-                table_ref_id: stmt.table_ref_id,
+            Ok(Rc::new(LogicalInsert::new(
+                stmt.table_ref_id,
                 column_ids,
-                child: Rc::new(LogicalCopyFromFile {
-                    path,
-                    format: stmt.format,
-                    column_types,
-                }),
-            }))
+                Rc::new(LogicalCopyFromFile::new(path, stmt.format, column_types)),
+            )))
         }
     }
 }

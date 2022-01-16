@@ -18,7 +18,12 @@ pub struct LogicalCopyToFile {
     child: PlanRef,
 }
 impl LogicalCopyToFile {
-    fn new(path: PathBuf, format: FileFormat, column_types: Vec<DataType>, child: PlanRef) -> Self {
+    pub fn new(
+        path: PathBuf,
+        format: FileFormat,
+        column_types: Vec<DataType>,
+        child: PlanRef,
+    ) -> Self {
         Self {
             path,
             format,

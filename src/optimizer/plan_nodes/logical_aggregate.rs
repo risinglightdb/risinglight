@@ -49,13 +49,13 @@ impl LogicalAggregate {
         rewriter: &impl ExprRewriter,
     ) -> Self {
         let mut new_agg_calls = self.agg_calls().to_vec();
-        let new_keys = self.group_keys().to_vec();
+        let mut new_keys = self.group_keys().to_vec();
         for agg in &mut new_agg_calls {
             for arg in &mut agg.args {
                 rewriter.rewrite_expr(arg);
             }
         }
-        for keys in &mut self.group_keys {
+        for keys in &mut new_keys {
             rewriter.rewrite_expr(keys);
         }
 

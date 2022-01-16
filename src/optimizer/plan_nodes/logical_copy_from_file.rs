@@ -16,7 +16,7 @@ pub struct LogicalCopyFromFile {
     column_types: Vec<DataType>,
 }
 impl LogicalCopyFromFile {
-    fn new(path: PathBuf, format: FileFormat, column_types: Vec<DataType>) -> Self {
+    pub fn new(path: PathBuf, format: FileFormat, column_types: Vec<DataType>) -> Self {
         Self {
             path,
             format,

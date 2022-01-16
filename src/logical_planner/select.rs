@@ -35,7 +35,7 @@ impl LogicalPlaner {
         }
 
         if let Some(expr) = stmt.where_clause {
-            plan = Rc::new(LogicalFilter { expr, child: plan });
+            plan = Rc::new(LogicalFilter::new(expr, plan));
         }
 
         let mut agg_extractor = AggExtractor::new(stmt.group_by.len());
@@ -61,16 +61,10 @@ impl LogicalPlaner {
         assert!(!stmt.select_distinct, "TODO: plan distinct");
 
         if !stmt.select_list.is_empty() {
-            plan = Rc::new(LogicalProjection {
-                project_expressions: stmt.select_list,
-                child: plan,
-            });
+            plan = Rc::new(LogicalProjection::new(stmt.select_list, plan));
         }
         if !comparators.is_empty() && !is_sorted {
-            plan = Rc::new(LogicalOrder {
-                comparators,
-                child: plan,
-            });
+            plan = Rc::new(LogicalOrder::new(comparators, plan));
         }
         if stmt.limit.is_some() || stmt.offset.is_some() {
             let limit = match stmt.limit {
@@ -87,11 +81,7 @@ impl LogicalPlaner {
                 },
                 None => 0,
             };
-            plan = Rc::new(LogicalLimit {
-                offset,
-                limit,
-                child: plan,
-            });
+            plan = Rc::new(LogicalLimit::new(offset, limit, plan));
         }
         Ok(plan)
     }
@@ -108,14 +98,14 @@ impl LogicalPlaner {
                 table_name: _,
                 column_ids,
                 column_descs,
-            } => Ok(Rc::new(LogicalTableScan {
-                table_ref_id: *ref_id,
-                column_ids: column_ids.to_vec(),
-                column_descs: column_descs.to_vec(),
+            } => Ok(Rc::new(LogicalTableScan::new(
+                *ref_id,
+                column_ids.to_vec(),
+                column_descs.to_vec(),
                 with_row_handler,
                 is_sorted,
-                expr: None,
-            })),
+                None,
+            ))),
             BoundTableRef::JoinTableRef {
                 relation,
                 join_tables,
