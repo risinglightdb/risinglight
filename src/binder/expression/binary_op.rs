@@ -1,6 +1,6 @@
 use super::*;
 use crate::parser::BinaryOperator;
-use crate::types::{DataTypeExt, DataTypeKind};
+use crate::types::{DataTypeExt, DataTypeKind, PhysicalDataTypeKind};
 
 /// A bound binary operation expression.
 #[derive(PartialEq, Clone)]
@@ -29,8 +29,8 @@ impl Binder {
         right: &Expr,
     ) -> Result<BoundExpr, BindError> {
         use BinaryOperator as Op;
-        let left_bound_expr = self.bind_expr(left)?;
-        let right_bound_expr = self.bind_expr(right)?;
+        let mut left_bound_expr = self.bind_expr(left)?;
+        let mut right_bound_expr = self.bind_expr(right)?;
         let return_type = match op {
             Op::Plus | Op::Minus | Op::Multiply | Op::Divide | Op::Modulo => {
                 match (
@@ -38,11 +38,35 @@ impl Binder {
                     right_bound_expr.return_type(),
                 ) {
                     (Some(left_data_type), Some(right_data_type)) => {
-                        if left_data_type.kind() != right_data_type.kind() {
-                            return Err(BindError::BinaryOpTypeMismatch(
-                                format!("{:?}", left_data_type),
-                                format!("{:?}", right_data_type),
-                            ));
+                        let left_physical_kind = left_data_type.physical_kind();
+                        let right_physical_kind = right_data_type.physical_kind();
+                        if left_physical_kind != right_physical_kind {
+                            // Implicit type conversion
+                            match (left_physical_kind, right_physical_kind) {
+                                (
+                                    PhysicalDataTypeKind::Float64 | PhysicalDataTypeKind::Decimal,
+                                    PhysicalDataTypeKind::Int32 | PhysicalDataTypeKind::Int64,
+                                ) => {
+                                    right_bound_expr = BoundExpr::TypeCast(BoundTypeCast {
+                                        expr: Box::new(right_bound_expr),
+                                        ty: left_data_type.kind(),
+                                    });
+                                }
+                                (
+                                    PhysicalDataTypeKind::Int32 | PhysicalDataTypeKind::Int64,
+                                    PhysicalDataTypeKind::Float64 | PhysicalDataTypeKind::Decimal,
+                                ) => {
+                                    left_bound_expr = BoundExpr::TypeCast(BoundTypeCast {
+                                        expr: Box::new(left_bound_expr),
+                                        ty: right_data_type.kind(),
+                                    });
+                                }
+                                (left_kind, right_kind) => todo!(
+                                    "Support implicit conversion of {:?} and {:?}",
+                                    left_kind,
+                                    right_kind
+                                ),
+                            }
                         }
                         Some(left_data_type.kind().nullable())
                     }

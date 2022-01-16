@@ -36,3 +36,9 @@ select V1 from T
 
 statement ok
 drop table T
+
+# implicit type cast
+query I
+select 1 + 0.1
+----
+1.1
