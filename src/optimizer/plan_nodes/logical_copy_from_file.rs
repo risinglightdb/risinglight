@@ -16,7 +16,7 @@ pub struct LogicalCopyFromFile {
     column_types: Vec<DataType>,
 }
 impl LogicalCopyFromFile {
-    fn new(path: PathBuf, format: FileFormat, column_types: Vec<DataType>) {
+    fn new(path: PathBuf, format: FileFormat, column_types: Vec<DataType>) -> Self {
         Self {
             path,
             format,
@@ -32,6 +32,11 @@ impl LogicalCopyFromFile {
     /// Get a reference to the logical copy from file's column types.
     pub fn column_types(&self) -> &[DataType] {
         self.column_types.as_ref()
+    }
+
+    /// Get a reference to the logical copy from file's path.
+    pub fn path(&self) -> &PathBuf {
+        &self.path
     }
 }
 impl PlanTreeNodeLeaf for LogicalCopyFromFile {}

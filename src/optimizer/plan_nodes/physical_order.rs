@@ -26,17 +26,17 @@ impl PlanTreeNodeUnary for PhysicalOrder {
     }
     #[must_use]
     fn clone_with_child(&self, child: PlanRef) -> Self {
-        Self::new(self.logcial().clone_with_child(child))
+        Self::new(self.logical().clone_with_child(child))
     }
 }
 impl_plan_tree_node_for_unary!(PhysicalOrder);
 impl PlanNode for PhysicalOrder {
     fn out_types(&self) -> Vec<DataType> {
-        self.child.out_types()
+        self.logical().out_types()
     }
 }
 impl fmt::Display for PhysicalOrder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "PhysicalOrder: {:?}", self.comparators)
+        writeln!(f, "PhysicalOrder: {:?}", self.logical().comparators())
     }
 }

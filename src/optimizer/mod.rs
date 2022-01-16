@@ -4,11 +4,13 @@ mod expr_utils;
 mod heuristic;
 pub mod logical_plan_rewriter;
 pub mod plan_nodes;
+mod plan_visitor;
 mod rules;
 
 use self::heuristic::HeuristicOptimizer;
 use self::logical_plan_rewriter::*;
 use self::plan_nodes::PlanRef;
+pub use self::plan_visitor::*;
 use self::rules::*;
 
 /// The optimizer will do query optimization.
@@ -35,6 +37,7 @@ impl Optimizer {
         }
         let hep_optimizer = HeuristicOptimizer { rules };
         plan = hep_optimizer.optimize(plan);
-        plan.rewrite(&mut PhysicalConverter)
+        let mut phy_converter = PhysicalConverter;
+        phy_converter.rewrite(plan)
     }
 }

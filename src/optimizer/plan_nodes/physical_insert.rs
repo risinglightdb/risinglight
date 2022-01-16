@@ -12,13 +12,24 @@ pub struct PhysicalInsert {
     logical: LogicalInsert,
 }
 
+impl PhysicalInsert {
+    pub fn new(logical: LogicalInsert) -> Self {
+        Self { logical }
+    }
+
+    /// Get a reference to the physical insert's logical.
+    pub fn logical(&self) -> &LogicalInsert {
+        &self.logical
+    }
+}
+
 impl PlanTreeNodeUnary for PhysicalInsert {
     fn child(&self) -> PlanRef {
         self.logical.child()
     }
     #[must_use]
     fn clone_with_child(&self, child: PlanRef) -> Self {
-        Self::new(self.logcial().clone_with_child(child))
+        Self::new(self.logical().clone_with_child(child))
     }
 }
 impl_plan_tree_node_for_unary!(PhysicalInsert);
@@ -29,8 +40,12 @@ impl fmt::Display for PhysicalInsert {
         writeln!(
             f,
             "PhysicalInsert: table {}, columns [{}]",
-            self.table_ref_id.table_id,
-            self.column_ids.iter().map(ToString::to_string).join(", ")
+            self.logical().table_ref_id().table_id,
+            self.logical()
+                .column_ids()
+                .iter()
+                .map(ToString::to_string)
+                .join(", ")
         )
     }
 }

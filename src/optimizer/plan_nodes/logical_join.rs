@@ -53,7 +53,7 @@ impl LogicalJoin {
         &self,
         left: PlanRef,
         right: PlanRef,
-        rewriter: impl ExprRewriter,
+        rewriter: &impl ExprRewriter,
     ) -> Self {
         let mut new_cond = self.condition().clone();
         rewriter.rewrite_expr(&mut new_cond);
@@ -70,7 +70,7 @@ impl PlanTreeNodeBinary for LogicalJoin {
 
     #[must_use]
     fn clone_with_left_right(&self, left: PlanRef, right: PlanRef) -> Self {
-        Self::new(left, right, self.join_op(), self.condition())
+        Self::new(left, right, self.join_op(), self.condition().clone())
     }
 }
 impl_plan_tree_node_for_binary!(LogicalJoin);

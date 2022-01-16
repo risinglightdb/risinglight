@@ -43,28 +43,22 @@ impl LogicalAggregate {
         self.group_keys.as_ref()
     }
 
-    pub fn clone_with_rewrite_expr(&self, new_child: PlanRef, rewriter: impl ExprRewriter) -> Self {
-        let new_agg_calls = self
-            .agg_calls()
-            .iter()
-            .cloned()
-            .map(|agg_call| BoundAggCall {
-                kind: agg_call.kind,
-                args: agg_call
-                    .args
-                    .iter()
-                    .cloned()
-                    .map(|expr| rewriter.rewrite_expr(&mut expr))
-                    .collect(),
-                return_type: agg_call.return_type,
-            })
-            .collect();
-        let new_keys = self
-            .group_keys()
-            .iter()
-            .cloned()
-            .map(|expr| rewriter.rewrite_expr(&mut expr))
-            .collect();
+    pub fn clone_with_rewrite_expr(
+        &self,
+        new_child: PlanRef,
+        rewriter: &impl ExprRewriter,
+    ) -> Self {
+        let mut new_agg_calls = self.agg_calls().to_vec();
+        let new_keys = self.group_keys().to_vec();
+        for agg in &mut new_agg_calls {
+            for arg in &mut agg.args {
+                rewriter.rewrite_expr(arg);
+            }
+        }
+        for keys in &mut self.group_keys {
+            rewriter.rewrite_expr(keys);
+        }
+
         LogicalAggregate::new(new_agg_calls, new_keys, new_child)
     }
 }
@@ -75,7 +69,7 @@ impl PlanTreeNodeUnary for LogicalAggregate {
     }
     #[must_use]
     fn clone_with_child(&self, child: PlanRef) -> Self {
-        Self::new(self.agg_calls(), self.group_keys(), child)
+        Self::new(self.agg_calls().to_vec(), self.group_keys().to_vec(), child)
     }
 }
 impl_plan_tree_node_for_unary!(LogicalAggregate);

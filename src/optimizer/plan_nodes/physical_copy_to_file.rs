@@ -8,16 +8,27 @@ use crate::types::DataType;
 /// The physical plan of `COPY TO`.
 #[derive(Debug, Clone)]
 pub struct PhysicalCopyToFile {
-    logcial: LogicalCopyToFile,
+    logical: LogicalCopyToFile,
+}
+
+impl PhysicalCopyToFile {
+    pub fn new(logical: LogicalCopyToFile) -> Self {
+        Self { logical }
+    }
+
+    /// Get a reference to the physical copy to file's logical.
+    pub fn logical(&self) -> &LogicalCopyToFile {
+        &self.logical
+    }
 }
 
 impl PlanTreeNodeUnary for PhysicalCopyToFile {
     fn child(&self) -> PlanRef {
-        self.logical.child()
+        self.logical().child()
     }
     #[must_use]
     fn clone_with_child(&self, child: PlanRef) -> Self {
-        Self::new(self.logcial().clone_with_child(child))
+        Self::new(self.logical().clone_with_child(child))
     }
 }
 impl_plan_tree_node_for_unary!(PhysicalCopyToFile);
@@ -28,7 +39,8 @@ impl fmt::Display for PhysicalCopyToFile {
         writeln!(
             f,
             "PhysicalCopyToFile: path: {:?}, format: {:?}",
-            self.path, self.format,
+            self.logical().path(),
+            self.logical().format(),
         )
     }
 }

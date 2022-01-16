@@ -23,13 +23,11 @@ impl LogicalProjection {
     pub fn project_expressions(&self) -> &[BoundExpr] {
         self.project_expressions.as_ref()
     }
-    pub fn clone_with_rewrite_expr(&self, new_child: PlanRef, rewriter: impl ExprRewriter) -> Self {
-        let new_exprs = self
-            .project_expressions()
-            .iter()
-            .cloned()
-            .foreach(|expr| self.rewrite_expr(&mut expr))
-            .collect();
+    pub fn clone_with_rewrite_expr(&self, new_child: PlanRef, rewriter: &impl ExprRewriter) -> Self {
+        let new_exprs = self.project_expressions().to_vec();
+        for expr in &mut new_exprs {
+            rewriter.rewrite_expr(expr);
+        }
         LogicalProjection::new(new_exprs, new_child)
     }
 }
@@ -39,7 +37,7 @@ impl PlanTreeNodeUnary for LogicalProjection {
     }
     #[must_use]
     fn clone_with_child(&self, child: PlanRef) -> Self {
-        Self::new(self.project_expressions(), child)
+        Self::new(self.project_expressions().to_vec(), child)
     }
 }
 impl_plan_tree_node_for_unary!(LogicalProjection);

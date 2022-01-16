@@ -25,7 +25,7 @@ impl PlanTreeNodeUnary for PhysicalProjection {
     }
     #[must_use]
     fn clone_with_child(&self, child: PlanRef) -> Self {
-        Self::new(self.logcial().clone_with_child(child))
+        Self::new(self.logical().clone_with_child(child))
     }
 }
 impl_plan_tree_node_for_unary!(PhysicalProjection);
@@ -40,7 +40,7 @@ impl fmt::Display for PhysicalProjection {
         writeln!(
             f,
             "PhysicalProjection: exprs {:?}",
-            self.project_expressions
+            self.logical().project_expressions()
         )
     }
 }

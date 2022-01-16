@@ -55,13 +55,13 @@ impl_plan_tree_node_for_binary!(PhysicalHashJoin);
 
 impl PlanNode for PhysicalHashJoin {
     fn out_types(&self) -> Vec<DataType> {
-        self.data_types.clone()
+        self.logical().out_types()
     }
 }
 /// Currently, we only use default join ordering.
 /// We will implement DP or DFS algorithms for join orders.
 impl fmt::Display for PhysicalHashJoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "PhysicalHashJoin: op {:?}", self.join_op)
+        writeln!(f, "PhysicalHashJoin: op {:?}", self.logical().join_op())
     }
 }

@@ -8,7 +8,7 @@ pub struct PhysicalConverter;
 
 impl PlanRewriter for PhysicalConverter {
     fn rewrite_logical_table_scan(&mut self, logical: &LogicalTableScan) -> PlanRef {
-        Rc::new(PhysicalTableScan::new(logical))
+        Rc::new(PhysicalTableScan::new(logical.clone()))
     }
     fn rewrite_logical_projection(&mut self, logical: &LogicalProjection) -> PlanRef {
         let child = self.rewrite(logical.child());
@@ -75,7 +75,7 @@ impl PlanRewriter for PhysicalConverter {
     }
 
     fn rewrite_logical_values(&mut self, logical: &LogicalValues) -> PlanRef {
-        Rc::new(PhysicalValues::new(logical))
+        Rc::new(PhysicalValues::new(logical.clone()))
     }
 
     fn rewrite_logical_filter(&mut self, logical: &LogicalFilter) -> PlanRef {
@@ -91,7 +91,7 @@ impl PlanRewriter for PhysicalConverter {
     }
 
     fn rewrite_logical_drop(&mut self, logical: &LogicalDrop) -> PlanRef {
-        Rc::new(PhysicalDrop::new(logical))
+        Rc::new(PhysicalDrop::new(logical.clone()))
     }
 
     fn rewrite_logical_delete(&mut self, logical: &LogicalDelete) -> PlanRef {
@@ -101,11 +101,11 @@ impl PlanRewriter for PhysicalConverter {
     }
 
     fn rewrite_logical_create_table(&mut self, logical: &LogicalCreateTable) -> PlanRef {
-        Rc::new(PhysicalCreateTable::new(logical))
+        Rc::new(PhysicalCreateTable::new(logical.clone()))
     }
 
     fn rewrite_logical_copy_from_file(&mut self, logical: &LogicalCopyFromFile) -> PlanRef {
-        Rc::new(PhysicalCopyFromFile::new(logical))
+        Rc::new(PhysicalCopyFromFile::new(logical.clone()))
     }
 
     fn rewrite_logical_copy_to_file(&mut self, logical: &LogicalCopyToFile) -> PlanRef {
@@ -115,9 +115,9 @@ impl PlanRewriter for PhysicalConverter {
     }
 
     fn rewrite_logical_aggregate(&mut self, logical: &LogicalAggregate) -> PlanRef {
-        if logical.group_keys.is_empty() {
+        if logical.group_keys().is_empty() {
             Rc::new(PhysicalSimpleAgg::new(
-                logical.agg_calls().clone(),
+                logical.agg_calls().to_vec(),
                 self.rewrite(logical.child()),
             ))
         } else {

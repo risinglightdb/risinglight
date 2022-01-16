@@ -29,15 +29,15 @@ impl LogicalValues {
     pub fn values(&self) -> &[Vec<BoundExpr>] {
         self.values.as_ref()
     }
-    pub fn clone_with_rewrite_expr(&self, rewriter: impl ExprRewriter) -> Self {
-        let mut values = self.values().clone();
+    pub fn clone_with_rewrite_expr(&self, rewriter: &impl ExprRewriter) -> Self {
+        let mut values = self.values().to_vec();
         for row in &mut values {
             for expr in row {
                 rewriter.rewrite_expr(expr);
             }
         }
 
-        LogicalValues::new(self.column_types(), values)
+        LogicalValues::new(self.column_types().to_vec(), values)
     }
 }
 impl PlanTreeNodeLeaf for LogicalValues {}

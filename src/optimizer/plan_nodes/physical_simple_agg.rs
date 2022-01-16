@@ -35,7 +35,7 @@ impl PlanTreeNodeUnary for PhysicalSimpleAgg {
     }
     #[must_use]
     fn clone_with_child(&self, child: PlanRef) -> Self {
-        Self::new(self.agg_calls(), child)
+        Self::new(self.agg_calls().to_vec(), child)
     }
 }
 impl_plan_tree_node_for_unary!(PhysicalSimpleAgg);

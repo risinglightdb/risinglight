@@ -39,7 +39,7 @@ impl PlanTreeNodeUnary for LogicalInsert {
     }
     #[must_use]
     fn clone_with_child(&self, child: PlanRef) -> Self {
-        Self::new(self.table_ref_id(), self.column_ids(), child)
+        Self::new(self.table_ref_id(), self.column_ids().to_vec(), child)
     }
 }
 impl_plan_tree_node_for_unary!(LogicalInsert);

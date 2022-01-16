@@ -18,7 +18,7 @@ pub struct LogicalCopyToFile {
     child: PlanRef,
 }
 impl LogicalCopyToFile {
-    fn new(path: PathBuf, format: FileFormat, column_types: Vec<DataType>, child: PlanRef) {
+    fn new(path: PathBuf, format: FileFormat, column_types: Vec<DataType>, child: PlanRef) -> Self {
         Self {
             path,
             format,
@@ -26,14 +26,20 @@ impl LogicalCopyToFile {
             child,
         }
     }
-    fn get_path(&self) -> &PathBuf {
+
+    /// Get a reference to the logical copy to file's path.
+    pub fn path(&self) -> &PathBuf {
         &self.path
     }
-    fn get_file_format(&self) -> &PathBuf {
+
+    /// Get a reference to the logical copy to file's format.
+    pub fn format(&self) -> &FileFormat {
         &self.format
     }
-    fn get_column_types(&self) -> &PathBuf {
-        &self.column_types
+
+    /// Get a reference to the logical copy to file's column types.
+    pub fn column_types(&self) -> &[DataType] {
+        self.column_types.as_ref()
     }
 }
 impl PlanTreeNodeUnary for LogicalCopyToFile {
@@ -43,9 +49,9 @@ impl PlanTreeNodeUnary for LogicalCopyToFile {
     #[must_use]
     fn clone_with_child(&self, child: PlanRef) -> Self {
         Self::new(
-            self.get_path(),
-            self.get_file_format(),
-            self.get_column_types(),
+            self.path().clone(),
+            self.format().clone(),
+            self.column_types().to_vec(),
             child,
         )
     }

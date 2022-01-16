@@ -8,13 +8,24 @@ pub struct PhysicalExplain {
     logical: LogicalExplain,
 }
 
+impl PhysicalExplain {
+    pub fn new(logical: LogicalExplain) -> Self {
+        Self { logical }
+    }
+
+    /// Get a reference to the physical explain's logical.
+    pub fn logical(&self) -> &LogicalExplain {
+        &self.logical
+    }
+}
+
 impl PlanTreeNodeUnary for PhysicalExplain {
     fn child(&self) -> PlanRef {
         self.logical.child()
     }
     #[must_use]
     fn clone_with_child(&self, child: PlanRef) -> Self {
-        Self::new(self.logcial().clone_with_child(child))
+        Self::new(self.logical().clone_with_child(child))
     }
 }
 impl_plan_tree_node_for_unary!(PhysicalExplain);

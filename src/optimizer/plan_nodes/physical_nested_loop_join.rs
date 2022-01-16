@@ -42,6 +42,10 @@ impl PlanNode for PhysicalNestedLoopJoin {
 /// We will implement DP or DFS algorithms for join orders.
 impl fmt::Display for PhysicalNestedLoopJoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "PhysicalNestedLoopJoin: op {:?}", self.join_op)
+        writeln!(
+            f,
+            "PhysicalNestedLoopJoin: op {:?}",
+            self.logical().join_op()
+        )
     }
 }

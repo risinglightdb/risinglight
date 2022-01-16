@@ -20,8 +20,12 @@ impl LogicalOrder {
     pub fn comparators(&self) -> &[BoundOrderBy] {
         self.comparators.as_ref()
     }
-    pub fn clone_with_rewrite_expr(&self, new_child: PlanRef, rewriter: impl ExprRewriter) -> Self {
-        let mut new_cmps = self.comparators().clone();
+    pub fn clone_with_rewrite_expr(
+        &self,
+        new_child: PlanRef,
+        rewriter: &impl ExprRewriter,
+    ) -> Self {
+        let mut new_cmps = self.comparators().to_vec();
         for cmp in &mut new_cmps {
             rewriter.rewrite_expr(&mut cmp.expr);
         }
@@ -34,7 +38,7 @@ impl PlanTreeNodeUnary for LogicalOrder {
     }
     #[must_use]
     fn clone_with_child(&self, child: PlanRef) -> Self {
-        Self::new(self.comparators(), child)
+        Self::new(self.comparators().to_vec(), child)
     }
 }
 impl_plan_tree_node_for_unary!(LogicalOrder);

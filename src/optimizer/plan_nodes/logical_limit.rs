@@ -35,7 +35,7 @@ impl PlanTreeNodeUnary for LogicalLimit {
     }
     #[must_use]
     fn clone_with_child(&self, child: PlanRef) -> Self {
-        Self::new(self.offset(), self.limmit(), child)
+        Self::new(self.offset(), self.limit(), child)
     }
 }
 impl_plan_tree_node_for_unary!(LogicalLimit);

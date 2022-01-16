@@ -33,8 +33,9 @@ impl fmt::Display for PhysicalCreateTable {
         writeln!(
             f,
             "PhysicalCreateTable: table {}, columns [{}]",
-            self.table_name,
-            self.columns
+            self.logical().table_name(),
+            self.logical()
+                .columns()
                 .iter()
                 .map(|x| format!("{}:{:?}", x.name(), x.datatype()))
                 .join(", ")

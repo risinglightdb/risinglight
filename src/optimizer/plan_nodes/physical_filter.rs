@@ -25,7 +25,7 @@ impl PlanTreeNodeUnary for PhysicalFilter {
     }
     #[must_use]
     fn clone_with_child(&self, child: PlanRef) -> Self {
-        Self::new(self.logcial().clone_with_child(child))
+        Self::new(self.logical().clone_with_child(child))
     }
 }
 impl_plan_tree_node_for_unary!(PhysicalFilter);
@@ -36,6 +36,6 @@ impl PlanNode for PhysicalFilter {
 }
 impl fmt::Display for PhysicalFilter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "PhysicalFilter: expr {:?}", self.expr)
+        writeln!(f, "PhysicalFilter: expr {:?}", self.logical().expr())
     }
 }

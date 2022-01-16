@@ -8,17 +8,17 @@ use crate::types::DataType;
 /// The physical plan of `COPY FROM`.
 #[derive(Debug, Clone)]
 pub struct PhysicalCopyFromFile {
-    logcial: LogicalCopyFromFile,
+    logical: LogicalCopyFromFile,
 }
 
 impl PhysicalCopyFromFile {
-    pub fn new(logcial: LogicalCopyFromFile) -> Self {
-        Self { logcial }
+    pub fn new(logical: LogicalCopyFromFile) -> Self {
+        Self { logical }
     }
 
-    /// Get a reference to the physical copy from file's logcial.
-    pub fn logcial(&self) -> &LogicalCopyFromFile {
-        &self.logcial
+    /// Get a reference to the physical copy from file's logical.
+    pub fn logical(&self) -> &LogicalCopyFromFile {
+        &self.logical
     }
 }
 impl PlanTreeNodeLeaf for PhysicalCopyFromFile {}
@@ -30,7 +30,8 @@ impl fmt::Display for PhysicalCopyFromFile {
         writeln!(
             f,
             "PhysicalCopyFromFile: path: {:?}, format: {:?}",
-            self.path, self.format,
+            self.logical().path(),
+            self.logical().format(),
         )
     }
 }

@@ -27,11 +27,7 @@ impl PlanTreeNodeLeaf for PhysicalTableScan {}
 impl_plan_tree_node_for_leaf!(PhysicalTableScan);
 impl PlanNode for PhysicalTableScan {
     fn out_types(&self) -> Vec<DataType> {
-        return self
-            .column_descs
-            .iter()
-            .map(|desc| desc.datatype().clone())
-            .collect();
+        return self.out_types();
     }
 }
 
@@ -40,11 +36,11 @@ impl fmt::Display for PhysicalTableScan {
         writeln!(
             f,
             "PhysicalTableScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}, expr: {}",
-            self.table_ref_id.table_id,
-            self.column_ids.iter().map(ToString::to_string).join(", "),
-            self.with_row_handler,
-            self.is_sorted,
-            self.expr.clone().map_or_else(|| "None".to_string(), |expr| format!("{:?}", expr))
+            self.logical().table_ref_id().table_id,
+            self.logical().column_ids().iter().map(ToString::to_string).join(", "),
+            self.logical().with_row_handler(),
+            self.logical().is_sorted(),
+            self.logical().expr().clone().map_or_else(|| "None".to_string(), |expr| format!("{:?}", expr))
         )
     }
 }
