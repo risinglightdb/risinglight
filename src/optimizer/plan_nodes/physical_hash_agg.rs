@@ -32,7 +32,6 @@ impl PhysicalHashAgg {
     }
 }
 
-impl_plan_tree_node!(PhysicalHashAgg, [child]);
 impl PlanNode for PhysicalHashAgg {
     fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
         for agg in &mut self.agg_calls {

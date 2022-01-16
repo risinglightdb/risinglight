@@ -9,10 +9,10 @@ use crate::binder::BoundJoinOperator;
 /// loop join or index join).
 #[derive(Debug, Clone)]
 pub struct LogicalJoin {
-    pub left_plan: PlanRef,
-    pub right_plan: PlanRef,
-    pub join_op: BoundJoinOperator,
-    pub condition: BoundExpr,
+    left_plan: PlanRef,
+    right_plan: PlanRef,
+    join_op: BoundJoinOperator,
+    condition: BoundExpr,
     data_types: Vec<DataType>,
 }
 
@@ -33,9 +33,35 @@ impl LogicalJoin {
             condition,
         }
     }
-}
 
-impl_plan_tree_node!(LogicalJoin, [left_plan, right_plan]);
+    /// Get a reference to the logical join's join op.
+    pub fn join_op(&self) -> BoundJoinOperator {
+        self.join_op
+    }
+
+    /// Get a reference to the logical join's condition.
+    pub fn condition(&self) -> &BoundExpr {
+        &self.condition
+    }
+
+    /// Get a reference to the logical join's data types.
+    pub fn data_types(&self) -> &[DataType] {
+        self.data_types.as_ref()
+    }
+}
+impl PlanTreeNodeBinary for LogicalJoin {
+    fn left(&self) -> PlanRef {
+        self.left_plan.clone()
+    }
+    fn right(&self) -> PlanRef {
+        self.right_plan.clone()
+    }
+
+    #[must_use]
+    fn clone_with_left_right(&self, left: PlanRef, right: PlanRef) -> Self {
+        Self::new(left, right, self.join_op(), self.condition())
+    }
+}
 impl PlanNode for LogicalJoin {
     fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
         rewriter.rewrite_expr(&mut self.condition);

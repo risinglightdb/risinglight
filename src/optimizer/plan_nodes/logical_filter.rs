@@ -6,11 +6,30 @@ use crate::binder::BoundExpr;
 /// The logical plan of filter operation.
 #[derive(Debug, Clone)]
 pub struct LogicalFilter {
-    pub expr: BoundExpr,
-    pub child: PlanRef,
+    expr: BoundExpr,
+    child: PlanRef,
 }
 
-impl_plan_tree_node!(LogicalFilter, [child]);
+impl LogicalFilter {
+    pub fn new(expr: BoundExpr, child: PlanRef) -> Self {
+        Self { expr, child }
+    }
+
+    /// Get a reference to the logical filter's expr.
+    pub fn expr(&self) -> &BoundExpr {
+        &self.expr
+    }
+}
+impl PlanTreeNodeUnary for LogicalFilter {
+    fn child(&self) -> PlanRef {
+        self.child.clone()
+    }
+    #[must_use]
+    fn clone_with_child(&self, child: PlanRef) -> Self {
+        Self::new(self.expr(), child)
+    }
+}
+impl_plan_tree_node_for_unary!(LogicalFilter);
 impl PlanNode for LogicalFilter {
     fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
         rewriter.rewrite_expr(&mut self.expr);

@@ -6,11 +6,33 @@ use crate::binder::BoundExpr;
 /// The logical plan of project operation.
 #[derive(Debug, Clone)]
 pub struct LogicalProjection {
-    pub project_expressions: Vec<BoundExpr>,
-    pub child: PlanRef,
+    project_expressions: Vec<BoundExpr>,
+    child: PlanRef,
 }
 
-impl_plan_tree_node!(LogicalProjection, [child]);
+impl LogicalProjection {
+    pub fn new(project_expressions: Vec<BoundExpr>, child: PlanRef) -> Self {
+        Self {
+            project_expressions,
+            child,
+        }
+    }
+
+    /// Get a reference to the logical projection's project expressions.
+    pub fn project_expressions(&self) -> &[BoundExpr] {
+        self.project_expressions.as_ref()
+    }
+}
+impl PlanTreeNodeUnary for LogicalProjection {
+    fn child(&self) -> PlanRef {
+        self.child.clone()
+    }
+    #[must_use]
+    fn clone_with_child(&self, child: PlanRef) -> Self {
+        Self::new(self.project_expressions(), child)
+    }
+}
+impl_plan_tree_node_for_unary!(LogicalProjection);
 impl PlanNode for LogicalProjection {
     fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
         for expr in &mut self.project_expressions {

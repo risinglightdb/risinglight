@@ -6,10 +6,10 @@ use crate::binder::{BoundAggCall, BoundExpr};
 /// The logical plan of hash aggregate operation.
 #[derive(Debug, Clone)]
 pub struct LogicalAggregate {
-    pub agg_calls: Vec<BoundAggCall>,
+    agg_calls: Vec<BoundAggCall>,
     /// Group keys in hash aggregation (optional)
-    pub group_keys: Vec<BoundExpr>,
-    pub child: PlanRef,
+    group_keys: Vec<BoundExpr>,
+    child: PlanRef,
     data_types: Vec<DataType>,
 }
 
@@ -31,9 +31,28 @@ impl LogicalAggregate {
             data_types,
         }
     }
+
+    /// Get a reference to the logical aggregate's agg calls.
+    pub fn agg_calls(&self) -> &[BoundAggCall] {
+        self.agg_calls.as_ref()
+    }
+
+    /// Get a reference to the logical aggregate's group keys.
+    pub fn group_keys(&self) -> &[BoundExpr] {
+        self.group_keys.as_ref()
+    }
 }
 
-impl_plan_tree_node!(LogicalAggregate, [child]);
+impl PlanTreeNodeUnary for LogicalAggregate {
+    fn child(&self) -> PlanRef {
+        self.child.clone()
+    }
+    #[must_use]
+    fn clone_with_child(&self, child: PlanRef) -> Self {
+        Self::new(self.agg_calls(), self.group_keys(), child)
+    }
+}
+impl_plan_tree_node_for_unary!(LogicalAggregate);
 impl PlanNode for LogicalAggregate {
     fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
         for agg in &mut self.agg_calls {

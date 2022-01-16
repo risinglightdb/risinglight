@@ -1,3 +1,4 @@
+use std::alloc::Global;
 use std::fmt;
 
 use super::*;
@@ -7,11 +8,31 @@ use crate::types::DataType;
 /// The logical plan of `VALUES`.
 #[derive(Debug, Clone)]
 pub struct LogicalValues {
-    pub column_types: Vec<DataType>,
-    pub values: Vec<Vec<BoundExpr>>,
+    column_types: Vec<DataType>,
+    values: Vec<Vec<BoundExpr>>,
 }
 
-impl_plan_tree_node!(LogicalValues, []);
+impl LogicalValues {
+    pub fn new(column_types: Vec<DataType>, values: Vec<Vec<BoundExpr>>) -> Self {
+        Self {
+            column_types,
+            values,
+        }
+    }
+
+    /// Get a reference to the logical values's column types.
+    pub fn column_types(&self) -> &[DataType] {
+        self.column_types.as_ref()
+    }
+
+    /// Get a reference to the logical values's values.
+    pub fn values(&self) -> &[Vec<BoundExpr, Global>] {
+        self.values.as_ref()
+    }
+}
+impl PlanTreeNodeLeaf for LogicalValues {}
+impl_plan_tree_node_for_leaf!(LogicalValues);
+
 impl PlanNode for LogicalValues {
     fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
         for row in &mut self.values {
