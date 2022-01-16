@@ -85,8 +85,9 @@ impl PlanRewriter for InputRefResolver {
                 _ => None,
             })
             .collect();
+        let ret = Rc::new(proj.clone_with_rewrite_expr(new_child, self));
         self.bindings = bindings;
-        Rc::new(proj.clone_with_rewrite_expr(new_child, self))
+        ret
     }
 
     fn rewrite_logical_aggregate(&mut self, agg: &LogicalAggregate) -> PlanRef {
