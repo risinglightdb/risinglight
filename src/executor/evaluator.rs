@@ -113,7 +113,6 @@ impl BoundExpr {
                 if self.return_type() == cast.expr.return_type() {
                     return Ok(array);
                 }
-                println!("try to cast {:?} to {:?}", cast.expr, cast.ty);
                 array.try_cast(cast.ty.clone())
             }
             BoundExpr::IsNull(expr) => {

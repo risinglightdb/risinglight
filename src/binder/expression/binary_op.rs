@@ -1,6 +1,6 @@
 use super::*;
 use crate::parser::BinaryOperator;
-use crate::types::{DataTypeExt, DataTypeKind, PhysicalDataTypeKind};
+use crate::types::{DataTypeExt, DataTypeKind};
 
 /// A bound binary operation expression.
 #[derive(PartialEq, Clone)]
@@ -29,6 +29,8 @@ impl Binder {
         right: &Expr,
     ) -> Result<BoundExpr, BindError> {
         use BinaryOperator as Op;
+
+        use crate::types::PhysicalDataTypeKind::*;
         let mut left_bound_expr = self.bind_expr(left)?;
         let mut right_bound_expr = self.bind_expr(right)?;
 
@@ -40,23 +42,17 @@ impl Binder {
             (Some(left_data_type), Some(right_data_type)) => {
                 let left_physical_kind = left_data_type.physical_kind();
                 let right_physical_kind = right_data_type.physical_kind();
+                // Check if implicit type conversion is needed
                 if left_physical_kind != right_physical_kind {
+                    // Insert type cast expr
                     match (left_physical_kind, right_physical_kind) {
-                        (
-                            PhysicalDataTypeKind::Float64 | PhysicalDataTypeKind::Decimal,
-                            PhysicalDataTypeKind::Int32 | PhysicalDataTypeKind::Int64,
-                        )
-                        | (PhysicalDataTypeKind::Date, PhysicalDataTypeKind::String) => {
+                        (Float64 | Decimal, Int32 | Int64) | (Date, String) => {
                             right_bound_expr = BoundExpr::TypeCast(BoundTypeCast {
                                 expr: Box::new(right_bound_expr),
                                 ty: left_data_type.kind(),
                             });
                         }
-                        (
-                            PhysicalDataTypeKind::Int32 | PhysicalDataTypeKind::Int64,
-                            PhysicalDataTypeKind::Float64 | PhysicalDataTypeKind::Decimal,
-                        )
-                        | (PhysicalDataTypeKind::String, PhysicalDataTypeKind::Date) => {
+                        (Int32 | Int64, Float64 | Decimal) | (String, Date) => {
                             left_bound_expr = BoundExpr::TypeCast(BoundTypeCast {
                                 expr: Box::new(left_bound_expr),
                                 ty: right_data_type.kind(),
