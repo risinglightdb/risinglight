@@ -31,8 +31,6 @@ pub enum BoundStatement {
 /// The error type of bind operations.
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum BindError {
-    #[error("invalid statment type ")]
-    InvalidStmt,
     #[error("invalid database {0}")]
     InvalidDatabase(String),
     #[error("invalid schema {0}")]
@@ -43,8 +41,6 @@ pub enum BindError {
     InvalidColumn(String),
     #[error("duplicated table {0}")]
     DuplicatedTable(String),
-    #[error("duplicated table name {0}")]
-    DuplicatedTableName(String),
     #[error("duplicated column {0}")]
     DuplicatedColumn(String),
     #[error("invalid expression: {0}")]

@@ -19,7 +19,7 @@ pub struct NestedLoopJoinExecutor {
 }
 
 impl NestedLoopJoinExecutor {
-    pub fn execute_loop_join(
+    fn execute_loop_join(
         join_op: BoundJoinOperator,
         join_cond: BoundExpr,
         left_chunks: Vec<DataChunk>,

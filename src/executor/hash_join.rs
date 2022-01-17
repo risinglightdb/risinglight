@@ -19,9 +19,7 @@ pub struct HashJoinExecutor {
 
 // TODO : support other types of join: left/right/full join
 impl HashJoinExecutor {
-    pub fn execute_hash_join(
-        _join_op: BoundJoinOperator,
-        _join_cond: BoundExpr,
+    fn execute_hash_join(
         left_chunks: Vec<DataChunk>,
         right_chunks: Vec<DataChunk>,
         left_column_index: usize,
@@ -93,8 +91,6 @@ impl HashJoinExecutor {
         }
 
         let chunk = Self::execute_hash_join(
-            self.join_op,
-            self.condition,
             left_chunks,
             right_chunks,
             self.left_column_index,
