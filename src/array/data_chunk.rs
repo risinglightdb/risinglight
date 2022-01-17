@@ -4,22 +4,20 @@ use std::fmt;
 use std::ops::RangeBounds;
 use std::sync::Arc;
 
-use smallvec::SmallVec;
-
 use super::*;
 use crate::types::DataValue;
 
 /// A collection of arrays.
 ///
 /// A chunk is a horizontal subset of a query result.
-#[derive(Default, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct DataChunk {
-    arrays: SmallVec<[ArrayImpl; 16]>,
+    arrays: Arc<[ArrayImpl]>,
 }
 
 impl FromIterator<ArrayImpl> for DataChunk {
     fn from_iter<I: IntoIterator<Item = ArrayImpl>>(iter: I) -> Self {
-        let arrays: SmallVec<[ArrayImpl; 16]> = iter.into_iter().collect();
+        let arrays: Arc<[ArrayImpl]> = iter.into_iter().collect();
         assert!(!arrays.is_empty());
         let cardinality = arrays[0].len();
         assert!(
@@ -86,8 +84,6 @@ impl DataChunk {
         self.arrays.iter().map(|a| a.get_estimated_size()).sum()
     }
 }
-
-pub type DataChunkRef = Arc<DataChunk>;
 
 /// Print the chunk as a pretty table.
 impl fmt::Display for DataChunk {

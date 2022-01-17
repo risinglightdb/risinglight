@@ -8,9 +8,7 @@ use itertools::Itertools;
 
 use super::table::InMemoryTableInnerRef;
 use super::{InMemoryRowHandler, InMemoryTable, InMemoryTxnIterator};
-use crate::array::{
-    ArrayBuilderImpl, ArrayImplBuilderPickExt, ArrayImplSortExt, DataChunk, DataChunkRef,
-};
+use crate::array::{ArrayBuilderImpl, ArrayImplBuilderPickExt, ArrayImplSortExt, DataChunk};
 use crate::binder::BoundExpr;
 use crate::catalog::{find_sort_key_id, ColumnCatalog};
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
@@ -30,7 +28,7 @@ pub struct InMemoryTransaction {
 
     /// When transaction is started, reference to all data chunks will
     /// be cached in `snapshot` to provide snapshot isolation.
-    snapshot: Arc<Vec<DataChunkRef>>,
+    snapshot: Arc<Vec<DataChunk>>,
 
     /// Reference to inner table.
     table: InMemoryTableInnerRef,
@@ -59,9 +57,9 @@ impl InMemoryTransaction {
 
 /// If primary key is found in [`ColumnCatalog`], sort all in-memory data using that key.
 fn sort_datachunk_by_pk(
-    chunks: &Arc<Vec<Arc<DataChunk>>>,
+    chunks: &Arc<Vec<DataChunk>>,
     column_infos: &[ColumnCatalog],
-) -> Arc<Vec<Arc<DataChunk>>> {
+) -> Arc<Vec<DataChunk>> {
     if let Some(sort_key_id) = find_sort_key_id(column_infos) {
         if chunks.is_empty() {
             return chunks.clone();
@@ -92,7 +90,7 @@ fn sort_datachunk_by_pk(
                 builder.finish()
             })
             .collect::<DataChunk>();
-        Arc::new(vec![Arc::new(chunk)])
+        Arc::new(vec![chunk])
     } else {
         chunks.clone()
     }
