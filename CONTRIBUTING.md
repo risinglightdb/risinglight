@@ -61,7 +61,7 @@ After all the checks pass, your changes will likely be accepted.
 
 ## Sign DCO (Developer Certificate of Origin)
 
-Contributors will need to sign DCO in their commits.From [https://github.com/apps/dco](GitHub App's DCO) page:
+Contributors will need to sign DCO in their commits.From (https://github.com/apps/dco)[GitHub App's DCO] page:
 
 The Developer Certificate of Origin (DCO) is a lightweight way for contributors to certify that they wrote or otherwise
 have the right to submit the code they are contributing to the project. Here is the full text of the DCO, reformatted]
