@@ -1,5 +1,7 @@
 //! A simple interactive shell of the database.
 
+use std::fs::File;
+
 use log::info;
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::Database;
@@ -24,6 +26,21 @@ async fn main() {
     };
 
     let mut rl = Editor::<()>::new();
+    let history_path = dirs::cache_dir().and_then(|p| {
+        let cache_dir = p.join("risinglight");
+        std::fs::create_dir_all(cache_dir.as_path()).ok()?;
+        let history_path = cache_dir.join("history.txt");
+        if !history_path.as_path().exists() {
+            File::create(history_path.as_path()).ok()?;
+        }
+        Some(history_path.into_boxed_path())
+    });
+
+    if let Some(ref history_path) = history_path {
+        if let Err(err) = rl.load_history(&history_path) {
+            println!("No previous history. {err}");
+        }
+    }
     loop {
         let readline = rl.readline("> ");
         match readline {
@@ -50,6 +67,12 @@ async fn main() {
                 println!("Error: {:?}", err);
                 break;
             }
+        }
+    }
+
+    if let Some(ref history_path) = history_path {
+        if let Err(err) = rl.save_history(&history_path) {
+            println!("Save history failed, {err}");
         }
     }
 }
