@@ -24,7 +24,8 @@ pub trait BlockIteratorFactory<A: Array>: Send + Sync + 'static {
         start_pos: usize,
     ) -> Self::BlockIteratorImpl;
 
-    /// Create a [`FakeBlockIterator`](super::super::block::FakeBlockIterator) from block index and seek to `start_pos`.
+    /// Create a [`FakeBlockIterator`](super::super::block::FakeBlockIterator) from block index and
+    /// seek to `start_pos`.
     fn get_fake_iterator(&self, index: &BlockIndex, start_pos: usize) -> Self::BlockIteratorImpl;
 }
 
