@@ -70,12 +70,7 @@ impl HashJoinExecutor {
                 }
             }
         }
-        Ok(Some(
-            chunk_builders
-                .into_iter()
-                .map(|builder| builder.finish())
-                .collect(),
-        ))
+        Ok(Some(chunk_builders.into_iter().collect()))
     }
 
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]

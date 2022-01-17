@@ -5,7 +5,7 @@ use std::sync::Arc;
 use futures::TryStreamExt;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 
-use crate::array::{ArrayBuilder, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder};
+use crate::array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder};
 use crate::binder::{BindError, Binder};
 use crate::catalog::RootCatalogRef;
 use crate::executor::{ExecutorBuilder, ExecutorError};
@@ -79,13 +79,13 @@ impl Database {
                 }
             }
         }
-        let vecs = vec![
-            db_id_vec.finish().into(),
-            db_vec.finish().into(),
-            schema_id_vec.finish().into(),
-            schema_vec.finish().into(),
-            table_id_vec.finish().into(),
-            table_vec.finish().into(),
+        let vecs: Vec<ArrayBuilderImpl> = vec![
+            db_id_vec.into(),
+            db_vec.into(),
+            schema_id_vec.into(),
+            schema_vec.into(),
+            table_id_vec.into(),
+            table_vec.into(),
         ];
         Ok(vec![DataChunk::from_iter(vecs.into_iter())])
     }
@@ -127,8 +127,8 @@ impl Database {
                     stat_name.push(Some("DistinctValue"));
                     stat_value.push(Some(&format!("{:?}", row_count[1])));
                     Ok(vec![DataChunk::from_iter([
-                        stat_name.finish().into(),
-                        stat_value.finish().into(),
+                        ArrayBuilderImpl::from(stat_name),
+                        ArrayBuilderImpl::from(stat_value),
                     ])])
                 } else {
                     Err(Error::InternalError(

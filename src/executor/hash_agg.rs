@@ -3,7 +3,6 @@
 use std::collections::HashMap;
 
 use iter_chunks::IterChunks;
-use itertools::Itertools;
 use smallvec::SmallVec;
 
 use super::*;
@@ -91,10 +90,7 @@ impl HashAggExecutor {
                 }
             }
             key_builders.append(&mut res_builders);
-            yield key_builders
-                .into_iter()
-                .map(|builder| builder.finish())
-                .collect::<DataChunk>()
+            yield key_builders.into_iter().collect()
         }
     }
 

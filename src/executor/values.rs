@@ -21,18 +21,14 @@ impl ValuesExecutor {
             .column_types
             .iter()
             .map(|ty| ArrayBuilderImpl::with_capacity(cardinality, ty))
-            .collect::<Vec<ArrayBuilderImpl>>();
+            .collect_vec();
         for row in &self.values {
             for (expr, builder) in row.iter().zip(&mut builders) {
                 let value = expr.eval();
                 builder.push(&value);
             }
         }
-        let chunk = builders
-            .into_iter()
-            .map(|builder| builder.finish())
-            .collect::<DataChunk>();
-        yield chunk;
+        yield builders.into_iter().collect();
     }
 }
 
@@ -53,9 +49,9 @@ mod tests {
                 .map(|row| {
                     row.iter()
                         .map(|&v| BoundExpr::Constant(DataValue::Int32(v)))
-                        .collect::<Vec<_>>()
+                        .collect_vec()
                 })
-                .collect::<Vec<_>>(),
+                .collect_vec(),
         };
         let output = executor.execute().next().await.unwrap().unwrap();
         let expected = [

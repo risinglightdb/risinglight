@@ -111,7 +111,7 @@ pub mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::array::I32Array;
+    use crate::array::ArrayImpl;
     use crate::storage::secondary::rowset::rowset_builder::RowsetBuilder;
     use crate::storage::secondary::ColumnBuilderOptions;
     use crate::types::{DataTypeExt, DataTypeKind};
@@ -156,21 +156,15 @@ pub mod tests {
         for _ in 0..100 {
             builder.append(
                 [
-                    I32Array::from_iter([1, 2, 3].iter().cycle().cloned().take(len).map(Some))
-                        .into(),
-                    I32Array::from_iter(
-                        [1, 3, 5, 7, 9].iter().cycle().cloned().take(len).map(Some),
-                    )
-                    .into(),
-                    I32Array::from_iter(
+                    ArrayImpl::Int32([1, 2, 3].into_iter().cycle().take(len).collect()),
+                    ArrayImpl::Int32([1, 3, 5, 7, 9].into_iter().cycle().take(len).collect()),
+                    ArrayImpl::Int32(
                         [2, 3, 3, 3, 3, 3, 3]
-                            .iter()
+                            .into_iter()
                             .cycle()
-                            .cloned()
                             .take(len)
-                            .map(Some),
-                    )
-                    .into(),
+                            .collect(),
+                    ),
                 ]
                 .into_iter()
                 .collect(),

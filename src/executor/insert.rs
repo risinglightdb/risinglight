@@ -2,8 +2,6 @@
 
 use std::sync::Arc;
 
-use itertools::Itertools;
-
 use super::*;
 use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::catalog::TableRefId;
@@ -82,7 +80,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::array::{ArrayImpl, DataChunk};
+    use crate::array::ArrayImpl;
     use crate::catalog::{ColumnCatalog, TableRefId};
     use crate::executor::CreateTableExecutor;
     use crate::optimizer::plan_nodes::PhysicalCreateTable;
@@ -102,7 +100,7 @@ mod tests {
                     ArrayImpl::Int32((100..104).collect()),
                 ]
                 .into_iter()
-                .collect::<DataChunk>();
+                .collect();
             }
             .boxed(),
         };

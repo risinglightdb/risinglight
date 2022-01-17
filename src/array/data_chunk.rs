@@ -28,6 +28,12 @@ impl FromIterator<ArrayImpl> for DataChunk {
     }
 }
 
+impl FromIterator<ArrayBuilderImpl> for DataChunk {
+    fn from_iter<I: IntoIterator<Item = ArrayBuilderImpl>>(iter: I) -> Self {
+        iter.into_iter().map(|b| b.finish()).collect()
+    }
+}
+
 impl DataChunk {
     /// Return a [`DataChunk`] with 1 element in 1 array.
     pub fn single(item: i32) -> Self {

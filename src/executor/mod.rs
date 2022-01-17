@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use futures::stream::{BoxStream, StreamExt};
 use futures_async_stream::try_stream;
+use itertools::Itertools;
 
 use crate::array::DataChunk;
 use crate::optimizer::plan_nodes::*;

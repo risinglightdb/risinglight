@@ -1,5 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+//! Apply expressions on data chunks.
+
 use std::borrow::Borrow;
 
 use crate::array::*;

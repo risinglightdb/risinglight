@@ -65,7 +65,7 @@ mod tests {
             limit,
         };
         let actual = executor.execute().try_collect::<Vec<_>>().await.unwrap();
-        let outputs = outputs.iter().map(range_to_chunk).collect::<Vec<_>>();
+        let outputs = outputs.iter().map(range_to_chunk).collect_vec();
         assert_eq!(actual, outputs);
     }
 

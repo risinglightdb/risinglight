@@ -4,7 +4,6 @@ use std::fs::File;
 use std::io::BufReader;
 
 use indicatif::{ProgressBar, ProgressStyle};
-use itertools::Itertools;
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::*;
@@ -43,10 +42,7 @@ impl CopyFromFileExecutor {
                 .collect_vec()
         };
         let flush_array = |array_builders: Vec<ArrayBuilderImpl>| -> DataChunk {
-            array_builders
-                .into_iter()
-                .map(|builder| builder.finish())
-                .collect()
+            array_builders.into_iter().collect()
         };
 
         let mut array_builders = create_array_builders(&self.plan);
