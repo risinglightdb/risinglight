@@ -3,18 +3,36 @@ use std::fmt;
 use itertools::Itertools;
 
 use super::*;
-use crate::catalog::TableRefId;
-use crate::types::ColumnId;
+
+
 
 /// The physical plan of `INSERT`.
 #[derive(Debug, Clone)]
 pub struct PhysicalInsert {
-    pub table_ref_id: TableRefId,
-    pub column_ids: Vec<ColumnId>,
-    pub child: PlanRef,
+    logical: LogicalInsert,
 }
 
-impl_plan_tree_node!(PhysicalInsert, [child]);
+impl PhysicalInsert {
+    pub fn new(logical: LogicalInsert) -> Self {
+        Self { logical }
+    }
+
+    /// Get a reference to the physical insert's logical.
+    pub fn logical(&self) -> &LogicalInsert {
+        &self.logical
+    }
+}
+
+impl PlanTreeNodeUnary for PhysicalInsert {
+    fn child(&self) -> PlanRef {
+        self.logical.child()
+    }
+    #[must_use]
+    fn clone_with_child(&self, child: PlanRef) -> Self {
+        Self::new(self.logical().clone_with_child(child))
+    }
+}
+impl_plan_tree_node_for_unary!(PhysicalInsert);
 impl PlanNode for PhysicalInsert {}
 
 impl fmt::Display for PhysicalInsert {
@@ -22,8 +40,12 @@ impl fmt::Display for PhysicalInsert {
         writeln!(
             f,
             "PhysicalInsert: table {}, columns [{}]",
-            self.table_ref_id.table_id,
-            self.column_ids.iter().map(ToString::to_string).join(", ")
+            self.logical().table_ref_id().table_id,
+            self.logical()
+                .column_ids()
+                .iter()
+                .map(ToString::to_string)
+                .join(", ")
         )
     }
 }

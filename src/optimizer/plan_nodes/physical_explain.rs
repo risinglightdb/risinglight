@@ -5,10 +5,30 @@ use super::*;
 /// The physical plan of `EXPLAIN`.
 #[derive(Debug, Clone)]
 pub struct PhysicalExplain {
-    pub plan: PlanRef,
+    logical: LogicalExplain,
 }
 
-impl_plan_tree_node!(PhysicalExplain, [plan]);
+impl PhysicalExplain {
+    pub fn new(logical: LogicalExplain) -> Self {
+        Self { logical }
+    }
+
+    /// Get a reference to the physical explain's logical.
+    pub fn logical(&self) -> &LogicalExplain {
+        &self.logical
+    }
+}
+
+impl PlanTreeNodeUnary for PhysicalExplain {
+    fn child(&self) -> PlanRef {
+        self.logical.child()
+    }
+    #[must_use]
+    fn clone_with_child(&self, child: PlanRef) -> Self {
+        Self::new(self.logical().clone_with_child(child))
+    }
+}
+impl_plan_tree_node_for_unary!(PhysicalExplain);
 impl PlanNode for PhysicalExplain {}
 impl fmt::Display for PhysicalExplain {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

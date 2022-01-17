@@ -1,6 +1,8 @@
 use super::*;
 use crate::binder::BoundExpr;
-use crate::optimizer::plan_nodes::{LogicalFilter, LogicalJoin};
+use crate::optimizer::plan_nodes::{
+    LogicalFilter, LogicalJoin, PlanTreeNodeBinary, PlanTreeNodeUnary,
+};
 use crate::optimizer::BoundBinaryOp;
 use crate::parser::BinaryOperator::And;
 use crate::types::{DataTypeExt, DataTypeKind};
@@ -11,20 +13,19 @@ impl Rule for FilterJoinRule {
     fn apply(&self, plan: PlanRef) -> Result<PlanRef, ()> {
         let filter = plan.downcast_rc::<LogicalFilter>().map_err(|_| ())?;
         let join = filter
-            .child
-            .clone()
+            .child()
             .downcast_rc::<LogicalJoin>()
             .map_err(|_| ())?;
         let join_cond = BoundExpr::BinaryOp(BoundBinaryOp {
             op: And,
-            left_expr: Box::new(join.condition.clone()),
-            right_expr: Box::new(filter.expr.clone()),
+            left_expr: Box::new(join.condition().clone()),
+            right_expr: Box::new(filter.expr().clone()),
             return_type: Some(DataTypeKind::Boolean.nullable()),
         });
         Ok(Rc::new(LogicalJoin::new(
-            join.left_plan.clone(),
-            join.right_plan.clone(),
-            join.join_op,
+            join.left().clone(),
+            join.right().clone(),
+            join.join_op(),
             join_cond,
         )))
 

@@ -111,11 +111,11 @@ mod tests {
         let env = Arc::new(GlobalEnv {
             storage: StorageImpl::InMemoryStorage(Arc::new(InMemoryStorage::new())),
         });
-        let plan = PhysicalCreateTable {
-            database_id: 0,
-            schema_id: 0,
-            table_name: "t".into(),
-            columns: vec![
+        let plan = PhysicalCreateTable::new(LogicalCreateTable::new(
+            0,
+            0,
+            "t".into(),
+            vec![
                 ColumnCatalog::new(
                     0,
                     "v1".into(),
@@ -127,7 +127,7 @@ mod tests {
                     DataTypeKind::Int(None).not_null().to_column(),
                 ),
             ],
-        };
+        ));
         let mut executor = CreateTableExecutor {
             plan,
             storage: env.storage.as_in_memory_storage(),

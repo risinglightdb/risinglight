@@ -1,27 +1,37 @@
 use std::fmt;
 
 use super::*;
-use crate::binder::BoundExpr;
 
 /// The physical plan of project operation.
 #[derive(Debug, Clone)]
 pub struct PhysicalProjection {
-    pub project_expressions: Vec<BoundExpr>,
-    pub child: PlanRef,
+    logical: LogicalProjection,
 }
 
-impl_plan_tree_node!(PhysicalProjection, [child]);
-impl PlanNode for PhysicalProjection {
-    fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
-        for expr in &mut self.project_expressions {
-            rewriter.rewrite_expr(expr);
-        }
+impl PhysicalProjection {
+    pub fn new(logical: LogicalProjection) -> Self {
+        Self { logical }
     }
+
+    /// Get a reference to the physical projection's logical.
+    pub fn logical(&self) -> &LogicalProjection {
+        &self.logical
+    }
+}
+
+impl PlanTreeNodeUnary for PhysicalProjection {
+    fn child(&self) -> PlanRef {
+        self.logical.child()
+    }
+    #[must_use]
+    fn clone_with_child(&self, child: PlanRef) -> Self {
+        Self::new(self.logical().clone_with_child(child))
+    }
+}
+impl_plan_tree_node_for_unary!(PhysicalProjection);
+impl PlanNode for PhysicalProjection {
     fn out_types(&self) -> Vec<DataType> {
-        self.project_expressions
-            .iter()
-            .map(|expr| expr.return_type().unwrap())
-            .collect()
+        self.logical().out_types()
     }
 }
 
@@ -30,7 +40,7 @@ impl fmt::Display for PhysicalProjection {
         writeln!(
             f,
             "PhysicalProjection: exprs {:?}",
-            self.project_expressions
+            self.logical().project_expressions()
         )
     }
 }

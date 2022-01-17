@@ -34,7 +34,8 @@ impl CopyFromFileExecutor {
 
     fn read_file_blocking(self, tx: UnboundedSender<DataChunk>) -> Result<(), ExecutorError> {
         let create_array_builders = |plan: &PhysicalCopyFromFile| {
-            plan.column_types
+            plan.logical()
+                .column_types()
                 .iter()
                 .map(ArrayBuilderImpl::new)
                 .collect_vec()
@@ -48,10 +49,10 @@ impl CopyFromFileExecutor {
 
         let mut array_builders = create_array_builders(&self.plan);
 
-        let file = File::open(&self.plan.path)?;
+        let file = File::open(&self.plan.logical().path())?;
         let file_size = file.metadata()?.len();
         let mut buf_reader = BufReader::new(file);
-        let mut reader = match self.plan.format {
+        let mut reader = match self.plan.logical().format().clone() {
             FileFormat::Csv {
                 delimiter,
                 quote,
@@ -78,7 +79,7 @@ impl CopyFromFileExecutor {
             bar
         };
 
-        let column_count = self.plan.column_types.len();
+        let column_count = self.plan.logical().column_types().len();
         let mut iter = reader.records();
         let mut round = 0;
         let mut last_pos = 0;
@@ -110,7 +111,7 @@ impl CopyFromFileExecutor {
                 for ((s, builder), ty) in record
                     .iter()
                     .zip(&mut array_builders)
-                    .zip(&self.plan.column_types)
+                    .zip(&self.plan.logical().column_types().to_vec())
                 {
                     if !ty.is_nullable() && s.is_empty() {
                         return Err(ExecutorError::NotNullable);
@@ -147,20 +148,20 @@ mod tests {
         write!(file, "{}", csv).expect("failed to write file");
 
         let executor = CopyFromFileExecutor {
-            plan: PhysicalCopyFromFile {
-                path: file.path().into(),
-                format: FileFormat::Csv {
+            plan: PhysicalCopyFromFile::new(LogicalCopyFromFile::new(
+                file.path().into(),
+                FileFormat::Csv {
                     delimiter: ',',
                     quote: '"',
                     escape: None,
                     header: false,
                 },
-                column_types: vec![
+                vec![
                     DataTypeKind::Int(None).not_null(),
                     DataTypeKind::Double.not_null(),
                     DataTypeKind::String.not_null(),
                 ],
-            },
+            )),
         };
         let actual = executor.execute().next().await.unwrap().unwrap();
 

@@ -10,7 +10,7 @@ pub struct ExplainExecutor {
 impl ExplainExecutor {
     pub fn execute(self) -> BoxedExecutor {
         let mut explain_result = String::new();
-        self.plan.plan.explain(0, &mut explain_result).unwrap();
+        self.plan.child().explain(0, &mut explain_result).unwrap();
         let chunk = DataChunk::from_iter([ArrayImpl::Utf8(Utf8Array::from_iter([Some(
             explain_result,
         )]))]);

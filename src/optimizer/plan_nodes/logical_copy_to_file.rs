@@ -9,16 +9,59 @@ use crate::types::DataType;
 #[derive(Debug, Clone)]
 pub struct LogicalCopyToFile {
     /// The file path to copy to.
-    pub path: PathBuf,
+    path: PathBuf,
     /// The file format.
-    pub format: FileFormat,
+    format: FileFormat,
     /// The column types.
-    pub column_types: Vec<DataType>,
+    column_types: Vec<DataType>,
     /// The child plan.
-    pub child: PlanRef,
+    child: PlanRef,
 }
+impl LogicalCopyToFile {
+    pub fn new(
+        path: PathBuf,
+        format: FileFormat,
+        column_types: Vec<DataType>,
+        child: PlanRef,
+    ) -> Self {
+        Self {
+            path,
+            format,
+            column_types,
+            child,
+        }
+    }
 
-impl_plan_tree_node!(LogicalCopyToFile, [child]);
+    /// Get a reference to the logical copy to file's path.
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
+
+    /// Get a reference to the logical copy to file's format.
+    pub fn format(&self) -> &FileFormat {
+        &self.format
+    }
+
+    /// Get a reference to the logical copy to file's column types.
+    pub fn column_types(&self) -> &[DataType] {
+        self.column_types.as_ref()
+    }
+}
+impl PlanTreeNodeUnary for LogicalCopyToFile {
+    fn child(&self) -> PlanRef {
+        self.child.clone()
+    }
+    #[must_use]
+    fn clone_with_child(&self, child: PlanRef) -> Self {
+        Self::new(
+            self.path().clone(),
+            self.format().clone(),
+            self.column_types().to_vec(),
+            child,
+        )
+    }
+}
+impl_plan_tree_node_for_unary!(LogicalCopyToFile);
 impl PlanNode for LogicalCopyToFile {}
 
 impl fmt::Display for LogicalCopyToFile {

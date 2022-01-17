@@ -17,6 +17,7 @@ use futures_async_stream::try_stream;
 
 use crate::array::DataChunk;
 use crate::optimizer::plan_nodes::*;
+use crate::optimizer::PlanVisitor;
 use crate::storage::{StorageImpl, TracedStorageError};
 use crate::types::ConvertError;
 
@@ -103,7 +104,6 @@ pub type GlobalEnvRef = Arc<GlobalEnv>;
 /// It consumes one or more streams from its child executors,
 /// and produces a stream to its parent.
 pub type BoxedExecutor = BoxStream<'static, Result<DataChunk, ExecutorError>>;
-
 /// The global environment for task execution.
 /// The instance will be shared by every task.
 #[derive(Clone)]
@@ -112,39 +112,31 @@ pub struct GlobalEnv {
 }
 
 /// The builder of executor.
+#[derive(Clone)]
 pub struct ExecutorBuilder {
     env: GlobalEnvRef,
-    executor: Option<BoxedExecutor>,
 }
 
-impl Visitor for ExecutorBuilder {
-    fn visit_dummy(&mut self, _plan: &Dummy) {
-        self.executor = Some(DummyScanExecutor.execute());
+impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
+    fn visit_dummy(&mut self, _plan: &Dummy) -> Option<BoxedExecutor> {
+        Some(DummyScanExecutor.execute())
     }
-    fn visit_physical_create_table(&mut self, plan: &PhysicalCreateTable) {
-        match &self.env.storage {
-            StorageImpl::InMemoryStorage(storage) => {
-                self.executor = Some(
-                    CreateTableExecutor {
-                        plan: plan.clone(),
-                        storage: storage.clone(),
-                    }
-                    .execute(),
-                )
+    fn visit_physical_create_table(&mut self, plan: &PhysicalCreateTable) -> Option<BoxedExecutor> {
+        Some(match &self.env.storage {
+            StorageImpl::InMemoryStorage(storage) => CreateTableExecutor {
+                plan: plan.clone(),
+                storage: storage.clone(),
             }
-            StorageImpl::SecondaryStorage(storage) => {
-                self.executor = Some(
-                    CreateTableExecutor {
-                        plan: plan.clone(),
-                        storage: storage.clone(),
-                    }
-                    .execute(),
-                )
+            .execute(),
+            StorageImpl::SecondaryStorage(storage) => CreateTableExecutor {
+                plan: plan.clone(),
+                storage: storage.clone(),
             }
-        }
+            .execute(),
+        })
     }
-    fn visit_physical_drop(&mut self, plan: &PhysicalDrop) {
-        self.executor = Some(match &self.env.storage {
+    fn visit_physical_drop(&mut self, plan: &PhysicalDrop) -> Option<BoxedExecutor> {
+        Some(match &self.env.storage {
             StorageImpl::InMemoryStorage(storage) => DropExecutor {
                 plan: plan.clone(),
                 storage: storage.clone(),
@@ -155,53 +147,51 @@ impl Visitor for ExecutorBuilder {
                 storage: storage.clone(),
             }
             .execute(),
-        });
+        })
     }
 
-    fn visit_physical_insert(&mut self, plan: &PhysicalInsert) {
-        self.executor = Some(match &self.env.storage {
+    fn visit_physical_insert(&mut self, plan: &PhysicalInsert) -> Option<BoxedExecutor> {
+        Some(match &self.env.storage {
             StorageImpl::InMemoryStorage(storage) => InsertExecutor {
-                table_ref_id: plan.table_ref_id,
-                column_ids: plan.column_ids.clone(),
+                table_ref_id: plan.logical().table_ref_id(),
+                column_ids: plan.logical().column_ids().to_vec(),
                 storage: storage.clone(),
-                child: self.executor.take().unwrap(),
+                child: self.visit(plan.child()).unwrap(),
             }
             .execute(),
             StorageImpl::SecondaryStorage(storage) => InsertExecutor {
-                table_ref_id: plan.table_ref_id,
-                column_ids: plan.column_ids.clone(),
+                table_ref_id: plan.logical().table_ref_id(),
+                column_ids: plan.logical().column_ids().to_vec(),
                 storage: storage.clone(),
-                child: self.executor.take().unwrap(),
+                child: self.visit(plan.child()).unwrap(),
             }
             .execute(),
-        });
+        })
     }
 
-    fn visit_physical_nested_loop_join_is_nested(&mut self) -> bool {
-        true
-    }
-    fn visit_physical_nested_loop_join(&mut self, plan: &PhysicalNestedLoopJoin) {
-        let left_types = plan.left_plan.out_types();
-        plan.left_plan.accept(self);
-        let left_child = self.executor.take().unwrap();
-        let right_types = plan.right_plan.out_types();
-        plan.right_plan.accept(self);
-        let right_child = self.executor.take().unwrap();
-        self.executor = Some(
+    fn visit_physical_nested_loop_join(
+        &mut self,
+        plan: &PhysicalNestedLoopJoin,
+    ) -> Option<BoxedExecutor> {
+        let left_types = plan.left().out_types();
+        let left_child = self.visit(plan.left()).unwrap();
+        let right_types = plan.right().out_types();
+        let right_child = self.visit(plan.right()).unwrap();
+        Some(
             NestedLoopJoinExecutor {
                 left_child,
                 right_child,
-                join_op: plan.join_op,
-                condition: plan.condition.clone(),
+                join_op: plan.logical().join_op(),
+                condition: plan.logical().condition().clone(),
                 left_types,
                 right_types,
             }
             .execute(),
-        );
+        )
     }
 
-    fn visit_physical_table_scan(&mut self, plan: &PhysicalTableScan) {
-        self.executor = Some(match &self.env.storage {
+    fn visit_physical_table_scan(&mut self, plan: &PhysicalTableScan) -> Option<BoxedExecutor> {
+        Some(match &self.env.storage {
             StorageImpl::InMemoryStorage(storage) => TableScanExecutor {
                 plan: plan.clone(),
                 expr: None,
@@ -210,163 +200,150 @@ impl Visitor for ExecutorBuilder {
             .execute(),
             StorageImpl::SecondaryStorage(storage) => TableScanExecutor {
                 plan: plan.clone(),
-                expr: plan.expr.clone(),
+                expr: plan.logical().expr().cloned(),
                 storage: storage.clone(),
             }
             .execute(),
-        });
+        })
     }
 
-    fn visit_physical_projection(&mut self, plan: &PhysicalProjection) {
-        self.executor = Some(
+    fn visit_physical_projection(&mut self, plan: &PhysicalProjection) -> Option<BoxedExecutor> {
+        Some(
             ProjectionExecutor {
-                project_expressions: plan.project_expressions.clone(),
-                child: self.executor.take().unwrap(),
+                project_expressions: plan.logical().project_expressions().to_vec(),
+                child: self.visit(plan.child()).unwrap(),
             }
             .execute(),
-        );
+        )
     }
 
-    fn visit_physical_filter(&mut self, plan: &PhysicalFilter) {
-        self.executor = Some(
+    fn visit_physical_filter(&mut self, plan: &PhysicalFilter) -> Option<BoxedExecutor> {
+        Some(
             FilterExecutor {
-                expr: plan.expr.clone(),
-                child: self.executor.take().unwrap(),
+                expr: plan.logical().expr().clone(),
+                child: self.visit(plan.child()).unwrap(),
             }
             .execute(),
-        );
+        )
     }
 
-    fn visit_physical_order(&mut self, plan: &PhysicalOrder) {
-        self.executor = Some(
+    fn visit_physical_order(&mut self, plan: &PhysicalOrder) -> Option<BoxedExecutor> {
+        Some(
             OrderExecutor {
-                comparators: plan.comparators.clone(),
-                child: self.executor.take().unwrap(),
+                comparators: plan.logical().comparators().to_vec(),
+                child: self.visit(plan.child()).unwrap(),
             }
             .execute(),
-        );
+        )
     }
 
-    fn visit_physical_limit(&mut self, plan: &PhysicalLimit) {
-        self.executor = Some(
+    fn visit_physical_limit(&mut self, plan: &PhysicalLimit) -> Option<BoxedExecutor> {
+        Some(
             LimitExecutor {
-                child: self.executor.take().unwrap(),
-                offset: plan.offset,
-                limit: plan.limit,
+                child: self.visit(plan.child()).unwrap(),
+                offset: plan.logical().offset(),
+                limit: plan.logical().limit(),
             }
             .execute(),
-        );
+        )
     }
 
-    fn visit_physical_explain(&mut self, plan: &PhysicalExplain) {
-        self.executor = Some(ExplainExecutor { plan: plan.clone() }.execute());
+    fn visit_physical_explain(&mut self, plan: &PhysicalExplain) -> Option<BoxedExecutor> {
+        Some(ExplainExecutor { plan: plan.clone() }.execute())
     }
 
-    fn visit_physical_hash_agg(&mut self, plan: &PhysicalHashAgg) {
-        self.executor = Some(
+    fn visit_physical_hash_agg(&mut self, plan: &PhysicalHashAgg) -> Option<BoxedExecutor> {
+        Some(
             HashAggExecutor {
-                agg_calls: plan.agg_calls.clone(),
-                group_keys: plan.group_keys.clone(),
-                child: self.executor.take().unwrap(),
+                agg_calls: plan.logical().agg_calls().to_vec(),
+                group_keys: plan.logical().group_keys().to_vec(),
+                child: self.visit(plan.child()).unwrap(),
             }
             .execute(),
-        );
+        )
     }
 
-    fn visit_physical_hash_join_is_nested(&mut self) -> bool {
-        true
-    }
-
-    fn visit_physical_hash_join(&mut self, plan: &PhysicalHashJoin) {
-        plan.left_plan.accept(self);
-        let left_child = self.executor.take().unwrap();
-        plan.right_plan.accept(self);
-        let right_child = self.executor.take().unwrap();
-        self.executor = Some(
+    fn visit_physical_hash_join(&mut self, plan: &PhysicalHashJoin) -> Option<BoxedExecutor> {
+        let left_child = self.visit(plan.left()).unwrap();
+        let right_child = self.visit(plan.right()).unwrap();
+        Some(
             HashJoinExecutor {
                 left_child,
                 right_child,
-                join_op: plan.join_op,
-                condition: plan.condition.clone(),
-                left_column_index: plan.left_column_index,
-                right_column_index: plan.right_column_index,
+                join_op: plan.logical().join_op(),
+                condition: plan.logical().condition().clone(),
+                left_column_index: plan.left_column_index(),
+                right_column_index: plan.right_column_index(),
                 data_types: plan.out_types(),
             }
             .execute(),
-        );
+        )
     }
 
-    fn visit_physical_simple_agg(&mut self, plan: &PhysicalSimpleAgg) {
-        self.executor = Some(
+    fn visit_physical_simple_agg(&mut self, plan: &PhysicalSimpleAgg) -> Option<BoxedExecutor> {
+        Some(
             SimpleAggExecutor {
-                agg_calls: plan.agg_calls.clone(),
-                child: self.executor.take().unwrap(),
+                agg_calls: plan.agg_calls().to_vec(),
+                child: self.visit(plan.child()).unwrap(),
             }
             .execute(),
-        );
+        )
     }
 
-    fn visit_physical_delete(&mut self, plan: &PhysicalDelete) {
-        self.executor = Some(match &self.env.storage {
+    fn visit_physical_delete(&mut self, plan: &PhysicalDelete) -> Option<BoxedExecutor> {
+        let child = self.visit(plan.child()).unwrap();
+        Some(match &self.env.storage {
             StorageImpl::InMemoryStorage(storage) => DeleteExecutor {
-                child: self.executor.take().unwrap(),
-                table_ref_id: plan.table_ref_id,
+                child,
+                table_ref_id: plan.logical().table_ref_id(),
                 storage: storage.clone(),
             }
             .execute(),
             StorageImpl::SecondaryStorage(storage) => DeleteExecutor {
-                child: self.executor.take().unwrap(),
-                table_ref_id: plan.table_ref_id,
+                child,
+                table_ref_id: plan.logical().table_ref_id(),
                 storage: storage.clone(),
             }
             .execute(),
-        });
+        })
     }
 
-    fn visit_physical_values(&mut self, plan: &PhysicalValues) {
-        self.executor = Some(
+    fn visit_physical_values(&mut self, plan: &PhysicalValues) -> Option<BoxedExecutor> {
+        Some(
             ValuesExecutor {
-                column_types: plan.column_types.clone(),
-                values: plan.values.clone(),
+                column_types: plan.logical().column_types().to_vec(),
+                values: plan.logical().values().to_vec(),
             }
             .execute(),
-        );
+        )
     }
 
-    fn visit_physical_copy_from_file(&mut self, plan: &PhysicalCopyFromFile) {
-        self.executor = Some(CopyFromFileExecutor { plan: plan.clone() }.execute());
+    fn visit_physical_copy_from_file(
+        &mut self,
+        plan: &PhysicalCopyFromFile,
+    ) -> Option<BoxedExecutor> {
+        Some(CopyFromFileExecutor { plan: plan.clone() }.execute())
     }
 
-    fn visit_physical_copy_to_file(&mut self, plan: &PhysicalCopyToFile) {
-        self.executor = Some(
+    fn visit_physical_copy_to_file(&mut self, plan: &PhysicalCopyToFile) -> Option<BoxedExecutor> {
+        Some(
             CopyToFileExecutor {
-                child: self.executor.take().unwrap(),
-                path: plan.path.clone(),
-                format: plan.format.clone(),
+                child: self.visit(plan.child()).unwrap(),
+                path: plan.logical().path().clone(),
+                format: plan.logical().format().clone(),
             }
             .execute(),
-        );
+        )
     }
 }
 
 impl ExecutorBuilder {
     /// Create a new executor builder.
     pub fn new(env: GlobalEnvRef) -> ExecutorBuilder {
-        ExecutorBuilder {
-            env,
-            executor: None,
-        }
-    }
-
-    pub fn clone_and_reset(&self) -> Self {
-        Self {
-            env: self.env.clone(),
-            executor: None,
-        }
+        ExecutorBuilder { env }
     }
 
     pub fn build(&mut self, plan: PlanRef) -> BoxedExecutor {
-        plan.accept(self);
-        self.executor.take().unwrap()
+        self.visit(plan).unwrap()
     }
 }

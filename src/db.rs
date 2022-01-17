@@ -8,7 +8,7 @@ use crate::binder::{BindError, Binder};
 use crate::catalog::RootCatalogRef;
 use crate::executor::{ExecutorBuilder, ExecutorError, GlobalEnv};
 use crate::logical_planner::{LogicalPlanError, LogicalPlaner};
-use crate::optimizer::logical_plan_rewriter::InputRefResolver;
+use crate::optimizer::logical_plan_rewriter::{InputRefResolver, PlanRewriter};
 use crate::optimizer::Optimizer;
 use crate::parser::{parse, ParserError};
 use crate::storage::{
@@ -169,15 +169,14 @@ impl Database {
             let stmt = binder.bind(&stmt)?;
             debug!("{:#?}", stmt);
             let logical_plan = logical_planner.plan(stmt)?;
+            debug!("{:#?}", logical_plan);
             // Resolve input reference
-            let logical_plan = logical_plan.rewrite(&mut InputRefResolver::default());
+            let mut input_ref_resolver = InputRefResolver::default();
+            let logical_plan = input_ref_resolver.rewrite(logical_plan);
             debug!("{:#?}", logical_plan);
             let optimized_plan = optimizer.optimize(logical_plan);
             debug!("{:#?}", optimized_plan);
-            let executor = self
-                .executor_builder
-                .clone_and_reset()
-                .build(optimized_plan);
+            let executor = self.executor_builder.clone().build(optimized_plan);
             let output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
                 debug!("error: {}", e);
                 e

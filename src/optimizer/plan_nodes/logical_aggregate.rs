@@ -2,14 +2,15 @@ use std::fmt;
 
 use super::*;
 use crate::binder::{BoundAggCall, BoundExpr};
+use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 
 /// The logical plan of hash aggregate operation.
 #[derive(Debug, Clone)]
 pub struct LogicalAggregate {
-    pub agg_calls: Vec<BoundAggCall>,
+    agg_calls: Vec<BoundAggCall>,
     /// Group keys in hash aggregation (optional)
-    pub group_keys: Vec<BoundExpr>,
-    pub child: PlanRef,
+    group_keys: Vec<BoundExpr>,
+    child: PlanRef,
     data_types: Vec<DataType>,
 }
 
@@ -31,20 +32,48 @@ impl LogicalAggregate {
             data_types,
         }
     }
-}
 
-impl_plan_tree_node!(LogicalAggregate, [child]);
-impl PlanNode for LogicalAggregate {
-    fn rewrite_expr(&mut self, rewriter: &mut dyn Rewriter) {
-        for agg in &mut self.agg_calls {
+    /// Get a reference to the logical aggregate's agg calls.
+    pub fn agg_calls(&self) -> &[BoundAggCall] {
+        self.agg_calls.as_ref()
+    }
+
+    /// Get a reference to the logical aggregate's group keys.
+    pub fn group_keys(&self) -> &[BoundExpr] {
+        self.group_keys.as_ref()
+    }
+
+    pub fn clone_with_rewrite_expr(
+        &self,
+        new_child: PlanRef,
+        rewriter: &impl ExprRewriter,
+    ) -> Self {
+        let mut new_agg_calls = self.agg_calls().to_vec();
+        let mut new_keys = self.group_keys().to_vec();
+        for agg in &mut new_agg_calls {
             for arg in &mut agg.args {
                 rewriter.rewrite_expr(arg);
             }
         }
-        for keys in &mut self.group_keys {
+        for keys in &mut new_keys {
             rewriter.rewrite_expr(keys);
         }
+
+        LogicalAggregate::new(new_agg_calls, new_keys, new_child)
     }
+}
+
+impl PlanTreeNodeUnary for LogicalAggregate {
+    fn child(&self) -> PlanRef {
+        self.child.clone()
+    }
+    #[must_use]
+    fn clone_with_child(&self, child: PlanRef) -> Self {
+        Self::new(self.agg_calls().to_vec(), self.group_keys().to_vec(), child)
+    }
+}
+impl_plan_tree_node_for_unary!(LogicalAggregate);
+impl PlanNode for LogicalAggregate {
     fn out_types(&self) -> Vec<DataType> {
         self.data_types.clone()
     }

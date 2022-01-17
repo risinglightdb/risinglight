@@ -6,11 +6,33 @@ use crate::catalog::TableRefId;
 /// The logical plan of `DELETE`.
 #[derive(Debug, Clone)]
 pub struct LogicalDelete {
-    pub table_ref_id: TableRefId,
-    pub child: PlanRef,
+    table_ref_id: TableRefId,
+    child: PlanRef,
 }
 
-impl_plan_tree_node!(LogicalDelete, [child]);
+impl LogicalDelete {
+    pub fn new(table_ref_id: TableRefId, child: PlanRef) -> Self {
+        Self {
+            table_ref_id,
+            child,
+        }
+    }
+
+    /// Get a reference to the logical delete's table ref id.
+    pub fn table_ref_id(&self) -> TableRefId {
+        self.table_ref_id
+    }
+}
+impl PlanTreeNodeUnary for LogicalDelete {
+    fn child(&self) -> PlanRef {
+        self.child.clone()
+    }
+
+    fn clone_with_child(&self, child: PlanRef) -> Self {
+        Self::new(self.table_ref_id(), child)
+    }
+}
+impl_plan_tree_node_for_unary!(LogicalDelete);
 impl PlanNode for LogicalDelete {}
 
 impl fmt::Display for LogicalDelete {

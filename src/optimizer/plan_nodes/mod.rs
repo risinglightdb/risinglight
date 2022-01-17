@@ -5,21 +5,18 @@ use std::rc::Rc;
 
 use downcast_rs::{impl_downcast, Downcast};
 use paste::paste;
-use smallvec::SmallVec;
 
 use crate::binder::BoundExpr;
 use crate::types::DataType;
+#[macro_use]
+mod plan_tree_node;
+pub use plan_tree_node::*;
 /// The common trait over all plan nodes.
-pub trait PlanNode: PlanTreeNode + Debug + Display + Downcast {
-    /// Call [`rewrite_expr`] on each expressions of the plan.
-    ///
-    /// [`rewrite_expr`]: Rewriter::rewrite_expr
-    fn rewrite_expr(&mut self, _rewriter: &mut dyn Rewriter) {}
+pub trait PlanNode: WithPlanNodeType + PlanTreeNode + Debug + Display + Downcast {
     fn out_types(&self) -> Vec<DataType> {
         vec![]
     }
 }
-
 impl_downcast!(PlanNode);
 
 /// The type of reference to a plan node.$
@@ -34,63 +31,6 @@ impl dyn PlanNode {
         }
         Ok(())
     }
-}
-
-pub trait PlanTreeNode {
-    /// Get child nodes of the plan.
-    fn children(&self) -> SmallVec<[PlanRef; 2]>;
-
-    /// Clone the node with a list of new children.
-    fn clone_with_children(&self, children: &[PlanRef]) -> PlanRef;
-
-    /// Walk through the plan tree recursively.
-    fn accept(&self, visitor: &mut dyn Visitor);
-
-    /// Rewrite the plan tree recursively.
-    fn rewrite(&self, rewriter: &mut dyn Rewriter) -> PlanRef;
-}
-
-/// Implement `PlanNode` trait for a plan node structure.
-macro_rules! impl_plan_tree_node {
-    ($type:ident) => {
-        impl_plan_tree_node!($type,[]);
-    };
-    ($type:ident, [$($child:ident),*] $($fn:tt)*) => {
-        impl PlanTreeNode for $type {
-            fn children(&self) -> SmallVec<[PlanRef; 2]> {
-                smallvec::smallvec![$(self.$child.clone()),*]
-            }
-            #[allow(unused_mut)]
-            fn clone_with_children(&self, children: &[PlanRef]) -> PlanRef {
-                let mut iter = children.iter();
-                let mut new = self.clone();
-                $(
-                    new.$child = iter.next().expect("invalid children number").clone();
-                )*
-                assert!(iter.next().is_none(), "invalid children number");
-                Rc::new(new)
-            }
-            fn accept(&self, visitor: &mut dyn Visitor) {
-                if paste! { !visitor.[<visit_ $type:snake _is_nested>]() } {
-                    $(
-                        self.$child.accept(visitor);
-                    )*
-                }
-                paste! { visitor.[<visit_ $type:snake>](self); }
-            }
-            fn rewrite(&self, rewriter: &mut dyn Rewriter) -> PlanRef {
-                let mut new = self.clone();
-                if paste! { !rewriter.[<rewrite_ $type:snake _is_nested>]() } {
-                    $(
-                        new.$child = self.$child.rewrite(rewriter);
-                    )*
-                    new.rewrite_expr(rewriter);
-                }
-                paste! { rewriter.[<rewrite_ $type:snake>](new) }
-            }
-            $($fn)*
-        }
-    };
 }
 
 /// All Plan nodes
@@ -156,55 +96,21 @@ macro_rules! def_mod_and_use {
 }
 for_all_plan_nodes! { def_mod_and_use }
 
-/// Define `Visitor` trait.
-macro_rules! def_visitor {
-    ([], $($node_name:ty),*) => {
-        /// The visitor for plan nodes.
-        ///
-        /// Call `plan.walk(&mut visitor)` to walk through the plan tree.
-        pub trait Visitor {
-            $(paste! {
-                #[doc = "Whether the `" [<rewrite_ $node_name:snake>] "` function is nested."]
-                ///
-                /// If returns `false`, this function will be called after rewriting its children.
-                /// If returns `true`, this function should rewrite children by itself.
-                fn [<visit_ $node_name:snake _is_nested>](&mut self) -> bool {
-                    false
-                }
-                #[doc = "Visit [`" $node_name "`] itself (is_nested = false) or nested nodes (is_nested = true)."]
-                ///
-                /// The default implementation is empty.
-                fn [<visit_ $node_name:snake>](&mut self, _plan: &$node_name) {}
-            })*
-        }
-    }
+pub trait WithPlanNodeType {
+    fn node_type(&self) -> PlanNodeType;
 }
-for_all_plan_nodes! { def_visitor }
+macro_rules! enum_plan_node_type {
+    ([], $($node_name:ident),*) => {
+        /// each enum value represent a PlanNode struct type, help us to dispatch and downcast
+        pub enum PlanNodeType{
+            $( $node_name ),*
+        }
 
-/// Define `Rewriter` trait.
-macro_rules! def_rewriter {
-    ([], $($node_name:ty),*) => {
-        /// Rewrites a plan tree into another.
-        ///
-        /// Call `plan.rewrite(&mut rewriter)` to rewrite the plan tree.
-        pub trait Rewriter {
-            fn rewrite_expr(&mut self, _expr: &mut BoundExpr) {}
-            $(paste! {
-                #[doc = "Whether the `" [<rewrite_ $node_name:snake>] "` function is nested."]
-                ///
-                /// If returns `false`, this function will be called after rewriting its children.
-                /// If returns `true`, this function should rewrite children by itself.
-                fn [<rewrite_ $node_name:snake _is_nested>](&mut self) -> bool {
-                    false
-                }
-                #[doc = "Visit [`" $node_name "`] and return a new plan node."]
-                ///
-                /// The default implementation is to return `plan` directly.
-                fn [<rewrite_ $node_name:snake>](&mut self, plan: $node_name) -> PlanRef {
-                    Rc::new(plan)
-                }
-            })*
-        }
+        $(impl WithPlanNodeType for $node_name {
+            fn node_type(&self) -> PlanNodeType{
+                PlanNodeType::$node_name
+            }
+        })*
     }
 }
-for_all_plan_nodes! { def_rewriter }
+for_all_plan_nodes! {enum_plan_node_type }

@@ -8,15 +8,66 @@ use crate::types::ColumnId;
 /// The logical plan of sequential scan operation.
 #[derive(Debug, Clone)]
 pub struct LogicalTableScan {
-    pub table_ref_id: TableRefId,
-    pub column_ids: Vec<ColumnId>,
-    pub column_descs: Vec<ColumnDesc>,
-    pub with_row_handler: bool,
-    pub is_sorted: bool,
-    pub expr: Option<BoundExpr>,
+    table_ref_id: TableRefId,
+    column_ids: Vec<ColumnId>,
+    column_descs: Vec<ColumnDesc>,
+    with_row_handler: bool,
+    is_sorted: bool,
+    expr: Option<BoundExpr>,
 }
 
-impl_plan_tree_node!(LogicalTableScan);
+impl LogicalTableScan {
+    pub fn new(
+        table_ref_id: TableRefId,
+        column_ids: Vec<ColumnId>,
+        column_descs: Vec<ColumnDesc>,
+        with_row_handler: bool,
+        is_sorted: bool,
+        expr: Option<BoundExpr>,
+    ) -> Self {
+        Self {
+            table_ref_id,
+            column_ids,
+            column_descs,
+            with_row_handler,
+            is_sorted,
+            expr,
+        }
+    }
+
+    /// Get a reference to the logical table scan's table ref id.
+    pub fn table_ref_id(&self) -> TableRefId {
+        self.table_ref_id
+    }
+
+    /// Get a reference to the logical table scan's column ids.
+    pub fn column_ids(&self) -> &[u32] {
+        self.column_ids.as_ref()
+    }
+
+    /// Get a reference to the logical table scan's column descs.
+    pub fn column_descs(&self) -> &[ColumnDesc] {
+        self.column_descs.as_ref()
+    }
+
+    /// Get a reference to the logical table scan's with row handler.
+    pub fn with_row_handler(&self) -> bool {
+        self.with_row_handler
+    }
+
+    /// Get a reference to the logical table scan's is sorted.
+    pub fn is_sorted(&self) -> bool {
+        self.is_sorted
+    }
+
+    /// Get a reference to the logical table scan's expr.
+    pub fn expr(&self) -> Option<&BoundExpr> {
+        self.expr.as_ref()
+    }
+}
+impl PlanTreeNodeLeaf for LogicalTableScan {}
+impl_plan_tree_node_for_leaf!(LogicalTableScan);
+
 impl PlanNode for LogicalTableScan {
     fn out_types(&self) -> Vec<DataType> {
         return self

@@ -22,26 +22,28 @@ impl<S: Storage> TableScanExecutor<S> {
         let columns = table.columns()?;
         let mut col_idx = self
             .plan
-            .column_ids
+            .logical()
+            .column_ids()
             .iter()
             .map(|x| StorageColumnRef::Idx(*x))
             .collect_vec();
 
         // Add an extra column for RowHandler at the end
-        if self.plan.with_row_handler {
+        if self.plan.logical().with_row_handler() {
             col_idx.push(StorageColumnRef::RowHandler);
         }
 
         // Get n array builders
         let mut builders = self
             .plan
-            .column_ids
+            .logical()
+            .column_ids()
             .iter()
             .map(|&id| columns.iter().find(|col| col.id() == id).unwrap())
             .map(|col| ArrayBuilderImpl::new(&col.datatype()))
             .collect::<Vec<ArrayBuilderImpl>>();
 
-        if self.plan.with_row_handler {
+        if self.plan.logical().with_row_handler() {
             builders.push(ArrayBuilderImpl::Int64(I64ArrayBuilder::new()));
         }
 
@@ -55,7 +57,7 @@ impl<S: Storage> TableScanExecutor<S> {
 
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
-        let table = self.storage.get_table(self.plan.table_ref_id)?;
+        let table = self.storage.get_table(self.plan.logical().table_ref_id())?;
 
         // TODO: remove this when we have schema
         let empty_chunk = self.build_empty_chunk(&table)?;
@@ -63,20 +65,28 @@ impl<S: Storage> TableScanExecutor<S> {
 
         let mut col_idx = self
             .plan
-            .column_ids
+            .logical()
+            .column_ids()
             .iter()
             .map(|x| StorageColumnRef::Idx(*x))
             .collect_vec();
 
         // Add an extra column for RowHandler at the end
-        if self.plan.with_row_handler {
+        if self.plan.logical().with_row_handler() {
             col_idx.push(StorageColumnRef::RowHandler);
         }
 
         let txn = table.read().await?;
 
         let mut it = txn
-            .scan(None, None, &col_idx, self.plan.is_sorted, false, self.expr)
+            .scan(
+                None,
+                None,
+                &col_idx,
+                self.plan.logical().is_sorted(),
+                false,
+                self.expr,
+            )
             .await?;
 
         loop {
