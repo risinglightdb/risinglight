@@ -83,13 +83,7 @@ impl RowSetIterator {
             None
         };
 
-        Ok(Self {
-            rowset,
-            column_iterators,
-            dvs,
-            column_refs,
-            filter_expr,
-        })
+        Ok(Self { rowset, column_refs, dvs, column_iterators, filter_expr })
     }
 
     pub async fn next_batch_inner_with_filter(

@@ -11,7 +11,7 @@
 //!
 //! Things not supported for now:
 //! * deletion
-//! * sort_key based scan
+//! * sort-key based scan
 //! * reverse scan
 //! * `RowHandler` scan
 

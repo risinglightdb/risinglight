@@ -29,7 +29,7 @@ impl FromIterator<ArrayImpl> for DataChunk {
 }
 
 impl DataChunk {
-    /// Return a DataChunk with 1 element in 1 array.
+    /// Return a [`DataChunk`] with 1 element in 1 array.
     pub fn single(item: i32) -> Self {
         DataChunk {
             arrays: [ArrayImpl::Int32([item].into_iter().collect())]
@@ -79,7 +79,7 @@ impl DataChunk {
         DataChunk { arrays }
     }
 
-    /// Get the estimated in-memory size of this DataChunk
+    /// Get the estimated in-memory size.
     pub fn estimated_size(&self) -> usize {
         self.arrays.iter().map(|a| a.get_estimated_size()).sum()
     }

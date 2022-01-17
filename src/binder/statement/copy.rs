@@ -54,7 +54,7 @@ impl Binder {
 }
 
 impl FileFormat {
-    /// Create FileFormat from copy options.
+    /// Create from copy options.
     pub fn from_options(options: &[CopyOption]) -> Self {
         let mut delimiter = ',';
         let mut quote = '"';

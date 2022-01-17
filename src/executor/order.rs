@@ -38,7 +38,7 @@ impl OrderExecutor {
     }
 }
 
-/// Reference to a row in DataChunk.
+/// Reference to a row in [`DataChunk`].
 struct RowRef<'a> {
     chunk: &'a DataChunk,
     row_idx: usize,

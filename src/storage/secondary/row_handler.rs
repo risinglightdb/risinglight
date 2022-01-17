@@ -1,7 +1,7 @@
 use crate::array::{Array, ArrayImpl};
 use crate::storage::RowHandler;
 
-/// RowHandler of Secondary is a tuple of rowset id and row id.
+/// [`RowHandler`] of Secondary is a tuple of rowset id and row id.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct SecondaryRowHandler(pub u32, pub u32);
 
