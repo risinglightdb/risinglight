@@ -31,34 +31,40 @@ impl PlanRewriter for PhysicalConverter {
     fn rewrite_logical_join(&mut self, logical_join: &LogicalJoin) -> PlanRef {
         // Hash join is only used for equal join.
         // So far, we only support hash join when doing inner join.
-        let left_column_size = logical_join.left().out_types().len();
-        let mut left_column_index = 0;
-        let mut right_column_index = 0;
-        let mut use_hash_join = false;
-
-        if logical_join.join_op() == BoundJoinOperator::Inner {
-            if let BinaryOp(op) = logical_join.condition() {
-                if let (BinaryOperator::Eq, InputRef(refx), InputRef(refy)) =
-                    (&op.op, &*op.left_expr, &*op.right_expr)
-                {
-                    if refx.index < left_column_size && refy.index >= left_column_size {
-                        left_column_index = refx.index;
-                        right_column_index = refy.index - left_column_size;
-                        use_hash_join = true;
-                    } else if refy.index < left_column_size && refx.index >= left_column_size {
-                        left_column_index = refy.index;
-                        right_column_index = refx.index - left_column_size;
-                        use_hash_join = true;
+        fn find_hash_join_index(expr: &BoundExpr, mid: usize) -> Option<(usize, usize)> {
+            match expr {
+                BinaryOp(op) => match (&op.op, &*op.left_expr, &*op.right_expr) {
+                    (BinaryOperator::Eq, InputRef(x), InputRef(y)) => {
+                        let i1 = x.index.min(y.index);
+                        let i2 = x.index.max(y.index);
+                        if i1 < mid && i2 >= mid {
+                            return Some((i1, i2 - mid));
+                        }
+                        None
                     }
-                }
+                    (BinaryOperator::And, left, right) => {
+                        if let ret @ Some(_) = find_hash_join_index(left, mid) {
+                            return ret;
+                        }
+                        find_hash_join_index(right, mid)
+                    }
+                    _ => None,
+                },
+                _ => None,
             }
         }
+        let hash_join_index = if logical_join.join_op() == BoundJoinOperator::Inner {
+            let mid = logical_join.left().out_types().len();
+            find_hash_join_index(logical_join.condition(), mid)
+        } else {
+            None
+        };
+
         let left = self.rewrite(logical_join.left());
         let right = self.rewrite(logical_join.right());
-
         let logical_join = logical_join.clone_with_left_right(left, right);
 
-        if use_hash_join {
+        if let Some((left_column_index, right_column_index)) = hash_join_index {
             return Rc::new(PhysicalHashJoin::new(
                 logical_join,
                 left_column_index,
