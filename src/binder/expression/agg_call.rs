@@ -1,6 +1,6 @@
 use super::*;
 use crate::binder::{BindError, Binder, BoundExpr};
-use crate::parser::{BinaryOperator, FunctionArg};
+use crate::parser::{BinaryOperator, FunctionArg, FunctionArgExpr};
 use crate::types::{DataType, DataTypeKind};
 
 /// Aggregation kind
@@ -38,13 +38,13 @@ impl Binder {
         // TODO: Support scalar function
         let mut args = Vec::new();
         for arg in &func.args {
-            match &arg {
-                FunctionArg::Named { arg, .. } => args.push(self.bind_expr(arg)?),
-                FunctionArg::Unnamed(arg) => {
-                    if !matches!(arg, Expr::Wildcard) {
-                        args.push(self.bind_expr(arg)?)
-                    }
-                }
+            let arg = match &arg {
+                FunctionArg::Named { arg, .. } => arg,
+                FunctionArg::Unnamed(arg) => arg,
+            };
+            match arg {
+                FunctionArgExpr::Expr(expr) => args.push(self.bind_expr(expr)?),
+                _ => todo!(),
             }
         }
         let (kind, return_type) = match func.name.to_string().to_lowercase().as_str() {
