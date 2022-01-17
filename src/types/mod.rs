@@ -146,7 +146,7 @@ impl Eq for DataValue {}
 impl Hash for DataValue {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            Self::Null => ().hash(state),
+            Self::Null => 0.hash(state),
             Self::Bool(b) => b.hash(state),
             Self::Int32(i) => i.hash(state),
             Self::Int64(i) => i.hash(state),
