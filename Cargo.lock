@@ -1559,7 +1559,6 @@ dependencies = [
  "paste",
  "prettytable-rs",
  "prost",
- "prost-types",
  "risinglight_proto",
  "rust_decimal",
  "rustyline",
