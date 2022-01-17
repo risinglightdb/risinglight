@@ -26,13 +26,7 @@ impl LogicalJoin {
     ) -> Self {
         let mut data_types = left_plan.out_types();
         data_types.append(&mut right_plan.out_types());
-        LogicalJoin {
-            left_plan,
-            right_plan,
-            join_op,
-            data_types,
-            condition,
-        }
+        LogicalJoin { left_plan, right_plan, join_op, condition, data_types }
     }
 
     /// Get a reference to the logical join's join op.

@@ -1,7 +1,10 @@
 //! RisingLight -- an educational OLAP database.
 
-#![deny(clippy::explicit_into_iter_loop)]
-#![deny(clippy::explicit_iter_loop)]
+#![warn(clippy::doc_markdown)]
+#![warn(clippy::explicit_into_iter_loop)]
+#![warn(clippy::explicit_iter_loop)]
+#![warn(clippy::inconsistent_struct_constructor)]
+#![warn(clippy::map_flatten)]
 #![deny(unused_must_use)]
 #![feature(portable_simd)]
 #![feature(generators)]

@@ -169,7 +169,7 @@ impl MergeIterator {
         self.pending_heap.len()
     }
 
-    /// Fill the chunk_buffer with data from `iter_idx` iterator. If successful, return `true`.
+    /// Fill the `chunk_buffer` with data from `iter_idx` iterator. If successful, return `true`.
     async fn request_fill_buffer(
         &mut self,
         iter_idx: usize,

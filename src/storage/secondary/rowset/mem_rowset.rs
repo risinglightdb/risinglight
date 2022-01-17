@@ -31,7 +31,7 @@ pub trait MemTable {
     /// add data to memory table
     fn append(&mut self, columns: DataChunk) -> StorageResult<()>;
 
-    /// flush data to DataChunk
+    /// flush data to [`DataChunk`]
     fn flush(self) -> StorageResult<DataChunk>;
 }
 
@@ -62,7 +62,7 @@ impl MemTable for BTreeMapMemTable {
         Ok(())
     }
 
-    /// flush row-format data ordered by primary key to DataChunk
+    /// flush row-format data ordered by primary key to [`DataChunk`]
     fn flush(self) -> StorageResult<DataChunk> {
         let mut builders = self
             .columns

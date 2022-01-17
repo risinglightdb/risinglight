@@ -24,7 +24,8 @@ pub trait BlockIteratorFactory<A: Array>: Send + Sync + 'static {
         start_pos: usize,
     ) -> Self::BlockIteratorImpl;
 
-    /// Create a fake_block_iter from block index and seek to 'start_pos'.
+    /// Create a [`FakeBlockIterator`](super::super::block::FakeBlockIterator) from block index and
+    /// seek to `start_pos`.
     fn get_fake_iterator(&self, index: &BlockIndex, start_pos: usize) -> Self::BlockIteratorImpl;
 }
 
@@ -233,7 +234,7 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         (index.row_count - (self.current_row_id - index.first_rowid)) as usize
     }
 
-    /// Increment the current_block_id by 1 and check whether it exceeds max block id.
+    /// Increment the `current_block_id` by 1 and check whether it exceeds max block id.
     fn incre_block_id(&mut self) -> bool {
         let len = self.column.index().len() as u32;
         self.current_block_id += 1;

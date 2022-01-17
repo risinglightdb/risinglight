@@ -129,7 +129,7 @@ pub struct VersionManagerInner {
 ///
 /// The design choice of separating [`VersionManager`] out of the storage engine is a
 /// preparation for a distributed storage engine. In such distributed engine, there will
-/// generally be some kind of "MetadataManager" which does all of the things that our
+/// generally be some kind of `MetadataManager` which does all of the things that our
 /// [`VersionManager`] do.
 pub struct VersionManager {
     /// Inner structure of `VersionManager`. This structure is protected by a parking lot Mutex, so

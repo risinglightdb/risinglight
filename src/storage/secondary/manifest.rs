@@ -2,8 +2,8 @@
 //!
 //! Note that this storage format is not stable. The current manifest persistence
 //! depends on the stability of state machine of in-memory catalog. Any change in
-//! catalog implementation, e.g., TableId assignment, will break the manifest. We will
-//! later come up with a better manifest design.
+//! catalog implementation, e.g., [`TableId`](crate::types::TableId) assignment, will break the
+//! manifest. We will later come up with a better manifest design.
 
 use std::io::SeekFrom;
 use std::path::Path;

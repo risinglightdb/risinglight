@@ -1,0 +1,6 @@
+doc-valid-idents = [
+    "RisingLight",
+    "RowCount",
+    "RowSet",
+    "RowSets",
+]

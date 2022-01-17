@@ -85,9 +85,9 @@ impl RowSetIterator {
 
         Ok(Self {
             rowset,
-            column_iterators,
-            dvs,
             column_refs,
+            dvs,
+            column_iterators,
             filter_expr,
         })
     }
