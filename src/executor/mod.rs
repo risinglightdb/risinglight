@@ -96,9 +96,6 @@ pub enum ExecutorError {
     NotNullable,
 }
 
-/// Reference type of the global environment.
-pub type GlobalEnvRef = Arc<GlobalEnv>;
-
 /// A type-erased executor object.
 ///
 /// Logically an executor is a stream of data chunks.
@@ -106,25 +103,31 @@ pub type GlobalEnvRef = Arc<GlobalEnv>;
 /// It consumes one or more streams from its child executors,
 /// and produces a stream to its parent.
 pub type BoxedExecutor = BoxStream<'static, Result<DataChunk, ExecutorError>>;
-/// The global environment for task execution.
-/// The instance will be shared by every task.
-#[derive(Clone)]
-pub struct GlobalEnv {
-    pub storage: StorageImpl,
-}
 
 /// The builder of executor.
 #[derive(Clone)]
 pub struct ExecutorBuilder {
-    env: GlobalEnvRef,
+    storage: StorageImpl,
+}
+
+impl ExecutorBuilder {
+    /// Create a new executor builder.
+    pub fn new(storage: StorageImpl) -> ExecutorBuilder {
+        ExecutorBuilder { storage }
+    }
+
+    pub fn build(&mut self, plan: PlanRef) -> BoxedExecutor {
+        self.visit(plan).unwrap()
+    }
 }
 
 impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
     fn visit_dummy(&mut self, _plan: &Dummy) -> Option<BoxedExecutor> {
         Some(DummyScanExecutor.execute())
     }
+
     fn visit_physical_create_table(&mut self, plan: &PhysicalCreateTable) -> Option<BoxedExecutor> {
-        Some(match &self.env.storage {
+        Some(match &self.storage {
             StorageImpl::InMemoryStorage(storage) => CreateTableExecutor {
                 plan: plan.clone(),
                 storage: storage.clone(),
@@ -137,8 +140,9 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
             .execute(),
         })
     }
+
     fn visit_physical_drop(&mut self, plan: &PhysicalDrop) -> Option<BoxedExecutor> {
-        Some(match &self.env.storage {
+        Some(match &self.storage {
             StorageImpl::InMemoryStorage(storage) => DropExecutor {
                 plan: plan.clone(),
                 storage: storage.clone(),
@@ -153,7 +157,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
     }
 
     fn visit_physical_insert(&mut self, plan: &PhysicalInsert) -> Option<BoxedExecutor> {
-        Some(match &self.env.storage {
+        Some(match &self.storage {
             StorageImpl::InMemoryStorage(storage) => InsertExecutor {
                 table_ref_id: plan.logical().table_ref_id(),
                 column_ids: plan.logical().column_ids().to_vec(),
@@ -193,7 +197,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
     }
 
     fn visit_physical_table_scan(&mut self, plan: &PhysicalTableScan) -> Option<BoxedExecutor> {
-        Some(match &self.env.storage {
+        Some(match &self.storage {
             StorageImpl::InMemoryStorage(storage) => TableScanExecutor {
                 plan: plan.clone(),
                 expr: None,
@@ -294,7 +298,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
 
     fn visit_physical_delete(&mut self, plan: &PhysicalDelete) -> Option<BoxedExecutor> {
         let child = self.visit(plan.child()).unwrap();
-        Some(match &self.env.storage {
+        Some(match &self.storage {
             StorageImpl::InMemoryStorage(storage) => DeleteExecutor {
                 child,
                 table_ref_id: plan.logical().table_ref_id(),
@@ -336,16 +340,5 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
             }
             .execute(),
         )
-    }
-}
-
-impl ExecutorBuilder {
-    /// Create a new executor builder.
-    pub fn new(env: GlobalEnvRef) -> ExecutorBuilder {
-        ExecutorBuilder { env }
-    }
-
-    pub fn build(&mut self, plan: PlanRef) -> BoxedExecutor {
-        self.visit(plan).unwrap()
     }
 }
