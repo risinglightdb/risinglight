@@ -1797,8 +1797,8 @@ dependencies = [
 
 [[package]]
 name = "sqlparser"
-version = "0.11.1-alpha.0"
-source = "git+https://github.com/wangrunji0408/sqlparser-rs?rev=6e35a32#6e35a32adc57497d82c0cf3187b1e5cedd6d5b62"
+version = "0.13.1-alpha.0"
+source = "git+https://github.com/risinglightdb/sqlparser-rs?rev=edead1b#edead1bf3d758831de4423a781d4813385f15ff6"
 dependencies = [
  "log",
  "serde",
