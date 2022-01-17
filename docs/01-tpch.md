@@ -27,13 +27,13 @@ This command will generate the data we want, which contains a table called `LINE
 
 We should run RisingLight:
 
-```
+```shell
 cargo run --release
 ```
 
 and create a table for it in order to import the data and query on it:
 
-```
+```sql
 CREATE TABLE LINEITEM ( L_ORDERKEY    INTEGER NOT NULL,
                         L_PARTKEY     INTEGER NOT NULL,
                         L_SUPPKEY     INTEGER NOT NULL,
@@ -54,7 +54,7 @@ CREATE TABLE LINEITEM ( L_ORDERKEY    INTEGER NOT NULL,
 
 We use the copy command to import this data: 
 
-```
+```sql
 COPY LINEITEM FROM '<path to lineitem.tbl>' ( DELIMITER '|' );
 ```
 
