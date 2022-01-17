@@ -1,23 +1,23 @@
 statement ok
-COPY NATION FROM 'target/tpch-dbgen/tbl/nation.tbl' ( DELIMITER '|' );
+COPY NATION FROM 'tests/sql/tpch/tbl/nation.tbl' ( DELIMITER '|' );
 
 statement ok
-COPY REGION FROM 'target/tpch-dbgen/tbl/region.tbl' ( DELIMITER '|' );
+COPY REGION FROM 'tests/sql/tpch/tbl/region.tbl' ( DELIMITER '|' );
 
 statement ok
-COPY PART FROM 'target/tpch-dbgen/tbl/part.tbl' ( DELIMITER '|' );
+COPY PART FROM 'tests/sql/tpch/tbl/part.tbl' ( DELIMITER '|' );
 
 statement ok
-COPY SUPPLIER FROM 'target/tpch-dbgen/tbl/supplier.tbl' ( DELIMITER '|' );
+COPY SUPPLIER FROM 'tests/sql/tpch/tbl/supplier.tbl' ( DELIMITER '|' );
 
 statement ok
-COPY PARTSUPP FROM 'target/tpch-dbgen/tbl/partsupp.tbl' ( DELIMITER '|' );
+COPY PARTSUPP FROM 'tests/sql/tpch/tbl/partsupp.tbl' ( DELIMITER '|' );
 
 statement ok
-COPY CUSTOMER FROM 'target/tpch-dbgen/tbl/customer.tbl' ( DELIMITER '|' );
+COPY CUSTOMER FROM 'tests/sql/tpch/tbl/customer.tbl' ( DELIMITER '|' );
 
 statement ok
-COPY ORDERS FROM 'target/tpch-dbgen/tbl/orders.tbl' ( DELIMITER '|' );
+COPY ORDERS FROM 'tests/sql/tpch/tbl/orders.tbl' ( DELIMITER '|' );
 
 statement ok
-COPY LINEITEM FROM 'target/tpch-dbgen/tbl/lineitem.tbl' ( DELIMITER '|' );
+COPY LINEITEM FROM 'tests/sql/tpch/tbl/lineitem.tbl' ( DELIMITER '|' );

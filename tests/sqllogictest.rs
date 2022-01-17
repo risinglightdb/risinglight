@@ -23,7 +23,7 @@ use tokio::runtime::Runtime;
 #[test_case("delete.slt")]
 #[test_case("copy/csv.slt")]
 #[test_case("where.slt")]
-#[test_case("tpch/create.slt")]
+#[test_case("tpch/tpch.slt")]
 // #[test_case("select.slt")]
 // #[test_case("issue_347.slt")]
 fn test_mem(name: &str) {
@@ -51,6 +51,7 @@ fn test_mem(name: &str) {
 #[test_case("delete.slt")]
 #[test_case("copy/csv.slt")]
 #[test_case("where.slt")]
+#[test_case("tpch/tpch.slt")]
 // #[test_case("select.slt")]
 // #[test_case("issue_347.slt")]
 fn test_disk(name: &str) {
