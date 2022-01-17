@@ -61,10 +61,10 @@ After all the checks pass, your changes will likely be accepted.
 
 ## Sign DCO (Developer Certificate of Origin)
 
-Contributors will need to sign DCO in their commits.From (https://github.com/apps/dco)[GitHub App's DCO] page:
+Contributors will need to sign DCO in their commits. From [GitHub App's DCO](https://github.com/apps/dco) page:
 
 The Developer Certificate of Origin (DCO) is a lightweight way for contributors to certify that they wrote or otherwise
-have the right to submit the code they are contributing to the project. Here is the full text of the DCO, reformatted]
+have the right to submit the code they are contributing to the project. Here is the full text of the DCO, reformatted
 for readability:
 
 > By making a contribution to this project, I certify that:
@@ -86,7 +86,7 @@ Signed-off-by: Random J Developer <random@developer.example.org>
 The `git` command provides `-s` parameter to attach DCO to the commits.
 
 ```
-git commit -m "Commit Message" -s
+git commit -m "feat(scpoe): commit messages" -s
 ```
 
 ## Send Pull Requests
