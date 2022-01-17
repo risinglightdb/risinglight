@@ -23,13 +23,13 @@ select 3>4
 ----
 false
 
-# FIXME: pass the following tests
-halt
-
 query T
 select DATE '2001-02-16'
 ----
-2001-02-16 00:00:00 +0000 +0000
+2001-02-16
+
+# FIXME: pass the following tests
+halt
 
 query T
 select timestamp '1999-01-08 01:00:00'
