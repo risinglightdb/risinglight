@@ -13,7 +13,7 @@ git clone https://github.com/databricks/tpch-dbgen.git
 
 This repo contains the program for generating TPC-H data. 
 
-Then, enter the tpch-dbgen directory and type `make all`, and it will generate some executable binaries such as `dbgen` and `qgen`.  We will show you how to generate TPC-H data by using one line of command in the following sections. Meanwhile you can read this [README](https://github.com/databricks/tpch-dbgen/blob/master/README) for more details.
+Then, enter the tpch-dbgen directory and type `make all`, and it will generate some executable binaries such as `dbgen` and `qgen`. We will show you how to generate TPC-H data by using one line of command in the following sections. Meanwhile you can read this [README](https://github.com/databricks/tpch-dbgen/blob/master/README) for more details.
 
 Finally, type the following command and wait for several seconds:
 
