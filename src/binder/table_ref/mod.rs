@@ -114,7 +114,7 @@ impl Binder {
         table_name: &str,
     ) -> Result<BoundTableRef, BindError> {
         if self.context.regular_tables.contains_key(table_name) {
-            return Err(BindError::DuplicatedTableName(table_name.into()));
+            return Err(BindError::DuplicatedTable(table_name.into()));
         }
 
         let ref_id = self
