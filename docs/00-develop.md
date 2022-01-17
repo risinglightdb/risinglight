@@ -63,7 +63,7 @@ To enable logs for RisingLight, export the following environment variable to you
 export RUST_LOG=info
 ```
 
-If you want to contribute to the RisingLight project, refer to [Contributing to RisingLight](02-contributing.md) docs
+If you want to contribute to the RisingLight project, refer to [Contributing to RisingLight](../CONTRIBUTING.md) docs
 for more information.
 
 [rust-analyzer]: https://marketplace.visualstudio.com/items?itemName=matklad.rust-analyzer
