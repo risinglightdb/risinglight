@@ -62,6 +62,11 @@ impl PlanNode for PhysicalHashJoin {
 /// We will implement DP or DFS algorithms for join orders.
 impl fmt::Display for PhysicalHashJoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "PhysicalHashJoin: op {:?}", self.logical().join_op())
+        writeln!(
+            f,
+            "PhysicalHashJoin: op {:?}, condition: {:?}",
+            self.logical().join_op(),
+            self.logical().condition()
+        )
     }
 }
