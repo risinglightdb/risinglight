@@ -46,18 +46,23 @@ impl Binder {
                 if left_physical_kind != right_physical_kind {
                     // Insert type cast expr
                     match (left_physical_kind, right_physical_kind) {
-                        (Float64 | Decimal, Int32 | Int64) | (Date, String) => {
+                        (Float64 | Decimal, Int32 | Int64)
+                        | (Date, String)
+                        | (Decimal, Float64) => {
                             right_bound_expr = BoundExpr::TypeCast(BoundTypeCast {
                                 expr: Box::new(right_bound_expr),
                                 ty: left_data_type.kind(),
                             });
                         }
-                        (Int32 | Int64, Float64 | Decimal) | (String, Date) => {
+                        (Int32 | Int64, Float64 | Decimal)
+                        | (String, Date)
+                        | (Float64, Decimal) => {
                             left_bound_expr = BoundExpr::TypeCast(BoundTypeCast {
                                 expr: Box::new(left_bound_expr),
                                 ty: right_data_type.kind(),
                             });
                         }
+                        (Date, Interval) => {}
                         (left_kind, right_kind) => todo!(
                             "Support implicit conversion of {:?} and {:?}",
                             left_kind,

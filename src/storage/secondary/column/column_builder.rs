@@ -7,6 +7,7 @@ use super::primitive_column_builder::{
 };
 use super::{BoolColumnBuilder, ColumnBuilder};
 use crate::array::ArrayImpl;
+use crate::storage::secondary::column::IntervalColumnBuilder;
 use crate::types::{DataType, DataTypeKind};
 
 /// [`ColumnBuilder`] of all types
@@ -17,6 +18,7 @@ pub enum ColumnBuilderImpl {
     Utf8(CharColumnBuilder),
     Decimal(DecimalColumnBuilder),
     Date(DateColumnBuilder),
+    Interval(IntervalColumnBuilder),
 }
 
 impl ColumnBuilderImpl {
@@ -50,6 +52,9 @@ impl ColumnBuilderImpl {
             DataTypeKind::Date => {
                 Self::Date(DateColumnBuilder::new(datatype.is_nullable(), options))
             }
+            DataTypeKind::Interval => {
+                Self::Interval(IntervalColumnBuilder::new(datatype.is_nullable(), options))
+            }
             other_datatype => todo!("column builder for {:?} is not implemented", other_datatype),
         }
     }
@@ -62,6 +67,7 @@ impl ColumnBuilderImpl {
             (Self::Utf8(builder), ArrayImpl::Utf8(array)) => builder.append(array),
             (Self::Decimal(builder), ArrayImpl::Decimal(array)) => builder.append(array),
             (Self::Date(builder), ArrayImpl::Date(array)) => builder.append(array),
+            (Self::Interval(builder), ArrayImpl::Interval(array)) => builder.append(array),
             _ => todo!(),
         }
     }
@@ -74,6 +80,7 @@ impl ColumnBuilderImpl {
             Self::Utf8(builder) => builder.finish(),
             Self::Decimal(builder) => builder.finish(),
             Self::Date(builder) => builder.finish(),
+            Self::Interval(builder) => builder.finish(),
         }
     }
 }

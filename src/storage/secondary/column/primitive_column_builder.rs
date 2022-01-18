@@ -10,7 +10,7 @@ use super::super::{
 };
 use super::ColumnBuilder;
 use crate::array::Array;
-use crate::types::Date;
+use crate::types::{Date, Interval};
 
 /// All supported block builders for primitive types.
 pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
@@ -23,6 +23,7 @@ pub type F64ColumnBuilder = PrimitiveColumnBuilder<f64>;
 pub type BoolColumnBuilder = PrimitiveColumnBuilder<bool>;
 pub type DecimalColumnBuilder = PrimitiveColumnBuilder<Decimal>;
 pub type DateColumnBuilder = PrimitiveColumnBuilder<Date>;
+pub type IntervalColumnBuilder = PrimitiveColumnBuilder<Interval>;
 
 /// Column builder of primitive types.
 pub struct PrimitiveColumnBuilder<T: PrimitiveFixedWidthEncode> {

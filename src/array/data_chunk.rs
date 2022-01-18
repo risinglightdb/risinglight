@@ -126,6 +126,7 @@ pub fn datachunk_to_sqllogictest_string(chunk: &DataChunk) -> String {
                 DataValue::String(s) => write!(output, "{}", s),
                 DataValue::Decimal(v) => write!(output, "{}", v),
                 DataValue::Date(v) => write!(output, "{}", v),
+                DataValue::Interval(v) => write!(output, "{}", v),
             }
             .unwrap();
         }

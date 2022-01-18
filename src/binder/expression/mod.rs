@@ -3,8 +3,8 @@ use bitvec::prelude::BitVec;
 
 use super::*;
 use crate::catalog::ColumnRefId;
-use crate::parser::{Expr, Function, UnaryOperator, Value};
-use crate::types::{DataType, DataTypeExt, DataTypeKind, DataValue, Date};
+use crate::parser::{DateTimeField, Expr, Function, UnaryOperator, Value};
+use crate::types::{DataType, DataTypeExt, DataTypeKind, DataValue, Date, Interval};
 
 mod agg_call;
 mod binary_op;
@@ -168,6 +168,19 @@ impl From<&Value> for DataValue {
             Value::DoubleQuotedString(s) => Self::String(s.clone()),
             Value::Boolean(b) => Self::Bool(*b),
             Value::Null => Self::Null,
+            Value::Interval {
+                value,
+                leading_field,
+                ..
+            } => match leading_field {
+                Some(DateTimeField::Day) => {
+                    Self::Interval(Interval::new(0, value.parse().unwrap()))
+                }
+                Some(DateTimeField::Year) => {
+                    Self::Interval(Interval::new(value.parse().unwrap(), 0))
+                }
+                _ => todo!("Support interval with leading field: {:?}", leading_field),
+            },
             _ => todo!("parse value: {:?}", v),
         }
     }
