@@ -63,7 +63,7 @@ impl PlanRewriter for InputRefResolver {
         let mut resolver = Self::default();
         let right = resolver.rewrite(join.right());
         self.bindings.append(&mut resolver.bindings);
-        Rc::new(join.clone_with_rewrite_expr(left, right, self))
+        Arc::new(join.clone_with_rewrite_expr(left, right, self))
     }
 
     fn rewrite_logical_table_scan(&mut self, plan: &LogicalTableScan) -> PlanRef {
@@ -72,7 +72,7 @@ impl PlanRewriter for InputRefResolver {
             .iter()
             .map(|col_id| Some(ColumnRefId::from_table(plan.table_ref_id(), *col_id)))
             .collect();
-        Rc::new(plan.clone())
+        Arc::new(plan.clone())
     }
 
     fn rewrite_logical_projection(&mut self, proj: &LogicalProjection) -> PlanRef {
@@ -85,7 +85,7 @@ impl PlanRewriter for InputRefResolver {
                 _ => None,
             })
             .collect();
-        let ret = Rc::new(proj.clone_with_rewrite_expr(new_child, self));
+        let ret = Arc::new(proj.clone_with_rewrite_expr(new_child, self));
         self.bindings = bindings;
         ret
     }
@@ -100,19 +100,19 @@ impl PlanRewriter for InputRefResolver {
                 _ => panic!("{:?} cannot be a group key", expr),
             })
             .collect();
-        let ret = Rc::new(agg.clone_with_rewrite_expr(new_child, self));
+        let ret = Arc::new(agg.clone_with_rewrite_expr(new_child, self));
         self.bindings = bindings;
         ret
     }
     fn rewrite_logical_filter(&mut self, plan: &LogicalFilter) -> PlanRef {
         let child = self.rewrite(plan.child());
-        Rc::new(plan.clone_with_rewrite_expr(child, self))
+        Arc::new(plan.clone_with_rewrite_expr(child, self))
     }
     fn rewrite_logical_order(&mut self, plan: &LogicalOrder) -> PlanRef {
         let child = self.rewrite(plan.child());
-        Rc::new(plan.clone_with_rewrite_expr(child, self))
+        Arc::new(plan.clone_with_rewrite_expr(child, self))
     }
     fn rewrite_logical_values(&mut self, plan: &LogicalValues) -> PlanRef {
-        Rc::new(plan.clone_with_rewrite_expr(self))
+        Arc::new(plan.clone_with_rewrite_expr(self))
     }
 }

@@ -3,6 +3,6 @@ use crate::optimizer::plan_nodes::LogicalExplain;
 
 impl LogicalPlaner {
     pub fn plan_explain(&self, stmt: BoundStatement) -> Result<PlanRef, LogicalPlanError> {
-        Ok(Rc::new(LogicalExplain::new(self.plan(stmt)?)))
+        Ok(Arc::new(LogicalExplain::new(self.plan(stmt)?)))
     }
 }
