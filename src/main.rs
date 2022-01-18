@@ -83,17 +83,12 @@ async fn interactive(db: Database) -> Result<()> {
 
 /// Run a SQL file in RisingLight
 async fn run_sql(db: Database, path: &str) -> Result<()> {
-    let data = std::fs::read_to_string(path)?;
+    let lines = std::fs::read_to_string(path)?;
 
-    for line in data.split('\n') {
-        let line = line.trim();
-        if !line.is_empty() {
-            info!("Run SQL: {}", line);
-            let chunks = db.run(line).await?;
-            for chunk in chunks {
-                println!("{}", chunk);
-            }
-        }
+    info!("{}", lines);
+    let chunks = db.run(&lines).await?;
+    for chunk in chunks {
+        println!("{}", chunk);
     }
 
     Ok(())
@@ -101,26 +96,24 @@ async fn run_sql(db: Database, path: &str) -> Result<()> {
 
 /// Wrapper for sqllogictest
 struct DatabaseWrapper {
-    tx: tokio::sync::mpsc::Sender<Option<String>>,
+    tx: tokio::sync::mpsc::Sender<String>,
     rx: Mutex<tokio::sync::mpsc::Receiver<Result<Vec<DataChunk>, risinglight::Error>>>,
 }
 
 impl sqllogictest::DB for DatabaseWrapper {
     type Error = risinglight::Error;
     fn run(&self, sql: &str) -> Result<String, Self::Error> {
-        self.tx.blocking_send(Some(sql.to_string())).unwrap();
+        info!("{}", sql);
+        self.tx.blocking_send(sql.to_string()).unwrap();
         let chunks = self.rx.lock().unwrap().blocking_recv().unwrap()?;
+        for chunk in &chunks {
+            println!("{:?}", chunk);
+        }
         let output = chunks
             .iter()
             .map(datachunk_to_sqllogictest_string)
             .collect();
         Ok(output)
-    }
-}
-
-impl Drop for DatabaseWrapper {
-    fn drop(&mut self) {
-        self.tx.blocking_send(None).unwrap();
     }
 }
 
@@ -133,7 +126,7 @@ async fn run_sqllogictest(db: Database, path: &str) -> Result<()> {
         rx: Mutex::new(drx),
     });
     let handle = tokio::spawn(async move {
-        while let Some(sql) = trx.recv().await.unwrap() {
+        while let Some(sql) = trx.recv().await {
             dtx.send(db.run(&sql).await).await.unwrap();
         }
     });

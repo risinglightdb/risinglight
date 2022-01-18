@@ -87,3 +87,8 @@ cargo run --release
 select sum(L_LINENUMBER) from LINEITEM;
 select count(L_ORDERKEY), sum(L_LINENUMBER) from LINEITEM where L_ORDERKEY > 2135527;
 ```
+
+## Clean Data
+
+All data of RisingLight is stored in `risinglight.secondary.db` folder. Simply remove it
+if you want to clean all data.
