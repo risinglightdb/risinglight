@@ -44,7 +44,12 @@ impl Binder {
             };
             match arg {
                 FunctionArgExpr::Expr(expr) => args.push(self.bind_expr(expr)?),
-                _ => todo!(),
+                FunctionArgExpr::Wildcard => {
+                    // No argument in row count
+                    args.clear();
+                    break;
+                }
+                _ => todo!("Support aggregate argument: {:?}", arg),
             }
         }
         let (kind, return_type) = match func.name.to_string().to_lowercase().as_str() {
