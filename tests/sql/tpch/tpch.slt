@@ -1,0 +1,4 @@
+include create.slt
+include insert.slt
+# include q1.slt
+include q3.slt

@@ -92,13 +92,17 @@ impl PlanRewriter for InputRefResolver {
 
     fn rewrite_logical_aggregate(&mut self, agg: &LogicalAggregate) -> PlanRef {
         let new_child = self.rewrite(agg.child());
-        for expr in agg.group_keys() {
-            match &expr {
-                BoundExpr::ColumnRef(col) => self.bindings.push(Some(col.column_ref_id)),
+        let bindings = agg
+            .group_keys()
+            .iter()
+            .map(|expr| match &expr {
+                BoundExpr::ColumnRef(col) => Some(col.column_ref_id),
                 _ => panic!("{:?} cannot be a group key", expr),
-            }
-        }
-        Rc::new(agg.clone_with_rewrite_expr(new_child, self))
+            })
+            .collect();
+        let ret = Rc::new(agg.clone_with_rewrite_expr(new_child, self));
+        self.bindings = bindings;
+        ret
     }
     fn rewrite_logical_filter(&mut self, plan: &LogicalFilter) -> PlanRef {
         let child = self.rewrite(plan.child());

@@ -7,7 +7,7 @@ use chrono::{Datelike, NaiveDate};
 pub const UNIX_EPOCH_DAYS: i32 = 719_163;
 
 /// Date type
-#[derive(PartialOrd, PartialEq, Debug, Copy, Clone, Default)]
+#[derive(PartialOrd, PartialEq, Debug, Copy, Clone, Default, Hash)]
 pub struct Date(i32);
 
 impl Date {

@@ -23,17 +23,17 @@ use tokio::runtime::Runtime;
 #[test_case("delete.slt")]
 #[test_case("copy/csv.slt")]
 #[test_case("where.slt")]
+#[test_case("tpch/tpch.slt")]
 // #[test_case("select.slt")]
 // #[test_case("issue_347.slt")]
 fn test_mem(name: &str) {
     init_logger();
-    let script = std::fs::read_to_string(Path::new("tests/sql").join(name)).unwrap();
     let mut tester = sqllogictest::Runner::new(DatabaseWrapper {
         rt: Runtime::new().unwrap(),
         db: Database::new_in_memory(),
     });
     tester.enable_testdir();
-    tester.run_script(&script);
+    tester.run_file(Path::new("tests/sql").join(name)).unwrap();
 }
 
 #[test_case("basic_test.slt")]
@@ -51,19 +51,19 @@ fn test_mem(name: &str) {
 #[test_case("delete.slt")]
 #[test_case("copy/csv.slt")]
 #[test_case("where.slt")]
+#[test_case("tpch/tpch.slt")]
 // #[test_case("select.slt")]
 // #[test_case("issue_347.slt")]
 fn test_disk(name: &str) {
     init_logger();
     let temp_dir = tempdir().unwrap();
-    let script = std::fs::read_to_string(Path::new("tests/sql").join(name)).unwrap();
     let rt = Runtime::new().unwrap();
     let db = rt.block_on(Database::new_on_disk(
         SecondaryStorageOptions::default_for_test(temp_dir.path().to_path_buf()),
     ));
     let mut tester = sqllogictest::Runner::new(DatabaseWrapper { rt, db });
     tester.enable_testdir();
-    tester.run_script(&script);
+    tester.run_file(Path::new("tests/sql").join(name)).unwrap();
 }
 
 fn init_logger() {

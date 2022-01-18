@@ -168,6 +168,8 @@ impl ArrayImpl {
                     (A::Int32(a), A::Int32(b)) => A::Int32(binary_op(a, b, |a, b| a $op b)),
                     #[cfg(not(feature = "simd"))]
                     (A::Float64(a), A::Float64(b)) => A::Float64(binary_op(a, b, |a, b| a $op b)),
+
+                    (A::Decimal(a), A::Decimal(b)) => A::Decimal(binary_op(a, b, |a, b| a $op b)),
                     _ => todo!("Support more types for {}", stringify!($op)),
                 }
             }
@@ -181,6 +183,7 @@ impl ArrayImpl {
                     (A::Float64(a), A::Float64(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
                     (A::Utf8(a), A::Utf8(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
                     (A::Date(a), A::Date(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
+                    (A::Decimal(a), A::Decimal(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
                     _ => todo!("Support more types for {}", stringify!($op)),
                 }
             }

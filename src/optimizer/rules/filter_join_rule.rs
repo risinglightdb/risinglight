@@ -22,12 +22,17 @@ impl Rule for FilterJoinRule {
             right_expr: Box::new(filter.expr().clone()),
             return_type: Some(DataTypeKind::Boolean.nullable()),
         });
-        Ok(Rc::new(LogicalJoin::new(
+        let new_join = Rc::new(LogicalJoin::new(
             join.left().clone(),
             join.right().clone(),
             join.join_op(),
             join_cond,
-        )))
+        ));
+        // FIXME:
+        // Currently HashJoinExecutor ignores the condition,
+        // so for correctness we have to keep filter operator.
+        let new_filter = Rc::new(LogicalFilter::new(filter.expr().clone(), new_join));
+        Ok(new_filter)
 
         // TODO: we need schema of operator to push condition to each side.
         // let filter_conds = to_cnf(filter.expr.clone());

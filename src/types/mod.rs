@@ -146,12 +146,14 @@ impl Eq for DataValue {}
 impl Hash for DataValue {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
+            Self::Null => 0.hash(state),
             Self::Bool(b) => b.hash(state),
             Self::Int32(i) => i.hash(state),
             Self::Int64(i) => i.hash(state),
+            Self::Float64(_) => panic!("do not support hashing f64"),
             Self::String(s) => s.hash(state),
-            // TODO: support `f64` as hash key (group key)
-            _ => panic!("Unsupported data type"),
+            Self::Decimal(v) => v.hash(state),
+            Self::Date(v) => v.hash(state),
         }
     }
 }

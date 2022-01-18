@@ -1,0 +1,23 @@
+statement ok
+COPY NATION FROM 'tests/sql/tpch/tbl/nation.tbl' ( DELIMITER '|' );
+
+statement ok
+COPY REGION FROM 'tests/sql/tpch/tbl/region.tbl' ( DELIMITER '|' );
+
+statement ok
+COPY PART FROM 'tests/sql/tpch/tbl/part.tbl' ( DELIMITER '|' );
+
+statement ok
+COPY SUPPLIER FROM 'tests/sql/tpch/tbl/supplier.tbl' ( DELIMITER '|' );
+
+statement ok
+COPY PARTSUPP FROM 'tests/sql/tpch/tbl/partsupp.tbl' ( DELIMITER '|' );
+
+statement ok
+COPY CUSTOMER FROM 'tests/sql/tpch/tbl/customer.tbl' ( DELIMITER '|' );
+
+statement ok
+COPY ORDERS FROM 'tests/sql/tpch/tbl/orders.tbl' ( DELIMITER '|' );
+
+statement ok
+COPY LINEITEM FROM 'tests/sql/tpch/tbl/lineitem.tbl' ( DELIMITER '|' );

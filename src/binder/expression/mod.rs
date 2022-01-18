@@ -4,7 +4,7 @@ use bitvec::prelude::BitVec;
 use super::*;
 use crate::catalog::ColumnRefId;
 use crate::parser::{Expr, Function, UnaryOperator, Value};
-use crate::types::{DataType, DataTypeExt, DataTypeKind, DataValue};
+use crate::types::{DataType, DataTypeExt, DataTypeKind, DataValue, Date};
 
 mod agg_call;
 mod binary_op;
@@ -130,7 +130,24 @@ impl Binder {
                     return_type: Some(DataTypeKind::Boolean.not_null()),
                 }))
             }
+            Expr::TypedString { data_type, value } => self.bind_typed_string(data_type, value),
             _ => todo!("bind expression: {:?}", expr),
+        }
+    }
+
+    fn bind_typed_string(
+        &mut self,
+        data_type: &DataTypeKind,
+        value: &str,
+    ) -> Result<BoundExpr, BindError> {
+        match data_type {
+            DataTypeKind::Date => {
+                let date = Date::from_str(value).map_err(|_| {
+                    BindError::CastError(DataValue::String(value.into()), DataTypeKind::Date)
+                })?;
+                Ok(BoundExpr::Constant(DataValue::Date(date)))
+            }
+            t => todo!("support typed string: {:?}", t),
         }
     }
 }
