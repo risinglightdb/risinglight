@@ -1,5 +1,6 @@
 use bitvec::bitvec;
 use bitvec::prelude::BitVec;
+use sqlparser::ast::BinaryOperator;
 
 use super::*;
 use crate::catalog::ColumnRefId;
@@ -131,6 +132,12 @@ impl Binder {
                 }))
             }
             Expr::TypedString { data_type, value } => self.bind_typed_string(data_type, value),
+            Expr::Between {
+                expr,
+                negated,
+                low,
+                high,
+            } => self.bind_between(expr, negated, low, high),
             _ => todo!("bind expression: {:?}", expr),
         }
     }
@@ -149,6 +156,30 @@ impl Binder {
             }
             t => todo!("support typed string: {:?}", t),
         }
+    }
+
+    fn bind_between(
+        &mut self,
+        expr: &Expr,
+        negated: &bool,
+        low: &Expr,
+        high: &Expr,
+    ) -> Result<BoundExpr, BindError> {
+        use BinaryOperator::{And, Gt, GtEq, Lt, LtEq, Or};
+
+        let (left_op, right_op, final_op) = match negated {
+            false => (GtEq, LtEq, And),
+            true => (Lt, Gt, Or),
+        };
+
+        let left_expr = self.bind_binary_op(expr, &left_op, low)?;
+        let right_expr = self.bind_binary_op(expr, &right_op, high)?;
+        Ok(BoundExpr::BinaryOp(BoundBinaryOp {
+            op: final_op,
+            left_expr: Box::new(left_expr),
+            right_expr: Box::new(right_expr),
+            return_type: Some(DataType::new(DataTypeKind::Boolean, false)),
+        }))
     }
 }
 
