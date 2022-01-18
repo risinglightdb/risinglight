@@ -269,10 +269,17 @@ impl ArrayImpl {
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::Utf8(unary_op(a, |&f| f.to_string()))
                 }
-                Type::Decimal(_, _) => Self::Decimal(try_unary_op(a, |&f| {
-                    Decimal::from_f64_retain(f)
-                        .ok_or(ConvertError::ToDecimalError(DataValue::Float64(f)))
-                })?),
+                Type::Decimal(_, scale) => {
+                    Self::Decimal(try_unary_op(a, |&f| match Decimal::from_f64_retain(f) {
+                        Some(mut d) => {
+                            if let Some(s) = scale {
+                                d.rescale(s as u32);
+                            }
+                            Ok(d)
+                        }
+                        None => Err(ConvertError::ToDecimalError(DataValue::Float64(f))),
+                    })?)
+                }
                 Type::Date => return Err(ConvertError::ToDateError(Type::Double)),
                 _ => todo!("cast array"),
             },

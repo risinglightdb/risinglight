@@ -44,7 +44,12 @@ impl Binder {
             };
             match arg {
                 FunctionArgExpr::Expr(expr) => args.push(self.bind_expr(expr)?),
-                _ => todo!(),
+                FunctionArgExpr::Wildcard => {
+                    // No argument in row count
+                    args.clear();
+                    break;
+                }
+                _ => todo!("Support aggregate argument: {:?}", arg),
             }
         }
         let (kind, return_type) = match func.name.to_string().to_lowercase().as_str() {
@@ -100,10 +105,13 @@ impl Binder {
                     args: args.clone(),
                     return_type: args[0].return_type().unwrap(),
                 })),
-                right_expr: Box::new(BoundExpr::AggCall(BoundAggCall {
-                    kind: AggKind::Count,
-                    args,
-                    return_type: DataType::new(DataTypeKind::Int(None), false),
+                right_expr: Box::new(BoundExpr::TypeCast(BoundTypeCast {
+                    ty: args[0].return_type().unwrap().kind(),
+                    expr: Box::new(BoundExpr::AggCall(BoundAggCall {
+                        kind: AggKind::Count,
+                        args,
+                        return_type: DataType::new(DataTypeKind::Int(None), false),
+                    })),
                 })),
                 return_type,
             })),
