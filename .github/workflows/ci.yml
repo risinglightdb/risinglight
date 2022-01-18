@@ -21,16 +21,6 @@ jobs:
         with:
           profile: minimal
           components: rustfmt, clippy
-      - name: Cache Cargo home
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ env.CACHE_KEY_SUFFIX }}-fmt
       - name: Check code format
         uses: actions-rs/cargo@v1
         with:
@@ -49,16 +39,6 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-      - name: Cache Cargo home
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ env.CACHE_KEY_SUFFIX }}-test
       - name: Test
         uses: actions-rs/cargo@v1
         with:
