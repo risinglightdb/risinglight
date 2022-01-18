@@ -1,39 +1,41 @@
 //! A simple interactive shell of the database.
 
 use std::fs::File;
+use std::sync::Mutex;
 
-use log::info;
+use anyhow::{anyhow, Result};
+use clap::Parser;
+use log::{info, warn};
+use risinglight::array::{datachunk_to_sqllogictest_string, DataChunk};
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::Database;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
-#[tokio::main]
-async fn main() {
-    env_logger::init();
+/// RisingLight: an OLAP database system.
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// File to execute. Can be either a SQL `sql` file or sqllogictest `slt` file.
+    #[clap(short, long)]
+    file: Option<String>,
 
-    let db = if let Some(x) = std::env::args().nth(1) {
-        if x == "--memory" {
-            info!("using memory engine");
-            Database::new_in_memory()
-        } else {
-            info!("using Secondary engine");
-            Database::new_on_disk(SecondaryStorageOptions::default_for_cli()).await
-        }
-    } else {
-        info!("using Secondary engine");
-        Database::new_on_disk(SecondaryStorageOptions::default_for_cli()).await
-    };
+    /// Whether to use in-memory engine
+    #[clap(long)]
+    memory: bool,
+}
 
+/// Run RisingLight interactive mode
+async fn interactive(db: Database) -> Result<()> {
     let mut rl = Editor::<()>::new();
-    let history_path = dirs::cache_dir().and_then(|p| {
+    let history_path = dirs::cache_dir().map(|p| {
         let cache_dir = p.join("risinglight");
-        std::fs::create_dir_all(cache_dir.as_path()).ok()?;
+        std::fs::create_dir_all(cache_dir.as_path()).ok();
         let history_path = cache_dir.join("history.txt");
         if !history_path.as_path().exists() {
-            File::create(history_path.as_path()).ok()?;
+            File::create(history_path.as_path()).ok();
         }
-        Some(history_path.into_boxed_path())
+        history_path.into_boxed_path()
     });
 
     if let Some(ref history_path) = history_path {
@@ -75,4 +77,105 @@ async fn main() {
             println!("Save history failed, {err}");
         }
     }
+
+    Ok(())
+}
+
+/// Run a SQL file in RisingLight
+async fn run_sql(db: Database, path: &str) -> Result<()> {
+    let data = std::fs::read_to_string(path)?;
+
+    for line in data.split('\n') {
+        let line = line.trim();
+        if !line.is_empty() {
+            info!("Run SQL: {}", line);
+            let chunks = db.run(line).await?;
+            for chunk in chunks {
+                println!("{}", chunk);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Wrapper for sqllogictest
+struct DatabaseWrapper {
+    tx: tokio::sync::mpsc::Sender<Option<String>>,
+    rx: Mutex<tokio::sync::mpsc::Receiver<Result<Vec<DataChunk>, risinglight::Error>>>,
+}
+
+impl sqllogictest::DB for DatabaseWrapper {
+    type Error = risinglight::Error;
+    fn run(&self, sql: &str) -> Result<String, Self::Error> {
+        self.tx.blocking_send(Some(sql.to_string())).unwrap();
+        let chunks = self.rx.lock().unwrap().blocking_recv().unwrap()?;
+        let output = chunks
+            .iter()
+            .map(datachunk_to_sqllogictest_string)
+            .collect();
+        Ok(output)
+    }
+}
+
+impl Drop for DatabaseWrapper {
+    fn drop(&mut self) {
+        self.tx.blocking_send(None).unwrap();
+    }
+}
+
+/// Run a sqllogictest file in RisingLight
+async fn run_sqllogictest(db: Database, path: &str) -> Result<()> {
+    let (ttx, mut trx) = tokio::sync::mpsc::channel(1);
+    let (dtx, drx) = tokio::sync::mpsc::channel(1);
+    let mut tester = sqllogictest::Runner::new(DatabaseWrapper {
+        tx: ttx,
+        rx: Mutex::new(drx),
+    });
+    let handle = tokio::spawn(async move {
+        while let Some(sql) = trx.recv().await.unwrap() {
+            dtx.send(db.run(&sql).await).await.unwrap();
+        }
+    });
+
+    let path = path.to_string();
+    let sqllogictest_handler = tokio::task::spawn_blocking(move || {
+        // `ParseError` isn't Send, so we cannot directly use it as anyhow Error.
+        tester.run_file(path).map_err(|err| anyhow!("{:?}", err))?;
+        Ok::<_, anyhow::Error>(())
+    });
+
+    sqllogictest_handler.await.unwrap().unwrap();
+    handle.await.unwrap();
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let args = Args::parse();
+
+    env_logger::init();
+
+    let db = if args.memory {
+        info!("using memory engine");
+        Database::new_in_memory()
+    } else {
+        info!("using Secondary engine");
+        Database::new_on_disk(SecondaryStorageOptions::default_for_cli()).await
+    };
+
+    if let Some(file) = args.file {
+        if file.ends_with(".sql") {
+            run_sql(db, &file).await?;
+        } else if file.ends_with(".slt") {
+            run_sqllogictest(db, &file).await?;
+        } else {
+            warn!("No suffix detected, assume sql file");
+            run_sql(db, &file).await?;
+        }
+    } else {
+        interactive(db).await?;
+    }
+
+    Ok(())
 }

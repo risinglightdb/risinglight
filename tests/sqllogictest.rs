@@ -2,7 +2,6 @@ use std::path::Path;
 
 use risinglight::array::*;
 use risinglight::storage::SecondaryStorageOptions;
-use risinglight::types::DataValue;
 use risinglight::{Database, Error};
 use tempfile::tempdir;
 use test_case::test_case;
@@ -81,7 +80,10 @@ impl sqllogictest::DB for DatabaseWrapper {
     type Error = Error;
     fn run(&self, sql: &str) -> Result<String, Self::Error> {
         let chunks = self.rt.block_on(self.db.run(sql))?;
-        let output = chunks.iter().map(datachunk_to_string).collect();
+        let output = chunks
+            .iter()
+            .map(datachunk_to_sqllogictest_string)
+            .collect();
         Ok(output)
     }
 }
@@ -90,30 +92,4 @@ impl Drop for DatabaseWrapper {
     fn drop(&mut self) {
         self.rt.block_on(self.db.shutdown()).unwrap();
     }
-}
-
-fn datachunk_to_string(chunk: &DataChunk) -> String {
-    let mut output = String::new();
-    for row in 0..chunk.cardinality() {
-        use std::fmt::Write;
-        for (col, array) in chunk.arrays().iter().enumerate() {
-            if col != 0 {
-                write!(output, " ").unwrap();
-            }
-            match array.get(row) {
-                DataValue::Null => write!(output, "NULL"),
-                DataValue::Bool(v) => write!(output, "{}", v),
-                DataValue::Int32(v) => write!(output, "{}", v),
-                DataValue::Int64(v) => write!(output, "{}", v),
-                DataValue::Float64(v) => write!(output, "{}", v),
-                DataValue::String(s) if s.is_empty() => write!(output, "(empty)"),
-                DataValue::String(s) => write!(output, "{}", s),
-                DataValue::Decimal(v) => write!(output, "{}", v),
-                DataValue::Date(v) => write!(output, "{}", v),
-            }
-            .unwrap();
-        }
-        writeln!(output).unwrap();
-    }
-    output
 }

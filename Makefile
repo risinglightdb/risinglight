@@ -30,7 +30,7 @@ clean:
 	cargo clean
 
 $(TPCH_DBGEN_PATH):
-	mkdir target
+	mkdir target || true
 	git clone https://github.com/electrum/tpch-dbgen.git $(TPCH_DBGEN_PATH)
 
 tpch: $(TPCH_DBGEN_PATH)
