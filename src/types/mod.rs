@@ -3,10 +3,12 @@ use serde::{Deserialize, Serialize};
 pub use sqlparser::ast::DataType as DataTypeKind;
 
 mod date;
+mod interval;
 mod native;
 use std::hash::{Hash, Hasher};
 
 pub(crate) use date::*;
+pub(crate) use interval::*;
 pub(crate) use native::*;
 use num_traits::ToPrimitive;
 use rust_decimal::prelude::FromStr;
@@ -23,6 +25,7 @@ pub enum PhysicalDataTypeKind {
     Bool,
     Decimal,
     Date,
+    Interval,
 }
 
 impl From<DataTypeKind> for PhysicalDataTypeKind {
@@ -37,6 +40,7 @@ impl From<DataTypeKind> for PhysicalDataTypeKind {
             DataTypeKind::Boolean => PhysicalDataTypeKind::Bool,
             DataTypeKind::Decimal(_, _) => PhysicalDataTypeKind::Decimal,
             DataTypeKind::Date => PhysicalDataTypeKind::Date,
+            DataTypeKind::Interval => PhysicalDataTypeKind::Interval,
             _ => todo!("physical type for {:?} is not supported", kind),
         }
     }
@@ -121,6 +125,7 @@ pub enum DataValue {
     String(String),
     Decimal(Decimal),
     Date(Date),
+    Interval(Interval),
 }
 
 /// Implement dispatch functions for `PartialEq`
@@ -154,6 +159,7 @@ impl Hash for DataValue {
             Self::String(s) => s.hash(state),
             Self::Decimal(v) => v.hash(state),
             Self::Date(v) => v.hash(state),
+            Self::Interval(v) => v.hash(state),
         }
     }
 }
@@ -169,6 +175,7 @@ macro_rules! impl_arith_for_datavalue {
                     (&Int32(x), &Int32(y)) => Int32(x.$name(y)),
                     (&Float64(x), &Float64(y)) => Float64(x.$name(y)),
                     (&Decimal(x), &Decimal(y)) => Decimal(x.$name(y)),
+                    (&Date(x), &Interval(y)) => Date(x.$name(y)),
                     _ => panic!(
                         "invalid operation: {:?} {} {:?}",
                         self,
@@ -211,6 +218,7 @@ impl DataValue {
             Self::String(_) => false,
             Self::Decimal(v) => v.is_sign_positive(),
             Self::Date(_) => false,
+            Self::Interval(_) => false,
             Self::Null => false,
         }
     }
@@ -225,6 +233,7 @@ impl DataValue {
             Self::String(_) => Some(DataTypeKind::Varchar(Some(VARCHAR_DEFAULT_LEN)).not_null()),
             Self::Decimal(_) => Some(DataTypeKind::Decimal(None, None).not_null()),
             Self::Date(_) => Some(DataTypeKind::Date.not_null()),
+            Self::Interval(_) => Some(DataTypeKind::Interval.not_null()),
             Self::Null => None,
         }
     }
@@ -254,6 +263,9 @@ impl DataValue {
             &DataValue::Date(d) => {
                 return Err(ConvertError::Cast(d.to_string(), "usize"));
             }
+            &DataValue::Interval(i) => {
+                return Err(ConvertError::Cast(i.to_string(), "usize"));
+            }
             DataValue::String(s) => s
                 .parse::<usize>()
                 .map_err(|e| ConvertError::ParseInt(s.clone(), e))?,
@@ -274,6 +286,8 @@ pub enum ConvertError {
     ParseDecimal(String, rust_decimal::Error),
     #[error("failed to convert string {0:?} to date: {:?}")]
     ParseDate(String, chrono::ParseError),
+    #[error("failed to convert string {0:?} to interval")]
+    ParseInterval(String),
     #[error("failed to convert {0:?} to decimal")]
     ToDecimalError(DataValue),
     #[error("failed to convert {0:?} from decimal {1:?}")]
@@ -282,6 +296,8 @@ pub enum ConvertError {
     ToDateError(DataTypeKind),
     #[error("failed to convert {0:?} from date")]
     FromDateError(DataTypeKind),
+    #[error("failed to convert {0:?} from interval")]
+    FromIntervalError(DataTypeKind),
     #[error("failed to cast {0} to type {1}")]
     Cast(String, &'static str),
 }

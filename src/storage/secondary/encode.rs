@@ -1,8 +1,8 @@
 use bytes::{Buf, BufMut};
 use rust_decimal::Decimal;
 
-use crate::array::{Array, BoolArray, DateArray, DecimalArray, F64Array, I32Array};
-use crate::types::Date;
+use crate::array::{Array, BoolArray, DateArray, DecimalArray, F64Array, I32Array, IntervalArray};
+use crate::types::{Date, Interval};
 
 /// Encode a primitive value into fixed-width buffer
 pub trait PrimitiveFixedWidthEncode: Copy + Clone + 'static + Send + Sync {
@@ -90,5 +90,23 @@ impl PrimitiveFixedWidthEncode for Date {
 
     fn decode(buffer: &mut impl Buf) -> Self {
         Date::new(buffer.get_i32())
+    }
+}
+
+impl PrimitiveFixedWidthEncode for Interval {
+    const WIDTH: usize = std::mem::size_of::<i32>() + std::mem::size_of::<i32>();
+    const DEAFULT_VALUE: &'static Self = &Interval::new(0, 0);
+
+    type ArrayType = IntervalArray;
+
+    fn encode(&self, buffer: &mut impl BufMut) {
+        buffer.put_i32(self.get_years());
+        buffer.put_i32(self.get_days());
+    }
+
+    fn decode(buffer: &mut impl Buf) -> Self {
+        let years = buffer.get_i32();
+        let days = buffer.get_i32();
+        Interval::new(years, days)
     }
 }

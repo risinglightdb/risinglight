@@ -11,7 +11,7 @@ use super::super::{
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::Array;
 use crate::storage::secondary::block::FakeBlockIterator;
-use crate::types::Date;
+use crate::types::{Date, Interval};
 
 /// All supported block iterators for primitive types.
 pub enum PrimitiveBlockIteratorImpl<T: PrimitiveFixedWidthEncode> {
@@ -73,6 +73,7 @@ pub type F64ColumnIterator = PrimitiveColumnIterator<f64>;
 pub type BoolColumnIterator = PrimitiveColumnIterator<bool>;
 pub type DecimalColumnIterator = PrimitiveColumnIterator<Decimal>;
 pub type DateColumnIterator = PrimitiveColumnIterator<Date>;
+pub type IntervalColumnIterator = PrimitiveColumnIterator<Interval>;
 
 impl<T: PrimitiveFixedWidthEncode> BlockIteratorFactory<T::ArrayType>
     for PrimitiveBlockIteratorFactory<T>

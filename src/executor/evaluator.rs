@@ -170,6 +170,7 @@ impl ArrayImpl {
                     (A::Float64(a), A::Float64(b)) => A::Float64(binary_op(a, b, |a, b| a $op b)),
 
                     (A::Decimal(a), A::Decimal(b)) => A::Decimal(binary_op(a, b, |a, b| a $op b)),
+                    (A::Date(a), A::Interval(b)) => A::Date(binary_op(a, b, |a, b| *a $op *b)),
                     _ => todo!("Support more types for {}", stringify!($op)),
                 }
             }
@@ -324,6 +325,7 @@ impl ArrayImpl {
                 }
                 ty => return Err(ConvertError::FromDateError(ty)),
             },
+            Self::Interval(_) => return Err(ConvertError::FromIntervalError(data_type)),
         })
     }
 }
