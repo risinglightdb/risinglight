@@ -8,6 +8,7 @@ version = "0.1.0"
 simd = []
 
 [dependencies]
+anyhow = "1"
 async-channel = "1"
 async-recursion = "0.3"
 async-stream = "0.3"
@@ -17,6 +18,7 @@ bitvec = { version = "0.22", features = ["serde"] }
 btreemultimap = "0.1"
 bytes = "1"
 chrono = "0.4"
+clap = { version = "3", features = ["derive"] }
 crc32fast = "1"
 csv = "1"
 dirs = "4"
@@ -41,13 +43,13 @@ rustyline = "9"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 smallvec = { version = "1", features = ["serde"] }
+sqllogictest = "0.2"
 sqlparser = { git = "https://github.com/risinglightdb/sqlparser-rs", rev = "edead1b", features = ["serde"] }
 thiserror = "1"
 tokio = { version = "1", features = ["full"] }
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["async_tokio"] }
-sqllogictest = "0.2"
 tempfile = "3"
 test-case = "1"
 
