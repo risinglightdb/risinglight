@@ -105,10 +105,13 @@ impl Binder {
                     args: args.clone(),
                     return_type: args[0].return_type().unwrap(),
                 })),
-                right_expr: Box::new(BoundExpr::AggCall(BoundAggCall {
-                    kind: AggKind::Count,
-                    args,
-                    return_type: DataType::new(DataTypeKind::Int(None), false),
+                right_expr: Box::new(BoundExpr::TypeCast(BoundTypeCast {
+                    ty: args[0].return_type().unwrap().kind(),
+                    expr: Box::new(BoundExpr::AggCall(BoundAggCall {
+                        kind: AggKind::Count,
+                        args,
+                        return_type: DataType::new(DataTypeKind::Int(None), false),
+                    })),
                 })),
                 return_type,
             })),
