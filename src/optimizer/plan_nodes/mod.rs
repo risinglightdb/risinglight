@@ -120,7 +120,6 @@ for_all_plan_nodes! { enum_plan_node_type }
 
 macro_rules! impl_downcast_utility {
     ([], $($node_name:ident),*) => {
-        /// each enum value represent a [`PlanNode`] struct type, help us to dispatch and downcast
         impl dyn PlanNode {
             $(
                 paste! {
