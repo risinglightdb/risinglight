@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use super::plan_nodes::PlanRef;
 
 mod filter_join_rule;

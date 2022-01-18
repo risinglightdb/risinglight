@@ -54,7 +54,7 @@ macro_rules! impl_plan_tree_node_for_leaf {
                 children: &[crate::optimizer::plan_nodes::PlanRef],
             ) -> crate::optimizer::plan_nodes::PlanRef {
                 assert_eq!(children.len(), 0);
-                std::rc::Rc::new(self.clone())
+                std::sync::Arc::new(self.clone())
             }
         }
     };
@@ -74,7 +74,7 @@ macro_rules! impl_plan_tree_node_for_unary {
                 children: &[crate::optimizer::plan_nodes::PlanRef],
             ) -> crate::optimizer::plan_nodes::PlanRef {
                 assert_eq!(children.len(), 1);
-                std::rc::Rc::new(self.clone_with_child(children[0].clone()))
+                std::sync::Arc::new(self.clone_with_child(children[0].clone()))
             }
         }
     };
@@ -92,7 +92,7 @@ macro_rules! impl_plan_tree_node_for_binary {
                 children: &[crate::optimizer::plan_nodes::PlanRef],
             ) -> crate::optimizer::plan_nodes::PlanRef {
                 assert_eq!(children.len(), 2);
-                std::rc::Rc::new(
+                std::sync::Arc::new(
                     self.clone_with_left_right(children[0].clone(), children[1].clone()),
                 )
             }

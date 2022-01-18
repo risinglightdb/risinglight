@@ -1,17 +1,16 @@
+use std::sync::Arc;
+
 use super::*;
-use crate::optimizer::plan_nodes::{LogicalFilter, LogicalTableScan, PlanTreeNodeUnary};
+use crate::optimizer::plan_nodes::{LogicalTableScan, PlanTreeNodeUnary};
 
 pub struct FilterScanRule {}
 
 impl Rule for FilterScanRule {
     fn apply(&self, plan: PlanRef) -> Result<PlanRef, ()> {
-        let filter = plan.downcast_rc::<LogicalFilter>().map_err(|_| ())?;
-        let scan = filter
-            .child()
-            .clone()
-            .downcast_rc::<LogicalTableScan>()
-            .map_err(|_| ())?;
-        Ok(Rc::new(LogicalTableScan::new(
+        let filter = plan.as_logical_filter()?;
+        let child = filter.child();
+        let scan = child.as_logical_table_scan()?.clone();
+        Ok(Arc::new(LogicalTableScan::new(
             scan.table_ref_id(),
             scan.column_ids().to_vec(),
             scan.column_descs().to_vec(),

@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::binder::BoundStatement;
 use crate::optimizer::plan_nodes::PlanRef;

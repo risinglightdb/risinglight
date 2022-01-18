@@ -19,7 +19,7 @@ use crate::optimizer::plan_nodes::{
 
 impl LogicalPlaner {
     pub fn plan_select(&self, mut stmt: Box<BoundSelect>) -> Result<PlanRef, LogicalPlanError> {
-        let mut plan: PlanRef = Rc::new(Dummy {});
+        let mut plan: PlanRef = Arc::new(Dummy {});
         let mut is_sorted = false;
 
         if let Some(table_ref) = &stmt.from_table {
@@ -35,7 +35,7 @@ impl LogicalPlaner {
         }
 
         if let Some(expr) = stmt.where_clause {
-            plan = Rc::new(LogicalFilter::new(expr, plan));
+            plan = Arc::new(LogicalFilter::new(expr, plan));
         }
 
         let mut agg_extractor = AggExtractor::new(stmt.group_by.len());
@@ -43,7 +43,7 @@ impl LogicalPlaner {
             agg_extractor.visit_expr(expr);
         }
         if !agg_extractor.agg_calls.is_empty() {
-            plan = Rc::new(LogicalAggregate::new(
+            plan = Arc::new(LogicalAggregate::new(
                 agg_extractor.agg_calls,
                 stmt.group_by,
                 plan,
@@ -61,10 +61,10 @@ impl LogicalPlaner {
         assert!(!stmt.select_distinct, "TODO: plan distinct");
 
         if !stmt.select_list.is_empty() {
-            plan = Rc::new(LogicalProjection::new(stmt.select_list, plan));
+            plan = Arc::new(LogicalProjection::new(stmt.select_list, plan));
         }
         if !comparators.is_empty() && !is_sorted {
-            plan = Rc::new(LogicalOrder::new(comparators, plan));
+            plan = Arc::new(LogicalOrder::new(comparators, plan));
         }
         if stmt.limit.is_some() || stmt.offset.is_some() {
             let limit = match stmt.limit {
@@ -81,7 +81,7 @@ impl LogicalPlaner {
                 },
                 None => 0,
             };
-            plan = Rc::new(LogicalLimit::new(offset, limit, plan));
+            plan = Arc::new(LogicalLimit::new(offset, limit, plan));
         }
         Ok(plan)
     }
@@ -98,7 +98,7 @@ impl LogicalPlaner {
                 table_name: _,
                 column_ids,
                 column_descs,
-            } => Ok(Rc::new(LogicalTableScan::new(
+            } => Ok(Arc::new(LogicalTableScan::new(
                 *ref_id,
                 column_ids.to_vec(),
                 column_descs.to_vec(),
@@ -114,7 +114,7 @@ impl LogicalPlaner {
                 for join_table in join_tables.iter() {
                     let table_plan =
                         self.plan_table_ref(&join_table.table_ref, with_row_handler, is_sorted)?;
-                    plan = Rc::new(LogicalJoin::new(
+                    plan = Arc::new(LogicalJoin::new(
                         plan,
                         table_plan,
                         join_table.join_op,

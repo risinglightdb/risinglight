@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::*;
 use crate::binder::BoundExpr;
 use crate::optimizer::plan_nodes::{
@@ -11,18 +13,16 @@ pub struct FilterJoinRule {}
 
 impl Rule for FilterJoinRule {
     fn apply(&self, plan: PlanRef) -> Result<PlanRef, ()> {
-        let filter = plan.downcast_rc::<LogicalFilter>().map_err(|_| ())?;
-        let join = filter
-            .child()
-            .downcast_rc::<LogicalJoin>()
-            .map_err(|_| ())?;
+        let filter = plan.as_logical_filter()?;
+        let child = filter.child();
+        let join = child.as_logical_join()?;
         let join_cond = BoundExpr::BinaryOp(BoundBinaryOp {
             op: And,
             left_expr: Box::new(join.condition().clone()),
             right_expr: Box::new(filter.expr().clone()),
             return_type: Some(DataTypeKind::Boolean.nullable()),
         });
-        let new_join = Rc::new(LogicalJoin::new(
+        let new_join = Arc::new(LogicalJoin::new(
             join.left().clone(),
             join.right().clone(),
             join.join_op(),
@@ -31,7 +31,7 @@ impl Rule for FilterJoinRule {
         // FIXME:
         // Currently HashJoinExecutor ignores the condition,
         // so for correctness we have to keep filter operator.
-        let new_filter = Rc::new(LogicalFilter::new(filter.expr().clone(), new_join));
+        let new_filter = Arc::new(LogicalFilter::new(filter.expr().clone(), new_join));
         Ok(new_filter)
 
         // TODO: we need schema of operator to push condition to each side.

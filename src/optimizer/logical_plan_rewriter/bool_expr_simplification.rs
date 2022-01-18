@@ -20,11 +20,11 @@ pub struct BoolExprSimplification;
 impl Rewriter for BoolExprSimplification {
     fn rewrite_logical_filter(&mut self, mut plan: LogicalFilter) -> PlanRef {
         match &plan.expr {
-            Constant(Bool(false) | Null) => plan.child = Rc::new(Dummy {}),
+            Constant(Bool(false) | Null) => plan.child = Arc::new(Dummy {}),
             Constant(Bool(true)) => return plan.child,
             _ => {}
         }
-        Rc::new(plan)
+        Arc::new(plan)
     }
 
     fn rewrite_expr(&mut self, expr: &mut BoundExpr) {

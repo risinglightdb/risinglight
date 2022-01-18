@@ -1,7 +1,7 @@
 //! Defines all plan nodes and provides tools to visit plan tree.
 
 use std::fmt::{Debug, Display};
-use std::rc::Rc;
+use std::sync::Arc;
 
 use downcast_rs::{impl_downcast, Downcast};
 use paste::paste;
@@ -11,16 +11,19 @@ use crate::types::DataType;
 #[macro_use]
 mod plan_tree_node;
 pub use plan_tree_node::*;
+
 /// The common trait over all plan nodes.
-pub trait PlanNode: WithPlanNodeType + PlanTreeNode + Debug + Display + Downcast {
+pub trait PlanNode:
+    WithPlanNodeType + PlanTreeNode + Debug + Display + Downcast + Send + Sync
+{
     fn out_types(&self) -> Vec<DataType> {
         vec![]
     }
 }
 impl_downcast!(PlanNode);
 
-/// The type of reference to a plan node.$
-pub type PlanRef = Rc<dyn PlanNode>;
+/// The type of reference to a plan node.
+pub type PlanRef = Arc<dyn PlanNode>;
 
 impl dyn PlanNode {
     /// Write explain string of the plan.
@@ -102,15 +105,32 @@ pub trait WithPlanNodeType {
 macro_rules! enum_plan_node_type {
     ([], $($node_name:ident),*) => {
         /// each enum value represent a [`PlanNode`] struct type, help us to dispatch and downcast
-        pub enum PlanNodeType{
+        pub enum PlanNodeType {
             $( $node_name ),*
         }
 
         $(impl WithPlanNodeType for $node_name {
-            fn node_type(&self) -> PlanNodeType{
+            fn node_type(&self) -> PlanNodeType {
                 PlanNodeType::$node_name
             }
         })*
     }
 }
-for_all_plan_nodes! {enum_plan_node_type }
+for_all_plan_nodes! { enum_plan_node_type }
+
+macro_rules! impl_downcast_utility {
+    ([], $($node_name:ident),*) => {
+        impl dyn PlanNode {
+            $(
+                paste! {
+                    // TODO: use `Option` or custom error type.
+                    #[allow(clippy::result_unit_err)]
+                    pub fn [<as_ $node_name:snake>] (&self) -> std::result::Result<&$node_name, ()> {
+                        self.downcast_ref::<$node_name>().ok_or_else(|| ())
+                    }
+                }
+            )*
+        }
+    }
+}
+for_all_plan_nodes! { impl_downcast_utility }

@@ -8,24 +8,24 @@ pub struct PhysicalConverter;
 
 impl PlanRewriter for PhysicalConverter {
     fn rewrite_logical_table_scan(&mut self, logical: &LogicalTableScan) -> PlanRef {
-        Rc::new(PhysicalTableScan::new(logical.clone()))
+        Arc::new(PhysicalTableScan::new(logical.clone()))
     }
     fn rewrite_logical_projection(&mut self, logical: &LogicalProjection) -> PlanRef {
         let child = self.rewrite(logical.child());
         let logical = logical.clone_with_child(child);
-        Rc::new(PhysicalProjection::new(logical))
+        Arc::new(PhysicalProjection::new(logical))
     }
 
     fn rewrite_logical_order(&mut self, logical: &LogicalOrder) -> PlanRef {
         let child = self.rewrite(logical.child());
         let logical = logical.clone_with_child(child);
-        Rc::new(PhysicalOrder::new(logical))
+        Arc::new(PhysicalOrder::new(logical))
     }
 
     fn rewrite_logical_limit(&mut self, logical: &LogicalLimit) -> PlanRef {
         let child = self.rewrite(logical.child());
         let logical = logical.clone_with_child(child);
-        Rc::new(PhysicalLimit::new(logical))
+        Arc::new(PhysicalLimit::new(logical))
     }
 
     fn rewrite_logical_join(&mut self, logical_join: &LogicalJoin) -> PlanRef {
@@ -65,71 +65,71 @@ impl PlanRewriter for PhysicalConverter {
         let logical_join = logical_join.clone_with_left_right(left, right);
 
         if let Some((left_column_index, right_column_index)) = hash_join_index {
-            return Rc::new(PhysicalHashJoin::new(
+            return Arc::new(PhysicalHashJoin::new(
                 logical_join,
                 left_column_index,
                 right_column_index,
             ));
         }
-        Rc::new(PhysicalNestedLoopJoin::new(logical_join))
+        Arc::new(PhysicalNestedLoopJoin::new(logical_join))
     }
 
     fn rewrite_logical_insert(&mut self, logical: &LogicalInsert) -> PlanRef {
         let child = self.rewrite(logical.child());
         let logical = logical.clone_with_child(child);
-        Rc::new(PhysicalInsert::new(logical))
+        Arc::new(PhysicalInsert::new(logical))
     }
 
     fn rewrite_logical_values(&mut self, logical: &LogicalValues) -> PlanRef {
-        Rc::new(PhysicalValues::new(logical.clone()))
+        Arc::new(PhysicalValues::new(logical.clone()))
     }
 
     fn rewrite_logical_filter(&mut self, logical: &LogicalFilter) -> PlanRef {
         let child = self.rewrite(logical.child());
         let logical = logical.clone_with_child(child);
-        Rc::new(PhysicalFilter::new(logical))
+        Arc::new(PhysicalFilter::new(logical))
     }
 
     fn rewrite_logical_explain(&mut self, logical: &LogicalExplain) -> PlanRef {
         let child = self.rewrite(logical.child());
         let logical = logical.clone_with_child(child);
-        Rc::new(PhysicalExplain::new(logical))
+        Arc::new(PhysicalExplain::new(logical))
     }
 
     fn rewrite_logical_drop(&mut self, logical: &LogicalDrop) -> PlanRef {
-        Rc::new(PhysicalDrop::new(logical.clone()))
+        Arc::new(PhysicalDrop::new(logical.clone()))
     }
 
     fn rewrite_logical_delete(&mut self, logical: &LogicalDelete) -> PlanRef {
         let child = self.rewrite(logical.child());
         let logical = logical.clone_with_child(child);
-        Rc::new(PhysicalDelete::new(logical))
+        Arc::new(PhysicalDelete::new(logical))
     }
 
     fn rewrite_logical_create_table(&mut self, logical: &LogicalCreateTable) -> PlanRef {
-        Rc::new(PhysicalCreateTable::new(logical.clone()))
+        Arc::new(PhysicalCreateTable::new(logical.clone()))
     }
 
     fn rewrite_logical_copy_from_file(&mut self, logical: &LogicalCopyFromFile) -> PlanRef {
-        Rc::new(PhysicalCopyFromFile::new(logical.clone()))
+        Arc::new(PhysicalCopyFromFile::new(logical.clone()))
     }
 
     fn rewrite_logical_copy_to_file(&mut self, logical: &LogicalCopyToFile) -> PlanRef {
         let child = self.rewrite(logical.child());
         let logical = logical.clone_with_child(child);
-        Rc::new(PhysicalCopyToFile::new(logical))
+        Arc::new(PhysicalCopyToFile::new(logical))
     }
 
     fn rewrite_logical_aggregate(&mut self, logical: &LogicalAggregate) -> PlanRef {
         if logical.group_keys().is_empty() {
-            Rc::new(PhysicalSimpleAgg::new(
+            Arc::new(PhysicalSimpleAgg::new(
                 logical.agg_calls().to_vec(),
                 self.rewrite(logical.child()),
             ))
         } else {
             let child = self.rewrite(logical.child());
             let logical = logical.clone_with_child(child);
-            Rc::new(PhysicalHashAgg::new(logical))
+            Arc::new(PhysicalHashAgg::new(logical))
         }
     }
 }
