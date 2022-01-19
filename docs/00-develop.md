@@ -30,7 +30,7 @@ may switch to a mirror site with full Rust toolchain or use the official rustup 
 After installing the Rust toolchain, you may download and compile RisingLight.
 
 ```shell
-git clone https://github.com/singularity-data/risinglight
+git clone https://github.com/risinglightdb/risinglight
 cd risinglight
 cargo build # Or cargo build --release
 ```
