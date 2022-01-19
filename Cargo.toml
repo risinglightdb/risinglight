@@ -37,7 +37,7 @@ moka = { version = "0.6", features = ["future"] }
 num-traits = "0.2"
 parking_lot = "0.11"
 paste = "1"
-prettytable-rs = { version = "0.8", default-features = false }
+comfy-table = { version = "5.0", default-features = false }
 prost = "0.9"
 risinglight_proto = { path = "proto" }
 rust_decimal = "1"
