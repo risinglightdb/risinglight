@@ -97,6 +97,9 @@ pub enum ExecutorError {
     NotNullable,
 }
 
+/// The maximum chunk length produced by executor at a time.
+const PROCESSING_WINDOW_SIZE: usize = 1024;
+
 /// A type-erased executor object.
 ///
 /// Logically an executor is a stream of data chunks.

@@ -16,19 +16,23 @@ pub struct ValuesExecutor {
 impl ValuesExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
-        let cardinality = self.values.len();
-        let mut builders = self
-            .column_types
-            .iter()
-            .map(|ty| ArrayBuilderImpl::with_capacity(cardinality, ty))
-            .collect_vec();
-        for row in &self.values {
-            for (expr, builder) in row.iter().zip(&mut builders) {
-                let value = expr.eval();
-                builder.push(&value);
+        for chunk in self.values.chunks(PROCESSING_WINDOW_SIZE) {
+            // Create array builders.
+            let mut builders = self
+                .column_types
+                .iter()
+                .map(|ty| ArrayBuilderImpl::with_capacity(chunk.len(), ty))
+                .collect_vec();
+            // Push value into the builder.
+            for row in chunk {
+                for (expr, builder) in row.iter().zip(&mut builders) {
+                    let value = expr.eval();
+                    builder.push(&value);
+                }
             }
+            // Finish build and yield chunk.
+            yield builders.into_iter().collect();
         }
-        yield builders.into_iter().collect();
     }
 }
 
