@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use super::*;
 use crate::binder::{BindError, Binder, BoundExpr};
 use crate::parser::{BinaryOperator, FunctionArg, FunctionArgExpr};

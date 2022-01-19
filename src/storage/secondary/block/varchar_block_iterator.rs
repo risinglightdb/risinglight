@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use bytes::Buf;
 
 use super::{Block, BlockIterator};

@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! Defines all plan nodes and provides tools to visit plan tree.
 
 use std::fmt::{Debug, Display};

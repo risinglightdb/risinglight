@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! Logical planner of `select` statement.
 //!
 //! A `select` statement will be planned to a compose of:

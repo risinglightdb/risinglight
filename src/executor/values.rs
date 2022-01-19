@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use super::*;
 use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::binder::BoundExpr;

@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! Basic serialization implementation of `RisingLight`.
 //!
 //! Note that this storage format is not stable. The current manifest persistence

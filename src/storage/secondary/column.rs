@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! Secondary's [`Column`] builders and iterators.
 //!
 //! A column stores data of the same kind, e.g. Int32. On the storage format

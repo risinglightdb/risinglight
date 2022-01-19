@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! The parser module directly uses the [`sqlparser`] crate
 //! and re-exports its AST types.
 
