@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use std::iter::Peekable;
 
 use risinglight_proto::rowset::block_index::BlockType;

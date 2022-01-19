@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 pub use sqlparser::ast::DataType as DataTypeKind;

@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use bytes::BufMut;
 use prost::Message;
 use risinglight_proto::rowset::block_checksum::ChecksumType;

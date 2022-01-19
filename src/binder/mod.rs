@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::vec::Vec;

@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use super::*;
 use crate::binder::BoundDrop;
 use crate::optimizer::plan_nodes::LogicalDrop;

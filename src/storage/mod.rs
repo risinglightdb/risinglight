@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! Traits and basic data structures for RisingLight's all storage engines.
 
 mod memory;

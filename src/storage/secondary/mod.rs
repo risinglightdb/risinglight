@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! Secondary storage engine for RisingLight
 
 // public modules and structures

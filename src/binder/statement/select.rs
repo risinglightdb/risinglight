@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use super::BoundExpr::*;
 use super::{BoundExpr, BoundTableRef, *};
 use crate::parser::{Query, SelectItem, SetExpr};

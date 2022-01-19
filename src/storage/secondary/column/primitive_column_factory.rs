@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use std::marker::PhantomData;
 
 use risinglight_proto::rowset::block_index::BlockType;

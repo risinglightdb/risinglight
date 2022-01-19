@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! In-memory storage implementation of RisingLight.
 //!
 //! RisingLight's in-memory representation of data is very simple. Currently,

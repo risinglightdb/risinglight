@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! Secondary's Block builders and iterators
 //!
 //! [`Block`] is the minimum managing unit in the storage engine.

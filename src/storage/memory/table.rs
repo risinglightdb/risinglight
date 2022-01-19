@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 use std::vec::Vec;

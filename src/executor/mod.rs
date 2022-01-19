@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! # Execution Model
 //!
 //! The execution engine executes the query in a Vectorized Volcano model.

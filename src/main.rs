@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! A simple interactive shell of the database.
 
 use std::fs::File;

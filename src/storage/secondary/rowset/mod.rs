@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! Rowset encoding and decoding implementation of RisingLight.
 //!
 //! Rowset is the minimum managing unit of RisingLight's secondary storage engine.
