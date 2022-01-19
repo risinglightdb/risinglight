@@ -1,5 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::collections::HashSet;
 use std::marker::PhantomData;
 
 use super::super::encode::PrimitiveFixedWidthEncode;
@@ -36,6 +37,14 @@ impl<T: PrimitiveFixedWidthEncode> BlockBuilder<T::ArrayType> for PlainPrimitive
 
     fn should_finish(&self, _next_item: &Option<&T>) -> bool {
         !self.data.is_empty() && self.estimated_size() + T::WIDTH > self.target_size
+    }
+
+    fn distinct_count(&self) -> usize {
+        let mut distinct_values = HashSet::<&[u8]>::new();
+        for item in self.data.chunks(T::WIDTH) {
+            distinct_values.insert(item);
+        }
+        distinct_values.len()
     }
 
     fn finish(self) -> Vec<u8> {

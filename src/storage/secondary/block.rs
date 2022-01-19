@@ -51,6 +51,9 @@ pub trait BlockBuilder<A: Array> {
     /// Get estimated size of block. Will be useful on runlength or compression encoding.
     fn estimated_size(&self) -> usize;
 
+    /// Get distinct values count of block
+    fn distinct_count(&self) -> usize;
+
     /// Check if we should finish the current block. If there is no item in the current
     /// builder, this function must return `true`.
     fn should_finish(&self, next_item: &Option<&A::Item>) -> bool;

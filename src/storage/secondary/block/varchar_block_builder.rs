@@ -1,5 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::collections::HashSet;
+
 use bytes::BufMut;
 
 use super::BlockBuilder;
@@ -44,6 +46,18 @@ impl BlockBuilder<Utf8Array> for PlainVarcharBlockBuilder {
                 + next_item.map(|x| x.len()).unwrap_or(0)
                 + std::mem::size_of::<u32>()
                 > self.target_size
+    }
+
+    fn distinct_count(&self) -> usize {
+        let mut distinct_values = HashSet::<&[u8]>::new();
+        let mut last_pos: usize = 0;
+        let mut cur_pos;
+        for pos in &self.offsets {
+            cur_pos = *pos as usize;
+            distinct_values.insert(&self.data[last_pos..cur_pos]);
+            last_pos = cur_pos;
+        }
+        distinct_values.len()
     }
 
     fn finish(self) -> Vec<u8> {

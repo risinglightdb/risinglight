@@ -1,5 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::collections::HashSet;
+
 use super::BlockBuilder;
 use crate::array::Utf8Array;
 
@@ -54,6 +56,14 @@ impl BlockBuilder<Utf8Array> for PlainCharBlockBuilder {
 
     fn should_finish(&self, _next_item: &Option<&str>) -> bool {
         !self.data.is_empty() && self.estimated_size() + self.char_width > self.target_size
+    }
+
+    fn distinct_count(&self) -> usize {
+        let mut distinct_values = HashSet::<&[u8]>::new();
+        for item in self.data.chunks(self.char_width) {
+            distinct_values.insert(item);
+        }
+        distinct_values.len()
     }
 
     fn finish(self) -> Vec<u8> {
