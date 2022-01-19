@@ -5,7 +5,9 @@ version = "0.1.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
+default = ["jemalloc"]
 simd = []
+jemalloc = ["jemallocator"]
 
 [dependencies]
 anyhow = "1"
@@ -29,7 +31,7 @@ futures = { version = "0.3", default-features = false, features = ["alloc"] }
 futures-async-stream = { git = "https://github.com/taiki-e/futures-async-stream", rev = "944f407" }
 indicatif = { version = "0.16" }
 itertools = "0.10"
-jemallocator = "0.3"
+jemallocator = { version = "0.3", optional = true }
 log = "0.4"
 moka = { version = "0.6", features = ["future"] }
 num-traits = "0.2"
