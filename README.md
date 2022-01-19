@@ -1,8 +1,8 @@
 # RisingLight
 
-[![CI](https://github.com/singularity-data/risinglight/workflows/CI/badge.svg?branch=main)](https://github.com/singularity-data/risinglight/actions)
+[![CI](https://github.com/risinglightdb/risinglight/workflows/CI/badge.svg?branch=main)](https://github.com/risinglightdb/risinglight/actions)
 
-RisingLight is an OLAP database system for educational purpose. It is still in rapid development.
+RisingLight is an OLAP database system for educational purpose. It is still in rapid development, and should not be used in production.
 
 ## Quick Start
 
@@ -18,6 +18,8 @@ cargo run --release
 Otherwise, see [Install, Run, and Develop RisingLight](docs/00-develop.md) for more information. We provide
 step-by-step guide on how to compile and run RisingLight from scratch.
 
+After successfully building RisingLight, you may import some data and run SQL queries. See [Running TPC-H Queries](docs/01-tpch.md).
+
 ## Documentation
 
 All documentation can be found in [docs](docs/) folder. At the same time, dev docs are also available in `make docs`
@@ -26,7 +28,7 @@ All documentation can be found in [docs](docs/) folder. At the same time, dev do
 ## Roadmap
 
 We plan to release a stable version of RisingLight in the near future, as well as a tutorial in Chinese on how to build an OLAP database from scratch. See the pinned
-[Roadmap](https://github.com/singularity-data/risinglight/issues/317) issue for more information.
+[Roadmap](https://github.com/risinglightdb/risinglight/issues/317) issue for more information.
 
 ## License
 
@@ -34,10 +36,10 @@ RisingLight is under the Apache 2.0 license. See the [LICENSE](LICENSE) file for
 
 ## Contributing
 
-If you have a bug report or feature request, welcome to open an [issue](https://github.com/singularity-data/risinglight/issues).
+If you have a bug report or feature request, welcome to open an [issue](https://github.com/risinglightdb/risinglight/issues).
 
 If you have any question or want to discuss, join our Slack channel or start a discussion on
-[GitHub Discussions](https://github.com/singularity-data/risinglight/discussions).
+[GitHub Discussions](https://github.com/risinglightdb/risinglight/discussions).
 
 <!-- TODO: add Slack channel -->
 
