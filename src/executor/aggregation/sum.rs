@@ -45,6 +45,7 @@ impl AggregationState for SumAggregationState {
                 let mut temp: Option<i32> = None;
                 #[cfg(feature = "simd")]
                 {
+                    use crate::array::ArrayValidExt;
                     let bitmap = arr.get_valid_bitmap();
                     if bitmap.any() {
                         temp = Some(arr.batch_iter::<32>().sum());
@@ -66,6 +67,7 @@ impl AggregationState for SumAggregationState {
                 let mut temp: Option<f64> = None;
                 #[cfg(feature = "simd")]
                 {
+                    use crate::array::ArrayValidExt;
                     let bitmap = arr.get_valid_bitmap();
                     if bitmap.any() {
                         temp = Some(arr.batch_iter::<32>().sum());
