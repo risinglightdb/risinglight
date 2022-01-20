@@ -16,6 +16,7 @@ pub use fake_block_iterator::*;
 pub use primitive_block_builder::*;
 pub use primitive_block_iterator::*;
 pub use primitive_nullable_block_builder::*;
+use risinglight_proto::rowset::BlockStatistics;
 pub use varchar_block_builder::*;
 mod char_block_iterator;
 pub use char_block_iterator::*;
@@ -52,7 +53,7 @@ pub trait BlockBuilder<A: Array> {
     fn estimated_size(&self) -> usize;
 
     /// Get distinct values count of block
-    fn distinct_count(&self) -> usize;
+    fn get_statistics(&self) -> Vec<BlockStatistics>;
 
     /// Check if we should finish the current block. If there is no item in the current
     /// builder, this function must return `true`.

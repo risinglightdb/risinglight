@@ -3,6 +3,8 @@
 use std::collections::HashSet;
 
 use bytes::BufMut;
+use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
+use risinglight_proto::rowset::BlockStatistics;
 
 use super::BlockBuilder;
 use crate::array::Utf8Array;
@@ -48,7 +50,7 @@ impl BlockBuilder<Utf8Array> for PlainVarcharBlockBuilder {
                 > self.target_size
     }
 
-    fn distinct_count(&self) -> usize {
+    fn get_statistics(&self) -> Vec<BlockStatistics> {
         let mut distinct_values = HashSet::<&[u8]>::new();
         let mut last_pos: usize = 0;
         let mut cur_pos;
@@ -57,7 +59,12 @@ impl BlockBuilder<Utf8Array> for PlainVarcharBlockBuilder {
             distinct_values.insert(&self.data[last_pos..cur_pos]);
             last_pos = cur_pos;
         }
-        distinct_values.len()
+        let distinct_count = distinct_values.len() as u64;
+        let distinct_stat = BlockStatistics {
+            block_stat_type: BlockStatisticsType::DistinctValue as i32,
+            body: distinct_count.to_le_bytes().to_vec(),
+        };
+        vec![distinct_stat]
     }
 
     fn finish(self) -> Vec<u8> {
