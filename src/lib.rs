@@ -44,7 +44,7 @@ pub mod storage;
 pub mod types;
 
 #[cfg(feature = "jemalloc")]
-use jemallocator::Jemalloc;
+use tikv_jemallocator::Jemalloc;
 
 pub use self::db::{Database, Error};
 
