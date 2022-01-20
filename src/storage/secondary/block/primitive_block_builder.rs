@@ -1,13 +1,11 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::collections::HashSet;
 use std::marker::PhantomData;
 
-use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use risinglight_proto::rowset::BlockStatistics;
 
 use super::super::encode::PrimitiveFixedWidthEncode;
-use super::BlockBuilder;
+use super::{BlockBuilder, StatisticsBuilder};
 
 /// Encodes fixed-width data into a block. The layout is simply an array of
 /// little endian fixed-width data.
@@ -43,16 +41,11 @@ impl<T: PrimitiveFixedWidthEncode> BlockBuilder<T::ArrayType> for PlainPrimitive
     }
 
     fn get_statistics(&self) -> Vec<BlockStatistics> {
-        let mut distinct_values = HashSet::<&[u8]>::new();
+        let mut stats_builder = StatisticsBuilder::new();
         for item in self.data.chunks(T::WIDTH) {
-            distinct_values.insert(item);
+            stats_builder.add_item(Some(item));
         }
-        let distinct_count = distinct_values.len() as u64;
-        let distinct_stat = BlockStatistics {
-            block_stat_type: BlockStatisticsType::DistinctValue as i32,
-            body: distinct_count.to_le_bytes().to_vec(),
-        };
-        vec![distinct_stat]
+        stats_builder.get_statistics()
     }
 
     fn finish(self) -> Vec<u8> {

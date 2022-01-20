@@ -11,11 +11,14 @@ mod primitive_block_iterator;
 mod primitive_nullable_block_builder;
 mod primitive_nullable_block_iterator;
 mod varchar_block_builder;
+use std::collections::HashSet;
+
 pub use char_block_builder::*;
 pub use fake_block_iterator::*;
 pub use primitive_block_builder::*;
 pub use primitive_block_iterator::*;
 pub use primitive_nullable_block_builder::*;
+use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use risinglight_proto::rowset::BlockStatistics;
 pub use varchar_block_builder::*;
 mod char_block_iterator;
@@ -131,5 +134,32 @@ impl BlockHeader {
             .ok_or_else(|| TracedStorageError::decode("expected valid checksum type"))?;
         self.checksum = buf.get_u64();
         Ok(())
+    }
+}
+
+pub struct StatisticsBuilder<'a> {
+    distinct_values: HashSet<&'a [u8]>,
+}
+
+impl<'a> StatisticsBuilder<'a> {
+    pub fn new() -> Self {
+        Self {
+            distinct_values: HashSet::<&'a [u8]>::new(),
+        }
+    }
+
+    pub fn add_item(&mut self, data: Option<&'a [u8]>) {
+        if let Some(data) = data {
+            self.distinct_values.insert(data);
+        }
+    }
+
+    pub fn get_statistics(self) -> Vec<BlockStatistics> {
+        let distinct_count = self.distinct_values.len() as u64;
+        let distinct_stat = BlockStatistics {
+            block_stat_type: BlockStatisticsType::DistinctValue as i32,
+            body: distinct_count.to_le_bytes().to_vec(),
+        };
+        vec![distinct_stat]
     }
 }
