@@ -3,8 +3,7 @@
 use rust_decimal::Decimal;
 
 use super::*;
-#[allow(unused_imports)]
-use crate::array::{Array, ArrayValidExt};
+use crate::array::Array;
 use crate::types::DataTypeKind;
 
 /// State for sum aggregation
