@@ -3,9 +3,11 @@
 use std::marker::PhantomData;
 
 use bitvec::prelude::{BitVec, Lsb0};
+use itertools::enumerate;
+use risinglight_proto::rowset::BlockStatistics;
 
 use super::super::PrimitiveFixedWidthEncode;
-use super::BlockBuilder;
+use super::{BlockBuilder, StatisticsBuilder};
 
 /// Encodes fixed-width data into a block, with null element support.
 ///
@@ -50,6 +52,16 @@ impl<T: PrimitiveFixedWidthEncode> BlockBuilder<T::ArrayType>
 
     fn should_finish(&self, _next_item: &Option<&T>) -> bool {
         !self.data.is_empty() && self.estimated_size() + 1 + T::WIDTH > self.target_size
+    }
+
+    fn get_statistics(&self) -> Vec<BlockStatistics> {
+        let mut stats_builder = StatisticsBuilder::new();
+        for (idx, item) in enumerate(self.data.chunks(T::WIDTH)) {
+            if self.bitmap[idx] {
+                stats_builder.add_item(Some(item));
+            }
+        }
+        stats_builder.get_statistics()
     }
 
     fn finish(self) -> Vec<u8> {

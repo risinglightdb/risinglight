@@ -1,7 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use risinglight_proto::rowset::block_index::BlockType;
-use risinglight_proto::rowset::BlockIndex;
+use risinglight_proto::rowset::{BlockIndex, BlockStatistics};
 
 use super::{BlockHeader, BLOCK_HEADER_SIZE};
 use crate::storage::secondary::{build_checksum, ColumnBuilderOptions};
@@ -41,6 +41,7 @@ impl BlockIndexBuilder {
         block_type: BlockType,
         column_data: &mut Vec<u8>,
         block_data: &mut Vec<u8>,
+        stats: Vec<BlockStatistics>,
     ) {
         self.indexes.push(BlockIndex {
             offset: column_data.len() as u64,
@@ -49,7 +50,7 @@ impl BlockIndexBuilder {
             row_count: (self.row_count - self.last_row_count) as u32,
             /// TODO(chi): support sort key
             first_key: "".into(),
-            stats: vec![],
+            stats,
         });
 
         // the new block will begin at the current row count

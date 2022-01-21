@@ -47,17 +47,21 @@ impl CharColumnBuilder {
     }
 
     fn finish_builder(&mut self) {
-        let (block_type, mut block_data) = match self.current_builder.take().unwrap() {
-            CharBlockBuilderImpl::PlainFixedChar(builder) => {
-                (BlockType::PlainFixedChar, builder.finish())
-            }
-            CharBlockBuilderImpl::PlainVarchar(builder) => {
-                (BlockType::PlainVarchar, builder.finish())
-            }
+        let (block_type, stats, mut block_data) = match self.current_builder.take().unwrap() {
+            CharBlockBuilderImpl::PlainFixedChar(builder) => (
+                BlockType::PlainFixedChar,
+                builder.get_statistics(),
+                builder.finish(),
+            ),
+            CharBlockBuilderImpl::PlainVarchar(builder) => (
+                BlockType::PlainVarchar,
+                builder.get_statistics(),
+                builder.finish(),
+            ),
         };
 
         self.block_index_builder
-            .finish_block(block_type, &mut self.data, &mut block_data);
+            .finish_block(block_type, &mut self.data, &mut block_data, stats);
     }
 }
 

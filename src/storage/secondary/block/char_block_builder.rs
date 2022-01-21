@@ -1,6 +1,8 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use super::BlockBuilder;
+use risinglight_proto::rowset::BlockStatistics;
+
+use super::{BlockBuilder, StatisticsBuilder};
 use crate::array::Utf8Array;
 
 /// Encodes fixed-width char into a block.
@@ -54,6 +56,14 @@ impl BlockBuilder<Utf8Array> for PlainCharBlockBuilder {
 
     fn should_finish(&self, _next_item: &Option<&str>) -> bool {
         !self.data.is_empty() && self.estimated_size() + self.char_width > self.target_size
+    }
+
+    fn get_statistics(&self) -> Vec<BlockStatistics> {
+        let mut stats_builder = StatisticsBuilder::new();
+        for item in self.data.chunks(self.char_width) {
+            stats_builder.add_item(Some(item));
+        }
+        stats_builder.get_statistics()
     }
 
     fn finish(self) -> Vec<u8> {

@@ -1,8 +1,9 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use bytes::BufMut;
+use risinglight_proto::rowset::BlockStatistics;
 
-use super::BlockBuilder;
+use super::{BlockBuilder, StatisticsBuilder};
 use crate::array::Utf8Array;
 
 /// Encodes offset and data into a block. The data layout is
@@ -43,6 +44,18 @@ impl BlockBuilder<Utf8Array> for PlainVarcharBlockBuilder {
                 + next_item.map(|x| x.len()).unwrap_or(0)
                 + std::mem::size_of::<u32>()
                 > self.target_size
+    }
+
+    fn get_statistics(&self) -> Vec<BlockStatistics> {
+        let mut stats_builder = StatisticsBuilder::new();
+        let mut last_pos: usize = 0;
+        let mut cur_pos;
+        for pos in &self.offsets {
+            cur_pos = *pos as usize;
+            stats_builder.add_item(Some(&self.data[last_pos..cur_pos]));
+            last_pos = cur_pos;
+        }
+        stats_builder.get_statistics()
     }
 
     fn finish(self) -> Vec<u8> {
