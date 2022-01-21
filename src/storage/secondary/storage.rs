@@ -107,7 +107,7 @@ impl SecondaryStorage {
         while let Some(entry) = dir.next_entry().await? {
             if entry.path().is_dir() {
                 if let Some((table_id, rowset_id)) =
-                    entry.file_name().to_str().unwrap().split_once("_")
+                    entry.file_name().to_str().unwrap().split_once('_')
                 {
                     if let (Ok(table_id), Ok(rowset_id)) =
                         (table_id.parse::<u32>(), rowset_id.parse::<u32>())

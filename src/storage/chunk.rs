@@ -38,13 +38,12 @@ impl StorageChunk {
         for array in &arrays {
             assert_eq!(first_length, array.len());
         }
-        let cardinality;
-        if let Some(ref visibility) = visibility {
+        let cardinality = if let Some(ref visibility) = visibility {
             assert_eq!(visibility.len(), first_length);
-            cardinality = visibility.count_ones();
+            visibility.count_ones()
         } else {
-            cardinality = first_length;
-        }
+            first_length
+        };
 
         if cardinality > 0 {
             Some(Self {

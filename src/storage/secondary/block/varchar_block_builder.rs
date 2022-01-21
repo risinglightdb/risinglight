@@ -17,7 +17,6 @@ pub struct PlainVarcharBlockBuilder {
 }
 
 impl PlainVarcharBlockBuilder {
-    #[allow(dead_code)]
     pub fn new(target_size: usize) -> Self {
         let data = Vec::with_capacity(target_size);
         Self {

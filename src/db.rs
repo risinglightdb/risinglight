@@ -97,10 +97,10 @@ impl Database {
     }
 
     pub async fn run_internal(&self, cmd: &str) -> Result<Vec<DataChunk>, Error> {
-        if let Some((cmd, arg)) = cmd.split_once(" ") {
+        if let Some((cmd, arg)) = cmd.split_once(' ') {
             if cmd == "stat" {
                 if let StorageImpl::SecondaryStorage(ref storage) = self.storage {
-                    let (table, col) = arg.split_once(" ").expect("failed to parse command");
+                    let (table, col) = arg.split_once(' ').expect("failed to parse command");
                     let table_id = self
                         .catalog
                         .get_table_id_by_name("postgres", "postgres", table)
