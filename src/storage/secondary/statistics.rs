@@ -20,6 +20,8 @@ mod row_count;
 use row_count::*;
 mod distinct_value;
 use distinct_value::*;
+mod statistics_builder;
+pub use statistics_builder::*;
 
 /// Get the aggregated statistics from pre-aggregated per-block statistics.
 pub trait StatisticsGlobalAgg {
