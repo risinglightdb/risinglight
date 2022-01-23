@@ -6,8 +6,9 @@ use bitvec::prelude::{BitVec, Lsb0};
 use itertools::enumerate;
 use risinglight_proto::rowset::BlockStatistics;
 
+use super::super::statistics::StatisticsBuilder;
 use super::super::PrimitiveFixedWidthEncode;
-use super::{BlockBuilder, StatisticsBuilder};
+use super::BlockBuilder;
 
 /// Encodes fixed-width data into a block, with null element support.
 ///
