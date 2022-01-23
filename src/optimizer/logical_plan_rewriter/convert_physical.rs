@@ -2,7 +2,6 @@
 
 use super::super::plan_nodes::*;
 use super::*;
-use crate::binder::BoundJoinOperator;
 use crate::optimizer::BoundExpr::{BinaryOp, InputRef};
 use crate::parser::BinaryOperator;
 /// Convert all logical plan nodes to physical.
@@ -32,7 +31,8 @@ impl PlanRewriter for PhysicalConverter {
 
     fn rewrite_logical_join(&mut self, logical_join: &LogicalJoin) -> PlanRef {
         // Hash join is only used for equal join.
-        // So far, we only support hash join when doing inner join.
+
+        /// Find the column indexes (i, j) where there is a condition `left[i] = right[j]` in expr.
         fn find_hash_join_index(expr: &BoundExpr, mid: usize) -> Option<(usize, usize)> {
             match expr {
                 BinaryOp(op) => match (&op.op, &*op.left_expr, &*op.right_expr) {
@@ -55,12 +55,8 @@ impl PlanRewriter for PhysicalConverter {
                 _ => None,
             }
         }
-        let hash_join_index = if logical_join.join_op() == BoundJoinOperator::Inner {
-            let mid = logical_join.left().out_types().len();
-            find_hash_join_index(logical_join.condition(), mid)
-        } else {
-            None
-        };
+        let mid = logical_join.left().out_types().len();
+        let hash_join_index = find_hash_join_index(logical_join.condition(), mid);
 
         let left = self.rewrite(logical_join.left());
         let right = self.rewrite(logical_join.right());

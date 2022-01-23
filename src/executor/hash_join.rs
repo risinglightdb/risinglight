@@ -1,6 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::vec::Vec;
 
 use futures::TryStreamExt;
@@ -15,13 +15,14 @@ pub struct HashJoinExecutor {
     pub left_child: BoxedExecutor,
     pub right_child: BoxedExecutor,
     pub join_op: BoundJoinOperator,
+    // TODO: filter by condition
     pub condition: BoundExpr,
     pub left_column_index: usize,
     pub right_column_index: usize,
-    pub data_types: Vec<DataType>,
+    pub left_types: Vec<DataType>,
+    pub right_types: Vec<DataType>,
 }
 
-// TODO : support other types of join: left/right/full join
 impl HashJoinExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
@@ -44,9 +45,8 @@ impl HashJoinExecutor {
         }
 
         // probe
-        let mut builders = self
-            .data_types
-            .iter()
+        let mut builders = (self.left_types.iter())
+            .chain(self.right_types.iter())
             .map(|ty| ArrayBuilderImpl::with_capacity(PROCESSING_WINDOW_SIZE, ty))
             .collect_vec();
         for right_row in right_rows() {
@@ -58,6 +58,48 @@ impl HashJoinExecutor {
                 }
             }
         }
+
+        // append rows for left outer join
+        if matches!(
+            self.join_op,
+            BoundJoinOperator::LeftOuter | BoundJoinOperator::FullOuter
+        ) {
+            let right_keys = right_rows()
+                .map(|row| row.get(self.right_column_index))
+                .collect::<HashSet<DataValue>>();
+            for left_row in left_rows() {
+                let hash_value = left_row.get(self.left_column_index);
+                if right_keys.contains(&hash_value) {
+                    continue;
+                }
+                // append row: (left, NULL)
+                let values =
+                    (left_row.values()).chain(self.right_types.iter().map(|_| DataValue::Null));
+                for (builder, v) in builders.iter_mut().zip(values) {
+                    builder.push(&v);
+                }
+            }
+        }
+
+        // append rows for right outer join
+        if matches!(
+            self.join_op,
+            BoundJoinOperator::RightOuter | BoundJoinOperator::FullOuter
+        ) {
+            for right_row in right_rows() {
+                let hash_value = right_row.get(self.right_column_index);
+                if hash_map.contains_key(&hash_value) {
+                    continue;
+                }
+                // append row: (NULL, right)
+                let values =
+                    (self.left_types.iter().map(|_| DataValue::Null)).chain(right_row.values());
+                for (builder, v) in builders.iter_mut().zip(values) {
+                    builder.push(&v);
+                }
+            }
+        }
+
         yield builders.into_iter().collect();
     }
 }

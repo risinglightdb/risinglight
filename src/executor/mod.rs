@@ -183,9 +183,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
         &mut self,
         plan: &PhysicalNestedLoopJoin,
     ) -> Option<BoxedExecutor> {
-        let left_types = plan.left().out_types();
         let left_child = self.visit(plan.left()).unwrap();
-        let right_types = plan.right().out_types();
         let right_child = self.visit(plan.right()).unwrap();
         Some(
             NestedLoopJoinExecutor {
@@ -193,8 +191,8 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                 right_child,
                 join_op: plan.logical().join_op(),
                 condition: plan.logical().condition().clone(),
-                left_types,
-                right_types,
+                left_types: plan.left().out_types(),
+                right_types: plan.right().out_types(),
             }
             .execute(),
         )
@@ -284,7 +282,8 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                 condition: plan.logical().condition().clone(),
                 left_column_index: plan.left_column_index(),
                 right_column_index: plan.right_column_index(),
-                data_types: plan.out_types(),
+                left_types: plan.left().out_types(),
+                right_types: plan.right().out_types(),
             }
             .execute(),
         )
