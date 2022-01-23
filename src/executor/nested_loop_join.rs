@@ -3,10 +3,10 @@
 use std::vec::Vec;
 
 use bitvec::bitvec;
-use bitvec::vec::BitVec;
+use futures::TryStreamExt;
 
 use super::*;
-use crate::array::{ArrayBuilderImpl, DataChunk};
+use crate::array::{Array, ArrayBuilderImpl, ArrayImpl, DataChunk};
 use crate::binder::{BoundExpr, BoundJoinOperator};
 use crate::types::{DataType, DataValue};
 
@@ -21,170 +21,94 @@ pub struct NestedLoopJoinExecutor {
 }
 
 impl NestedLoopJoinExecutor {
-    fn execute_loop_join(
-        join_op: BoundJoinOperator,
-        join_cond: BoundExpr,
-        left_chunks: Vec<DataChunk>,
-        right_chunks: Vec<DataChunk>,
-        left_types: Vec<DataType>,
-        right_types: Vec<DataType>,
-    ) -> Result<Option<DataChunk>, ExecutorError> {
-        let left_row_len = left_types.len();
-        let right_row_len = left_types.len();
-
-        let mut chunk_builders: Vec<ArrayBuilderImpl> = vec![];
-        for ty in &left_types {
-            chunk_builders.push(ArrayBuilderImpl::new(ty));
-        }
-        for ty in &right_types {
-            chunk_builders.push(ArrayBuilderImpl::new(ty));
-        }
-
-        let mut left_bitmaps: Option<Vec<BitVec>> = match &join_op {
-            BoundJoinOperator::LeftOuter | BoundJoinOperator::FullOuter => {
-                let mut vecs = vec![];
-                for left_chunk in &left_chunks {
-                    vecs.push(bitvec![0; left_chunk.cardinality()]);
-                }
-                Some(vecs)
-            }
-            _ => None,
-        };
-
-        let mut right_bitmaps: Option<Vec<BitVec>> = match &join_op {
-            BoundJoinOperator::RightOuter | BoundJoinOperator::FullOuter => {
-                let mut vecs = vec![];
-                for right_chunk in &right_chunks {
-                    vecs.push(bitvec![0; right_chunk.cardinality()]);
-                }
-                Some(vecs)
-            }
-            _ => None,
-        };
-
-        for left_chunk_idx in 0..left_chunks.len() {
-            for left_row_idx in 0..left_chunks[left_chunk_idx].cardinality() {
-                let mut matched = false;
-                for right_chunk_idx in 0..right_chunks.len() {
-                    for right_row_idx in 0..right_chunks[right_chunk_idx].cardinality() {
-                        let mut left_row = left_chunks[left_chunk_idx].get_row_by_idx(left_row_idx);
-                        let mut right_row =
-                            right_chunks[right_chunk_idx].get_row_by_idx(right_row_idx);
-                        left_row.append(&mut right_row);
-                        let mut builders = vec![];
-                        for ty in &left_types {
-                            builders.push(ArrayBuilderImpl::new(ty));
-                        }
-                        for ty in &right_types {
-                            builders.push(ArrayBuilderImpl::new(ty));
-                        }
-                        for (idx, builder) in builders.iter_mut().enumerate() {
-                            builder.push(&left_row[idx]);
-                        }
-
-                        let chunk = builders.into_iter().collect();
-                        let arr_impl = join_cond.eval_array(&chunk)?;
-                        let value = arr_impl.get(0);
-                        match value {
-                            DataValue::Bool(true) => {
-                                matched = true;
-                                match &mut right_bitmaps {
-                                    Some(right_bitmaps) => {
-                                        right_bitmaps[right_chunk_idx].set(right_row_idx, true);
-                                    }
-                                    None => {}
-                                }
-
-                                for (idx, builder) in chunk_builders.iter_mut().enumerate() {
-                                    builder.push(&left_row[idx]);
-                                }
-                            }
-                            DataValue::Bool(false) => {}
-                            _ => {
-                                panic!("unsupported value from join condition")
-                            }
-                        }
-                    }
-                }
-                match &mut left_bitmaps {
-                    Some(left_bitmaps) => {
-                        if matched {
-                            left_bitmaps[left_chunk_idx].set(left_row_idx, true);
-                        }
-                    }
-                    None => {}
-                }
-            }
-        }
-        match &left_bitmaps {
-            Some(left_bitmaps) => {
-                for left_chunk_idx in 0..left_chunks.len() {
-                    for left_row_idx in 0..left_chunks[left_chunk_idx].cardinality() {
-                        if !left_bitmaps[left_chunk_idx][left_row_idx] {
-                            let mut left_row =
-                                left_chunks[left_chunk_idx].get_row_by_idx(left_row_idx);
-                            for _ in 0..right_row_len {
-                                left_row.push(DataValue::Null);
-                            }
-
-                            for (idx, builder) in chunk_builders.iter_mut().enumerate() {
-                                builder.push(&left_row[idx]);
-                            }
-                        }
-                    }
-                }
-            }
-            None => {}
-        }
-
-        match &right_bitmaps {
-            Some(right_bitmaps) => {
-                for right_chunk_idx in 0..right_chunks.len() {
-                    for right_row_idx in 0..right_chunks[right_chunk_idx].cardinality() {
-                        if !right_bitmaps[right_chunk_idx][right_row_idx] {
-                            let mut row = vec![];
-                            let mut righ_row =
-                                right_chunks[right_chunk_idx].get_row_by_idx(right_row_idx);
-                            for _ in 0..left_row_len {
-                                row.push(DataValue::Null);
-                            }
-                            row.append(&mut righ_row);
-                            for (idx, builder) in chunk_builders.iter_mut().enumerate() {
-                                builder.push(&row[idx]);
-                            }
-                        }
-                    }
-                }
-            }
-            None => {}
-        }
-        Ok(Some(chunk_builders.into_iter().collect()))
-    }
-
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
-        let mut left_chunks: Vec<DataChunk> = vec![];
-        let mut right_chunks: Vec<DataChunk> = vec![];
-        #[for_await]
-        for batch in self.left_child {
-            left_chunks.push(batch?);
-        }
+        // collect all chunks from children
+        let left_chunks: Vec<DataChunk> = self.left_child.try_collect().await?;
+        let right_chunks: Vec<DataChunk> = self.right_child.try_collect().await?;
 
-        #[for_await]
-        for batch in self.right_child {
-            right_chunks.push(batch?);
-        }
+        // helper functions
+        let create_builders = || {
+            self.left_types
+                .iter()
+                .chain(self.right_types.iter())
+                .map(|ty| ArrayBuilderImpl::with_capacity(PROCESSING_WINDOW_SIZE, ty))
+                .collect_vec()
+        };
+        let left_rows = || left_chunks.iter().flat_map(|chunk| chunk.rows());
+        let right_rows = || right_chunks.iter().flat_map(|chunk| chunk.rows());
 
-        let chunk = Self::execute_loop_join(
+        // cross join: left x right
+        let mut builders = create_builders();
+        for left_row in left_rows() {
+            for right_row in right_rows() {
+                let values = left_row.values().chain(right_row.values());
+                for (builder, v) in builders.iter_mut().zip(values) {
+                    builder.push(&v);
+                }
+            }
+        }
+        let cross_chunk = builders.into_iter().collect();
+
+        // evaluate filter bitmap
+        let filter = match self.condition.eval_array(&cross_chunk)? {
+            ArrayImpl::Bool(a) => a,
+            _ => panic!("unsupported value from join condition"),
+        };
+        yield cross_chunk.filter(filter.iter().map(|b| matches!(b, Some(true))));
+
+        // append rows for left outer join
+        if matches!(
             self.join_op,
-            self.condition,
-            left_chunks,
-            right_chunks,
-            self.left_types,
-            self.right_types,
-        )?;
-        if let Some(chunk) = chunk {
-            yield chunk;
+            BoundJoinOperator::LeftOuter | BoundJoinOperator::FullOuter
+        ) {
+            let mut builders = create_builders();
+            let mut i = 0;
+            for left_row in left_rows() {
+                let mut matched = false;
+                for _ in right_rows() {
+                    matched |= matches!(filter.get(i), Some(true));
+                    i += 1;
+                }
+                if matched {
+                    continue;
+                }
+                // append row: (left, NULL)
+                let values =
+                    (left_row.values()).chain(self.right_types.iter().map(|_| DataValue::Null));
+                for (builder, v) in builders.iter_mut().zip(values) {
+                    builder.push(&v);
+                }
+            }
+            yield builders.into_iter().collect();
+        }
+
+        // append rows for right outer join
+        if matches!(
+            self.join_op,
+            BoundJoinOperator::RightOuter | BoundJoinOperator::FullOuter
+        ) {
+            let mut builders = create_builders();
+            // scan the filter to find whether a right row matches any left rows
+            let mut matched = bitvec![0; right_rows().count()];
+            let mut i = 0;
+            for _ in left_rows() {
+                for (j, _) in right_rows().enumerate() {
+                    if matches!(filter.get(i), Some(true)) {
+                        matched.set(j, true);
+                    }
+                    i += 1;
+                }
+            }
+            for (right_row, _) in right_rows().zip(matched.iter()).filter(|(_, m)| !**m) {
+                // append row: (NULL, right)
+                let values =
+                    (self.left_types.iter().map(|_| DataValue::Null)).chain(right_row.values());
+                for (builder, v) in builders.iter_mut().zip(values) {
+                    builder.push(&v);
+                }
+            }
+            yield builders.into_iter().collect();
         }
     }
 }

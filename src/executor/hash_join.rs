@@ -3,8 +3,10 @@
 use std::collections::HashMap;
 use std::vec::Vec;
 
+use futures::TryStreamExt;
+
 use super::*;
-use crate::array::{ArrayBuilderImpl, DataChunk};
+use crate::array::{ArrayBuilderImpl, DataChunk, RowRef};
 use crate::binder::{BoundExpr, BoundJoinOperator};
 use crate::types::{DataType, DataValue};
 
@@ -21,81 +23,41 @@ pub struct HashJoinExecutor {
 
 // TODO : support other types of join: left/right/full join
 impl HashJoinExecutor {
-    fn execute_hash_join(
-        left_chunks: Vec<DataChunk>,
-        right_chunks: Vec<DataChunk>,
-        left_column_index: usize,
-        right_column_index: usize,
-        data_types: Vec<DataType>,
-    ) -> Result<Option<DataChunk>, ExecutorError> {
-        // Build hash table
-
-        let mut hash_map: HashMap<DataValue, Vec<Vec<DataValue>>> = HashMap::new();
-        for left_chunk in &left_chunks {
-            for left_row_idx in 0..left_chunk.cardinality() {
-                let row = left_chunk.get_row_by_idx(left_row_idx);
-                let hash_data_value = &row[left_column_index];
-
-                hash_map
-                    .entry(hash_data_value.clone())
-                    .or_insert_with(Vec::new);
-                let val = hash_map.get_mut(hash_data_value).unwrap();
-                val.push(row);
-            }
-        }
-        let mut chunk_builders: Vec<ArrayBuilderImpl> = vec![];
-        for ty in &data_types {
-            chunk_builders.push(ArrayBuilderImpl::new(ty));
-        }
-        // Probe
-        for right_chunk in &right_chunks {
-            for right_row_idx in 0..right_chunk.cardinality() {
-                let right_row = right_chunk.get_row_by_idx(right_row_idx);
-                let hash_data_value = &right_row[right_column_index];
-
-                if !hash_map.contains_key(hash_data_value) {
-                    continue;
-                }
-                let rows = hash_map.get(hash_data_value).unwrap();
-                for left_row in rows.iter() {
-                    if left_row[left_column_index] == right_row[right_column_index] {
-                        for (idx, builder) in chunk_builders.iter_mut().enumerate() {
-                            if idx < left_row.len() {
-                                builder.push(&left_row[idx]);
-                            } else {
-                                builder.push(&right_row[idx - left_row.len()]);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Ok(Some(chunk_builders.into_iter().collect()))
-    }
-
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
-        let mut left_chunks: Vec<DataChunk> = vec![];
-        let mut right_chunks: Vec<DataChunk> = vec![];
-        #[for_await]
-        for batch in self.left_child {
-            left_chunks.push(batch?);
+        // collect all chunks from children
+        let left_chunks: Vec<DataChunk> = self.left_child.try_collect().await?;
+        let right_chunks: Vec<DataChunk> = self.right_child.try_collect().await?;
+
+        // helper functions
+        let left_rows = || left_chunks.iter().flat_map(|chunk| chunk.rows());
+        let right_rows = || right_chunks.iter().flat_map(|chunk| chunk.rows());
+
+        // build
+        let mut hash_map: HashMap<DataValue, Vec<RowRef<'_>>> = HashMap::new();
+        for left_row in left_rows() {
+            let hash_value = left_row.get(self.left_column_index);
+            hash_map
+                .entry(hash_value)
+                .or_insert_with(Vec::new)
+                .push(left_row);
         }
 
-        #[for_await]
-        for batch in self.right_child {
-            right_chunks.push(batch?);
+        // probe
+        let mut builders = self
+            .data_types
+            .iter()
+            .map(|ty| ArrayBuilderImpl::with_capacity(PROCESSING_WINDOW_SIZE, ty))
+            .collect_vec();
+        for right_row in right_rows() {
+            let hash_value = right_row.get(self.right_column_index);
+            for left_row in hash_map.get(&hash_value).unwrap_or(&vec![]) {
+                let values = left_row.values().chain(right_row.values());
+                for (builder, v) in builders.iter_mut().zip(values) {
+                    builder.push(&v);
+                }
+            }
         }
-
-        let chunk = Self::execute_hash_join(
-            left_chunks,
-            right_chunks,
-            self.left_column_index,
-            self.right_column_index,
-            self.data_types,
-        )?;
-        if let Some(chunk) = chunk {
-            yield chunk;
-        }
+        yield builders.into_iter().collect();
     }
 }
