@@ -2,7 +2,6 @@
 
 use std::vec::Vec;
 
-use bitvec::bitvec;
 use futures::TryStreamExt;
 
 use super::*;
@@ -89,18 +88,16 @@ impl NestedLoopJoinExecutor {
             BoundJoinOperator::RightOuter | BoundJoinOperator::FullOuter
         ) {
             let mut builders = create_builders();
-            // scan the filter to find whether a right row matches any left rows
-            let mut matched = bitvec![0; right_rows().count()];
-            let mut i = 0;
-            for _ in left_rows() {
-                for (j, _) in right_rows().enumerate() {
+            let left_row_num = left_rows().count();
+            let right_row_num = right_rows().count();
+            for (mut i, right_row) in right_rows().enumerate() {
+                // skip if the right row matches any left rows
+                for _ in 0..left_row_num {
                     if matches!(filter.get(i), Some(true)) {
-                        matched.set(j, true);
+                        continue;
                     }
-                    i += 1;
+                    i += right_row_num;
                 }
-            }
-            for (right_row, _) in right_rows().zip(matched.iter()).filter(|(_, m)| !**m) {
                 // append row: (NULL, right)
                 let values =
                     (self.left_types.iter().map(|_| DataValue::Null)).chain(right_row.values());
