@@ -3,7 +3,6 @@
 use std::collections::HashMap;
 
 use iter_chunks::IterChunks;
-use itertools::Itertools;
 use smallvec::SmallVec;
 
 use super::*;
@@ -70,7 +69,7 @@ impl HashAggExecutor {
     ) {
         // We use `iter_chunks::IterChunks` instead of `IterTools::Chunks` here, since
         // the latter doesn't implement Send.
-        let mut batches = IterChunks::chunks(state_entries.iter(), 1024);
+        let mut batches = IterChunks::chunks(state_entries.iter(), PROCESSING_WINDOW_SIZE);
         while let Some(batch) = batches.next() {
             let mut key_builders = group_keys
                 .iter()
@@ -91,10 +90,7 @@ impl HashAggExecutor {
                 }
             }
             key_builders.append(&mut res_builders);
-            yield key_builders
-                .into_iter()
-                .map(|builder| builder.finish())
-                .collect::<DataChunk>()
+            yield key_builders.into_iter().collect()
         }
     }
 

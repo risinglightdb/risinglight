@@ -7,7 +7,7 @@ use std::vec::Vec;
 use async_trait::async_trait;
 
 use super::*;
-use crate::array::{DataChunk, DataChunkRef};
+use crate::array::DataChunk;
 use crate::catalog::TableRefId;
 use crate::storage::Table;
 
@@ -21,7 +21,7 @@ pub struct InMemoryTable {
 }
 
 pub(super) struct InMemoryTableInner {
-    chunks: Vec<DataChunkRef>,
+    chunks: Vec<DataChunk>,
     deleted_rows: HashSet<usize>,
 }
 
@@ -36,7 +36,7 @@ impl InMemoryTableInner {
     }
 
     pub fn append(&mut self, chunk: DataChunk) -> Result<(), StorageError> {
-        self.chunks.push(Arc::new(chunk));
+        self.chunks.push(chunk);
         Ok(())
     }
 
@@ -45,7 +45,7 @@ impl InMemoryTableInner {
         Ok(())
     }
 
-    pub fn get_all_chunks(&self) -> Vec<DataChunkRef> {
+    pub fn get_all_chunks(&self) -> Vec<DataChunk> {
         self.chunks.clone()
     }
 

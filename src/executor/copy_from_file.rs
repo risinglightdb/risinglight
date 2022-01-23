@@ -4,8 +4,7 @@ use std::fs::File;
 use std::io::BufReader;
 
 use indicatif::{ProgressBar, ProgressStyle};
-use itertools::Itertools;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::Sender;
 
 use super::*;
 use crate::array::ArrayBuilderImpl;
@@ -17,16 +16,13 @@ pub struct CopyFromFileExecutor {
     pub plan: PhysicalCopyFromFile,
 }
 
-/// When the source file size is about the limit, we show a progress bar on the screen.
+/// When the source file size is above the limit, we show a progress bar on the screen.
 const IMPORT_PROGRESS_BAR_LIMIT: u64 = 1024 * 1024;
-
-/// We produce a batch everytime the [`DataChunk`] is larger than this size.
-const IMPORT_BATCH_SIZE: u64 = 16 * 1024 * 1024;
 
 impl CopyFromFileExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
         let handle = tokio::task::spawn_blocking(|| self.read_file_blocking(tx));
         while let Some(chunk) = rx.recv().await {
             yield chunk;
@@ -34,23 +30,10 @@ impl CopyFromFileExecutor {
         handle.await.unwrap()?;
     }
 
-    fn read_file_blocking(self, tx: UnboundedSender<DataChunk>) -> Result<(), ExecutorError> {
-        let create_array_builders = |plan: &PhysicalCopyFromFile| {
-            plan.logical()
-                .column_types()
-                .iter()
-                .map(ArrayBuilderImpl::new)
-                .collect_vec()
-        };
-        let flush_array = |array_builders: Vec<ArrayBuilderImpl>| -> DataChunk {
-            array_builders
-                .into_iter()
-                .map(|builder| builder.finish())
-                .collect()
-        };
-
-        let mut array_builders = create_array_builders(&self.plan);
-
+    /// Read records from file using blocking IO.
+    ///
+    /// The read data chunks will be sent through `tx`.
+    fn read_file_blocking(self, tx: Sender<DataChunk>) -> Result<(), ExecutorError> {
         let file = File::open(&self.plan.logical().path())?;
         let file_size = file.metadata()?.len();
         let mut buf_reader = BufReader::new(file);
@@ -83,25 +66,26 @@ impl CopyFromFileExecutor {
 
         let column_count = self.plan.logical().column_types().len();
         let mut iter = reader.records();
-        let mut round = 0;
-        let mut last_pos = 0;
-        loop {
-            round += 1;
-            if round % 1000 == 0 {
-                let current_pos = iter.reader().position().byte();
-                bar.set_position(current_pos);
-                // Produce a chunk of 16MB
-                if current_pos - last_pos > IMPORT_BATCH_SIZE {
-                    last_pos = current_pos;
-                    let chunk = flush_array(array_builders);
-                    array_builders = create_array_builders(&self.plan);
-                    if chunk.cardinality() > 0 {
-                        tx.send(chunk).unwrap();
+        let mut finished = false;
+        while !finished {
+            // create array builders
+            let mut array_builders = self
+                .plan
+                .logical()
+                .column_types()
+                .iter()
+                .map(|ty| ArrayBuilderImpl::with_capacity(PROCESSING_WINDOW_SIZE, ty))
+                .collect_vec();
+
+            // read records and push to array builder
+            for _ in 0..PROCESSING_WINDOW_SIZE {
+                let record = match iter.next() {
+                    Some(record) => record?,
+                    None => {
+                        finished = true;
+                        break;
                     }
-                }
-            }
-            if let Some(record) = iter.next() {
-                let record = record?;
+                };
                 if !(record.len() == column_count
                     || record.len() == column_count + 1 && record.get(column_count) == Some(""))
                 {
@@ -120,16 +104,17 @@ impl CopyFromFileExecutor {
                     }
                     builder.push_str(s)?;
                 }
-            } else {
-                break;
+            }
+            // update progress bar
+            bar.set_position(iter.reader().position().byte());
+
+            // send data chunk
+            let chunk: DataChunk = array_builders.into_iter().collect();
+            if chunk.cardinality() > 0 {
+                tx.blocking_send(chunk).unwrap();
             }
         }
         bar.finish();
-
-        let chunk = flush_array(array_builders);
-        if chunk.cardinality() > 0 {
-            tx.send(chunk).unwrap();
-        }
         Ok(())
     }
 }

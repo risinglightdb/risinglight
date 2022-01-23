@@ -126,7 +126,7 @@ impl RowsetBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::array::I32Array;
+    use crate::array::ArrayImpl;
     use crate::types::{DataTypeExt, DataTypeKind};
 
     #[tokio::test]
@@ -146,10 +146,9 @@ mod tests {
 
         for _ in 0..1000 {
             builder.append(
-                [
-                    I32Array::from_iter([1, 2, 3].iter().cycle().cloned().take(1000).map(Some))
-                        .into(),
-                ]
+                [ArrayImpl::Int32(
+                    [1, 2, 3].into_iter().cycle().take(1000).collect(),
+                )]
                 .into_iter()
                 .collect(),
             )

@@ -2,8 +2,6 @@
 
 use std::sync::Arc;
 
-use itertools::Itertools;
-
 use super::*;
 use crate::array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I64ArrayBuilder};
 use crate::binder::BoundExpr;
@@ -49,10 +47,7 @@ impl<S: Storage> TableScanExecutor<S> {
             builders.push(ArrayBuilderImpl::Int64(I64ArrayBuilder::new()));
         }
 
-        let chunk: DataChunk = builders
-            .into_iter()
-            .map(|builder| builder.finish())
-            .collect();
+        let chunk = builders.into_iter().collect();
 
         Ok(chunk)
     }

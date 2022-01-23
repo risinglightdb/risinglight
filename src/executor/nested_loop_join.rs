@@ -82,10 +82,7 @@ impl NestedLoopJoinExecutor {
                             builder.push(&left_row[idx]);
                         }
 
-                        let chunk: DataChunk = builders
-                            .into_iter()
-                            .map(|builder| builder.finish())
-                            .collect();
+                        let chunk = builders.into_iter().collect();
                         let arr_impl = join_cond.eval_array(&chunk)?;
                         let value = arr_impl.get(0);
                         match value {
@@ -161,12 +158,7 @@ impl NestedLoopJoinExecutor {
             }
             None => {}
         }
-        Ok(Some(
-            chunk_builders
-                .into_iter()
-                .map(|builder| builder.finish())
-                .collect(),
-        ))
+        Ok(Some(chunk_builders.into_iter().collect()))
     }
 
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]

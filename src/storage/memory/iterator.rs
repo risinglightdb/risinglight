@@ -6,7 +6,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use bitvec::prelude::BitVec;
 
-use crate::array::{ArrayImpl, DataChunk, DataChunkRef, I64Array};
+use crate::array::{ArrayImpl, DataChunk, I64Array};
 use crate::storage::{StorageColumnRef, StorageResult, TxnIterator};
 
 /// An iterator over all data in a transaction.
@@ -15,7 +15,7 @@ use crate::storage::{StorageColumnRef, StorageResult, TxnIterator};
 /// When the transaction end, accessing items inside iterator is UB.
 /// To achieve this, we must enable GAT.
 pub struct InMemoryTxnIterator {
-    chunks: Arc<Vec<DataChunkRef>>,
+    chunks: Arc<Vec<DataChunk>>,
     deleted_rows: Arc<HashSet<usize>>,
     col_idx: Vec<StorageColumnRef>,
     cnt: usize,
@@ -24,7 +24,7 @@ pub struct InMemoryTxnIterator {
 
 impl InMemoryTxnIterator {
     pub(super) fn new(
-        chunks: Arc<Vec<DataChunkRef>>,
+        chunks: Arc<Vec<DataChunk>>,
         deleted_rows: Arc<HashSet<usize>>,
         col_idx: &[StorageColumnRef],
     ) -> Self {

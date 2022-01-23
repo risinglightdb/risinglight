@@ -5,10 +5,10 @@ use std::sync::Arc;
 use futures::TryStreamExt;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 
-use crate::array::{ArrayBuilder, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder};
+use crate::array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder};
 use crate::binder::{BindError, Binder};
 use crate::catalog::RootCatalogRef;
-use crate::executor::{ExecutorBuilder, ExecutorError, GlobalEnv};
+use crate::executor::{ExecutorBuilder, ExecutorError};
 use crate::logical_planner::{LogicalPlanError, LogicalPlaner};
 use crate::optimizer::logical_plan_rewriter::{InputRefResolver, PlanRewriter};
 use crate::optimizer::Optimizer;
@@ -31,10 +31,7 @@ impl Database {
         let storage = InMemoryStorage::new();
         let catalog = storage.catalog().clone();
         let storage = StorageImpl::InMemoryStorage(Arc::new(storage));
-        let env = Arc::new(GlobalEnv {
-            storage: storage.clone(),
-        });
-        let execution_manager = ExecutorBuilder::new(env);
+        let execution_manager = ExecutorBuilder::new(storage.clone());
         Database {
             catalog,
             executor_builder: execution_manager,
@@ -48,10 +45,7 @@ impl Database {
         storage.spawn_compactor().await;
         let catalog = storage.catalog().clone();
         let storage = StorageImpl::SecondaryStorage(storage);
-        let env = Arc::new(GlobalEnv {
-            storage: storage.clone(),
-        });
-        let execution_manager = ExecutorBuilder::new(env);
+        let execution_manager = ExecutorBuilder::new(storage.clone());
         Database {
             catalog,
             executor_builder: execution_manager,
@@ -85,13 +79,13 @@ impl Database {
                 }
             }
         }
-        let vecs = vec![
-            db_id_vec.finish().into(),
-            db_vec.finish().into(),
-            schema_id_vec.finish().into(),
-            schema_vec.finish().into(),
-            table_id_vec.finish().into(),
-            table_vec.finish().into(),
+        let vecs: Vec<ArrayBuilderImpl> = vec![
+            db_id_vec.into(),
+            db_vec.into(),
+            schema_id_vec.into(),
+            schema_vec.into(),
+            table_id_vec.into(),
+            table_vec.into(),
         ];
         Ok(vec![DataChunk::from_iter(vecs.into_iter())])
     }
@@ -147,8 +141,8 @@ impl Database {
                             .as_str(),
                     ));
                     Ok(vec![DataChunk::from_iter([
-                        stat_name.finish().into(),
-                        stat_value.finish().into(),
+                        ArrayBuilderImpl::from(stat_name),
+                        ArrayBuilderImpl::from(stat_value),
                     ])])
                 } else {
                     Err(Error::InternalError(
