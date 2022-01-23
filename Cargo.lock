@@ -845,6 +845,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "iter-chunks"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "119ff533e4a656d9f49b3d10bd3f3183ac9c8d41e301a4a206b9687cb1b07aa3"
+
+[[package]]
 name = "itertools"
 version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1525,6 +1531,7 @@ dependencies = [
  "futures",
  "futures-async-stream",
  "indicatif",
+ "iter-chunks",
  "itertools",
  "log",
  "moka",

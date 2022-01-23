@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use iter_chunks::IterChunks;
 use itertools::Itertools;
 use smallvec::SmallVec;
 
@@ -61,34 +62,40 @@ impl HashAggExecutor {
         Ok(())
     }
 
-    fn finish_agg(
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    async fn finish_agg(
         state_entries: HashMap<Arc<HashKey>, HashValue>,
         agg_calls: Vec<BoundAggCall>,
         group_keys: Vec<BoundExpr>,
-    ) -> DataChunk {
-        let mut key_builders = group_keys
-            .iter()
-            .map(|e| ArrayBuilderImpl::new(&e.return_type().unwrap()))
-            .collect::<Vec<ArrayBuilderImpl>>();
-        let mut res_builders = agg_calls
-            .iter()
-            .map(|agg| ArrayBuilderImpl::new(&agg.return_type))
-            .collect::<Vec<ArrayBuilderImpl>>();
-        for (key, val) in &state_entries {
-            // Push group key
-            for (k, builder) in key.iter().zip(key_builders.iter_mut()) {
-                builder.push(k);
+    ) {
+        // We use `iter_chunks::IterChunks` instead of `IterTools::Chunks` here, since
+        // the latter doesn't implement Send.
+        let mut batches = IterChunks::chunks(state_entries.iter(), 1024);
+        while let Some(batch) = batches.next() {
+            let mut key_builders = group_keys
+                .iter()
+                .map(|e| ArrayBuilderImpl::new(&e.return_type().unwrap()))
+                .collect::<Vec<ArrayBuilderImpl>>();
+            let mut res_builders = agg_calls
+                .iter()
+                .map(|agg| ArrayBuilderImpl::new(&agg.return_type))
+                .collect::<Vec<ArrayBuilderImpl>>();
+            for (key, val) in batch {
+                // Push group key
+                for (k, builder) in key.iter().zip(key_builders.iter_mut()) {
+                    builder.push(k);
+                }
+                // Push aggregate result
+                for (state, builder) in val.iter().zip(res_builders.iter_mut()) {
+                    builder.push(&state.output());
+                }
             }
-            // Push aggregate result
-            for (state, builder) in val.iter().zip(res_builders.iter_mut()) {
-                builder.push(&state.output());
-            }
+            key_builders.append(&mut res_builders);
+            yield key_builders
+                .into_iter()
+                .map(|builder| builder.finish())
+                .collect::<DataChunk>()
         }
-        key_builders.append(&mut res_builders);
-        key_builders
-            .into_iter()
-            .map(|builder| builder.finish())
-            .collect::<DataChunk>()
     }
 
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
@@ -101,7 +108,10 @@ impl HashAggExecutor {
             Self::execute_inner(&mut state_entries, chunk, &self.agg_calls, &self.group_keys)?;
         }
 
-        let chunk = Self::finish_agg(state_entries, self.agg_calls, self.group_keys);
-        yield chunk;
+        #[for_await]
+        for chunk in Self::finish_agg(state_entries, self.agg_calls, self.group_keys) {
+            let chunk = chunk?;
+            yield chunk
+        }
     }
 }

@@ -30,6 +30,7 @@ env_logger = "0.9"
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
 futures-async-stream = { git = "https://github.com/taiki-e/futures-async-stream", rev = "944f407" }
 indicatif = { version = "0.16" }
+iter-chunks = "0.1"
 itertools = "0.10"
 tikv-jemallocator = { version = "0.4", optional = true }
 log = "0.4"
