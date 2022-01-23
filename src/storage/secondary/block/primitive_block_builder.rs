@@ -5,7 +5,8 @@ use std::marker::PhantomData;
 use risinglight_proto::rowset::BlockStatistics;
 
 use super::super::encode::PrimitiveFixedWidthEncode;
-use super::{BlockBuilder, StatisticsBuilder};
+use super::super::statistics::StatisticsBuilder;
+use super::BlockBuilder;
 
 /// Encodes fixed-width data into a block. The layout is simply an array of
 /// little endian fixed-width data.

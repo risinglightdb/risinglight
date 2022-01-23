@@ -1,0 +1,23 @@
+statement ok
+create table t(v1 int, v2 int, v3 int)
+
+statement ok
+insert into t values (1,10,100), (2,20,100), (3,10,100)
+
+query II
+\stat t v1
+----
+RowCount 3
+DistinctValue 3
+
+query II
+\stat t v2
+----
+RowCount 3
+DistinctValue 2
+
+query II
+\stat t v3
+----
+RowCount 3
+DistinctValue 1

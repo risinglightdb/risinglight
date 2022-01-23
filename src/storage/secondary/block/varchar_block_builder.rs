@@ -3,7 +3,8 @@
 use bytes::BufMut;
 use risinglight_proto::rowset::BlockStatistics;
 
-use super::{BlockBuilder, StatisticsBuilder};
+use super::super::statistics::StatisticsBuilder;
+use super::BlockBuilder;
 use crate::array::Utf8Array;
 
 /// Encodes offset and data into a block. The data layout is
