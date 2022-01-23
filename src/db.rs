@@ -129,9 +129,23 @@ impl Database {
                     let mut stat_name = Utf8ArrayBuilder::with_capacity(2);
                     let mut stat_value = Utf8ArrayBuilder::with_capacity(2);
                     stat_name.push(Some("RowCount"));
-                    stat_value.push(Some(&format!("{:?}", row_count[0])));
+                    stat_value.push(Some(
+                        row_count[0]
+                            .as_usize()
+                            .unwrap()
+                            .unwrap()
+                            .to_string()
+                            .as_str(),
+                    ));
                     stat_name.push(Some("DistinctValue"));
-                    stat_value.push(Some(&format!("{:?}", row_count[1])));
+                    stat_value.push(Some(
+                        row_count[1]
+                            .as_usize()
+                            .unwrap()
+                            .unwrap()
+                            .to_string()
+                            .as_str(),
+                    ));
                     Ok(vec![DataChunk::from_iter([
                         stat_name.finish().into(),
                         stat_value.finish().into(),
