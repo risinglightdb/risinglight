@@ -16,8 +16,8 @@ use crate::parser::BinaryOperator::*;
 /// `select a from t where a > 200;`
 pub struct ConstantMovingRule;
 
-impl Rewriter for ConstantMovingRule {
-    fn rewrite_expr(&mut self, expr: &mut BoundExpr) {
+impl ExprRewriter for ConstantMovingRule {
+    fn rewrite_expr(&self, expr: &mut BoundExpr) {
         let new = match expr {
             BinaryOp(op) => match (&op.op, &*op.left_expr, &*op.right_expr) {
                 (Eq | NotEq | Gt | Lt | GtEq | LtEq, BinaryOp(bin_op), Constant(rval)) => {
@@ -45,14 +45,29 @@ impl Rewriter for ConstantMovingRule {
                         (Multiply, other, Constant(lval)) | (Multiply, Constant(lval), other)
                             if lval.is_positive() && rval.is_divisible_by(lval) =>
                         {
+                            let mut new_op = op.op.clone();
+
+                            if !lval.is_positive() {
+                                match &new_op {
+                                    Gt => new_op = LtEq,
+                                    Lt => new_op = GtEq,
+                                    GtEq => new_op = Lt,
+                                    LtEq => new_op = Gt,
+                                    _ => {}
+                                }
+                            }
+
                             BinaryOp(BoundBinaryOp {
-                                // TODO: flip op when lval is negative
-                                op: op.op.clone(),
+                                op: new_op.clone(),
                                 left_expr: Box::new(other.clone()),
                                 right_expr: Box::new(Constant(rval / lval)),
                                 return_type: op.return_type.clone(),
                             })
-                        }
+                        },
+                        (Multiply, other, UnaryOp(unary)) | (Multiply, Constant(lval), other) 
+                        {
+
+                        },
                         _ => return,
                     }
                 }
@@ -61,5 +76,36 @@ impl Rewriter for ConstantMovingRule {
             _ => return,
         };
         *expr = new;
+    }
+}
+
+impl PlanRewriter for ConstantMovingRule {
+    fn rewrite_logical_join(&mut self, join: &LogicalJoin) -> PlanRef {
+        let left = self.rewrite(join.left());
+        let right = self.rewrite(join.right());
+        Arc::new(join.clone_with_rewrite_expr(left, right, self))
+    }
+
+    fn rewrite_logical_projection(&mut self, proj: &LogicalProjection) -> PlanRef {
+        let new_child = self.rewrite(proj.child());
+        let ret = Arc::new(proj.clone_with_rewrite_expr(new_child, self));
+        ret
+    }
+
+    fn rewrite_logical_aggregate(&mut self, agg: &LogicalAggregate) -> PlanRef {
+        let new_child = self.rewrite(agg.child());
+        let ret = Arc::new(agg.clone_with_rewrite_expr(new_child, self));
+        ret
+    }
+    fn rewrite_logical_filter(&mut self, plan: &LogicalFilter) -> PlanRef {
+        let child = self.rewrite(plan.child());
+        Arc::new(plan.clone_with_rewrite_expr(child, self))
+    }
+    fn rewrite_logical_order(&mut self, plan: &LogicalOrder) -> PlanRef {
+        let child = self.rewrite(plan.child());
+        Arc::new(plan.clone_with_rewrite_expr(child, self))
+    }
+    fn rewrite_logical_values(&mut self, plan: &LogicalValues) -> PlanRef {
+        Arc::new(plan.clone_with_rewrite_expr(self))
     }
 }
