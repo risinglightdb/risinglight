@@ -60,14 +60,12 @@ impl PlanRewriter for ConstantFoldingRule {
 
     fn rewrite_logical_projection(&mut self, proj: &LogicalProjection) -> PlanRef {
         let new_child = self.rewrite(proj.child());
-        let ret = Arc::new(proj.clone_with_rewrite_expr(new_child, self));
-        ret
+        Arc::new(proj.clone_with_rewrite_expr(new_child, self))
     }
 
     fn rewrite_logical_aggregate(&mut self, agg: &LogicalAggregate) -> PlanRef {
         let new_child = self.rewrite(agg.child());
-        let ret = Arc::new(agg.clone_with_rewrite_expr(new_child, self));
-        ret
+        Arc::new(agg.clone_with_rewrite_expr(new_child, self))
     }
     fn rewrite_logical_filter(&mut self, plan: &LogicalFilter) -> PlanRef {
         let child = self.rewrite(plan.child());
