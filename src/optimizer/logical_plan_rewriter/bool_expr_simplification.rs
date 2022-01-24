@@ -17,19 +17,10 @@ use crate::types::DataValue::*;
 ///
 /// - `select * from t where a == null` => `select ''`
 /// - `select * from t where 1 == 1` => `select * from t`
-pub struct BoolExprSimplification;
+pub struct BoolExprSimplificationRule;
 
-impl Rewriter for BoolExprSimplification {
-    fn rewrite_logical_filter(&mut self, mut plan: LogicalFilter) -> PlanRef {
-        match &plan.expr {
-            Constant(Bool(false) | Null) => plan.child = Arc::new(Dummy {}),
-            Constant(Bool(true)) => return plan.child,
-            _ => {}
-        }
-        Arc::new(plan)
-    }
-
-    fn rewrite_expr(&mut self, expr: &mut BoundExpr) {
+impl ExprRewriter for BoolExprSimplificationRule {
+    fn rewrite_expr(&self, expr: &mut BoundExpr) {
         let new = match expr {
             BinaryOp(op) => {
                 self.rewrite_expr(&mut *op.left_expr);
@@ -52,5 +43,17 @@ impl Rewriter for BoolExprSimplification {
             _ => expr.clone(),
         };
         *expr = new;
+    }
+}
+
+impl PlanRewriter for BoolExprSimplificationRule {
+    fn rewrite_logical_filter(&mut self, plan: &LogicalFilter) -> PlanRef {
+        let child = self.rewrite(plan.child());
+        let new_plan = Arc::new(plan.clone_with_rewrite_expr(child, self));
+        match &new_plan.expr() {
+            Constant(Bool(false) | Null) => Arc::new(Dummy {}),
+            Constant(Bool(true)) => return plan.child().clone(),
+            _ => new_plan,
+        }
     }
 }
