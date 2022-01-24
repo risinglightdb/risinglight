@@ -7,9 +7,9 @@ use crate::binder::BoundExpr;
 /// Constant folding rule aims to evalute the constant expression before query execution.
 ///
 /// For example,
-/// `select 3 * 2 * a from t where a >= 100 * 300;`
+/// `select 3 * 2 * a from t where a >= 100 * 30;`
 /// The rule will convert it into
-/// `select 6 * a from t where a >= 30000;`
+/// `select 6 * a from t where a >= 3000;`
 #[derive(Default)]
 pub struct ConstantFoldingRule;
 
