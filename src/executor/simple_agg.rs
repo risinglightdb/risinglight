@@ -26,7 +26,7 @@ impl SimpleAggExecutor {
             .map(|agg| agg.args[0].eval_array(&chunk))
             .try_collect()?;
 
-        for (state, expr) in states.iter_mut().zip(exprs) {
+        for (state, expr) in states.iter_mut().zip_eq(exprs) {
             state.update(&expr)?;
         }
 

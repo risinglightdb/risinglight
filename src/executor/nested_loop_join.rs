@@ -42,7 +42,7 @@ impl NestedLoopJoinExecutor {
         for left_row in left_rows() {
             for right_row in right_rows() {
                 let values = left_row.values().chain(right_row.values());
-                for (builder, v) in builders.iter_mut().zip(values) {
+                for (builder, v) in builders.iter_mut().zip_eq(values) {
                     builder.push(&v);
                 }
             }
@@ -75,7 +75,7 @@ impl NestedLoopJoinExecutor {
                 // append row: (left, NULL)
                 let values =
                     (left_row.values()).chain(self.right_types.iter().map(|_| DataValue::Null));
-                for (builder, v) in builders.iter_mut().zip(values) {
+                for (builder, v) in builders.iter_mut().zip_eq(values) {
                     builder.push(&v);
                 }
             }
@@ -101,7 +101,7 @@ impl NestedLoopJoinExecutor {
                 // append row: (NULL, right)
                 let values =
                     (self.left_types.iter().map(|_| DataValue::Null)).chain(right_row.values());
-                for (builder, v) in builders.iter_mut().zip(values) {
+                for (builder, v) in builders.iter_mut().zip_eq(values) {
                     builder.push(&v);
                 }
             }

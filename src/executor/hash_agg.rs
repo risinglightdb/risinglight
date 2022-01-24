@@ -52,7 +52,7 @@ impl HashAggExecutor {
             }
             // since we just checked existence, the key must exist so we `unwrap` directly
             let states = state_entries.get_mut(&group_key).unwrap();
-            for (array, state) in arrays.iter().zip(states.iter_mut()) {
+            for (array, state) in arrays.iter().zip_eq(states.iter_mut()) {
                 // TODO: support aggregations with multiple arguments
                 state.update_single(&array.get(row_idx))?;
             }
@@ -81,11 +81,11 @@ impl HashAggExecutor {
                 .collect::<Vec<ArrayBuilderImpl>>();
             for (key, val) in batch {
                 // Push group key
-                for (k, builder) in key.iter().zip(key_builders.iter_mut()) {
+                for (k, builder) in key.iter().zip_eq(key_builders.iter_mut()) {
                     builder.push(k);
                 }
                 // Push aggregate result
-                for (state, builder) in val.iter().zip(res_builders.iter_mut()) {
+                for (state, builder) in val.iter().zip_eq(res_builders.iter_mut()) {
                     builder.push(&state.output());
                 }
             }
