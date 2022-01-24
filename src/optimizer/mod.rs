@@ -32,7 +32,13 @@ impl Optimizer {
         // plan = plan.rewrite(&mut ConstantFolding);
         // plan = plan.rewrite(&mut ArithExprSimplification);
         // plan = plan.rewrite(&mut BoolExprSimplification);
+        let mut constant_folding_rule = ConstantFoldingRule;
         let mut constant_moving_rule = ConstantMovingRule;
+        let mut arith_expr_simplification_rule = ArithExprSimplificationRule;
+        let mut bool_expr_simplification_rule = BoolExprSimplificationRule;
+        plan = constant_folding_rule.rewrite(plan);
+        plan = arith_expr_simplification_rule.rewrite(plan);
+        plan = bool_expr_simplification_rule.rewrite(plan);
         plan = constant_moving_rule.rewrite(plan);
         let mut rules: Vec<Box<(dyn rules::Rule + 'static)>> = vec![Box::new(FilterJoinRule {})];
         if self.enable_filter_scan {

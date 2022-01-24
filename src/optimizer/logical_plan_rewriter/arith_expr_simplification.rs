@@ -14,10 +14,10 @@ use crate::types::DataValue::*;
 /// `select 1 * a, b / 1, c + 0, d - 0 from t;`
 /// The query will be converted to:
 /// `select a, b, c, d from t;`
-pub struct ArithExprSimplification;
+pub struct ArithExprSimplificationRule;
 
-impl Rewriter for ArithExprSimplification {
-    fn rewrite_expr(&mut self, expr: &mut BoundExpr) {
+impl ExprRewriter for ArithExprSimplificationRule {
+    fn rewrite_expr(&self, expr: &mut BoundExpr) {
         // TODO: support more data types.
         let new = match &expr {
             BinaryOp(op) => match (&op.op, &*op.left_expr, &*op.right_expr) {
@@ -60,5 +60,36 @@ impl Rewriter for ArithExprSimplification {
             _ => return,
         };
         *expr = new;
+    }
+}
+
+impl PlanRewriter for ArithExprSimplificationRule {
+    fn rewrite_logical_join(&mut self, join: &LogicalJoin) -> PlanRef {
+        let left = self.rewrite(join.left());
+        let right = self.rewrite(join.right());
+        Arc::new(join.clone_with_rewrite_expr(left, right, self))
+    }
+
+    fn rewrite_logical_projection(&mut self, proj: &LogicalProjection) -> PlanRef {
+        let new_child = self.rewrite(proj.child());
+        let ret = Arc::new(proj.clone_with_rewrite_expr(new_child, self));
+        ret
+    }
+
+    fn rewrite_logical_aggregate(&mut self, agg: &LogicalAggregate) -> PlanRef {
+        let new_child = self.rewrite(agg.child());
+        let ret = Arc::new(agg.clone_with_rewrite_expr(new_child, self));
+        ret
+    }
+    fn rewrite_logical_filter(&mut self, plan: &LogicalFilter) -> PlanRef {
+        let child = self.rewrite(plan.child());
+        Arc::new(plan.clone_with_rewrite_expr(child, self))
+    }
+    fn rewrite_logical_order(&mut self, plan: &LogicalOrder) -> PlanRef {
+        let child = self.rewrite(plan.child());
+        Arc::new(plan.clone_with_rewrite_expr(child, self))
+    }
+    fn rewrite_logical_values(&mut self, plan: &LogicalValues) -> PlanRef {
+        Arc::new(plan.clone_with_rewrite_expr(self))
     }
 }

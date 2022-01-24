@@ -45,29 +45,14 @@ impl ExprRewriter for ConstantMovingRule {
                         (Multiply, other, Constant(lval)) | (Multiply, Constant(lval), other)
                             if lval.is_positive() && rval.is_divisible_by(lval) =>
                         {
-                            let mut new_op = op.op.clone();
-
-                            if !lval.is_positive() {
-                                match &new_op {
-                                    Gt => new_op = LtEq,
-                                    Lt => new_op = GtEq,
-                                    GtEq => new_op = Lt,
-                                    LtEq => new_op = Gt,
-                                    _ => {}
-                                }
-                            }
-
                             BinaryOp(BoundBinaryOp {
-                                op: new_op.clone(),
+                                op: op.op.clone(),
                                 left_expr: Box::new(other.clone()),
                                 right_expr: Box::new(Constant(rval / lval)),
                                 return_type: op.return_type.clone(),
                             })
-                        },
-                        (Multiply, other, UnaryOp(unary)) | (Multiply, Constant(lval), other) 
-                        {
-
-                        },
+                        }
+                        // TODO: support negative number moving
                         _ => return,
                     }
                 }

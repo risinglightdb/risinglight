@@ -11,10 +11,10 @@ use crate::binder::BoundExpr;
 /// The rule will convert it into
 /// `select 6 * a from t where a >= 30000;`
 #[derive(Default)]
-pub struct ConstantFolding;
+pub struct ConstantFoldingRule;
 
-impl Rewriter for ConstantFolding {
-    fn rewrite_expr(&mut self, expr: &mut BoundExpr) {
+impl ExprRewriter for ConstantFoldingRule {
+    fn rewrite_expr(&self, expr: &mut BoundExpr) {
         use BoundExpr::*;
         match expr {
             BinaryOp(op) => {
@@ -48,5 +48,36 @@ impl Rewriter for ConstantFolding {
             }
             _ => {}
         }
+    }
+}
+
+impl PlanRewriter for ConstantFoldingRule {
+    fn rewrite_logical_join(&mut self, join: &LogicalJoin) -> PlanRef {
+        let left = self.rewrite(join.left());
+        let right = self.rewrite(join.right());
+        Arc::new(join.clone_with_rewrite_expr(left, right, self))
+    }
+
+    fn rewrite_logical_projection(&mut self, proj: &LogicalProjection) -> PlanRef {
+        let new_child = self.rewrite(proj.child());
+        let ret = Arc::new(proj.clone_with_rewrite_expr(new_child, self));
+        ret
+    }
+
+    fn rewrite_logical_aggregate(&mut self, agg: &LogicalAggregate) -> PlanRef {
+        let new_child = self.rewrite(agg.child());
+        let ret = Arc::new(agg.clone_with_rewrite_expr(new_child, self));
+        ret
+    }
+    fn rewrite_logical_filter(&mut self, plan: &LogicalFilter) -> PlanRef {
+        let child = self.rewrite(plan.child());
+        Arc::new(plan.clone_with_rewrite_expr(child, self))
+    }
+    fn rewrite_logical_order(&mut self, plan: &LogicalOrder) -> PlanRef {
+        let child = self.rewrite(plan.child());
+        Arc::new(plan.clone_with_rewrite_expr(child, self))
+    }
+    fn rewrite_logical_values(&mut self, plan: &LogicalValues) -> PlanRef {
+        Arc::new(plan.clone_with_rewrite_expr(self))
     }
 }
