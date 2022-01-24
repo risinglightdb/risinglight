@@ -73,7 +73,7 @@ impl PlanRewriter for ConstantMovingRule {
 
     fn rewrite_logical_projection(&mut self, proj: &LogicalProjection) -> PlanRef {
         let new_child = self.rewrite(proj.child());
-        Arc::new(proj.clone_with_rewrite_expr(new_child, self))  
+        Arc::new(proj.clone_with_rewrite_expr(new_child, self))
     }
 
     fn rewrite_logical_aggregate(&mut self, agg: &LogicalAggregate) -> PlanRef {

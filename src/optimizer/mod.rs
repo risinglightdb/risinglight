@@ -28,10 +28,6 @@ pub struct Optimizer {
 
 impl Optimizer {
     pub fn optimize(&mut self, mut plan: PlanRef) -> PlanRef {
-        // TODO: Add more optimization rules.
-        // plan = plan.rewrite(&mut ConstantFolding);
-        // plan = plan.rewrite(&mut ArithExprSimplification);
-        // plan = plan.rewrite(&mut BoolExprSimplification);
         let mut constant_folding_rule = ConstantFoldingRule;
         let mut constant_moving_rule = ConstantMovingRule;
         let mut arith_expr_simplification_rule = ArithExprSimplificationRule;

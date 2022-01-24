@@ -73,13 +73,11 @@ impl PlanRewriter for ArithExprSimplificationRule {
     fn rewrite_logical_projection(&mut self, proj: &LogicalProjection) -> PlanRef {
         let new_child = self.rewrite(proj.child());
         Arc::new(proj.clone_with_rewrite_expr(new_child, self))
-        
     }
 
     fn rewrite_logical_aggregate(&mut self, agg: &LogicalAggregate) -> PlanRef {
         let new_child = self.rewrite(agg.child());
         Arc::new(agg.clone_with_rewrite_expr(new_child, self))
-        
     }
     fn rewrite_logical_filter(&mut self, plan: &LogicalFilter) -> PlanRef {
         let child = self.rewrite(plan.child());
