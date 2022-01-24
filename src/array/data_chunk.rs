@@ -49,9 +49,17 @@ impl DataChunk {
         self.arrays[0].len()
     }
 
-    /// Get the values of a row.
-    pub fn get_row_by_idx(&self, idx: usize) -> Vec<DataValue> {
-        self.arrays.iter().map(|arr| arr.get(idx)).collect()
+    /// Get reference to a row.
+    pub fn row(&self, idx: usize) -> RowRef<'_> {
+        RowRef {
+            chunk: self,
+            row_idx: idx,
+        }
+    }
+
+    /// Get an iterator over the rows.
+    pub fn rows(&self) -> impl Iterator<Item = RowRef<'_>> {
+        (0..self.cardinality()).map(|idx| self.row(idx))
     }
 
     /// Get the reference of array by index.
@@ -137,4 +145,22 @@ pub fn datachunk_to_sqllogictest_string(chunk: &DataChunk) -> String {
         writeln!(output).unwrap();
     }
     output
+}
+
+/// Reference to a row in [`DataChunk`].
+pub struct RowRef<'a> {
+    chunk: &'a DataChunk,
+    row_idx: usize,
+}
+
+impl RowRef<'_> {
+    /// Get the value at given column index.
+    pub fn get(&self, idx: usize) -> DataValue {
+        self.chunk.array_at(idx).get(self.row_idx)
+    }
+
+    /// Get an iterator over the values of the row.
+    pub fn values(&self) -> impl Iterator<Item = DataValue> + '_ {
+        self.chunk.arrays().iter().map(|a| a.get(self.row_idx))
+    }
 }

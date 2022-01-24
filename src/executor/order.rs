@@ -3,9 +3,8 @@
 use std::cmp::Ordering;
 
 use super::*;
-use crate::array::{ArrayBuilderImpl, DataChunk};
+use crate::array::{ArrayBuilderImpl, DataChunk, RowRef};
 use crate::binder::{BoundExpr, BoundOrderBy};
-use crate::types::DataValue;
 
 /// The executor of an order operation.
 pub struct OrderExecutor {
@@ -25,7 +24,7 @@ impl OrderExecutor {
         // sort the indexes
         let mut indexes = gen_index_array(&chunks);
         let comparators = self.comparators;
-        indexes.sort_unstable_by(|row1, row2| row1.cmp_by(row2, &comparators));
+        indexes.sort_unstable_by(|row1, row2| cmp(row1, row2, &comparators));
         // build chunk by the new order
         let mut arrays = vec![];
         for col_idx in 0..chunks[0].column_count() {
@@ -40,46 +39,25 @@ impl OrderExecutor {
     }
 }
 
-/// Reference to a row in [`DataChunk`].
-struct RowRef<'a> {
-    chunk: &'a DataChunk,
-    row_idx: usize,
-}
-
-impl RowRef<'_> {
-    /// Compare with another row by the comparators.
-    fn cmp_by(&self, other: &RowRef, comparators: &[BoundOrderBy]) -> Ordering {
-        for cmp in comparators {
-            let column_index = match &cmp.expr {
-                BoundExpr::InputRef(input_ref) => input_ref.index,
-                _ => todo!("only support order by columns now"),
-            };
-            let v1 = self.get(column_index);
-            let v2 = other.get(column_index);
-            match v1.partial_cmp(&v2).unwrap() {
-                Ordering::Equal => continue,
-                o if cmp.descending => return o.reverse(),
-                o => return o,
-            }
+/// Compare two rows by the comparators.
+fn cmp(row1: &RowRef, row2: &RowRef, comparators: &[BoundOrderBy]) -> Ordering {
+    for cmp in comparators {
+        let column_index = match &cmp.expr {
+            BoundExpr::InputRef(input_ref) => input_ref.index,
+            _ => todo!("only support order by columns now"),
+        };
+        let v1 = row1.get(column_index);
+        let v2 = row2.get(column_index);
+        match v1.partial_cmp(&v2).unwrap() {
+            Ordering::Equal => continue,
+            o if cmp.descending => return o.reverse(),
+            o => return o,
         }
-        Ordering::Equal
     }
-
-    /// Get the value at given column index.
-    fn get(&self, idx: usize) -> DataValue {
-        self.chunk.array_at(idx).get(self.row_idx)
-    }
+    Ordering::Equal
 }
 
 /// Generate an array of indexes for each element of the chunks.
 fn gen_index_array(chunks: &[DataChunk]) -> Vec<RowRef<'_>> {
-    chunks
-        .iter()
-        .flat_map(|chunk| {
-            (0..chunk.cardinality()).map(move |idx| RowRef {
-                chunk,
-                row_idx: idx,
-            })
-        })
-        .collect()
+    chunks.iter().flat_map(|chunk| chunk.rows()).collect()
 }

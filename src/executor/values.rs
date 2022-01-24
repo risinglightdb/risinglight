@@ -25,7 +25,7 @@ impl ValuesExecutor {
                 .collect_vec();
             // Push value into the builder.
             for row in chunk {
-                for (expr, builder) in row.iter().zip(&mut builders) {
+                for (expr, builder) in row.iter().zip_eq(&mut builders) {
                     let value = expr.eval();
                     builder.push(&value);
                 }
