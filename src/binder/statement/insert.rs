@@ -1,12 +1,11 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use itertools::Itertools;
-use rust_decimal::Decimal;
 
 use super::*;
 use crate::catalog::{ColumnCatalog, TableCatalog};
 use crate::parser::{SetExpr, Statement};
-use crate::types::{ColumnId, DataType, DataValue, Date, PhysicalDataTypeKind};
+use crate::types::{ColumnId, DataType};
 
 /// A bound `insert` statement.
 #[derive(Debug, PartialEq, Clone)]
@@ -65,25 +64,16 @@ impl Binder {
                         let mut expr = self.bind_expr(expr)?;
 
                         if let Some(data_type) = &expr.return_type() {
-                            // TODO: support valid type cast
                             // table t1(a float, b float)
                             // for example: insert into values (1, 1);
                             // 1 should be casted to float.
                             let left_kind = data_type.physical_kind();
                             let right_kind = column_types[idx].physical_kind();
                             if left_kind != right_kind {
-                                // TODO: convert other expr (e.g. BoundUnaryOp) into decimal
-                                match (&left_kind, &right_kind) {
-                                    (_, PhysicalDataTypeKind::Decimal) => {
-                                        // TODO: Decimal cast should not be done in binder, so we
-                                        // pass `scale: None` here for now.
-                                        expr = Self::cast_expr_to_decimal(expr, None)?;
-                                    }
-                                    (_, PhysicalDataTypeKind::Date) => {
-                                        expr = Self::cast_expr_to_date(expr)?;
-                                    }
-                                    _ => todo!("type cast: {:?} {:?}", left_kind, right_kind),
-                                }
+                                expr = BoundExpr::TypeCast(BoundTypeCast {
+                                    expr: Box::new(expr),
+                                    ty: column_types[idx].kind(),
+                                });
                             }
                         } else {
                             // If the data value is null, the column must be nullable.
@@ -147,63 +137,6 @@ impl Binder {
             column_catalogs
         };
         Ok((table_ref_id, table, columns))
-    }
-
-    fn cast_expr_to_decimal(expr: BoundExpr, scale: Option<u64>) -> Result<BoundExpr, BindError> {
-        match expr {
-            BoundExpr::Constant(DataValue::Int32(i)) => {
-                let d = if let Some(s) = scale {
-                    let scale_val = s as u32;
-                    Decimal::new(i as i64 * i64::pow(10, scale_val), scale_val)
-                } else {
-                    Decimal::from(i)
-                };
-                Ok(BoundExpr::Constant(DataValue::Decimal(d)))
-            }
-            BoundExpr::Constant(DataValue::Int64(i)) => {
-                let d = if let Some(s) = scale {
-                    let scale_val = s as u32;
-                    Decimal::new(i * i64::pow(10, scale_val), scale_val)
-                } else {
-                    Decimal::from(i)
-                };
-                Ok(BoundExpr::Constant(DataValue::Decimal(d)))
-            }
-            BoundExpr::Constant(DataValue::Float64(f)) => {
-                let d = if let Some(s) = scale {
-                    let scale_val = s as u32;
-                    Decimal::new((f * i64::pow(10, scale_val) as f64) as i64, scale_val)
-                } else {
-                    Decimal::from_f64_retain(f).ok_or(BindError::CastError(
-                        DataValue::Float64(f),
-                        DataTypeKind::Decimal(None, None),
-                    ))?
-                };
-                Ok(BoundExpr::Constant(DataValue::Decimal(d)))
-            }
-            BoundExpr::UnaryOp(op) => {
-                // To support insert negative values into decimal column, we need to convert the
-                // inner expr into decimal value
-                let op_expr = Self::cast_expr_to_decimal(*op.expr, scale)?;
-                let return_type = op_expr.return_type();
-                Ok(BoundExpr::UnaryOp(BoundUnaryOp {
-                    op: op.op,
-                    expr: Box::new(op_expr),
-                    return_type,
-                }))
-            }
-            _ => panic!("cannot cast into decimal"),
-        }
-    }
-
-    fn cast_expr_to_date(expr: BoundExpr) -> Result<BoundExpr, BindError> {
-        match expr {
-            BoundExpr::Constant(DataValue::String(s)) => Ok(BoundExpr::Constant(DataValue::Date(
-                Date::from_str(s.as_str())
-                    .map_err(|_| BindError::CastError(DataValue::String(s), DataTypeKind::Date))?,
-            ))),
-            _ => panic!("cannot cast into date"),
-        }
     }
 }
 
