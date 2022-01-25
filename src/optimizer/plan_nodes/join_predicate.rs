@@ -38,8 +38,8 @@ impl JoinPredicate {
     /// ```sql
     ///   select a.v1, a.v2, b.v1, b.v2 from a,b on a.v1 = a.v2 and a.v1 = b.v1 and a.v2 > b.v2
     /// ```
-    /// will call the `create` function with left_colsnum = 2 and on_clause is (supposed input_ref
-    /// count start from 0)
+    /// will call the `create` function with `left_colsnum` = 2 and `on_clause` is (supposed
+    /// `input_ref` count start from 0)
     /// ```sql
     /// input_ref(0) = input_ref(1) and input_ref(0) = input_ref(2) and input_ref(1) > input_ref(3)
     /// ```
@@ -70,17 +70,17 @@ impl JoinPredicate {
             match (from_left, from_right) {
                 (true, true) => {
                     // TODO: refactor with if_chain
-                    let is_other = true;
+                    let mut is_other = true;
                     if let BoundExpr::BinaryOp(op) = &cond {
-                        match (&op.op, &*op.left_expr, &*op.right_expr) {
-                            // TODO: if the eq condition's input is another expression, we should
-                            // insert project as the join's input plan node
-                            (BinaryOperator::Eq, InputRef(x), InputRef(y)) => {
-                                let l = x.index.min(y.index);
-                                let r = x.index.max(y.index);
-                                eq_keys.push((l, r));
-                            }
-                            _ => {}
+                        // TODO: if the eq condition's input is another expression, we should
+                        // insert project as the join's input plan node
+                        if let (BinaryOperator::Eq, InputRef(x), InputRef(y)) =
+                            (&op.op, &*op.left_expr, &*op.right_expr)
+                        {
+                            let l = x.index.min(y.index);
+                            let r = x.index.max(y.index);
+                            eq_keys.push((l, r));
+                            is_other = false;
                         }
                     }
                     if is_other {
