@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use super::*;
 use crate::binder::{BoundExpr, BoundJoinOperator};
-use crate::optimizer::expr_utils::merge_conjunctions;
+use crate::optimizer::expr_utils::{merge_conjunctions, shift_input_col_refs};
 use crate::optimizer::plan_nodes::{
     JoinPredicate, LogicalFilter, LogicalJoin, PlanTreeNodeBinary, PlanTreeNodeUnary,
 };
@@ -30,8 +30,8 @@ impl Rule for FilterJoinRule {
             right_expr: Box::new(join_on_clause),
             return_type: Some(DataTypeKind::Boolean.nullable()),
         });
-        let inner_join_predicate =
-            JoinPredicate::create(join.left().out_types().len(), new_inner_join_cond);
+        let left_col_num = join.left().out_types().len();
+        let inner_join_predicate = JoinPredicate::create(left_col_num, new_inner_join_cond);
         let left = if inner_join_predicate.left_conds().is_empty() {
             join.left()
         } else {
@@ -43,10 +43,10 @@ impl Rule for FilterJoinRule {
         let right = if inner_join_predicate.right_conds().is_empty() {
             join.right()
         } else {
-            Arc::new(LogicalFilter::new(
-                merge_conjunctions(inner_join_predicate.right_conds().iter().cloned()),
-                join.right(),
-            ))
+            let mut right_cond =
+                merge_conjunctions(inner_join_predicate.right_conds().iter().cloned());
+            shift_input_col_refs(&mut right_cond, -(left_col_num as i32));
+            Arc::new(LogicalFilter::new(right_cond, join.right()))
         };
 
         let new_join = Arc::new(LogicalJoin::create(

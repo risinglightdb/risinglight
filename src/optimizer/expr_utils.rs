@@ -76,3 +76,28 @@ pub fn input_col_refs_inner(expr: &BoundExpr, input_set: &mut BitSet) {
         Alias(_) => {}
     };
 }
+
+pub fn shift_input_col_refs(expr: &mut BoundExpr, delta: i32) {
+    use BoundExpr::*;
+    match expr {
+        ColumnRef(_) => {}
+        InputRef(input_ref) => {
+            input_ref.index = (input_ref.index as i32 + delta) as usize;
+        }
+        AggCall(agg) => {
+            for arg in &mut agg.args {
+                shift_input_col_refs(&mut *arg, delta);
+            }
+        }
+        BinaryOp(binary_op) => {
+            shift_input_col_refs(&mut *binary_op.left_expr, delta);
+            shift_input_col_refs(&mut *binary_op.right_expr, delta);
+        }
+        UnaryOp(unary_op) => shift_input_col_refs(&mut *unary_op.expr, delta),
+        TypeCast(cast) => shift_input_col_refs(&mut *cast.expr, delta),
+        IsNull(isnull) => shift_input_col_refs(&mut *isnull.expr, delta),
+        ExprWithAlias(inner) => shift_input_col_refs(&mut *inner.expr, delta),
+        Constant(_) => {}
+        Alias(_) => {}
+    };
+}
