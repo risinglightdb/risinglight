@@ -23,11 +23,6 @@ pub fn conjunctions(expr: BoundExpr) -> Vec<BoundExpr> {
     rets
 }
 
-#[allow(dead_code)]
-pub fn to_cnf(expr: BoundExpr) -> Vec<BoundExpr> {
-    // FIXME：TODO it is just convering to conjunctions now
-    conjunctions(expr)
-}
 pub fn merge_conjunctions<I>(iter: I) -> BoundExpr
 where
     I: Iterator<Item = BoundExpr>,
@@ -44,7 +39,6 @@ where
     ret
 }
 
-#[allow(dead_code)]
 pub fn input_col_refs(expr: &BoundExpr) -> BitSet {
     let mut set = BitSet::default();
     input_col_refs_inner(expr, &mut set);

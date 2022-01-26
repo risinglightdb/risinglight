@@ -60,10 +60,6 @@ impl Rule for FilterJoinRule {
                     .chain(inner_join_predicate.other_conds().iter().cloned()),
             ),
         ));
-        // FIXME:
-        // Currently HashJoinExecutor ignores the condition,
-        // so for correctness we have to keep filter operator.
-        let new_filter = Arc::new(LogicalFilter::new(filter.expr().clone(), new_join));
-        Ok(new_filter)
+        Ok(new_join)
     }
 }
