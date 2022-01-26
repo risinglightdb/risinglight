@@ -2,6 +2,7 @@
 
 use bit_set::BitSet;
 
+use super::logical_plan_rewriter::{BoolExprSimplificationRule, ExprRewriter};
 use crate::binder::BoundBinaryOp;
 use crate::optimizer::BoundExpr;
 use crate::optimizer::BoundExpr::BinaryOp;
@@ -36,6 +37,8 @@ where
             return_type: Some(DataTypeKind::Boolean.nullable()),
         })
     }
+    let rewriter = BoolExprSimplificationRule {};
+    rewriter.rewrite_expr(&mut ret);
     ret
 }
 
