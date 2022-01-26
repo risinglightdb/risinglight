@@ -3,8 +3,6 @@
 use super::super::plan_nodes::*;
 use super::*;
 use crate::binder::BoundJoinOperator;
-use crate::optimizer::BoundExpr::{BinaryOp, InputRef};
-use crate::parser::BinaryOperator;
 use crate::types::DataValue;
 /// Convert all logical plan nodes to physical.
 pub struct PhysicalConverter;

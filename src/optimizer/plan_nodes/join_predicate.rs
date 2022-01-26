@@ -1,10 +1,13 @@
+use serde::Serialize;
+
 use crate::binder::{BoundBinaryOp, BoundExpr, BoundInputRef};
 use crate::optimizer::expr_utils::{conjunctions, input_col_refs, merge_conjunctions};
 use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 use crate::optimizer::BoundExpr::InputRef;
 use crate::parser::BinaryOperator;
 use crate::types::{DataTypeExt, DataTypeKind};
-#[derive(Debug, Clone)]
+
+#[derive(Debug, Clone, Serialize)]
 /// the join predicate used in optimizer
 pub struct JoinPredicate {
     /// the conditions that all columns in the left side,
