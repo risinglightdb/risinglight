@@ -1,5 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use serde::Serialize;
+
 use super::*;
 use crate::parser::{ObjectType, Statement};
 
@@ -12,7 +14,7 @@ pub struct BoundDrop {
 }
 
 /// Identifier of an object.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize)]
 pub enum Object {
     // TODO: Database
     // TODO: Schema

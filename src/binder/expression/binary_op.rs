@@ -1,11 +1,13 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use serde::Serialize;
+
 use super::*;
 use crate::parser::BinaryOperator;
 use crate::types::{DataTypeExt, DataTypeKind};
 
 /// A bound binary operation expression.
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Serialize)]
 pub struct BoundBinaryOp {
     pub op: BinaryOperator,
     pub left_expr: Box<BoundExpr>,

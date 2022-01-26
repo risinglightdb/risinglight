@@ -1,7 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
-
+use serde::{Serialize};
 use itertools::Itertools;
 
 use super::*;
@@ -9,7 +9,7 @@ use crate::catalog::ColumnCatalog;
 use crate::types::{DatabaseId, SchemaId};
 
 /// The logical plan of `CREATE TABLE`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct LogicalCreateTable {
     database_id: DatabaseId,
     schema_id: SchemaId,

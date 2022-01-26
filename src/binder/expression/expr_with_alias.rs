@@ -1,9 +1,11 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use serde::Serialize;
+
 use super::*;
 
 /// A bound expression with alias
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Serialize)]
 pub struct BoundExprWithAlias {
     pub expr: Box<BoundExpr>,
     pub alias: String,
@@ -16,7 +18,7 @@ impl std::fmt::Debug for BoundExprWithAlias {
 }
 
 /// An alias reference to a bound expression
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Serialize)]
 pub struct BoundAlias {
     pub alias: String,
 }

@@ -2,13 +2,14 @@
 
 use std::fmt;
 use std::path::PathBuf;
+use serde::{Serialize};
 
 use super::*;
 use crate::binder::statement::copy::FileFormat;
 use crate::types::DataType;
 
 /// The logical plan of `COPY TO`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct LogicalCopyToFile {
     /// The file path to copy to.
     path: PathBuf,

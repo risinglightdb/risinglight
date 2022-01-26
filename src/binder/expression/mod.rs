@@ -2,6 +2,7 @@
 
 use bitvec::bitvec;
 use bitvec::prelude::BitVec;
+use serde::Serialize;
 use sqlparser::ast::BinaryOperator;
 
 use super::*;
@@ -28,7 +29,7 @@ pub use self::type_cast::*;
 pub use self::unary_op::*;
 
 /// A bound expression.
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Serialize)]
 pub enum BoundExpr {
     Constant(DataValue),
     ColumnRef(BoundColumnRef),

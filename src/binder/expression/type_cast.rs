@@ -1,10 +1,12 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use serde::Serialize;
+
 use super::*;
 use crate::types::DataTypeKind;
 
 /// A bound type cast expression.
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Serialize)]
 pub struct BoundTypeCast {
     pub expr: Box<BoundExpr>,
     pub ty: DataTypeKind,

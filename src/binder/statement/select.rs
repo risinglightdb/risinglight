@@ -1,4 +1,5 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+use serde::Serialize;
 
 use super::BoundExpr::*;
 use super::{BoundExpr, BoundTableRef, *};
@@ -147,7 +148,7 @@ impl Binder {
 }
 
 /// A bound `order by` statement.
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Serialize)]
 pub struct BoundOrderBy {
     pub expr: BoundExpr,
     pub descending: bool,

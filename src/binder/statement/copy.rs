@@ -1,4 +1,5 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+use serde::Serialize;
 
 use super::*;
 use crate::catalog::ColumnCatalog;
@@ -15,7 +16,7 @@ pub struct BoundCopy {
 }
 
 /// File format.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize)]
 pub enum FileFormat {
     Csv {
         /// Delimiter to parse.

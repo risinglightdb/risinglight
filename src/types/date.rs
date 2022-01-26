@@ -3,6 +3,7 @@
 use std::fmt::{Display, Formatter};
 
 use chrono::{Datelike, NaiveDate};
+use serde::Serialize;
 
 use crate::types::Interval;
 
@@ -11,7 +12,7 @@ use crate::types::Interval;
 pub const UNIX_EPOCH_DAYS: i32 = 719_163;
 
 /// Date type
-#[derive(PartialOrd, PartialEq, Debug, Copy, Clone, Default, Hash)]
+#[derive(PartialOrd, PartialEq, Debug, Copy, Clone, Default, Hash, Serialize)]
 pub struct Date(i32);
 
 impl Date {

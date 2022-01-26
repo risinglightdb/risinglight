@@ -1,13 +1,14 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
+use serde::{Serialize};
 
 use super::*;
 use crate::binder::{BoundAggCall, BoundExpr};
 use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 
 /// The logical plan of hash aggregate operation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct LogicalAggregate {
     agg_calls: Vec<BoundAggCall>,
     /// Group keys in hash aggregation (optional)
