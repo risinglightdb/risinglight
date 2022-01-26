@@ -13,7 +13,7 @@ env:
   CACHE_KEY_SUFFIX: v20220118
 
 jobs:
-  fmt:
+  test:
     runs-on: [self-hosted, riseguardian]
     steps:
       - uses: actions/checkout@v2
@@ -21,6 +21,17 @@ jobs:
         with:
           profile: minimal
           components: rustfmt, clippy
+      - name: Cache Cargo home
+        uses: actions/cache@v2
+        id: cache
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            rust/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ env.CACHE_KEY_SUFFIX }}
       - name: Check code format
         uses: actions-rs/cargo@v1
         with:
@@ -31,14 +42,6 @@ jobs:
         with:
           command: clippy
           args: --all-targets --all-features --locked -- -D warnings
-
-  test:
-    runs-on: [self-hosted, riseguardian]
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
       - name: Test
         uses: actions-rs/cargo@v1
         with:
