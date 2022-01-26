@@ -5,7 +5,7 @@ use crate::optimizer::expr_utils::{conjunctions, input_col_refs, merge_conjuncti
 use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 use crate::optimizer::BoundExpr::InputRef;
 use crate::parser::BinaryOperator;
-use crate::types::{DataTypeExt, DataTypeKind};
+use crate::types::{DataTypeExt, DataTypeKind, DataValue};
 
 #[derive(Debug, Clone, Serialize)]
 /// the join predicate used in optimizer
@@ -60,6 +60,11 @@ impl JoinPredicate {
         let mut eq_keys = vec![];
 
         for cond in conds {
+            if let BoundExpr::Constant(DataValue::Bool(f)) = cond {
+                if f {
+                    continue;
+                }
+            }
             let cols = input_col_refs(&cond);
             let from_left = cols
                 .iter()
