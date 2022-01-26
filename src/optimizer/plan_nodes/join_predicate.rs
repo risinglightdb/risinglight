@@ -163,9 +163,6 @@ impl JoinPredicate {
     ) -> Self {
         let mut new_cond = self.to_on_clause();
         rewriter.rewrite_expr(&mut new_cond);
-        dbg!(new_cond.clone());
-        dbg!(left_cols_num);
-
         Self::create(left_cols_num, new_cond)
     }
 }
