@@ -1,7 +1,9 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
-use serde::{Serialize};
+
+use serde::Serialize;
+
 use super::*;
 
 /// The phyiscal plan of join.
@@ -46,9 +48,9 @@ impl fmt::Display for PhysicalNestedLoopJoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "PhysicalNestedLoopJoin: op {:?}, condition: {:?}",
+            "PhysicalNestedLoopJoin: op {:?}, predicate: {}",
             self.logical().join_op(),
-            self.logical().condition()
+            self.logical().predicate()
         )
     }
 }
