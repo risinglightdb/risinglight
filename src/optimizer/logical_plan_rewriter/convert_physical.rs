@@ -40,7 +40,7 @@ impl PlanRewriter for PhysicalConverter {
             // the conditions as a filter operator. And this transformation is only correct for
             // inner join
             let on_clause = predicate.to_on_clause();
-
+            let left_col_num = left.out_types().len();
             let (left_column_index, right_column_index) = predicate.eq_keys()[0].clone();
             let join = Arc::new(PhysicalHashJoin::new(
                 LogicalJoin::create(
@@ -50,7 +50,7 @@ impl PlanRewriter for PhysicalConverter {
                     BoundExpr::Constant(DataValue::Bool(true)),
                 ),
                 left_column_index.index,
-                right_column_index.index,
+                right_column_index.index - left_col_num,
             ));
             return Arc::new(PhysicalFilter::new(LogicalFilter::new(on_clause, join)));
         }

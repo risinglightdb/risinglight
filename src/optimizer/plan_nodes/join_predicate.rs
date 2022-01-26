@@ -65,7 +65,7 @@ impl JoinPredicate {
                 .unwrap_or(false);
             let from_right = cols
                 .iter()
-                .min()
+                .max()
                 .map(|mx| mx >= left_cols_num)
                 .unwrap_or(false);
             match (from_left, from_right) {
@@ -160,6 +160,9 @@ impl JoinPredicate {
     ) -> Self {
         let mut new_cond = self.to_on_clause();
         rewriter.rewrite_expr(&mut new_cond);
+        dbg!(new_cond.clone());
+        dbg!(left_cols_num);
+
         Self::create(left_cols_num, new_cond)
     }
 }

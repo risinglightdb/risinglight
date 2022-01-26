@@ -32,7 +32,7 @@ pub fn merge_conjunctions<I>(iter: I) -> BoundExpr
 where
     I: Iterator<Item = BoundExpr>,
 {
-    let mut ret = BoundExpr::Constant(DataValue::Bool(false));
+    let mut ret = BoundExpr::Constant(DataValue::Bool(true));
     for expr in iter {
         ret = BoundExpr::BinaryOp(BoundBinaryOp {
             op: And,
