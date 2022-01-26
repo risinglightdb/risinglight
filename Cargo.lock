@@ -578,6 +578,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "erased-serde"
+version = "0.3.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56047058e1ab118075ca22f9ecd737bcc961aa3566a3019cb71388afa280bd8a"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "error-chain"
 version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1528,6 +1537,7 @@ dependencies = [
  "downcast-rs",
  "enum_dispatch",
  "env_logger",
+ "erased-serde",
  "futures",
  "futures-async-stream",
  "indicatif",

@@ -2,6 +2,8 @@
 
 use std::vec::Vec;
 
+use serde::Serialize;
+
 use super::BoundExpr::*;
 use super::*;
 use crate::parser::{JoinConstraint, JoinOperator, TableFactor, TableWithJoins};
@@ -29,7 +31,7 @@ pub enum BoundTableRef {
     },
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Serialize)]
 pub enum BoundJoinOperator {
     Inner,
     LeftOuter,
