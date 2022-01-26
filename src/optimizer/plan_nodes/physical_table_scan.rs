@@ -1,13 +1,13 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
-
+use serde::{Serialize};
 use itertools::Itertools;
 
 use super::*;
 
 /// The physical plan of table scan operation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PhysicalTableScan {
     logical: LogicalTableScan,
 }

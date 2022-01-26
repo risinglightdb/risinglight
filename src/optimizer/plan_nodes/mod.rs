@@ -6,6 +6,7 @@ use std::fmt::{Debug, Display};
 use std::sync::Arc;
 
 use downcast_rs::{impl_downcast, Downcast};
+use erased_serde::serialize_trait_object;
 use paste::paste;
 
 use crate::binder::BoundExpr;
@@ -18,7 +19,7 @@ pub use join_predicate::*;
 
 /// The common trait over all plan nodes.
 pub trait PlanNode:
-    WithPlanNodeType + PlanTreeNode + Debug + Display + Downcast + Send + Sync
+    WithPlanNodeType + PlanTreeNode + Debug + Display + Downcast + erased_serde::Serialize + Send + Sync
 {
     fn out_types(&self) -> Vec<DataType> {
         vec![]
@@ -39,6 +40,8 @@ impl dyn PlanNode {
         Ok(())
     }
 }
+
+serialize_trait_object!(PlanNode);
 
 /// All Plan nodes
 ///

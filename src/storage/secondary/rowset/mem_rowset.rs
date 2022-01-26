@@ -58,7 +58,7 @@ impl MemTable for BTreeMapMemTable {
         for row_idx in 0..columns.cardinality() {
             self.multi_btree_map.insert(
                 ComparableDataValue(columns.array_at(self.primary_key_idx).get(row_idx)),
-                columns.get_row_by_idx(row_idx),
+                columns.row(row_idx).values().collect(),
             );
         }
         Ok(())

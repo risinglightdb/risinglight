@@ -41,7 +41,7 @@ impl TableRefId {
 }
 
 /// The reference ID of a column.
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize)]
 pub struct ColumnRefId {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,

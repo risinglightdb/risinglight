@@ -1,7 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
-
+use serde::{Serialize};
 use super::*;
 use crate::binder::BoundJoinOperator;
 use crate::optimizer::logical_plan_rewriter::ExprRewriter;
@@ -10,7 +10,7 @@ use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 ///
 /// The query optimizer should decide the join orders and specific algorithms (hash join, nested
 /// loop join or index join).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct LogicalJoin {
     left_plan: PlanRef,
     right_plan: PlanRef,
