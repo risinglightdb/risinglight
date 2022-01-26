@@ -1,9 +1,11 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use serde::Serialize;
+
 use crate::types::DataType;
 
 /// Reference to a column in data chunk
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Serialize)]
 pub struct BoundInputRef {
     pub index: usize,
     pub return_type: DataType,

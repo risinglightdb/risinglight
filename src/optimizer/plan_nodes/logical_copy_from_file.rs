@@ -1,6 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
+use serde::{Serialize};
 use std::path::PathBuf;
 
 use super::*;
@@ -8,7 +9,7 @@ use crate::binder::statement::copy::FileFormat;
 use crate::types::DataType;
 
 /// The logical plan of `COPY FROM`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct LogicalCopyFromFile {
     /// The file path to copy from.
     path: PathBuf,

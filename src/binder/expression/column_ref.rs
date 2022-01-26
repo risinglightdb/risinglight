@@ -1,12 +1,13 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use itertools::Itertools;
+use serde::Serialize;
 
 use super::*;
 use crate::catalog::ColumnDesc;
 
 /// A bound column reference expression.
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Serialize)]
 pub struct BoundColumnRef {
     pub table_name: String,
     pub column_ref_id: ColumnRefId,

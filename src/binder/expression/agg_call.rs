@@ -1,12 +1,14 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use serde::Serialize;
+
 use super::*;
 use crate::binder::{BindError, Binder, BoundExpr};
 use crate::parser::{BinaryOperator, FunctionArg, FunctionArgExpr};
 use crate::types::{DataType, DataTypeKind};
 
 /// Aggregation kind
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize)]
 pub enum AggKind {
     Avg,
     RowCount,
@@ -17,7 +19,7 @@ pub enum AggKind {
 }
 
 /// Represents an aggregation function
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Serialize)]
 pub struct BoundAggCall {
     pub kind: AggKind,
     pub args: Vec<BoundExpr>,

@@ -1,11 +1,11 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
-
+use serde::{Serialize};
 use super::*;
 
 /// A dummy plan.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Dummy {}
 impl PlanTreeNodeLeaf for Dummy {}
 impl_plan_tree_node_for_leaf!(Dummy);

@@ -2,8 +2,9 @@
 
 use std::fmt::{Display, Formatter};
 
+use serde::Serialize;
 /// Interval type
-#[derive(PartialOrd, PartialEq, Debug, Copy, Clone, Default, Hash)]
+#[derive(PartialOrd, PartialEq, Debug, Copy, Clone, Default, Hash, Serialize)]
 pub struct Interval {
     years: i32,
     days: i32,

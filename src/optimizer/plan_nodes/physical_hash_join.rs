@@ -1,11 +1,11 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
-
+use serde::{Serialize};
 use super::*;
 
 /// The phyiscal plan of join.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct PhysicalHashJoin {
     logical: LogicalJoin,
     left_column_index: usize,

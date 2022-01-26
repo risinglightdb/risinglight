@@ -1,13 +1,13 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
-
+use serde::{Serialize};
 use super::*;
 
 use crate::types::DataType;
 
 /// The physical plan of `VALUES`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PhysicalValues {
     logical: LogicalValues,
 }

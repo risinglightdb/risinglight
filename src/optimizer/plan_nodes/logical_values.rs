@@ -1,6 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
+use serde::{Serialize};
 
 use super::*;
 use crate::binder::BoundExpr;
@@ -8,7 +9,7 @@ use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 use crate::types::DataType;
 
 /// The logical plan of `VALUES`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct LogicalValues {
     column_types: Vec<DataType>,
     values: Vec<Vec<BoundExpr>>,

@@ -1,7 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
-
+use serde::{Serialize};
 use itertools::Itertools;
 
 use super::*;
@@ -9,7 +9,7 @@ use crate::catalog::TableRefId;
 use crate::types::ColumnId;
 
 /// The logical plan of `INSERT`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct LogicalInsert {
     table_ref_id: TableRefId,
     column_ids: Vec<ColumnId>,

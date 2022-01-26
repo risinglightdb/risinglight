@@ -1,12 +1,12 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
-
+use serde::{Serialize};
 use super::*;
 use crate::catalog::TableRefId;
 
 /// The logical plan of `DELETE`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct LogicalDelete {
     table_ref_id: TableRefId,
     child: PlanRef,
