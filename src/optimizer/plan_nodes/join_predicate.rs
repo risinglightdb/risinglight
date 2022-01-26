@@ -166,3 +166,8 @@ impl JoinPredicate {
         Self::create(left_cols_num, new_cond)
     }
 }
+impl std::fmt::Display for JoinPredicate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.to_on_clause())
+    }
+}

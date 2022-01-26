@@ -1,7 +1,9 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
-use serde::{Serialize};
+
+use serde::Serialize;
+
 use super::*;
 
 /// The phyiscal plan of join.
@@ -66,8 +68,10 @@ impl fmt::Display for PhysicalHashJoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "PhysicalHashJoin: op {:?}, predicate: {:?}",
+            "PhysicalHashJoin: op {:?}, left_index {:?},  right_index {:?}, predicate: {} ",
             self.logical().join_op(),
+            self.left_column_index,
+            self.right_column_index,
             self.logical().predicate()
         )
     }
