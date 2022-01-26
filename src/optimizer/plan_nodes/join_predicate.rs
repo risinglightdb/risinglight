@@ -1,8 +1,9 @@
-use crate::binder::BoundExpr;
-use crate::optimizer::expr_utils::{conjunctions, input_col_refs};
+use crate::binder::{BoundBinaryOp, BoundExpr, BoundInputRef};
+use crate::optimizer::expr_utils::{conjunctions, input_col_refs, merge_conjunctions};
+use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 use crate::optimizer::BoundExpr::InputRef;
 use crate::parser::BinaryOperator;
-
+use crate::types::{DataTypeExt, DataTypeKind};
 #[derive(Debug, Clone)]
 /// the join predicate used in optimizer
 pub struct JoinPredicate {
@@ -15,7 +16,7 @@ pub struct JoinPredicate {
 
     /// the equal columns indexes(in the input schema) both sides, now all are normal equal(not
     /// null-safe-equal),
-    eq_keys: Vec<(usize, usize)>,
+    eq_keys: Vec<(BoundInputRef, BoundInputRef)>,
 }
 #[allow(dead_code)]
 impl JoinPredicate {
@@ -23,7 +24,7 @@ impl JoinPredicate {
         other_conds: Vec<BoundExpr>,
         left_conds: Vec<BoundExpr>,
         right_conds: Vec<BoundExpr>,
-        eq_keys: Vec<(usize, usize)>,
+        eq_keys: Vec<(BoundInputRef, BoundInputRef)>,
     ) -> Self {
         Self {
             left_conds,
@@ -77,9 +78,11 @@ impl JoinPredicate {
                         if let (BinaryOperator::Eq, InputRef(x), InputRef(y)) =
                             (&op.op, &*op.left_expr, &*op.right_expr)
                         {
-                            let l = x.index.min(y.index);
-                            let r = x.index.max(y.index);
-                            eq_keys.push((l, r));
+                            if x.index < y.index {
+                                eq_keys.push((x.clone(), y.clone()));
+                            } else {
+                                eq_keys.push((y.clone(), x.clone()));
+                            }
                             is_other = false;
                         }
                     }
@@ -110,14 +113,53 @@ impl JoinPredicate {
         self.right_conds.as_ref()
     }
 
+    /// Get join predicate's eq conds.
+    pub fn eq_conds(&self) -> Vec<BoundExpr> {
+        self.eq_keys
+            .iter()
+            .cloned()
+            .map(|(l, r)| {
+                BoundExpr::BinaryOp(BoundBinaryOp {
+                    op: BinaryOperator::Eq,
+                    left_expr: Box::new(InputRef(l)),
+                    right_expr: Box::new(InputRef(r)),
+                    return_type: Some(DataTypeKind::Boolean.nullable()),
+                })
+            })
+            .collect()
+    }
+
     /// Get a reference to the join predicate's eq keys.
-    pub fn eq_keys(&self) -> &[(usize, usize)] {
+    pub fn eq_keys(&self) -> &[(BoundInputRef, BoundInputRef)] {
         self.eq_keys.as_ref()
     }
-    pub fn left_eq_keys(&self) -> Vec<usize> {
-        self.eq_keys.iter().map(|(left, _)| *left).collect()
+    pub fn left_eq_keys(&self) -> Vec<BoundInputRef> {
+        self.eq_keys.iter().map(|(left, _)| left.clone()).collect()
     }
-    pub fn right_eq_keys(&self) -> Vec<usize> {
-        self.eq_keys.iter().map(|(_, right)| *right).collect()
+    pub fn right_eq_keys(&self) -> Vec<BoundInputRef> {
+        self.eq_keys
+            .iter()
+            .map(|(_, right)| right.clone())
+            .collect()
+    }
+    pub fn to_on_clause(&self) -> BoundExpr {
+        merge_conjunctions(
+            self.left_conds
+                .iter()
+                .cloned()
+                .chain(self.right_conds.iter().cloned())
+                .chain(self.other_conds.iter().cloned())
+                .chain(self.eq_conds().into_iter()),
+        )
+    }
+
+    pub fn clone_with_rewrite_expr(
+        &self,
+        left_cols_num: usize,
+        rewriter: &impl ExprRewriter,
+    ) -> Self {
+        let mut new_cond = self.to_on_clause();
+        rewriter.rewrite_expr(&mut new_cond);
+        Self::create(left_cols_num, new_cond)
     }
 }

@@ -3,9 +3,10 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::binder::BoundExpr;
+use crate::binder::{BoundExpr, BoundJoinOperator};
+use crate::optimizer::expr_utils::merge_conjunctions;
 use crate::optimizer::plan_nodes::{
-    LogicalFilter, LogicalJoin, PlanTreeNodeBinary, PlanTreeNodeUnary,
+    JoinPredicate, LogicalFilter, LogicalJoin, PlanTreeNodeBinary, PlanTreeNodeUnary,
 };
 use crate::optimizer::BoundBinaryOp;
 use crate::parser::BinaryOperator::And;
@@ -18,42 +19,51 @@ impl Rule for FilterJoinRule {
         let filter = plan.as_logical_filter()?;
         let child = filter.child();
         let join = child.as_logical_join()?;
-        let join_cond = BoundExpr::BinaryOp(BoundBinaryOp {
+        if join.join_op() != BoundJoinOperator::Inner {
+            return Err(());
+        }
+        let filter_cond = filter.expr().clone();
+        let join_on_clause = join.predicate().to_on_clause();
+        let new_inner_join_cond = BoundExpr::BinaryOp(BoundBinaryOp {
             op: And,
-            left_expr: Box::new(join.condition().clone()),
-            right_expr: Box::new(filter.expr().clone()),
+            left_expr: Box::new(filter_cond),
+            right_expr: Box::new(join_on_clause),
             return_type: Some(DataTypeKind::Boolean.nullable()),
         });
-        let new_join = Arc::new(LogicalJoin::new(
-            join.left().clone(),
-            join.right().clone(),
+        let inner_join_predicate =
+            JoinPredicate::create(join.left().out_types().len(), new_inner_join_cond);
+        let left = if inner_join_predicate.left_conds().is_empty() {
+            join.left()
+        } else {
+            Arc::new(LogicalFilter::new(
+                merge_conjunctions(inner_join_predicate.left_conds().iter().cloned()),
+                join.left(),
+            ))
+        };
+        let right = if inner_join_predicate.right_conds().is_empty() {
+            join.right()
+        } else {
+            Arc::new(LogicalFilter::new(
+                merge_conjunctions(inner_join_predicate.right_conds().iter().cloned()),
+                join.right(),
+            ))
+        };
+
+        let new_join = Arc::new(LogicalJoin::create(
+            left,
+            right,
             join.join_op(),
-            join_cond,
+            merge_conjunctions(
+                inner_join_predicate
+                    .eq_conds()
+                    .into_iter()
+                    .chain(inner_join_predicate.other_conds().iter().cloned()),
+            ),
         ));
         // FIXME:
         // Currently HashJoinExecutor ignores the condition,
         // so for correctness we have to keep filter operator.
         let new_filter = Arc::new(LogicalFilter::new(filter.expr().clone(), new_join));
         Ok(new_filter)
-
-        // TODO: we need schema of operator to push condition to each side.
-        // let filter_conds = to_cnf(filter.expr.clone());
-        // let join_cond = match join.join_op {
-        //     Inner(On(op)) => op.clone(),
-        //     _ => unreachable!(),
-        // };
-        // let join_conds = to_cnf(join_cond);
-        // let left_filter_expr = vec![];
-        // let right_filter_expr = vec![];
-        // let join_filter_expr = vec![];
-
-        // for cond in filter_conds.into_iter().chain(join_conds.into_iter()) {
-        //     let input_refs = input_col_refs(&cond);
-        //     let in_left = false;
-        //     let in_right = false;
-        //     for index in input_refs.iter() {
-        //         if(index <=)
-        //     }
-        // }
     }
 }

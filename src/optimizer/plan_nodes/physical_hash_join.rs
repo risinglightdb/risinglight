@@ -66,9 +66,9 @@ impl fmt::Display for PhysicalHashJoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "PhysicalHashJoin: op {:?}, condition: {:?}",
+            "PhysicalHashJoin: op {:?}, predicate: {:?}",
             self.logical().join_op(),
-            self.logical().condition()
+            self.logical().predicate()
         )
     }
 }

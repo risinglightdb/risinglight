@@ -3,8 +3,7 @@
 use super::super::plan_nodes::*;
 use super::*;
 use crate::binder::BoundJoinOperator;
-use crate::optimizer::BoundExpr::{BinaryOp, InputRef};
-use crate::parser::BinaryOperator;
+use crate::types::DataValue;
 /// Convert all logical plan nodes to physical.
 pub struct PhysicalConverter;
 
@@ -31,49 +30,33 @@ impl PlanRewriter for PhysicalConverter {
     }
 
     fn rewrite_logical_join(&mut self, logical_join: &LogicalJoin) -> PlanRef {
-        // Hash join is only used for equal join.
-        // So far, we only support hash join when doing inner join.
-        fn find_hash_join_index(expr: &BoundExpr, mid: usize) -> Option<(usize, usize)> {
-            match expr {
-                BinaryOp(op) => match (&op.op, &*op.left_expr, &*op.right_expr) {
-                    (BinaryOperator::Eq, InputRef(x), InputRef(y)) => {
-                        let i1 = x.index.min(y.index);
-                        let i2 = x.index.max(y.index);
-                        if i1 < mid && i2 >= mid {
-                            return Some((i1, i2 - mid));
-                        }
-                        None
-                    }
-                    (BinaryOperator::And, left, right) => {
-                        if let ret @ Some(_) = find_hash_join_index(left, mid) {
-                            return ret;
-                        }
-                        find_hash_join_index(right, mid)
-                    }
-                    _ => None,
-                },
-                _ => None,
-            }
-        }
-        let hash_join_index = if logical_join.join_op() == BoundJoinOperator::Inner {
-            let mid = logical_join.left().out_types().len();
-            find_hash_join_index(logical_join.condition(), mid)
-        } else {
-            None
-        };
-
         let left = self.rewrite(logical_join.left());
         let right = self.rewrite(logical_join.right());
-        let logical_join = logical_join.clone_with_left_right(left, right);
+        let predicate = logical_join.predicate();
+        // FIXME: Currently just Inner join use HashJoin
+        if !predicate.eq_keys().is_empty() && logical_join.join_op() == BoundJoinOperator::Inner {
+            // TODO: Currently hash join just use one column pair as hash index
+            // TODO: Currently HashJoinExecutor ignores the condition, so for correctness we pull
+            // the conditions as a filter operator. And this transformation is only correct for
+            // inner join
+            let on_clause = predicate.to_on_clause();
 
-        if let Some((left_column_index, right_column_index)) = hash_join_index {
-            return Arc::new(PhysicalHashJoin::new(
-                logical_join,
-                left_column_index,
-                right_column_index,
+            let (left_column_index, right_column_index) = predicate.eq_keys()[0].clone();
+            let join = Arc::new(PhysicalHashJoin::new(
+                LogicalJoin::create(
+                    left,
+                    right,
+                    BoundJoinOperator::Inner,
+                    BoundExpr::Constant(DataValue::Bool(true)),
+                ),
+                left_column_index.index,
+                right_column_index.index,
             ));
+            return Arc::new(PhysicalFilter::new(LogicalFilter::new(on_clause, join)));
         }
-        Arc::new(PhysicalNestedLoopJoin::new(logical_join))
+        Arc::new(PhysicalNestedLoopJoin::new(
+            logical_join.clone_with_left_right(left, right),
+        ))
     }
 
     fn rewrite_logical_insert(&mut self, logical: &LogicalInsert) -> PlanRef {

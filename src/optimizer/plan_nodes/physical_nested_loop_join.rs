@@ -46,9 +46,9 @@ impl fmt::Display for PhysicalNestedLoopJoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "PhysicalNestedLoopJoin: op {:?}, condition: {:?}",
+            "PhysicalNestedLoopJoin: op {:?}, predicate: {:?}",
             self.logical().join_op(),
-            self.logical().condition()
+            self.logical().predicate()
         )
     }
 }
