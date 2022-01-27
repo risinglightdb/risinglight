@@ -128,4 +128,8 @@ impl PlanRewriter for PhysicalConverter {
             Arc::new(PhysicalHashAgg::new(logical))
         }
     }
+
+    fn rewrite_logical_exchange(&mut self, logical: &LogicalExchange) -> PlanRef {
+        Arc::new(PhysicalExchange::new(self.rewrite(logical.child())))
+    }
 }

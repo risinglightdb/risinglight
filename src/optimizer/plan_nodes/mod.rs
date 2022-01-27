@@ -74,6 +74,7 @@ macro_rules! for_all_plan_nodes {
             LogicalDelete,
             LogicalCopyFromFile,
             LogicalCopyToFile,
+            LogicalExchange,
             PhysicalTableScan,
             PhysicalInsert,
             PhysicalValues,
@@ -90,7 +91,8 @@ macro_rules! for_all_plan_nodes {
             PhysicalLimit,
             PhysicalDelete,
             PhysicalCopyFromFile,
-            PhysicalCopyToFile
+            PhysicalCopyToFile,
+            PhysicalExchange
         }
     };
 }

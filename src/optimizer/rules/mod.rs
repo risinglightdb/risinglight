@@ -2,8 +2,11 @@
 
 use super::plan_nodes::PlanRef;
 
+mod exchange_rule;
 mod filter_join_rule;
 mod filter_scan_rule;
+
+pub use exchange_rule::*;
 pub use filter_join_rule::*;
 pub use filter_scan_rule::*;
 

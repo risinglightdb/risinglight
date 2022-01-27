@@ -344,4 +344,9 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
             .execute(),
         )
     }
+
+    fn visit_physical_exchange(&mut self, plan: &PhysicalExchange) -> Option<BoxedExecutor> {
+        // Exchange is currently a no-op, will add a ExchangeExecutor later.
+        Some(self.visit(plan.child()).unwrap())
+    }
 }

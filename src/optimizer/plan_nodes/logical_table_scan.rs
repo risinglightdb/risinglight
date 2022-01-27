@@ -1,8 +1,9 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
-use serde::{Serialize};
+
 use itertools::Itertools;
+use serde::Serialize;
 
 use super::*;
 use crate::catalog::{ColumnDesc, TableRefId};
@@ -16,6 +17,7 @@ pub struct LogicalTableScan {
     with_row_handler: bool,
     is_sorted: bool,
     expr: Option<BoundExpr>,
+    exchanged: bool,
 }
 
 impl LogicalTableScan {
@@ -34,6 +36,7 @@ impl LogicalTableScan {
             with_row_handler,
             is_sorted,
             expr,
+            exchanged: false,
         }
     }
 
@@ -65,6 +68,17 @@ impl LogicalTableScan {
     /// Get a reference to the logical table scan's expr.
     pub fn expr(&self) -> Option<&BoundExpr> {
         self.expr.as_ref()
+    }
+
+    /// Check if the plan node is already being exchanged
+    pub fn exchanged(&self) -> bool {
+        self.exchanged
+    }
+
+    #[must_use]
+    pub fn exchange(mut self) -> Self {
+        self.exchanged = true;
+        self
     }
 }
 impl PlanTreeNodeLeaf for LogicalTableScan {}
