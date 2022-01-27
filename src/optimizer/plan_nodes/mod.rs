@@ -14,6 +14,8 @@ use crate::types::DataType;
 #[macro_use]
 mod plan_tree_node;
 pub use plan_tree_node::*;
+mod join_predicate;
+pub use join_predicate::*;
 
 /// The common trait over all plan nodes.
 pub trait PlanNode:

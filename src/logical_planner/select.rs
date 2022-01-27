@@ -116,7 +116,7 @@ impl LogicalPlaner {
                 for join_table in join_tables.iter() {
                     let table_plan =
                         self.plan_table_ref(&join_table.table_ref, with_row_handler, is_sorted)?;
-                    plan = Arc::new(LogicalJoin::new(
+                    plan = Arc::new(LogicalJoin::create(
                         plan,
                         table_plan,
                         join_table.join_op,

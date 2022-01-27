@@ -190,7 +190,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                 left_child,
                 right_child,
                 join_op: plan.logical().join_op(),
-                condition: plan.logical().condition().clone(),
+                condition: plan.logical().predicate().to_on_clause(),
                 left_types: plan.left().out_types(),
                 right_types: plan.right().out_types(),
             }
@@ -279,7 +279,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                 left_child,
                 right_child,
                 join_op: plan.logical().join_op(),
-                condition: plan.logical().condition().clone(),
+                condition: plan.logical().predicate().to_on_clause(),
                 left_column_index: plan.left_column_index(),
                 right_column_index: plan.right_column_index(),
                 left_types: plan.left().out_types(),

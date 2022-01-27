@@ -15,7 +15,7 @@ pub struct LogicalJoin {
     left_plan: PlanRef,
     right_plan: PlanRef,
     join_op: BoundJoinOperator,
-    condition: BoundExpr,
+    predicate: JoinPredicate,
     data_types: Vec<DataType>,
 }
 
@@ -24,21 +24,36 @@ impl LogicalJoin {
         left_plan: PlanRef,
         right_plan: PlanRef,
         join_op: BoundJoinOperator,
-        condition: BoundExpr,
+        predicate: JoinPredicate,
     ) -> Self {
         let mut data_types = left_plan.out_types();
         data_types.append(&mut right_plan.out_types());
-        LogicalJoin { left_plan, right_plan, join_op, condition, data_types }
+        LogicalJoin {
+            left_plan,
+            right_plan,
+            join_op,
+            predicate,
+            data_types,
+        }
+    }
+    pub fn create(
+        left_plan: PlanRef,
+        right_plan: PlanRef,
+        join_op: BoundJoinOperator,
+        on_clause: BoundExpr,
+    ) -> Self {
+        let left_col_num = left_plan.out_types().len();
+        Self::new(
+            left_plan,
+            right_plan,
+            join_op,
+            JoinPredicate::create(left_col_num, on_clause),
+        )
     }
 
     /// Get a reference to the logical join's join op.
     pub fn join_op(&self) -> BoundJoinOperator {
         self.join_op
-    }
-
-    /// Get a reference to the logical join's condition.
-    pub fn condition(&self) -> &BoundExpr {
-        &self.condition
     }
 
     /// Get a reference to the logical join's data types.
@@ -51,9 +66,16 @@ impl LogicalJoin {
         right: PlanRef,
         rewriter: &impl ExprRewriter,
     ) -> Self {
-        let mut new_cond = self.condition().clone();
-        rewriter.rewrite_expr(&mut new_cond);
-        LogicalJoin::new(left, right, self.join_op(), new_cond)
+        let left_col_num = left.out_types().len();
+        let new_predicate = self
+            .predicate()
+            .clone_with_rewrite_expr(left_col_num, rewriter);
+        LogicalJoin::new(left, right, self.join_op(), new_predicate)
+    }
+
+    /// Get a reference to the logical join's predicate.
+    pub fn predicate(&self) -> &JoinPredicate {
+        &self.predicate
     }
 }
 impl PlanTreeNodeBinary for LogicalJoin {
@@ -66,7 +88,7 @@ impl PlanTreeNodeBinary for LogicalJoin {
 
     #[must_use]
     fn clone_with_left_right(&self, left: PlanRef, right: PlanRef) -> Self {
-        Self::new(left, right, self.join_op(), self.condition().clone())
+        Self::new(left, right, self.join_op(), self.predicate().clone())
     }
 }
 impl_plan_tree_node_for_binary!(LogicalJoin);

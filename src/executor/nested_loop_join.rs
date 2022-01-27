@@ -92,11 +92,13 @@ impl NestedLoopJoinExecutor {
             let right_row_num = right_rows().count();
             for (mut i, right_row) in right_rows().enumerate() {
                 // skip if the right row matches any left rows
+                let mut matched = false;
                 for _ in 0..left_row_num {
-                    if matches!(filter.get(i), Some(true)) {
-                        continue;
-                    }
+                    matched |= matches!(filter.get(i), Some(true));
                     i += right_row_num;
+                }
+                if matched {
+                    continue;
                 }
                 // append row: (NULL, right)
                 let values =
