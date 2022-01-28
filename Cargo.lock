@@ -1540,6 +1540,7 @@ dependencies = [
  "erased-serde",
  "futures",
  "futures-async-stream",
+ "glob",
  "indicatif",
  "iter-chunks",
  "itertools",

@@ -6,28 +6,10 @@ use risinglight::array::*;
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::{Database, Error};
 use tempfile::tempdir;
-use test_case::test_case;
 use tokio::runtime::Runtime;
 
-#[test_case("basic_test.slt")]
-#[test_case("operator.slt")]
-#[test_case("nullable_and_or_eval.slt")]
-#[test_case("filter.slt")]
-#[test_case("order_by.slt")]
-#[test_case("create.slt")]
-#[test_case("insert.slt")]
-#[test_case("select.test")]
-#[test_case("join.slt")]
-#[test_case("limit.slt")]
-#[test_case("type.slt")]
-#[test_case("aggregation.slt")]
-#[test_case("delete.slt")]
-#[test_case("copy/csv.slt")]
-#[test_case("where.slt")]
-#[test_case("tpch/tpch.slt")]
-#[test_case("catalog.slt")]
-#[test_case("select.slt")]
-#[test_case("issue_347.slt")]
+include!(concat!(env!("OUT_DIR"), "/testcase.rs"));
+
 fn test_mem(name: &str) {
     init_logger();
     let mut tester = sqllogictest::Runner::new(DatabaseWrapper {
@@ -41,26 +23,6 @@ fn test_mem(name: &str) {
         .unwrap();
 }
 
-#[test_case("basic_test.slt")]
-#[test_case("operator.slt")]
-#[test_case("nullable_and_or_eval.slt")]
-#[test_case("filter.slt")]
-#[test_case("order_by.slt")]
-#[test_case("create.slt")]
-#[test_case("insert.slt")]
-#[test_case("select.test")]
-#[test_case("join.slt")]
-#[test_case("limit.slt")]
-#[test_case("type.slt")]
-#[test_case("aggregation.slt")]
-#[test_case("delete.slt")]
-#[test_case("copy/csv.slt")]
-#[test_case("where.slt")]
-#[test_case("tpch/tpch.slt")]
-#[test_case("statistics.slt")]
-#[test_case("catalog.slt")]
-#[test_case("select.slt")]
-#[test_case("issue_347.slt")]
 fn test_disk(name: &str) {
     init_logger();
     let temp_dir = tempdir().unwrap();
