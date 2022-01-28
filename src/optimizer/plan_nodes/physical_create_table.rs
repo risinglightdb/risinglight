@@ -1,12 +1,11 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
-use serde::{Serialize};
+
 use itertools::Itertools;
+use serde::Serialize;
 
 use super::*;
-
-
 
 /// The physical plan of `CREATE TABLE`.
 #[derive(Debug, Clone, Serialize)]

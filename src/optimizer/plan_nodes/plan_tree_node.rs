@@ -42,7 +42,6 @@ pub trait PlanTreeNodeBinary {
     fn clone_with_left_right(&self, left: PlanRef, right: PlanRef) -> Self;
 }
 
-#[macro_export]
 macro_rules! impl_plan_tree_node_for_leaf {
     ($leaf_node_type:ident) => {
         impl crate::optimizer::plan_nodes::PlanTreeNode for $leaf_node_type {
@@ -62,7 +61,8 @@ macro_rules! impl_plan_tree_node_for_leaf {
     };
 }
 
-#[macro_export]
+pub(crate) use impl_plan_tree_node_for_leaf;
+
 macro_rules! impl_plan_tree_node_for_unary {
     ($unary_node_type:ident) => {
         impl crate::optimizer::plan_nodes::PlanTreeNode for $unary_node_type {
@@ -82,7 +82,8 @@ macro_rules! impl_plan_tree_node_for_unary {
     };
 }
 
-#[macro_export]
+pub(crate) use impl_plan_tree_node_for_unary;
+
 macro_rules! impl_plan_tree_node_for_binary {
     ($binary_node_type:ident) => {
         impl crate::optimizer::plan_nodes::PlanTreeNode for $binary_node_type {
@@ -101,3 +102,5 @@ macro_rules! impl_plan_tree_node_for_binary {
         }
     };
 }
+
+pub(crate) use impl_plan_tree_node_for_binary;

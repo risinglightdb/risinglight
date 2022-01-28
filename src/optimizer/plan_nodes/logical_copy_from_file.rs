@@ -1,8 +1,9 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
-use serde::{Serialize};
 use std::path::PathBuf;
+
+use serde::Serialize;
 
 use super::*;
 use crate::binder::statement::copy::FileFormat;
