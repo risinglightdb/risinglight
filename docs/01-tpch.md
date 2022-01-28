@@ -88,6 +88,14 @@ select sum(L_LINENUMBER) from LINEITEM;
 select count(L_ORDERKEY), sum(L_LINENUMBER) from LINEITEM where L_ORDERKEY > 2135527;
 ```
 
+Or run real TPC-H queries:
+
+```shell
+cargo run --release -- -f tests/sql/tpch/q1.sql
+cargo run --release -- -f tests/sql/tpch/q3.sql
+cargo run --release -- -f tests/sql/tpch/q6.sql
+```
+
 ## Clean Data
 
 All data of RisingLight is stored in `risinglight.secondary.db` folder. Simply remove it
