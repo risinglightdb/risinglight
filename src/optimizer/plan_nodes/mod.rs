@@ -11,11 +11,81 @@ use paste::paste;
 
 use crate::binder::BoundExpr;
 use crate::types::DataType;
-#[macro_use]
+
 mod plan_tree_node;
 pub use plan_tree_node::*;
 mod join_predicate;
 pub use join_predicate::*;
+
+// Import and use all plan nodes
+
+mod dummy;
+mod logical_aggregate;
+mod logical_copy_from_file;
+mod logical_copy_to_file;
+mod logical_create_table;
+mod logical_delete;
+mod logical_drop;
+mod logical_explain;
+mod logical_filter;
+mod logical_insert;
+mod logical_join;
+mod logical_limit;
+mod logical_order;
+mod logical_projection;
+mod logical_table_scan;
+mod logical_values;
+mod physical_copy_from_file;
+mod physical_copy_to_file;
+mod physical_create_table;
+mod physical_delete;
+mod physical_drop;
+mod physical_explain;
+mod physical_filter;
+mod physical_hash_agg;
+mod physical_hash_join;
+mod physical_insert;
+mod physical_limit;
+mod physical_nested_loop_join;
+mod physical_order;
+mod physical_projection;
+mod physical_simple_agg;
+mod physical_table_scan;
+mod physical_values;
+
+pub use dummy::*;
+pub use logical_aggregate::*;
+pub use logical_copy_from_file::*;
+pub use logical_copy_to_file::*;
+pub use logical_create_table::*;
+pub use logical_delete::*;
+pub use logical_drop::*;
+pub use logical_explain::*;
+pub use logical_filter::*;
+pub use logical_insert::*;
+pub use logical_join::*;
+pub use logical_limit::*;
+pub use logical_order::*;
+pub use logical_projection::*;
+pub use logical_table_scan::*;
+pub use logical_values::*;
+pub use physical_copy_from_file::*;
+pub use physical_copy_to_file::*;
+pub use physical_create_table::*;
+pub use physical_delete::*;
+pub use physical_drop::*;
+pub use physical_explain::*;
+pub use physical_filter::*;
+pub use physical_hash_agg::*;
+pub use physical_hash_join::*;
+pub use physical_insert::*;
+pub use physical_limit::*;
+pub use physical_nested_loop_join::*;
+pub use physical_order::*;
+pub use physical_projection::*;
+pub use physical_simple_agg::*;
+pub use physical_table_scan::*;
+pub use physical_values::*;
 
 /// The common trait over all plan nodes.
 pub trait PlanNode:
@@ -94,17 +164,6 @@ macro_rules! for_all_plan_nodes {
         }
     };
 }
-
-/// Define module for each node.
-macro_rules! def_mod_and_use {
-    ([], $($node_name:ty),*) => {
-        $(paste! {
-            mod [<$node_name:snake>];
-            pub use [<$node_name:snake>]::*;
-        })*
-    }
-}
-for_all_plan_nodes! { def_mod_and_use }
 
 pub trait WithPlanNodeType {
     fn node_type(&self) -> PlanNodeType;
