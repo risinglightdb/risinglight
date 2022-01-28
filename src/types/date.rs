@@ -37,16 +37,42 @@ impl std::ops::Add<Interval> for Date {
 
     fn add(self, rhs: Interval) -> Self::Output {
         // Add days
-        let days = self.0 + rhs.get_days();
-
-        // Add years
+        let days = self.0 + rhs.days();
         let date = NaiveDate::from_num_days_from_ce(days + UNIX_EPOCH_DAYS);
-        let years = date.year() + rhs.get_years();
 
-        Date::new(
-            NaiveDate::from_ymd(years, date.month(), date.day()).num_days_from_ce()
-                - UNIX_EPOCH_DAYS,
-        )
+        // Add months and years
+        let mut day = date.day();
+        let mut month = date.month() as i32 + rhs.months();
+        let mut year = date.year() + rhs.years();
+        if month > 12 {
+            month -= 12;
+            year += 1;
+        } else if month <= 0 {
+            month += 12;
+            year -= 1;
+        }
+        assert!((1..=12).contains(&month));
+
+        // Fix the days after changing date.
+        // For example, 1970.1.31 + 1 month = 1970.2.28
+        day = day.min(get_month_days(year, month as usize));
+
+        Date::new(NaiveDate::from_ymd(year, month as u32, day).num_days_from_ce() - UNIX_EPOCH_DAYS)
+    }
+}
+
+/// return the days of the `year-month`
+fn get_month_days(year: i32, month: usize) -> u32 {
+    const fn is_leap_year(year: i32) -> bool {
+        year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
+    }
+    const LEAP_DAYS: &[u32] = &[0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    const NORMAL_DAYS: &[u32] = &[0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+    if is_leap_year(year) {
+        LEAP_DAYS[month]
+    } else {
+        NORMAL_DAYS[month]
     }
 }
 
@@ -54,17 +80,7 @@ impl std::ops::Sub<Interval> for Date {
     type Output = Date;
 
     fn sub(self, rhs: Interval) -> Self::Output {
-        // Add days
-        let days = self.0 - rhs.get_days();
-
-        // Add years
-        let date = NaiveDate::from_num_days_from_ce(days + UNIX_EPOCH_DAYS);
-        let years = date.year() - rhs.get_years();
-
-        Date::new(
-            NaiveDate::from_ymd(years, date.month(), date.day()).num_days_from_ce()
-                - UNIX_EPOCH_DAYS,
-        )
+        self + (-rhs)
     }
 }
 

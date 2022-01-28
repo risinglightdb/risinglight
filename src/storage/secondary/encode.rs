@@ -97,18 +97,18 @@ impl PrimitiveFixedWidthEncode for Date {
 
 impl PrimitiveFixedWidthEncode for Interval {
     const WIDTH: usize = std::mem::size_of::<i32>() + std::mem::size_of::<i32>();
-    const DEAFULT_VALUE: &'static Self = &Interval::new(0, 0);
+    const DEAFULT_VALUE: &'static Self = &Interval::from_days(0);
 
     type ArrayType = IntervalArray;
 
     fn encode(&self, buffer: &mut impl BufMut) {
-        buffer.put_i32(self.get_years());
-        buffer.put_i32(self.get_days());
+        buffer.put_i32(self.num_months());
+        buffer.put_i32(self.days());
     }
 
     fn decode(buffer: &mut impl Buf) -> Self {
-        let years = buffer.get_i32();
+        let months = buffer.get_i32();
         let days = buffer.get_i32();
-        Interval::new(years, days)
+        Interval::from_md(months, days)
     }
 }
