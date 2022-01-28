@@ -2,7 +2,8 @@
 
 use std::fmt;
 use std::path::PathBuf;
-use serde::{Serialize};
+
+use serde::Serialize;
 
 use super::*;
 use crate::binder::statement::copy::FileFormat;

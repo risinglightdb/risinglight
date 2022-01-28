@@ -1,9 +1,10 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
-use serde::{Serialize};
-use super::*;
 
+use serde::Serialize;
+
+use super::*;
 
 /// The physical plan of filter operation.
 #[derive(Debug, Clone, Serialize)]
