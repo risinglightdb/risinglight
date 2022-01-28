@@ -11,6 +11,7 @@ use crate::catalog::RootCatalogRef;
 use crate::executor::{ExecutorBuilder, ExecutorError};
 use crate::logical_planner::{LogicalPlanError, LogicalPlaner};
 use crate::optimizer::logical_plan_rewriter::{InputRefResolver, PlanRewriter};
+use crate::optimizer::plan_nodes::PlanRef;
 use crate::optimizer::Optimizer;
 use crate::parser::{parse, ParserError};
 use crate::storage::{
@@ -197,6 +198,32 @@ impl Database {
             outputs.extend(output);
         }
         Ok(outputs)
+    }
+
+    // Generate the execution plans for SQL queries.
+    pub fn generate_execution_plan(&self, sql: &str) -> Result<Vec<PlanRef>, Error> {
+        let stmts = parse(sql)?;
+
+        let mut binder = Binder::new(self.catalog.clone());
+        let logical_planner = LogicalPlaner::default();
+        let mut optimizer = Optimizer {
+            enable_filter_scan: self.storage.enable_filter_scan(),
+        };
+        let mut plans = vec![];
+        for stmt in stmts {
+            let stmt = binder.bind(&stmt)?;
+            debug!("{:#?}", stmt);
+            let logical_plan = logical_planner.plan(stmt)?;
+            debug!("{:#?}", logical_plan);
+            // Resolve input reference
+            let mut input_ref_resolver = InputRefResolver::default();
+            let logical_plan = input_ref_resolver.rewrite(logical_plan);
+            debug!("{:#?}", logical_plan);
+            let optimized_plan = optimizer.optimize(logical_plan);
+            debug!("{:#?}", optimized_plan);
+            plans.push(optimized_plan);
+        }
+        Ok(plans)
     }
 }
 
