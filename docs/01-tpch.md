@@ -7,13 +7,19 @@ and run some simple queries in RisingLight.
 
 ### Use Make Recipe
 
-You may use the make recipe to download and generate TPC-H data.
+You may use the make recipe to download and generate TPC-H data (about 1GB in tbl format).
 
 ```
 make tpch
 ```
 
-The generated data will be placed under `target/tpch-dbgen/tbl` folder.
+If you want to run a larger query:
+
+```
+make tpch-10gb
+```
+
+The generated data will be placed under `tpch-dbgen/tbl` folder.
 
 ### Manual Generation
 
@@ -30,7 +36,7 @@ Then, enter the tpch-dbgen directory and type `make all`, and it will generate s
 Finally, type the following command and wait for several seconds:
 
 ```
-./dbgen -s 1
+./dbgen
 ```
 
 This command will generate the data we want, which contains a table called `LINEITEM` with a size of 700MB.
@@ -93,7 +99,9 @@ Or run real TPC-H queries:
 ```shell
 cargo run --release -- -f tests/sql/tpch/q1.sql
 cargo run --release -- -f tests/sql/tpch/q3.sql
+cargo run --release -- -f tests/sql/tpch/q5.sql
 cargo run --release -- -f tests/sql/tpch/q6.sql
+cargo run --release -- -f tests/sql/tpch/q10.sql
 ```
 
 ## Clean Data
