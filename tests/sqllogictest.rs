@@ -26,8 +26,8 @@ use tokio::runtime::Runtime;
 #[test_case("where.slt")]
 #[test_case("tpch/tpch.slt")]
 #[test_case("catalog.slt")]
-// #[test_case("select.slt")]
-// #[test_case("issue_347.slt")]
+#[test_case("select.slt")]
+#[test_case("issue_347.slt")]
 fn test_mem(name: &str) {
     init_logger();
     let mut tester = sqllogictest::Runner::new(DatabaseWrapper {
@@ -59,8 +59,8 @@ fn test_mem(name: &str) {
 #[test_case("tpch/tpch.slt")]
 #[test_case("statistics.slt")]
 #[test_case("catalog.slt")]
-// #[test_case("select.slt")]
-// #[test_case("issue_347.slt")]
+#[test_case("select.slt")]
+#[test_case("issue_347.slt")]
 fn test_disk(name: &str) {
     init_logger();
     let temp_dir = tempdir().unwrap();
