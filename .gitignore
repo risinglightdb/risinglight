@@ -1,3 +1,4 @@
 /target
 *.db
 .idea
+/tpch-dbgen

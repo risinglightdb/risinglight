@@ -1,4 +1,4 @@
-TPCH_DBGEN_PATH := target/tpch-dbgen
+TPCH_DBGEN_PATH := tpch-dbgen
 
 docs_check:
 	cargo doc --no-deps --document-private-items --all-features # TODO: docs check won't fail if there is warning, should be fixed later
@@ -36,5 +36,9 @@ $(TPCH_DBGEN_PATH):
 tpch: $(TPCH_DBGEN_PATH)
 	make -C $(TPCH_DBGEN_PATH)
 	cd $(TPCH_DBGEN_PATH) && ./dbgen -f && mkdir -p tbl && mv *.tbl tbl
+
+tpch-10gb: $(TPCH_DBGEN_PATH)
+	make -C $(TPCH_DBGEN_PATH)
+	cd $(TPCH_DBGEN_PATH) && ./dbgen -f -s 10 && mkdir -p tbl && mv *.tbl tbl
 
 .PHONY: docs check fmt fmt_check clippy clippy_check build test docs_check clean tpch
