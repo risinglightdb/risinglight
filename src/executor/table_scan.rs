@@ -53,7 +53,7 @@ impl<S: Storage> TableScanExecutor<S> {
     }
 
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
-    pub async fn execute(self) {
+    pub async fn execute_inner(self) {
         let table = self.storage.get_table(self.plan.logical().table_ref_id())?;
 
         // TODO: remove this when we have schema
@@ -108,5 +108,24 @@ impl<S: Storage> TableScanExecutor<S> {
         if !have_chunk {
             yield empty_chunk;
         }
+    }
+
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        // Buffer at most 128 chunks in memory
+        let (tx, mut rx) = tokio::sync::mpsc::channel(128);
+        let handler = tokio::spawn(async move {
+            let mut stream = self.execute_inner();
+            while let Some(result) = stream.next().await {
+                tx.send(result)
+                    .await
+                    .expect("failed to send chunk to compute thread");
+            }
+        });
+
+        while let Some(item) = rx.recv().await {
+            yield item?;
+        }
+        handler.await.expect("failed to join scan thread");
     }
 }
