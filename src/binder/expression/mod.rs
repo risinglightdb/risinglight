@@ -208,10 +208,13 @@ impl From<&Value> for DataValue {
                 ..
             } => match leading_field {
                 Some(DateTimeField::Day) => {
-                    Self::Interval(Interval::new(0, value.parse().unwrap()))
+                    Self::Interval(Interval::from_days(value.parse().unwrap()))
+                }
+                Some(DateTimeField::Month) => {
+                    Self::Interval(Interval::from_months(value.parse().unwrap()))
                 }
                 Some(DateTimeField::Year) => {
-                    Self::Interval(Interval::new(value.parse().unwrap(), 0))
+                    Self::Interval(Interval::from_years(value.parse().unwrap()))
                 }
                 _ => todo!("Support interval with leading field: {:?}", leading_field),
             },

@@ -35,7 +35,10 @@ fn test_mem(name: &str) {
         db: Database::new_in_memory(),
     });
     tester.enable_testdir();
-    tester.run_file(Path::new("tests/sql").join(name)).unwrap();
+    tester
+        .run_file(Path::new("tests/sql").join(name))
+        .map_err(|e| panic!("{}", e))
+        .unwrap();
 }
 
 #[test_case("basic_test.slt")]
@@ -67,7 +70,10 @@ fn test_disk(name: &str) {
     ));
     let mut tester = sqllogictest::Runner::new(DatabaseWrapper { rt, db });
     tester.enable_testdir();
-    tester.run_file(Path::new("tests/sql").join(name)).unwrap();
+    tester
+        .run_file(Path::new("tests/sql").join(name))
+        .map_err(|e| panic!("{}", e))
+        .unwrap();
 }
 
 fn init_logger() {

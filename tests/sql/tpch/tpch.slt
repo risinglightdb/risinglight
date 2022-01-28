@@ -2,5 +2,7 @@ include create.slt
 include insert.slt
 include q1.slt
 include q3.slt
+include q5.slt
 include q6.slt
+include q10.slt
 include drop.slt
