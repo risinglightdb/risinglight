@@ -58,9 +58,7 @@ If you have a bug report or feature request, welcome to open an [issue](https://
 If you have any question or want to discuss, join our WeChat group, Slack channel, or start a discussion on
 [GitHub Discussions](https://github.com/risinglightdb/risinglight/discussions).
 
-
-
 If you want to contribute code, see [CONTRIBUTING](CONTRIBUTING.md) for more information. Generally, you will need to
-pass necessary checks for your changes and sign DCO before submitting PRs.
+pass necessary checks for your changes and sign DCO before submitting PRs. We have plenty of [good first issues](https://github.com/risinglightdb/risinglight/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22). Feel free to ask questions either on GitHub or in our chat groups if you meet any difficulty.
 
 Welcome to the RisingLight community!
