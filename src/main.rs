@@ -12,9 +12,7 @@ use risinglight::storage::SecondaryStorageOptions;
 use risinglight::Database;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
-use tracing::level_filters::LevelFilter;
 use tracing::{info, warn, Level};
-use tracing_subscriber::filter;
 use tracing_subscriber::prelude::*;
 
 /// RisingLight: an OLAP database system.
@@ -154,7 +152,7 @@ async fn main() -> Result<()> {
 
     let fmt_layer = tracing_subscriber::fmt::layer().compact();
     let filter_layer =
-        filter::EnvFilter::from_default_env().add_directive(LevelFilter::INFO.into());
+        tracing_subscriber::EnvFilter::from_default_env().add_directive(Level::INFO.into());
 
     tracing_subscriber::registry()
         .with(filter_layer)

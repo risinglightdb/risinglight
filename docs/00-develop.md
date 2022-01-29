@@ -57,10 +57,10 @@ It is recommended to use VSCode with [rust-analyzer][rust-analyzer] extension to
 `rust-analyzer` extension in VSCode, and everything will be set for you. Note that `rust-analyzer` conflicts with
 the official Rust extension. You will need to uninstall "The Rust Programming Language" extension before proceeding.
 
-To enable logs for RisingLight, export the following environment variable to your shell environment.
+To enable debug logs for RisingLight, export the following environment variable to your shell environment.
 
 ```
-export RUST_LOG=info
+export RUST_LOG=debug
 ```
 
 If you want to contribute to the RisingLight project, refer to [Contributing to RisingLight](../CONTRIBUTING.md) docs

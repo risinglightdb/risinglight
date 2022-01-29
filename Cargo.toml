@@ -22,6 +22,7 @@ bytes = "1"
 chrono = "0.4"
 clap = { version = "3", features = ["derive"] }
 comfy-table = { version = "5.0", default-features = false }
+console-subscriber = { version = "0.1", features = ["parking_lot"] }
 crc32fast = "1"
 csv = "1"
 dirs = "4"
@@ -54,6 +55,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "parking_lot"]
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["async_tokio"] }
+env_logger = "0.9"
 tempfile = "3"
 test-case = "1"
 

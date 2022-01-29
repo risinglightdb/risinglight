@@ -8,7 +8,7 @@ use moka::future::Cache;
 use parking_lot::RwLock;
 use tokio::fs;
 use tokio::sync::Mutex;
-use tracing::{debug, info, warn};
+use tracing::info;
 
 use super::{DiskRowset, Manifest, SecondaryStorage, StorageOptions, StorageResult};
 use crate::catalog::RootCatalog;

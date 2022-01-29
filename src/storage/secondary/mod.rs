@@ -59,7 +59,7 @@ use parking_lot::RwLock;
 use tokio::sync::oneshot::Sender;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
-use tracing::{debug, info, warn};
+use tracing::info;
 
 use super::{Storage, StorageResult, TracedStorageError};
 use crate::catalog::{ColumnCatalog, RootCatalogRef, TableRefId};
