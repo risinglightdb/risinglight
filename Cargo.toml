@@ -22,7 +22,6 @@ bytes = "1"
 chrono = "0.4"
 clap = { version = "3", features = ["derive"] }
 comfy-table = { version = "5.0", default-features = false }
-console-subscriber = { version = "0.1", features = ["parking_lot"] }
 crc32fast = "1"
 csv = "1"
 dirs = "4"
