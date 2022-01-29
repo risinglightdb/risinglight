@@ -12,10 +12,6 @@
 #![feature(generators)]
 #![feature(backtrace)]
 
-// Enable macros for logging.
-#[macro_use]
-extern crate log;
-
 /// Top-level structure of the database.
 pub mod db;
 

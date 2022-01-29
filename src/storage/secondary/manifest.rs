@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Deserializer;
 use tokio::fs::OpenOptions;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
+use tracing::warn;
 
 use super::version_manager::EpochOp;
 use super::{SecondaryStorage, SecondaryTable, StorageResult, TracedStorageError};

@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use itertools::Itertools;
+use tracing::warn;
 
 use super::table::InMemoryTableInnerRef;
 use super::{InMemoryRowHandler, InMemoryTable, InMemoryTxnIterator};
