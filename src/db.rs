@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use futures::TryStreamExt;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
+use tracing::debug;
 
 use crate::array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder};
 use crate::binder::{BindError, Binder};

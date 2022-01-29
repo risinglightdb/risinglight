@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use itertools::Itertools;
 use tokio::sync::oneshot::Receiver;
+use tracing::{debug, info, warn};
 
 use super::{SecondaryStorage, SecondaryTable, Snapshot};
 use crate::catalog::find_sort_key_id;

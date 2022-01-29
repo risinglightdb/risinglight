@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 
 use risinglight_proto::rowset::block_checksum::ChecksumType;
+use tracing::{debug, info, warn};
 
 /// IO Backend of the rowset readers
 #[derive(Clone, Copy)]

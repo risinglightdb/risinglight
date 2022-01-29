@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use itertools::Itertools;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use risinglight_proto::rowset::DeleteRecord;
+use tracing::{debug, info, warn};
 
 use super::version_manager::{Snapshot, VersionManager};
 use super::{

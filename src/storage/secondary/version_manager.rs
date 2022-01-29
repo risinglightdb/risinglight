@@ -6,6 +6,7 @@ use std::sync::Arc;
 use futures::lock::Mutex;
 use parking_lot::Mutex as PLMutex;
 use tokio::select;
+use tracing::{debug, info, warn};
 
 use super::manifest::*;
 use super::{DeleteVector, DiskRowset, StorageOptions, StorageResult};
