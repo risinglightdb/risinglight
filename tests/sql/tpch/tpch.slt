@@ -1,8 +1,8 @@
-include create.slt.0
-include insert.slt.0
-include q1.slt.0
-include q3.slt.0
-include q5.slt.0
-include q6.slt.0
-include q10.slt.0
-include drop.slt.0
+include _create.slt
+include _insert.slt
+include _q1.slt
+include _q3.slt
+include _q5.slt
+include _q6.slt
+include _q10.slt
+include _drop.slt

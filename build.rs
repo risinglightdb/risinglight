@@ -8,7 +8,7 @@ use std::path::PathBuf;
 fn main() {
     // Scan test scripts and generate test cases.
     println!("cargo:rerun-if-changed=tests/sql");
-    const PATTERN: &str = "tests/sql/**/*.slt";
+    const PATTERN: &str = "tests/sql/**/[!_]*.slt"; // ignore files start with '_'
     const MEM_BLOCKLIST: &[&str] = &["statistics.slt"];
     const DISK_BLOCKLIST: &[&str] = &[];
 
