@@ -136,6 +136,7 @@ pub fn datachunk_to_sqllogictest_string(chunk: &DataChunk) -> String {
                 DataValue::Float64(v) => write!(output, "{}", v),
                 DataValue::String(s) if s.is_empty() => write!(output, "(empty)"),
                 DataValue::String(s) => write!(output, "{}", s),
+                DataValue::Blob(s) => write!(output, "{}", s),
                 DataValue::Decimal(v) => write!(output, "{}", v),
                 DataValue::Date(v) => write!(output, "{}", v),
                 DataValue::Interval(v) => write!(output, "{}", v),

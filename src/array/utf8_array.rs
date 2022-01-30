@@ -7,6 +7,7 @@ use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
 use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt};
+use crate::types::BlobRef;
 
 /// A collection of variable-length values.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -27,16 +28,17 @@ impl ValueRef for str {
         unsafe { std::str::from_utf8_unchecked(s) }
     }
 }
-impl ValueRef for [u8] {
+
+impl ValueRef for BlobRef {
     fn from_bytes(s: &[u8]) -> &Self {
-        s
+        BlobRef::new(s)
     }
 }
 
 pub type Utf8Array = BytesArray<str>;
-pub type ByteArray = BytesArray<[u8]>;
+pub type BlobArray = BytesArray<BlobRef>;
 pub type Utf8ArrayBuilder = BytesArrayBuilder<str>;
-pub type ByteArrayBuilder = BytesArrayBuilder<[u8]>;
+pub type BlobArrayBuilder = BytesArrayBuilder<BlobRef>;
 
 impl<T: ValueRef + ?Sized> Clone for BytesArray<T> {
     fn clone(&self) -> Self {
@@ -44,7 +46,7 @@ impl<T: ValueRef + ?Sized> Clone for BytesArray<T> {
             offset: self.offset.clone(),
             valid: self.valid.clone(),
             data: self.data.clone(),
-            _type: self._type.clone(),
+            _type: PhantomData,
         }
     }
 }

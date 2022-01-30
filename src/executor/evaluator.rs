@@ -309,6 +309,7 @@ impl ArrayImpl {
                 })?),
                 _ => todo!("cast array"),
             },
+            Self::Blob(_) => todo!("cast array"),
             Self::Decimal(a) => match data_type {
                 Type::Boolean => Self::Bool(unary_op(a, |&d| d != Decimal::from(0_i32))),
                 Type::Int(_) => Self::Int32(try_unary_op(a, |&d| {
