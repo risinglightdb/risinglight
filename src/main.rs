@@ -7,12 +7,13 @@ use std::sync::Mutex;
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
-use log::{info, warn};
 use risinglight::array::{datachunk_to_sqllogictest_string, DataChunk};
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::Database;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
+use tracing::{info, warn, Level};
+use tracing_subscriber::prelude::*;
 
 /// RisingLight: an OLAP database system.
 #[derive(Parser, Debug)]
@@ -149,7 +150,14 @@ async fn run_sqllogictest(db: Database, path: &str) -> Result<()> {
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    env_logger::init();
+    let fmt_layer = tracing_subscriber::fmt::layer().compact();
+    let filter_layer =
+        tracing_subscriber::EnvFilter::from_default_env().add_directive(Level::INFO.into());
+
+    tracing_subscriber::registry()
+        .with(filter_layer)
+        .with(fmt_layer)
+        .init();
 
     let db = if args.memory {
         info!("using memory engine");
