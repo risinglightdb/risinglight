@@ -15,25 +15,14 @@ pub struct LogicalAggregate {
     /// Group keys in hash aggregation (optional)
     group_keys: Vec<BoundExpr>,
     child: PlanRef,
-    data_types: Vec<DataType>,
 }
 
 impl LogicalAggregate {
     pub fn new(agg_calls: Vec<BoundAggCall>, group_keys: Vec<BoundExpr>, child: PlanRef) -> Self {
-        let data_types = group_keys
-            .iter()
-            .map(|expr| expr.return_type().unwrap())
-            .chain(
-                agg_calls
-                    .iter()
-                    .map(|agg_call| agg_call.return_type.clone()),
-            )
-            .collect();
         LogicalAggregate {
             agg_calls,
             group_keys,
             child,
-            data_types,
         }
     }
 
@@ -78,8 +67,27 @@ impl PlanTreeNodeUnary for LogicalAggregate {
 }
 impl_plan_tree_node_for_unary!(LogicalAggregate);
 impl PlanNode for LogicalAggregate {
-    fn out_types(&self) -> Vec<DataType> {
-        self.data_types.clone()
+    fn schema(&self) -> Vec<ColumnDesc> {
+        let child_schema = self.child.schema();
+        self.group_keys
+            .iter()
+            .map(|expr| match expr {
+                BoundExpr::InputRef(input_ref) => child_schema[input_ref.index].clone(),
+                _ => panic!("group key should be an input ref"),
+            })
+            .chain(self.agg_calls.iter().map(|agg_call| {
+                use crate::binder::AggKind::*;
+                let name = match agg_call.kind {
+                    Avg => "avg",
+                    RowCount | Count => "count",
+                    Max => "max",
+                    Min => "min",
+                    Sum => "sum",
+                }
+                .to_string();
+                agg_call.return_type.clone().to_column(name)
+            }))
+            .collect()
     }
 }
 impl fmt::Display for LogicalAggregate {

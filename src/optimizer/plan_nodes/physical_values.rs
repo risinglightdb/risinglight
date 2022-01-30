@@ -5,7 +5,6 @@ use std::fmt;
 use serde::Serialize;
 
 use super::*;
-use crate::types::DataType;
 
 /// The physical plan of `VALUES`.
 #[derive(Debug, Clone, Serialize)]
@@ -27,8 +26,8 @@ impl PhysicalValues {
 impl PlanTreeNodeLeaf for PhysicalValues {}
 impl_plan_tree_node_for_leaf!(PhysicalValues);
 impl PlanNode for PhysicalValues {
-    fn out_types(&self) -> Vec<DataType> {
-        self.logical().out_types()
+    fn schema(&self) -> Vec<ColumnDesc> {
+        self.logical().schema()
     }
 }
 impl fmt::Display for PhysicalValues {

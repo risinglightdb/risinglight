@@ -18,7 +18,7 @@ pub struct LogicalJoin {
     right_plan: PlanRef,
     join_op: BoundJoinOperator,
     predicate: JoinPredicate,
-    data_types: Vec<DataType>,
+    schema: Vec<ColumnDesc>,
 }
 
 impl LogicalJoin {
@@ -28,14 +28,14 @@ impl LogicalJoin {
         join_op: BoundJoinOperator,
         predicate: JoinPredicate,
     ) -> Self {
-        let mut data_types = left_plan.out_types();
-        data_types.append(&mut right_plan.out_types());
+        let mut schema = left_plan.schema();
+        schema.append(&mut right_plan.schema());
         LogicalJoin {
             left_plan,
             right_plan,
             join_op,
             predicate,
-            data_types,
+            schema,
         }
     }
     pub fn create(
@@ -58,10 +58,6 @@ impl LogicalJoin {
         self.join_op
     }
 
-    /// Get a reference to the logical join's data types.
-    pub fn data_types(&self) -> &[DataType] {
-        self.data_types.as_ref()
-    }
     pub fn clone_with_rewrite_expr(
         &self,
         left: PlanRef,
@@ -95,8 +91,8 @@ impl PlanTreeNodeBinary for LogicalJoin {
 }
 impl_plan_tree_node_for_binary!(LogicalJoin);
 impl PlanNode for LogicalJoin {
-    fn out_types(&self) -> Vec<DataType> {
-        self.data_types.clone()
+    fn schema(&self) -> Vec<ColumnDesc> {
+        self.schema.clone()
     }
 }
 

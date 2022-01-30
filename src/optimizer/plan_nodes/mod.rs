@@ -88,6 +88,8 @@ pub use physical_simple_agg::*;
 pub use physical_table_scan::*;
 pub use physical_values::*;
 
+use crate::catalog::ColumnDesc;
+
 /// The upcast trait for `PlanNode`.
 pub trait IntoPlanRef {
     fn into_plan_ref(self) -> PlanRef;
@@ -105,9 +107,27 @@ pub trait PlanNode:
     + Send
     + Sync
 {
-    fn out_types(&self) -> Vec<DataType> {
+    /// Get schema of current plan node
+    fn schema(&self) -> Vec<ColumnDesc> {
         vec![]
     }
+
+    /// Output column types
+    fn out_types(&self) -> Vec<DataType> {
+        self.schema()
+            .iter()
+            .map(|desc| desc.datatype().clone())
+            .collect()
+    }
+
+    /// Output column names
+    fn out_names(&self) -> Vec<String> {
+        self.schema()
+            .iter()
+            .map(|desc| desc.name().to_string())
+            .collect()
+    }
+
     /// transform the plan node to only output the required columns ordered by index number, only
     /// logical plan node will use it, though all plan node impl it.
     fn prune_col(&self, required_cols: BitSet) -> PlanRef {
