@@ -19,7 +19,7 @@ impl ProjectionExecutor {
             let chunk = self
                 .project_expressions
                 .iter()
-                .map(|expr| expr.eval_array(&batch))
+                .map(|expr| expr.eval(&batch))
                 .collect::<Result<DataChunk, _>>()?;
             yield chunk;
         }

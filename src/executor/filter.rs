@@ -16,7 +16,7 @@ impl FilterExecutor {
         #[for_await]
         for batch in self.child {
             let batch = batch?;
-            let vis = match self.expr.eval_array(&batch)? {
+            let vis = match self.expr.eval(&batch)? {
                 ArrayImpl::Bool(a) => a,
                 _ => panic!("filters can only accept bool array"),
             };

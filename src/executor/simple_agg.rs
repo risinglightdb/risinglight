@@ -23,7 +23,7 @@ impl SimpleAggExecutor {
         // TODO: support aggregations with multiple arguments
         let exprs: SmallVec<[ArrayImpl; 16]> = agg_calls
             .iter()
-            .map(|agg| agg.args[0].eval_array(&chunk))
+            .map(|agg| agg.args[0].eval(&chunk))
             .try_collect()?;
 
         for (state, expr) in states.iter_mut().zip_eq(exprs) {
