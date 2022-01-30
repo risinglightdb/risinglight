@@ -52,7 +52,7 @@ cargo build --release
 Then, use our test scripts to create tables.
 
 ```shell
-cargo run --release -- -f tests/sql/tpch/create.slt
+cargo run --release -- -f tests/sql/tpch/create.sql
 ```
 
 We can use `\dt` to ensure that all tables have been imported.

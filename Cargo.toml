@@ -58,6 +58,9 @@ env_logger = "0.9"
 tempfile = "3"
 test-case = "1"
 
+[build-dependencies]
+glob = "0.3"
+
 [[bench]]
 harness = false
 name = "e2e"
