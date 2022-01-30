@@ -7,7 +7,7 @@ use std::borrow::Borrow;
 use crate::array::*;
 use crate::binder::BoundExpr;
 use crate::parser::{BinaryOperator, UnaryOperator};
-use crate::types::{ConvertError, DataTypeExt, DataTypeKind, DataValue, Date};
+use crate::types::{Blob, ConvertError, DataTypeExt, DataTypeKind, DataValue, Date};
 
 impl BoundExpr {
     /// Evaluate the given expression as an array.
@@ -280,6 +280,9 @@ impl ArrayImpl {
                 })?),
                 Type::Date => Self::Date(try_unary_op(a, |s| {
                     Date::from_str(s).map_err(|e| ConvertError::ParseDate(s.to_string(), e))
+                })?),
+                Type::Bytea | Type::Blob(_) => Self::Blob(try_unary_op(a, |s| {
+                    Blob::from_str(s).map_err(|e| ConvertError::ParseBlob(s.to_string(), e))
                 })?),
                 _ => todo!("cast array"),
             },

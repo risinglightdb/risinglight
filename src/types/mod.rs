@@ -36,20 +36,17 @@ pub enum PhysicalDataTypeKind {
 
 impl From<DataTypeKind> for PhysicalDataTypeKind {
     fn from(kind: DataTypeKind) -> Self {
+        use DataTypeKind::*;
         match kind {
-            DataTypeKind::Char(_) | DataTypeKind::Varchar(_) | DataTypeKind::String => {
-                PhysicalDataTypeKind::String
-            }
-            DataTypeKind::Binary(_) | DataTypeKind::Varbinary(_) | DataTypeKind::Blob(_) => {
-                PhysicalDataTypeKind::Blob
-            }
-            DataTypeKind::Float(_) | DataTypeKind::Double => PhysicalDataTypeKind::Float64,
-            DataTypeKind::Int(_) => PhysicalDataTypeKind::Int32,
-            DataTypeKind::BigInt(_) => PhysicalDataTypeKind::Int64,
-            DataTypeKind::Boolean => PhysicalDataTypeKind::Bool,
-            DataTypeKind::Decimal(_, _) => PhysicalDataTypeKind::Decimal,
-            DataTypeKind::Date => PhysicalDataTypeKind::Date,
-            DataTypeKind::Interval => PhysicalDataTypeKind::Interval,
+            Char(_) | Varchar(_) | String => Self::String,
+            Bytea | Binary(_) | Varbinary(_) | Blob(_) => Self::Blob,
+            Float(_) | Double => Self::Float64,
+            Int(_) => Self::Int32,
+            BigInt(_) => Self::Int64,
+            Boolean => Self::Bool,
+            Decimal(_, _) => Self::Decimal,
+            Date => Self::Date,
+            Interval => Self::Interval,
             _ => todo!("physical type for {:?} is not supported", kind),
         }
     }

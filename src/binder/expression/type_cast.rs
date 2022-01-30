@@ -16,9 +16,15 @@ impl Binder {
     pub fn bind_type_cast(
         &mut self,
         expr: &Expr,
-        ty: DataTypeKind,
+        mut ty: DataTypeKind,
     ) -> Result<BoundExpr, BindError> {
         let bound_expr = self.bind_expr(expr)?;
+        // workaround for 'BLOB'
+        if let DataTypeKind::Custom(name) = &ty {
+            if name.0.len() == 1 && name.0[0].value.to_lowercase() == "blob" {
+                ty = DataTypeKind::Blob(0);
+            }
+        }
         Ok(BoundExpr::TypeCast(BoundTypeCast {
             expr: (bound_expr.into()),
             ty,

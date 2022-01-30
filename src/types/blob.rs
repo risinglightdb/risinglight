@@ -47,25 +47,33 @@ impl Deref for Blob {
 pub enum ParseBlobError {
     Int(#[from] std::num::ParseIntError),
     Length,
+    InvalidChar,
 }
 
 impl FromStr for Blob {
     type Err = ParseBlobError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Some(mut s) = s.strip_prefix("\\x") {
-            let mut v = Vec::with_capacity(s.len() / 2);
-            while !s.is_empty() {
-                if s.len() < 2 {
+    fn from_str(mut s: &str) -> Result<Self, Self::Err> {
+        let mut v = Vec::with_capacity(s.len());
+        while !s.is_empty() {
+            if let Some(ss) = s.strip_prefix("\\x") {
+                if ss.len() < 2 {
                     return Err(ParseBlobError::Length);
                 }
-                v.push(u8::from_str_radix(&s[..2], 16)?);
-                s = &s[2..];
+                if !s.is_char_boundary(2) {
+                    return Err(ParseBlobError::InvalidChar);
+                }
+                v.push(u8::from_str_radix(&ss[..2], 16)?);
+                s = &ss[2..];
+            } else {
+                if !s.is_char_boundary(1) {
+                    return Err(ParseBlobError::InvalidChar);
+                }
+                v.push(s.as_bytes()[0] as u8);
+                s = &s[1..];
             }
-            Ok(Blob(v))
-        } else {
-            Ok(Blob(s.as_bytes().into()))
         }
+        Ok(Blob(v))
     }
 }
 
@@ -117,14 +125,19 @@ impl Deref for BlobRef {
 
 impl fmt::Debug for BlobRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "'\\x{self}'")
+        write!(f, "'{self}'")
     }
 }
 
 impl fmt::Display for BlobRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for b in &self.0 {
-            write!(f, "{b:02X}")?;
+        for &b in &self.0 {
+            match b {
+                b'\\' => write!(f, "\\\\")?,
+                b'\'' => write!(f, "''")?,
+                32..=126 => write!(f, "{}", b as char)?,
+                _ => write!(f, "\\x{b:02X}")?,
+            }
         }
         Ok(())
     }
@@ -143,7 +156,7 @@ mod tests {
     #[test]
     fn blob_to_string() {
         let b = Blob::from([170].as_slice());
-        assert_eq!(b.to_string(), "AA");
+        assert_eq!(b.to_string(), "\\xAA");
         assert_eq!(format!("{b:?}"), "'\\xAA'");
     }
 }
