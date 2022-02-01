@@ -12,6 +12,7 @@ mod error;
 pub use error::{StorageError, StorageResult, TracedStorageError};
 
 mod chunk;
+use std::future::Future;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -147,11 +148,11 @@ pub trait Transaction: Sync + Send + 'static {
 }
 
 /// An iterator over table in a transaction.
-#[async_trait]
 pub trait TxnIterator: Send {
+    type NextFuture<'a>: Future<Output = StorageResult<Option<DataChunk>>> + Send
+    where
+        Self: 'a;
+
     /// get next batch of elements
-    async fn next_batch(
-        &mut self,
-        expected_size: Option<usize>,
-    ) -> StorageResult<Option<DataChunk>>;
+    fn next_batch(&mut self, expected_size: Option<usize>) -> Self::NextFuture<'_>;
 }

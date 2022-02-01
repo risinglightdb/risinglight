@@ -1,7 +1,8 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::future::Future;
+
 use async_recursion::async_recursion;
-use async_trait::async_trait;
 use enum_dispatch::enum_dispatch;
 
 use super::{ConcatIterator, MergeIterator, RowSetIterator};
@@ -51,16 +52,16 @@ impl SecondaryIterator {
     }
 }
 
-#[async_trait]
 impl TxnIterator for SecondaryTableTxnIterator {
-    async fn next_batch(
-        &mut self,
-        expected_size: Option<usize>,
-    ) -> StorageResult<Option<DataChunk>> {
-        Ok(self
-            .iter
-            .next_batch(expected_size)
-            .await?
-            .map(|x| x.to_data_chunk()))
+    type NextFuture<'a> = impl Future<Output = StorageResult<Option<DataChunk>>>;
+
+    fn next_batch(&mut self, expected_size: Option<usize>) -> Self::NextFuture<'_> {
+        async move {
+            Ok(self
+                .iter
+                .next_batch(expected_size)
+                .await?
+                .map(|x| x.to_data_chunk()))
+        }
     }
 }

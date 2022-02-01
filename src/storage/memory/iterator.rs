@@ -1,9 +1,9 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::collections::HashSet;
+use std::future::Future;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use bitvec::prelude::BitVec;
 
 use crate::array::{ArrayImpl, DataChunk, I64Array};
@@ -74,12 +74,10 @@ impl InMemoryTxnIterator {
     }
 }
 
-#[async_trait]
 impl TxnIterator for InMemoryTxnIterator {
-    async fn next_batch(
-        &mut self,
-        expected_size: Option<usize>,
-    ) -> StorageResult<Option<DataChunk>> {
-        self.next_batch_inner(expected_size).await
+    type NextFuture<'a> = impl Future<Output = StorageResult<Option<DataChunk>>>;
+
+    fn next_batch(&mut self, expected_size: Option<usize>) -> Self::NextFuture<'_> {
+        async move { self.next_batch_inner(expected_size).await }
     }
 }

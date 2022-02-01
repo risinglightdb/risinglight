@@ -11,6 +11,8 @@
 #![feature(portable_simd)]
 #![feature(generators)]
 #![feature(backtrace)]
+#![feature(generic_associated_types)]
+#![feature(type_alias_impl_trait)]
 
 /// Top-level structure of the database.
 pub mod db;
