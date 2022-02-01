@@ -114,7 +114,6 @@ pub trait RowHandler: Sync + Send + 'static {
 }
 
 /// Represents a transaction in storage engine.
-#[async_trait]
 pub trait Transaction: Sync + Send + 'static {
     /// Type of the table iterator
     type TxnIteratorType: TxnIterator;
