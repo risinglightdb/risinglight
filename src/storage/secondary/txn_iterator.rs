@@ -53,7 +53,7 @@ impl SecondaryIterator {
 }
 
 impl TxnIterator for SecondaryTableTxnIterator {
-    type NextFuture<'a> = impl Future<Output = StorageResult<Option<DataChunk>>>;
+    type NextFuture<'a> = impl Future<Output = StorageResult<Option<DataChunk>>> + 'a;
 
     fn next_batch(&mut self, expected_size: Option<usize>) -> Self::NextFuture<'_> {
         async move {
