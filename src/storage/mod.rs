@@ -149,7 +149,7 @@ pub trait Transaction: Sync + Send + 'static {
 
 /// An iterator over table in a transaction.
 pub trait TxnIterator: Send {
-    type NextFuture<'a>: Future<Output = StorageResult<Option<DataChunk>>> + Send
+    type NextFuture<'a>: Future<Output = StorageResult<Option<DataChunk>>> + Send + 'a
     where
         Self: 'a;
 
