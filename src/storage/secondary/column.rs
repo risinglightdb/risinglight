@@ -15,8 +15,8 @@ mod primitive_column_builder;
 mod primitive_column_factory;
 mod row_handler_sequencer;
 
-use std::io::{Read, Seek, SeekFrom};
 use std::future::Future;
+use std::io::{Read, Seek, SeekFrom};
 
 use bitvec::vec::BitVec;
 pub use column_builder::*;

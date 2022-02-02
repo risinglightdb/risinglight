@@ -290,7 +290,7 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
 
 impl<A: Array, F: BlockIteratorFactory<A>> ColumnIterator<A> for ConcreteColumnIterator<A, F> {
     type NextFuture<'a> = impl Future<Output = StorageResult<Option<(u32, A)>>> + 'a;
-    
+
     fn next_batch<'a>(
         &'a mut self,
         expected_size: Option<usize>,
