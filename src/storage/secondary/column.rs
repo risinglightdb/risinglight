@@ -75,7 +75,7 @@ pub trait ColumnIterator<A: Array> {
     /// iterating, the returned value should be 0.
     fn fetch_hint(&self) -> usize;
 
-    /// Skip 'cnt' items for this column_iterator.
+    /// Skip 'cnt' items for this `column_iterator`.
     fn skip(&mut self, cnt: usize);
 }
 
