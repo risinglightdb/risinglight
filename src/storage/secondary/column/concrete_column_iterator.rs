@@ -2,8 +2,8 @@
 
 use std::cmp::min;
 
-use async_trait::async_trait;
 use bitvec::prelude::BitVec;
+use futures::Future;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 
@@ -288,17 +288,20 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
     }
 }
 
-#[async_trait]
 impl<A: Array, F: BlockIteratorFactory<A>> ColumnIterator<A> for ConcreteColumnIterator<A, F> {
-    async fn next_batch(
-        &mut self,
+    type NextFuture<'a> = impl Future<Output = StorageResult<Option<(u32, A)>>> + 'a;
+    
+    fn next_batch<'a>(
+        &'a mut self,
         expected_size: Option<usize>,
-        filter_bitmap: Option<&BitVec>,
-    ) -> StorageResult<Option<(u32, A)>> {
-        if let Some(fb) = filter_bitmap {
-            self.next_batch_inner_with_filter(expected_size, fb).await
-        } else {
-            self.next_batch_inner(expected_size).await
+        filter_bitmap: Option<&'a BitVec>,
+    ) -> Self::NextFuture<'a> {
+        async move {
+            if let Some(fb) = filter_bitmap {
+                self.next_batch_inner_with_filter(expected_size, fb).await
+            } else {
+                self.next_batch_inner(expected_size).await
+            }
         }
     }
     fn fetch_hint(&self) -> usize {

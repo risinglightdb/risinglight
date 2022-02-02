@@ -16,6 +16,7 @@ mod primitive_column_factory;
 mod row_handler_sequencer;
 
 use std::io::{Read, Seek, SeekFrom};
+use std::future::Future;
 
 use bitvec::vec::BitVec;
 pub use column_builder::*;
@@ -29,7 +30,6 @@ mod char_column_factory;
 use std::os::unix::fs::FileExt;
 use std::sync::{Arc, Mutex};
 
-use async_trait::async_trait;
 use bytes::Bytes;
 pub use char_column_factory::*;
 use moka::future::Cache;
@@ -57,16 +57,19 @@ pub trait ColumnBuilder<A: Array> {
 }
 
 /// Iterator on a column. This iterator may request data from disk while iterating.
-#[async_trait]
 pub trait ColumnIterator<A: Array> {
+    type NextFuture<'a>: Future<Output = StorageResult<Option<(u32, A)>>> + 'a
+    where
+        Self: 'a;
+
     /// Get a batch and the starting row id from the column. A `None` return value means that
     /// there are no more elements from the block. By using `expected_size`, developers can
     /// get an array of NO MORE THAN the `expected_size` on supported column types.
-    async fn next_batch(
-        &mut self,
+    fn next_batch<'a>(
+        &'a mut self,
         expected_size: Option<usize>,
-        filter_bitmap: Option<&BitVec>,
-    ) -> StorageResult<Option<(u32, A)>>;
+        filter_bitmap: Option<&'a BitVec>,
+    ) -> Self::NextFuture<'a>;
 
     /// Number of items that can be fetched without I/O. When the column iterator has finished
     /// iterating, the returned value should be 0.
