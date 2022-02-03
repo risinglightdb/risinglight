@@ -89,19 +89,13 @@ pub trait Table: Sync + Send + Clone + 'static {
     /// Type of the transaction.
     type TransactionType: Transaction;
 
-    type WriteResultFuture<'a>: Future<Output = StorageResult<Self::TransactionType>>
-        + Send
-        + 'a
+    type WriteResultFuture<'a>: Future<Output = StorageResult<Self::TransactionType>> + Send + 'a
     where
         Self: 'a;
-    type ReadResultFuture<'a>: Future<Output = StorageResult<Self::TransactionType>>
-        + Send
-        + 'a
+    type ReadResultFuture<'a>: Future<Output = StorageResult<Self::TransactionType>> + Send + 'a
     where
         Self: 'a;
-    type UpdateResultFuture<'a>: Future<Output = StorageResult<Self::TransactionType>>
-        + Send
-        + 'a
+    type UpdateResultFuture<'a>: Future<Output = StorageResult<Self::TransactionType>> + Send + 'a
     where
         Self: 'a;
 
