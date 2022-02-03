@@ -57,10 +57,10 @@ impl StorageImpl {
 pub trait Storage: Sync + Send + 'static {
     /// the following two result future types to avoid `impl Future` return different types when
     /// impl `Storage`.
-    type CreateTableResultFuture<'a>: Future<Output = StorageResult<()>> + Sync + Send + 'a
+    type CreateTableResultFuture<'a>: Future<Output = StorageResult<()>> + Send + 'a
     where
         Self: 'a;
-    type DropTableResultFuture<'a>: Future<Output = StorageResult<()>> + Sync + Send + 'a
+    type DropTableResultFuture<'a>: Future<Output = StorageResult<()>> + Send + 'a
     where
         Self: 'a;
 
