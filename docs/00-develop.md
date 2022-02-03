@@ -60,7 +60,7 @@ the official Rust extension. You will need to uninstall "The Rust Programming La
 To enable debug logs for RisingLight, export the following environment variable to your shell environment.
 
 ```
-export RUST_LOG=debug
+export RUST_LOG=risinglight=debug
 ```
 
 If you want to contribute to the RisingLight project, refer to [Contributing to RisingLight](../CONTRIBUTING.md) docs
