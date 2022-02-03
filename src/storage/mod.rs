@@ -85,22 +85,31 @@ pub trait Storage: Sync + Send + 'static {
 
 /// A table in the storage engine. [`Table`] is by default a reference to a table,
 /// so you could clone it and manipulate in different threads as you like.
-#[async_trait]
 pub trait Table: Sync + Send + Clone + 'static {
     /// Type of the transaction.
     type TransactionType: Transaction;
+
+    type WriteResultFuture<'a>: Future<Output = StorageResult<Self::TransactionType>> + Send + 'a
+    where
+        Self: 'a;
+    type ReadResultFuture<'a>: Future<Output = StorageResult<Self::TransactionType>> + Send + 'a
+    where
+        Self: 'a;
+    type UpdateResultFuture<'a>: Future<Output = StorageResult<Self::TransactionType>> + Send + 'a
+    where
+        Self: 'a;
 
     /// Get schema of the current table
     fn columns(&self) -> StorageResult<Arc<[ColumnCatalog]>>;
 
     /// Begin a read-write-only txn
-    async fn write(&self) -> StorageResult<Self::TransactionType>;
+    fn write(&self) -> Self::WriteResultFuture<'_>;
 
     /// Begin a read-only txn
-    async fn read(&self) -> StorageResult<Self::TransactionType>;
+    fn read(&self) -> Self::ReadResultFuture<'_>;
 
     /// Begin a txn that might delete or update rows
-    async fn update(&self) -> StorageResult<Self::TransactionType>;
+    fn update(&self) -> Self::UpdateResultFuture<'_>;
 
     /// Get table id
     fn table_id(&self) -> TableRefId;
