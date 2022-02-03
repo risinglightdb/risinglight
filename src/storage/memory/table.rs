@@ -67,11 +67,11 @@ impl InMemoryTable {
 impl Table for InMemoryTable {
     type TransactionType = InMemoryTransaction;
     type ReadResultFuture<'a> =
-        impl Future<Output = StorageResult<Self::TransactionType>> + Sync + Send + 'a;
+        impl Future<Output = StorageResult<Self::TransactionType>> + Send + 'a;
     type WriteResultFuture<'a> =
-        impl Future<Output = StorageResult<Self::TransactionType>> + Sync + Send + 'a;
+        impl Future<Output = StorageResult<Self::TransactionType>> + Send + 'a;
     type UpdateResultFuture<'a> =
-        impl Future<Output = StorageResult<Self::TransactionType>> + Sync + Send + 'a;
+        impl Future<Output = StorageResult<Self::TransactionType>> + Send + 'a;
 
     fn columns(&self) -> StorageResult<Arc<[ColumnCatalog]>> {
         Ok(self.columns.clone())
