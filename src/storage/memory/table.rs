@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 use std::vec::Vec;
 
-use async_trait::async_trait;
+use futures::Future;
 
 use super::*;
 use crate::array::DataChunk;
@@ -64,9 +64,14 @@ impl InMemoryTable {
     }
 }
 
-#[async_trait]
 impl Table for InMemoryTable {
     type TransactionType = InMemoryTransaction;
+    type ReadResultFuture<'a> =
+        impl Future<Output = StorageResult<Self::TransactionType>> + Sync + Send + 'a;
+    type WriteResultFuture<'a> =
+        impl Future<Output = StorageResult<Self::TransactionType>> + Sync + Send + 'a;
+    type UpdateResultFuture<'a> =
+        impl Future<Output = StorageResult<Self::TransactionType>> + Sync + Send + 'a;
 
     fn columns(&self) -> StorageResult<Arc<[ColumnCatalog]>> {
         Ok(self.columns.clone())
@@ -76,15 +81,15 @@ impl Table for InMemoryTable {
         self.table_ref_id
     }
 
-    async fn write(&self) -> StorageResult<Self::TransactionType> {
-        Ok(InMemoryTransaction::start(self)?)
+    fn write(&self) -> Self::WriteResultFuture<'_> {
+        async move { InMemoryTransaction::start(self) }
     }
 
-    async fn read(&self) -> StorageResult<Self::TransactionType> {
-        Ok(InMemoryTransaction::start(self)?)
+    fn read(&self) -> Self::ReadResultFuture<'_> {
+        async move { InMemoryTransaction::start(self) }
     }
 
-    async fn update(&self) -> StorageResult<Self::TransactionType> {
-        Ok(InMemoryTransaction::start(self)?)
+    fn update(&self) -> Self::UpdateResultFuture<'_> {
+        async move { InMemoryTransaction::start(self) }
     }
 }
