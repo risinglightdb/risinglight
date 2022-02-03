@@ -1,9 +1,9 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::collections::HashSet;
+use std::future::Future;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use itertools::Itertools;
 use tracing::warn;
 
@@ -97,72 +97,92 @@ fn sort_datachunk_by_pk(
     }
 }
 
-#[async_trait]
 impl Transaction for InMemoryTransaction {
     type TxnIteratorType = InMemoryTxnIterator;
 
     type RowHandlerType = InMemoryRowHandler;
 
+    type ScanResultFuture<'a> =
+        impl Future<Output = StorageResult<Self::TxnIteratorType>> + Send + 'a;
+
+    type AppendResultFuture<'a> = impl Future<Output = StorageResult<()>> + Send + 'a;
+
+    type DeleteResultFuture<'a> = impl Future<Output = StorageResult<()>> + Send + 'a;
+
+    type CommitResultFuture<'a> = impl Future<Output = StorageResult<()>> + Send + 'a;
+
+    type AbortResultFuture<'a> = impl Future<Output = StorageResult<()>> + Send + 'a;
+
     // TODO: remove this unused variable
-    async fn scan(
-        &self,
-        begin_sort_key: Option<&[u8]>,
-        end_sort_key: Option<&[u8]>,
-        col_idx: &[StorageColumnRef],
+    fn scan<'a>(
+        &'a self,
+        begin_sort_key: Option<&'a [u8]>,
+        end_sort_key: Option<&'a [u8]>,
+        col_idx: &'a [StorageColumnRef],
         is_sorted: bool,
         reversed: bool,
         expr: Option<BoundExpr>,
-    ) -> StorageResult<Self::TxnIteratorType> {
-        assert!(expr.is_none(), "MemTxn doesn't support filter scan");
-        assert!(
-            begin_sort_key.is_none(),
-            "sort_key is not supported in InMemoryEngine for now"
-        );
-        assert!(
-            end_sort_key.is_none(),
-            "sort_key is not supported in InMemoryEngine for now"
-        );
-        assert!(!reversed, "reverse iterator is not supported for now");
+    ) -> Self::ScanResultFuture<'a> {
+        async move {
+            assert!(expr.is_none(), "MemTxn doesn't support filter scan");
+            assert!(
+                begin_sort_key.is_none(),
+                "sort_key is not supported in InMemoryEngine for now"
+            );
+            assert!(
+                end_sort_key.is_none(),
+                "sort_key is not supported in InMemoryEngine for now"
+            );
+            assert!(!reversed, "reverse iterator is not supported for now");
 
-        let snapshot = if is_sorted {
-            sort_datachunk_by_pk(&self.snapshot, &self.column_infos)
-        } else {
-            self.snapshot.clone()
-        };
+            let snapshot = if is_sorted {
+                sort_datachunk_by_pk(&self.snapshot, &self.column_infos)
+            } else {
+                self.snapshot.clone()
+            };
 
-        Ok(InMemoryTxnIterator::new(
-            snapshot,
-            self.deleted_rows.clone(),
-            col_idx,
-        ))
-    }
-
-    async fn append(&mut self, columns: DataChunk) -> StorageResult<()> {
-        self.buffer.push(columns);
-        Ok(())
-    }
-
-    async fn delete(&mut self, id: &Self::RowHandlerType) -> StorageResult<()> {
-        self.delete_buffer.push(id.0 as usize);
-        Ok(())
-    }
-
-    async fn commit(mut self) -> StorageResult<()> {
-        let mut table = self.table.write().unwrap();
-        for chunk in self.buffer.drain(..) {
-            table.append(chunk)?;
+            Ok(InMemoryTxnIterator::new(
+                snapshot,
+                self.deleted_rows.clone(),
+                col_idx,
+            ))
         }
-        for deletion in self.delete_buffer.drain(..) {
-            table.delete(deletion)?;
-        }
-
-        self.finished = true;
-        Ok(())
     }
 
-    async fn abort(mut self) -> StorageResult<()> {
-        self.finished = true;
-        Ok(())
+    fn append(&mut self, columns: DataChunk) -> Self::AppendResultFuture<'_> {
+        async move {
+            self.buffer.push(columns);
+            Ok(())
+        }
+    }
+
+    fn delete<'a>(&'a mut self, id: &'a Self::RowHandlerType) -> Self::DeleteResultFuture<'a> {
+        async move {
+            self.delete_buffer.push(id.0 as usize);
+            Ok(())
+        }
+    }
+
+    fn commit<'a>(mut self) -> Self::CommitResultFuture<'a> {
+        async move {
+            let mut table = self.table.write().unwrap();
+            for chunk in self.buffer.drain(..) {
+                table.append(chunk)?;
+            }
+            for deletion in self.delete_buffer.drain(..) {
+                table.delete(deletion)?;
+            }
+
+            self.finished = true;
+            Ok(())
+        }
+    }
+
+    fn abort<'a>(mut self) -> Self::AbortResultFuture<'a> {
+        async move {
+            self.finished = true;
+            Ok(())
+        }
     }
 }
 
