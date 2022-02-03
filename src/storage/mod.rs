@@ -54,23 +54,33 @@ impl StorageImpl {
 }
 
 /// Represents a storage engine.
-#[async_trait]
 pub trait Storage: Sync + Send + 'static {
+    /// the following two result future types to avoid `impl Future` return different types when
+    /// impl `Storage`.
+    type CreateTableResultFuture<'a>: Future<Output = StorageResult<()>> + Sync + Send + 'a
+    where
+        Self: 'a;
+    type DropTableResultFuture<'a>: Future<Output = StorageResult<()>> + Sync + Send + 'a
+    where
+        Self: 'a;
+
     /// Type of the transaction.
     type TransactionType: Transaction;
 
     /// Type of the table belonging to this storage engine.
     type TableType: Table<TransactionType = Self::TransactionType>;
 
-    async fn create_table(
-        &self,
+    fn create_table<'a>(
+        &'a self,
         database_id: DatabaseId,
         schema_id: SchemaId,
-        table_name: &str,
-        column_descs: &[ColumnCatalog],
-    ) -> StorageResult<()>;
+        table_name: &'a str,
+        column_descs: &'a [ColumnCatalog],
+    ) -> Self::CreateTableResultFuture<'_>;
+
     fn get_table(&self, table_id: TableRefId) -> StorageResult<Self::TableType>;
-    async fn drop_table(&self, table_id: TableRefId) -> StorageResult<()>;
+
+    fn drop_table(&self, table_id: TableRefId) -> Self::DropTableResultFuture<'_>;
 }
 
 /// A table in the storage engine. [`Table`] is by default a reference to a table,
