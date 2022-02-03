@@ -50,10 +50,10 @@ pub use checksum::*;
 mod tests;
 
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use moka::future::Cache;
 use parking_lot::RwLock;
 use tokio::sync::oneshot::Sender;
@@ -151,27 +151,30 @@ impl SecondaryStorage {
     }
 }
 
-#[async_trait]
 impl Storage for SecondaryStorage {
+    type CreateTableResultFuture<'a> = impl Future<Output = StorageResult<()>> + 'a;
+    type DropTableResultFuture<'a> = impl Future<Output = StorageResult<()>> + 'a;
     type TransactionType = SecondaryTransaction;
     type TableType = SecondaryTable;
 
-    async fn create_table(
-        &self,
+    fn create_table<'a>(
+        &'a self,
         database_id: DatabaseId,
         schema_id: SchemaId,
-        table_name: &str,
-        column_descs: &[ColumnCatalog],
-    ) -> StorageResult<()> {
-        self.create_table_inner(database_id, schema_id, table_name, column_descs)
-            .await
+        table_name: &'a str,
+        column_descs: &'a [ColumnCatalog],
+    ) -> Self::CreateTableResultFuture<'a> {
+        async move {
+            self.create_table_inner(database_id, schema_id, table_name, column_descs)
+                .await
+        }
     }
 
     fn get_table(&self, table_id: TableRefId) -> StorageResult<SecondaryTable> {
         self.get_table_inner(table_id)
     }
 
-    async fn drop_table(&self, table_id: TableRefId) -> StorageResult<()> {
-        self.drop_table_inner(table_id).await
+    fn drop_table(&self, table_id: TableRefId) -> Self::DropTableResultFuture<'_> {
+        async move { self.drop_table_inner(table_id).await }
     }
 }
