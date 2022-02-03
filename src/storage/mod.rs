@@ -15,7 +15,6 @@ mod chunk;
 use std::future::Future;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 pub use chunk::*;
 use enum_dispatch::enum_dispatch;
 
@@ -133,7 +132,6 @@ pub trait RowHandler: Sync + Send + 'static {
 }
 
 /// Represents a transaction in storage engine.
-#[async_trait]
 pub trait Transaction: Sync + Send + 'static {
     /// Type of the table iterator
     type TxnIteratorType: TxnIterator;
@@ -141,29 +139,44 @@ pub trait Transaction: Sync + Send + 'static {
     /// Type of the unique reference to a row
     type RowHandlerType: RowHandler;
 
+    type ScanResultFuture<'a>: Future<Output = StorageResult<Self::TxnIteratorType>> + Send + 'a
+    where
+        Self: 'a;
+    type AppendResultFuture<'a>: Future<Output = StorageResult<()>> + Send + 'a
+    where
+        Self: 'a;
+    type DeleteResultFuture<'a>: Future<Output = StorageResult<()>> + Send + 'a
+    where
+        Self: 'a;
+    type CommitResultFuture<'a>: Future<Output = StorageResult<()>> + Send + 'a
+    where
+        Self: 'a;
+    type AbortResultFuture<'a>: Future<Output = StorageResult<()>> + Send + 'a
+    where
+        Self: 'a;
     /// Scan one or multiple columns.
-    async fn scan(
-        &self,
-        begin_sort_key: Option<&[u8]>,
-        end_sort_key: Option<&[u8]>,
-        col_idx: &[StorageColumnRef],
+    fn scan<'a>(
+        &'a self,
+        begin_sort_key: Option<&'a [u8]>,
+        end_sort_key: Option<&'a [u8]>,
+        col_idx: &'a [StorageColumnRef],
         is_sorted: bool,
         reversed: bool,
         expr: Option<BoundExpr>,
-    ) -> StorageResult<Self::TxnIteratorType>;
+    ) -> Self::ScanResultFuture<'a>;
 
     /// Append data to the table. Generally, `columns` should be in the same order as
     /// [`ColumnCatalog`] when constructing the [`Table`].
-    async fn append(&mut self, columns: DataChunk) -> StorageResult<()>;
+    fn append(&mut self, columns: DataChunk) -> Self::AppendResultFuture<'_>;
 
     /// Delete a record.
-    async fn delete(&mut self, id: &Self::RowHandlerType) -> StorageResult<()>;
+    fn delete<'a>(&'a mut self, id: &'a Self::RowHandlerType) -> Self::DeleteResultFuture<'a>;
 
     /// Commit a transaction.
-    async fn commit(self) -> StorageResult<()>;
+    fn commit<'a>(self) -> Self::CommitResultFuture<'a>;
 
     /// Abort a transaction.
-    async fn abort(self) -> StorageResult<()>;
+    fn abort<'a>(self) -> Self::AbortResultFuture<'a>;
 }
 
 /// An iterator over table in a transaction.

@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use async_trait::async_trait;
+use futures::Future;
 use itertools::Itertools;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use risinglight_proto::rowset::DeleteRecord;
@@ -321,53 +321,69 @@ impl SecondaryTransaction {
     }
 }
 
-#[async_trait]
 impl Transaction for SecondaryTransaction {
     type TxnIteratorType = SecondaryTableTxnIterator;
 
     type RowHandlerType = SecondaryRowHandler;
 
-    async fn scan(
-        &self,
-        begin_sort_key: Option<&[u8]>,
-        end_sort_key: Option<&[u8]>,
-        col_idx: &[StorageColumnRef],
+    type ScanResultFuture<'a> =
+        impl Future<Output = StorageResult<Self::TxnIteratorType>> + Send + 'a;
+
+    type AppendResultFuture<'a> = impl Future<Output = StorageResult<()>> + Send + 'a;
+
+    type DeleteResultFuture<'a> = impl Future<Output = StorageResult<()>> + Send + 'a;
+
+    type CommitResultFuture<'a> = impl Future<Output = StorageResult<()>> + Send + 'a;
+
+    type AbortResultFuture<'a> = impl Future<Output = StorageResult<()>> + Send + 'a;
+
+    fn scan<'a>(
+        &'a self,
+        begin_sort_key: Option<&'a [u8]>,
+        end_sort_key: Option<&'a [u8]>,
+        col_idx: &'a [StorageColumnRef],
         is_sorted: bool,
         reversed: bool,
         expr: Option<BoundExpr>,
-    ) -> StorageResult<Self::TxnIteratorType> {
-        self.scan_inner(
-            begin_sort_key,
-            end_sort_key,
-            col_idx,
-            is_sorted,
-            reversed,
-            expr,
-        )
-        .await
+    ) -> Self::ScanResultFuture<'a> {
+        async move {
+            self.scan_inner(
+                begin_sort_key,
+                end_sort_key,
+                col_idx,
+                is_sorted,
+                reversed,
+                expr,
+            )
+            .await
+        }
     }
 
-    async fn append(&mut self, columns: DataChunk) -> StorageResult<()> {
-        self.append_inner(columns).await
+    fn append(&mut self, columns: DataChunk) -> Self::AppendResultFuture<'_> {
+        async move { self.append_inner(columns).await }
     }
 
-    async fn delete(&mut self, id: &Self::RowHandlerType) -> StorageResult<()> {
-        assert!(
-            self.delete_lock.is_some(),
-            "delete lock is not held for this txn"
-        );
-        self.delete_buffer.push(*id);
-        Ok(())
+    fn delete<'a>(&'a mut self, id: &'a Self::RowHandlerType) -> Self::DeleteResultFuture<'a> {
+        async move {
+            assert!(
+                self.delete_lock.is_some(),
+                "delete lock is not held for this txn"
+            );
+            self.delete_buffer.push(*id);
+            Ok(())
+        }
     }
 
-    async fn commit(mut self) -> StorageResult<()> {
-        self.commit_inner().await
+    fn commit<'a>(self) -> Self::CommitResultFuture<'a> {
+        async move { self.commit_inner().await }
     }
 
-    async fn abort(mut self) -> StorageResult<()> {
-        self.finished = true;
-        self.version.unpin(self.epoch);
-        Ok(())
+    fn abort<'a>(mut self) -> Self::AbortResultFuture<'a> {
+        async move {
+            self.finished = true;
+            self.version.unpin(self.epoch);
+            Ok(())
+        }
     }
 }
 
