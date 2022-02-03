@@ -74,7 +74,7 @@ impl Storage for InMemoryStorage {
         schema_id: SchemaId,
         table_name: &'a str,
         column_descs: &'a [ColumnCatalog],
-    ) -> Self::CreateTableResultFuture<'_> {
+    ) -> Self::CreateTableResultFuture<'a> {
         async move {
             let db = self
                 .catalog

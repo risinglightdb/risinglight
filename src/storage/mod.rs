@@ -76,7 +76,7 @@ pub trait Storage: Sync + Send + 'static {
         schema_id: SchemaId,
         table_name: &'a str,
         column_descs: &'a [ColumnCatalog],
-    ) -> Self::CreateTableResultFuture<'_>;
+    ) -> Self::CreateTableResultFuture<'a>;
 
     fn get_table(&self, table_id: TableRefId) -> StorageResult<Self::TableType>;
 

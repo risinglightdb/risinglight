@@ -163,7 +163,7 @@ impl Storage for SecondaryStorage {
         schema_id: SchemaId,
         table_name: &'a str,
         column_descs: &'a [ColumnCatalog],
-    ) -> Self::CreateTableResultFuture<'_> {
+    ) -> Self::CreateTableResultFuture<'a> {
         async move {
             self.create_table_inner(database_id, schema_id, table_name, column_descs)
                 .await
