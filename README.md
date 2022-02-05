@@ -40,9 +40,9 @@ RisingLight developers are active in a variety of places:
 
 ### Slack Channel
 
-The RisingLight project is currently part of the RisingWave community. You may join RisingWave community with the [invitation link](https://join.slack.com/t/risingwave-community/shared_invite/zt-120rft0mr-d8uGk3d~NZiZAQWPnElOfw).
+The RisingLight project is currently part of the RisingWave community. You may join RisingWave community with the [invitation link](https://join.slack.com/t/risingwave-community/shared_invite/zt-120rft0mr-d8uGk3d~NZiZAQWPnElOfw). If the Slack link expires (which normally should not happen), please create an issue :)
 
-After that, you may join either `risinglight-chinese` or `risinglight-english` channel.
+After that, you may join `risinglight-chinese` and `risinglight-english` channel.
 
 * [risinglight-chinese](https://risingwave-community.slack.com/archives/C02UZDEE4AC)
 * [risinglight-english](https://risingwave-community.slack.com/archives/C030SJRDT4J)
