@@ -121,7 +121,7 @@ mod tests {
         d.push("tests/json/arith_expr_simplification.json");
         let path_str = d.into_os_string().into_string().unwrap();
         let data = fs::read_to_string(path_str).unwrap();
-        println!("{}", ser_str);
+
         assert_eq!(ser_str, data);
     }
 }
