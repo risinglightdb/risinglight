@@ -87,7 +87,7 @@ Signed-off-by: Random J Developer <random@developer.example.org>
 The `git` command provides `-s` parameter to attach DCO to the commits.
 
 ```
-git commit -m "feat(scpoe): commit messages" -s
+git commit -m "feat(scope): commit messages" -s
 ```
 
 ## Send Pull Requests
