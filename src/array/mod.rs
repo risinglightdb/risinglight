@@ -7,7 +7,7 @@ use std::ops::{Bound, RangeBounds};
 use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 
-use crate::types::{ConvertError, DataType, DataValue, Date, Interval, PhysicalDataTypeKind};
+use crate::types::{Blob, ConvertError, DataType, DataValue, Date, Interval, PhysicalDataTypeKind};
 
 mod data_chunk;
 mod iterator;
@@ -154,6 +154,7 @@ pub enum ArrayImpl {
     // Float32(PrimitiveArray<f32>),
     Float64(F64Array),
     Utf8(Utf8Array),
+    Blob(BlobArray),
     Decimal(DecimalArray),
     Date(DateArray),
     Interval(IntervalArray),
@@ -176,6 +177,7 @@ pub enum ArrayBuilderImpl {
     // Float32(PrimitiveArrayBuilder<f32>),
     Float64(F64ArrayBuilder),
     Utf8(Utf8ArrayBuilder),
+    Blob(BlobArrayBuilder),
     Decimal(DecimalArrayBuilder),
     Date(DateArrayBuilder),
     Interval(IntervalArrayBuilder),
@@ -198,6 +200,7 @@ macro_rules! for_all_variants {
             { Int64, int64, I64Array, I64ArrayBuilder, Int64 },
             { Float64, float64, F64Array, F64ArrayBuilder, Float64 },
             { Utf8, utf8, Utf8Array, Utf8ArrayBuilder, String },
+            { Blob, blob, BlobArray, BlobArrayBuilder, Blob },
             { Bool, bool, BoolArray, BoolArrayBuilder, Bool },
             { Decimal, decimal, DecimalArray, DecimalArrayBuilder, Decimal },
             { Date, date, DateArray, DateArrayBuilder, Date },
@@ -358,6 +361,7 @@ impl ArrayBuilderImpl {
             Self::Int64(a) if null => a.push(None),
             Self::Float64(a) if null => a.push(None),
             Self::Utf8(a) if null => a.push(None),
+            Self::Blob(a) if null => a.push(None),
             Self::Decimal(a) if null => a.push(None),
             Self::Date(a) if null => a.push(None),
             Self::Interval(a) if null => a.push(None),
@@ -378,6 +382,10 @@ impl ArrayBuilderImpl {
                     .map_err(|e| ConvertError::ParseFloat(s.to_string(), e))?,
             )),
             Self::Utf8(a) => a.push(Some(s)),
+            Self::Blob(a) => a.push(Some(
+                &s.parse::<Blob>()
+                    .map_err(|e| ConvertError::ParseBlob(s.to_string(), e))?,
+            )),
             Self::Decimal(a) => a.push(Some(
                 &Decimal::from_str(s).map_err(|e| ConvertError::ParseDecimal(s.to_string(), e))?,
             )),
@@ -464,6 +472,7 @@ impl From<&DataValue> for ArrayImpl {
             &DataValue::Int64(v) => Self::Int64([v].into_iter().collect()),
             &DataValue::Float64(v) => Self::Float64([v].into_iter().collect()),
             DataValue::String(v) => Self::Utf8([Some(v)].into_iter().collect()),
+            DataValue::Blob(v) => Self::Blob([Some(v)].into_iter().collect()),
             &DataValue::Decimal(v) => Self::Decimal([v].into_iter().collect()),
             &DataValue::Date(v) => Self::Date([v].into_iter().collect()),
             &DataValue::Interval(v) => Self::Interval([v].into_iter().collect()),

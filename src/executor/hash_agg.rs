@@ -29,13 +29,11 @@ impl HashAggExecutor {
         group_keys: &[BoundExpr],
     ) -> Result<(), ExecutorError> {
         // Eval group keys and arguments
-        let group_cols: SmallVec<[ArrayImpl; 16]> = group_keys
-            .iter()
-            .map(|e| e.eval_array(&chunk))
-            .try_collect()?;
+        let group_cols: SmallVec<[ArrayImpl; 16]> =
+            group_keys.iter().map(|e| e.eval(&chunk)).try_collect()?;
         let arrays: SmallVec<[ArrayImpl; 16]> = agg_calls
             .iter()
-            .map(|agg| agg.args[0].eval_array(&chunk))
+            .map(|agg| agg.args[0].eval(&chunk))
             .try_collect()?;
 
         // Update states

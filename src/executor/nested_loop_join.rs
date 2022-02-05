@@ -50,7 +50,7 @@ impl NestedLoopJoinExecutor {
         let cross_chunk = builders.into_iter().collect();
 
         // evaluate filter bitmap
-        let filter = match self.condition.eval_array(&cross_chunk)? {
+        let filter = match self.condition.eval(&cross_chunk)? {
             ArrayImpl::Bool(a) => a,
             _ => panic!("unsupported value from join condition"),
         };

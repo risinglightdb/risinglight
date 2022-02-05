@@ -8,7 +8,7 @@ use sqlparser::ast::BinaryOperator;
 use super::*;
 use crate::catalog::ColumnRefId;
 use crate::parser::{DateTimeField, Expr, Function, UnaryOperator, Value};
-use crate::types::{DataType, DataTypeExt, DataTypeKind, DataValue, Date, Interval};
+use crate::types::{DataType, DataTypeExt, DataTypeKind, DataValue, Interval};
 
 mod agg_call;
 mod binary_op;
@@ -152,7 +152,7 @@ impl Binder {
     ) -> Result<BoundExpr, BindError> {
         match data_type {
             DataTypeKind::Date => {
-                let date = Date::from_str(value).map_err(|_| {
+                let date = value.parse().map_err(|_| {
                     BindError::CastError(DataValue::String(value.into()), DataTypeKind::Date)
                 })?;
                 Ok(BoundExpr::Constant(DataValue::Date(date)))

@@ -1,28 +1,64 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::iter::FromIterator;
+use std::marker::PhantomData;
 
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
 use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt};
+use crate::types::BlobRef;
 
-/// A collection of Rust UTF8 `String`s.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Utf8Array {
+/// A collection of variable-length values.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct BytesArray<T: ValueRef + ?Sized> {
     offset: Vec<usize>,
     valid: BitVec,
     data: Vec<u8>,
+    _type: PhantomData<T>,
 }
 
-impl Array for Utf8Array {
-    type Item = str;
-    type Builder = Utf8ArrayBuilder;
+/// The borrowed type of a variable-length value.
+pub trait ValueRef: ToOwned + AsRef<[u8]> + Send + Sync + 'static {
+    fn from_bytes(s: &[u8]) -> &Self;
+}
 
-    fn get(&self, idx: usize) -> Option<&str> {
+impl ValueRef for str {
+    fn from_bytes(s: &[u8]) -> &Self {
+        unsafe { std::str::from_utf8_unchecked(s) }
+    }
+}
+
+impl ValueRef for BlobRef {
+    fn from_bytes(s: &[u8]) -> &Self {
+        BlobRef::new(s)
+    }
+}
+
+pub type Utf8Array = BytesArray<str>;
+pub type BlobArray = BytesArray<BlobRef>;
+pub type Utf8ArrayBuilder = BytesArrayBuilder<str>;
+pub type BlobArrayBuilder = BytesArrayBuilder<BlobRef>;
+
+impl<T: ValueRef + ?Sized> Clone for BytesArray<T> {
+    fn clone(&self) -> Self {
+        Self {
+            offset: self.offset.clone(),
+            valid: self.valid.clone(),
+            data: self.data.clone(),
+            _type: PhantomData,
+        }
+    }
+}
+
+impl<T: ValueRef + ?Sized> Array for BytesArray<T> {
+    type Item = T;
+    type Builder = BytesArrayBuilder<T>;
+
+    fn get(&self, idx: usize) -> Option<&T> {
         if self.valid[idx] {
             let data_slice = &self.data[self.offset[idx]..self.offset[idx + 1]];
-            Some(unsafe { std::str::from_utf8_unchecked(data_slice) })
+            Some(T::from_bytes(data_slice))
         } else {
             None
         }
@@ -33,27 +69,28 @@ impl Array for Utf8Array {
     }
 }
 
-impl ArrayValidExt for Utf8Array {
+impl<T: ValueRef + ?Sized> ArrayValidExt for BytesArray<T> {
     fn get_valid_bitmap(&self) -> &BitVec {
         &self.valid
     }
 }
 
-impl ArrayEstimateExt for Utf8Array {
+impl<T: ValueRef + ?Sized> ArrayEstimateExt for BytesArray<T> {
     fn get_estimated_size(&self) -> usize {
         self.data.len() + self.offset.len() + self.valid.len() / 8
     }
 }
 
-/// A builder that uses `&str` to build an [`Utf8Array`].
-pub struct Utf8ArrayBuilder {
+/// A builder that uses `&T` to build an [`BytesArray`].
+pub struct BytesArrayBuilder<T: ValueRef + ?Sized> {
     offset: Vec<usize>,
     valid: BitVec,
     data: Vec<u8>,
+    _type: PhantomData<T>,
 }
 
-impl ArrayBuilder for Utf8ArrayBuilder {
-    type Array = Utf8Array;
+impl<T: ValueRef + ?Sized> ArrayBuilder for BytesArrayBuilder<T> {
+    type Array = BytesArray<T>;
 
     fn with_capacity(capacity: usize) -> Self {
         let mut offset = Vec::with_capacity(capacity + 1);
@@ -62,18 +99,19 @@ impl ArrayBuilder for Utf8ArrayBuilder {
             offset,
             data: Vec::with_capacity(capacity),
             valid: BitVec::with_capacity(capacity),
+            _type: PhantomData,
         }
     }
 
-    fn push(&mut self, value: Option<&str>) {
+    fn push(&mut self, value: Option<&T>) {
         self.valid.push(value.is_some());
         if let Some(x) = value {
-            self.data.extend_from_slice(x.as_bytes());
+            self.data.extend_from_slice(x.as_ref());
         }
         self.offset.push(self.data.len());
     }
 
-    fn append(&mut self, other: &Utf8Array) {
+    fn append(&mut self, other: &BytesArray<T>) {
         self.valid.extend_from_bitslice(&other.valid);
         self.data.extend_from_slice(&other.data);
         let start = *self.offset.last().unwrap();
@@ -82,18 +120,19 @@ impl ArrayBuilder for Utf8ArrayBuilder {
         }
     }
 
-    fn finish(self) -> Utf8Array {
-        Utf8Array {
+    fn finish(self) -> BytesArray<T> {
+        BytesArray {
             valid: self.valid,
             data: self.data,
             offset: self.offset,
+            _type: PhantomData,
         }
     }
 }
 
-// Enable `collect()` an array from iterator of `Option<&str>` or `Option<String>`.
-impl<Str: AsRef<str>> FromIterator<Option<Str>> for Utf8Array {
-    fn from_iter<I: IntoIterator<Item = Option<Str>>>(iter: I) -> Self {
+// Enable `collect()` an array from iterator of `Option<&T>` or `Option<T::Owned>`.
+impl<O: AsRef<T>, T: ValueRef + ?Sized> FromIterator<Option<O>> for BytesArray<T> {
+    fn from_iter<I: IntoIterator<Item = Option<O>>>(iter: I) -> Self {
         let iter = iter.into_iter();
         let mut builder = <Self as Array>::Builder::with_capacity(iter.size_hint().0);
         for e in iter {
