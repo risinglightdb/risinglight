@@ -97,17 +97,11 @@ impl SecondaryTransaction {
         } else {
             return Ok(());
         };
-        let rowset_id = self.table.generate_rowset_id();
+        let rowset_id = self.table.get_current_rowset_id();
         let directory = self.table.get_rowset_path(rowset_id);
 
-        tokio::fs::create_dir(&directory).await?;
-
         // flush data to disk
-        mem.flush(
-            &directory,
-            ColumnBuilderOptions::from_storage_options(&*self.table.storage_options),
-        )
-        .await?;
+        mem.flush().await?;
 
         let on_disk = DiskRowset::open(
             directory,
@@ -305,7 +299,15 @@ impl SecondaryTransaction {
             panic!("Txn is read-only but append is called");
         }
         if self.mem.is_none() {
-            self.mem = Some(SecondaryMemRowsetImpl::new(self.table.columns.clone()));
+            let rowset_id = self.table.generate_rowset_id();
+            let directory = self.table.get_rowset_path(rowset_id);
+            tokio::fs::create_dir(&directory).await?;
+
+            self.mem = Some(SecondaryMemRowsetImpl::new(
+                self.table.columns.clone(), 
+                &directory, 
+                ColumnBuilderOptions::from_storage_options(&*self.table.storage_options)
+            ));
         }
         let mem = self.mem.as_mut().unwrap();
         self.total_size += columns.estimated_size();
