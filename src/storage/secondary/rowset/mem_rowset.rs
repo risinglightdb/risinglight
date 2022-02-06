@@ -120,6 +120,7 @@ impl MemTable for ColumnMemTable {
 pub struct SecondaryMemRowset<M: MemTable> {
     mem_table: M,
     rowset_builder: RowsetBuilder,
+    rowset_id: u32,
 }
 
 impl SecondaryMemRowset<BTreeMapMemTable> {
@@ -161,16 +162,19 @@ impl SecondaryMemRowsetImpl {
         columns: Arc<[ColumnCatalog]>,
         directory: impl AsRef<Path>,
         column_options: ColumnBuilderOptions,
+        rowset_id: u32,
     ) -> Self {
         if let Some(sort_key_idx) = find_sort_key_id(&columns) {
             Self::BTree(SecondaryMemRowset::<BTreeMapMemTable> {
                 mem_table: BTreeMapMemTable::new(columns.clone(), sort_key_idx),
                 rowset_builder: RowsetBuilder::new(columns, directory, column_options),
+                rowset_id,
             })
         } else {
             Self::Column(SecondaryMemRowset::<ColumnMemTable> {
                 mem_table: ColumnMemTable::new(columns.clone()),
                 rowset_builder: RowsetBuilder::new(columns, directory, column_options),
+                rowset_id,
             })
         }
     }
@@ -186,6 +190,13 @@ impl SecondaryMemRowsetImpl {
         match self {
             Self::BTree(btree_table) => btree_table.flush().await,
             Self::Column(column_table) => column_table.flush().await,
+        }
+    }
+
+    pub fn get_rowset_id(&self) -> u32 {
+        match self {
+            Self::BTree(ref mem) => mem.rowset_id,
+            Self::Column(ref mem) => mem.rowset_id,
         }
     }
 }

@@ -97,7 +97,7 @@ impl SecondaryTransaction {
         } else {
             return Ok(());
         };
-        let rowset_id = self.table.get_current_rowset_id();
+        let rowset_id = mem.get_rowset_id();
         let directory = self.table.get_rowset_path(rowset_id);
 
         // flush data to disk
@@ -307,6 +307,7 @@ impl SecondaryTransaction {
                 self.table.columns.clone(),
                 &directory,
                 ColumnBuilderOptions::from_storage_options(&*self.table.storage_options),
+                rowset_id,
             ));
         }
         let mem = self.mem.as_mut().unwrap();
