@@ -18,8 +18,7 @@ pub struct DataChunk {
 impl FromIterator<ArrayImpl> for DataChunk {
     fn from_iter<I: IntoIterator<Item = ArrayImpl>>(iter: I) -> Self {
         let arrays: Arc<[ArrayImpl]> = iter.into_iter().collect();
-        assert!(!arrays.is_empty());
-        let cardinality = arrays[0].len();
+        let cardinality = arrays.first().map(ArrayImpl::len).unwrap_or(0);
         assert!(
             arrays.iter().map(|a| a.len()).all(|l| l == cardinality),
             "all arrays must have the same length"
@@ -46,7 +45,7 @@ impl DataChunk {
 
     /// Return the number of rows in the chunk.
     pub fn cardinality(&self) -> usize {
-        self.arrays[0].len()
+        self.arrays.first().map(ArrayImpl::len).unwrap_or(0)
     }
 
     /// Get reference to a row.
