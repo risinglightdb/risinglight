@@ -28,9 +28,10 @@ check: fmt_check clippy_check build test docs_check
 
 clean:
 	cargo clean
+	rm -rf $(TPCH_DBGEN_PATH)
 
 $(TPCH_DBGEN_PATH):
-	mkdir target || true
+	mkdir -p target
 	git clone https://github.com/electrum/tpch-dbgen.git $(TPCH_DBGEN_PATH)
 
 tpch: $(TPCH_DBGEN_PATH)
