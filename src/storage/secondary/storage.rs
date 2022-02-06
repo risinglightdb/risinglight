@@ -43,7 +43,7 @@ impl SecondaryStorage {
         let engine = Self {
             catalog: Arc::new(catalog),
             tables: RwLock::new(tables),
-            block_cache: Cache::new(options.cache_size),
+            block_cache: Cache::new(options.cache_size as u64),
             options: options.clone(),
             next_id: Arc::new((AtomicU32::new(0), AtomicU64::new(0))),
             version: Arc::new(VersionManager::new(manifest, options.clone())),
