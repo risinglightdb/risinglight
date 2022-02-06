@@ -1,6 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 
 use chrono::{Datelike, NaiveDate};
 use serde::Serialize;
@@ -20,15 +21,18 @@ impl Date {
         Date(inner)
     }
 
-    /// Convert string to date
-    pub fn from_str(s: &str) -> chrono::ParseResult<Date> {
-        NaiveDate::parse_from_str(s, "%Y-%m-%d")
-            .map(|ret| Date(ret.num_days_from_ce() - UNIX_EPOCH_DAYS))
-    }
-
     /// Get the inner value of date type
     pub fn get_inner(&self) -> i32 {
         self.0
+    }
+}
+
+impl FromStr for Date {
+    type Err = chrono::ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        NaiveDate::parse_from_str(s, "%Y-%m-%d")
+            .map(|ret| Date(ret.num_days_from_ce() - UNIX_EPOCH_DAYS))
     }
 }
 

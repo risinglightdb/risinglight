@@ -1,0 +1,10 @@
+statement ok
+create table t
+
+query I
+select * from t
+----
+
+
+statement ok
+drop table t
