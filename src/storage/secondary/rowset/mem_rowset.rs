@@ -129,9 +129,7 @@ impl SecondaryMemRowset<BTreeMapMemTable> {
     }
 
     /// Flush memory table to disk and return a handler
-    pub async fn flush(
-        self,
-    ) -> StorageResult<()> {
+    pub async fn flush(self) -> StorageResult<()> {
         let chunk = self.mem_table.flush()?;
         let mut builder = self.rowset_builder;
         builder.append(chunk);
@@ -167,20 +165,12 @@ impl SecondaryMemRowsetImpl {
         if let Some(sort_key_idx) = find_sort_key_id(&columns) {
             Self::BTree(SecondaryMemRowset::<BTreeMapMemTable> {
                 mem_table: BTreeMapMemTable::new(columns.clone(), sort_key_idx),
-                rowset_builder: RowsetBuilder::new(
-                    columns,
-                    directory,
-                    column_options,
-                ),
+                rowset_builder: RowsetBuilder::new(columns, directory, column_options),
             })
         } else {
             Self::Column(SecondaryMemRowset::<ColumnMemTable> {
                 mem_table: ColumnMemTable::new(columns.clone()),
-                rowset_builder: RowsetBuilder::new(
-                    columns,
-                    directory,
-                    column_options,
-                ),
+                rowset_builder: RowsetBuilder::new(columns, directory, column_options),
             })
         }
     }
@@ -192,9 +182,7 @@ impl SecondaryMemRowsetImpl {
         }
     }
 
-    pub async fn flush(
-        self,
-    ) -> StorageResult<()> {
+    pub async fn flush(self) -> StorageResult<()> {
         match self {
             Self::BTree(btree_table) => btree_table.flush().await,
             Self::Column(column_table) => column_table.flush().await,

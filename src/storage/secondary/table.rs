@@ -78,9 +78,7 @@ impl SecondaryTable {
     }
 
     pub fn get_current_rowset_id(&self) -> u32 {
-        self.next_id
-            .0
-            .load(std::sync::atomic::Ordering::SeqCst) - 1
+        self.next_id.0.load(std::sync::atomic::Ordering::SeqCst) - 1
     }
 
     pub fn generate_dv_id(&self) -> u64 {

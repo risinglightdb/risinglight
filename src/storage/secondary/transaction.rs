@@ -304,9 +304,9 @@ impl SecondaryTransaction {
             tokio::fs::create_dir(&directory).await?;
 
             self.mem = Some(SecondaryMemRowsetImpl::new(
-                self.table.columns.clone(), 
-                &directory, 
-                ColumnBuilderOptions::from_storage_options(&*self.table.storage_options)
+                self.table.columns.clone(),
+                &directory,
+                ColumnBuilderOptions::from_storage_options(&*self.table.storage_options),
             ));
         }
         let mem = self.mem.as_mut().unwrap();
