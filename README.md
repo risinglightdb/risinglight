@@ -61,4 +61,8 @@ If you have any question or want to discuss, join our WeChat group, Slack channe
 If you want to contribute code, see [CONTRIBUTING](CONTRIBUTING.md) for more information. Generally, you will need to
 pass necessary checks for your changes and sign DCO before submitting PRs. We have plenty of [good first issues](https://github.com/risinglightdb/risinglight/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22). Feel free to ask questions either on GitHub or in our chat groups if you meet any difficulty.
 
+## Acknowledgement
+
+The RisingLight project was initiated by a group of college students who have special interests in developing database systems using modern programming technologies. The project is generously sponsored by [Singularity Data](https://www.singularity-data.com/), a startup innovating the next-generation database systems. Singularity Data is hiring top talents globally to build a cloud-native streaming database from scratch. If interested, please send your CV to `hr at singularity-data.com`.
+
 Welcome to the RisingLight community!
