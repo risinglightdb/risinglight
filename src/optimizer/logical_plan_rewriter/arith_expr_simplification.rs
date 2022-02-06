@@ -95,6 +95,7 @@ impl PlanRewriter for ArithExprSimplificationRule {
 #[cfg(test)]
 mod tests {
     use std::fs;
+
     use manifest_dir_macros;
     use serde::Serialize;
 
