@@ -5,11 +5,12 @@
 use std::fmt::{Debug, Display};
 use std::sync::Arc;
 
+use bit_set::BitSet;
 use downcast_rs::{impl_downcast, Downcast};
 use erased_serde::serialize_trait_object;
 use paste::paste;
 
-use crate::binder::BoundExpr;
+use crate::binder::{BoundExpr, BoundInputRef};
 use crate::types::DataType;
 
 mod plan_tree_node;
@@ -87,12 +88,49 @@ pub use physical_simple_agg::*;
 pub use physical_table_scan::*;
 pub use physical_values::*;
 
+/// The upcast trait for `PlanNode`.
+pub trait IntoPlanRef {
+    fn into_plan_ref(self) -> PlanRef;
+    fn clone_as_plan_ref(&self) -> PlanRef;
+}
 /// The common trait over all plan nodes.
 pub trait PlanNode:
-    WithPlanNodeType + PlanTreeNode + Debug + Display + Downcast + erased_serde::Serialize + Send + Sync
+    WithPlanNodeType
+    + IntoPlanRef
+    + PlanTreeNode
+    + Debug
+    + Display
+    + Downcast
+    + erased_serde::Serialize
+    + Send
+    + Sync
 {
     fn out_types(&self) -> Vec<DataType> {
         vec![]
+    }
+    /// transform the plan node to only output the required columns ordered by index number, only
+    /// logical plan node will use it, though all plan node impl it.
+    fn prune_col(&self, required_cols: BitSet) -> PlanRef {
+        let input_types = self.out_types();
+        let mut need_prune = false;
+        for i in 0..input_types.len() {
+            if !required_cols.contains(i) {
+                need_prune = true;
+            }
+        }
+        if !need_prune {
+            return self.clone_as_plan_ref();
+        }
+        let exprs = required_cols
+            .iter()
+            .map(|index| {
+                BoundExpr::InputRef(BoundInputRef {
+                    index,
+                    return_type: input_types[index].clone(),
+                })
+            })
+            .collect();
+        LogicalProjection::new(exprs, self.clone_as_plan_ref()).into_plan_ref()
     }
 }
 impl_downcast!(PlanNode);
@@ -200,3 +238,18 @@ macro_rules! impl_downcast_utility {
     }
 }
 for_all_plan_nodes! { impl_downcast_utility }
+
+/// impl `IntoPlanRef` for each node.
+macro_rules! impl_into_plan_ref {
+    ([], $($node_name:ident),*) => {
+            $(impl IntoPlanRef for $node_name {
+                fn into_plan_ref(self) -> PlanRef {
+                    std::sync::Arc::new(self)
+                }
+                fn clone_as_plan_ref(&self) -> PlanRef{
+                    self.clone().into_plan_ref()
+                }
+            })*
+    }
+}
+for_all_plan_nodes! {impl_into_plan_ref }
