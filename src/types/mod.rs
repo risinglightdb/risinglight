@@ -1,21 +1,24 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::hash::{Hash, Hasher};
+
+use num_traits::ToPrimitive;
+use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 pub use sqlparser::ast::DataType as DataTypeKind;
 
+use crate::for_all_variants;
+
+mod blob;
 mod date;
 mod interval;
 mod native;
-use std::hash::{Hash, Hasher};
 
-pub(crate) use date::*;
-pub(crate) use interval::*;
-pub(crate) use native::*;
-use num_traits::ToPrimitive;
-use rust_decimal::prelude::FromStr;
-
-use crate::for_all_variants;
+pub use self::blob::*;
+pub use self::date::*;
+pub use self::interval::*;
+pub use self::native::*;
 
 /// Physical data type
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -24,6 +27,7 @@ pub enum PhysicalDataTypeKind {
     Int64,
     Float64,
     String,
+    Blob,
     Bool,
     Decimal,
     Date,
@@ -32,17 +36,17 @@ pub enum PhysicalDataTypeKind {
 
 impl From<DataTypeKind> for PhysicalDataTypeKind {
     fn from(kind: DataTypeKind) -> Self {
+        use DataTypeKind::*;
         match kind {
-            DataTypeKind::Char(_) | DataTypeKind::Varchar(_) | DataTypeKind::String => {
-                PhysicalDataTypeKind::String
-            }
-            DataTypeKind::Float(_) | DataTypeKind::Double => PhysicalDataTypeKind::Float64,
-            DataTypeKind::Int(_) => PhysicalDataTypeKind::Int32,
-            DataTypeKind::BigInt(_) => PhysicalDataTypeKind::Int64,
-            DataTypeKind::Boolean => PhysicalDataTypeKind::Bool,
-            DataTypeKind::Decimal(_, _) => PhysicalDataTypeKind::Decimal,
-            DataTypeKind::Date => PhysicalDataTypeKind::Date,
-            DataTypeKind::Interval => PhysicalDataTypeKind::Interval,
+            Char(_) | Varchar(_) | String => Self::String,
+            Bytea | Binary(_) | Varbinary(_) | Blob(_) => Self::Blob,
+            Float(_) | Double => Self::Float64,
+            Int(_) => Self::Int32,
+            BigInt(_) => Self::Int64,
+            Boolean => Self::Bool,
+            Decimal(_, _) => Self::Decimal,
+            Date => Self::Date,
+            Interval => Self::Interval,
             _ => todo!("physical type for {:?} is not supported", kind),
         }
     }
@@ -125,6 +129,7 @@ pub enum DataValue {
     Int64(i64),
     Float64(f64),
     String(String),
+    Blob(Blob),
     Decimal(Decimal),
     Date(Date),
     Interval(Interval),
@@ -159,6 +164,7 @@ impl Hash for DataValue {
             Self::Int64(i) => i.hash(state),
             Self::Float64(_) => panic!("do not support hashing f64"),
             Self::String(s) => s.hash(state),
+            Self::Blob(v) => v.hash(state),
             Self::Decimal(v) => v.hash(state),
             Self::Date(v) => v.hash(state),
             Self::Interval(v) => v.hash(state),
@@ -218,6 +224,7 @@ impl DataValue {
             Self::Int64(v) => v.is_positive(),
             Self::Float64(v) => v.is_sign_positive(),
             Self::String(_) => false,
+            Self::Blob(_) => false,
             Self::Decimal(v) => v.is_sign_positive(),
             Self::Date(_) => false,
             Self::Interval(_) => false,
@@ -233,6 +240,7 @@ impl DataValue {
             Self::Int64(_) => Some(DataTypeKind::BigInt(None).not_null()),
             Self::Float64(_) => Some(DataTypeKind::Double.not_null()),
             Self::String(_) => Some(DataTypeKind::Varchar(Some(VARCHAR_DEFAULT_LEN)).not_null()),
+            Self::Blob(_) => Some(DataTypeKind::Blob(0).not_null()),
             Self::Decimal(_) => Some(DataTypeKind::Decimal(None, None).not_null()),
             Self::Date(_) => Some(DataTypeKind::Date.not_null()),
             Self::Interval(_) => Some(DataTypeKind::Interval.not_null()),
@@ -271,6 +279,9 @@ impl DataValue {
             DataValue::String(s) => s
                 .parse::<usize>()
                 .map_err(|e| ConvertError::ParseInt(s.clone(), e))?,
+            DataValue::Blob(v) => {
+                return Err(ConvertError::Cast(v.to_string(), "usize"));
+            }
         }))
     }
 }
@@ -290,6 +301,8 @@ pub enum ConvertError {
     ParseDate(String, chrono::ParseError),
     #[error("failed to convert string {0:?} to interval")]
     ParseInterval(String),
+    #[error("failed to convert string {0:?} to blob: {:?}")]
+    ParseBlob(String, ParseBlobError),
     #[error("failed to convert {0:?} to decimal")]
     ToDecimalError(DataValue),
     #[error("failed to convert {0:?} from decimal {1:?}")]

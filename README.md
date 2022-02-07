@@ -40,9 +40,9 @@ RisingLight developers are active in a variety of places:
 
 ### Slack Channel
 
-The RisingLight project is currently part of the RisingWave community. You may join RisingWave community with the [invitation link](https://join.slack.com/t/risingwave-community/shared_invite/zt-120rft0mr-d8uGk3d~NZiZAQWPnElOfw).
+The RisingLight project is currently part of the RisingWave community. You may join RisingWave community with the [invitation link](https://join.slack.com/t/risingwave-community/shared_invite/zt-120rft0mr-d8uGk3d~NZiZAQWPnElOfw). If the Slack link expires (which normally should not happen), please create an issue :)
 
-After that, you may join either `risinglight-chinese` or `risinglight-english` channel.
+After that, you may join `risinglight-chinese` and `risinglight-english` channel.
 
 * [risinglight-chinese](https://risingwave-community.slack.com/archives/C02UZDEE4AC)
 * [risinglight-english](https://risingwave-community.slack.com/archives/C030SJRDT4J)
@@ -60,5 +60,9 @@ If you have any question or want to discuss, join our WeChat group, Slack channe
 
 If you want to contribute code, see [CONTRIBUTING](CONTRIBUTING.md) for more information. Generally, you will need to
 pass necessary checks for your changes and sign DCO before submitting PRs. We have plenty of [good first issues](https://github.com/risinglightdb/risinglight/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22). Feel free to ask questions either on GitHub or in our chat groups if you meet any difficulty.
+
+## Acknowledgement
+
+The RisingLight project was initiated by a group of college students who have special interests in developing database systems using modern programming technologies. The project is generously sponsored by [Singularity Data](https://www.singularity-data.com/), a startup innovating the next-generation database systems. Singularity Data is hiring top talents globally to build a cloud-native streaming database from scratch. If interested, please send your CV to `hr at singularity-data.com`.
 
 Welcome to the RisingLight community!

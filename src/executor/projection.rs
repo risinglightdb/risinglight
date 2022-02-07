@@ -16,12 +16,12 @@ impl ProjectionExecutor {
         #[for_await]
         for batch in self.child {
             let batch = batch?;
-            let chunk = self
+            let chunk: Vec<_> = self
                 .project_expressions
                 .iter()
-                .map(|expr| expr.eval_array(&batch))
-                .collect::<Result<DataChunk, _>>()?;
-            yield chunk;
+                .map(|expr| expr.eval(&batch))
+                .try_collect()?;
+            yield chunk.into_iter().collect();
         }
     }
 }

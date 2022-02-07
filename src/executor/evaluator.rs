@@ -7,54 +7,28 @@ use std::borrow::Borrow;
 use crate::array::*;
 use crate::binder::BoundExpr;
 use crate::parser::{BinaryOperator, UnaryOperator};
-use crate::types::{ConvertError, DataTypeKind, DataValue, Date};
+use crate::types::{Blob, ConvertError, DataTypeExt, DataTypeKind, DataValue, Date};
 
 impl BoundExpr {
-    /// Evaluate the given expression as a constant value.
-    ///
-    /// This method is used in the evaluation of `insert values` and optimizer
-    pub fn eval(&self) -> DataValue {
-        use DataValue::*;
-        match &self {
-            BoundExpr::Constant(v) => v.clone(),
-            BoundExpr::UnaryOp(v) => match (&v.op, v.expr.eval()) {
-                (UnaryOperator::Minus, Int32(i)) => Int32(-i),
-                (UnaryOperator::Minus, Float64(f)) => Float64(-f),
-                (UnaryOperator::Minus, Decimal(d)) => Decimal(-d),
-                _ => todo!("evaluate expression: {:?}", self),
-            },
-            BoundExpr::BinaryOp(v) => match (&v.op, v.left_expr.eval(), v.right_expr.eval()) {
-                (BinaryOperator::Plus, Int32(l), Int32(r)) => Int32(l + r),
-                (BinaryOperator::Plus, Float64(l), Float64(r)) => Float64(l + r),
-                (BinaryOperator::Minus, Int32(l), Int32(r)) => Int32(l - r),
-                (BinaryOperator::Minus, Float64(l), Float64(r)) => Float64(l - r),
-                (BinaryOperator::Multiply, Int32(l), Int32(r)) => Int32(l * r),
-                (BinaryOperator::Multiply, Float64(l), Float64(r)) => Float64(l * r),
-                (BinaryOperator::Divide, Int32(l), Int32(r)) => Int32(l / r),
-                (BinaryOperator::Divide, Float64(l), Float64(r)) => Float64(l / r),
-                _ => todo!("evaluate expression: {:?}", self),
-            },
-            _ => todo!("evaluate expression: {:?}", self),
-        }
-    }
-
     /// Evaluate the given expression as an array.
-    pub fn eval_array(&self, chunk: &DataChunk) -> Result<ArrayImpl, ConvertError> {
+    pub fn eval(&self, chunk: &DataChunk) -> Result<ArrayImpl, ConvertError> {
         match &self {
             BoundExpr::InputRef(input_ref) => Ok(chunk.array_at(input_ref.index).clone()),
             BoundExpr::BinaryOp(binary_op) => {
-                let left = binary_op.left_expr.eval_array(chunk)?;
-                let right = binary_op.right_expr.eval_array(chunk)?;
+                let left = binary_op.left_expr.eval(chunk)?;
+                let right = binary_op.right_expr.eval(chunk)?;
                 Ok(left.binary_op(&binary_op.op, &right))
             }
             BoundExpr::UnaryOp(op) => {
-                let array = op.expr.eval_array(chunk)?;
+                let array = op.expr.eval(chunk)?;
                 Ok(array.unary_op(&op.op))
             }
             BoundExpr::Constant(v) => {
                 let mut builder = ArrayBuilderImpl::with_capacity(
                     chunk.cardinality(),
-                    &self.return_type().unwrap(),
+                    &self
+                        .return_type()
+                        .unwrap_or_else(|| DataTypeKind::Int(None).nullable()),
                 );
                 // TODO: optimize this
                 for _ in 0..chunk.cardinality() {
@@ -63,21 +37,21 @@ impl BoundExpr {
                 Ok(builder.finish())
             }
             BoundExpr::TypeCast(cast) => {
-                let array = cast.expr.eval_array(chunk)?;
+                let array = cast.expr.eval(chunk)?;
                 if self.return_type() == cast.expr.return_type() {
                     return Ok(array);
                 }
                 array.try_cast(cast.ty.clone())
             }
             BoundExpr::IsNull(expr) => {
-                let array = expr.expr.eval_array(chunk)?;
+                let array = expr.expr.eval(chunk)?;
                 Ok(ArrayImpl::Bool(
                     (0..array.len())
                         .map(|i| array.get(i) == DataValue::Null)
                         .collect(),
                 ))
             }
-            BoundExpr::ExprWithAlias(expr_with_alias) => expr_with_alias.expr.eval_array(chunk),
+            BoundExpr::ExprWithAlias(expr_with_alias) => expr_with_alias.expr.eval(chunk),
             _ => panic!("{:?} should not be evaluated in `eval_array`", self),
         }
     }
@@ -307,8 +281,12 @@ impl ArrayImpl {
                 Type::Date => Self::Date(try_unary_op(a, |s| {
                     Date::from_str(s).map_err(|e| ConvertError::ParseDate(s.to_string(), e))
                 })?),
+                Type::Bytea | Type::Blob(_) => Self::Blob(try_unary_op(a, |s| {
+                    Blob::from_str(s).map_err(|e| ConvertError::ParseBlob(s.to_string(), e))
+                })?),
                 _ => todo!("cast array"),
             },
+            Self::Blob(_) => todo!("cast array"),
             Self::Decimal(a) => match data_type {
                 Type::Boolean => Self::Bool(unary_op(a, |&d| d != Decimal::from(0_i32))),
                 Type::Int(_) => Self::Int32(try_unary_op(a, |&d| {

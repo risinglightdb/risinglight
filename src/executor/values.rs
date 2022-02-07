@@ -24,10 +24,11 @@ impl ValuesExecutor {
                 .map(|ty| ArrayBuilderImpl::with_capacity(chunk.len(), ty))
                 .collect_vec();
             // Push value into the builder.
+            let dummy = DataChunk::single(0);
             for row in chunk {
                 for (expr, builder) in row.iter().zip_eq(&mut builders) {
-                    let value = expr.eval();
-                    builder.push(&value);
+                    let value = expr.eval(&dummy)?;
+                    builder.push(&value.get(0));
                 }
             }
             // Finish build and yield chunk.

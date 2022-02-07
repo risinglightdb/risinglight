@@ -18,8 +18,7 @@ pub struct DataChunk {
 impl FromIterator<ArrayImpl> for DataChunk {
     fn from_iter<I: IntoIterator<Item = ArrayImpl>>(iter: I) -> Self {
         let arrays: Arc<[ArrayImpl]> = iter.into_iter().collect();
-        assert!(!arrays.is_empty());
-        let cardinality = arrays[0].len();
+        let cardinality = arrays.first().map(ArrayImpl::len).unwrap_or(0);
         assert!(
             arrays.iter().map(|a| a.len()).all(|l| l == cardinality),
             "all arrays must have the same length"
@@ -46,7 +45,7 @@ impl DataChunk {
 
     /// Return the number of rows in the chunk.
     pub fn cardinality(&self) -> usize {
-        self.arrays[0].len()
+        self.arrays.first().map(ArrayImpl::len).unwrap_or(0)
     }
 
     /// Get reference to a row.
@@ -136,6 +135,8 @@ pub fn datachunk_to_sqllogictest_string(chunk: &DataChunk) -> String {
                 DataValue::Float64(v) => write!(output, "{}", v),
                 DataValue::String(s) if s.is_empty() => write!(output, "(empty)"),
                 DataValue::String(s) => write!(output, "{}", s),
+                DataValue::Blob(s) if s.is_empty() => write!(output, "(empty)"),
+                DataValue::Blob(s) => write!(output, "{}", s),
                 DataValue::Decimal(v) => write!(output, "{}", v),
                 DataValue::Date(v) => write!(output, "{}", v),
                 DataValue::Interval(v) => write!(output, "{}", v),
