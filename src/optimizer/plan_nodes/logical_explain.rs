@@ -33,7 +33,16 @@ impl PlanTreeNodeUnary for LogicalExplain {
 }
 impl_plan_tree_node_for_unary!(LogicalExplain);
 
-impl PlanNode for LogicalExplain {}
+impl PlanNode for LogicalExplain {
+    fn prune_col(&self, _required_cols: BitSet) -> PlanRef {
+        let out_types_num = self.plan.out_types().len();
+        self.clone_with_child(
+            self.plan
+                .prune_col(BitSet::from_iter((0..out_types_num).into_iter())),
+        )
+        .into_plan_ref()
+    }
+}
 
 impl fmt::Display for LogicalExplain {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
