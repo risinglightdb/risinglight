@@ -12,6 +12,7 @@ use risinglight::storage::SecondaryStorageOptions;
 use risinglight::Database;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
+use tokio::{select, signal};
 use tracing::{info, warn, Level};
 use tracing_subscriber::prelude::*;
 
@@ -51,14 +52,20 @@ async fn interactive(db: Database) -> Result<()> {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
-                let ret = db.run(&line).await;
-                match ret {
-                    Ok(chunks) => {
-                        for chunk in chunks {
-                            println!("{}", chunk);
+                select! {
+                    ret = db.run(&line) => {
+                        match ret {
+                            Ok(chunks) => {
+                                for chunk in chunks {
+                                    println!("{}", chunk);
+                                }
+                            }
+                            Err(err) => println!("{}", err),
                         }
+                    },
+                    _ = signal::ctrl_c() => {
+                        println!("Interrupted");
                     }
-                    Err(err) => println!("{}", err),
                 }
             }
             Err(ReadlineError::Interrupted) => {
