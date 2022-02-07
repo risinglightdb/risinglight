@@ -51,7 +51,7 @@ tikv-jemallocator = { version = "0.4", optional = true }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "parking_lot"] }
-
+manifest-dir-macros = "0.1.11"
 [dev-dependencies]
 criterion = { version = "0.3", features = ["async_tokio"] }
 env_logger = "0.9"
