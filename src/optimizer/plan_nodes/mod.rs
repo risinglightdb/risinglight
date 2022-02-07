@@ -112,6 +112,15 @@ pub trait PlanNode:
     /// logical plan node will use it, though all plan node impl it.
     fn prune_col(&self, required_cols: BitSet) -> PlanRef {
         let input_types = self.out_types();
+        let mut need_prune = false;
+        for i in 0..input_types.len() {
+            if !required_cols.contains(i) {
+                need_prune = true;
+            }
+        }
+        if !need_prune {
+            return self.clone_as_plan_ref();
+        }
         let exprs = required_cols
             .iter()
             .map(|index| {

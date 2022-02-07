@@ -45,7 +45,7 @@ impl Optimizer {
         let hep_optimizer = HeuristicOptimizer { rules };
         plan = hep_optimizer.optimize(plan);
         let out_types_num = plan.out_types().len();
-        plan = plan.prune_col(BitSet::from_iter((0..out_types_num).into_iter()));
+        plan = plan.prune_col(BitSet::from_iter(0..out_types_num));
         let mut phy_converter = PhysicalConverter;
         phy_converter.rewrite(plan)
     }
