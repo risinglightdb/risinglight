@@ -98,12 +98,7 @@ impl RowSetIterator {
         &mut self,
         expected_size: Option<usize>,
     ) -> StorageResult<(bool, Option<StorageChunk>)> {
-        let has_filter = self.filter_expr.is_some();
-        let filter_context = if self.filter_expr.is_some() {
-            Some(self.filter_expr.as_ref().unwrap())
-        } else {
-            None
-        };
+        let filter_context = self.filter_expr.as_ref();
         let fetch_size = if let Some(x) = expected_size {
             x
         } else {
@@ -130,10 +125,11 @@ impl RowSetIterator {
         // TODO: parallel fetch
         // TODO: align unmatched rows
 
+        let mut visibility_map = None;
+
         for (id, column_ref) in self.column_refs.iter().enumerate() {
-            if has_filter {
+            if let Some((_, filter_column)) = filter_context {
                 // Filter needed, so only filtered columns should be filled currently
-                let (_, filter_column) = filter_context.unwrap();
                 if !filter_column[id] {
                     arrays.push(None);
                     continue;
@@ -146,13 +142,24 @@ impl RowSetIterator {
                     if let Some((row_id, array)) = self.column_iterators[id]
                         .as_mut()
                         .unwrap()
-                        .next_batch(Some(fetch_size), None)
+                        .next_batch(Some(fetch_size), visibility_map.as_ref())
                         .await?
                     {
                         if let Some(x) = common_chunk_range {
                             if x != (row_id, array.len()) {
                                 panic!("unmatched rowid from column iterator");
                             }
+                        } else if !self.dvs.is_empty() {
+                            // Apply delete vector here to reduce the data
+                            // fetched next during scan
+                            let mut visi = BitVec::with_capacity(array.len());
+                            for _ in 0..array.len() {
+                                visi.push(true);
+                            }
+                            for dv in &self.dvs {
+                                dv.apply_to(&mut visi, row_id);
+                            }
+                            visibility_map = Some(visi);
                         }
                         common_chunk_range = Some((row_id, array.len()));
                         arrays.push(Some(array));
@@ -170,11 +177,10 @@ impl RowSetIterator {
             return Ok((true, None));
         };
 
-        let visibility = if has_filter {
+        let visible = if let Some((expr, _)) = filter_context {
             // Filter occurred, we should get the visibility map first by evaluating
             // expresstions on the filtered columns, and then retain the existing rows
             // for the other columns
-            let (expr, _) = filter_context.unwrap();
 
             // Need to optimize
             let bool_array = match expr
@@ -187,17 +193,16 @@ impl RowSetIterator {
 
             let mut filter_bitmap = BitVec::with_capacity(bool_array.len());
             for i in bool_array.iter() {
+                if let Some(visi) = visibility_map.as_ref() {
+                    if !visi[filter_bitmap.len()] {
+                        filter_bitmap.push(false);
+                        continue;
+                    }
+                }
                 if let Some(i) = i {
                     filter_bitmap.push(*i);
                 } else {
                     filter_bitmap.push(false);
-                }
-            }
-
-            // Apply delete vector to filter_bitmap
-            if !self.dvs.is_empty() {
-                for dv in &self.dvs {
-                    dv.apply_to(&mut filter_bitmap, common_chunk_range.0);
                 }
             }
 
@@ -220,22 +225,15 @@ impl RowSetIterator {
             }
 
             Some(filter_bitmap)
-        } else if self.dvs.is_empty() {
-            None
         } else {
-            let mut vis = BitVec::new();
-            vis.resize(common_chunk_range.1, true);
-            for dv in &self.dvs {
-                dv.apply_to(&mut vis, common_chunk_range.0);
-            }
-            Some(vis)
+            visibility_map
         };
 
-        if has_filter {
+        if filter_context.is_some() {
             // Use filter_bitmap to filter columns
             // TODO: Implement the skip interface for column_iterator and call it here.
             // For those already fetched columns, they also need to delete corrensponding blocks.
-            let filter_bitmap = visibility.as_ref().unwrap();
+            let filter_bitmap = visible.as_ref().unwrap();
             for (id, column_ref) in self.column_refs.iter().enumerate() {
                 match column_ref {
                     StorageColumnRef::RowHandler => continue,
@@ -275,7 +273,7 @@ impl RowSetIterator {
         Ok((
             false,
             StorageChunk::construct(
-                visibility,
+                visible,
                 arrays
                     .into_iter()
                     .map(Option::unwrap)
