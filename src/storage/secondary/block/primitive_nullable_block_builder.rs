@@ -15,7 +15,7 @@ use super::BlockBuilder;
 /// The layout is fixed-width data and a u8 bitmap, concatenated together.
 pub struct PlainPrimitiveNullableBlockBuilder<T: PrimitiveFixedWidthEncode> {
     data: Vec<u8>,
-    bitmap: BitVec<Lsb0, u8>,
+    bitmap: BitVec<u8, Lsb0>,
     target_size: usize,
     _phantom: PhantomData<T>,
 }
@@ -23,7 +23,7 @@ pub struct PlainPrimitiveNullableBlockBuilder<T: PrimitiveFixedWidthEncode> {
 impl<T: PrimitiveFixedWidthEncode> PlainPrimitiveNullableBlockBuilder<T> {
     pub fn new(target_size: usize) -> Self {
         let data = Vec::with_capacity(target_size);
-        let bitmap = BitVec::<Lsb0, u8>::with_capacity(target_size);
+        let bitmap = BitVec::<u8, Lsb0>::with_capacity(target_size);
         Self {
             data,
             target_size,
