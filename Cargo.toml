@@ -16,7 +16,7 @@ async-recursion = "1"
 async-stream = "0.3"
 async-trait = "0.1"
 bit-set = "0.5"
-bitvec = { version = "0.22", features = ["serde"] }
+bitvec = { version = "1", features = ["serde"] }
 btreemultimap = "0.1"
 bytes = "1"
 chrono = "0.4"
