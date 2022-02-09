@@ -78,3 +78,41 @@ impl fmt::Display for LogicalProjection {
         writeln!(f, "LogicalProjection: exprs {:?}", self.project_expressions)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::binder::{BoundColumnRef, BoundExprWithAlias, BoundTypeCast};
+    use crate::catalog::ColumnRefId;
+    use crate::types::{DataTypeExt, DataTypeKind, DataValue};
+
+    #[test]
+    fn test_projection_out_names() {
+        let plan = LogicalProjection::new(
+            vec![
+                BoundExpr::ColumnRef(BoundColumnRef {
+                    table_name: "t".to_string(),
+                    column_ref_id: ColumnRefId::new(0, 0, 0, 0),
+                    is_primary_key: false,
+                    desc: DataTypeKind::Int(None).not_null().to_column("v1".into()),
+                }),
+                BoundExpr::TypeCast(BoundTypeCast {
+                    expr: Box::new(BoundExpr::Constant(DataValue::Int32(0))),
+                    ty: DataTypeKind::Int(None),
+                }),
+                BoundExpr::ExprWithAlias(BoundExprWithAlias {
+                    expr: Box::new(BoundExpr::Constant(DataValue::Int32(0))),
+                    alias: "alias".to_string(),
+                }),
+                BoundExpr::Constant(DataValue::Int32(0)),
+            ],
+            Arc::new(Dummy {}),
+        );
+
+        let column_names = plan.out_names();
+        assert_eq!(column_names[0], "v1");
+        assert_eq!(column_names[1], DataTypeKind::Int(None).to_string());
+        assert_eq!(column_names[2], "alias");
+        assert_eq!(column_names[3], "?column?");
+    }
+}

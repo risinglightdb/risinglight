@@ -89,3 +89,46 @@ impl fmt::Display for LogicalAggregate {
         writeln!(f, "LogicalAggregate: {} agg calls", self.agg_calls.len(),)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::binder::AggKind;
+    use crate::types::{DataTypeExt, DataTypeKind};
+
+    #[test]
+    fn test_aggregate_out_names() {
+        let plan = LogicalAggregate::new(
+            vec![
+                BoundAggCall {
+                    kind: AggKind::Sum,
+                    args: vec![],
+                    return_type: DataTypeKind::Double.not_null(),
+                },
+                BoundAggCall {
+                    kind: AggKind::Avg,
+                    args: vec![],
+                    return_type: DataTypeKind::Double.not_null(),
+                },
+                BoundAggCall {
+                    kind: AggKind::Count,
+                    args: vec![],
+                    return_type: DataTypeKind::Double.not_null(),
+                },
+                BoundAggCall {
+                    kind: AggKind::RowCount,
+                    args: vec![],
+                    return_type: DataTypeKind::Double.not_null(),
+                },
+            ],
+            vec![],
+            Arc::new(Dummy {}),
+        );
+
+        let column_names = plan.out_names();
+        assert_eq!(column_names[0], "sum");
+        assert_eq!(column_names[1], "avg");
+        assert_eq!(column_names[2], "count");
+        assert_eq!(column_names[3], "count");
+    }
+}

@@ -185,16 +185,20 @@ impl Database {
             // Resolve input reference
             let mut input_ref_resolver = InputRefResolver::default();
             let logical_plan = input_ref_resolver.rewrite(logical_plan);
+            let column_names = logical_plan.out_names();
             debug!("{:#?}", logical_plan);
             let optimized_plan = optimizer.optimize(logical_plan);
             debug!("{:#?}", optimized_plan);
             let executor = self.executor_builder.clone().build(optimized_plan);
-            let output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
+            let mut output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
                 debug!("error: {}", e);
                 e
             })?;
             for chunk in &output {
                 debug!("output:\n{}", chunk);
+            }
+            if !column_names.is_empty() && !output.is_empty() {
+                output[0].set_header(column_names);
             }
             outputs.extend(output);
         }
