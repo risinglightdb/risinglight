@@ -33,6 +33,7 @@
                             "physical_kind": "Int32",
                             "nullable": true
                         },
+                        "name": "a",
                         "is_primary": false
                     }
                 ],

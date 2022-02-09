@@ -72,9 +72,9 @@ impl From<&ColumnDef> for ColumnCatalog {
         }
         ColumnCatalog::new(
             0,
-            cdef.name.value.to_lowercase(),
             ColumnDesc::new(
                 DataType::new(cdef.data_type.clone(), is_nullable),
+                cdef.name.value.to_lowercase(),
                 is_primary_,
             ),
         )
@@ -109,13 +109,11 @@ mod tests {
                 columns: vec![
                     ColumnCatalog::new(
                         0,
-                        "v1".into(),
-                        DataTypeKind::Int(None).not_null().to_column()
+                        DataTypeKind::Int(None).not_null().to_column("v1".into())
                     ),
                     ColumnCatalog::new(
                         1,
-                        "v2".into(),
-                        DataTypeKind::Int(None).nullable().to_column()
+                        DataTypeKind::Int(None).nullable().to_column("v2".into())
                     ),
                 ],
             }

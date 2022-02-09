@@ -34,8 +34,8 @@ impl PlanTreeNodeUnary for PhysicalOrder {
 }
 impl_plan_tree_node_for_unary!(PhysicalOrder);
 impl PlanNode for PhysicalOrder {
-    fn out_types(&self) -> Vec<DataType> {
-        self.logical().out_types()
+    fn schema(&self) -> Vec<ColumnDesc> {
+        self.logical().schema()
     }
 }
 impl fmt::Display for PhysicalOrder {

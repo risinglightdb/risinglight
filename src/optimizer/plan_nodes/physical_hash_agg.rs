@@ -33,8 +33,8 @@ impl PlanTreeNodeUnary for PhysicalHashAgg {
 }
 impl_plan_tree_node_for_unary!(PhysicalHashAgg);
 impl PlanNode for PhysicalHashAgg {
-    fn out_types(&self) -> Vec<DataType> {
-        self.logical.out_types()
+    fn schema(&self) -> Vec<ColumnDesc> {
+        self.logical.schema()
     }
 }
 impl fmt::Display for PhysicalHashAgg {

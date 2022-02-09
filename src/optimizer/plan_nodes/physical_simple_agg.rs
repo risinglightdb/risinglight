@@ -12,20 +12,11 @@ use crate::binder::BoundAggCall;
 pub struct PhysicalSimpleAgg {
     agg_calls: Vec<BoundAggCall>,
     child: PlanRef,
-    data_types: Vec<DataType>,
 }
 
 impl PhysicalSimpleAgg {
     pub fn new(agg_calls: Vec<BoundAggCall>, child: PlanRef) -> Self {
-        let data_types = agg_calls
-            .iter()
-            .map(|agg_call| agg_call.return_type.clone())
-            .collect();
-        PhysicalSimpleAgg {
-            agg_calls,
-            child,
-            data_types,
-        }
+        PhysicalSimpleAgg { agg_calls, child }
     }
 
     /// Get a reference to the logical aggregate's agg calls.
@@ -44,8 +35,16 @@ impl PlanTreeNodeUnary for PhysicalSimpleAgg {
 }
 impl_plan_tree_node_for_unary!(PhysicalSimpleAgg);
 impl PlanNode for PhysicalSimpleAgg {
-    fn out_types(&self) -> Vec<DataType> {
-        self.data_types.clone()
+    fn schema(&self) -> Vec<ColumnDesc> {
+        self.agg_calls
+            .iter()
+            .map(|agg_call| {
+                agg_call
+                    .return_type
+                    .clone()
+                    .to_column(format!("{}", agg_call.kind))
+            })
+            .collect()
     }
 }
 

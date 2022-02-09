@@ -50,10 +50,25 @@ impl PlanTreeNodeUnary for LogicalProjection {
 }
 impl_plan_tree_node_for_unary!(LogicalProjection);
 impl PlanNode for LogicalProjection {
-    fn out_types(&self) -> Vec<DataType> {
+    fn schema(&self) -> Vec<ColumnDesc> {
+        let child_schema = self.child.schema();
         self.project_expressions
             .iter()
-            .map(|expr| expr.return_type().unwrap())
+            .map(|expr| {
+                let name = match expr {
+                    BoundExpr::ColumnRef(column_ref) => column_ref.desc.name().to_string(),
+                    BoundExpr::TypeCast(type_cast) => match &*type_cast.expr {
+                        BoundExpr::ColumnRef(column_ref) => column_ref.desc.name().to_string(),
+                        _ => type_cast.ty.to_string(),
+                    },
+                    BoundExpr::ExprWithAlias(expr_with_alias) => expr_with_alias.alias.clone(),
+                    BoundExpr::InputRef(input_ref) => {
+                        child_schema[input_ref.index].name().to_string()
+                    }
+                    _ => "?column?".to_string(),
+                };
+                expr.return_type().unwrap().to_column(name)
+            })
             .collect()
     }
 }

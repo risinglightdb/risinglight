@@ -38,8 +38,8 @@ impl PlanTreeNodeBinary for PhysicalNestedLoopJoin {
 }
 impl_plan_tree_node_for_binary!(PhysicalNestedLoopJoin);
 impl PlanNode for PhysicalNestedLoopJoin {
-    fn out_types(&self) -> Vec<DataType> {
-        self.logical.out_types()
+    fn schema(&self) -> Vec<ColumnDesc> {
+        self.logical.schema()
     }
 }
 /// Currently, we only use default join ordering.

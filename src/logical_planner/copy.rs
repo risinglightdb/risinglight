@@ -36,7 +36,12 @@ impl LogicalPlaner {
             Ok(Arc::new(LogicalInsert::new(
                 stmt.table_ref_id,
                 column_ids,
-                Arc::new(LogicalCopyFromFile::new(path, stmt.format, column_types)),
+                Arc::new(LogicalCopyFromFile::new(
+                    path,
+                    stmt.format,
+                    column_types,
+                    column_descs,
+                )),
             )))
         }
     }
