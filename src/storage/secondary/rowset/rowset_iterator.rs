@@ -136,22 +136,10 @@ impl RowSetIterator {
         // that we can avoid unnecessary scan on filter column at next
         if !self.dvs.is_empty() {
             // Get the start row id first
-            let start_row_id = {
-                let mut row_id = 0;
-                for (id, column_ref) in self.column_refs.iter().enumerate() {
-                    match column_ref {
-                        StorageColumnRef::Idx(_) => {
-                            row_id = self.column_iterators[id]
-                                .as_ref()
-                                .unwrap()
-                                .fetch_current_row_id();
-                            break;
-                        }
-                        _ => continue,
-                    }
-                }
-                row_id
-            };
+            let start_row_id = self.column_iterators[0]
+                .as_ref()
+                .unwrap()
+                .fetch_current_row_id();
 
             // Initialize visibility map and apply delete vector to it
             let mut visi = BitVec::new();
@@ -209,15 +197,15 @@ impl RowSetIterator {
             };
 
             let mut filter_bitmap = BitVec::with_capacity(bool_array.len());
-            for i in bool_array.iter() {
+            for (idx, e) in bool_array.iter().enumerate() {
                 if let Some(visi) = visibility_map.as_ref() {
-                    if !visi[filter_bitmap.len()] {
+                    if !visi[idx] {
                         filter_bitmap.push(false);
                         continue;
                     }
                 }
-                if let Some(i) = i {
-                    filter_bitmap.push(*i);
+                if let Some(e) = e {
+                    filter_bitmap.push(*e);
                 } else {
                     filter_bitmap.push(false);
                 }
