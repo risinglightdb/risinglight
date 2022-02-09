@@ -57,7 +57,7 @@ impl PlanNode for LogicalProjection {
             .map(|expr| {
                 let name = match expr {
                     BoundExpr::ColumnRef(column_ref) => column_ref.desc.name().to_string(),
-                    BoundExpr::TypeCast(type_cast) => match expr {
+                    BoundExpr::TypeCast(type_cast) => match &*type_cast.expr {
                         BoundExpr::ColumnRef(column_ref) => column_ref.desc.name().to_string(),
                         _ => type_cast.ty.to_string(),
                     },

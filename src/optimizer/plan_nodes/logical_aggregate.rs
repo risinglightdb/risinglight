@@ -76,16 +76,10 @@ impl PlanNode for LogicalAggregate {
                 _ => panic!("group key should be an input ref"),
             })
             .chain(self.agg_calls.iter().map(|agg_call| {
-                use crate::binder::AggKind::*;
-                let name = match agg_call.kind {
-                    Avg => "avg",
-                    RowCount | Count => "count",
-                    Max => "max",
-                    Min => "min",
-                    Sum => "sum",
-                }
-                .to_string();
-                agg_call.return_type.clone().to_column(name)
+                agg_call
+                    .return_type
+                    .clone()
+                    .to_column(format!("{}", agg_call.kind))
             }))
             .collect()
     }
