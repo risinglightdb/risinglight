@@ -27,8 +27,13 @@ impl HashJoinExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         // collect all chunks from children
-        let left_chunks: Vec<DataChunk> = self.left_child.try_collect().await?;
-        let right_chunks: Vec<DataChunk> = self.right_child.try_collect().await?;
+        let (left_chunks, right_chunks) = async {
+            tokio::try_join!(
+                self.left_child.try_collect::<Vec<DataChunk>>(),
+                self.right_child.try_collect::<Vec<DataChunk>>(),
+            )
+        }
+        .await?;
 
         // helper functions
         let left_rows = || left_chunks.iter().flat_map(|chunk| chunk.rows());
