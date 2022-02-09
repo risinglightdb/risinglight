@@ -131,6 +131,18 @@ impl ColumnIteratorImpl {
         }
     }
 
+    pub fn fetch_current_row_id(&self) -> u32 {
+        match self {
+            Self::Int32(it) => it.fetch_current_row_id(),
+            Self::Float64(it) => it.fetch_current_row_id(),
+            Self::Bool(it) => it.fetch_current_row_id(),
+            Self::Char(it) => it.fetch_current_row_id(),
+            Self::Decimal(it) => it.fetch_current_row_id(),
+            Self::Date(it) => it.fetch_current_row_id(),
+            Self::Interval(it) => it.fetch_current_row_id(),
+        }
+    }
+
     pub fn skip(&mut self, cnt: usize) {
         match self {
             Self::Int32(it) => it.skip(cnt),

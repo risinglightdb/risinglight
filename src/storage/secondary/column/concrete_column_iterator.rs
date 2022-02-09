@@ -307,6 +307,11 @@ impl<A: Array, F: BlockIteratorFactory<A>> ColumnIterator<A> for ConcreteColumnI
     fn fetch_hint(&self) -> usize {
         self.fetch_hint_inner()
     }
+
+    fn fetch_current_row_id(&self) -> u32 {
+        self.current_row_id
+    }
+
     fn skip(&mut self, cnt: usize) {
         self.skip_inner(cnt);
     }
