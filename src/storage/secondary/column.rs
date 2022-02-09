@@ -75,6 +75,9 @@ pub trait ColumnIterator<A: Array> {
     /// iterating, the returned value should be 0.
     fn fetch_hint(&self) -> usize;
 
+    /// Fetch the current row id in this column iterator
+    fn fetch_current_row_id(&self) -> u32;
+
     /// Skip 'cnt' items for this `column_iterator`.
     fn skip(&mut self, cnt: usize);
 }
