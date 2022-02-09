@@ -61,13 +61,20 @@ impl From<prost::DecodeError> for TracedStorageError {
 }
 
 /// [`StorageResult`] with backtrace.
-#[derive(Error, Debug)]
-#[error("{source}")]
+#[derive(Error)]
+#[error("{source:?}\n{backtrace:#}")]
 pub struct TracedStorageError {
     #[from]
     source: StorageError,
     backtrace: Backtrace,
 }
+
+impl std::fmt::Debug for TracedStorageError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
 impl TracedStorageError {
     pub fn duplicated(ty: &'static str, item: impl ToString) -> Self {
         StorageError::Duplicated(ty, item.to_string()).into()

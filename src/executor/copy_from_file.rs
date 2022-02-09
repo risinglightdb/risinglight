@@ -148,6 +148,11 @@ mod tests {
                     DataTypeKind::Double.not_null(),
                     DataTypeKind::String.not_null(),
                 ],
+                vec![
+                    DataTypeKind::Int(None).not_null().to_column("v1".into()),
+                    DataTypeKind::Double.not_null().to_column("v2".into()),
+                    DataTypeKind::String.not_null().to_column("v3".into()),
+                ],
             )),
         };
         let actual = executor.execute().next().await.unwrap().unwrap();

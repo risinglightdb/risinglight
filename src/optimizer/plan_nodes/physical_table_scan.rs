@@ -27,8 +27,8 @@ impl PhysicalTableScan {
 impl PlanTreeNodeLeaf for PhysicalTableScan {}
 impl_plan_tree_node_for_leaf!(PhysicalTableScan);
 impl PlanNode for PhysicalTableScan {
-    fn out_types(&self) -> Vec<DataType> {
-        self.logical().out_types()
+    fn schema(&self) -> Vec<ColumnDesc> {
+        self.logical().schema()
     }
 }
 

@@ -15,25 +15,14 @@ pub struct LogicalAggregate {
     /// Group keys in hash aggregation (optional)
     group_keys: Vec<BoundExpr>,
     child: PlanRef,
-    data_types: Vec<DataType>,
 }
 
 impl LogicalAggregate {
     pub fn new(agg_calls: Vec<BoundAggCall>, group_keys: Vec<BoundExpr>, child: PlanRef) -> Self {
-        let data_types = group_keys
-            .iter()
-            .map(|expr| expr.return_type().unwrap())
-            .chain(
-                agg_calls
-                    .iter()
-                    .map(|agg_call| agg_call.return_type.clone()),
-            )
-            .collect();
         LogicalAggregate {
             agg_calls,
             group_keys,
             child,
-            data_types,
         }
     }
 
@@ -78,12 +67,68 @@ impl PlanTreeNodeUnary for LogicalAggregate {
 }
 impl_plan_tree_node_for_unary!(LogicalAggregate);
 impl PlanNode for LogicalAggregate {
-    fn out_types(&self) -> Vec<DataType> {
-        self.data_types.clone()
+    fn schema(&self) -> Vec<ColumnDesc> {
+        let child_schema = self.child.schema();
+        self.group_keys
+            .iter()
+            .map(|expr| match expr {
+                BoundExpr::InputRef(input_ref) => child_schema[input_ref.index].clone(),
+                _ => panic!("group key should be an input ref"),
+            })
+            .chain(self.agg_calls.iter().map(|agg_call| {
+                agg_call
+                    .return_type
+                    .clone()
+                    .to_column(format!("{}", agg_call.kind))
+            }))
+            .collect()
     }
 }
 impl fmt::Display for LogicalAggregate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "LogicalAggregate: {} agg calls", self.agg_calls.len(),)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::binder::AggKind;
+    use crate::types::{DataTypeExt, DataTypeKind};
+
+    #[test]
+    fn test_aggregate_out_names() {
+        let plan = LogicalAggregate::new(
+            vec![
+                BoundAggCall {
+                    kind: AggKind::Sum,
+                    args: vec![],
+                    return_type: DataTypeKind::Double.not_null(),
+                },
+                BoundAggCall {
+                    kind: AggKind::Avg,
+                    args: vec![],
+                    return_type: DataTypeKind::Double.not_null(),
+                },
+                BoundAggCall {
+                    kind: AggKind::Count,
+                    args: vec![],
+                    return_type: DataTypeKind::Double.not_null(),
+                },
+                BoundAggCall {
+                    kind: AggKind::RowCount,
+                    args: vec![],
+                    return_type: DataTypeKind::Double.not_null(),
+                },
+            ],
+            vec![],
+            Arc::new(Dummy {}),
+        );
+
+        let column_names = plan.out_names();
+        assert_eq!(column_names[0], "sum");
+        assert_eq!(column_names[1], "avg");
+        assert_eq!(column_names[2], "count");
+        assert_eq!(column_names[3], "count");
     }
 }

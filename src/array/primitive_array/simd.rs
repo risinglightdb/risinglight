@@ -59,7 +59,7 @@ where
         let bytes = (len + 7) >> 3;
         valid[..bytes].copy_from_slice(unsafe {
             std::slice::from_raw_parts(
-                (self.array.valid.as_raw_ptr() as *const u8).add(self.idx >> 3),
+                (self.array.valid.as_bitptr().pointer() as *const u8).add(self.idx >> 3),
                 bytes,
             )
         });
@@ -89,7 +89,7 @@ where
         for e in iter {
             builder
                 .valid
-                .extend_from_bitslice(&BitSlice::<Lsb0, usize>::from_element(&e.valid)[..e.len]);
+                .extend_from_bitslice(&BitSlice::<usize, Lsb0>::from_element(&e.valid)[..e.len]);
             builder.data.extend_from_slice(&e.data[..e.len]);
         }
         builder.finish()

@@ -120,29 +120,38 @@ pub mod tests {
         let columns = vec![
             ColumnCatalog::new(
                 0,
-                "v1".to_string(),
                 if nullable {
-                    DataTypeKind::Int(None).nullable().to_column()
+                    DataTypeKind::Int(None)
+                        .nullable()
+                        .to_column("v1".to_string())
                 } else {
-                    DataTypeKind::Int(None).not_null().to_column()
+                    DataTypeKind::Int(None)
+                        .not_null()
+                        .to_column("v1".to_string())
                 },
             ),
             ColumnCatalog::new(
                 1,
-                "v2".to_string(),
                 if nullable {
-                    DataTypeKind::Int(None).nullable().to_column()
+                    DataTypeKind::Int(None)
+                        .nullable()
+                        .to_column("v2".to_string())
                 } else {
-                    DataTypeKind::Int(None).not_null().to_column()
+                    DataTypeKind::Int(None)
+                        .not_null()
+                        .to_column("v2".to_string())
                 },
             ),
             ColumnCatalog::new(
                 2,
-                "v3".to_string(),
                 if nullable {
-                    DataTypeKind::Int(None).nullable().to_column()
+                    DataTypeKind::Int(None)
+                        .nullable()
+                        .to_column("v3".to_string())
                 } else {
-                    DataTypeKind::Int(None).not_null().to_column()
+                    DataTypeKind::Int(None)
+                        .not_null()
+                        .to_column("v3".to_string())
                 },
             ),
         ];

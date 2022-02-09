@@ -1,5 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::fmt::Formatter;
+
 use serde::Serialize;
 
 use super::*;
@@ -16,6 +18,23 @@ pub enum AggKind {
     Min,
     Sum,
     Count,
+}
+
+impl std::fmt::Display for AggKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use AggKind::*;
+        write!(
+            f,
+            "{}",
+            match self {
+                Avg => "avg",
+                RowCount | Count => "count",
+                Max => "max",
+                Min => "min",
+                Sum => "sum",
+            }
+        )
+    }
 }
 
 /// Represents an aggregation function

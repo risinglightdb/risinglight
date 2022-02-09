@@ -1,6 +1,5 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use bitvec::bitvec;
 use bitvec::prelude::BitVec;
 use serde::Serialize;
 use sqlparser::ast::BinaryOperator;
@@ -89,7 +88,7 @@ impl BoundExpr {
     }
 
     pub fn get_filter_column(&self, len: usize) -> BitVec {
-        let mut filter_column = bitvec![0; len];
+        let mut filter_column = BitVec::repeat(false, len);
         self.get_filter_column_inner(&mut filter_column);
         filter_column
     }

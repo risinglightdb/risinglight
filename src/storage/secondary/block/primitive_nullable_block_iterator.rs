@@ -51,7 +51,7 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType>
         let mut cnt = 0;
         let mut buffer = &self.block[self.next_row * T::WIDTH..];
         let bitmap_buffer = &self.block[self.row_count * T::WIDTH..];
-        let bitmap_slice = BitSlice::<Lsb0, u8>::from_slice(bitmap_buffer).unwrap();
+        let bitmap_slice = BitSlice::<u8, Lsb0>::from_slice(bitmap_buffer);
         loop {
             if let Some(expected_size) = expected_size {
                 assert!(expected_size > 0);

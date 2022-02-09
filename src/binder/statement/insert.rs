@@ -13,6 +13,7 @@ pub struct BoundInsert {
     pub table_ref_id: TableRefId,
     pub column_ids: Vec<ColumnId>,
     pub column_types: Vec<DataType>,
+    pub column_descs: Vec<ColumnDesc>,
     pub values: Vec<Vec<BoundExpr>>,
 }
 
@@ -29,6 +30,7 @@ impl Binder {
                     self.bind_table_columns(table_name, columns)?;
                 let column_ids = columns.iter().map(|col| col.id()).collect_vec();
                 let column_types = columns.iter().map(|col| col.datatype()).collect_vec();
+                let column_descs = columns.iter().map(|col| col.desc().clone()).collect_vec();
 
                 // Check columns after transforming.
                 let col_set: HashSet<ColumnId> = column_ids.iter().cloned().collect();
@@ -92,6 +94,7 @@ impl Binder {
                     table_ref_id,
                     column_ids,
                     column_types,
+                    column_descs,
                     values: bound_values,
                 })
             }
@@ -160,16 +163,8 @@ mod tests {
             .add_table(
                 "t".into(),
                 vec![
-                    ColumnCatalog::new(
-                        0,
-                        "a".into(),
-                        DataTypeKind::Int(None).not_null().to_column(),
-                    ),
-                    ColumnCatalog::new(
-                        1,
-                        "b".into(),
-                        DataTypeKind::Int(None).not_null().to_column(),
-                    ),
+                    ColumnCatalog::new(0, DataTypeKind::Int(None).not_null().to_column("a".into())),
+                    ColumnCatalog::new(1, DataTypeKind::Int(None).not_null().to_column("b".into())),
                 ],
                 false,
             )
