@@ -341,7 +341,7 @@ mod tests {
         .unwrap();
         let mut recv_data = vec![];
         let bitmap_len = if cnt % len == 0 { len } else { cnt % len };
-        let filter_bitmap = bitvec![1; bitmap_len];
+        let filter_bitmap = BitVec::repeat(true, bitmap_len);
 
         scanner.skip(cnt);
         if let Some((start_row_id, data)) = scanner

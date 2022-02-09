@@ -46,16 +46,8 @@ mod tests {
             0,
             "t".into(),
             vec![
-                ColumnCatalog::new(
-                    0,
-                    "v1".into(),
-                    DataTypeKind::Int(None).not_null().to_column(),
-                ),
-                ColumnCatalog::new(
-                    1,
-                    "v2".into(),
-                    DataTypeKind::Int(None).not_null().to_column(),
-                ),
+                ColumnCatalog::new(0, DataTypeKind::Int(None).not_null().to_column("v1".into())),
+                ColumnCatalog::new(1, DataTypeKind::Int(None).not_null().to_column("v2".into())),
             ],
         ));
         let mut executor = CreateTableExecutor { plan, storage }.execute().boxed();
@@ -74,19 +66,11 @@ mod tests {
         let table_ref = catalog.get_table(&id).unwrap();
         assert_eq!(
             table_ref.get_column_by_id(0).unwrap(),
-            ColumnCatalog::new(
-                0,
-                "v1".into(),
-                DataTypeKind::Int(None).not_null().to_column()
-            )
+            ColumnCatalog::new(0, DataTypeKind::Int(None).not_null().to_column("v1".into()))
         );
         assert_eq!(
             table_ref.get_column_by_id(1).unwrap(),
-            ColumnCatalog::new(
-                1,
-                "v2".into(),
-                DataTypeKind::Int(None).not_null().to_column()
-            )
+            ColumnCatalog::new(1, DataTypeKind::Int(None).not_null().to_column("v2".into()))
         );
     }
 }

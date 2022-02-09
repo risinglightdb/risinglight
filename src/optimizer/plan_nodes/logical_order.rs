@@ -47,8 +47,8 @@ impl PlanTreeNodeUnary for LogicalOrder {
 }
 impl_plan_tree_node_for_unary!(LogicalOrder);
 impl PlanNode for LogicalOrder {
-    fn out_types(&self) -> Vec<DataType> {
-        self.child.out_types()
+    fn schema(&self) -> Vec<ColumnDesc> {
+        self.child.schema()
     }
 }
 

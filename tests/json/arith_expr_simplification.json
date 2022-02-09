@@ -1,0 +1,46 @@
+{
+    "logical": {
+        "project_expressions": [
+            {
+                "InputRef": {
+                    "index": 0,
+                    "return_type": {
+                        "kind": {
+                            "Int": null
+                        },
+                        "physical_kind": "Int32",
+                        "nullable": true
+                    }
+                }
+            }
+        ],
+        "child": {
+            "logical": {
+                "table_ref_id": {
+                    "database_id": 0,
+                    "schema_id": 0,
+                    "table_id": 0
+                },
+                "column_ids": [
+                    0
+                ],
+                "column_descs": [
+                    {
+                        "datatype": {
+                            "kind": {
+                                "Int": null
+                            },
+                            "physical_kind": "Int32",
+                            "nullable": true
+                        },
+                        "name": "a",
+                        "is_primary": false
+                    }
+                ],
+                "with_row_handler": false,
+                "is_sorted": false,
+                "expr": null
+            }
+        }
+    }
+}

@@ -34,8 +34,8 @@ impl PlanTreeNodeUnary for PhysicalProjection {
 }
 impl_plan_tree_node_for_unary!(PhysicalProjection);
 impl PlanNode for PhysicalProjection {
-    fn out_types(&self) -> Vec<DataType> {
-        self.logical().out_types()
+    fn schema(&self) -> Vec<ColumnDesc> {
+        self.logical().schema()
     }
 }
 

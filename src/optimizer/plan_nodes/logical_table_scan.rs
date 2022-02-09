@@ -72,12 +72,8 @@ impl PlanTreeNodeLeaf for LogicalTableScan {}
 impl_plan_tree_node_for_leaf!(LogicalTableScan);
 
 impl PlanNode for LogicalTableScan {
-    fn out_types(&self) -> Vec<DataType> {
-        return self
-            .column_descs
-            .iter()
-            .map(|desc| desc.datatype().clone())
-            .collect();
+    fn schema(&self) -> Vec<ColumnDesc> {
+        self.column_descs.clone()
     }
 }
 impl fmt::Display for LogicalTableScan {

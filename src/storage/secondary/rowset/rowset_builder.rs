@@ -136,8 +136,9 @@ mod tests {
         let mut builder = RowsetBuilder::new(
             vec![ColumnCatalog::new(
                 0,
-                "v1".to_string(),
-                DataTypeKind::Int(None).nullable().to_column(),
+                DataTypeKind::Int(None)
+                    .nullable()
+                    .to_column("v1".to_string()),
             )]
             .into(),
             tempdir.path(),

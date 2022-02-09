@@ -108,12 +108,8 @@ mod tests {
 
     #[test]
     fn test_table_catalog() {
-        let col0 = ColumnCatalog::new(
-            0,
-            "a".into(),
-            DataTypeKind::Int(None).not_null().to_column(),
-        );
-        let col1 = ColumnCatalog::new(1, "b".into(), DataTypeKind::Boolean.not_null().to_column());
+        let col0 = ColumnCatalog::new(0, DataTypeKind::Int(None).not_null().to_column("a".into()));
+        let col1 = ColumnCatalog::new(1, DataTypeKind::Boolean.not_null().to_column("b".into()));
 
         let col_catalogs = vec![col0, col1];
         let table_catalog = TableCatalog::new(0, "t".into(), col_catalogs, false);

@@ -8,13 +8,15 @@ use crate::types::{ColumnId, DataType};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ColumnDesc {
     datatype: DataType,
+    name: String,
     is_primary: bool,
 }
 
 impl ColumnDesc {
-    pub const fn new(datatype: DataType, is_primary: bool) -> Self {
+    pub const fn new(datatype: DataType, name: String, is_primary: bool) -> Self {
         ColumnDesc {
             datatype,
+            name,
             is_primary,
         }
     }
@@ -34,15 +36,19 @@ impl ColumnDesc {
     pub fn datatype(&self) -> &DataType {
         &self.datatype
     }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl DataType {
-    pub const fn to_column(self) -> ColumnDesc {
-        ColumnDesc::new(self, false)
+    pub const fn to_column(self, name: String) -> ColumnDesc {
+        ColumnDesc::new(self, name, false)
     }
 
-    pub const fn to_column_primary_key(self) -> ColumnDesc {
-        ColumnDesc::new(self, true)
+    pub const fn to_column_primary_key(self, name: String) -> ColumnDesc {
+        ColumnDesc::new(self, name, true)
     }
 }
 
@@ -50,13 +56,12 @@ impl DataType {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ColumnCatalog {
     id: ColumnId,
-    name: String,
     desc: ColumnDesc,
 }
 
 impl ColumnCatalog {
-    pub fn new(id: ColumnId, name: String, desc: ColumnDesc) -> ColumnCatalog {
-        ColumnCatalog { id, name, desc }
+    pub fn new(id: ColumnId, desc: ColumnDesc) -> ColumnCatalog {
+        ColumnCatalog { id, desc }
     }
 
     pub fn id(&self) -> ColumnId {
@@ -68,7 +73,7 @@ impl ColumnCatalog {
     }
 
     pub fn name(&self) -> &str {
-        &self.name
+        &self.desc.name
     }
 
     pub fn desc(&self) -> &ColumnDesc {
@@ -113,8 +118,8 @@ mod tests {
 
     #[test]
     fn test_column_catalog() {
-        let col_desc = DataTypeKind::Int(None).not_null().to_column();
-        let mut col_catalog = ColumnCatalog::new(0, "grade".into(), col_desc);
+        let col_desc = DataTypeKind::Int(None).not_null().to_column("grade".into());
+        let mut col_catalog = ColumnCatalog::new(0, col_desc);
         assert_eq!(col_catalog.id(), 0);
         assert!(!col_catalog.is_primary());
         assert!(!col_catalog.is_nullable());

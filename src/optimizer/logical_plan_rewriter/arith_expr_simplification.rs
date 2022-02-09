@@ -94,9 +94,13 @@ impl PlanRewriter for ArithExprSimplificationRule {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
+    use manifest_dir_macros;
     use serde::Serialize;
 
     use crate::Database;
+
     #[tokio::main]
     #[test]
     async fn test_expr_simplification() {
@@ -113,54 +117,12 @@ mod tests {
         let mut ser = serde_json::Serializer::with_formatter(buf, formatter);
         plans[0].serialize(&mut ser).unwrap();
         let ser_str = String::from_utf8(ser.into_inner()).unwrap();
-        println!("{}", ser_str);
-        assert_eq!(
-            &ser_str,
-            "{
-    \"logical\": {
-        \"project_expressions\": [
-            {
-                \"InputRef\": {
-                    \"index\": 0,
-                    \"return_type\": {
-                        \"kind\": {
-                            \"Int\": null
-                        },
-                        \"physical_kind\": \"Int32\",
-                        \"nullable\": true
-                    }
-                }
-            }
-        ],
-        \"child\": {
-            \"logical\": {
-                \"table_ref_id\": {
-                    \"database_id\": 0,
-                    \"schema_id\": 0,
-                    \"table_id\": 0
-                },
-                \"column_ids\": [
-                    0
-                ],
-                \"column_descs\": [
-                    {
-                        \"datatype\": {
-                            \"kind\": {
-                                \"Int\": null
-                            },
-                            \"physical_kind\": \"Int32\",
-                            \"nullable\": true
-                        },
-                        \"is_primary\": false
-                    }
-                ],
-                \"with_row_handler\": false,
-                \"is_sorted\": false,
-                \"expr\": null
-            }
-        }
-    }
-}"
-        );
+
+        let data = fs::read_to_string(manifest_dir_macros::file_relative_path!(
+            "tests/json/arith_expr_simplification.json"
+        ))
+        .unwrap();
+
+        assert_eq!(ser_str, data);
     }
 }
