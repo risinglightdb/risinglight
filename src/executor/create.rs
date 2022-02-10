@@ -23,7 +23,10 @@ impl<S: Storage> CreateTableExecutor<S> {
                 self.plan.logical().columns(),
             )
             .await?;
-        yield DataChunk::single(0);
+
+        let mut chunk = DataChunk::single(0);
+        chunk.set_header(vec!["$create".to_string()]);
+        yield chunk
     }
 }
 

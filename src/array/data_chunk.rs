@@ -119,7 +119,15 @@ impl fmt::Display for DataChunk {
         use comfy_table::Table;
         let mut table = Table::new();
         if let Some(header) = &self.header {
-            table.set_header(header);
+            match header[0].as_str() {
+                "$insert.row_counts" => {
+                    return write!(f, "{} rows inserted", self.arrays[0].get_to_string(0))
+                }
+                "$create" => return write!(f, "created"),
+                _ => {
+                    table.set_header(header);
+                }
+            }
         }
         table.load_preset("||--+-++|    ++++++");
         for i in 0..self.cardinality() {
