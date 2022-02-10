@@ -56,11 +56,6 @@ pub struct ConcreteColumnIterator<A: Array, F: BlockIteratorFactory<A>> {
 }
 
 impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
-    #[cfg(test)]
-    pub fn get_current_row_id(&self) -> u32 {
-        self.current_row_id
-    }
-
     pub async fn new(column: Column, start_pos: u32, factory: F) -> StorageResult<Self> {
         let current_block_id = column
             .index()

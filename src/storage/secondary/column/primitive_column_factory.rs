@@ -220,7 +220,7 @@ mod tests {
         {
             recv_data.extend(data.to_vec());
             filter_bitmap =
-                filter_bitmap.split_off((scanner.get_current_row_id() - start_row_id) as usize);
+                filter_bitmap.split_off((scanner.fetch_current_row_id() - start_row_id) as usize);
         }
         recv_data
     }
