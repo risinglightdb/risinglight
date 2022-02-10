@@ -111,6 +111,10 @@ impl DataChunk {
     pub fn set_header(&mut self, header: Vec<String>) {
         self.header = Some(header);
     }
+
+    pub fn header(&self) -> Option<&[String]> {
+        self.header.as_deref()
+    }
 }
 
 /// Print the chunk as a pretty table.
@@ -119,16 +123,7 @@ impl fmt::Display for DataChunk {
         use comfy_table::Table;
         let mut table = Table::new();
         if let Some(header) = &self.header {
-            match header[0].as_str() {
-                "$insert.row_counts" => {
-                    return write!(f, "{} rows inserted", self.arrays[0].get_to_string(0))
-                }
-                "$create" => return write!(f, "created"),
-                "$explain" => return write!(f, "{}", self.arrays[0].get_to_string(0)),
-                _ => {
-                    table.set_header(header);
-                }
-            }
+            table.set_header(header);
         }
         table.load_preset("||--+-++|    ++++++");
         for i in 0..self.cardinality() {
