@@ -124,6 +124,7 @@ impl fmt::Display for DataChunk {
                     return write!(f, "{} rows inserted", self.arrays[0].get_to_string(0))
                 }
                 "$create" => return write!(f, "created"),
+                "$explain" => return write!(f, "{}", self.arrays[0].get_to_string(0)),
                 _ => {
                     table.set_header(header);
                 }
