@@ -15,10 +15,14 @@ impl LimitExecutor {
     pub async fn execute(self) {
         // the number of rows have been processed
         let mut processed = 0;
+        let mut dummy_chunk = None;
 
         #[for_await]
         for batch in self.child {
             let batch = batch?;
+            if dummy_chunk.is_none() {
+                dummy_chunk = Some(batch.slice(0..0));
+            }
             let cardinality = batch.cardinality();
             let start = processed.max(self.offset) - processed;
             let end = (processed + cardinality).min(self.offset + self.limit) - processed;
@@ -33,6 +37,12 @@ impl LimitExecutor {
             }
             if processed >= self.offset + self.limit {
                 break;
+            }
+        }
+
+        if processed <= self.offset || self.limit == 0 {
+            if let Some(chunk) = dummy_chunk {
+                yield chunk;
             }
         }
     }
@@ -50,7 +60,7 @@ mod tests {
 
     #[test_case(&[(0..6)], 1, 4, &[(1..5)])]
     #[test_case(&[(0..6)], 0, 10, &[(0..6)])]
-    #[test_case(&[(0..6)], 10, 0, &[])]
+    #[test_case(&[(0..6)], 10, 0, &[(0..0)])]
     #[test_case(&[(0..2), (2..4), (4..6)], 1, 4, &[(1..2), (2..4), (4..5)])]
     #[tokio::test]
     async fn limit(
