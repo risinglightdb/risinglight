@@ -28,6 +28,21 @@ struct Args {
     memory: bool,
 }
 
+// human-readable message
+fn print_chunk(chunk: &DataChunk) {
+    match chunk.header() {
+        Some(header) => match header[0].as_str() {
+            "$insert.row_counts" => {
+                println!("{} rows inserted", chunk.array_at(0).get_to_string(0))
+            }
+            "$create" => println!("created"),
+            "$explain" => println!("{}", chunk.array_at(0).get_to_string(0)),
+            _ => println!("{}", chunk),
+        },
+        None => println!("{}", chunk),
+    }
+}
+
 /// Run RisingLight interactive mode
 async fn interactive(db: Database) -> Result<()> {
     let mut rl = Editor::<()>::new();
@@ -55,7 +70,7 @@ async fn interactive(db: Database) -> Result<()> {
                 match ret {
                     Ok(chunks) => {
                         for chunk in chunks {
-                            println!("{}", chunk);
+                            print_chunk(&chunk)
                         }
                     }
                     Err(err) => println!("{}", err),
@@ -91,7 +106,7 @@ async fn run_sql(db: Database, path: &str) -> Result<()> {
     info!("{}", lines);
     let chunks = db.run(&lines).await?;
     for chunk in chunks {
-        println!("{}", chunk);
+        print_chunk(&chunk)
     }
 
     Ok(())

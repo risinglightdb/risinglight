@@ -111,6 +111,10 @@ impl DataChunk {
     pub fn set_header(&mut self, header: Vec<String>) {
         self.header = Some(header);
     }
+
+    pub fn header(&self) -> Option<&[String]> {
+        self.header.as_deref()
+    }
 }
 
 /// Print the chunk as a pretty table.

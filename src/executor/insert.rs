@@ -48,7 +48,9 @@ impl<S: Storage> InsertExecutor<S> {
         }
         txn.commit().await?;
 
-        yield DataChunk::single(cnt as i32);
+        let mut chunk = DataChunk::single(cnt as i32);
+        chunk.set_header(vec!["$insert.row_counts".to_string()]);
+        yield chunk;
     }
 }
 
