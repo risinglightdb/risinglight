@@ -43,6 +43,7 @@ mod order;
 mod projection;
 mod simple_agg;
 mod table_scan;
+mod top_n;
 mod values;
 
 pub use self::aggregation::*;
