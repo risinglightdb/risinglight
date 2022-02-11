@@ -84,7 +84,7 @@ mod tests {
         desc: bool,
         outputs: &'static [Range<i32>],
     ) {
-        let inputs: Vec<DataChunk> = inputs.iter().map(|r| range_to_chunk(desc, r)).collect();
+        let inputs: Vec<DataChunk> = inputs.iter().map(|r| range_to_chunk(false, r)).collect();
 
         let (top_n, limit_order): (TopNExecutor, LimitExecutor) = equivalent_executors(
             inputs,
@@ -108,14 +108,13 @@ mod tests {
         assert_eq!(actual, outputs_limit_order);
     }
 
-    fn range_to_chunk(desc: bool, range: &Range<i32>) -> DataChunk {
-        let array = if desc {
+    fn range_to_chunk(reverse: bool, range: &Range<i32>) -> DataChunk {
+        let array = if reverse {
             range.clone().rev().collect()
         } else {
             range.clone().collect()
         };
-        let chunk = [ArrayImpl::Int32(array)].into_iter().collect();
-        chunk
+        [ArrayImpl::Int32(array)].into_iter().collect()
     }
 
     fn equivalent_executors(
