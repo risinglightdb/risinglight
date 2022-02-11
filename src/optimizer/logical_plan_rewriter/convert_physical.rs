@@ -29,6 +29,12 @@ impl PlanRewriter for PhysicalConverter {
         Arc::new(PhysicalLimit::new(logical))
     }
 
+    fn rewrite_logical_top_n(&mut self, logical: &LogicalTopN) -> PlanRef {
+        let child = self.rewrite(logical.child());
+        let logical = logical.clone_with_child(child);
+        Arc::new(PhysicalTopN::new(logical))
+    }
+
     fn rewrite_logical_join(&mut self, logical_join: &LogicalJoin) -> PlanRef {
         let left = self.rewrite(logical_join.left());
         let right = self.rewrite(logical_join.right());
