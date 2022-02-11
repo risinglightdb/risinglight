@@ -10,32 +10,16 @@ use super::*;
 #[derive(Clone, Debug, Serialize)]
 pub struct PhysicalHashJoin {
     logical: LogicalJoin,
-    left_column_index: usize,
-    right_column_index: usize,
 }
 
 impl PhysicalHashJoin {
-    pub fn new(logical: LogicalJoin, left_column_index: usize, right_column_index: usize) -> Self {
-        Self {
-            logical,
-            left_column_index,
-            right_column_index,
-        }
+    pub fn new(logical: LogicalJoin) -> Self {
+        Self { logical }
     }
 
     /// Get a reference to the physical hash join's logical.
     pub fn logical(&self) -> &LogicalJoin {
         &self.logical
-    }
-
-    /// Get a reference to the physical hash join's left column index.
-    pub fn left_column_index(&self) -> usize {
-        self.left_column_index
-    }
-
-    /// Get a reference to the physical hash join's right column index.
-    pub fn right_column_index(&self) -> usize {
-        self.right_column_index
     }
 }
 impl PlanTreeNodeBinary for PhysicalHashJoin {
@@ -48,11 +32,7 @@ impl PlanTreeNodeBinary for PhysicalHashJoin {
 
     #[must_use]
     fn clone_with_left_right(&self, left: PlanRef, right: PlanRef) -> Self {
-        Self::new(
-            self.logical.clone_with_left_right(left, right),
-            self.left_column_index(),
-            self.right_column_index(),
-        )
+        Self::new(self.logical.clone_with_left_right(left, right))
     }
 }
 impl_plan_tree_node_for_binary!(PhysicalHashJoin);
@@ -68,10 +48,8 @@ impl fmt::Display for PhysicalHashJoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "PhysicalHashJoin: op {:?}, left_index {:?},  right_index {:?}, predicate: {} ",
+            "PhysicalHashJoin: op {:?}, predicate: {} ",
             self.logical().join_op(),
-            self.left_column_index,
-            self.right_column_index,
             self.logical().predicate()
         )
     }

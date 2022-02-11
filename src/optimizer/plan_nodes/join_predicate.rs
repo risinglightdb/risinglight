@@ -17,8 +17,9 @@ pub struct JoinPredicate {
     /// other conditions, linked with AND conjunction.
     other_conds: Vec<BoundExpr>,
 
-    /// the equal columns indexes(in the input schema) both sides, now all are normal equal(not
-    /// null-safe-equal),
+    /// the equal columns indexes(in the input schema) both sides,
+    /// the first is from the left table and the second is from the right table.
+    /// now all are normal equal(not null-safe-equal),
     eq_keys: Vec<(BoundInputRef, BoundInputRef)>,
 }
 #[allow(dead_code)]
@@ -40,7 +41,7 @@ impl JoinPredicate {
     /// `create` will analyze the on clause condition and construct a `JoinPredicate`.
     /// e.g.
     /// ```sql
-    ///   select a.v1, a.v2, b.v1, b.v2 from a,b on a.v1 = a.v2 and a.v1 = b.v1 and a.v2 > b.v2
+    ///   select a.v1, a.v2, b.v1, b.v2 from a join b on a.v1 = a.v2 and a.v1 = b.v1 and a.v2 > b.v2
     /// ```
     /// will call the `create` function with `left_colsnum` = 2 and `on_clause` is (supposed
     /// `input_ref` count start from 0)
