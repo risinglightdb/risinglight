@@ -163,7 +163,7 @@ impl Database {
 
     /// Run SQL queries and return the outputs.
     pub async fn run(&self, sql: &str) -> Result<Vec<DataChunk>, Error> {
-        if let Some(cmdline) = sql.strip_prefix('\\') {
+        if let Some(cmdline) = sql.trim().strip_prefix('\\') {
             return self.run_internal(cmdline).await;
         }
 
