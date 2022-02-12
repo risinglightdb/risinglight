@@ -36,6 +36,10 @@ impl PlanNode for PhysicalFilter {
     fn schema(&self) -> Vec<ColumnDesc> {
         self.logical.schema()
     }
+
+    fn estimated_cardinality(&self) -> usize {
+        self.child().estimated_cardinality()
+    }
 }
 impl fmt::Display for PhysicalFilter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -94,6 +94,10 @@ impl PlanNode for LogicalJoin {
     fn schema(&self) -> Vec<ColumnDesc> {
         self.schema.clone()
     }
+
+    fn estimated_cardinality(&self) -> usize {
+        self.left().estimated_cardinality() * self.right().estimated_cardinality()
+    }
 }
 
 impl fmt::Display for LogicalJoin {

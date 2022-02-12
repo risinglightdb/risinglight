@@ -32,6 +32,10 @@ impl LogicalLimit {
     pub fn limit(&self) -> usize {
         self.limit
     }
+    #[allow(dead_code)]
+    fn estimated_cardinality(&self) -> usize {
+        self.limit
+    }
 }
 impl PlanTreeNodeUnary for LogicalLimit {
     fn child(&self) -> PlanRef {

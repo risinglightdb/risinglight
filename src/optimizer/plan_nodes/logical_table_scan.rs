@@ -75,6 +75,11 @@ impl PlanNode for LogicalTableScan {
     fn schema(&self) -> Vec<ColumnDesc> {
         self.column_descs.clone()
     }
+
+    // TODO: get statistics from storage system
+    fn estimated_cardinality(&self) -> usize {
+        1
+    }
 }
 impl fmt::Display for LogicalTableScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

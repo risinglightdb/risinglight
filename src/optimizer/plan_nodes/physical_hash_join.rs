@@ -61,6 +61,10 @@ impl PlanNode for PhysicalHashJoin {
     fn schema(&self) -> Vec<ColumnDesc> {
         self.logical().schema()
     }
+
+    fn estimated_cardinality(&self) -> usize {
+        self.left().estimated_cardinality() * self.right().estimated_cardinality()
+    }
 }
 /// Currently, we only use default join ordering.
 /// We will implement DP or DFS algorithms for join orders.

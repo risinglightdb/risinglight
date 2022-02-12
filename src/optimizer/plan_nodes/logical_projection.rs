@@ -71,6 +71,10 @@ impl PlanNode for LogicalProjection {
             })
             .collect()
     }
+
+    fn estimated_cardinality(&self) -> usize {
+        self.child().estimated_cardinality()
+    }
 }
 
 impl fmt::Display for LogicalProjection {
