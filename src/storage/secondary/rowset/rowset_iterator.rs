@@ -24,6 +24,8 @@ pub struct RowSetIterator {
     dvs: Vec<Arc<DeleteVector>>,
     column_iterators: Vec<Option<ColumnIteratorImpl>>,
     filter_expr: Option<(BoundExpr, BitVec)>,
+    only_scan_row_handler: bool,
+    row_handler_scan_finished: bool,
 }
 
 impl RowSetIterator {
@@ -52,9 +54,7 @@ impl RowSetIterator {
             panic!("more than 1 row handler column")
         }
 
-        if row_handler_count == column_refs.len() {
-            panic!("no user column")
-        }
+        let only_scan_row_handler = row_handler_count == column_refs.len();
 
         let mut column_iterators: Vec<Option<ColumnIteratorImpl>> = vec![];
 
@@ -91,6 +91,8 @@ impl RowSetIterator {
             dvs,
             column_iterators,
             filter_expr,
+            only_scan_row_handler,
+            row_handler_scan_finished: false,
         })
     }
 
@@ -140,10 +142,14 @@ impl RowSetIterator {
         // deleted in this batch
         if !self.dvs.is_empty() {
             // Get the start row id first
-            let start_row_id = self.column_iterators[0]
-                .as_ref()
-                .unwrap()
-                .fetch_current_row_id();
+            let start_row_id = if self.only_scan_row_handler {
+                0
+            } else {
+                self.column_iterators[0]
+                    .as_ref()
+                    .unwrap()
+                    .fetch_current_row_id()
+            };
 
             // Initialize visibility map and apply delete vector to it
             let mut visi = BitVec::new();
@@ -282,6 +288,31 @@ impl RowSetIterator {
                     }
                 }
             }
+        }
+
+        if self.only_scan_row_handler {
+            if self.row_handler_scan_finished {
+                return Ok((true, None));
+            }
+
+            let total_count = fetch_size as u32;
+            let row_handler_array = vec![Some(
+                RowHandlerSequencer::sequence(self.rowset.rowset_id(), 0, total_count).into(),
+            )];
+
+            self.row_handler_scan_finished = true;
+
+            return Ok((
+                false,
+                StorageChunk::construct(
+                    visibility_map,
+                    row_handler_array
+                        .into_iter()
+                        .map(Option::unwrap)
+                        .map(Arc::new)
+                        .collect(),
+                ),
+            ));
         }
 
         let common_chunk_range = if let Some(common_chunk_range) = common_chunk_range {
