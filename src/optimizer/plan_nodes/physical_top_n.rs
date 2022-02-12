@@ -37,6 +37,10 @@ impl PlanNode for PhysicalTopN {
     fn schema(&self) -> Vec<ColumnDesc> {
         self.logical().schema()
     }
+
+    fn estimated_cardinality(&self) -> usize {
+        self.logical().limit()
+    }
 }
 
 impl fmt::Display for PhysicalTopN {

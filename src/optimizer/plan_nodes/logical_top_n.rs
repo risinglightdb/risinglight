@@ -65,6 +65,10 @@ impl PlanNode for LogicalTopN {
     fn schema(&self) -> Vec<ColumnDesc> {
         self.child.schema()
     }
+
+    fn estimated_cardinality(&self) -> usize {
+        self.limit
+    }
 }
 
 impl fmt::Display for LogicalTopN {
