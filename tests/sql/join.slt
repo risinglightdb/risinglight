@@ -92,3 +92,35 @@ select v1, v2, v3, v4 from a full join b on v1 = v3;
 3 3 3 300
 2 2 NULL NULL
 NULL NULL 4 400
+
+statement ok
+drop table a;
+
+statement ok
+drop table b;
+
+statement ok
+create table a(v1 int, v2 int);
+
+statement ok
+create table b(v3 int, v4 int, v5 int);
+
+statement ok
+insert into a values (1, 1), (2, 2), (3, 3);
+
+statement ok
+insert into b values (1, 1, 1), (2, 2, 2), (3, 3, 4), (1, 1, 5);
+
+query IIIII
+select v1, v2, v3, v4, v5 from a join b on v1 = v3 and v2 = v4;
+----
+1   1   1   1   1
+2   2   2   2   2
+3   3   3   3   4
+1   1   1   1   5
+
+query IIIII
+select v1, v2, v3, v4, v5 from a join b on v1 = v3 and v2 = v4 and v1 < v5;
+----
+3   3   3   3   4
+1   1   1   1   5
