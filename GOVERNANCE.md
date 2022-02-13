@@ -7,7 +7,7 @@ This document defines governance policies of the RisingLight project.
 RisingLight maintainers demonstrate a strong commitment to the project. The RisingLight maintainers are responsible for:
 
 * Decide the overall direction of the RisingLight project.
-* Moderating the RisingLight community.
+* Moderate the RisingLight community.
 
 Currently, the RisingLight maintainers are:
 
