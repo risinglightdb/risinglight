@@ -36,9 +36,15 @@ RisingLight is under the Apache 2.0 license. See the [LICENSE](LICENSE) file for
 
 ## Community
 
+### Governance
+
+See [GOVERNANCE](GOVERNANCE.md) for more information.
+
+### Communication
+
 RisingLight developers are active in a variety of places:
 
-### Slack Channel
+**Slack Channel**
 
 The RisingLight project is currently part of the RisingWave community. You may join RisingWave community with the [invitation link](https://join.slack.com/t/risingwave-community/shared_invite/zt-120rft0mr-d8uGk3d~NZiZAQWPnElOfw). If the Slack link expires (which normally should not happen), please create an issue :)
 
@@ -47,9 +53,17 @@ After that, you may join `risinglight-chinese` and `risinglight-english` channel
 * [risinglight-chinese](https://risingwave-community.slack.com/archives/C02UZDEE4AC)
 * [risinglight-english](https://risingwave-community.slack.com/archives/C030SJRDT4J)
 
-### WeChat Group
+**Wechat Group**
 
 If you want to join our WeChat group, please send an email to `hezi at singularity-data.com` with your WeChat ID. We will invite you to the WeChat group.
+
+### Scrum Meeting
+
+The RisingLight scrum meeting is a place where RisingLight project members bring up topics to discuss online. The meeting will be held by default every Wednesday 11am UTC+8 on Zoom if there are topics to discuss.
+
+* The topics should be decided at least 24 hours before the scrum meeting. All topics should be available in one of: (1) GitHub Issue (2) Pull Request for RFC (3) GitHub Discussion.
+* Meeting information will be sent to `#risinglight-chinese` or `#risinglight-english` on Slack, based on the preferred language for this week's meeting, at least 24 hours before the scrum meeting.
+* If there are no topics to discuss, the meeting will be canceled.
 
 ## Contributing
 
