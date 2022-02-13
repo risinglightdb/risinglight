@@ -37,7 +37,7 @@ where
     }
 
     fn append_inner(&mut self, item: Option<&T>) {
-        self.previous_value = item.map(|item| *item);
+        self.previous_value = item.cloned();
         self.block_builder.append(item);
         self.rle_counts.push(1);
     }
@@ -65,7 +65,9 @@ where
     }
 
     fn estimated_size(&self) -> usize {
-        self.block_builder.estimated_size() + self.rle_counts.len() * 2
+        self.block_builder.estimated_size()
+            + self.rle_counts.len() * std::mem::size_of::<u16>()
+            + std::mem::size_of::<u32>()
     }
 
     fn should_finish(&self, next_item: &Option<&T>) -> bool {
@@ -79,7 +81,8 @@ where
         {
             return false;
         }
-        self.estimated_size() + T::WIDTH + 2 > self.target_size
+        !self.rle_counts.is_empty()
+            && self.estimated_size() + T::WIDTH + std::mem::size_of::<u16>() > self.target_size
     }
 
     fn get_statistics(&self) -> Vec<BlockStatistics> {
@@ -104,7 +107,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_build_primitive_rle_i32() {
+    fn test_build_rle_primitive_i32() {
         // Test primitive rle block builder for i32
         let builder = PlainPrimitiveBlockBuilder::new(20);
         let mut rle_builder =
@@ -118,14 +121,14 @@ mod tests {
         for item in [Some(&3)].iter().cycle().cloned().take(30) {
             rle_builder.append(item);
         }
-        assert_eq!(rle_builder.estimated_size(), 18);
+        assert_eq!(rle_builder.estimated_size(), 4 * 3 + 2 * 3 + 4);
         assert!(!rle_builder.should_finish(&Some(&3)));
         assert!(rle_builder.should_finish(&Some(&4)));
         rle_builder.finish();
     }
 
     #[test]
-    fn test_build_nullable_primitive_rle_i32() {
+    fn test_build_rle_primitive_nullable_i32() {
         // Test primitive nullable rle block builder for i32
         let builder = PlainPrimitiveNullableBlockBuilder::new(70);
         let mut rle_builder = RLEPrimitiveBlockBuilder::<
@@ -167,9 +170,7 @@ mod tests {
         {
             rle_builder.append(item);
         }
-        // 9 + 2 = 11 items in PlainPrimitiveNullableBlockBuilder = 44 + 2 = 46
-        // 11 * 2 for rle_counts, sums result 46 + 22 = 68
-        assert_eq!(rle_builder.estimated_size(), 68);
+        assert_eq!(rle_builder.estimated_size(), 11 * 4 + 2 + 11 * 2 + 4);
         assert!(rle_builder.should_finish(&Some(&5)));
         rle_builder.finish();
     }
