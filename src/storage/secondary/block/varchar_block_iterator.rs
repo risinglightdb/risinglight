@@ -93,12 +93,12 @@ mod tests {
 
     use super::*;
     use crate::array::{ArrayBuilder, ArrayToVecExt, Utf8ArrayBuilder};
-    use crate::storage::secondary::block::{BlockBuilder, PlainVarcharBlockBuilder};
+    use crate::storage::secondary::block::{BlockBuilder, PlainBlobBlockBuilder};
     use crate::storage::secondary::BlockIterator;
 
     #[test]
     fn test_scan_varchar() {
-        let mut builder = PlainVarcharBlockBuilder::new(128);
+        let mut builder = PlainBlobBlockBuilder::<str>::new(128);
         builder.append(Some("233"));
         builder.append(Some("2333"));
         builder.append(Some("23333"));

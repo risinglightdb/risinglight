@@ -7,6 +7,7 @@
 //! blocks might not be the same. For example, a column could contains several
 //! compressed blocks, and several RLE blocks.
 
+mod blob_column_builder;
 mod char_column_builder;
 mod column_builder;
 mod column_iterator;

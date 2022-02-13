@@ -3,8 +3,11 @@
 use bytes::{Buf, BufMut};
 use rust_decimal::Decimal;
 
-use crate::array::{Array, BoolArray, DateArray, DecimalArray, F64Array, I32Array, IntervalArray};
-use crate::types::{Date, Interval};
+use crate::array::{
+    Array, BlobArray, BoolArray, DateArray, DecimalArray, F64Array, I32Array, IntervalArray,
+    Utf8Array,
+};
+use crate::types::{BlobRef, Date, Interval};
 
 /// Encode a primitive value into fixed-width buffer
 pub trait PrimitiveFixedWidthEncode: Copy + Clone + 'static + Send + Sync {
@@ -110,5 +113,33 @@ impl PrimitiveFixedWidthEncode for Interval {
         let months = buffer.get_i32();
         let days = buffer.get_i32();
         Interval::from_md(months, days)
+    }
+}
+
+pub trait BlobEncode: AsRef<[u8]> + Len {
+    type ArrayType: Array<Item = Self>;
+}
+
+impl BlobEncode for BlobRef {
+    type ArrayType = BlobArray;
+}
+
+impl BlobEncode for str {
+    type ArrayType = Utf8Array;
+}
+
+pub trait Len {
+    fn len(&self) -> usize;
+}
+
+impl Len for BlobRef {
+    fn len(&self) -> usize {
+        self.as_ref().len()
+    }
+}
+
+impl Len for str {
+    fn len(&self) -> usize {
+        self.len()
     }
 }

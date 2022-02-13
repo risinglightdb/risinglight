@@ -1,37 +1,42 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::marker::PhantomData;
+
 use bytes::BufMut;
 use risinglight_proto::rowset::BlockStatistics;
 
 use super::super::statistics::StatisticsBuilder;
 use super::BlockBuilder;
-use crate::array::Utf8Array;
+use crate::storage::secondary::encode::BlobEncode;
 
 /// Encodes offset and data into a block. The data layout is
 /// ```plain
 /// | offset (u32) | offset | offset | data | data | data |
 /// ```
-pub struct PlainVarcharBlockBuilder {
+pub struct PlainBlobBlockBuilder<T: BlobEncode + ?Sized> {
     data: Vec<u8>,
     offsets: Vec<u32>,
     target_size: usize,
+
+    phantom: PhantomData<T>,
 }
 
-impl PlainVarcharBlockBuilder {
+impl<T: BlobEncode + ?Sized> PlainBlobBlockBuilder<T> {
     pub fn new(target_size: usize) -> Self {
         let data = Vec::with_capacity(target_size);
         Self {
             data,
             offsets: vec![],
             target_size,
+            phantom: PhantomData,
         }
     }
 }
 
-impl BlockBuilder<Utf8Array> for PlainVarcharBlockBuilder {
-    fn append(&mut self, item: Option<&str>) {
+impl<T: BlobEncode + ?Sized> BlockBuilder<T::ArrayType> for PlainBlobBlockBuilder<T> {
+    fn append(&mut self, item: Option<&T>) {
         let item = item.expect("nullable item found in non-nullable block builder");
-        self.data.extend(item.as_bytes());
+        self.data.extend(item.as_ref());
         self.offsets.push(self.data.len() as u32);
     }
 
@@ -39,7 +44,7 @@ impl BlockBuilder<Utf8Array> for PlainVarcharBlockBuilder {
         self.data.len() + self.offsets.len() * std::mem::size_of::<u32>()
     }
 
-    fn should_finish(&self, next_item: &Option<&str>) -> bool {
+    fn should_finish(&self, next_item: &Option<&T>) -> bool {
         !self.data.is_empty()
             && self.estimated_size()
                 + next_item.map(|x| x.len()).unwrap_or(0)
@@ -75,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_build_str() {
-        let mut builder = PlainVarcharBlockBuilder::new(128);
+        let mut builder = PlainBlobBlockBuilder::<str>::new(128);
         builder.append(Some("233"));
         builder.append(Some("23333"));
         builder.append(Some("2333333"));

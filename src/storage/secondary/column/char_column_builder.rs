@@ -3,17 +3,16 @@
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 
-use super::super::{
-    BlockBuilder, BlockIndexBuilder, PlainCharBlockBuilder, PlainVarcharBlockBuilder,
-};
+use super::super::{BlockBuilder, BlockIndexBuilder, PlainCharBlockBuilder};
 use super::{append_one_by_one, ColumnBuilder};
 use crate::array::{Array, Utf8Array};
+use crate::storage::secondary::block::PlainBlobBlockBuilder;
 use crate::storage::secondary::ColumnBuilderOptions;
 
 /// All supported block builders for char types.
 pub(super) enum CharBlockBuilderImpl {
     PlainFixedChar(PlainCharBlockBuilder),
-    PlainVarchar(PlainVarcharBlockBuilder),
+    PlainVarchar(PlainBlobBlockBuilder<str>),
 }
 
 /// Column builder of char types.
@@ -82,7 +81,7 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                     }
                     (None, _) => {
                         self.current_builder = Some(CharBlockBuilderImpl::PlainVarchar(
-                            PlainVarcharBlockBuilder::new(self.options.target_block_size - 16),
+                            PlainBlobBlockBuilder::new(self.options.target_block_size - 16),
                         ));
                     }
                     (char_width, nullable) => unimplemented!(
