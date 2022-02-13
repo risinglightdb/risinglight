@@ -8,6 +8,7 @@
 //! compressed blocks, and several RLE blocks.
 
 mod blob_column_builder;
+mod blob_column_factory;
 mod char_column_builder;
 mod column_builder;
 mod column_iterator;
@@ -20,6 +21,8 @@ use std::future::Future;
 use std::io::{Read, Seek, SeekFrom};
 
 use bitvec::vec::BitVec;
+pub use blob_column_builder::*;
+pub use blob_column_factory::*;
 pub use column_builder::*;
 pub use column_iterator::*;
 pub use concrete_column_iterator::*;

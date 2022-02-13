@@ -5,6 +5,7 @@
 //! [`Block`] is the minimum managing unit in the storage engine.
 
 mod blob_block_builder;
+mod blob_block_iterator;
 mod char_block_builder;
 mod fake_block_iterator;
 mod primitive_block_builder;
@@ -13,6 +14,7 @@ mod primitive_nullable_block_builder;
 mod primitive_nullable_block_iterator;
 
 pub use blob_block_builder::*;
+pub use blob_block_iterator::*;
 pub use char_block_builder::*;
 pub use fake_block_iterator::*;
 pub use primitive_block_builder::*;
