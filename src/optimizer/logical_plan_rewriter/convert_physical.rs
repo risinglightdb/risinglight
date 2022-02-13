@@ -52,7 +52,14 @@ impl PlanRewriter for PhysicalConverter {
                 || !predicate.other_conds().is_empty();
             if need_pull_filter {
                 return Arc::new(PhysicalFilter::new(LogicalFilter::new(
-                    predicate.to_on_clause(),
+                    merge_conjunctions(
+                        predicate
+                            .left_conds()
+                            .iter()
+                            .cloned()
+                            .chain(predicate.right_conds().iter().cloned())
+                            .chain(predicate.other_conds().iter().cloned()),
+                    ),
                     join,
                 )));
             } else {
