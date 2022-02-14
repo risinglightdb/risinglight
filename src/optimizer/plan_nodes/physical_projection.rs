@@ -45,10 +45,10 @@ impl PlanNode for PhysicalProjection {
 
 impl fmt::Display for PhysicalProjection {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(
-            f,
-            "PhysicalProjection: exprs {:?}",
-            self.logical().project_expressions()
-        )
+        writeln!(f, "PhysicalProjection:")?;
+		for expr in  self.logical().project_expressions().iter() {
+			writeln!(f, "  {}", expr)?
+		}
+		Ok(())
     }
 }

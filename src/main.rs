@@ -30,6 +30,7 @@ struct Args {
 
 // human-readable message
 fn print_chunk(chunk: &DataChunk) {
+	// debug!("HERE:\n{:#?}", chunk.arrays);
     match chunk.header() {
         Some(header) => match header[0].as_str() {
             "$insert.row_counts" => {
