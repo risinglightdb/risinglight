@@ -35,6 +35,7 @@ mod logical_limit;
 mod logical_order;
 mod logical_projection;
 mod logical_table_scan;
+mod logical_top_n;
 mod logical_values;
 mod physical_copy_from_file;
 mod physical_copy_to_file;
@@ -52,6 +53,7 @@ mod physical_order;
 mod physical_projection;
 mod physical_simple_agg;
 mod physical_table_scan;
+mod physical_top_n;
 mod physical_values;
 
 pub use dummy::*;
@@ -69,6 +71,7 @@ pub use logical_limit::*;
 pub use logical_order::*;
 pub use logical_projection::*;
 pub use logical_table_scan::*;
+pub use logical_top_n::*;
 pub use logical_values::*;
 pub use physical_copy_from_file::*;
 pub use physical_copy_to_file::*;
@@ -86,6 +89,7 @@ pub use physical_order::*;
 pub use physical_projection::*;
 pub use physical_simple_agg::*;
 pub use physical_table_scan::*;
+pub use physical_top_n::*;
 pub use physical_values::*;
 
 use crate::catalog::ColumnDesc;
@@ -203,6 +207,7 @@ macro_rules! for_all_plan_nodes {
             LogicalAggregate,
             LogicalOrder,
             LogicalLimit,
+            LogicalTopN,
             LogicalDelete,
             LogicalCopyFromFile,
             LogicalCopyToFile,
@@ -220,6 +225,7 @@ macro_rules! for_all_plan_nodes {
             PhysicalHashJoin,
             PhysicalOrder,
             PhysicalLimit,
+            PhysicalTopN,
             PhysicalDelete,
             PhysicalCopyFromFile,
             PhysicalCopyToFile

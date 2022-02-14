@@ -38,7 +38,8 @@ impl Optimizer {
         plan = arith_expr_simplification_rule.rewrite(plan);
         plan = bool_expr_simplification_rule.rewrite(plan);
         plan = constant_moving_rule.rewrite(plan);
-        let mut rules: Vec<Box<(dyn rules::Rule + 'static)>> = vec![Box::new(FilterJoinRule {})];
+        let mut rules: Vec<Box<(dyn rules::Rule + 'static)>> =
+            vec![Box::new(FilterJoinRule {}), Box::new(LimitOrderRule {})];
         if self.enable_filter_scan {
             rules.push(Box::new(FilterScanRule {}));
         }

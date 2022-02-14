@@ -117,6 +117,18 @@ impl DataChunk {
     pub fn header(&self) -> Option<&[String]> {
         self.header.as_deref()
     }
+
+    pub fn from_rows<'a>(rows: &[RowRef<'a>], chunk: &Self) -> Self {
+        let mut arrays = vec![];
+        for col_idx in 0..chunk.column_count() {
+            let mut builder = ArrayBuilderImpl::from_type_of_array(chunk.array_at(col_idx));
+            for row in rows {
+                builder.push(&row.get(col_idx));
+            }
+            arrays.push(builder.finish());
+        }
+        arrays.into_iter().collect()
+    }
 }
 
 /// Print the chunk as a pretty table.

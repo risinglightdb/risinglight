@@ -44,6 +44,7 @@ mod order;
 mod projection;
 mod simple_agg;
 mod table_scan;
+mod top_n;
 mod values;
 
 pub use self::aggregation::*;
@@ -64,6 +65,7 @@ use self::order::*;
 use self::projection::*;
 use self::simple_agg::*;
 use self::table_scan::*;
+use self::top_n::TopNExecutor;
 use self::values::*;
 
 /// The error type of execution.
@@ -252,6 +254,18 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                 child: self.visit(plan.child()).unwrap(),
                 offset: plan.logical().offset(),
                 limit: plan.logical().limit(),
+            }
+            .execute(),
+        )
+    }
+
+    fn visit_physical_top_n(&mut self, plan: &PhysicalTopN) -> Option<BoxedExecutor> {
+        Some(
+            TopNExecutor {
+                child: self.visit(plan.child()).unwrap(),
+                offset: plan.logical().offset(),
+                limit: plan.logical().limit(),
+                comparators: plan.logical().comparators().to_owned(),
             }
             .execute(),
         )
