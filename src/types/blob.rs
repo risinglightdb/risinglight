@@ -115,12 +115,6 @@ impl AsRef<[u8]> for BlobRef {
     }
 }
 
-impl AsRef<BlobRef> for [u8] {
-    fn as_ref(&self) -> &BlobRef {
-        BlobRef::new(self)
-    }
-}
-
 impl Deref for BlobRef {
     type Target = [u8];
 

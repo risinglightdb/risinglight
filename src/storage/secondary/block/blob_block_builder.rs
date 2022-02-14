@@ -36,7 +36,7 @@ impl<T: BlobEncode + ?Sized> PlainBlobBlockBuilder<T> {
 impl<T: BlobEncode + ?Sized> BlockBuilder<T::ArrayType> for PlainBlobBlockBuilder<T> {
     fn append(&mut self, item: Option<&T>) {
         let item = item.expect("nullable item found in non-nullable block builder");
-        self.data.extend(item.as_ref());
+        self.data.extend(item.to_byte_slice());
         self.offsets.push(self.data.len() as u32);
     }
 

@@ -75,7 +75,7 @@ impl<T: BlobEncode + ?Sized> BlockIterator<T::ArrayType> for PlainBlobBlockItera
                 from = cur_offsets.get_u32_le() as usize;
                 to = cur_offsets.get_u32_le() as usize;
             }
-            builder.push(Some(T::from_bytes(&data_buffer[from..to])));
+            builder.push(Some(T::from_byte_slice(&data_buffer[from..to])));
 
             cnt += 1;
             self.next_row += 1;

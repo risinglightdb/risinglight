@@ -9,7 +9,7 @@ use crate::array::{Array, BlobArray};
 use crate::storage::secondary::ColumnBuilderOptions;
 use crate::types::BlobRef;
 
-/// Column builder of char types.
+/// Column builder of blob types.
 pub struct BlobColumnBuilder {
     data: Vec<u8>,
     options: ColumnBuilderOptions,

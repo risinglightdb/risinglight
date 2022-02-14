@@ -116,14 +116,16 @@ impl PrimitiveFixedWidthEncode for Interval {
     }
 }
 
-pub trait BlobEncode: AsRef<[u8]> {
+pub trait BlobEncode {
     type ArrayType: Array<Item = Self>;
 
     /// Returns the length (in bytes) of the blob slice.
     fn len(&self) -> usize;
 
     /// Converts a slice of bytes to a blob slice.
-    fn from_bytes(bytes: &[u8]) -> &Self;
+    fn from_byte_slice(bytes: &[u8]) -> &Self;
+
+    fn to_byte_slice(&self) -> &[u8];
 }
 
 impl BlobEncode for BlobRef {
@@ -133,8 +135,12 @@ impl BlobEncode for BlobRef {
         self.as_ref().len()
     }
 
-    fn from_bytes(bytes: &[u8]) -> &Self {
+    fn from_byte_slice(bytes: &[u8]) -> &Self {
         BlobRef::new(bytes)
+    }
+
+    fn to_byte_slice(&self) -> &[u8] {
+        self.as_ref()
     }
 }
 
@@ -145,7 +151,11 @@ impl BlobEncode for str {
         self.len()
     }
 
-    fn from_bytes(bytes: &[u8]) -> &Self {
+    fn from_byte_slice(bytes: &[u8]) -> &Self {
         std::str::from_utf8(bytes).unwrap()
+    }
+
+    fn to_byte_slice(&self) -> &[u8] {
+        self.as_bytes()
     }
 }
