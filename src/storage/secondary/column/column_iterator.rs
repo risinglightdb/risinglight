@@ -3,9 +3,9 @@
 use bitvec::prelude::BitVec;
 
 use super::{
-    BoolColumnIterator, CharBlockIteratorFactory, CharColumnIterator, Column, ColumnIterator,
-    DecimalColumnIterator, F64ColumnIterator, I32ColumnIterator, PrimitiveBlockIteratorFactory,
-    StorageResult,
+    BlobColumnIterator, BoolColumnIterator, CharBlockIteratorFactory, CharColumnIterator, Column,
+    ColumnIterator, DecimalColumnIterator, F64ColumnIterator, I32ColumnIterator,
+    PrimitiveBlockIteratorFactory, StorageResult,
 };
 use crate::array::{Array, ArrayImpl};
 use crate::catalog::ColumnCatalog;
@@ -21,6 +21,7 @@ pub enum ColumnIteratorImpl {
     Decimal(DecimalColumnIterator),
     Date(DateColumnIterator),
     Interval(IntervalColumnIterator),
+    Blob(BlobColumnIterator),
 }
 
 impl ColumnIteratorImpl {
@@ -74,6 +75,14 @@ impl ColumnIteratorImpl {
                 )
                 .await?,
             ),
+            DataTypeKind::Bytea => Self::Blob(
+                BlobColumnIterator::new(
+                    column,
+                    start_pos,
+                    super::blob_column_factory::BlobBlockIteratorFactory(),
+                )
+                .await?,
+            ),
             other_datatype => todo!(
                 "column iterator for {:?} is not implemented",
                 other_datatype
@@ -115,6 +124,9 @@ impl ColumnIteratorImpl {
             Self::Interval(it) => {
                 Self::erase_concrete_type(it.next_batch(expected_size, filter_bitmap).await?)
             }
+            Self::Blob(it) => {
+                Self::erase_concrete_type(it.next_batch(expected_size, filter_bitmap).await?)
+            }
         };
         Ok(result)
     }
@@ -128,6 +140,7 @@ impl ColumnIteratorImpl {
             Self::Decimal(it) => it.fetch_hint(),
             Self::Date(it) => it.fetch_hint(),
             Self::Interval(it) => it.fetch_hint(),
+            Self::Blob(it) => it.fetch_hint(),
         }
     }
 
@@ -140,6 +153,7 @@ impl ColumnIteratorImpl {
             Self::Decimal(it) => it.fetch_current_row_id(),
             Self::Date(it) => it.fetch_current_row_id(),
             Self::Interval(it) => it.fetch_current_row_id(),
+            Self::Blob(it) => it.fetch_current_row_id(),
         }
     }
 
@@ -152,6 +166,7 @@ impl ColumnIteratorImpl {
             Self::Decimal(it) => it.skip(cnt),
             Self::Date(it) => it.skip(cnt),
             Self::Interval(it) => it.skip(cnt),
+            Self::Blob(it) => it.skip(cnt),
         }
     }
 }
