@@ -182,6 +182,13 @@ impl RowRef<'_> {
         self.chunk.array_at(idx).get(self.row_idx)
     }
 
+    pub fn get_by_indexes(&self, indexes: &[usize]) -> Vec<DataValue> {
+        indexes
+            .iter()
+            .map(|i| self.chunk.array_at(*i).get(self.row_idx))
+            .collect()
+    }
+
     /// Get an iterator over the values of the row.
     pub fn values(&self) -> impl Iterator<Item = DataValue> + '_ {
         self.chunk.arrays().iter().map(|a| a.get(self.row_idx))
