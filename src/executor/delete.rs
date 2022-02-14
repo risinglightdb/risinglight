@@ -37,6 +37,8 @@ impl<S: Storage> DeleteExecutor<S> {
         }
         txn.commit().await?;
 
-        yield DataChunk::single(cnt);
+        let mut chunk = DataChunk::single(cnt as i32);
+        chunk.set_header(vec!["$delete.row_counts".to_string()]);
+        yield chunk;
     }
 }

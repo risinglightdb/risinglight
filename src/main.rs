@@ -35,6 +35,9 @@ fn print_chunk(chunk: &DataChunk) {
             "$insert.row_counts" => {
                 println!("{} rows inserted", chunk.array_at(0).get_to_string(0))
             }
+            "$delete.row_counts" => {
+                println!("{} rows deleted", chunk.array_at(0).get_to_string(0))
+            }
             "$create" => println!("created"),
             "$drop" => println!("dropped"),
             "$explain" => println!("{}", chunk.array_at(0).get_to_string(0)),
