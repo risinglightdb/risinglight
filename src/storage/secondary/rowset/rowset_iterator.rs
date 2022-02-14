@@ -99,12 +99,10 @@ impl RowSetIterator {
         expected_size: Option<usize>,
     ) -> StorageResult<(bool, Option<StorageChunk>)> {
         let filter_context = self.filter_expr.as_ref();
-        let fetch_size = if let Some(x) = expected_size {
-            x
-        } else {
-            // When `expected_size` is not available, we try to dispatch
-            // as little I/O as possible. We find the minimum fetch hints
-            // from the column iterators.
+        // It's guaranteed that `expected_size` <= the number of items left
+        // in the current block, if provided
+        let mut fetch_size = {
+            // We find the minimum fetch hints from the column iterators first
             let mut min = None;
             for it in self.column_iterators.iter().flatten() {
                 let hint = it.fetch_hint();
@@ -118,6 +116,11 @@ impl RowSetIterator {
             }
             min.unwrap_or(ROWSET_MAX_OUTPUT)
         };
+        if let Some(x) = expected_size {
+            // Then, if `expected_size` is available, let `fetch_size`
+            // be the min(fetch_size, expected_size)
+            fetch_size = if x > fetch_size { fetch_size } else { x }
+        }
 
         let mut arrays: PackedVec<Option<ArrayImpl>> = smallvec![];
         let mut common_chunk_range = None;
@@ -133,7 +136,8 @@ impl RowSetIterator {
         let mut visibility_map = None;
 
         // Generate the initial visibility_map from delete vectors, so
-        // that we can avoid unnecessary scan on filter column at next
+        // that we can avoid unnecessary procedure if all rows have been
+        // deleted in this batch
         if !self.dvs.is_empty() {
             // Get the start row id first
             let start_row_id = self.column_iterators[0]
@@ -148,21 +152,34 @@ impl RowSetIterator {
                 dv.apply_to(&mut visi, start_row_id);
             }
 
+            // All rows in this batch have been deleted, call `skip`
+            // on every columns
+            if visi.not_any() {
+                for (id, column_ref) in self.column_refs.iter().enumerate() {
+                    match column_ref {
+                        StorageColumnRef::RowHandler => continue,
+                        StorageColumnRef::Idx(_) => {
+                            self.column_iterators[id].as_mut().unwrap().skip(visi.len());
+                        }
+                    }
+                }
+                return Ok((false, None));
+            }
+
             // Switch visibility_map
             visibility_map = Some(visi);
         }
 
-        // Here, we use the visibility_map (generated from delete vector) to scan
-        // the columns in filter conditions. If there are no filter conditions, we
-        // don't do any modification to the visibility_map, otherwise we apply the
-        // filter results to it and get a new visibility_map.
+        // Here, we scan the columns in filter condition if needed, if there are no
+        // filter conditions, we don't do any modification to the `visibility_map`,
+        // otherwise we apply the filtered result to it and get a new visibility map
         if let Some((expr, filter_columns)) = filter_context {
             for id in 0..filter_columns.len() {
                 if filter_columns[id] {
                     if let Some((row_id, array)) = self.column_iterators[id]
                         .as_mut()
                         .unwrap()
-                        .next_batch(Some(fetch_size), visibility_map.as_ref())
+                        .next_batch(Some(fetch_size))
                         .await?
                     {
                         if let Some(x) = common_chunk_range {
@@ -211,7 +228,8 @@ impl RowSetIterator {
                 }
             }
 
-            // No rows left from the filter scan
+            // No rows left from the filter scan, skip columns which are not
+            // in filter conditions
             if filter_bitmap.not_any() {
                 for (id, column_ref) in self.column_refs.iter().enumerate() {
                     match column_ref {
@@ -232,7 +250,9 @@ impl RowSetIterator {
             visibility_map = Some(filter_bitmap);
         }
 
-        // Use visibility_map to filter columns
+        // At this stage, we know that some rows survived from the filter scan if happend, so
+        // just fetch the next batch for every other columns, and we have `visibility_map` to
+        // indicate the visibility of its rows
         // TODO: Implement the skip interface for column_iterator and call it here.
         // For those already fetched columns, they also need to delete corrensponding blocks.
         for (id, column_ref) in self.column_refs.iter().enumerate() {
@@ -248,7 +268,7 @@ impl RowSetIterator {
                         if let Some((row_id, array)) = self.column_iterators[id]
                             .as_mut()
                             .unwrap()
-                            .next_batch(Some(fetch_size), visibility_map.as_ref())
+                            .next_batch(Some(fetch_size))
                             .await?
                         {
                             if let Some(x) = common_chunk_range {
@@ -345,6 +365,7 @@ mod tests {
             )
             .await
             .unwrap();
+        // 1 block contains 20 rows, so only 20 rows will be returned if `expected_size` > 20 here
         let chunk = it.next_batch(Some(1000)).await.unwrap().unwrap();
         if let ArrayImpl::Int32(array) = chunk.array_at(2).as_ref() {
             let left = array.to_vec();
@@ -352,7 +373,7 @@ mod tests {
                 .iter()
                 .cycle()
                 .cloned()
-                .take(1000)
+                .take(20)
                 .map(Some)
                 .collect_vec();
             assert_eq!(left.len(), right.len());
@@ -367,7 +388,7 @@ mod tests {
                 .iter()
                 .cycle()
                 .cloned()
-                .take(1000)
+                .take(20)
                 .map(Some)
                 .collect_vec();
             assert_eq!(left.len(), right.len());
@@ -436,7 +457,7 @@ mod tests {
                 .iter()
                 .cycle()
                 .cloned()
-                .take(1000)
+                .take(20)
                 .map(Some)
                 .collect_vec();
             assert_eq!(left.len(), right.len());
@@ -451,7 +472,7 @@ mod tests {
                 .iter()
                 .cycle()
                 .cloned()
-                .take(1000)
+                .take(20)
                 .map(Some)
                 .collect_vec();
             assert_eq!(left.len(), right.len());
