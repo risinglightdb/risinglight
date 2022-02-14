@@ -171,7 +171,6 @@ impl Database {
         let stmts = parse(sql)?;
 
         let mut binder = Binder::new(self.catalog.clone());
-
         let logical_planner = LogicalPlaner::default();
         let mut optimizer = Optimizer {
             enable_filter_scan: self.storage.enable_filter_scan(),
