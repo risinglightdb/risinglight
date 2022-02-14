@@ -3,7 +3,7 @@
 use std::cmp::Ordering;
 
 use super::*;
-use crate::array::{ArrayBuilderImpl, DataChunk, RowRef};
+use crate::array::{DataChunk, RowRef};
 use crate::binder::{BoundExpr, BoundOrderBy};
 
 /// The executor of an order operation.
@@ -26,21 +26,12 @@ impl OrderExecutor {
         let comparators = self.comparators;
         indexes.sort_unstable_by(|row1, row2| cmp(row1, row2, &comparators));
         // build chunk by the new order
-        let mut arrays = vec![];
-        for col_idx in 0..chunks[0].column_count() {
-            let mut builder = ArrayBuilderImpl::from_type_of_array(chunks[0].array_at(col_idx));
-            for row in &indexes {
-                builder.push(&row.get(col_idx));
-            }
-            arrays.push(builder.finish());
-        }
-        let chunk: DataChunk = arrays.into_iter().collect();
-        yield chunk;
+        yield DataChunk::from_rows(indexes.as_ref(), &chunks[0]);
     }
 }
 
 /// Compare two rows by the comparators.
-fn cmp(row1: &RowRef, row2: &RowRef, comparators: &[BoundOrderBy]) -> Ordering {
+pub(super) fn cmp(row1: &RowRef, row2: &RowRef, comparators: &[BoundOrderBy]) -> Ordering {
     for cmp in comparators {
         let column_index = match &cmp.expr {
             BoundExpr::InputRef(input_ref) => input_ref.index,

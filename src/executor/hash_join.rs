@@ -17,8 +17,8 @@ pub struct HashJoinExecutor {
     pub join_op: BoundJoinOperator,
     // TODO: filter by condition
     pub condition: BoundExpr,
-    pub left_column_index: usize,
-    pub right_column_index: usize,
+    pub left_column_indexes: Vec<usize>,
+    pub right_column_indexes: Vec<usize>,
     pub left_types: Vec<DataType>,
     pub right_types: Vec<DataType>,
 }
@@ -40,9 +40,9 @@ impl HashJoinExecutor {
         let right_rows = || right_chunks.iter().flat_map(|chunk| chunk.rows());
 
         // build
-        let mut hash_map: HashMap<DataValue, Vec<RowRef<'_>>> = HashMap::new();
+        let mut hash_map: HashMap<Vec<DataValue>, Vec<RowRef<'_>>> = HashMap::new();
         for left_row in left_rows() {
-            let hash_value = left_row.get(self.left_column_index);
+            let hash_value = left_row.get_by_indexes(&self.left_column_indexes);
             hash_map
                 .entry(hash_value)
                 .or_insert_with(Vec::new)
@@ -55,7 +55,7 @@ impl HashJoinExecutor {
             .map(|ty| ArrayBuilderImpl::with_capacity(PROCESSING_WINDOW_SIZE, ty))
             .collect_vec();
         for right_row in right_rows() {
-            let hash_value = right_row.get(self.right_column_index);
+            let hash_value = right_row.get_by_indexes(&self.right_column_indexes);
             for left_row in hash_map.get(&hash_value).unwrap_or(&vec![]) {
                 let values = left_row.values().chain(right_row.values());
                 for (builder, v) in builders.iter_mut().zip_eq(values) {
@@ -70,10 +70,10 @@ impl HashJoinExecutor {
             BoundJoinOperator::LeftOuter | BoundJoinOperator::FullOuter
         ) {
             let right_keys = right_rows()
-                .map(|row| row.get(self.right_column_index))
-                .collect::<HashSet<DataValue>>();
+                .map(|row| row.get_by_indexes(&self.right_column_indexes))
+                .collect::<HashSet<Vec<DataValue>>>();
             for left_row in left_rows() {
-                let hash_value = left_row.get(self.left_column_index);
+                let hash_value = left_row.get_by_indexes(&self.left_column_indexes);
                 if right_keys.contains(&hash_value) {
                     continue;
                 }
@@ -92,7 +92,7 @@ impl HashJoinExecutor {
             BoundJoinOperator::RightOuter | BoundJoinOperator::FullOuter
         ) {
             for right_row in right_rows() {
-                let hash_value = right_row.get(self.right_column_index);
+                let hash_value = right_row.get_by_indexes(&self.right_column_indexes);
                 if hash_map.contains_key(&hash_value) {
                     continue;
                 }
