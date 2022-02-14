@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use super::*;
 use crate::catalog::ColumnCatalog;
-use crate::types::{DatabaseId, SchemaId};
+use crate::types::{DataTypeKind, DatabaseId, SchemaId};
 
 /// The logical plan of `CREATE TABLE`.
 #[derive(Debug, Clone, Serialize)]
@@ -54,8 +54,18 @@ impl LogicalCreateTable {
     }
 }
 impl PlanTreeNodeLeaf for LogicalCreateTable {}
+
 impl_plan_tree_node_for_leaf!(LogicalCreateTable);
-impl PlanNode for LogicalCreateTable {}
+
+impl PlanNode for LogicalCreateTable {
+    fn schema(&self) -> Vec<ColumnDesc> {
+        vec![ColumnDesc::new(
+            DataType::new(DataTypeKind::Int(None), false),
+            "$create".to_string(),
+            false,
+        )]
+    }
+}
 
 impl fmt::Display for LogicalCreateTable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
