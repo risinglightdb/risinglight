@@ -54,6 +54,22 @@ impl HashJoinExecutor {
             .chain(self.right_types.iter())
             .map(|ty| ArrayBuilderImpl::with_capacity(PROCESSING_WINDOW_SIZE, ty))
             .collect_vec();
+        let mut cnt = 0;
+        macro_rules! yield_on_window_overflow {
+            () => {
+                {
+                    cnt += 1;
+                    if cnt >= PROCESSING_WINDOW_SIZE {
+                        yield std::task::Poll::Ready(builders.drain(..).collect::<DataChunk>());
+                        builders = (self.left_types.iter())
+                            .chain(self.right_types.iter())
+                            .map(|ty| ArrayBuilderImpl::with_capacity(PROCESSING_WINDOW_SIZE, ty))
+                            .collect_vec();
+                        cnt = 0;
+                    }
+                }
+            }
+        }
         for right_row in right_rows() {
             let hash_value = right_row.get_by_indexes(&self.right_column_indexes);
             for left_row in hash_map.get(&hash_value).unwrap_or(&vec![]) {
@@ -61,6 +77,7 @@ impl HashJoinExecutor {
                 for (builder, v) in builders.iter_mut().zip_eq(values) {
                     builder.push(&v);
                 }
+                yield_on_window_overflow!();
             }
         }
 
@@ -83,6 +100,7 @@ impl HashJoinExecutor {
                 for (builder, v) in builders.iter_mut().zip_eq(values) {
                     builder.push(&v);
                 }
+                yield_on_window_overflow!();
             }
         }
 
@@ -102,9 +120,12 @@ impl HashJoinExecutor {
                 for (builder, v) in builders.iter_mut().zip_eq(values) {
                     builder.push(&v);
                 }
+                yield_on_window_overflow!();
             }
         }
 
-        yield builders.into_iter().collect();
+        if cnt > 0 {
+            yield builders.into_iter().collect();
+        }
     }
 }
