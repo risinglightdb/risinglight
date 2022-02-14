@@ -24,8 +24,7 @@ impl<S: Storage> CreateTableExecutor<S> {
             )
             .await?;
 
-        let mut chunk = DataChunk::single(0);
-        chunk.set_header(vec!["$create".to_string()]);
+        let chunk = DataChunk::single(0);
         yield chunk
     }
 }
