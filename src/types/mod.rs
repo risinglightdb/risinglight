@@ -7,7 +7,6 @@ use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 pub use sqlparser::ast::DataType as DataTypeKind;
-use tracing_subscriber::registry::Data;
 
 use crate::for_all_variants;
 
