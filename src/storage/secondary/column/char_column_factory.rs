@@ -7,13 +7,13 @@ use super::super::{Block, BlockIterator};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::{Utf8Array, Utf8ArrayBuilder};
 use crate::storage::secondary::block::{
-    FakeBlockIterator, PlainCharBlockIterator, PlainVarcharBlockIterator,
+    FakeBlockIterator, PlainBlobBlockIterator, PlainCharBlockIterator,
 };
 
 /// All supported block iterators for char types.
 pub enum CharBlockIteratorImpl {
     PlainFixedChar(PlainCharBlockIterator),
-    PlainVarchar(PlainVarcharBlockIterator),
+    PlainVarchar(PlainBlobBlockIterator<str>),
     Fake(FakeBlockIterator<Utf8Array>),
 }
 
@@ -76,7 +76,7 @@ impl BlockIteratorFactory<Utf8Array> for CharBlockIteratorFactory {
                 CharBlockIteratorImpl::PlainFixedChar(it)
             }
             (BlockType::PlainVarchar, _) => {
-                let it = PlainVarcharBlockIterator::new(block, index.row_count as usize);
+                let it = PlainBlobBlockIterator::new(block, index.row_count as usize);
                 CharBlockIteratorImpl::PlainVarchar(it)
             }
             _ => todo!(),

@@ -116,7 +116,7 @@ impl PrimitiveFixedWidthEncode for Interval {
     }
 }
 
-pub trait BlobEncode: AsRef<[u8]> + Len {
+pub trait BlobEncode: AsRef<[u8]> + Len + FromBytes {
     type ArrayType: Array<Item = Self>;
 }
 
@@ -141,5 +141,21 @@ impl Len for BlobRef {
 impl Len for str {
     fn len(&self) -> usize {
         self.len()
+    }
+}
+
+pub trait FromBytes {
+    fn from_bytes(bytes: &[u8]) -> &Self;
+}
+
+impl FromBytes for BlobRef {
+    fn from_bytes(bytes: &[u8]) -> &Self {
+        BlobRef::new(bytes)
+    }
+}
+
+impl FromBytes for str {
+    fn from_bytes(bytes: &[u8]) -> &Self {
+        std::str::from_utf8(bytes).unwrap()
     }
 }

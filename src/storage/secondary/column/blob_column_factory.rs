@@ -7,9 +7,10 @@ use super::super::{Block, BlockIterator};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::{BlobArray, BlobArrayBuilder};
 use crate::storage::secondary::block::{FakeBlockIterator, PlainBlobBlockIterator};
+use crate::types::BlobRef;
 
 pub enum BlobBlockIteratorImpl {
-    PlainBlob(PlainBlobBlockIterator),
+    PlainBlob(PlainBlobBlockIterator<BlobRef>),
     Fake(FakeBlockIterator<BlobArray>),
 }
 
