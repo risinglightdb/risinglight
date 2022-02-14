@@ -12,7 +12,7 @@ pub struct DataChunkBuilder {
 }
 
 impl DataChunkBuilder {
-    pub fn new(data_types: impl IntoIterator<Item = DataType>, capacity: usize) -> Self {
+    pub fn new<'a>(data_types: impl IntoIterator<Item = &'a DataType>, capacity: usize) -> Self {
         assert_ne!(capacity, 0);
         let array_builders = data_types
             .into_iter()

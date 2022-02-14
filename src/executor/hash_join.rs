@@ -49,12 +49,7 @@ impl HashJoinExecutor {
                 .push(left_row);
         }
 
-        let data_types = || {
-            self.left_types
-                .iter()
-                .chain(self.right_types.iter())
-                .cloned()
-        };
+        let data_types = || self.left_types.iter().chain(self.right_types.iter());
         let mut builder = DataChunkBuilder::new(data_types(), PROCESSING_WINDOW_SIZE);
 
         // probe
