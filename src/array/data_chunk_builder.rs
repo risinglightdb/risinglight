@@ -25,6 +25,13 @@ impl DataChunkBuilder {
         }
     }
 
+    /// Push a row in the Iterator.
+    ///
+    /// The row is accepted as an iterator of DataValue, and it's required that the size of row
+    /// should be the same as the number of columns.
+    ///
+    /// Either a [`DataChunkBuilder`] or a [`DataChunk`] will be returned, depends on whether `size
+    /// == capacity`
     pub fn push_row(mut self, row: impl IntoIterator<Item = DataValue>) -> Result<Self, DataChunk> {
         self.array_builders
             .iter_mut()
@@ -38,6 +45,9 @@ impl DataChunkBuilder {
         }
     }
 
+    /// Generate a [`DataChunk`] with the remaining rows.
+    ///
+    /// If there are no remaining rows, `None` will be returned.
     #[must_use]
     pub fn finish(self) -> Option<DataChunk> {
         match self.capacity {
