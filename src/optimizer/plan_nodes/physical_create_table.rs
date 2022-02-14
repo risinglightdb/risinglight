@@ -27,7 +27,11 @@ impl PhysicalCreateTable {
 impl PlanTreeNodeLeaf for PhysicalCreateTable {}
 impl_plan_tree_node_for_leaf!(PhysicalCreateTable);
 
-impl PlanNode for PhysicalCreateTable {}
+impl PlanNode for PhysicalCreateTable {
+    fn schema(&self) -> Vec<ColumnDesc> {
+        self.logical.schema()
+    }
+}
 
 impl fmt::Display for PhysicalCreateTable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

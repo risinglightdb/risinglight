@@ -3,7 +3,7 @@
 use super::super::plan_nodes::*;
 use super::*;
 use crate::binder::BoundJoinOperator;
-use crate::types::DataValue;
+use crate::optimizer::expr_utils::merge_conjunctions;
 /// Convert all logical plan nodes to physical.
 pub struct PhysicalConverter;
 
@@ -45,26 +45,27 @@ impl PlanRewriter for PhysicalConverter {
             // TODO: Currently HashJoinExecutor ignores the condition, so for correctness we pull
             // the conditions as a filter operator. And this transformation is only correct for
             // inner join
-            let left_col_num = left.out_types().len();
-            let (left_column_index, right_column_index) = predicate.eq_keys()[0].clone();
-            let join = Arc::new(PhysicalHashJoin::new(
-                LogicalJoin::create(
-                    left,
-                    right,
-                    BoundJoinOperator::Inner,
-                    BoundExpr::Constant(DataValue::Bool(true)),
-                ),
-                left_column_index.index,
-                right_column_index.index - left_col_num,
-            ));
-            // Currently hash join just use one column pair as hash index
-            let need_pull_filter = predicate.eq_keys().len() != 1
-                || !predicate.left_conds().is_empty()
+
+            let join = Arc::new(PhysicalHashJoin::new(LogicalJoin::create(
+                left,
+                right,
+                BoundJoinOperator::Inner,
+                merge_conjunctions(logical_join.predicate().eq_conds().into_iter()),
+            )));
+
+            let need_pull_filter = !predicate.left_conds().is_empty()
                 || !predicate.right_conds().is_empty()
                 || !predicate.other_conds().is_empty();
             if need_pull_filter {
                 return Arc::new(PhysicalFilter::new(LogicalFilter::new(
-                    predicate.to_on_clause(),
+                    merge_conjunctions(
+                        predicate
+                            .left_conds()
+                            .iter()
+                            .cloned()
+                            .chain(predicate.right_conds().iter().cloned())
+                            .chain(predicate.other_conds().iter().cloned()),
+                    ),
                     join,
                 )));
             } else {

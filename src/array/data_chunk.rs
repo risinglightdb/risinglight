@@ -108,6 +108,8 @@ impl DataChunk {
         self.arrays.iter().map(|a| a.get_estimated_size()).sum()
     }
 
+    /// This function should only be called in plan nodes. If you want to change column name, you
+    /// should change the plan node, instead of directly attaching a header to the chunk.
     pub fn set_header(&mut self, header: Vec<String>) {
         self.header = Some(header);
     }
@@ -192,6 +194,13 @@ impl RowRef<'_> {
     /// Get the value at given column index.
     pub fn get(&self, idx: usize) -> DataValue {
         self.chunk.array_at(idx).get(self.row_idx)
+    }
+
+    pub fn get_by_indexes(&self, indexes: &[usize]) -> Vec<DataValue> {
+        indexes
+            .iter()
+            .map(|i| self.chunk.array_at(*i).get(self.row_idx))
+            .collect()
     }
 
     /// Get an iterator over the values of the row.

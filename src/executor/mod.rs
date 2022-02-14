@@ -19,10 +19,11 @@ use futures_async_stream::try_stream;
 use itertools::Itertools;
 
 use crate::array::DataChunk;
+use crate::binder::BoundExpr;
 use crate::optimizer::plan_nodes::*;
 use crate::optimizer::PlanVisitor;
 use crate::storage::{StorageImpl, TracedStorageError};
-use crate::types::ConvertError;
+use crate::types::{ConvertError, DataValue};
 
 mod aggregation;
 mod copy_from_file;
@@ -288,14 +289,23 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
     fn visit_physical_hash_join(&mut self, plan: &PhysicalHashJoin) -> Option<BoxedExecutor> {
         let left_child = self.visit(plan.left()).unwrap();
         let right_child = self.visit(plan.right()).unwrap();
+
+        let left_col_num = plan.left().out_types().len();
+        let (left_column_indexes, right_column_indexes) = plan
+            .logical()
+            .predicate()
+            .eq_keys()
+            .iter()
+            .map(|(left, right)| (left.index, right.index - left_col_num))
+            .unzip();
         Some(
             HashJoinExecutor {
                 left_child,
                 right_child,
                 join_op: plan.logical().join_op(),
-                condition: plan.logical().predicate().to_on_clause(),
-                left_column_index: plan.left_column_index(),
-                right_column_index: plan.right_column_index(),
+                condition: BoundExpr::Constant(DataValue::Bool(true)),
+                left_column_indexes,
+                right_column_indexes,
                 left_types: plan.left().out_types(),
                 right_types: plan.right().out_types(),
             }
