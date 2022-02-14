@@ -99,7 +99,7 @@ impl std::fmt::Debug for BoundExpr {
         match self {
             Self::Constant(expr) => write!(f, "{:?} (const)", expr)?,
             Self::ColumnRef(expr) => write!(f, "Column #{:?}", expr)?,
-            Self::BinaryOp(expr) => write!(f, "{}", expr)?,
+            Self::BinaryOp(expr) => write!(f, "{:?}", expr)?,
             Self::UnaryOp(expr) => write!(f, "{:?}", expr)?,
             Self::TypeCast(expr) => write!(f, "{:?}", expr)?,
             Self::AggCall(expr) => write!(f, "{:?} (agg)", expr)?,
