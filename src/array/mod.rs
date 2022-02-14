@@ -10,11 +10,13 @@ use rust_decimal::Decimal;
 use crate::types::{Blob, ConvertError, DataType, DataValue, Date, Interval, PhysicalDataTypeKind};
 
 mod data_chunk;
+mod data_chunk_builder;
 mod iterator;
 mod primitive_array;
 mod utf8_array;
 
 pub use self::data_chunk::*;
+pub use self::data_chunk_builder::*;
 pub use self::iterator::ArrayIter;
 pub use self::primitive_array::*;
 pub use self::utf8_array::*;
