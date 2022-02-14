@@ -1,0 +1,163 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+	
+	
+	
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug UI",
+			"cargo": {
+				"args": [
+					"run",
+					"--release",
+					"--",
+					"-f",
+					"tests/sql/tpch/q1.sql"
+				],
+				"filter": {
+					"name": "risinglight_proto",
+					"kind": "lib"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug unit tests in library 'risinglight_proto'",
+			"cargo": {
+				"args": [
+					"test",
+					"--no-run",
+					"--lib",
+					"--package=risinglight_proto"
+				],
+				"filter": {
+					"name": "risinglight_proto",
+					"kind": "lib"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug unit tests in library 'risinglight'",
+			"cargo": {
+				"args": [
+					"test",
+					"--no-run",
+					"--lib",
+					"--package=risinglight"
+				],
+				"filter": {
+					"name": "risinglight",
+					"kind": "lib"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug executable 'risinglight'",
+			"cargo": {
+				"args": [
+					"build",
+					"--bin=risinglight",
+					"--package=risinglight"
+				],
+				"filter": {
+					"name": "risinglight",
+					"kind": "bin"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug unit tests in executable 'risinglight'",
+			"cargo": {
+				"args": [
+					"test",
+					"--no-run",
+					"--bin=risinglight",
+					"--package=risinglight"
+				],
+				"filter": {
+					"name": "risinglight",
+					"kind": "bin"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug integration test 'sqllogictest'",
+			"cargo": {
+				"args": [
+					"test",
+					"--no-run",
+					"--test=sqllogictest",
+					"--package=risinglight"
+				],
+				"filter": {
+					"name": "sqllogictest",
+					"kind": "test"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug benchmark 'e2e'",
+			"cargo": {
+				"args": [
+					"test",
+					"--no-run",
+					"--bench=e2e",
+					"--package=risinglight"
+				],
+				"filter": {
+					"name": "e2e",
+					"kind": "bench"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug benchmark 'array'",
+			"cargo": {
+				"args": [
+					"test",
+					"--no-run",
+					"--bench=array",
+					"--package=risinglight"
+				],
+				"filter": {
+					"name": "array",
+					"kind": "bench"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		}
+	]
+}

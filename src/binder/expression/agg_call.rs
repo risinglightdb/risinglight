@@ -56,6 +56,16 @@ impl std::fmt::Debug for BoundAggCall {
     }
 }
 
+impl std::fmt::Display for BoundAggCall {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}({:?}) -> {}",
+            self.kind, self.args, self.return_type
+        )
+    }
+}
+
 impl Binder {
     pub fn bind_function(&mut self, func: &Function) -> Result<BoundExpr, BindError> {
         // TODO: Support scalar function

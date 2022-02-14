@@ -37,3 +37,9 @@ impl std::fmt::Debug for BoundTypeCast {
         write!(f, "{:?} as {:?}", self.expr, self.ty)
     }
 }
+
+impl std::fmt::Display for BoundTypeCast {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.expr)
+    }
+}

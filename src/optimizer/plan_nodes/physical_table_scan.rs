@@ -4,6 +4,7 @@ use std::fmt;
 
 use itertools::Itertools;
 use serde::Serialize;
+use indoc::indoc;
 
 use super::*;
 
@@ -39,8 +40,13 @@ impl PlanNode for PhysicalTableScan {
 impl fmt::Display for PhysicalTableScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
-            f,
-            "PhysicalTableScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}, expr: {}",
+            f, indoc! {"
+			PhysicalTableScan:
+			  table #{},
+			  columns [{}],
+			  with_row_handler: {},
+			  is_sorted: {},
+			  expr: {}"},
             self.logical().table_ref_id().table_id,
             self.logical().column_ids().iter().map(ToString::to_string).join(", "),
             self.logical().with_row_handler(),

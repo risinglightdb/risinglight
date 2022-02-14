@@ -54,6 +54,10 @@ impl PlanNode for PhysicalSimpleAgg {
 
 impl fmt::Display for PhysicalSimpleAgg {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "PhysicalSimpleAgg: {} agg calls", self.agg_calls.len(),)
+        writeln!(f, "PhysicalSimpleAgg:")?;
+		for agg in self.agg_calls().iter() {
+			writeln!(f, "  {}", agg)?
+		}
+		Ok(())
     }
 }

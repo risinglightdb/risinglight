@@ -12,7 +12,7 @@ use crate::types::DataValue;
 /// A chunk is a horizontal subset of a query result.
 #[derive(Clone, PartialEq)]
 pub struct DataChunk {
-    arrays: Arc<[ArrayImpl]>,
+    pub arrays: Arc<[ArrayImpl]>,
     header: Option<Vec<String>>,
 }
 
@@ -140,8 +140,8 @@ impl fmt::Display for DataChunk {
             table.set_header(header);
         }
         table.load_preset("||--+-++|    ++++++");
-        for i in 0..self.cardinality() {
-            let row: Vec<_> = self.arrays.iter().map(|a| a.get_to_string(i)).collect();
+        for _i in 0..self.cardinality() {
+            let row: Vec<_> = self.arrays.iter().map(|a| a.get_to_string(0)).collect();
             table.add_row(row);
         }
         write!(f, "{}", table)

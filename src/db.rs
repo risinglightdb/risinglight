@@ -171,6 +171,7 @@ impl Database {
         let stmts = parse(sql)?;
 
         let mut binder = Binder::new(self.catalog.clone());
+
         let logical_planner = LogicalPlaner::default();
         let mut optimizer = Optimizer {
             enable_filter_scan: self.storage.enable_filter_scan(),
@@ -186,9 +187,9 @@ impl Database {
             let mut input_ref_resolver = InputRefResolver::default();
             let logical_plan = input_ref_resolver.rewrite(logical_plan);
             let column_names = logical_plan.out_names();
-            debug!("{:#?}", logical_plan);
+            debug!("logical: {:#?}", logical_plan);
             let optimized_plan = optimizer.optimize(logical_plan);
-            debug!("{:#?}", optimized_plan);
+            debug!("optimized: {:#?}", optimized_plan);
             let executor = self.executor_builder.clone().build(optimized_plan);
             let mut output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
                 debug!("error: {}", e);

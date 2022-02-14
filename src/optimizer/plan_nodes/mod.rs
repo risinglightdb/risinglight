@@ -169,7 +169,8 @@ pub type PlanRef = Arc<dyn PlanNode>;
 impl dyn PlanNode {
     /// Write explain string of the plan.
     pub fn explain(&self, level: usize, f: &mut dyn std::fmt::Write) -> std::fmt::Result {
-        write!(f, "{}{}", " ".repeat(level * 2), self)?;
+		let indented_self = format!("{}", self).replace("\n  ", &format!("\n{}", " ".repeat(level * 2 + 4)));
+        write!(f, "{}{}", " ".repeat(level * 2), indented_self)?;
         for child in self.children() {
             child.explain(level + 1, f)?;
         }

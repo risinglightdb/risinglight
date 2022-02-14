@@ -3,6 +3,7 @@
 use std::fmt;
 
 use serde::Serialize;
+use indoc::indoc;
 
 use super::*;
 
@@ -51,10 +52,12 @@ impl PlanNode for PhysicalHashJoin {
 impl fmt::Display for PhysicalHashJoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
-            f,
-            "PhysicalHashJoin: op {:?}, predicate: {} ",
-            self.logical().join_op(),
-            self.logical().predicate()
+            f, indoc! {"
+			PhysicalHashJoin:
+			  op {:?},
+			  predicate: {}"},
+			self.logical().join_op(),
+			self.logical().predicate()
         )
     }
 }
