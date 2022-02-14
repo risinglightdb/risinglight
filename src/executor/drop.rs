@@ -18,6 +18,9 @@ impl<S: Storage> DropExecutor<S> {
         match self.plan.logical().object().clone() {
             Object::Table(ref_id) => self.storage.drop_table(ref_id).await?,
         }
-        yield DataChunk::single(0);
+
+        let mut chunk = DataChunk::single(0);
+        chunk.set_header(vec!["$drop".to_string()]);
+        yield chunk
     }
 }
