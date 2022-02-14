@@ -36,6 +36,7 @@ fn print_chunk(chunk: &DataChunk) {
                 println!("{} rows inserted", chunk.array_at(0).get_to_string(0))
             }
             "$create" => println!("created"),
+            "$drop" => println!("dropped"),
             "$explain" => println!("{}", chunk.array_at(0).get_to_string(0)),
             _ => println!("{}", chunk),
         },
