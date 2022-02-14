@@ -58,11 +58,7 @@ impl std::fmt::Debug for BoundAggCall {
 
 impl std::fmt::Display for BoundAggCall {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}({}) -> {}",
-            self.kind, self.args[0], self.return_type
-        )
+        write!(f, "{}({}) -> {}", self.kind, self.args[0], self.return_type)
     }
 }
 

@@ -27,11 +27,7 @@ impl std::fmt::Debug for BoundBinaryOp {
 
 impl std::fmt::Display for BoundBinaryOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "({} {} {})",
-            self.left_expr, self.op, self.right_expr
-        )
+        write!(f, "({} {} {})", self.left_expr, self.op, self.right_expr)
     }
 }
 
