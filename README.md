@@ -45,9 +45,11 @@ The RisingLight Slack channel is currently hosted in the RisingWave community. Y
 * [risinglight-english](https://risingwave-community.slack.com/archives/C030SJRDT4J)
 * [risinglight-chinese](https://risingwave-community.slack.com/archives/C02UZDEE4AC)
 
+If the Slack invitation link expires (which normally should not happen), please create an issue :-)
+
 ### Other Messaging Apps
 
-If you want to join the communication group in messaging apps like Discord, Telegram, or WeChat, please send an email to `contact at singularity-data.com` with your user ID. We will then invite you to the group.
+If you want to join our active communication group in messaging apps including Discord, Telegram, and WeChat, please send an email to `contact at singularity-data.com` with your user ID. We will then manually invite you to the group.
 
 ## Contributing
 
