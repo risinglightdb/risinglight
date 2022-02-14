@@ -21,6 +21,10 @@ impl PhysicalProjection {
     pub fn logical(&self) -> &LogicalProjection {
         &self.logical
     }
+    #[allow(dead_code)]
+    fn estimated_cardinality(&self) -> usize {
+        self.child().estimated_cardinality()
+    }
 }
 
 impl PlanTreeNodeUnary for PhysicalProjection {

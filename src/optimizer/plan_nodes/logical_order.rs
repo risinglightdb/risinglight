@@ -50,6 +50,10 @@ impl PlanNode for LogicalOrder {
     fn schema(&self) -> Vec<ColumnDesc> {
         self.child.schema()
     }
+
+    fn estimated_cardinality(&self) -> usize {
+        self.child().estimated_cardinality()
+    }
 }
 
 impl fmt::Display for LogicalOrder {

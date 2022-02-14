@@ -128,6 +128,10 @@ pub trait PlanNode:
             .collect()
     }
 
+    /// Esitmated output size of the plan node
+    fn estimated_cardinality(&self) -> usize {
+        1
+    }
     /// transform the plan node to only output the required columns ordered by index number, only
     /// logical plan node will use it, though all plan node impl it.
     fn prune_col(&self, required_cols: BitSet) -> PlanRef {
