@@ -56,19 +56,19 @@ impl HashJoinExecutor {
             .collect_vec();
         let mut cnt = 0;
         macro_rules! yield_on_window_overflow {
-            () => {
-                {
-                    cnt += 1;
-                    if cnt >= PROCESSING_WINDOW_SIZE {
-                        yield std::task::Poll::Ready(builders.drain(..).collect::<DataChunk>());
-                        builders = (self.left_types.iter())
-                            .chain(self.right_types.iter())
-                            .map(|ty| ArrayBuilderImpl::with_capacity(PROCESSING_WINDOW_SIZE, ty))
-                            .collect_vec();
-                        cnt = 0;
-                    }
+            () => {{
+                cnt += 1;
+                if cnt >= PROCESSING_WINDOW_SIZE {
+                    // FIXME: I'm not sure why I have to wrap the chunk with `Ready` here, but
+                    // make compiler happy.
+                    yield std::task::Poll::Ready(builders.drain(..).collect::<DataChunk>());
+                    builders = (self.left_types.iter())
+                        .chain(self.right_types.iter())
+                        .map(|ty| ArrayBuilderImpl::with_capacity(PROCESSING_WINDOW_SIZE, ty))
+                        .collect_vec();
+                    cnt = 0;
                 }
-            }
+            }};
         }
         for right_row in right_rows() {
             let hash_value = right_row.get_by_indexes(&self.right_column_indexes);
