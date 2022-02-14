@@ -16,7 +16,7 @@ impl DataChunkBuilder {
         assert_ne!(capacity, 0);
         let array_builders = data_types
             .into_iter()
-            .map(|ty| ArrayBuilderImpl::with_capacity(capacity, &ty))
+            .map(|ty| ArrayBuilderImpl::with_capacity(capacity, ty))
             .collect();
         DataChunkBuilder {
             array_builders,
@@ -27,7 +27,7 @@ impl DataChunkBuilder {
 
     /// Push a row in the Iterator.
     ///
-    /// The row is accepted as an iterator of DataValue, and it's required that the size of row
+    /// The row is accepted as an iterator of [`DataValue`], and it's required that the size of row
     /// should be the same as the number of columns.
     ///
     /// Either a [`DataChunkBuilder`] or a [`DataChunk`] will be returned, depends on whether `size
