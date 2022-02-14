@@ -13,6 +13,7 @@
 #![feature(backtrace)]
 #![feature(generic_associated_types)]
 #![feature(type_alias_impl_trait)]
+#![feature(core_intrinsics)]
 
 /// Top-level structure of the database.
 pub mod db;
