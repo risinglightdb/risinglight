@@ -1,23 +1,24 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::marker::PhantomData;
-
-use bitvec::prelude::Lsb0;
-use bitvec::slice::BitSlice;
 use bytes::Buf;
 
 use super::super::PrimitiveFixedWidthEncode;
 use super::{Block, BlockIterator};
 use crate::array::{Array, ArrayBuilder};
+use crate::types::NativeType;
 
 /// Scans one or several arrays from the RLE Primitive block content,
 /// including plain block and nullable block.
-pub struct RLEPrimitiveBlockIterator<T: PrimitiveFixedWidthEncode> {
-    /// Block content
-    block: Block,
+pub struct RLEPrimitiveBlockIterator<T, B>
+where
+    T: PrimitiveFixedWidthEncode + NativeType,
+    B: BlockIterator<T::ArrayType>,
+{
+    /// Block iterator
+    block_iter: B,
 
-    /// Whether nullable
-    nullable: bool,
+    /// rle block
+    rle_block: Block,
 
     /// Indicates the beginning row of the next batch
     next_row: usize,
@@ -28,38 +29,38 @@ pub struct RLEPrimitiveBlockIterator<T: PrimitiveFixedWidthEncode> {
     /// The number of rle_counts
     rle_counts_num: usize,
 
-    _phantom: PhantomData<T>,
+    /// Current array
+    cur_array: Option<T::ArrayType>,
 }
 
-impl<T: PrimitiveFixedWidthEncode> RLEPrimitiveBlockIterator<T> {
-    pub fn new(block: Block, nullable: bool) -> Self {
-        let mut rle_counts_num = &block[..];
-        let rle_counts_num = rle_counts_num.get_u32_le() as usize;
+impl<T, B> RLEPrimitiveBlockIterator<T, B>
+where
+    T: PrimitiveFixedWidthEncode + NativeType,
+    B: BlockIterator<T::ArrayType>,
+{
+    pub fn new(block_iter: B, rle_block: Block, rle_counts_num: usize) -> Self {
         Self {
-            block,
-            nullable,
+            block_iter,
+            rle_block,
             next_row: 0,
             cur_count: 0,
             rle_counts_num,
-            _phantom: PhantomData,
+            cur_array: None,
         }
     }
 
-    fn get_cur_data_inner(&self) -> (T, u16) {
-        let rle_counts_length =
-            std::mem::size_of::<u32>() + std::mem::size_of::<u16>() * self.rle_counts_num;
-        let rle_counts_buffer = &self.block[std::mem::size_of::<u32>()..rle_counts_length];
-        let data_buffer = &self.block[rle_counts_length..];
-        let mut cur_data_buf = &data_buffer[self.next_row * T::WIDTH..];
-        let data = T::decode(&mut cur_data_buf);
-        let mut cur_rle_counts_buf =
-            &rle_counts_buffer[self.next_row * std::mem::size_of::<u16>()..];
-        let rle_count = cur_rle_counts_buf.get_u16_le();
-        (data, rle_count)
+    fn get_cur_rle_count(&self) -> u16 {
+        let mut rle_buffer = &self.rle_block[self.next_row * std::mem::size_of::<u16>()..];
+        let rle_count = rle_buffer.get_u16_le();
+        rle_count
     }
 }
 
-impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for RLEPrimitiveBlockIterator<T> {
+impl<T, B> BlockIterator<T::ArrayType> for RLEPrimitiveBlockIterator<T, B>
+where
+    T: PrimitiveFixedWidthEncode + NativeType,
+    B: BlockIterator<T::ArrayType>,
+{
     fn next_batch(
         &mut self,
         expected_size: Option<usize>,
@@ -72,18 +73,13 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for RLEPrimitiveB
         // TODO(chi): error handling on corrupted block
 
         let mut cnt = 0;
-        let rle_counts_length =
-            std::mem::size_of::<u32>() + std::mem::size_of::<u16>() * self.rle_counts_num;
+        if self.cur_array.is_none() {
+            let mut array_builder = <T::ArrayType as Array>::Builder::new();
+            self.block_iter.next_batch(Some(1), &mut array_builder);
+            self.cur_array = Some(array_builder.finish());
+        }
+        let mut rle_count = self.get_cur_rle_count();
 
-        // Or check the length of the block to confirm whether it is nullable?
-        let bitmap_slice = if self.nullable {
-            let bitmap_buffer = &self.block[rle_counts_length + T::WIDTH * self.rle_counts_num..];
-            Some(BitSlice::<u8, Lsb0>::from_slice(bitmap_buffer))
-        } else {
-            None
-        };
-
-        let (mut data, mut rle_count) = self.get_cur_data_inner();
         loop {
             if let Some(expected_size) = expected_size {
                 assert!(expected_size > 0);
@@ -93,15 +89,7 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for RLEPrimitiveB
             }
 
             if self.cur_count < rle_count as usize {
-                if let Some(bitmap_slice) = bitmap_slice {
-                    if bitmap_slice[self.next_row] {
-                        builder.push(Some(&data));
-                    } else {
-                        builder.push(None);
-                    }
-                } else {
-                    builder.push(Some(&data));
-                }
+                builder.append(self.cur_array.as_ref().unwrap());
                 self.cur_count += 1;
                 cnt += 1;
             } else {
@@ -110,7 +98,10 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for RLEPrimitiveB
                 if self.next_row >= self.rle_counts_num {
                     break;
                 }
-                (data, rle_count) = self.get_cur_data_inner();
+                let mut array_builder = <T::ArrayType as Array>::Builder::new();
+                self.block_iter.next_batch(Some(1), &mut array_builder);
+                self.cur_array = Some(array_builder.finish());
+                rle_count = self.get_cur_rle_count();
             }
         }
 
@@ -119,11 +110,8 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for RLEPrimitiveB
 
     fn skip(&mut self, cnt: usize) {
         let mut cnt = cnt;
-        let rle_counts_buffer = &self.block[std::mem::size_of::<u32>()..];
         while cnt > 0 {
-            let mut cur_rle_counts_buf =
-                &rle_counts_buffer[self.next_row * std::mem::size_of::<u16>()..];
-            let rle_count = cur_rle_counts_buf.get_u16_le();
+            let rle_count = self.get_cur_rle_count();
             let cur_left = rle_count as usize - self.cur_count;
             if cur_left > cnt {
                 self.cur_count += cnt;
@@ -132,6 +120,7 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for RLEPrimitiveB
                 cnt -= cur_left;
                 self.cur_count = 0;
                 self.next_row += 1;
+                self.block_iter.skip(1);
                 if self.next_row >= self.rle_counts_num {
                     break;
                 }
@@ -141,11 +130,9 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for RLEPrimitiveB
 
     fn remaining_items(&self) -> usize {
         let mut remaining_items: usize = 0;
-        let rle_counts_buffer = &self.block[std::mem::size_of::<u32>()..];
         for next_row in self.next_row..self.rle_counts_num {
-            let mut cur_rle_counts_buf =
-                &rle_counts_buffer[next_row * std::mem::size_of::<u16>()..];
-            let rle_count = cur_rle_counts_buf.get_u16_le();
+            let mut rle_buffer = &self.rle_block[next_row * std::mem::size_of::<u16>()..];
+            let rle_count = rle_buffer.get_u16_le();
             remaining_items += rle_count as usize;
         }
         remaining_items - self.cur_count
@@ -154,12 +141,13 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for RLEPrimitiveB
 
 #[cfg(test)]
 mod tests {
-    use bytes::Bytes;
+    use bytes::{Buf, Bytes};
 
     use super::RLEPrimitiveBlockIterator;
     use crate::array::{ArrayBuilder, ArrayToVecExt, I32ArrayBuilder};
     use crate::storage::secondary::block::{
-        BlockBuilder, PlainPrimitiveBlockBuilder, PlainPrimitiveNullableBlockBuilder,
+        BlockBuilder, PlainPrimitiveBlockBuilder, PlainPrimitiveBlockIterator,
+        PlainPrimitiveNullableBlockBuilder, PlainPrimitiveNullableBlockIterator,
         RLEPrimitiveBlockBuilder,
     };
     use crate::storage::secondary::BlockIterator;
@@ -181,7 +169,19 @@ mod tests {
         }
         let data = rle_builder.finish();
 
-        let mut scanner = RLEPrimitiveBlockIterator::<i32>::new(Bytes::from(data), false);
+        let mut buffer = &data[..];
+        let rle_counts_num = buffer.get_u32_le() as usize;
+        let rle_counts_length =
+            std::mem::size_of::<u32>() + std::mem::size_of::<u16>() * rle_counts_num;
+        let rle_data = data[std::mem::size_of::<u32>()..rle_counts_length].to_vec();
+        let block_data = data[rle_counts_length..].to_vec();
+        let block_iter =
+            PlainPrimitiveBlockIterator::<i32>::new(Bytes::from(block_data), rle_counts_num);
+        let mut scanner = RLEPrimitiveBlockIterator::<i32, PlainPrimitiveBlockIterator<i32>>::new(
+            block_iter,
+            Bytes::from(rle_data),
+            rle_counts_num,
+        );
 
         let mut builder = I32ArrayBuilder::new();
 
@@ -233,7 +233,22 @@ mod tests {
         }
         let data = rle_builder.finish();
 
-        let mut scanner = RLEPrimitiveBlockIterator::<i32>::new(Bytes::from(data), true);
+        let mut buffer = &data[..];
+        let rle_counts_num = buffer.get_u32_le() as usize;
+        let rle_counts_length =
+            std::mem::size_of::<u32>() + std::mem::size_of::<u16>() * rle_counts_num;
+        let rle_data = data[std::mem::size_of::<u32>()..rle_counts_length].to_vec();
+        let block_data = data[rle_counts_length..].to_vec();
+        let block_iter = PlainPrimitiveNullableBlockIterator::<i32>::new(
+            Bytes::from(block_data),
+            rle_counts_num,
+        );
+        let mut scanner =
+            RLEPrimitiveBlockIterator::<i32, PlainPrimitiveNullableBlockIterator<i32>>::new(
+                block_iter,
+                Bytes::from(rle_data),
+                rle_counts_num,
+            );
 
         let mut builder = I32ArrayBuilder::new();
 
