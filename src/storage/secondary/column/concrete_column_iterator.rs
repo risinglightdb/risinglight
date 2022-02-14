@@ -92,6 +92,7 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         let mut total_cnt = 0;
         let first_row_id = self.current_row_id;
 
+        // a skip happened previously, we should forward to a new block first
         if self.is_fake_iter {
             self.is_fake_iter = false;
             let (header, block) = self.column.get_block(self.current_block_id).await?;
@@ -194,11 +195,9 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         }
         assert_eq!(cnt, 0);
 
+        // indicate that a new block (located by `current_block_id`) should be
+        // loaded at the beginning of the next `next_batch`
         self.is_fake_iter = true;
-        self.block_iterator = self.factory.get_fake_iterator(
-            self.column.index().index(self.current_block_id),
-            self.current_row_id as usize,
-        )
     }
 }
 
