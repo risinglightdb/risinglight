@@ -15,7 +15,7 @@ mod column_iterator;
 mod concrete_column_iterator;
 mod primitive_column_builder;
 mod primitive_column_factory;
-mod row_handler_sequencer;
+mod row_handler_iterator;
 
 use std::future::Future;
 use std::io::{Read, Seek, SeekFrom};
@@ -28,7 +28,7 @@ pub use concrete_column_iterator::*;
 pub use primitive_column_builder::*;
 pub use primitive_column_factory::*;
 use risinglight_proto::rowset::BlockIndex;
-pub use row_handler_sequencer::*;
+pub use row_handler_iterator::*;
 mod char_column_factory;
 use std::os::unix::fs::FileExt;
 use std::sync::{Arc, Mutex};

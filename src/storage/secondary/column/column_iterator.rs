@@ -3,7 +3,7 @@
 use super::{
     BlobColumnIterator, BoolColumnIterator, CharBlockIteratorFactory, CharColumnIterator, Column,
     ColumnIterator, DecimalColumnIterator, F64ColumnIterator, I32ColumnIterator,
-    PrimitiveBlockIteratorFactory, StorageResult,
+    PrimitiveBlockIteratorFactory, RowHandlerIterator, StorageResult,
 };
 use crate::array::{Array, ArrayImpl};
 use crate::catalog::ColumnCatalog;
@@ -20,6 +20,8 @@ pub enum ColumnIteratorImpl {
     Date(DateColumnIterator),
     Interval(IntervalColumnIterator),
     Blob(BlobColumnIterator),
+    /// Special for row handler and not correspond to any data type
+    RowHandler(RowHandlerIterator),
 }
 
 impl ColumnIteratorImpl {
@@ -89,6 +91,11 @@ impl ColumnIteratorImpl {
         Ok(iter)
     }
 
+    pub fn new_row_handler(column: Column, start_pos: u32) -> StorageResult<Self> {
+        let iter = Self::RowHandler(RowHandlerIterator::new(column, start_pos));
+        Ok(iter)
+    }
+
     fn erase_concrete_type(
         ret: Option<(u32, impl Array + Into<ArrayImpl>)>,
     ) -> Option<(u32, ArrayImpl)> {
@@ -108,6 +115,7 @@ impl ColumnIteratorImpl {
             Self::Date(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
             Self::Interval(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
             Self::Blob(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
+            Self::RowHandler(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
         };
         Ok(result)
     }
@@ -122,6 +130,7 @@ impl ColumnIteratorImpl {
             Self::Date(it) => it.fetch_hint(),
             Self::Interval(it) => it.fetch_hint(),
             Self::Blob(it) => it.fetch_hint(),
+            Self::RowHandler(it) => it.fetch_hint(),
         }
     }
 
@@ -135,6 +144,7 @@ impl ColumnIteratorImpl {
             Self::Date(it) => it.fetch_current_row_id(),
             Self::Interval(it) => it.fetch_current_row_id(),
             Self::Blob(it) => it.fetch_current_row_id(),
+            Self::RowHandler(it) => it.fetch_current_row_id(),
         }
     }
 
@@ -148,6 +158,7 @@ impl ColumnIteratorImpl {
             Self::Date(it) => it.skip(cnt),
             Self::Interval(it) => it.skip(cnt),
             Self::Blob(it) => it.skip(cnt),
+            Self::RowHandler(it) => it.skip(cnt),
         }
     }
 }
