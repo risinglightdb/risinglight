@@ -123,7 +123,7 @@ impl std::fmt::Display for BoundExpr {
             Self::AggCall(expr) => write!(f, "{:?} (agg)", expr)?,
             Self::InputRef(expr) => write!(f, "InputRef #{:?}", expr)?,
             Self::IsNull(expr) => write!(f, "{:?} (isnull)", expr)?,
-            Self::ExprWithAlias(expr) => write!(f, "{:?}", expr)?,
+            Self::ExprWithAlias(expr) => write!(f, "{}", expr)?,
             Self::Alias(expr) => write!(f, "{:?}", expr)?,
         }
         Ok(())
