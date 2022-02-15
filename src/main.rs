@@ -26,29 +26,40 @@ struct Args {
     /// Whether to use in-memory engine
     #[clap(long)]
     memory: bool,
+
+    /// Control the output format
+    /// - `text`: plain text
+    /// - `human`: human readable format
+    #[clap(long)]
+    output_format: Option<String>,
 }
 
 // human-readable message
-fn print_chunk(chunk: &DataChunk) {
-    match chunk.header() {
-        Some(header) => match header[0].as_str() {
-            "$insert.row_counts" => {
-                println!("{} rows inserted", chunk.array_at(0).get_to_string(0))
-            }
-            "$delete.row_counts" => {
-                println!("{} rows deleted", chunk.array_at(0).get_to_string(0))
-            }
-            "$create" => println!("created"),
-            "$drop" => println!("dropped"),
-            "$explain" => println!("{}", chunk.array_at(0).get_to_string(0)),
-            _ => println!("{}", chunk),
+fn print_chunk(chunk: &DataChunk, output_format: &Option<String>) {
+    let output_format = output_format.as_ref().map(|x| x.as_str());
+    match output_format {
+        Some("human") | None => match chunk.header() {
+            Some(header) => match header[0].as_str() {
+                "$insert.row_counts" => {
+                    println!("{} rows inserted", chunk.array_at(0).get_to_string(0))
+                }
+                "$delete.row_counts" => {
+                    println!("{} rows deleted", chunk.array_at(0).get_to_string(0))
+                }
+                "$create" => println!("created"),
+                "$drop" => println!("dropped"),
+                "$explain" => println!("{}", chunk.array_at(0).get_to_string(0)),
+                _ => println!("{}", chunk),
+            },
+            None => println!("{}", chunk),
         },
-        None => println!("{}", chunk),
+        Some("text") => println!("{}", datachunk_to_sqllogictest_string(chunk)),
+        Some(format) => panic!("unsupported output format: {}", format),
     }
 }
 
 /// Run RisingLight interactive mode
-async fn interactive(db: Database) -> Result<()> {
+async fn interactive(db: Database, output_format: Option<String>) -> Result<()> {
     let mut rl = Editor::<()>::new();
     let history_path = dirs::cache_dir().map(|p| {
         let cache_dir = p.join("risinglight");
@@ -74,7 +85,7 @@ async fn interactive(db: Database) -> Result<()> {
                 match ret {
                     Ok(chunks) => {
                         for chunk in chunks {
-                            print_chunk(&chunk)
+                            print_chunk(&chunk, &output_format);
                         }
                     }
                     Err(err) => println!("{}", err),
@@ -104,13 +115,13 @@ async fn interactive(db: Database) -> Result<()> {
 }
 
 /// Run a SQL file in RisingLight
-async fn run_sql(db: Database, path: &str) -> Result<()> {
+async fn run_sql(db: Database, path: &str, output_format: Option<String>) -> Result<()> {
     let lines = std::fs::read_to_string(path)?;
 
     info!("{}", lines);
     let chunks = db.run(&lines).await?;
     for chunk in chunks {
-        print_chunk(&chunk)
+        print_chunk(&chunk, &output_format);
     }
 
     Ok(())
@@ -120,6 +131,7 @@ async fn run_sql(db: Database, path: &str) -> Result<()> {
 struct DatabaseWrapper {
     tx: tokio::sync::mpsc::Sender<String>,
     rx: Mutex<tokio::sync::mpsc::Receiver<Result<Vec<DataChunk>, risinglight::Error>>>,
+    output_format: Option<String>,
 }
 
 impl sqllogictest::DB for DatabaseWrapper {
@@ -129,7 +141,7 @@ impl sqllogictest::DB for DatabaseWrapper {
         self.tx.blocking_send(sql.to_string()).unwrap();
         let chunks = self.rx.lock().unwrap().blocking_recv().unwrap()?;
         for chunk in &chunks {
-            println!("{:?}", chunk);
+            print_chunk(chunk, &self.output_format);
         }
         let output = chunks
             .iter()
@@ -140,12 +152,13 @@ impl sqllogictest::DB for DatabaseWrapper {
 }
 
 /// Run a sqllogictest file in RisingLight
-async fn run_sqllogictest(db: Database, path: &str) -> Result<()> {
+async fn run_sqllogictest(db: Database, path: &str, output_format: Option<String>) -> Result<()> {
     let (ttx, mut trx) = tokio::sync::mpsc::channel(1);
     let (dtx, drx) = tokio::sync::mpsc::channel(1);
     let mut tester = sqllogictest::Runner::new(DatabaseWrapper {
         tx: ttx,
         rx: Mutex::new(drx),
+        output_format,
     });
     let handle = tokio::spawn(async move {
         while let Some(sql) = trx.recv().await {
@@ -188,15 +201,15 @@ async fn main() -> Result<()> {
 
     if let Some(file) = args.file {
         if file.ends_with(".sql") {
-            run_sql(db, &file).await?;
+            run_sql(db, &file, args.output_format).await?;
         } else if file.ends_with(".slt") {
-            run_sqllogictest(db, &file).await?;
+            run_sqllogictest(db, &file, args.output_format).await?;
         } else {
             warn!("No suffix detected, assume sql file");
-            run_sql(db, &file).await?;
+            run_sql(db, &file, args.output_format).await?;
         }
     } else {
-        interactive(db).await?;
+        interactive(db, args.output_format).await?;
     }
 
     Ok(())
