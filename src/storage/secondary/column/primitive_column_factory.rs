@@ -215,4 +215,75 @@ mod tests {
         value_array = value_array.split_off(cnt % len);
         assert_eq!(recv_data, value_array);
     }
+
+    #[tokio::test]
+    async fn test_skip_multiple_times() {
+        let len = 1020;
+        let tempdir = tempfile::tempdir().unwrap();
+        let rowset = helper_build_rowset(&tempdir, false, len).await;
+        let column = rowset.column(0);
+
+        let mut scanner = PrimitiveColumnIterator::<i32>::new(
+            column.clone(),
+            0,
+            PrimitiveBlockIteratorFactory::new(),
+        )
+        .await
+        .unwrap();
+        let mut recv_data = vec![];
+        let size = len;
+
+        // not specify `expected_size`, not aligned
+        scanner.skip(size);
+        scanner.skip(size / 2);
+        if let Some((start_row_id, data)) = scanner.next_batch(None).await.unwrap() {
+            recv_data.extend(data.to_vec());
+            assert_eq!(start_row_id as usize, size + size / 2);
+        }
+
+        let value_array = [1, 2, 3]
+            .iter()
+            .cycle()
+            .cloned()
+            .take(len / 2)
+            .map(Some)
+            .collect_vec();
+        assert_eq!(recv_data, value_array);
+
+        // specify `expected_size`, not aligned
+        recv_data = vec![];
+        scanner.skip(size / 2);
+
+        if let Some((start_row_id, data)) = scanner.next_batch(Some(len)).await.unwrap() {
+            recv_data.extend(data.to_vec());
+            assert_eq!(start_row_id as usize, size * 2 + size / 2);
+        }
+
+        let value_array = [1, 2, 3]
+            .iter()
+            .cycle()
+            .cloned()
+            .take(len)
+            .map(Some)
+            .collect_vec();
+        assert_eq!(recv_data, value_array);
+
+        // specify `expected_size`, aligned
+        recv_data = vec![];
+        scanner.skip(size);
+
+        if let Some((start_row_id, data)) = scanner.next_batch(Some(len)).await.unwrap() {
+            recv_data.extend(data.to_vec());
+            assert_eq!(start_row_id as usize, size * 4 + size / 2);
+        }
+
+        let value_array = [1, 2, 3]
+            .iter()
+            .cycle()
+            .cloned()
+            .take(len)
+            .map(Some)
+            .collect_vec();
+        assert_eq!(recv_data, value_array);
+    }
 }

@@ -196,7 +196,9 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         assert_eq!(cnt, 0);
 
         // indicate that a new block (located by `current_block_id`) should be
-        // loaded at the beginning of the next `next_batch`
+        // loaded at the beginning of the next `next_batch`. We reserve this field
+        // since `skip` may be called several times, and we need it to correctly
+        // compute remaining items during skipping.
         self.is_fake_iter = true;
     }
 }
