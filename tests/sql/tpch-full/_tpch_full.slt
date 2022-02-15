@@ -1,0 +1,5 @@
+include _q1.slt
+include _q3.slt
+include _q5.slt
+include _q6.slt
+include _q10.slt
