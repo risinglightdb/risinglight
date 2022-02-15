@@ -270,11 +270,11 @@ mod tests {
 
         // specify `expected_size`, aligned
         recv_data = vec![];
-        scanner.skip(size);
+        scanner.skip(size + size / 2);
 
         if let Some((start_row_id, data)) = scanner.next_batch(Some(len)).await.unwrap() {
             recv_data.extend(data.to_vec());
-            assert_eq!(start_row_id as usize, size * 4 + size / 2);
+            assert_eq!(start_row_id as usize, size * 5);
         }
 
         let value_array = [1, 2, 3]
