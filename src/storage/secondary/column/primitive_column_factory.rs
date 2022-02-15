@@ -285,5 +285,13 @@ mod tests {
             .map(Some)
             .collect_vec();
         assert_eq!(recv_data, value_array);
+
+        scanner.skip(size / 2);
+        scanner.skip(size);
+        scanner.skip(size);
+
+        if let Some((start_row_id, _)) = scanner.next_batch(Some(len)).await.unwrap() {
+            assert_eq!(start_row_id as usize, size * 8 + size / 2);
+        }
     }
 }
