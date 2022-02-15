@@ -34,21 +34,25 @@ impl LogicalPlaner {
                     }
                 }
             }
-            stmt.select_list.iter().for_each(|expr| match expr {
-                BoundExpr::AggCall(expr) => {
-                    if expr.kind == AggKind::RowCount {
-                        with_row_handler = true;
-                    }
-                }
-                BoundExpr::ExprWithAlias(expr) => {
-                    if let BoundExpr::AggCall(expr) = &*expr.expr {
-                        if expr.kind == AggKind::RowCount {
-                            with_row_handler = true;
+            if let BoundTableRef::JoinTableRef { join_tables, .. } = table_ref {
+                if join_tables.is_empty() {
+                    stmt.select_list.iter().for_each(|expr| match expr {
+                        BoundExpr::AggCall(expr) => {
+                            if expr.kind == AggKind::RowCount {
+                                with_row_handler = true;
+                            }
                         }
-                    }
+                        BoundExpr::ExprWithAlias(expr) => {
+                            if let BoundExpr::AggCall(expr) = &*expr.expr {
+                                if expr.kind == AggKind::RowCount {
+                                    with_row_handler = true;
+                                }
+                            }
+                        }
+                        _ => {}
+                    });
                 }
-                _ => {}
-            });
+            }
             plan = self.plan_table_ref(table_ref, with_row_handler, is_sorted)?;
         }
 
