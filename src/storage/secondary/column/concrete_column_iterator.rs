@@ -92,7 +92,7 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         let mut total_cnt = 0;
         let first_row_id = self.current_row_id;
 
-        // a skip happened previously, we should forward to a new block first
+        // Skip happened previously, we should forward to a new block first
         if self.is_fake_iter {
             self.is_fake_iter = false;
             let (header, block) = self.column.get_block(self.current_block_id).await?;
@@ -169,6 +169,22 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         }
         self.current_row_id += cnt as u32;
 
+        // We are holding a fake iterator, so all the infomation can be
+        // computed directly
+        if self.is_fake_iter {
+            let row_count = self.column.index().index(self.current_block_id).row_count;
+            let start_pos = self.column.index().index(self.current_block_id).first_rowid;
+            let mut reached = start_pos + row_count;
+            while self.current_row_id > reached {
+                if self.incre_block_id() {
+                    return;
+                }
+                let row_count = self.column.index().index(self.current_block_id).row_count;
+                reached += row_count;
+            }
+            return;
+        }
+
         let remaining_items = self.block_iterator.remaining_items();
         if cnt >= remaining_items {
             cnt -= remaining_items;
@@ -195,10 +211,8 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         }
         assert_eq!(cnt, 0);
 
-        // indicate that a new block (located by `current_block_id`) should be
-        // loaded at the beginning of the next `next_batch`. We reserve this field
-        // since `skip` may be called several times, and we need it to correctly
-        // compute remaining items during skipping.
+        // Indicate that a new block (located by `current_block_id`) should be
+        // loaded at the beginning of the next `next_batch`.
         self.is_fake_iter = true;
     }
 }
