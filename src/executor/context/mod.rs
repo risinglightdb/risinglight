@@ -10,6 +10,7 @@ pub mod sync;
 use sync::WaitGroup;
 
 /// Context of executors.
+#[derive(Default)]
 pub struct Context {
     token: CancellationToken,
     wg: WaitGroup,
@@ -75,11 +76,5 @@ impl Context {
         if self.wg.is_shutdown() {
             self.wg.wait().await;
         }
-    }
-}
-
-impl Default for Context {
-    fn default() -> Self {
-        Self::new()
     }
 }

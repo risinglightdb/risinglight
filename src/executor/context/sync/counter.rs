@@ -1,21 +1,8 @@
 use std::sync::atomic::{AtomicI64, Ordering};
 
+#[derive(Default)]
 pub struct SealableAtomicCounter {
     value: AtomicI64,
-}
-
-impl SealableAtomicCounter {
-    pub fn new() -> Self {
-        Self {
-            value: AtomicI64::new(0),
-        }
-    }
-}
-
-impl Default for SealableAtomicCounter {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl SealableAtomicCounter {
@@ -92,7 +79,7 @@ mod tests {
 
     #[test]
     fn test_sealable_counter() {
-        let counter = SealableAtomicCounter::new();
+        let counter = SealableAtomicCounter::default();
 
         assert_eq!(Some(0), counter.increase());
         assert_eq!(Some(1), counter.increase());

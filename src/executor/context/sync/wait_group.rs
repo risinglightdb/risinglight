@@ -107,16 +107,9 @@ use super::counter::SealableAtomicCounter;
 /// Wait for a collection of tasks to finish execution.
 ///
 /// Refer to the [crate level documentation](crate) for details.
+#[derive(Default)]
 pub struct WaitGroup {
     inner: Arc<Inner>,
-}
-
-impl Default for WaitGroup {
-    fn default() -> Self {
-        Self {
-            inner: Arc::new(Inner::new()),
-        }
-    }
 }
 
 #[allow(clippy::new_without_default)]
@@ -171,18 +164,10 @@ impl Future for WaitGroupFuture<'_> {
     }
 }
 
+#[derive(Default)]
 struct Inner {
     waker: Mutex<Option<Waker>>,
     count: SealableAtomicCounter,
-}
-
-impl Inner {
-    pub fn new() -> Self {
-        Self {
-            count: SealableAtomicCounter::new(),
-            waker: Mutex::new(None),
-        }
-    }
 }
 
 /// A worker registered in a `WaitGroup`.
