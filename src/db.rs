@@ -170,12 +170,6 @@ impl Database {
         // parse
         let stmts = parse(sql)?;
 
-        if sql.to_lowercase().starts_with("show ") {
-            return Err(Error::Parse(ParserError::ParserError(
-                "show xxx is not suppot!".to_string(),
-            )));
-        }
-
         let mut binder = Binder::new(self.catalog.clone());
         let logical_planner = LogicalPlaner::default();
         let mut optimizer = Optimizer {

@@ -55,6 +55,8 @@ pub enum BindError {
     AmbiguousColumn,
     #[error("invalid table name: {0:?}")]
     InvalidTableName(Vec<Ident>),
+    #[error("SQL not supported")]
+    NotSupportedTSQL,
     #[error("invalid SQL")]
     InvalidSQL,
     #[error("cannot cast {0:?} to {1:?}")]
@@ -119,6 +121,9 @@ impl Binder {
             Statement::Explain { statement, .. } => {
                 Ok(BoundStatement::Explain((self.bind(&*statement)?).into()))
             }
+            Statement::ShowVariable { .. }
+            | Statement::ShowCreate { .. }
+            | Statement::ShowColumns { .. } => Err(BindError::NotSupportedTSQL),
             _ => Err(BindError::InvalidSQL),
         }
     }
