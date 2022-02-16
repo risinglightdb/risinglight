@@ -19,7 +19,7 @@ const ROWSET_MAX_OUTPUT: usize = 65536;
 pub struct RowSetIterator {
     column_refs: Arc<[StorageColumnRef]>,
     dvs: Vec<Arc<DeleteVector>>,
-    column_iterators: Vec<Option<ColumnIteratorImpl>>,
+    column_iterators: Vec<ColumnIteratorImpl>,
     filter_expr: Option<(BoundExpr, BitVec)>,
 }
 
@@ -49,7 +49,7 @@ impl RowSetIterator {
             panic!("more than 1 row handler column")
         }
 
-        let mut column_iterators: Vec<Option<ColumnIteratorImpl>> = vec![];
+        let mut column_iterators: Vec<ColumnIteratorImpl> = vec![];
 
         for column_ref in &*column_refs {
             // TODO: parallel seek
@@ -61,20 +61,20 @@ impl RowSetIterator {
                         .indexes()
                         .iter()
                         .fold(0, |acc, index| acc + index.row_count);
-                    column_iterators.push(Some(ColumnIteratorImpl::new_row_handler(
+                    column_iterators.push(ColumnIteratorImpl::new_row_handler(
                         rowset.rowset_id(),
                         row_count,
                         start_row_id,
-                    )?))
+                    )?)
                 }
-                StorageColumnRef::Idx(idx) => column_iterators.push(Some(
+                StorageColumnRef::Idx(idx) => column_iterators.push(
                     ColumnIteratorImpl::new(
                         rowset.column(*idx as usize),
                         rowset.column_info(*idx as usize),
                         start_row_id,
                     )
                     .await?,
-                )),
+                ),
             };
         }
 
@@ -108,7 +108,7 @@ impl RowSetIterator {
         let mut fetch_size = {
             // We find the minimum fetch hints from the column iterators first
             let mut min = None;
-            for it in self.column_iterators.iter().flatten() {
+            for it in &self.column_iterators {
                 let hint = it.fetch_hint();
                 if hint != 0 {
                     if min.is_none() {
@@ -144,10 +144,7 @@ impl RowSetIterator {
         // deleted in this batch
         if !self.dvs.is_empty() {
             // Get the start row id first
-            let start_row_id = self.column_iterators[0]
-                .as_ref()
-                .unwrap()
-                .fetch_current_row_id();
+            let start_row_id = self.column_iterators[0].fetch_current_row_id();
 
             // Initialize visibility map and apply delete vector to it
             let mut visi = BitVec::new();
@@ -160,7 +157,7 @@ impl RowSetIterator {
             // on every columns
             if visi.not_any() {
                 for (id, _) in self.column_refs.iter().enumerate() {
-                    self.column_iterators[id].as_mut().unwrap().skip(visi.len());
+                    self.column_iterators[id].skip(visi.len());
                 }
                 return Ok((false, None));
             }
@@ -176,8 +173,6 @@ impl RowSetIterator {
             for id in 0..filter_columns.len() {
                 if filter_columns[id] {
                     if let Some((row_id, array)) = self.column_iterators[id]
-                        .as_mut()
-                        .unwrap()
                         .next_batch(Some(fetch_size))
                         .await?
                     {
@@ -231,10 +226,7 @@ impl RowSetIterator {
             // in filter conditions
             if filter_bitmap.not_any() {
                 for (id, _) in self.column_refs.iter().enumerate() {
-                    self.column_iterators[id]
-                        .as_mut()
-                        .unwrap()
-                        .skip(filter_bitmap.len());
+                    self.column_iterators[id].skip(filter_bitmap.len());
                 }
                 return Ok((false, None));
             }
@@ -255,8 +247,6 @@ impl RowSetIterator {
             }
             if arrays[id].is_none() {
                 if let Some((row_id, array)) = self.column_iterators[id]
-                    .as_mut()
-                    .unwrap()
                     .next_batch(Some(fetch_size))
                     .await?
                 {
