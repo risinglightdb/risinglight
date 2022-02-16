@@ -9,6 +9,7 @@ use tracing::debug;
 use crate::array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder};
 use crate::binder::{BindError, Binder};
 use crate::catalog::RootCatalogRef;
+use crate::executor::context::Context;
 use crate::executor::{ExecutorBuilder, ExecutorError};
 use crate::logical_planner::{LogicalPlanError, LogicalPlaner};
 use crate::optimizer::logical_plan_rewriter::{InputRefResolver, PlanRewriter};
@@ -23,7 +24,6 @@ use crate::storage::{
 /// The database instance.
 pub struct Database {
     catalog: RootCatalogRef,
-    executor_builder: ExecutorBuilder,
     storage: StorageImpl,
 }
 
@@ -33,12 +33,7 @@ impl Database {
         let storage = InMemoryStorage::new();
         let catalog = storage.catalog().clone();
         let storage = StorageImpl::InMemoryStorage(Arc::new(storage));
-        let execution_manager = ExecutorBuilder::new(storage.clone());
-        Database {
-            catalog,
-            executor_builder: execution_manager,
-            storage,
-        }
+        Database { catalog, storage }
     }
 
     /// Create a new database instance with merge-tree engine.
@@ -47,12 +42,7 @@ impl Database {
         storage.spawn_compactor().await;
         let catalog = storage.catalog().clone();
         let storage = StorageImpl::SecondaryStorage(storage);
-        let execution_manager = ExecutorBuilder::new(storage.clone());
-        Database {
-            catalog,
-            executor_builder: execution_manager,
-            storage,
-        }
+        Database { catalog, storage }
     }
 
     pub async fn shutdown(&self) -> Result<(), Error> {
@@ -163,6 +153,14 @@ impl Database {
 
     /// Run SQL queries and return the outputs.
     pub async fn run(&self, sql: &str) -> Result<Vec<DataChunk>, Error> {
+        self.run_with_context(Default::default(), sql).await
+    }
+
+    pub async fn run_with_context(
+        &self,
+        context: Arc<Context>,
+        sql: &str,
+    ) -> Result<Vec<DataChunk>, Error> {
         if let Some(cmdline) = sql.trim().strip_prefix('\\') {
             return self.run_internal(cmdline).await;
         }
@@ -189,7 +187,9 @@ impl Database {
             debug!("{:#?}", logical_plan);
             let optimized_plan = optimizer.optimize(logical_plan);
             debug!("{:#?}", optimized_plan);
-            let executor = self.executor_builder.clone().build(optimized_plan);
+
+            let executor_builder = ExecutorBuilder::new(context.clone(), self.storage.clone());
+            let executor = executor_builder.clone().build(optimized_plan);
             let mut output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
                 debug!("error: {}", e);
                 e
