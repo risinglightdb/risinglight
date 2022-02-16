@@ -3,7 +3,7 @@
 use super::{
     BlobColumnIterator, BoolColumnIterator, CharBlockIteratorFactory, CharColumnIterator, Column,
     ColumnIterator, DecimalColumnIterator, F64ColumnIterator, I32ColumnIterator,
-    PrimitiveBlockIteratorFactory, RowHandlerIterator, StorageResult,
+    PrimitiveBlockIteratorFactory, RowHandlerColumnIterator, StorageResult,
 };
 use crate::array::{Array, ArrayImpl};
 use crate::catalog::ColumnCatalog;
@@ -21,7 +21,7 @@ pub enum ColumnIteratorImpl {
     Interval(IntervalColumnIterator),
     Blob(BlobColumnIterator),
     /// Special for row handler and not correspond to any data type
-    RowHandler(RowHandlerIterator),
+    RowHandler(RowHandlerColumnIterator),
 }
 
 impl ColumnIteratorImpl {
@@ -91,8 +91,12 @@ impl ColumnIteratorImpl {
         Ok(iter)
     }
 
-    pub fn new_row_handler(column: Column, start_pos: u32) -> StorageResult<Self> {
-        let iter = Self::RowHandler(RowHandlerIterator::new(column, start_pos));
+    pub fn new_row_handler(rowset_id: u32, row_count: u32, start_pos: u32) -> StorageResult<Self> {
+        let iter = Self::RowHandler(RowHandlerColumnIterator::new(
+            rowset_id as usize,
+            row_count as usize,
+            start_pos as usize,
+        ));
         Ok(iter)
     }
 

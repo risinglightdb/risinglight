@@ -54,9 +54,19 @@ impl RowSetIterator {
         for column_ref in &*column_refs {
             // TODO: parallel seek
             match column_ref {
-                StorageColumnRef::RowHandler => column_iterators.push(Some(
-                    ColumnIteratorImpl::new_row_handler(rowset.column(0), start_row_id)?,
-                )),
+                StorageColumnRef::RowHandler => {
+                    let column = rowset.column(0);
+                    let row_count = column
+                        .index()
+                        .indexes()
+                        .iter()
+                        .fold(0, |acc, index| acc + index.row_count);
+                    column_iterators.push(Some(ColumnIteratorImpl::new_row_handler(
+                        rowset.rowset_id(),
+                        row_count,
+                        start_row_id,
+                    )?))
+                }
                 StorageColumnRef::Idx(idx) => column_iterators.push(Some(
                     ColumnIteratorImpl::new(
                         rowset.column(*idx as usize),
