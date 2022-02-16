@@ -119,7 +119,7 @@ impl Binder {
             Statement::Explain { statement, .. } => {
                 Ok(BoundStatement::Explain((self.bind(&*statement)?).into()))
             }
-            _ => todo!("bind statement"),
+            _ => Err(BindError::InvalidSQL),
         }
     }
 }
