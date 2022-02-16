@@ -5,7 +5,7 @@ use sqlparser::ast::Expr;
 
 use super::*;
 use crate::catalog::{ColumnCatalog, TableCatalog, TableRefId};
-use crate::parser::{SetExpr, Statement};
+use crate::parser::{Query, SetExpr, Statement};
 use crate::types::{ColumnId, DataType};
 /// A bound `insert` statement.
 #[derive(Debug, PartialEq, Clone)]
@@ -15,7 +15,7 @@ pub struct BoundInsert {
     pub column_types: Vec<DataType>,
     pub column_descs: Vec<ColumnDesc>,
     pub values: Vec<Vec<BoundExpr>>,
-    pub select_stmt: Option<BoundSelect>,
+    pub select_stmt: Option<Box<BoundSelect>>,
 }
 
 impl Binder {
@@ -40,11 +40,15 @@ impl Binder {
                         return Err(BindError::NotNullableColumn(col.name().into()));
                     }
                 }
-                // For `insert into select from`, values are impossible to be obtained during
-                // binding
 
                 match &source.body {
-                    SetExpr::Select(_) => todo!("handle 'insert into .. select .. from ..' case."),
+                    SetExpr::Select(_) => self.bind_insert_select_from(
+                        table_ref_id,
+                        column_ids,
+                        column_types,
+                        column_descs,
+                        source,
+                    ),
                     SetExpr::Values(values) => self.bind_insert_values(
                         table_ref_id,
                         columns,
@@ -67,7 +71,7 @@ impl Binder {
         column_ids: Vec<ColumnId>,
         column_types: Vec<DataType>,
         column_descs: Vec<ColumnDesc>,
-        values: &Vec<Vec<Expr>>,
+        values: &[Vec<Expr>],
     ) -> Result<BoundInsert, BindError> {
         // Handle 'insert into .. values ..' case.
 
@@ -126,13 +130,42 @@ impl Binder {
     pub fn bind_insert_select_from(
         &mut self,
         table_ref_id: TableRefId,
-        columns: Vec<ColumnCatalog>,
         column_ids: Vec<ColumnId>,
         column_types: Vec<DataType>,
         column_descs: Vec<ColumnDesc>,
-        values: &Vec<Vec<Expr>>,
+        select_stmt: &Query,
     ) -> Result<BoundInsert, BindError> {
-        Err(BindError::InvalidSQL)
+        let mut bound_select_stmt = self.bind_select(select_stmt)?;
+        for (idx, expr) in bound_select_stmt.select_list.iter_mut().enumerate() {
+            if let Some(data_type) = &expr.return_type() {
+                // table t1(a float, b float)
+                // for example: insert into values (1, 1);
+                // 1 should be casted to float.
+                let left_kind = data_type.physical_kind();
+                let right_kind = column_types[idx].physical_kind();
+                if left_kind != right_kind {
+                    *expr = BoundExpr::TypeCast(BoundTypeCast {
+                        expr: Box::new(expr.clone()),
+                        ty: column_types[idx].kind(),
+                    });
+                }
+            } else {
+                // If the data value is null, the column must be nullable.
+                if !column_types[idx].is_nullable() {
+                    return Err(BindError::InvalidExpression(
+                        "Can not insert null to non null column".into(),
+                    ));
+                }
+            }
+        }
+        Ok(BoundInsert {
+            table_ref_id,
+            column_ids,
+            column_types,
+            column_descs,
+            values: vec![],
+            select_stmt: Some(bound_select_stmt),
+        })
     }
     /// Bind `table_name [ (column_name [, ...] ) ]`
     pub(super) fn bind_table_columns(
