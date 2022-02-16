@@ -5,9 +5,7 @@ use std::sync::Arc;
 use bitvec::prelude::BitVec;
 use smallvec::smallvec;
 
-use super::super::{
-    ColumnIteratorImpl, ColumnSeekPosition, RowHandlerSequencer, SecondaryIteratorImpl,
-};
+use super::super::{ColumnIteratorImpl, ColumnSeekPosition, SecondaryIteratorImpl};
 use super::DiskRowset;
 use crate::array::{Array, ArrayImpl};
 use crate::binder::BoundExpr;
@@ -19,7 +17,6 @@ const ROWSET_MAX_OUTPUT: usize = 65536;
 
 /// Iterates on a `RowSet`
 pub struct RowSetIterator {
-    rowset: Arc<DiskRowset>,
     column_refs: Arc<[StorageColumnRef]>,
     dvs: Vec<Arc<DeleteVector>>,
     column_iterators: Vec<Option<ColumnIteratorImpl>>,
@@ -52,16 +49,24 @@ impl RowSetIterator {
             panic!("more than 1 row handler column")
         }
 
-        if row_handler_count == column_refs.len() {
-            panic!("no user column")
-        }
-
         let mut column_iterators: Vec<Option<ColumnIteratorImpl>> = vec![];
 
         for column_ref in &*column_refs {
             // TODO: parallel seek
             match column_ref {
-                StorageColumnRef::RowHandler => column_iterators.push(None),
+                StorageColumnRef::RowHandler => {
+                    let column = rowset.column(0);
+                    let row_count = column
+                        .index()
+                        .indexes()
+                        .iter()
+                        .fold(0, |acc, index| acc + index.row_count);
+                    column_iterators.push(Some(ColumnIteratorImpl::new_row_handler(
+                        rowset.rowset_id(),
+                        row_count,
+                        start_row_id,
+                    )?))
+                }
                 StorageColumnRef::Idx(idx) => column_iterators.push(Some(
                     ColumnIteratorImpl::new(
                         rowset.column(*idx as usize),
@@ -86,7 +91,6 @@ impl RowSetIterator {
         };
 
         Ok(Self {
-            rowset,
             column_refs,
             dvs,
             column_iterators,
@@ -155,13 +159,8 @@ impl RowSetIterator {
             // All rows in this batch have been deleted, call `skip`
             // on every columns
             if visi.not_any() {
-                for (id, column_ref) in self.column_refs.iter().enumerate() {
-                    match column_ref {
-                        StorageColumnRef::RowHandler => continue,
-                        StorageColumnRef::Idx(_) => {
-                            self.column_iterators[id].as_mut().unwrap().skip(visi.len());
-                        }
-                    }
+                for (id, _) in self.column_refs.iter().enumerate() {
+                    self.column_iterators[id].as_mut().unwrap().skip(visi.len());
                 }
                 return Ok((false, None));
             }
@@ -231,18 +230,11 @@ impl RowSetIterator {
             // No rows left from the filter scan, skip columns which are not
             // in filter conditions
             if filter_bitmap.not_any() {
-                for (id, column_ref) in self.column_refs.iter().enumerate() {
-                    match column_ref {
-                        StorageColumnRef::RowHandler => continue,
-                        StorageColumnRef::Idx(_) => {
-                            if arrays[id].is_none() {
-                                self.column_iterators[id]
-                                    .as_mut()
-                                    .unwrap()
-                                    .skip(filter_bitmap.len());
-                            }
-                        }
-                    }
+                for (id, _) in self.column_refs.iter().enumerate() {
+                    self.column_iterators[id]
+                        .as_mut()
+                        .unwrap()
+                        .skip(filter_bitmap.len());
                 }
                 return Ok((false, None));
             }
@@ -255,54 +247,33 @@ impl RowSetIterator {
         // indicate the visibility of its rows
         // TODO: Implement the skip interface for column_iterator and call it here.
         // For those already fetched columns, they also need to delete corrensponding blocks.
-        for (id, column_ref) in self.column_refs.iter().enumerate() {
+        for (id, _) in self.column_refs.iter().enumerate() {
             if filter_context.is_none() {
                 // If no filter, the `arrays` should be initialized here
                 // manually by push a `None`
                 arrays.push(None);
             }
-            match column_ref {
-                StorageColumnRef::RowHandler => continue,
-                StorageColumnRef::Idx(_) => {
-                    if arrays[id].is_none() {
-                        if let Some((row_id, array)) = self.column_iterators[id]
-                            .as_mut()
-                            .unwrap()
-                            .next_batch(Some(fetch_size))
-                            .await?
-                        {
-                            if let Some(x) = common_chunk_range {
-                                if x != (row_id, array.len()) {
-                                    panic!("unmatched rowid from column iterator");
-                                }
-                            }
-                            common_chunk_range = Some((row_id, array.len()));
-                            arrays[id] = Some(array);
+            if arrays[id].is_none() {
+                if let Some((row_id, array)) = self.column_iterators[id]
+                    .as_mut()
+                    .unwrap()
+                    .next_batch(Some(fetch_size))
+                    .await?
+                {
+                    if let Some(x) = common_chunk_range {
+                        if x != (row_id, array.len()) {
+                            panic!("unmatched rowid from column iterator");
                         }
                     }
+                    common_chunk_range = Some((row_id, array.len()));
+                    arrays[id] = Some(array);
                 }
             }
         }
 
-        let common_chunk_range = if let Some(common_chunk_range) = common_chunk_range {
-            common_chunk_range
-        } else {
+        if common_chunk_range.is_none() {
             return Ok((true, None));
         };
-
-        // Fill RowHandlers
-        for (id, column_ref) in self.column_refs.iter().enumerate() {
-            if matches!(column_ref, StorageColumnRef::RowHandler) {
-                arrays[id] = Some(
-                    RowHandlerSequencer::sequence(
-                        self.rowset.rowset_id(),
-                        common_chunk_range.0,
-                        common_chunk_range.1 as u32,
-                    )
-                    .into(),
-                );
-            }
-        }
 
         Ok((
             false,
