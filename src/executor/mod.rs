@@ -443,17 +443,26 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
         &mut self,
         plan: &PhysicalCopyFromFile,
     ) -> Option<BoxedExecutor> {
-        Some(CopyFromFileExecutor { plan: plan.clone() }.execute())
+        Some(
+            CopyFromFileExecutor {
+                context: self.context.clone(),
+                plan: plan.clone(),
+            }
+            .execute()
+            .cancellable(self.context.token().child_token()),
+        )
     }
 
     fn visit_physical_copy_to_file(&mut self, plan: &PhysicalCopyToFile) -> Option<BoxedExecutor> {
         Some(
             CopyToFileExecutor {
+                context: self.context.clone(),
                 child: self.visit(plan.child()).unwrap(),
                 path: plan.logical().path().clone(),
                 format: plan.logical().format().clone(),
             }
-            .execute(),
+            .execute()
+            .cancellable(self.context.token().child_token()),
         )
     }
 }

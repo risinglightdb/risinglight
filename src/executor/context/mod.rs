@@ -69,6 +69,23 @@ impl Context {
         })
     }
 
+    /// Utility for spawning a blocking task managed by this context.
+    /// If this context is already cancelled, then no task is spawned.
+    pub fn spawn_blocking<F, R>(&self, task: F) -> Option<JoinHandle<R>>
+    where
+        F: FnOnce(CancellationToken) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        self.wg.worker().map(|worker| {
+            let child_token = self.token.child_token();
+            tokio::task::spawn_blocking(|| {
+                let ret = task(child_token);
+                worker.done();
+                ret
+            })
+        })
+    }
+
     /// Wait until all spawned tasks are ready.
     pub async fn wait(&self) {
         self.wg.wait().await;
