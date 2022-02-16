@@ -129,6 +129,23 @@ impl DataChunk {
         }
         arrays.into_iter().collect()
     }
+
+    pub fn stack(&mut self, chunks: Vec<data_chunk::DataChunk>) {
+        let mut arrays = vec![];
+        for col_idx in 0..self.column_count() {
+            let mut builder = ArrayBuilderImpl::from_type_of_array(self.array_at(col_idx));
+            for row in self.rows() {
+                builder.push(&row.get(col_idx))
+            }
+            for chunk in &chunks {
+                for row in chunk.rows() {
+                    builder.push(&row.get(col_idx))
+                }
+            }
+            arrays.push(builder.finish());
+        }
+        self.arrays = arrays.into_iter().collect();
+    }
 }
 
 /// Print the chunk as a pretty table.
