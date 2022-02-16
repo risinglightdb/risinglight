@@ -16,10 +16,31 @@ use std::future::Future;
 use std::sync::Arc;
 
 use futures::stream::{BoxStream, StreamExt};
-use futures_async_stream::try_stream;
+use futures_async_stream::{for_await, try_stream};
 use itertools::Itertools;
 use tokio_util::sync::CancellationToken;
 
+pub use self::aggregation::*;
+use self::context::*;
+use self::copy_from_file::*;
+use self::copy_to_file::*;
+use self::create::*;
+use self::delete::*;
+use self::drop::*;
+use self::dummy_scan::*;
+use self::explain::*;
+use self::filter::*;
+use self::hash_agg::*;
+use self::hash_join::*;
+use self::insert::*;
+use self::limit::*;
+use self::nested_loop_join::*;
+use self::order::*;
+use self::projection::*;
+use self::simple_agg::*;
+use self::table_scan::*;
+use self::top_n::TopNExecutor;
+use self::values::*;
 use crate::array::DataChunk;
 use crate::binder::BoundExpr;
 use crate::optimizer::plan_nodes::*;
@@ -49,28 +70,6 @@ mod simple_agg;
 mod table_scan;
 mod top_n;
 mod values;
-
-pub use self::aggregation::*;
-use self::context::*;
-use self::copy_from_file::*;
-use self::copy_to_file::*;
-use self::create::*;
-use self::delete::*;
-use self::drop::*;
-use self::dummy_scan::*;
-use self::explain::*;
-use self::filter::*;
-use self::hash_agg::*;
-use self::hash_join::*;
-use self::insert::*;
-use self::limit::*;
-use self::nested_loop_join::*;
-use self::order::*;
-use self::projection::*;
-use self::simple_agg::*;
-use self::table_scan::*;
-use self::top_n::TopNExecutor;
-use self::values::*;
 
 /// The error type of execution.
 #[derive(thiserror::Error, Debug)]
@@ -243,19 +242,23 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
     fn visit_physical_insert(&mut self, plan: &PhysicalInsert) -> Option<BoxedExecutor> {
         Some(match &self.storage {
             StorageImpl::InMemoryStorage(storage) => InsertExecutor {
+                context: self.context.clone(),
                 table_ref_id: plan.logical().table_ref_id(),
                 column_ids: plan.logical().column_ids().to_vec(),
                 storage: storage.clone(),
                 child: self.visit(plan.child()).unwrap(),
             }
-            .execute(),
+            .execute()
+            .cancellable(self.context.token().child_token()),
             StorageImpl::SecondaryStorage(storage) => InsertExecutor {
+                context: self.context.clone(),
                 table_ref_id: plan.logical().table_ref_id(),
                 column_ids: plan.logical().column_ids().to_vec(),
                 storage: storage.clone(),
                 child: self.visit(plan.child()).unwrap(),
             }
-            .execute(),
+            .execute()
+            .cancellable(self.context.token().child_token()),
         })
     }
 
@@ -408,17 +411,21 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
         let child = self.visit(plan.child()).unwrap();
         Some(match &self.storage {
             StorageImpl::InMemoryStorage(storage) => DeleteExecutor {
+                context: self.context.clone(),
                 child,
                 table_ref_id: plan.logical().table_ref_id(),
                 storage: storage.clone(),
             }
-            .execute(),
+            .execute()
+            .cancellable(self.context.token().child_token()),
             StorageImpl::SecondaryStorage(storage) => DeleteExecutor {
+                context: self.context.clone(),
                 child,
                 table_ref_id: plan.logical().table_ref_id(),
                 storage: storage.clone(),
             }
-            .execute(),
+            .execute()
+            .cancellable(self.context.token().child_token()),
         })
     }
 
