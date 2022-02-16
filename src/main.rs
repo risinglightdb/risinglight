@@ -3,15 +3,17 @@
 //! A simple interactive shell of the database.
 
 use std::fs::File;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use risinglight::array::{datachunk_to_sqllogictest_string, DataChunk};
+use risinglight::executor::context::Context;
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::Database;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
+use tokio::{select, signal};
 use tracing::{info, warn, Level};
 use tracing_subscriber::prelude::*;
 
@@ -58,6 +60,36 @@ fn print_chunk(chunk: &DataChunk, output_format: &Option<String>) {
     }
 }
 
+async fn run_query_in_background(db: Arc<Database>, sql: String, output_format: Option<String>) {
+    let context: Arc<Context> = Default::default();
+    let handle = tokio::spawn({
+        let context = context.clone();
+        async move { db.run_with_context(context, &sql).await }
+    });
+
+    select! {
+        _ = signal::ctrl_c() => {
+            context.cancel();
+            println!("Interrupted");
+        }
+        ret = handle => {
+            match ret.expect("failed to join query thread") {
+                Ok(chunks) => {
+                    for chunk in chunks {
+                        print_chunk(&chunk, &output_format)
+                    }
+                }
+                Err(err) => println!("{}", err),
+            }
+        }
+    }
+
+    // Wait detached tasks if cancelled, or do nothing if query ends.
+    // Leak is guaranteed not to happen as long as all handles are joined
+    // and errors in detached tasks are properly handled.
+    context.wait().await;
+}
+
 /// Run RisingLight interactive mode
 async fn interactive(db: Database, output_format: Option<String>) -> Result<()> {
     let mut rl = Editor::<()>::new();
@@ -76,20 +108,15 @@ async fn interactive(db: Database, output_format: Option<String>) -> Result<()> 
             println!("No previous history. {err}");
         }
     }
+
+    let db = Arc::new(db);
+
     loop {
         let readline = rl.readline("> ");
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
-                let ret = db.run(&line).await;
-                match ret {
-                    Ok(chunks) => {
-                        for chunk in chunks {
-                            print_chunk(&chunk, &output_format);
-                        }
-                    }
-                    Err(err) => println!("{}", err),
-                }
+                run_query_in_background(db.clone(), line, output_format.clone()).await;
             }
             Err(ReadlineError::Interrupted) => {
                 println!("Interrupted");

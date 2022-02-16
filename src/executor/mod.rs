@@ -12,12 +12,35 @@
 //!
 //! [`try_stream`]: async_stream::try_stream
 
+use std::future::Future;
 use std::sync::Arc;
 
 use futures::stream::{BoxStream, StreamExt};
-use futures_async_stream::try_stream;
+use futures_async_stream::{for_await, try_stream};
 use itertools::Itertools;
+use tokio_util::sync::CancellationToken;
 
+pub use self::aggregation::*;
+use self::context::*;
+use self::copy_from_file::*;
+use self::copy_to_file::*;
+use self::create::*;
+use self::delete::*;
+use self::drop::*;
+use self::dummy_scan::*;
+use self::explain::*;
+use self::filter::*;
+use self::hash_agg::*;
+use self::hash_join::*;
+use self::insert::*;
+use self::limit::*;
+use self::nested_loop_join::*;
+use self::order::*;
+use self::projection::*;
+use self::simple_agg::*;
+use self::table_scan::*;
+use self::top_n::TopNExecutor;
+use self::values::*;
 use crate::array::DataChunk;
 use crate::binder::BoundExpr;
 use crate::optimizer::plan_nodes::*;
@@ -26,6 +49,7 @@ use crate::storage::{StorageImpl, TracedStorageError};
 use crate::types::{ConvertError, DataValue};
 
 mod aggregation;
+pub mod context;
 mod copy_from_file;
 mod copy_to_file;
 mod create;
@@ -46,27 +70,6 @@ mod simple_agg;
 mod table_scan;
 mod top_n;
 mod values;
-
-pub use self::aggregation::*;
-use self::copy_from_file::*;
-use self::copy_to_file::*;
-use self::create::*;
-use self::delete::*;
-use self::drop::*;
-use self::dummy_scan::*;
-use self::explain::*;
-use self::filter::*;
-use self::hash_agg::*;
-use self::hash_join::*;
-use self::insert::*;
-use self::limit::*;
-use self::nested_loop_join::*;
-use self::order::*;
-use self::projection::*;
-use self::simple_agg::*;
-use self::table_scan::*;
-use self::top_n::TopNExecutor;
-use self::values::*;
 
 /// The error type of execution.
 #[derive(thiserror::Error, Debug)]
@@ -98,6 +101,8 @@ pub enum ExecutorError {
     ),
     #[error("value can not be null")]
     NotNullable,
+    #[error("abort")]
+    Abort,
 }
 
 /// The maximum chunk length produced by executor at a time.
@@ -114,17 +119,88 @@ pub type BoxedExecutor = BoxStream<'static, Result<DataChunk, ExecutorError>>;
 /// The builder of executor.
 #[derive(Clone)]
 pub struct ExecutorBuilder {
+    context: Arc<Context>,
     storage: StorageImpl,
 }
 
 impl ExecutorBuilder {
     /// Create a new executor builder.
-    pub fn new(storage: StorageImpl) -> ExecutorBuilder {
-        ExecutorBuilder { storage }
+    pub fn new(context: Arc<Context>, storage: StorageImpl) -> ExecutorBuilder {
+        ExecutorBuilder { context, storage }
     }
 
     pub fn build(&mut self, plan: PlanRef) -> BoxedExecutor {
         self.visit(plan).unwrap()
+    }
+}
+
+/// Helper function to select the given future along with cancellation token.
+/// If cancellation is signaled, returns `Err(ExecutorError::Abort)`.
+/// Otherwise, the result of the future is returned.
+async fn select_with_token<O>(
+    token: &CancellationToken,
+    f: impl Future<Output = O>,
+) -> Result<O, ExecutorError> {
+    tokio::select! {
+        _ = token.cancelled() => {
+            Err(ExecutorError::Abort)
+        }
+        ret = f => {
+            Ok(ret)
+        }
+    }
+}
+
+/// Similar to `select_with_token` but only applies to futures that returns
+/// `Result<T, E> where ExecutorError: From<E>` and unifies output to
+/// `Result<T, ExecutorError>`.
+async fn unified_select_with_token<T, E>(
+    token: &CancellationToken,
+    f: impl Future<Output = Result<T, E>>,
+) -> Result<T, ExecutorError>
+where
+    ExecutorError: From<E>,
+{
+    tokio::select! {
+        _ = token.cancelled() => {
+            Err(ExecutorError::Abort)
+        }
+        ret = f => {
+            Ok(ret?)
+        }
+    }
+}
+
+/// Cancellable executor that is aware of cancellation from cancellation token and
+/// short circuit the stream if that happens.
+pub struct CancellableExecutor {
+    token: CancellationToken,
+    child: BoxedExecutor,
+}
+
+impl CancellableExecutor {
+    pub fn new(token: CancellationToken, child: BoxedExecutor) -> Self {
+        Self { token, child }
+    }
+
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        let mut child = self.child;
+        // Short circuit the execution if cancelled.
+        while let Some(chunk) = select_with_token(&self.token, child.next()).await? {
+            yield chunk?;
+        }
+    }
+}
+
+/// Extension of executors to provide the `cancellable` modifier.
+trait ExecutorExt {
+    fn cancellable(self, token: CancellationToken) -> BoxedExecutor;
+}
+
+impl ExecutorExt for BoxedExecutor {
+    fn cancellable(self, token: CancellationToken) -> BoxedExecutor {
+        CancellableExecutor::new(token, self).execute()
     }
 }
 
@@ -166,19 +242,23 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
     fn visit_physical_insert(&mut self, plan: &PhysicalInsert) -> Option<BoxedExecutor> {
         Some(match &self.storage {
             StorageImpl::InMemoryStorage(storage) => InsertExecutor {
+                context: self.context.clone(),
                 table_ref_id: plan.logical().table_ref_id(),
                 column_ids: plan.logical().column_ids().to_vec(),
                 storage: storage.clone(),
                 child: self.visit(plan.child()).unwrap(),
             }
-            .execute(),
+            .execute()
+            .cancellable(self.context.token().child_token()),
             StorageImpl::SecondaryStorage(storage) => InsertExecutor {
+                context: self.context.clone(),
                 table_ref_id: plan.logical().table_ref_id(),
                 column_ids: plan.logical().column_ids().to_vec(),
                 storage: storage.clone(),
                 child: self.visit(plan.child()).unwrap(),
             }
-            .execute(),
+            .execute()
+            .cancellable(self.context.token().child_token()),
         })
     }
 
@@ -204,17 +284,21 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
     fn visit_physical_table_scan(&mut self, plan: &PhysicalTableScan) -> Option<BoxedExecutor> {
         Some(match &self.storage {
             StorageImpl::InMemoryStorage(storage) => TableScanExecutor {
+                context: self.context.clone(),
                 plan: plan.clone(),
                 expr: None,
                 storage: storage.clone(),
             }
-            .execute(),
+            .execute()
+            .cancellable(self.context.token().child_token()),
             StorageImpl::SecondaryStorage(storage) => TableScanExecutor {
+                context: self.context.clone(),
                 plan: plan.clone(),
                 expr: plan.logical().expr().cloned(),
                 storage: storage.clone(),
             }
-            .execute(),
+            .execute()
+            .cancellable(self.context.token().child_token()),
         })
     }
 
@@ -327,17 +411,21 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
         let child = self.visit(plan.child()).unwrap();
         Some(match &self.storage {
             StorageImpl::InMemoryStorage(storage) => DeleteExecutor {
+                context: self.context.clone(),
                 child,
                 table_ref_id: plan.logical().table_ref_id(),
                 storage: storage.clone(),
             }
-            .execute(),
+            .execute()
+            .cancellable(self.context.token().child_token()),
             StorageImpl::SecondaryStorage(storage) => DeleteExecutor {
+                context: self.context.clone(),
                 child,
                 table_ref_id: plan.logical().table_ref_id(),
                 storage: storage.clone(),
             }
-            .execute(),
+            .execute()
+            .cancellable(self.context.token().child_token()),
         })
     }
 
@@ -355,17 +443,26 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
         &mut self,
         plan: &PhysicalCopyFromFile,
     ) -> Option<BoxedExecutor> {
-        Some(CopyFromFileExecutor { plan: plan.clone() }.execute())
+        Some(
+            CopyFromFileExecutor {
+                context: self.context.clone(),
+                plan: plan.clone(),
+            }
+            .execute()
+            .cancellable(self.context.token().child_token()),
+        )
     }
 
     fn visit_physical_copy_to_file(&mut self, plan: &PhysicalCopyToFile) -> Option<BoxedExecutor> {
         Some(
             CopyToFileExecutor {
+                context: self.context.clone(),
                 child: self.visit(plan.child()).unwrap(),
                 path: plan.logical().path().clone(),
                 format: plan.logical().format().clone(),
             }
-            .execute(),
+            .execute()
+            .cancellable(self.context.token().child_token()),
         )
     }
 }
