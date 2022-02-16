@@ -1,7 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 // =====================================================================
-// THE FILE IS COPIED FROM CRATE awaitgroup 0.6.0 LOCATED AT
+// THIS FILE IS COPIED AND MODIFIED FROM THE CRATE awaitgroup 0.6.0 LOCATED AT
 // https://github.com/ibraheemdev/awaitgroup/blob/d8ab1fd55a3b601fa241267067703a97ee1de8d1/src/lib.rs
 // HERE IS THE ORIGINAL LICENSE.
 //
@@ -43,7 +43,7 @@
 //! # fn main() {
 //! # let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
 //! # rt.block_on(async {
-//! use risinglight::executor::context::sync::WaitGroup;
+//! # use risinglight::utils::sync::WaitGroup;
 //!
 //! let mut wg = WaitGroup::new();
 //!
@@ -59,15 +59,18 @@
 //!     }
 //! }
 //!
+//! // Shutdown the wait group.
+//! wg.shutdown();
+//!
 //! // Block until all other tasks have finished their work.
 //! wg.wait().await;
 //! # });
 //! # }
 //! ```
 //!
-//! A `WaitGroup` can be re-used and awaited multiple times.
+//! A `WaitGroup` can be re-used and awaited multiple times before shutdown.
 //! ```rust
-//! # use risinglight::executor::context::sync::WaitGroup;
+//! # use risinglight::utils::sync::WaitGroup;
 //! # fn main() {
 //! # let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
 //! # rt.block_on(async {
@@ -90,6 +93,9 @@
 //!         worker.done();
 //!     });
 //! }
+//!
+//! // Shutdown the wait group.
+//! wg.shutdown();
 //!
 //! wg.wait().await;
 //! # });
@@ -119,17 +125,19 @@ impl WaitGroup {
         Self::default()
     }
 
-    /// Register a new worker.
+    /// Register a new worker. If the `WaitGroup` is shutdown, returns None instead.
     pub fn worker(&self) -> Option<Worker> {
         self.inner.count.increase().map(|_| Worker {
             inner: self.inner.clone(),
         })
     }
 
+    /// Whether the `WaitGroup` is shutdown.
     pub fn is_shutdown(&self) -> bool {
         self.inner.count.is_sealed()
     }
 
+    /// Shutdown the `WaitGroup` atomically. Returns true if it's shutdown the first time.
     pub fn shutdown(&self) -> bool {
         self.inner.count.seal()
     }
@@ -187,7 +195,8 @@ impl Worker {
 impl Drop for Worker {
     fn drop(&mut self) {
         let count = self.inner.count.decrease();
-        // We are the last worker
+
+        // Wake when we are the last worker.
         if count == 1 {
             if let Some(waker) = self.inner.waker.lock().unwrap().take() {
                 waker.wake();
@@ -206,7 +215,7 @@ impl fmt::Debug for WaitGroup {
 impl fmt::Debug for Worker {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let count = self.inner.count.value();
-        f.debug_struct("WaitGroup").field("count", &count).finish()
+        f.debug_struct("Worker").field("count", &count).finish()
     }
 }
 

@@ -6,8 +6,7 @@ use std::intrinsics;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
-pub mod sync;
-use sync::WaitGroup;
+use crate::utils::sync::WaitGroup;
 
 /// Context of executors.
 #[derive(Default)]
@@ -26,8 +25,8 @@ impl Context {
 }
 
 impl Context {
-    /// Cancels the execution. This invokes the cancel function of
-    /// owned cancellation token.
+    /// Cancels the execution and shutdown the wait group in context.
+    /// This invokes the cancel function of owned cancellation token.
     pub fn cancel(&self) {
         self.wg.shutdown();
         self.token.cancel();
@@ -70,11 +69,8 @@ impl Context {
         })
     }
 
-    /// Wait until all spawned tasks are ready. It does nothing if
-    /// current context is not cancelled.
+    /// Wait until all spawned tasks are ready.
     pub async fn wait(&self) {
-        if self.wg.is_shutdown() {
-            self.wg.wait().await;
-        }
+        self.wg.wait().await;
     }
 }

@@ -188,8 +188,7 @@ impl Database {
             let optimized_plan = optimizer.optimize(logical_plan);
             debug!("{:#?}", optimized_plan);
 
-            let executor_builder =
-                ExecutorBuilder::new_with_context(context.clone(), self.storage.clone());
+            let executor_builder = ExecutorBuilder::new(context.clone(), self.storage.clone());
             let executor = executor_builder.clone().build(optimized_plan);
             let mut output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
                 debug!("error: {}", e);

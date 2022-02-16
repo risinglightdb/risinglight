@@ -126,12 +126,7 @@ pub struct ExecutorBuilder {
 
 impl ExecutorBuilder {
     /// Create a new executor builder.
-    pub fn new(storage: StorageImpl) -> ExecutorBuilder {
-        Self::new_with_context(Default::default(), storage)
-    }
-
-    /// Create a new executor builder with context.
-    pub fn new_with_context(context: Arc<Context>, storage: StorageImpl) -> ExecutorBuilder {
+    pub fn new(context: Arc<Context>, storage: StorageImpl) -> ExecutorBuilder {
         ExecutorBuilder { context, storage }
     }
 
@@ -140,6 +135,9 @@ impl ExecutorBuilder {
     }
 }
 
+/// Helper function to select the given future along with cancellation token.
+/// If cancellation is signaled, returns `Err(ExecutorError::Abort)`.
+/// Otherwise, the result of the future is returned.
 async fn select_with_token<O>(
     token: &CancellationToken,
     f: impl Future<Output = O>,
@@ -154,6 +152,9 @@ async fn select_with_token<O>(
     }
 }
 
+/// Similar to `select_with_token` but only applies to futures that returns
+/// `Result<T, E> where ExecutorError: From<E>` and unifies output to
+/// `Result<T, ExecutorError>`.
 async fn unified_select_with_token<T, E>(
     token: &CancellationToken,
     f: impl Future<Output = Result<T, E>>,
@@ -186,13 +187,14 @@ impl CancellableExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         let mut child = self.child;
+        // Short circuit the execution if cancelled.
         while let Some(chunk) = select_with_token(&self.token, child.next()).await? {
             yield chunk?;
         }
     }
 }
 
-/// Extension of executors to provide the `with_context` modifier.
+/// Extension of executors to provide the `cancellable` modifier.
 trait ExecutorExt {
     fn cancellable(self, token: CancellationToken) -> BoxedExecutor;
 }

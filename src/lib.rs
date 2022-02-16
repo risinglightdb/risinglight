@@ -41,6 +41,8 @@ pub mod catalog;
 pub mod storage;
 /// Basic type definitions.
 pub mod types;
+/// Utilities.
+pub mod utils;
 
 #[cfg(feature = "jemalloc")]
 use tikv_jemallocator::Jemalloc;
