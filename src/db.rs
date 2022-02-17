@@ -199,12 +199,12 @@ impl Database {
             }
             if !column_names.is_empty() && !output.is_empty() {
                 if output.len() > 1 {
-                    let chunks: Vec<DataChunk> = output.drain(1..).collect();
-                    output[0].stack(&chunks);
+                    let chunk = DataChunk::stack(output.as_ref());
+                    output[0] = chunk;
                 }
                 output[0].set_header(column_names);
             }
-            outputs.extend(output);
+            outputs.push(output.remove(0));
         }
         Ok(outputs)
     }
