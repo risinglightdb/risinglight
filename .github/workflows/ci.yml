@@ -44,3 +44,13 @@ jobs:
         with:
           command: test
           args: --no-fail-fast --all-features --locked
+
+  tpch-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+      - name: Run TPC-H test
+        run: ./tests/tpch-full.sh

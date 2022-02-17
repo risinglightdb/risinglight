@@ -9,14 +9,14 @@ use crate::storage::{RowHandler, Storage, Table, Transaction};
 
 /// The executor of `delete` statement.
 pub struct DeleteExecutor<S: Storage> {
+    pub context: Arc<Context>,
     pub table_ref_id: TableRefId,
     pub storage: Arc<S>,
     pub child: BoxedExecutor,
 }
 
 impl<S: Storage> DeleteExecutor<S> {
-    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
-    pub async fn execute(self) {
+    async fn execute_inner(self, token: CancellationToken) -> Result<i32, ExecutorError> {
         let table = self.storage.get_table(self.table_ref_id)?;
         let mut txn = table.update().await?;
         let mut cnt = 0;
@@ -31,12 +31,33 @@ impl<S: Storage> DeleteExecutor<S> {
                     row_handlers,
                     row_handler_idx,
                 );
-                txn.delete(&row_handler).await?;
-                cnt += 1;
+                match unified_select_with_token(&token, txn.delete(&row_handler)).await {
+                    Err(err) => {
+                        txn.abort().await?;
+                        return Err(err);
+                    }
+                    _ => {
+                        cnt += 1;
+                    }
+                }
             }
         }
         txn.commit().await?;
 
-        yield DataChunk::single(cnt);
+        Ok(cnt as i32)
+    }
+
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        let context = self.context.clone();
+        match context.spawn(|token| async move { self.execute_inner(token).await }) {
+            Some(handler) => {
+                let cnt = handler.await.expect("failed to join delete thread")?;
+                let mut chunk = DataChunk::single(cnt as i32);
+                chunk.set_header(vec!["$delete.row_counts".to_string()]);
+                yield chunk;
+            }
+            None => return Err(ExecutorError::Abort),
+        }
     }
 }

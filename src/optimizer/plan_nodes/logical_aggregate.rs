@@ -83,6 +83,10 @@ impl PlanNode for LogicalAggregate {
             }))
             .collect()
     }
+
+    fn estimated_cardinality(&self) -> usize {
+        self.child().estimated_cardinality()
+    }
 }
 impl fmt::Display for LogicalAggregate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

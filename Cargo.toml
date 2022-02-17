@@ -15,6 +15,7 @@ async-channel = "1"
 async-recursion = "1"
 async-stream = "0.3"
 async-trait = "0.1"
+binary-heap-plus = "0.4.1"
 bit-set = "0.5"
 bitvec = { version = "1", features = ["serde"] }
 btreemultimap = "0.1"
@@ -49,6 +50,7 @@ sqlparser = { git = "https://github.com/risinglightdb/sqlparser-rs", rev = "edea
 thiserror = "1"
 tikv-jemallocator = { version = "0.4", optional = true }
 tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "parking_lot"] }
 manifest-dir-macros = "0.1.11"

@@ -10,6 +10,7 @@ use crate::binder::FileFormat;
 
 /// The executor of saving data to file.
 pub struct CopyToFileExecutor {
+    pub context: Arc<Context>,
     pub path: PathBuf,
     pub format: FileFormat,
     pub child: BoxedExecutor,
@@ -22,27 +23,35 @@ impl CopyToFileExecutor {
             path,
             format,
             child,
+            ..
         } = self;
         let (sender, recver) = mpsc::channel(1);
-        let writer =
-            tokio::task::spawn_blocking(move || Self::write_file_blocking(path, format, recver));
-        #[for_await]
-        for batch in child {
-            let res = sender.send(batch?).await;
-            if res.is_err() {
-                // send error means the background IO task returns error.
-                break;
+        let context = self.context.clone();
+        match context
+            .spawn_blocking(move |token| Self::write_file_blocking(path, format, recver, token))
+        {
+            Some(writer) => {
+                #[for_await]
+                for batch in child {
+                    let res = sender.send(batch?).await;
+                    if res.is_err() {
+                        // send error means the background IO task returns error.
+                        break;
+                    }
+                }
+                drop(sender);
+                let rows = writer.await.unwrap()?;
+                yield DataChunk::single(rows as _);
             }
+            None => return Err(ExecutorError::Abort),
         }
-        drop(sender);
-        let rows = writer.await.unwrap()?;
-        yield DataChunk::single(rows as _);
     }
 
     fn write_file_blocking(
         path: PathBuf,
         format: FileFormat,
         mut recver: mpsc::Receiver<DataChunk>,
+        token: CancellationToken,
     ) -> Result<usize, ExecutorError> {
         let file = File::create(&path)?;
         let mut writer = match format {
@@ -60,7 +69,13 @@ impl CopyToFileExecutor {
         };
 
         let mut rows = 0;
+
         while let Some(chunk) = recver.blocking_recv() {
+            // quit early if cancelled.
+            if token.is_cancelled() {
+                break;
+            }
+
             for i in 0..chunk.cardinality() {
                 // TODO(wrj): avoid dynamic memory allocation (String)
                 let row = chunk.arrays().iter().map(|a| a.get_to_string(i));
@@ -69,6 +84,13 @@ impl CopyToFileExecutor {
             writer.flush()?;
             rows += chunk.cardinality();
         }
+
+        // Delete the file if cancelled.
+        if token.is_cancelled() {
+            drop(writer);
+            std::fs::remove_file(&path)?;
+        }
+
         Ok(rows)
     }
 }
@@ -83,6 +105,7 @@ mod tests {
         let file = tempfile::NamedTempFile::new().expect("failed to create temp file");
 
         let executor = CopyToFileExecutor {
+            context: Default::default(),
             path: file.path().into(),
             format: FileFormat::Csv {
                 delimiter: ',',

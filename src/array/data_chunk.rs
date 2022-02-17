@@ -108,12 +108,26 @@ impl DataChunk {
         self.arrays.iter().map(|a| a.get_estimated_size()).sum()
     }
 
+    /// This function should only be called in plan nodes. If you want to change column name, you
+    /// should change the plan node, instead of directly attaching a header to the chunk.
     pub fn set_header(&mut self, header: Vec<String>) {
         self.header = Some(header);
     }
 
     pub fn header(&self) -> Option<&[String]> {
         self.header.as_deref()
+    }
+
+    pub fn from_rows<'a>(rows: &[RowRef<'a>], chunk: &Self) -> Self {
+        let mut arrays = vec![];
+        for col_idx in 0..chunk.column_count() {
+            let mut builder = ArrayBuilderImpl::from_type_of_array(chunk.array_at(col_idx));
+            for row in rows {
+                builder.push(&row.get(col_idx));
+            }
+            arrays.push(builder.finish());
+        }
+        arrays.into_iter().collect()
     }
 }
 
@@ -180,6 +194,13 @@ impl RowRef<'_> {
     /// Get the value at given column index.
     pub fn get(&self, idx: usize) -> DataValue {
         self.chunk.array_at(idx).get(self.row_idx)
+    }
+
+    pub fn get_by_indexes(&self, indexes: &[usize]) -> Vec<DataValue> {
+        indexes
+            .iter()
+            .map(|i| self.chunk.array_at(*i).get(self.row_idx))
+            .collect()
     }
 
     /// Get an iterator over the values of the row.

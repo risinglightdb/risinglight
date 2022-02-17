@@ -30,6 +30,10 @@ impl PlanNode for PhysicalTableScan {
     fn schema(&self) -> Vec<ColumnDesc> {
         self.logical().schema()
     }
+    // TODO: get statistics from storage system
+    fn estimated_cardinality(&self) -> usize {
+        1
+    }
 }
 
 impl fmt::Display for PhysicalTableScan {

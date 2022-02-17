@@ -3,8 +3,11 @@
 use bytes::{Buf, BufMut};
 use rust_decimal::Decimal;
 
-use crate::array::{Array, BoolArray, DateArray, DecimalArray, F64Array, I32Array, IntervalArray};
-use crate::types::{Date, Interval};
+use crate::array::{
+    Array, BlobArray, BoolArray, DateArray, DecimalArray, F64Array, I32Array, IntervalArray,
+    Utf8Array,
+};
+use crate::types::{BlobRef, Date, Interval};
 
 /// Encode a primitive value into fixed-width buffer
 pub trait PrimitiveFixedWidthEncode: Copy + Clone + 'static + Send + Sync {
@@ -110,5 +113,49 @@ impl PrimitiveFixedWidthEncode for Interval {
         let months = buffer.get_i32();
         let days = buffer.get_i32();
         Interval::from_md(months, days)
+    }
+}
+
+pub trait BlobEncode {
+    type ArrayType: Array<Item = Self>;
+
+    /// Returns the length (in bytes) of the blob slice.
+    fn len(&self) -> usize;
+
+    /// Converts a slice of bytes to a blob slice.
+    fn from_byte_slice(bytes: &[u8]) -> &Self;
+
+    fn to_byte_slice(&self) -> &[u8];
+}
+
+impl BlobEncode for BlobRef {
+    type ArrayType = BlobArray;
+
+    fn len(&self) -> usize {
+        self.as_ref().len()
+    }
+
+    fn from_byte_slice(bytes: &[u8]) -> &Self {
+        BlobRef::new(bytes)
+    }
+
+    fn to_byte_slice(&self) -> &[u8] {
+        self.as_ref()
+    }
+}
+
+impl BlobEncode for str {
+    type ArrayType = Utf8Array;
+
+    fn len(&self) -> usize {
+        self.len()
+    }
+
+    fn from_byte_slice(bytes: &[u8]) -> &Self {
+        std::str::from_utf8(bytes).unwrap()
+    }
+
+    fn to_byte_slice(&self) -> &[u8] {
+        self.as_bytes()
     }
 }

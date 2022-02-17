@@ -3,6 +3,7 @@
 use risinglight_proto::rowset::BlockIndex;
 
 use super::super::ColumnBuilderOptions;
+use super::blob_column_builder::BlobColumnBuilder;
 use super::char_column_builder::CharColumnBuilder;
 use super::primitive_column_builder::{
     DateColumnBuilder, DecimalColumnBuilder, F64ColumnBuilder, I32ColumnBuilder,
@@ -21,6 +22,7 @@ pub enum ColumnBuilderImpl {
     Decimal(DecimalColumnBuilder),
     Date(DateColumnBuilder),
     Interval(IntervalColumnBuilder),
+    Blob(BlobColumnBuilder),
 }
 
 impl ColumnBuilderImpl {
@@ -57,6 +59,7 @@ impl ColumnBuilderImpl {
             DataTypeKind::Interval => {
                 Self::Interval(IntervalColumnBuilder::new(datatype.is_nullable(), options))
             }
+            DataTypeKind::Bytea => Self::Blob(BlobColumnBuilder::new(options)),
             other_datatype => todo!("column builder for {:?} is not implemented", other_datatype),
         }
     }
@@ -70,6 +73,7 @@ impl ColumnBuilderImpl {
             (Self::Decimal(builder), ArrayImpl::Decimal(array)) => builder.append(array),
             (Self::Date(builder), ArrayImpl::Date(array)) => builder.append(array),
             (Self::Interval(builder), ArrayImpl::Interval(array)) => builder.append(array),
+            (Self::Blob(builder), ArrayImpl::Blob(array)) => builder.append(array),
             _ => todo!(),
         }
     }
@@ -83,6 +87,7 @@ impl ColumnBuilderImpl {
             Self::Decimal(builder) => builder.finish(),
             Self::Date(builder) => builder.finish(),
             Self::Interval(builder) => builder.finish(),
+            Self::Blob(builder) => builder.finish(),
         }
     }
 }

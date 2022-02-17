@@ -48,6 +48,10 @@ impl PlanNode for LogicalFilter {
     fn schema(&self) -> Vec<ColumnDesc> {
         self.child.schema()
     }
+
+    fn estimated_cardinality(&self) -> usize {
+        self.child().estimated_cardinality()
+    }
 }
 
 impl fmt::Display for LogicalFilter {
