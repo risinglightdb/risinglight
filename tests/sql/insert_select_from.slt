@@ -1,0 +1,19 @@
+statement ok
+create table a(v1 int, v2 int)
+
+statement ok
+create table b(v1 int, v2 float)
+
+statement ok
+insert into a values (1,10), (2,20), (3,30), (4,40)
+
+statement ok
+insert into b select v1, v2 from a;
+
+query II rowsort
+select * from b
+----
+1 10
+2 20
+3 30
+4 40
