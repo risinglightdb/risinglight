@@ -99,9 +99,9 @@ impl RowsetBuilder {
     }
 
     pub async fn finish_and_flush(self) -> StorageResult<()> {
-        // Skip flush when empty.
+        // Panic on empty flush.
         if self.row_cnt == 0 {
-            return Ok(());
+            panic!("empty rowset")
         }
 
         for (column_info, builder) in self.columns.iter().zip(self.builders) {
