@@ -177,7 +177,7 @@ struct DatabaseWrapper {
 
 impl sqllogictest::DB for DatabaseWrapper {
     type Error = risinglight::Error;
-    fn run(&self, sql: &str) -> Result<String, Self::Error> {
+    fn run(self: &mut DatabaseWrapper, sql: &str) -> Result<String, Self::Error> {
         info!("{}", sql);
         self.tx.blocking_send(sql.to_string()).unwrap();
         let chunks = self.rx.lock().unwrap().blocking_recv().unwrap()?;

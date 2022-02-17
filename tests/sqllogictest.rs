@@ -51,7 +51,7 @@ struct DatabaseWrapper {
 
 impl sqllogictest::DB for DatabaseWrapper {
     type Error = Error;
-    fn run(&self, sql: &str) -> Result<String, Self::Error> {
+    fn run(self: &mut DatabaseWrapper, sql: &str) -> Result<String, Self::Error> {
         let chunks = self.rt.block_on(self.db.run(sql))?;
         let output = chunks
             .iter()
