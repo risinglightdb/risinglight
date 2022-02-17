@@ -12,8 +12,9 @@ mod primitive_block_builder;
 mod primitive_block_iterator;
 mod primitive_nullable_block_builder;
 mod primitive_nullable_block_iterator;
-mod rle_char_block_builder;
-mod rle_char_block_iterator;
+mod rle_block;
+mod rle_bytes_block_builder;
+mod rle_bytes_block_iterator;
 mod rle_primitive_block_builder;
 mod rle_primitive_block_iterator;
 
@@ -35,8 +36,9 @@ pub use block_index_builder::*;
 use bytes::{Buf, BufMut, Bytes};
 use risinglight_proto::rowset::block_checksum::ChecksumType;
 use risinglight_proto::rowset::block_index::BlockType;
-pub use rle_char_block_builder::*;
-pub use rle_char_block_iterator::*;
+pub use rle_block::*;
+pub use rle_bytes_block_builder::*;
+pub use rle_bytes_block_iterator::*;
 
 use super::StorageResult;
 use crate::array::Array;

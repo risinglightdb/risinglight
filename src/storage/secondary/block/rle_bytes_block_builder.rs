@@ -1,25 +1,37 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::marker::PhantomData;
+
 use bytes::BufMut;
 use risinglight_proto::rowset::BlockStatistics;
 
 use super::BlockBuilder;
-use crate::array::Utf8Array;
+use crate::array::ValueRef;
+use crate::storage::secondary::encode::BlobEncode;
 
 /// Encodes fixed-width char or offset and data into a block with run-length encoding.
 /// The layout is rle counts and data from other block builder
 /// ```plain
 /// | rle_counts_num (u32) | rle_count (u16) | rle_count | data | data |
 /// ```
-pub struct RLECharBlockBuilder<B: BlockBuilder<Utf8Array>> {
+pub struct RLEBytesBlockBuilder<T, B>
+where
+    T: BlobEncode + ValueRef + ?Sized,
+    B: BlockBuilder<T::ArrayType>,
+{
     block_builder: B,
     rle_counts: Vec<u16>,
-    previous_value: Option<String>,
+    previous_value: Option<Vec<u8>>,
     target_size: usize,
     char_width: Option<u64>,
+    _phantom: PhantomData<T>,
 }
 
-impl<B: BlockBuilder<Utf8Array>> RLECharBlockBuilder<B> {
+impl<T, B> RLEBytesBlockBuilder<T, B>
+where
+    T: BlobEncode + ValueRef + ?Sized,
+    B: BlockBuilder<T::ArrayType>,
+{
     pub fn new(block_builder: B, target_size: usize, char_width: Option<u64>) -> Self {
         Self {
             block_builder,
@@ -27,25 +39,29 @@ impl<B: BlockBuilder<Utf8Array>> RLECharBlockBuilder<B> {
             previous_value: None,
             target_size,
             char_width,
+            _phantom: PhantomData,
         }
     }
 
-    fn append_inner(&mut self, item: Option<&str>) {
-        self.previous_value = item.map(String::from);
+    fn append_inner(&mut self, item: Option<&T>) {
+        self.previous_value = item.map(|x| x.to_byte_slice().to_vec());
         self.block_builder.append(item);
         self.rle_counts.push(1);
     }
 }
 
-impl<B> BlockBuilder<Utf8Array> for RLECharBlockBuilder<B>
+impl<T, B> BlockBuilder<T::ArrayType> for RLEBytesBlockBuilder<T, B>
 where
-    B: BlockBuilder<Utf8Array>,
+    T: BlobEncode + ValueRef + ?Sized,
+    B: BlockBuilder<T::ArrayType>,
 {
-    fn append(&mut self, item: Option<&str>) {
+    fn append(&mut self, item: Option<&T>) {
         let len = self.rle_counts.len();
         if let Some(item) = item {
             if let Some(previous_value) = &self.previous_value {
-                if previous_value == item && self.rle_counts[len - 1] < u16::MAX {
+                if &previous_value[..] == item.to_byte_slice()
+                    && self.rle_counts[len - 1] < u16::MAX
+                {
                     self.rle_counts[len - 1] += 1;
                     return;
                 }
@@ -63,10 +79,12 @@ where
             + std::mem::size_of::<u32>()
     }
 
-    fn should_finish(&self, next_item: &Option<&str>) -> bool {
+    fn should_finish(&self, next_item: &Option<&T>) -> bool {
         if let &Some(item) = next_item {
             if let Some(previous_value) = &self.previous_value {
-                if item == previous_value && self.rle_counts.last().unwrap_or(&0) < &u16::MAX {
+                if &previous_value[..] == item.to_byte_slice()
+                    && self.rle_counts.last().unwrap_or(&0) < &u16::MAX
+                {
                     return false;
                 }
             }
@@ -108,15 +126,15 @@ where
 mod tests {
     use itertools::Itertools;
 
-    use super::super::{PlainCharBlockBuilder, PlainVarcharBlockBuilder};
+    use super::super::{PlainBlobBlockBuilder, PlainCharBlockBuilder};
     use super::*;
 
     #[test]
     fn test_build_rle_char() {
         // Test rle block builder for char
-        let builder = PlainCharBlockBuilder::new(150, 40);
+        let builder = PlainCharBlockBuilder::new(0, 40);
         let mut rle_builder =
-            RLECharBlockBuilder::<PlainCharBlockBuilder>::new(builder, 150, Some(40));
+            RLEBytesBlockBuilder::<str, PlainCharBlockBuilder>::new(builder, 150, Some(40));
 
         let width_40_char = ["2"].iter().cycle().take(40).join("");
 
@@ -138,9 +156,9 @@ mod tests {
     #[test]
     fn test_build_rle_varchar() {
         // Test rle block builder for varchar
-        let builder = PlainVarcharBlockBuilder::new(40);
+        let builder = PlainBlobBlockBuilder::new(0);
         let mut rle_builder =
-            RLECharBlockBuilder::<PlainVarcharBlockBuilder>::new(builder, 40, None);
+            RLEBytesBlockBuilder::<str, PlainBlobBlockBuilder<str>>::new(builder, 40, None);
         for item in [Some("233")].iter().cycle().cloned().take(30) {
             rle_builder.append(item);
         }

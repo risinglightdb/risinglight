@@ -45,7 +45,7 @@ where
 
 impl<T, B> BlockBuilder<T::ArrayType> for RLEPrimitiveBlockBuilder<T, B>
 where
-    T: PrimitiveFixedWidthEncode + PartialEq,
+    T: PrimitiveFixedWidthEncode,
     B: BlockBuilder<T::ArrayType>,
 {
     fn append(&mut self, item: Option<&T>) {
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn test_build_rle_primitive_i32() {
         // Test primitive rle block builder for i32
-        let builder = PlainPrimitiveBlockBuilder::new(20);
+        let builder = PlainPrimitiveBlockBuilder::new(0);
         let mut rle_builder =
             RLEPrimitiveBlockBuilder::<i32, PlainPrimitiveBlockBuilder<i32>>::new(builder, 20);
         for item in [Some(&1)].iter().cycle().cloned().take(30) {
@@ -130,7 +130,7 @@ mod tests {
     #[test]
     fn test_build_rle_primitive_nullable_i32() {
         // Test primitive nullable rle block builder for i32
-        let builder = PlainPrimitiveNullableBlockBuilder::new(70);
+        let builder = PlainPrimitiveNullableBlockBuilder::new(0);
         let mut rle_builder = RLEPrimitiveBlockBuilder::<
             i32,
             PlainPrimitiveNullableBlockBuilder<i32>,

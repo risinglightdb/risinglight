@@ -5,13 +5,12 @@ use bytes::Buf;
 use super::super::PrimitiveFixedWidthEncode;
 use super::{Block, BlockIterator};
 use crate::array::{Array, ArrayBuilder};
-use crate::types::NativeType;
 
 /// Scans one or several arrays from the RLE Primitive block content,
 /// including plain block and nullable block.
 pub struct RLEPrimitiveBlockIterator<T, B>
 where
-    T: PrimitiveFixedWidthEncode + NativeType,
+    T: PrimitiveFixedWidthEncode,
     B: BlockIterator<T::ArrayType>,
 {
     /// Block iterator
@@ -35,7 +34,7 @@ where
 
 impl<T, B> RLEPrimitiveBlockIterator<T, B>
 where
-    T: PrimitiveFixedWidthEncode + NativeType,
+    T: PrimitiveFixedWidthEncode,
     B: BlockIterator<T::ArrayType>,
 {
     pub fn new(block_iter: B, rle_block: Block, rle_counts_num: usize) -> Self {
@@ -51,14 +50,13 @@ where
 
     fn get_cur_rle_count(&self) -> u16 {
         let mut rle_buffer = &self.rle_block[self.next_row * std::mem::size_of::<u16>()..];
-        let rle_count = rle_buffer.get_u16_le();
-        rle_count
+        rle_buffer.get_u16_le()
     }
 }
 
 impl<T, B> BlockIterator<T::ArrayType> for RLEPrimitiveBlockIterator<T, B>
 where
-    T: PrimitiveFixedWidthEncode + NativeType,
+    T: PrimitiveFixedWidthEncode,
     B: BlockIterator<T::ArrayType>,
 {
     fn next_batch(
@@ -141,12 +139,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use bytes::{Buf, Bytes};
+    use bytes::Bytes;
 
     use super::RLEPrimitiveBlockIterator;
     use crate::array::{ArrayBuilder, ArrayToVecExt, I32ArrayBuilder};
     use crate::storage::secondary::block::{
-        BlockBuilder, PlainPrimitiveBlockBuilder, PlainPrimitiveBlockIterator,
+        decode_rle_block, BlockBuilder, PlainPrimitiveBlockBuilder, PlainPrimitiveBlockIterator,
         PlainPrimitiveNullableBlockBuilder, PlainPrimitiveNullableBlockIterator,
         RLEPrimitiveBlockBuilder,
     };
@@ -155,7 +153,7 @@ mod tests {
     #[test]
     fn test_scan_rle_i32() {
         // Test primitive rle block iterator for i32
-        let builder = PlainPrimitiveBlockBuilder::new(20);
+        let builder = PlainPrimitiveBlockBuilder::new(0);
         let mut rle_builder =
             RLEPrimitiveBlockBuilder::<i32, PlainPrimitiveBlockBuilder<i32>>::new(builder, 20);
         for item in [Some(&1)].iter().cycle().cloned().take(3) {
@@ -169,18 +167,10 @@ mod tests {
         }
         let data = rle_builder.finish();
 
-        let mut buffer = &data[..];
-        let rle_counts_num = buffer.get_u32_le() as usize;
-        let rle_counts_length =
-            std::mem::size_of::<u32>() + std::mem::size_of::<u16>() * rle_counts_num;
-        let rle_data = data[std::mem::size_of::<u32>()..rle_counts_length].to_vec();
-        let block_data = data[rle_counts_length..].to_vec();
-        let block_iter =
-            PlainPrimitiveBlockIterator::<i32>::new(Bytes::from(block_data), rle_counts_num);
+        let (rle_num, rle_data, block_data) = decode_rle_block(Bytes::from(data));
+        let block_iter = PlainPrimitiveBlockIterator::<i32>::new(block_data, rle_num);
         let mut scanner = RLEPrimitiveBlockIterator::<i32, PlainPrimitiveBlockIterator<i32>>::new(
-            block_iter,
-            Bytes::from(rle_data),
-            rle_counts_num,
+            block_iter, rle_data, rle_num,
         );
 
         let mut builder = I32ArrayBuilder::new();
@@ -208,7 +198,7 @@ mod tests {
     #[test]
     fn test_scan_rle_nullable_i32() {
         // Test primitive nullable rle block iterator for i32
-        let builder = PlainPrimitiveNullableBlockBuilder::new(70);
+        let builder = PlainPrimitiveNullableBlockBuilder::new(0);
         let mut rle_builder = RLEPrimitiveBlockBuilder::<
             i32,
             PlainPrimitiveNullableBlockBuilder<i32>,
@@ -233,21 +223,11 @@ mod tests {
         }
         let data = rle_builder.finish();
 
-        let mut buffer = &data[..];
-        let rle_counts_num = buffer.get_u32_le() as usize;
-        let rle_counts_length =
-            std::mem::size_of::<u32>() + std::mem::size_of::<u16>() * rle_counts_num;
-        let rle_data = data[std::mem::size_of::<u32>()..rle_counts_length].to_vec();
-        let block_data = data[rle_counts_length..].to_vec();
-        let block_iter = PlainPrimitiveNullableBlockIterator::<i32>::new(
-            Bytes::from(block_data),
-            rle_counts_num,
-        );
+        let (rle_num, rle_data, block_data) = decode_rle_block(Bytes::from(data));
+        let block_iter = PlainPrimitiveNullableBlockIterator::<i32>::new(block_data, rle_num);
         let mut scanner =
             RLEPrimitiveBlockIterator::<i32, PlainPrimitiveNullableBlockIterator<i32>>::new(
-                block_iter,
-                Bytes::from(rle_data),
-                rle_counts_num,
+                block_iter, rle_data, rle_num,
             );
 
         let mut builder = I32ArrayBuilder::new();
