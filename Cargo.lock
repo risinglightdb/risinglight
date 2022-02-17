@@ -1580,6 +1580,7 @@ dependencies = [
  "futures",
  "futures-async-stream",
  "glob",
+ "humantime",
  "indicatif",
  "iter-chunks",
  "itertools",
