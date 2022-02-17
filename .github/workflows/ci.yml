@@ -39,11 +39,13 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+      - name: Download nextest
+        run: curl -LsSF https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
       - name: Test
         uses: actions-rs/cargo@v1
         with:
-          command: test
-          args: --no-fail-fast --all-features --locked
+          command: nextest
+          args: run --no-fail-fast --all-features --locked
 
   tpch-test:
     runs-on: ubuntu-latest
