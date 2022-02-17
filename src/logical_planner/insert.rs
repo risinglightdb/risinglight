@@ -6,14 +6,24 @@ use crate::optimizer::plan_nodes::{LogicalInsert, LogicalValues};
 
 impl LogicalPlaner {
     pub fn plan_insert(&self, stmt: BoundInsert) -> Result<PlanRef, LogicalPlanError> {
-        Ok(Arc::new(LogicalInsert::new(
-            stmt.table_ref_id,
-            stmt.column_ids,
-            Arc::new(LogicalValues::new(
-                stmt.column_types,
-                stmt.column_descs,
-                stmt.values,
-            )),
-        )))
+        match stmt.select_stmt {
+            Some(bound_select) => {
+                let select_plan = self.plan_select(Box::new(*bound_select))?;
+                Ok(Arc::new(LogicalInsert::new(
+                    stmt.table_ref_id,
+                    stmt.column_ids,
+                    select_plan,
+                )))
+            }
+            None => Ok(Arc::new(LogicalInsert::new(
+                stmt.table_ref_id,
+                stmt.column_ids,
+                Arc::new(LogicalValues::new(
+                    stmt.column_types,
+                    stmt.column_descs,
+                    stmt.values,
+                )),
+            ))),
+        }
     }
 }
