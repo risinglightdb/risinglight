@@ -4,9 +4,11 @@
 
 use std::fs::File;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
+use humantime::format_duration;
 use risinglight::array::{datachunk_to_sqllogictest_string, DataChunk};
 use risinglight::executor::context::Context;
 use risinglight::storage::SecondaryStorageOptions;
@@ -62,6 +64,7 @@ fn print_chunk(chunk: &DataChunk, output_format: &Option<String>) {
 
 async fn run_query_in_background(db: Arc<Database>, sql: String, output_format: Option<String>) {
     let context: Arc<Context> = Default::default();
+    let start_time = Instant::now();
     let handle = tokio::spawn({
         let context = context.clone();
         async move { db.run_with_context(context, &sql).await }
@@ -83,6 +86,8 @@ async fn run_query_in_background(db: Arc<Database>, sql: String, output_format: 
             }
         }
     }
+    let duration = start_time.elapsed();
+    println!("in {}", format_duration(duration));
 
     // Wait detached tasks if cancelled, or do nothing if query ends.
     // Leak is guaranteed not to happen as long as all handles are joined
