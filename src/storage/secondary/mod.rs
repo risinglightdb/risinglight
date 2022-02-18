@@ -118,7 +118,7 @@ impl SecondaryStorage {
                 Compactor::new(storage, rx)
                     .run()
                     .await
-                    .expect("compactor stopped unexpectly");
+                    .expect("compactor stopped unexpectedly");
             })),
         );
 
@@ -137,19 +137,15 @@ impl SecondaryStorage {
     }
 
     pub async fn shutdown(self: &Arc<Self>) -> StorageResult<()> {
-        // Ignore any error from either one-shot channel or join handler here.
-        // Because on runtime teardown, compactor and vacuum tasks might
-        // be dropped before this.
-
         let mut handler = self.compactor_handler.lock().await;
         info!("shutting down compactor");
-        handler.0.take().unwrap().send(()).ok();
-        handler.1.take().unwrap().await.ok();
+        handler.0.take().unwrap().send(()).unwrap();
+        handler.1.take().unwrap().await.unwrap();
 
         let mut handler = self.vacuum_handler.lock().await;
         info!("shutting down vacuum");
-        handler.0.take().unwrap().send(()).ok();
-        handler.1.take().unwrap().await.ok();
+        handler.0.take().unwrap().send(()).unwrap();
+        handler.1.take().unwrap().await.unwrap();
 
         Ok(())
     }
