@@ -7,7 +7,7 @@ use std::sync::Mutex;
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
-use risinglight::array::{datachunk_to_sqllogictest_string, DataChunk};
+use risinglight::array::{datachunk_to_sqllogictest_string, Chunk};
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::Database;
 use rustyline::error::ReadlineError;
@@ -35,20 +35,29 @@ struct Args {
 }
 
 // human-readable message
-fn print_chunk(chunk: &DataChunk, output_format: &Option<String>) {
+fn print_chunk(chunk: &Chunk, output_format: &Option<String>) {
     let output_format = output_format.as_ref().map(|x| x.as_str());
     match output_format {
         Some("human") | None => match chunk.header() {
             Some(header) => match header[0].as_str() {
                 "$insert.row_counts" => {
-                    println!("{} rows inserted", chunk.array_at(0).get_to_string(0))
+                    println!(
+                        "{} rows inserted",
+                        chunk.get_first_data_chunk().array_at(0).get_to_string(0)
+                    )
                 }
                 "$delete.row_counts" => {
-                    println!("{} rows deleted", chunk.array_at(0).get_to_string(0))
+                    println!(
+                        "{} rows deleted",
+                        chunk.get_first_data_chunk().array_at(0).get_to_string(0)
+                    )
                 }
                 "$create" => println!("created"),
                 "$drop" => println!("dropped"),
-                "$explain" => println!("{}", chunk.array_at(0).get_to_string(0)),
+                "$explain" => println!(
+                    "{}",
+                    chunk.get_first_data_chunk().array_at(0).get_to_string(0)
+                ),
                 _ => println!("{}", chunk),
             },
             None => println!("{}", chunk),
@@ -130,7 +139,7 @@ async fn run_sql(db: Database, path: &str, output_format: Option<String>) -> Res
 /// Wrapper for sqllogictest
 struct DatabaseWrapper {
     tx: tokio::sync::mpsc::Sender<String>,
-    rx: Mutex<tokio::sync::mpsc::Receiver<Result<Vec<DataChunk>, risinglight::Error>>>,
+    rx: Mutex<tokio::sync::mpsc::Receiver<Result<Vec<Chunk>, risinglight::Error>>>,
     output_format: Option<String>,
 }
 

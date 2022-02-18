@@ -9,7 +9,7 @@ use crate::types::DataValue;
 
 /// A collection of arrays.
 ///
-/// A chunk is a horizontal subset of a query result.
+/// A data chunk is a horizontal subset of a query result.
 #[derive(Clone, PartialEq)]
 pub struct DataChunk {
     arrays: Arc<[ArrayImpl]>,
@@ -147,7 +147,7 @@ impl DataChunk {
     }
 }
 
-/// Print the chunk as a pretty table.
+/// Print the data chunk as a pretty table.
 impl fmt::Display for DataChunk {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use comfy_table::Table;
@@ -170,32 +170,91 @@ impl fmt::Debug for DataChunk {
     }
 }
 
-/// Convert a [`DataChunk`] to sqllogictest string
-pub fn datachunk_to_sqllogictest_string(chunk: &DataChunk) -> String {
-    let mut output = String::new();
-    for row in 0..chunk.cardinality() {
-        use std::fmt::Write;
-        for (col, array) in chunk.arrays().iter().enumerate() {
-            if col != 0 {
-                write!(output, " ").unwrap();
-            }
-            match array.get(row) {
-                DataValue::Null => write!(output, "NULL"),
-                DataValue::Bool(v) => write!(output, "{}", v),
-                DataValue::Int32(v) => write!(output, "{}", v),
-                DataValue::Int64(v) => write!(output, "{}", v),
-                DataValue::Float64(v) => write!(output, "{}", v),
-                DataValue::String(s) if s.is_empty() => write!(output, "(empty)"),
-                DataValue::String(s) => write!(output, "{}", s),
-                DataValue::Blob(s) if s.is_empty() => write!(output, "(empty)"),
-                DataValue::Blob(s) => write!(output, "{}", s),
-                DataValue::Decimal(v) => write!(output, "{}", v),
-                DataValue::Date(v) => write!(output, "{}", v),
-                DataValue::Interval(v) => write!(output, "{}", v),
-            }
-            .unwrap();
+/// A chunk is a wrapper sturct for many data chunks.
+#[derive(Clone, PartialEq)]
+pub struct Chunk {
+    data_chunks: Vec<DataChunk>,
+}
+
+impl Chunk {
+    /// New a Chunk with some data chunks.
+    pub fn new(data_chunks: Vec<DataChunk>) -> Self {
+        Chunk { data_chunks }
+    }
+
+    /// Get all data chunks.
+    pub fn data_chunks(&self) -> &[DataChunk] {
+        &self.data_chunks
+    }
+
+    /// Get first data chunk.
+    pub fn get_first_data_chunk(&self) -> &DataChunk {
+        &self.data_chunks[0]
+    }
+
+    /// Get header of chunk
+    pub fn header(&self) -> Option<&[String]> {
+        self.data_chunks[0].header()
+    }
+}
+
+/// Print the chunk as a pretty table.
+impl fmt::Display for Chunk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use comfy_table::Table;
+        let mut table = Table::new();
+        if let Some(header) = self.header() {
+            table.set_header(header);
         }
-        writeln!(output).unwrap();
+        table.load_preset("||--+-++|    ++++++");
+        for data_chunk in self.data_chunks() {
+            for i in 0..data_chunk.cardinality() {
+                let row: Vec<_> = data_chunk
+                    .arrays
+                    .iter()
+                    .map(|a| a.get_to_string(i))
+                    .collect();
+                table.add_row(row);
+            }
+        }
+        write!(f, "{}", table)
+    }
+}
+
+impl fmt::Debug for Chunk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+/// Convert a [`Chunk`] to sqllogictest string
+pub fn datachunk_to_sqllogictest_string(chunk: &Chunk) -> String {
+    let mut output = String::new();
+    for data_chunk in chunk.data_chunks() {
+        for row in 0..data_chunk.cardinality() {
+            use std::fmt::Write;
+            for (col, array) in data_chunk.arrays().iter().enumerate() {
+                if col != 0 {
+                    write!(output, " ").unwrap();
+                }
+                match array.get(row) {
+                    DataValue::Null => write!(output, "NULL"),
+                    DataValue::Bool(v) => write!(output, "{}", v),
+                    DataValue::Int32(v) => write!(output, "{}", v),
+                    DataValue::Int64(v) => write!(output, "{}", v),
+                    DataValue::Float64(v) => write!(output, "{}", v),
+                    DataValue::String(s) if s.is_empty() => write!(output, "(empty)"),
+                    DataValue::String(s) => write!(output, "{}", s),
+                    DataValue::Blob(s) if s.is_empty() => write!(output, "(empty)"),
+                    DataValue::Blob(s) => write!(output, "{}", s),
+                    DataValue::Decimal(v) => write!(output, "{}", v),
+                    DataValue::Date(v) => write!(output, "{}", v),
+                    DataValue::Interval(v) => write!(output, "{}", v),
+                }
+                .unwrap();
+            }
+            writeln!(output).unwrap();
+        }
     }
     output
 }
