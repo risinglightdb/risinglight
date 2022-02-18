@@ -1,7 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::cmp::Ordering;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use btreemultimap::BTreeMultiMap;
@@ -10,6 +10,7 @@ use itertools::Itertools;
 use super::rowset_builder::RowsetBuilder;
 use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::catalog::{find_sort_key_id, ColumnCatalog};
+use crate::storage::secondary::rowset::RowsetWriter;
 use crate::storage::secondary::ColumnBuilderOptions;
 use crate::storage::StorageResult;
 use crate::types::{DataValue, Row};
@@ -119,8 +120,9 @@ impl MemTable for ColumnMemTable {
 
 pub struct SecondaryMemRowset<M: MemTable> {
     mem_table: M,
-    rowset_builder: RowsetBuilder,
     rowset_id: u32,
+    directory: PathBuf,
+    rowset_builder: RowsetBuilder,
 }
 
 impl SecondaryMemRowset<BTreeMapMemTable> {
@@ -134,7 +136,8 @@ impl SecondaryMemRowset<BTreeMapMemTable> {
         let chunk = self.mem_table.flush()?;
         let mut builder = self.rowset_builder;
         builder.append(chunk);
-        builder.finish_and_flush().await?;
+        let writer = RowsetWriter::new(self.directory);
+        writer.flush(builder.finish()).await?;
         // TODO(chi): do not reload index from disk, we can directly fetch it from cache.
         Ok(())
     }
@@ -147,7 +150,8 @@ impl SecondaryMemRowset<ColumnMemTable> {
     }
 
     pub async fn flush(self) -> StorageResult<()> {
-        self.rowset_builder.finish_and_flush().await?;
+        let writer = RowsetWriter::new(self.directory);
+        writer.flush(self.rowset_builder.finish()).await?;
         Ok(())
     }
 }
@@ -166,14 +170,16 @@ impl SecondaryMemRowsetImpl {
     ) -> Self {
         if let Some(sort_key_idx) = find_sort_key_id(&columns) {
             Self::BTree(SecondaryMemRowset::<BTreeMapMemTable> {
+                directory: directory.as_ref().to_path_buf(),
                 mem_table: BTreeMapMemTable::new(columns.clone(), sort_key_idx),
-                rowset_builder: RowsetBuilder::new(columns, directory, column_options),
+                rowset_builder: RowsetBuilder::new(columns, column_options),
                 rowset_id,
             })
         } else {
             Self::Column(SecondaryMemRowset::<ColumnMemTable> {
+                directory: directory.as_ref().to_path_buf(),
                 mem_table: ColumnMemTable::new(columns.clone()),
-                rowset_builder: RowsetBuilder::new(columns, directory, column_options),
+                rowset_builder: RowsetBuilder::new(columns, column_options),
                 rowset_id,
             })
         }

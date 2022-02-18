@@ -13,7 +13,7 @@ use crate::storage::secondary::column::ColumnSeekPosition;
 use crate::storage::secondary::concat_iterator::ConcatIterator;
 use crate::storage::secondary::manifest::{AddRowSetEntry, DeleteRowsetEntry};
 use crate::storage::secondary::merge_iterator::MergeIterator;
-use crate::storage::secondary::rowset::{DiskRowset, RowsetBuilder};
+use crate::storage::secondary::rowset::{DiskRowset, RowsetBuilder, RowsetWriter};
 use crate::storage::secondary::version_manager::EpochOp;
 use crate::storage::secondary::{ColumnBuilderOptions, SecondaryIterator};
 use crate::storage::{StorageColumnRef, StorageResult};
@@ -79,9 +79,6 @@ impl Compactor {
             );
         }
 
-        let rowset_id = table.generate_rowset_id();
-        let directory = table.get_rowset_path(rowset_id);
-
         let sort_key = find_sort_key_id(&table.columns);
         let mut iter: SecondaryIterator = if let Some(sort_key) = sort_key {
             MergeIterator::new(
@@ -93,11 +90,8 @@ impl Compactor {
             ConcatIterator::new(iters).into()
         };
 
-        tokio::fs::create_dir(&directory).await?;
-
         let mut builder = RowsetBuilder::new(
             table.columns.clone(),
-            &directory,
             ColumnBuilderOptions::from_storage_options(&table.storage_options),
         );
 
@@ -105,27 +99,44 @@ impl Compactor {
             builder.append(batch.to_data_chunk());
         }
 
-        builder.finish_and_flush().await?;
+        let rowset = builder.finish();
 
-        let rowset = DiskRowset::open(
-            directory,
-            table.columns.clone(),
-            self.storage.block_cache.clone(),
-            rowset_id,
-            self.storage.options.io_backend,
-        )
-        .await?;
+        let mut changes: Vec<EpochOp> = vec![];
 
-        // Add RowSets
-        let add_rowset_op = EpochOp::AddRowSet((
-            AddRowSetEntry {
-                rowset_id: rowset.rowset_id(),
-                table_id: table.table_ref_id,
-            },
-            rowset,
-        ));
+        // If the row sets are not empty, add a new rowset.
+        let rowset_id: Option<u32> = if rowset.is_empty() {
+            None
+        } else {
+            Some(table.generate_rowset_id())
+        };
+        if !rowset.is_empty() {
+            let rowset_id = rowset_id.unwrap();
+            let directory = table.get_rowset_path(rowset_id);
 
-        let mut changes = vec![add_rowset_op];
+            let writer = RowsetWriter::new(&directory);
+            writer.create_dir().await?;
+            writer.flush(rowset).await?;
+
+            let rowset = DiskRowset::open(
+                directory,
+                table.columns.clone(),
+                self.storage.block_cache.clone(),
+                rowset_id,
+                self.storage.options.io_backend,
+            )
+            .await?;
+
+            // Add RowSets
+            let add_rowset_op = EpochOp::AddRowSet((
+                AddRowSetEntry {
+                    rowset_id: rowset.rowset_id(),
+                    table_id: table.table_ref_id,
+                },
+                rowset,
+            ));
+
+            changes.push(add_rowset_op);
+        }
 
         // Remove old RowSets
         // and TODO: remove old DVs
@@ -138,11 +149,21 @@ impl Compactor {
 
         self.storage.version.commit_changes(changes).await?;
 
-        info!(
-            "compaction complete: {} -> {}",
-            selected_rowsets.iter().map(|x| x.rowset_id()).join(","),
-            rowset_id
-        );
+        match rowset_id {
+            Some(rowset_id) => {
+                info!(
+                    "compaction complete: {} -> {}",
+                    selected_rowsets.iter().map(|x| x.rowset_id()).join(","),
+                    rowset_id
+                );
+            }
+            None => {
+                info!(
+                    "compaction complete: {} (deleted)",
+                    selected_rowsets.iter().map(|x| x.rowset_id()).join(",")
+                );
+            }
+        }
 
         Ok(())
     }
