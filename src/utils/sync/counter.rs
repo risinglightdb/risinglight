@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use std::sync::atomic::{AtomicI64, Ordering};
 
 /// `SealableAtomicCounter` is an atomic counter supports increasing and decreasing atomically,
@@ -7,7 +9,6 @@ use std::sync::atomic::{AtomicI64, Ordering};
 ///
 /// `The SealableAtomicCounter` is useful to implement concurrent wait group that supports the
 /// atomic shutdown. Please refer to `risinglight::utils::sync::WaitGroup` for details.
-/// ```
 #[derive(Default)]
 pub struct SealableAtomicCounter {
     /// Value of the counter. It's in [0, +inf) when not sealed.

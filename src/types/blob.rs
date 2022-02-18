@@ -1,3 +1,5 @@
+// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use std::borrow::Borrow;
 use std::fmt;
 use std::ops::Deref;
