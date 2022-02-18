@@ -118,7 +118,7 @@ impl SecondaryStorage {
                 Compactor::new(storage, rx)
                     .run()
                     .await
-                    .expect("compactor stopped unexpectly");
+                    .expect("compactor stopped unexpectedly");
             })),
         );
 
@@ -131,7 +131,7 @@ impl SecondaryStorage {
                     .version
                     .run(rx)
                     .await
-                    .expect("vacuum stopped unexpectly");
+                    .expect("vacuum stopped unexpectedly");
             })),
         );
     }

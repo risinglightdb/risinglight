@@ -4,6 +4,7 @@ use smallvec::SmallVec;
 
 use super::PlanRef;
 
+#[allow(rustdoc::private_intra_doc_links)]
 /// the trait [`PlanNode`](super::PlanNode) really need about tree structure and used by optimizer
 /// framework. every plan node should impl it.
 ///

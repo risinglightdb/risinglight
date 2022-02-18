@@ -13,6 +13,9 @@
 #![feature(backtrace)]
 #![feature(generic_associated_types)]
 #![feature(type_alias_impl_trait)]
+#![feature(stmt_expr_attributes)]
+#![feature(proc_macro_hygiene)]
+#![feature(core_intrinsics)]
 
 /// Top-level structure of the database.
 pub mod db;
@@ -40,6 +43,8 @@ pub mod catalog;
 pub mod storage;
 /// Basic type definitions.
 pub mod types;
+/// Utilities.
+pub mod utils;
 
 #[cfg(feature = "jemalloc")]
 use tikv_jemallocator::Jemalloc;

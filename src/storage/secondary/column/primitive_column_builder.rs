@@ -55,6 +55,10 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
     }
 
     fn finish_builder(&mut self) {
+        if self.current_builder.is_none() {
+            return;
+        }
+
         let (block_type, stats, mut block_data) = match self.current_builder.take().unwrap() {
             BlockBuilderImpl::Plain(builder) => {
                 (BlockType::Plain, builder.get_statistics(), builder.finish())
