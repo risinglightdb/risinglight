@@ -2,6 +2,7 @@
 
 use std::fmt::Formatter;
 
+use itertools::Itertools;
 use serde::Serialize;
 
 use super::*;
@@ -52,6 +53,18 @@ impl std::fmt::Debug for BoundAggCall {
             f,
             "{:?}({:?}) -> {:?}",
             self.kind, self.args, self.return_type
+        )
+    }
+}
+
+impl std::fmt::Display for BoundAggCall {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}({}) -> {}",
+            self.kind,
+            self.args.iter().map(|x| format!("{}", x)).join(", "),
+            self.return_type
         )
     }
 }

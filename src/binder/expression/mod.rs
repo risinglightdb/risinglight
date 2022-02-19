@@ -146,6 +146,24 @@ impl std::fmt::Debug for BoundExpr {
     }
 }
 
+impl std::fmt::Display for BoundExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Constant(expr) => write!(f, "{}", expr)?,
+            Self::ColumnRef(expr) => write!(f, "Column #{:?}", expr)?,
+            Self::BinaryOp(expr) => write!(f, "{}", expr)?,
+            Self::UnaryOp(expr) => write!(f, "{:?}", expr)?,
+            Self::TypeCast(expr) => write!(f, "{}", expr)?,
+            Self::AggCall(expr) => write!(f, "{:?} (agg)", expr)?,
+            Self::InputRef(expr) => write!(f, "InputRef #{:?}", expr)?,
+            Self::IsNull(expr) => write!(f, "{:?} (isnull)", expr)?,
+            Self::ExprWithAlias(expr) => write!(f, "{}", expr)?,
+            Self::Alias(expr) => write!(f, "{:?}", expr)?,
+        }
+        Ok(())
+    }
+}
+
 impl Binder {
     /// Bind an expression.
     pub fn bind_expr(&mut self, expr: &Expr) -> Result<BoundExpr, BindError> {

@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use indoc::indoc;
 use serde::Serialize;
 
 use super::*;
@@ -52,7 +53,10 @@ impl fmt::Display for PhysicalHashJoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "PhysicalHashJoin: op {:?}, predicate: {} ",
+            indoc! {"
+			PhysicalHashJoin:
+			  op {:?},
+			  predicate: {}"},
             self.logical().join_op(),
             self.logical().predicate()
         )
