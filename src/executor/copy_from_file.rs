@@ -13,6 +13,7 @@ use crate::optimizer::plan_nodes::PhysicalCopyFromFile;
 
 /// The executor of loading file data.
 pub struct CopyFromFileExecutor {
+    pub context: Arc<Context>,
     pub plan: PhysicalCopyFromFile,
 }
 
@@ -23,17 +24,26 @@ impl CopyFromFileExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         let (tx, mut rx) = tokio::sync::mpsc::channel(1);
-        let handle = tokio::task::spawn_blocking(|| self.read_file_blocking(tx));
-        while let Some(chunk) = rx.recv().await {
-            yield chunk;
+        let context = self.context.clone();
+        match context.spawn_blocking(|token| self.read_file_blocking(tx, token)) {
+            Some(handle) => {
+                while let Some(chunk) = rx.recv().await {
+                    yield chunk;
+                }
+                handle.await.unwrap()?;
+            }
+            None => return Err(ExecutorError::Abort),
         }
-        handle.await.unwrap()?;
     }
 
     /// Read records from file using blocking IO.
     ///
     /// The read data chunks will be sent through `tx`.
-    fn read_file_blocking(self, tx: Sender<DataChunk>) -> Result<(), ExecutorError> {
+    fn read_file_blocking(
+        self,
+        tx: Sender<DataChunk>,
+        token: CancellationToken,
+    ) -> Result<(), ExecutorError> {
         let file = File::open(&self.plan.logical().path())?;
         let file_size = file.metadata()?.len();
         let mut buf_reader = BufReader::new(file);
@@ -110,8 +120,12 @@ impl CopyFromFileExecutor {
 
             // send data chunk
             let chunk: DataChunk = array_builders.into_iter().collect();
+
+            #[allow(clippy::collapsible_if)]
             if chunk.cardinality() > 0 {
-                tx.blocking_send(chunk).unwrap();
+                if token.is_cancelled() || tx.blocking_send(chunk).is_err() {
+                    return Err(ExecutorError::Abort);
+                }
             }
         }
         bar.finish();
@@ -135,6 +149,7 @@ mod tests {
         write!(file, "{}", csv).expect("failed to write file");
 
         let executor = CopyFromFileExecutor {
+            context: Default::default(),
             plan: PhysicalCopyFromFile::new(LogicalCopyFromFile::new(
                 file.path().into(),
                 FileFormat::Csv {

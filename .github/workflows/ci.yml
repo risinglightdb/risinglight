@@ -39,8 +39,25 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+      - name: Download nextest
+        run: curl -fsSL https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
       - name: Test
         uses: actions-rs/cargo@v1
         with:
+          command: nextest
+          args: run --no-fail-fast --all-features --locked
+      - name: Doctest
+        uses: actions-rs/cargo@v1
+        with:
           command: test
-          args: --no-fail-fast --all-features --locked
+          args: --doc --no-fail-fast --all-features --locked
+
+  tpch-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+      - name: Run TPC-H test
+        run: ./tests/tpch-full.sh

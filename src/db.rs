@@ -6,9 +6,12 @@ use futures::TryStreamExt;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use tracing::debug;
 
-use crate::array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder};
+use crate::array::{
+    ArrayBuilder, ArrayBuilderImpl, Chunk, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder,
+};
 use crate::binder::{BindError, Binder};
 use crate::catalog::RootCatalogRef;
+use crate::executor::context::Context;
 use crate::executor::{ExecutorBuilder, ExecutorError};
 use crate::logical_planner::{LogicalPlanError, LogicalPlaner};
 use crate::optimizer::logical_plan_rewriter::{InputRefResolver, PlanRewriter};
@@ -23,7 +26,6 @@ use crate::storage::{
 /// The database instance.
 pub struct Database {
     catalog: RootCatalogRef,
-    executor_builder: ExecutorBuilder,
     storage: StorageImpl,
 }
 
@@ -33,12 +35,7 @@ impl Database {
         let storage = InMemoryStorage::new();
         let catalog = storage.catalog().clone();
         let storage = StorageImpl::InMemoryStorage(Arc::new(storage));
-        let execution_manager = ExecutorBuilder::new(storage.clone());
-        Database {
-            catalog,
-            executor_builder: execution_manager,
-            storage,
-        }
+        Database { catalog, storage }
     }
 
     /// Create a new database instance with merge-tree engine.
@@ -47,12 +44,7 @@ impl Database {
         storage.spawn_compactor().await;
         let catalog = storage.catalog().clone();
         let storage = StorageImpl::SecondaryStorage(storage);
-        let execution_manager = ExecutorBuilder::new(storage.clone());
-        Database {
-            catalog,
-            executor_builder: execution_manager,
-            storage,
-        }
+        Database { catalog, storage }
     }
 
     pub async fn shutdown(&self) -> Result<(), Error> {
@@ -62,7 +54,7 @@ impl Database {
         Ok(())
     }
 
-    fn run_dt(&self) -> Result<Vec<DataChunk>, Error> {
+    fn run_dt(&self) -> Result<Vec<Chunk>, Error> {
         let mut db_id_vec = I32ArrayBuilder::new();
         let mut db_vec = Utf8ArrayBuilder::new();
         let mut schema_id_vec = I32ArrayBuilder::new();
@@ -89,10 +81,12 @@ impl Database {
             table_id_vec.into(),
             table_vec.into(),
         ];
-        Ok(vec![DataChunk::from_iter(vecs.into_iter())])
+        Ok(vec![Chunk::new(vec![DataChunk::from_iter(
+            vecs.into_iter(),
+        )])])
     }
 
-    pub async fn run_internal(&self, cmd: &str) -> Result<Vec<DataChunk>, Error> {
+    pub async fn run_internal(&self, cmd: &str) -> Result<Vec<Chunk>, Error> {
         if let Some((cmd, arg)) = cmd.split_once(' ') {
             if cmd == "stat" {
                 if let StorageImpl::SecondaryStorage(ref storage) = self.storage {
@@ -142,10 +136,10 @@ impl Database {
                             .to_string()
                             .as_str(),
                     ));
-                    Ok(vec![DataChunk::from_iter([
+                    Ok(vec![Chunk::new(vec![DataChunk::from_iter([
                         ArrayBuilderImpl::from(stat_name),
                         ArrayBuilderImpl::from(stat_value),
-                    ])])
+                    ])])])
                 } else {
                     Err(Error::InternalError(
                         "this storage engine doesn't support statistics".to_string(),
@@ -162,7 +156,16 @@ impl Database {
     }
 
     /// Run SQL queries and return the outputs.
-    pub async fn run(&self, sql: &str) -> Result<Vec<DataChunk>, Error> {
+
+    pub async fn run(&self, sql: &str) -> Result<Vec<Chunk>, Error> {
+        self.run_with_context(Default::default(), sql).await
+    }
+
+    pub async fn run_with_context(
+        &self,
+        context: Arc<Context>,
+        sql: &str,
+    ) -> Result<Vec<Chunk>, Error> {
         if let Some(cmdline) = sql.trim().strip_prefix('\\') {
             return self.run_internal(cmdline).await;
         }
@@ -176,7 +179,7 @@ impl Database {
             enable_filter_scan: self.storage.enable_filter_scan(),
         };
         // TODO: parallelize
-        let mut outputs = vec![];
+        let mut outputs: Vec<Chunk> = vec![];
         for stmt in stmts {
             let stmt = binder.bind(&stmt)?;
             debug!("{:#?}", stmt);
@@ -189,7 +192,9 @@ impl Database {
             debug!("{:#?}", logical_plan);
             let optimized_plan = optimizer.optimize(logical_plan);
             debug!("{:#?}", optimized_plan);
-            let executor = self.executor_builder.clone().build(optimized_plan);
+
+            let executor_builder = ExecutorBuilder::new(context.clone(), self.storage.clone());
+            let executor = executor_builder.clone().build(optimized_plan);
             let mut output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
                 debug!("error: {}", e);
                 e
@@ -200,7 +205,7 @@ impl Database {
             if !column_names.is_empty() && !output.is_empty() {
                 output[0].set_header(column_names);
             }
-            outputs.extend(output);
+            outputs.push(Chunk::new(output));
         }
         Ok(outputs)
     }

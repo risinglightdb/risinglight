@@ -12,7 +12,7 @@ use itertools::Itertools;
 
 use super::*;
 use crate::binder::{
-    BoundAggCall, BoundExpr, BoundInputRef, BoundOrderBy, BoundSelect, BoundTableRef,
+    AggKind, BoundAggCall, BoundExpr, BoundInputRef, BoundOrderBy, BoundSelect, BoundTableRef,
 };
 use crate::optimizer::plan_nodes::{
     Dummy, LogicalAggregate, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder,
@@ -23,6 +23,7 @@ impl LogicalPlaner {
     pub fn plan_select(&self, mut stmt: Box<BoundSelect>) -> Result<PlanRef, LogicalPlanError> {
         let mut plan: PlanRef = Arc::new(Dummy {});
         let mut is_sorted = false;
+        let mut with_row_handler = false;
 
         if let Some(table_ref) = &stmt.from_table {
             // use `sorted` mode from the storage engine if the order by column is the primary key
@@ -33,7 +34,26 @@ impl LogicalPlaner {
                     }
                 }
             }
-            plan = self.plan_table_ref(table_ref, false, is_sorted)?;
+            if let BoundTableRef::JoinTableRef { join_tables, .. } = table_ref {
+                if join_tables.is_empty() {
+                    stmt.select_list.iter().for_each(|expr| match expr {
+                        BoundExpr::AggCall(expr) => {
+                            if expr.kind == AggKind::RowCount {
+                                with_row_handler = true;
+                            }
+                        }
+                        BoundExpr::ExprWithAlias(expr) => {
+                            if let BoundExpr::AggCall(expr) = &*expr.expr {
+                                if expr.kind == AggKind::RowCount {
+                                    with_row_handler = true;
+                                }
+                            }
+                        }
+                        _ => {}
+                    });
+                }
+            }
+            plan = self.plan_table_ref(table_ref, with_row_handler, is_sorted)?;
         }
 
         if let Some(expr) = stmt.where_clause {
@@ -44,7 +64,7 @@ impl LogicalPlaner {
         for expr in &mut stmt.select_list {
             agg_extractor.visit_expr(expr);
         }
-        if !agg_extractor.agg_calls.is_empty() {
+        if !agg_extractor.agg_calls.is_empty() || !stmt.group_by.is_empty() {
             plan = Arc::new(LogicalAggregate::new(
                 agg_extractor.agg_calls,
                 stmt.group_by,

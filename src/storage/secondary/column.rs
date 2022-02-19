@@ -15,12 +15,11 @@ mod column_iterator;
 mod concrete_column_iterator;
 mod primitive_column_builder;
 mod primitive_column_factory;
-mod row_handler_sequencer;
+mod row_handler_column_iterator;
 
 use std::future::Future;
 use std::io::{Read, Seek, SeekFrom};
 
-use bitvec::vec::BitVec;
 pub use blob_column_builder::*;
 pub use blob_column_factory::*;
 pub use column_builder::*;
@@ -29,7 +28,7 @@ pub use concrete_column_iterator::*;
 pub use primitive_column_builder::*;
 pub use primitive_column_factory::*;
 use risinglight_proto::rowset::BlockIndex;
-pub use row_handler_sequencer::*;
+pub use row_handler_column_iterator::*;
 mod char_column_factory;
 use std::os::unix::fs::FileExt;
 use std::sync::{Arc, Mutex};
@@ -69,11 +68,7 @@ pub trait ColumnIterator<A: Array> {
     /// Get a batch and the starting row id from the column. A `None` return value means that
     /// there are no more elements from the block. By using `expected_size`, developers can
     /// get an array of NO MORE THAN the `expected_size` on supported column types.
-    fn next_batch<'a>(
-        &'a mut self,
-        expected_size: Option<usize>,
-        filter_bitmap: Option<&'a BitVec>,
-    ) -> Self::NextFuture<'a>;
+    fn next_batch(&mut self, expected_size: Option<usize>) -> Self::NextFuture<'_>;
 
     /// Number of items that can be fetched without I/O. When the column iterator has finished
     /// iterating, the returned value should be 0.

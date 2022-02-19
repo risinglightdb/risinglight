@@ -1580,6 +1580,7 @@ dependencies = [
  "futures",
  "futures-async-stream",
  "glob",
+ "humantime",
  "indicatif",
  "iter-chunks",
  "itertools",
@@ -1602,6 +1603,7 @@ dependencies = [
  "thiserror",
  "tikv-jemallocator",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
 ]
@@ -2052,6 +2054,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "tokio-util"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64910e1b9c1901aaf5375561e35b9c057d95ff41a44ede043a03e09279eabaf1"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "futures-sink",
+ "log",
+ "pin-project-lite",
+ "tokio",
 ]
 
 [[package]]
