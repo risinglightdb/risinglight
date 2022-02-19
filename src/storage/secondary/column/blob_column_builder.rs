@@ -32,6 +32,10 @@ impl BlobColumnBuilder {
     }
 
     fn finish_builder(&mut self) {
+        if self.current_builder.is_none() {
+            return;
+        }
+
         let builder = self.current_builder.take().unwrap();
         let (block_type, stats, mut block_data) = (
             BlockType::PlainVarchar,

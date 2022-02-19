@@ -88,26 +88,11 @@ impl Binder {
             ),
             "count" => {
                 if args.is_empty() {
-                    for ref_id in self.context.regular_tables.values() {
-                        let table = self.catalog.get_table(ref_id).unwrap();
-                        if let Some(col) = table.get_column_by_id(0) {
-                            let column_ref_id = ColumnRefId::from_table(*ref_id, col.id());
-                            self.record_regular_table_column(
-                                &table.name(),
-                                col.name(),
-                                col.id(),
-                                col.desc().clone(),
-                            );
-                            let expr = BoundExpr::ColumnRef(BoundColumnRef {
-                                table_name: table.name(),
-                                column_ref_id,
-                                is_primary_key: col.is_primary(),
-                                desc: col.desc().clone(),
-                            });
-                            args.push(expr);
-                            break;
-                        }
-                    }
+                    let first_index_column = BoundExpr::InputRef(BoundInputRef {
+                        index: 0,
+                        return_type: DataType::new(DataTypeKind::Int(None), false),
+                    });
+                    args.push(first_index_column);
                     (
                         AggKind::RowCount,
                         Some(DataType::new(DataTypeKind::Int(None), false)),

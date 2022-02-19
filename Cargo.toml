@@ -31,10 +31,12 @@ enum_dispatch = "0.3"
 erased-serde = "0.3"
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
 futures-async-stream = { git = "https://github.com/taiki-e/futures-async-stream", rev = "944f407" }
+humantime = "2.1.0"
 indicatif = { version = "0.16" }
 indoc = "1"
 iter-chunks = "0.1"
 itertools = "0.10"
+manifest-dir-macros = "0.1.11"
 moka = { version = "0.7", features = ["future"] }
 num-traits = "0.2"
 parking_lot = "0.12"
@@ -51,9 +53,9 @@ sqlparser = { git = "https://github.com/risinglightdb/sqlparser-rs", rev = "edea
 thiserror = "1"
 tikv-jemallocator = { version = "0.4", optional = true }
 tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "parking_lot"] }
-manifest-dir-macros = "0.1.11"
 [dev-dependencies]
 criterion = { version = "0.3", features = ["async_tokio"] }
 env_logger = "0.9"

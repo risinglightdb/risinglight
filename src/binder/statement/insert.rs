@@ -1,12 +1,12 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use itertools::Itertools;
+use sqlparser::ast::Expr;
 
 use super::*;
-use crate::catalog::{ColumnCatalog, TableCatalog};
-use crate::parser::{SetExpr, Statement};
+use crate::catalog::{ColumnCatalog, TableCatalog, TableRefId};
+use crate::parser::{Query, SetExpr, Statement};
 use crate::types::{ColumnId, DataType};
-
 /// A bound `insert` statement.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundInsert {
@@ -15,6 +15,7 @@ pub struct BoundInsert {
     pub column_types: Vec<DataType>,
     pub column_descs: Vec<ColumnDesc>,
     pub values: Vec<Vec<BoundExpr>>,
+    pub select_stmt: Option<Box<BoundSelect>>,
 }
 
 impl Binder {
@@ -40,68 +41,132 @@ impl Binder {
                     }
                 }
 
-                let values = match &source.body {
-                    SetExpr::Select(_) => todo!("handle 'insert into .. select .. from ..' case."),
-                    SetExpr::Values(values) => &values.0,
+                match &source.body {
+                    SetExpr::Select(_) => self.bind_insert_select_from(
+                        table_ref_id,
+                        column_ids,
+                        column_types,
+                        column_descs,
+                        source,
+                    ),
+                    SetExpr::Values(values) => self.bind_insert_values(
+                        table_ref_id,
+                        columns,
+                        column_ids,
+                        column_types,
+                        column_descs,
+                        &values.0,
+                    ),
                     _ => todo!("handle insert ???"),
-                };
-
-                // Handle 'insert into .. values ..' case.
-
-                // Check inserted values, we only support inserting values now.
-                let mut bound_values = vec![];
-                bound_values.reserve(values.len());
-                for row in values.iter() {
-                    if row.len() > column_ids.len() {
-                        return Err(BindError::InvalidExpression(format!(
-                            "Column length mismatched. Expected: {}, Actual: {}",
-                            columns.len(),
-                            row.len()
-                        )));
-                    }
-                    let mut bound_row = vec![];
-                    bound_row.reserve(row.len());
-                    for (idx, expr) in row.iter().enumerate() {
-                        // Bind expression
-                        let mut expr = self.bind_expr(expr)?;
-
-                        if let Some(data_type) = &expr.return_type() {
-                            // table t1(a float, b float)
-                            // for example: insert into values (1, 1);
-                            // 1 should be casted to float.
-                            let left_kind = data_type.physical_kind();
-                            let right_kind = column_types[idx].physical_kind();
-                            if left_kind != right_kind {
-                                expr = BoundExpr::TypeCast(BoundTypeCast {
-                                    expr: Box::new(expr),
-                                    ty: column_types[idx].kind(),
-                                });
-                            }
-                        } else {
-                            // If the data value is null, the column must be nullable.
-                            if !column_types[idx].is_nullable() {
-                                return Err(BindError::InvalidExpression(
-                                    "Can not insert null to non null column".into(),
-                                ));
-                            }
-                        }
-                        bound_row.push(expr);
-                    }
-                    bound_values.push(bound_row);
                 }
-
-                Ok(BoundInsert {
-                    table_ref_id,
-                    column_ids,
-                    column_types,
-                    column_descs,
-                    values: bound_values,
-                })
             }
             _ => panic!("mismatched statement type"),
         }
     }
 
+    pub fn bind_insert_values(
+        &mut self,
+        table_ref_id: TableRefId,
+        columns: Vec<ColumnCatalog>,
+        column_ids: Vec<ColumnId>,
+        column_types: Vec<DataType>,
+        column_descs: Vec<ColumnDesc>,
+        values: &[Vec<Expr>],
+    ) -> Result<BoundInsert, BindError> {
+        // Handle 'insert into .. values ..' case.
+
+        // Check inserted values, we only support inserting values now.
+        let mut bound_values = vec![];
+        bound_values.reserve(values.len());
+        for row in values.iter() {
+            if row.len() > column_ids.len() {
+                return Err(BindError::InvalidExpression(format!(
+                    "Column length mismatched. Expected: {}, Actual: {}",
+                    columns.len(),
+                    row.len()
+                )));
+            }
+            let mut bound_row = vec![];
+            bound_row.reserve(row.len());
+            for (idx, expr) in row.iter().enumerate() {
+                // Bind expression
+                let mut expr = self.bind_expr(expr)?;
+
+                if let Some(data_type) = &expr.return_type() {
+                    // table t1(a float, b float)
+                    // for example: insert into values (1, 1);
+                    // 1 should be casted to float.
+                    let left_kind = data_type.physical_kind();
+                    let right_kind = column_types[idx].physical_kind();
+                    if left_kind != right_kind {
+                        expr = BoundExpr::TypeCast(BoundTypeCast {
+                            expr: Box::new(expr),
+                            ty: column_types[idx].kind(),
+                        });
+                    }
+                } else {
+                    // If the data value is null, the column must be nullable.
+                    if !column_types[idx].is_nullable() {
+                        return Err(BindError::InvalidExpression(
+                            "Can not insert null to non null column".into(),
+                        ));
+                    }
+                }
+                bound_row.push(expr);
+            }
+            bound_values.push(bound_row);
+        }
+
+        Ok(BoundInsert {
+            table_ref_id,
+            column_ids,
+            column_types,
+            column_descs,
+            values: bound_values,
+            select_stmt: None,
+        })
+    }
+
+    pub fn bind_insert_select_from(
+        &mut self,
+        table_ref_id: TableRefId,
+        column_ids: Vec<ColumnId>,
+        column_types: Vec<DataType>,
+        column_descs: Vec<ColumnDesc>,
+        select_stmt: &Query,
+    ) -> Result<BoundInsert, BindError> {
+        let mut bound_select_stmt = self.bind_select(select_stmt)?;
+        for (idx, expr) in bound_select_stmt.select_list.iter_mut().enumerate() {
+            if let Some(data_type) = &expr.return_type() {
+                // table t1(a float, b float)
+                // for example: insert into values (1, 1);
+                // 1 should be casted to float.
+                let left_kind = data_type.physical_kind();
+                let right_kind = column_types[idx].physical_kind();
+                if left_kind != right_kind {
+                    *expr = BoundExpr::TypeCast(BoundTypeCast {
+                        expr: Box::new(expr.clone()),
+                        ty: column_types[idx].kind(),
+                    });
+                }
+            } else {
+                // If the data value is null, the column must be nullable.
+                if !column_types[idx].is_nullable() {
+                    return Err(BindError::InvalidExpression(
+                        "Can not insert null to non null column".into(),
+                    ));
+                }
+            }
+        }
+        Ok(BoundInsert {
+            table_ref_id,
+            column_ids,
+            column_types,
+            column_descs,
+            values: vec![],
+            select_stmt: Some(bound_select_stmt),
+        })
+    }
     /// Bind `table_name [ (column_name [, ...] ) ]`
     pub(super) fn bind_table_columns(
         &mut self,

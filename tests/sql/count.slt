@@ -1,0 +1,43 @@
+statement ok
+create table t(v int)
+
+statement ok
+insert into t values (1), (2), (3), (4), (5), (6), (7), (8)
+
+query I
+select count(*) from t
+----
+8
+
+query I
+select count(*)+1 from t;
+----
+9
+
+query I
+select 2*count(*) from t;
+----
+16
+
+query I
+select -count(*) from t;
+----
+-8
+
+query I
+select count(*)+min(v) from t;
+----
+9
+
+query I
+select count(*) as 'total' from t where v > 5
+----
+3
+
+statement ok
+delete from t where v = 7
+
+query I
+select count(*) from t where v > 5
+----
+2
