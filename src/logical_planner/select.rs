@@ -64,7 +64,7 @@ impl LogicalPlaner {
         for expr in &mut stmt.select_list {
             agg_extractor.visit_expr(expr);
         }
-        if !agg_extractor.agg_calls.is_empty() {
+        if !agg_extractor.agg_calls.is_empty() || !stmt.group_by.is_empty() {
             plan = Arc::new(LogicalAggregate::new(
                 agg_extractor.agg_calls,
                 stmt.group_by,
