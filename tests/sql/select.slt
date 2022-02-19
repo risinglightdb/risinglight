@@ -1,3 +1,19 @@
+# case sensitivity
+
+statement ok
+create table t(v1 int)
+
+statement ok
+insert into T values (1)
+
+query I
+select V1 from T
+----
+1
+
+statement ok
+drop table T
+
 statement ok
 create table t(v1 int not null, v2 int not null, v3 int not null)
 
@@ -13,6 +29,22 @@ select * from t
 2 3 3
 3 4 4
 4 3 5
+
+query II
+select v1, v2 from t
+----
+1 4
+2 3
+3 4
+4 3
+
+query I
+select v1 + v2 from t
+----
+5
+5
+7
+7
 
 query II
 select sum(v1), sum(v2) from t
@@ -42,6 +74,19 @@ select count(v3), v2 from t group by v2
 ----
 2 3
 2 4
+
+# AggregateWithProjectionTest2
+query II rowsort
+select v2 from t group by v2
+----
+3
+4
+
+# implicit type cast
+query I
+select 1 + 0.1
+----
+1.1
 
 # FIXME: pass the following tests
 halt
