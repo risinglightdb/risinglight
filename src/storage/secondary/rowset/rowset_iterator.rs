@@ -13,7 +13,7 @@ use crate::storage::secondary::DeleteVector;
 use crate::storage::{PackedVec, StorageChunk, StorageColumnRef, StorageResult};
 
 /// When `expected_size` is not specified, we should limit the maximum size of the chunk.
-const ROWSET_MAX_OUTPUT: usize = 65536;
+const ROWSET_MAX_OUTPUT: usize = 2048;
 
 /// Iterates on a `RowSet`
 pub struct RowSetIterator {
