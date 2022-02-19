@@ -22,6 +22,9 @@ impl LimitExecutor {
             let batch = batch?;
             if dummy_chunk.is_none() {
                 dummy_chunk = Some(batch.slice(0..0));
+                if self.offset == 0 && self.limit == 0 {
+                    break;
+                }
             }
             let cardinality = batch.cardinality();
             let start = processed.max(self.offset) - processed;
