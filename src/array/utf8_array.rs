@@ -133,7 +133,7 @@ impl<T: ValueRef + ?Sized> ArrayBuilder for BytesArrayBuilder<T> {
         BytesArray {
             valid: mem::take(&mut self.valid),
             data: mem::take(&mut self.data),
-            offset: mem::take(&mut self.offset),
+            offset: mem::replace(&mut self.offset,vec![0]),
             _type: PhantomData,
         }
     }
