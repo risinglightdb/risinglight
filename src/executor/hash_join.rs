@@ -57,9 +57,8 @@ impl HashJoinExecutor {
             let hash_value = right_row.get_by_indexes(&self.right_column_indexes);
             for left_row in hash_map.get(&hash_value).unwrap_or(&vec![]) {
                 let values = left_row.values().chain(right_row.values());
-                match builder.push_row(values) {
-                    Some(chunk) => yield chunk,
-                    _ => {}
+                if let Some(chunk) = builder.push_row(values) {
+                    yield chunk;
                 }
             }
         }
@@ -80,9 +79,8 @@ impl HashJoinExecutor {
                 // append row: (left, NULL)
                 let values =
                     (left_row.values()).chain(self.right_types.iter().map(|_| DataValue::Null));
-                match builder.push_row(values) {
-                    Some(chunk) => yield chunk,
-                    _ => {}
+                if let Some(chunk) = builder.push_row(values) {
+                    yield chunk;
                 }
             }
         }
@@ -100,9 +98,8 @@ impl HashJoinExecutor {
                 // append row: (NULL, right)
                 let values =
                     (self.left_types.iter().map(|_| DataValue::Null)).chain(right_row.values());
-                match builder.push_row(values) {
-                    Some(chunk) => yield chunk,
-                    _ => {}
+                if let Some(chunk) = builder.push_row(values) {
+                    yield chunk;
                 }
             }
         }
