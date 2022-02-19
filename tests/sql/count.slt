@@ -10,6 +10,26 @@ select count(*) from t
 8
 
 query I
+select count(*)+1 from t;
+----
+9
+
+query I
+select 2*count(*) from t;
+----
+16
+
+query I
+select -count(*) from t;
+----
+-8
+
+query I
+select count(*)+min(v) from t;
+----
+9
+
+query I
 select count(*) as 'total' from t where v > 5
 ----
 3
