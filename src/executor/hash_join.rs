@@ -38,6 +38,7 @@ impl HashJoinExecutor {
         // helper functions
         let left_rows = || left_chunks.iter().flat_map(|chunk| chunk.rows());
         let right_rows = || right_chunks.iter().flat_map(|chunk| chunk.rows());
+        let data_types = || self.left_types.iter().chain(self.right_types.iter());
 
         // build
         let mut hash_map: HashMap<Vec<DataValue>, Vec<RowRef<'_>>> = HashMap::new();
@@ -49,7 +50,6 @@ impl HashJoinExecutor {
                 .push(left_row);
         }
 
-        let data_types = || self.left_types.iter().chain(self.right_types.iter());
         let mut builder = DataChunkBuilder::new(data_types(), PROCESSING_WINDOW_SIZE);
 
         // probe
@@ -57,12 +57,9 @@ impl HashJoinExecutor {
             let hash_value = right_row.get_by_indexes(&self.right_column_indexes);
             for left_row in hash_map.get(&hash_value).unwrap_or(&vec![]) {
                 let values = left_row.values().chain(right_row.values());
-                builder = match builder.push_row(values) {
-                    Err(chunk) => {
-                        yield chunk;
-                        DataChunkBuilder::new(data_types(), PROCESSING_WINDOW_SIZE)
-                    }
-                    Ok(builder) => builder,
+                match builder.push_row(values) {
+                    Some(chunk) => yield chunk,
+                    _ => {}
                 }
             }
         }
@@ -83,12 +80,9 @@ impl HashJoinExecutor {
                 // append row: (left, NULL)
                 let values =
                     (left_row.values()).chain(self.right_types.iter().map(|_| DataValue::Null));
-                builder = match builder.push_row(values) {
-                    Err(chunk) => {
-                        yield chunk;
-                        DataChunkBuilder::new(data_types(), PROCESSING_WINDOW_SIZE)
-                    }
-                    Ok(builder) => builder,
+                match builder.push_row(values) {
+                    Some(chunk) => yield chunk,
+                    _ => {}
                 }
             }
         }
@@ -106,17 +100,14 @@ impl HashJoinExecutor {
                 // append row: (NULL, right)
                 let values =
                     (self.left_types.iter().map(|_| DataValue::Null)).chain(right_row.values());
-                builder = match builder.push_row(values) {
-                    Err(chunk) => {
-                        yield chunk;
-                        DataChunkBuilder::new(data_types(), PROCESSING_WINDOW_SIZE)
-                    }
-                    Ok(builder) => builder,
+                match builder.push_row(values) {
+                    Some(chunk) => yield chunk,
+                    _ => {}
                 }
             }
         }
 
-        if let Some(chunk) = builder.finish() {
+        if let Some(chunk) = { builder }.take() {
             yield chunk;
         }
     }

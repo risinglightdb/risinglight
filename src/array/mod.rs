@@ -49,14 +49,22 @@ pub trait ArrayBuilder: Sized + Send + Sync + 'static {
     /// Create a new builder with `capacity`.
     fn with_capacity(capacity: usize) -> Self;
 
+    /// Reserve at least `capacity` values.
+    fn reserve(&mut self, capacity: usize);
+
     /// Append a value to builder.
     fn push(&mut self, value: Option<&<Self::Array as Array>::Item>);
 
     /// Append an array to builder.
     fn append(&mut self, other: &Self::Array);
 
+    /// Take all elements and return a new array.
+    fn take(&mut self) -> Self::Array;
+
     /// Finish build and return a new array.
-    fn finish(self) -> Self::Array;
+    fn finish(mut self) -> Self::Array {
+        self.take()
+    }
 }
 
 /// A trait over all array.
@@ -290,6 +298,15 @@ for_all_variants! { impl_from }
 macro_rules! impl_array_builder {
     ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident } ),*) => {
         impl ArrayBuilderImpl {
+            /// Reserve at least `capacity` values.
+            pub fn reserve(&mut self, capacity: usize) {
+                match self {
+                    $(
+                        ArrayBuilderImpl::$Abc(a) => a.reserve(capacity),
+                    )*
+                }
+            }
+
             /// Create a new array builder with the same type of given array.
             pub fn from_type_of_array(array: &ArrayImpl) -> Self {
                 match array {
@@ -316,6 +333,14 @@ macro_rules! impl_array_builder {
                         (Self::$Abc(a), DataValue::Null) => a.push(None),
                     )*
                     _ => panic!("failed to push value: type mismatch"),
+                }
+            }
+
+            pub fn take(&mut self) -> ArrayImpl {
+                match self {
+                    $(
+                        Self::$Abc(a) => ArrayImpl::$Abc(a.take()),
+                    )*
                 }
             }
 
