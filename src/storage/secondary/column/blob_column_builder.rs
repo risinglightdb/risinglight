@@ -6,8 +6,15 @@ use risinglight_proto::rowset::BlockIndex;
 use super::super::{BlockBuilder, BlockIndexBuilder, PlainBlobBlockBuilder};
 use super::{append_one_by_one, ColumnBuilder};
 use crate::array::{Array, BlobArray};
+use crate::storage::secondary::block::RLEBytesBlockBuilder;
 use crate::storage::secondary::ColumnBuilderOptions;
 use crate::types::BlobRef;
+
+/// All supported block builders for blob types.
+pub(super) enum BlobBlockBuilderImpl {
+    PlainBlob(PlainBlobBlockBuilder<BlobRef>),
+    RlePlainBlob(RLEBytesBlockBuilder<BlobRef, PlainBlobBlockBuilder<BlobRef>>),
+}
 
 /// Column builder of blob types.
 pub struct BlobColumnBuilder {
@@ -15,7 +22,7 @@ pub struct BlobColumnBuilder {
     options: ColumnBuilderOptions,
 
     /// Current block builder
-    current_builder: Option<PlainBlobBlockBuilder<BlobRef>>,
+    current_builder: Option<BlobBlockBuilderImpl>,
 
     /// Block index builder
     block_index_builder: BlockIndexBuilder,
@@ -36,12 +43,18 @@ impl BlobColumnBuilder {
             return;
         }
 
-        let builder = self.current_builder.take().unwrap();
-        let (block_type, stats, mut block_data) = (
-            BlockType::PlainVarchar,
-            builder.get_statistics(),
-            builder.finish(),
-        );
+        let (block_type, stats, mut block_data) = match self.current_builder.take().unwrap() {
+            BlobBlockBuilderImpl::PlainBlob(builder) => (
+                BlockType::PlainVarchar,
+                builder.get_statistics(),
+                builder.finish(),
+            ),
+            BlobBlockBuilderImpl::RlePlainBlob(builder) => (
+                BlockType::RlePlainVarchar,
+                builder.get_statistics(),
+                builder.finish(),
+            ),
+        };
 
         self.block_index_builder
             .finish_block(block_type, &mut self.data, &mut block_data, stats);
@@ -54,13 +67,30 @@ impl ColumnBuilder<BlobArray> for BlobColumnBuilder {
 
         while iter.peek().is_some() {
             if self.current_builder.is_none() {
-                self.current_builder = Some(PlainBlobBlockBuilder::new(
-                    self.options.target_block_size - 16,
-                ));
+                if self.options.is_rle {
+                    let builder = PlainBlobBlockBuilder::new(0);
+                    self.current_builder =
+                        Some(BlobBlockBuilderImpl::RlePlainBlob(RLEBytesBlockBuilder::<
+                            BlobRef,
+                            PlainBlobBlockBuilder<BlobRef>,
+                        >::new(
+                            builder,
+                            self.options.target_block_size - 16,
+                            None,
+                        )));
+                } else {
+                    self.current_builder = Some(BlobBlockBuilderImpl::PlainBlob(
+                        PlainBlobBlockBuilder::new(self.options.target_block_size - 16),
+                    ));
+                }
             }
 
-            let builder = self.current_builder.as_mut().unwrap();
-            let (row_count, should_finish) = append_one_by_one(&mut iter, builder);
+            let (row_count, should_finish) = match self.current_builder.as_mut().unwrap() {
+                BlobBlockBuilderImpl::PlainBlob(builder) => append_one_by_one(&mut iter, builder),
+                BlobBlockBuilderImpl::RlePlainBlob(builder) => {
+                    append_one_by_one(&mut iter, builder)
+                }
+            };
 
             self.block_index_builder.add_rows(row_count);
 

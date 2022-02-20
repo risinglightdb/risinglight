@@ -6,13 +6,15 @@ use risinglight_proto::rowset::BlockIndex;
 use super::super::{BlockBuilder, BlockIndexBuilder, PlainCharBlockBuilder};
 use super::{append_one_by_one, ColumnBuilder};
 use crate::array::{Array, Utf8Array};
-use crate::storage::secondary::block::PlainBlobBlockBuilder;
+use crate::storage::secondary::block::{PlainBlobBlockBuilder, RLEBytesBlockBuilder};
 use crate::storage::secondary::ColumnBuilderOptions;
 
 /// All supported block builders for char types.
 pub(super) enum CharBlockBuilderImpl {
     PlainFixedChar(PlainCharBlockBuilder),
     PlainVarchar(PlainBlobBlockBuilder<str>),
+    RlePlainFixedChar(RLEBytesBlockBuilder<str, PlainCharBlockBuilder>),
+    RlePlainVarchar(RLEBytesBlockBuilder<str, PlainBlobBlockBuilder<str>>),
 }
 
 /// Column builder of char types.
@@ -61,6 +63,16 @@ impl CharColumnBuilder {
                 builder.get_statistics(),
                 builder.finish(),
             ),
+            CharBlockBuilderImpl::RlePlainFixedChar(builder) => (
+                BlockType::RlePlainFixedChar,
+                builder.get_statistics(),
+                builder.finish(),
+            ),
+            CharBlockBuilderImpl::RlePlainVarchar(builder) => (
+                BlockType::RlePlainVarchar,
+                builder.get_statistics(),
+                builder.finish(),
+            ),
         };
 
         self.block_index_builder
@@ -76,17 +88,39 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
             if self.current_builder.is_none() {
                 match (self.char_width, self.nullable) {
                     (Some(char_width), false) => {
-                        self.current_builder = Some(CharBlockBuilderImpl::PlainFixedChar(
-                            PlainCharBlockBuilder::new(
-                                self.options.target_block_size - 16,
-                                char_width,
-                            ),
-                        ));
+                        if self.options.is_rle {
+                            let builder = PlainCharBlockBuilder::new(0, char_width);
+                            self.current_builder = Some(CharBlockBuilderImpl::RlePlainFixedChar(
+                                RLEBytesBlockBuilder::<str, PlainCharBlockBuilder>::new(
+                                    builder,
+                                    self.options.target_block_size - 16,
+                                    Some(char_width),
+                                ),
+                            ));
+                        } else {
+                            self.current_builder = Some(CharBlockBuilderImpl::PlainFixedChar(
+                                PlainCharBlockBuilder::new(
+                                    self.options.target_block_size - 16,
+                                    char_width,
+                                ),
+                            ));
+                        }
                     }
                     (None, _) => {
-                        self.current_builder = Some(CharBlockBuilderImpl::PlainVarchar(
-                            PlainBlobBlockBuilder::new(self.options.target_block_size - 16),
-                        ));
+                        if self.options.is_rle {
+                            let builder = PlainBlobBlockBuilder::new(0);
+                            self.current_builder = Some(CharBlockBuilderImpl::RlePlainVarchar(
+                                RLEBytesBlockBuilder::<str, PlainBlobBlockBuilder<str>>::new(
+                                    builder,
+                                    self.options.target_block_size - 16,
+                                    None,
+                                ),
+                            ));
+                        } else {
+                            self.current_builder = Some(CharBlockBuilderImpl::PlainVarchar(
+                                PlainBlobBlockBuilder::new(self.options.target_block_size - 16),
+                            ));
+                        }
                     }
                     (char_width, nullable) => unimplemented!(
                         "width {:?} with nullable {} not implemented",
@@ -101,6 +135,12 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                     append_one_by_one(&mut iter, builder)
                 }
                 CharBlockBuilderImpl::PlainVarchar(builder) => {
+                    append_one_by_one(&mut iter, builder)
+                }
+                CharBlockBuilderImpl::RlePlainFixedChar(builder) => {
+                    append_one_by_one(&mut iter, builder)
+                }
+                CharBlockBuilderImpl::RlePlainVarchar(builder) => {
                     append_one_by_one(&mut iter, builder)
                 }
             };
@@ -144,6 +184,29 @@ mod tests {
         assert_eq!(index.len(), 10);
         assert_eq!(index[3].first_rowid as usize, item_each_block * 3);
         assert_eq!(index[3].row_count as usize, item_each_block);
+    }
+
+    #[test]
+    fn test_char_column_rle_builder() {
+        let distinct_item_each_block = (128 - 16 - 4) / 10;
+        let mut builder = CharColumnBuilder::new(
+            false,
+            Some(8),
+            ColumnBuilderOptions::default_for_rle_block_test(),
+        );
+        for num in 0..(distinct_item_each_block + 1) {
+            builder.append(&Utf8Array::from_iter(
+                [Some(num.to_string().as_str())]
+                    .iter()
+                    .cycle()
+                    .cloned()
+                    .take(23),
+            ));
+        }
+        let (index, _) = builder.finish();
+        assert_eq!(index.len(), 2);
+        assert_eq!(index[1].first_rowid as usize, distinct_item_each_block * 23);
+        assert_eq!(index[1].row_count as usize, 23);
     }
 
     #[test]
