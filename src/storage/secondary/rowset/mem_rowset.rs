@@ -1,7 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::cmp::Ordering;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 use btreemultimap::BTreeMultiMap;
@@ -121,7 +121,6 @@ impl MemTable for ColumnMemTable {
 pub struct SecondaryMemRowset<M: MemTable> {
     mem_table: M,
     rowset_id: u32,
-    directory: PathBuf,
     rowset_builder: RowsetBuilder,
 }
 
@@ -132,11 +131,11 @@ impl SecondaryMemRowset<BTreeMapMemTable> {
     }
 
     /// Flush memory table to disk and return a handler
-    pub async fn flush(self) -> StorageResult<()> {
+    pub async fn flush(self, directory: impl AsRef<Path>) -> StorageResult<()> {
         let chunk = self.mem_table.flush()?;
         let mut builder = self.rowset_builder;
         builder.append(chunk);
-        let writer = RowsetWriter::new(self.directory);
+        let writer = RowsetWriter::new(directory);
         writer.flush(builder.finish()).await?;
         // TODO(chi): do not reload index from disk, we can directly fetch it from cache.
         Ok(())
@@ -149,8 +148,8 @@ impl SecondaryMemRowset<ColumnMemTable> {
         Ok(())
     }
 
-    pub async fn flush(self) -> StorageResult<()> {
-        let writer = RowsetWriter::new(self.directory);
+    pub async fn flush(self, directory: impl AsRef<Path>) -> StorageResult<()> {
+        let writer = RowsetWriter::new(directory);
         writer.flush(self.rowset_builder.finish()).await?;
         Ok(())
     }
@@ -164,20 +163,17 @@ pub enum SecondaryMemRowsetImpl {
 impl SecondaryMemRowsetImpl {
     pub fn new(
         columns: Arc<[ColumnCatalog]>,
-        directory: impl AsRef<Path>,
         column_options: ColumnBuilderOptions,
         rowset_id: u32,
     ) -> Self {
         if let Some(sort_key_idx) = find_sort_key_id(&columns) {
             Self::BTree(SecondaryMemRowset::<BTreeMapMemTable> {
-                directory: directory.as_ref().to_path_buf(),
                 mem_table: BTreeMapMemTable::new(columns.clone(), sort_key_idx),
                 rowset_builder: RowsetBuilder::new(columns, column_options),
                 rowset_id,
             })
         } else {
             Self::Column(SecondaryMemRowset::<ColumnMemTable> {
-                directory: directory.as_ref().to_path_buf(),
                 mem_table: ColumnMemTable::new(columns.clone()),
                 rowset_builder: RowsetBuilder::new(columns, column_options),
                 rowset_id,
@@ -192,10 +188,10 @@ impl SecondaryMemRowsetImpl {
         }
     }
 
-    pub async fn flush(self) -> StorageResult<()> {
+    pub async fn flush(self, directory: impl AsRef<Path>) -> StorageResult<()> {
         match self {
-            Self::BTree(btree_table) => btree_table.flush().await,
-            Self::Column(column_table) => column_table.flush().await,
+            Self::BTree(btree_table) => btree_table.flush(directory).await,
+            Self::Column(column_table) => column_table.flush(directory).await,
         }
     }
 
