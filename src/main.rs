@@ -3,10 +3,11 @@
 //! A simple interactive shell of the database.
 
 use std::fs::File;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{anyhow, Result};
+use async_trait::async_trait;
 use clap::Parser;
 use humantime::format_duration;
 use risinglight::array::{datachunk_to_sqllogictest_string, Chunk};
@@ -170,52 +171,36 @@ async fn run_sql(db: Database, path: &str, output_format: Option<String>) -> Res
 
 /// Wrapper for sqllogictest
 struct DatabaseWrapper {
-    tx: tokio::sync::mpsc::Sender<String>,
-    rx: Mutex<tokio::sync::mpsc::Receiver<Result<Vec<Chunk>, risinglight::Error>>>,
+    db: Database,
     output_format: Option<String>,
 }
 
-impl sqllogictest::DB for DatabaseWrapper {
+#[async_trait]
+impl sqllogictest::AsyncDB for DatabaseWrapper {
     type Error = risinglight::Error;
-    fn run(self: &mut DatabaseWrapper, sql: &str) -> Result<String, Self::Error> {
+    async fn run(&mut self, sql: &str) -> Result<String, Self::Error> {
         info!("{}", sql);
-        self.tx.blocking_send(sql.to_string()).unwrap();
-        let chunks = self.rx.lock().unwrap().blocking_recv().unwrap()?;
+        let chunks = self.db.run(sql).await?;
         for chunk in &chunks {
             print_chunk(chunk, &self.output_format);
         }
-        let output = chunks
+        Ok(chunks
             .iter()
             .map(datachunk_to_sqllogictest_string)
-            .collect();
-        Ok(output)
+            .collect())
     }
 }
 
 /// Run a sqllogictest file in RisingLight
 async fn run_sqllogictest(db: Database, path: &str, output_format: Option<String>) -> Result<()> {
-    let (ttx, mut trx) = tokio::sync::mpsc::channel(1);
-    let (dtx, drx) = tokio::sync::mpsc::channel(1);
-    let mut tester = sqllogictest::Runner::new(DatabaseWrapper {
-        tx: ttx,
-        rx: Mutex::new(drx),
-        output_format,
-    });
-    let handle = tokio::spawn(async move {
-        while let Some(sql) = trx.recv().await {
-            dtx.send(db.run(&sql).await).await.unwrap();
-        }
-    });
-
+    let mut tester = sqllogictest::Runner::new(DatabaseWrapper { db, output_format });
     let path = path.to_string();
     let sqllogictest_handler = tokio::task::spawn_blocking(move || {
         // `ParseError` isn't Send, so we cannot directly use it as anyhow Error.
         tester.run_file(path).map_err(|err| anyhow!("{:?}", err))?;
         Ok::<_, anyhow::Error>(())
     });
-
     sqllogictest_handler.await.unwrap().unwrap();
-    handle.await.unwrap();
     Ok(())
 }
 
