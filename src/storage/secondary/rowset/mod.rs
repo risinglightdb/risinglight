@@ -34,11 +34,16 @@
 //!   proto
 //! * `IntColumnBuilder` - `IntColumn` - `IntColumnIterator` - an entry in proto
 
-mod mem_rowset;
-mod rowset_builder;
+pub use disk_rowset::*;
+pub use encoded::*;
 pub use mem_rowset::*;
 pub use rowset_builder::*;
-mod disk_rowset;
-pub use disk_rowset::*;
-mod rowset_iterator;
 pub use rowset_iterator::*;
+pub use rowset_writer::*;
+
+mod disk_rowset;
+mod encoded;
+mod mem_rowset;
+mod rowset_builder;
+mod rowset_iterator;
+mod rowset_writer;

@@ -2,68 +2,66 @@
 
 //! Secondary storage engine for RisingLight
 
-// public modules and structures
-mod txn_iterator;
-pub use txn_iterator::*;
-mod row_handler;
-pub use row_handler::*;
-mod table;
-pub use table::*;
-mod transaction;
-pub use transaction::*;
-mod options;
-pub use options::*;
-
-// internal modules and structures
-mod delete_vector;
-use delete_vector::*;
-mod column;
-mod storage;
-use column::*;
-mod block;
-use block::*;
-mod concat_iterator;
-use concat_iterator::*;
-mod manifest;
-use manifest::*;
-mod rowset;
-use rowset::*;
-mod index;
-use index::*;
-mod index_builder;
-use index_builder::*;
-mod encode;
-use encode::*;
-mod compactor;
-use compactor::*;
-mod merge_iterator;
-use merge_iterator::*;
-mod version_manager;
-use version_manager::*;
-mod transaction_manager;
-use transaction_manager::*;
-mod checksum;
-mod statistics;
-pub use checksum::*;
-
-#[cfg(test)]
-mod tests;
-
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::Arc;
 
+use block::*;
+pub use checksum::*;
+use column::*;
+use compactor::*;
+use concat_iterator::*;
+use delete_vector::*;
+use encode::*;
+use index::*;
+use index_builder::*;
+use manifest::*;
+use merge_iterator::*;
 use moka::future::Cache;
+pub use options::*;
 use parking_lot::RwLock;
+pub use row_handler::*;
+use rowset::*;
+pub use table::*;
 use tokio::sync::oneshot::Sender;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::info;
+pub use transaction::*;
+use transaction_manager::*;
+pub use txn_iterator::*;
+use version_manager::*;
 
 use super::{Storage, StorageResult, TracedStorageError};
 use crate::catalog::{ColumnCatalog, RootCatalogRef, TableRefId};
 use crate::types::{ColumnId, DatabaseId, SchemaId};
+
+// public modules and structures
+mod options;
+mod row_handler;
+mod table;
+mod transaction;
+mod txn_iterator;
+// internal modules and structures
+mod block;
+mod checksum;
+mod column;
+mod compactor;
+mod concat_iterator;
+mod delete_vector;
+mod encode;
+mod index;
+mod index_builder;
+mod manifest;
+mod merge_iterator;
+mod rowset;
+mod statistics;
+mod storage;
+#[cfg(test)]
+mod tests;
+mod transaction_manager;
+mod version_manager;
 
 /// Secondary storage of RisingLight.
 pub struct SecondaryStorage {
