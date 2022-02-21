@@ -31,6 +31,7 @@ impl DatabaseCatalog {
             }),
         };
         db_catalog.add_schema(DEFAULT_SCHEMA_NAME.into()).unwrap();
+        db_catalog.add_internals();
         db_catalog
     }
 
@@ -88,5 +89,20 @@ impl DatabaseCatalog {
 
     pub fn id(&self) -> DatabaseId {
         self.id
+    }
+
+    fn add_internals(&self) {
+        self.add_schema(INTERNAL_SCHEMA_NAME.into()).unwrap();
+        let schema = self.get_schema_by_name(INTERNAL_SCHEMA_NAME).unwrap();
+        schema
+            .add_table(
+                "contributors".to_string(),
+                vec![ColumnCatalog::new(
+                    0,
+                    DataTypeKind::Char(None).not_null().to_column("name".into()),
+                )],
+                false,
+            )
+            .unwrap();
     }
 }

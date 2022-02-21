@@ -4,8 +4,30 @@ use std::env;
 use std::fmt::Write as _;
 use std::io::Write;
 use std::path::PathBuf;
+use std::process::Command;
+
+pub fn add_env_contributors() {
+    let output = Command::new("git")
+        .arg("shortlog")
+        .arg("HEAD")
+        .arg("-s")
+        .output()
+        .unwrap();
+    let authors: String = String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .map(|s| {
+            let mut s = s[7..].to_owned();
+            s.push(',');
+            s
+        })
+        .collect();
+    println!("cargo:rerun-if-changed=.git/HEAD");
+    println!("cargo:rustc-env=RISINGLIGHT_CONTRIBUTORS={}", authors);
+}
 
 fn main() {
+    add_env_contributors();
     // Scan test scripts and generate test cases.
     println!("cargo:rerun-if-changed=tests/sql");
     const PATTERN: &str = "tests/sql/**/[!_]*.slt"; // ignore files start with '_'
