@@ -195,12 +195,11 @@ impl sqllogictest::AsyncDB for DatabaseWrapper {
 async fn run_sqllogictest(db: Database, path: &str, output_format: Option<String>) -> Result<()> {
     let mut tester = sqllogictest::Runner::new(DatabaseWrapper { db, output_format });
     let path = path.to_string();
-    let sqllogictest_handler = tokio::task::spawn_blocking(move || {
+    tester
+        .run_file_async(path)
+        .await
         // `ParseError` isn't Send, so we cannot directly use it as anyhow Error.
-        tester.run_file(path).map_err(|err| anyhow!("{:?}", err))?;
-        Ok::<_, anyhow::Error>(())
-    });
-    sqllogictest_handler.await.unwrap().unwrap();
+        .map_err(|err| anyhow!("{:?}", err))?;
     Ok(())
 }
 
