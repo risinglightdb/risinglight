@@ -17,6 +17,12 @@ impl std::fmt::Debug for BoundExprWithAlias {
     }
 }
 
+impl std::fmt::Display for BoundExprWithAlias {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} (alias to {})", self.expr, self.alias)
+    }
+}
+
 /// An alias reference to a bound expression
 #[derive(PartialEq, Clone, Serialize)]
 pub struct BoundAlias {

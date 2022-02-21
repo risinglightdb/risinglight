@@ -13,7 +13,7 @@ use crate::storage::secondary::DeleteVector;
 use crate::storage::{PackedVec, StorageChunk, StorageColumnRef, StorageResult};
 
 /// When `expected_size` is not specified, we should limit the maximum size of the chunk.
-const ROWSET_MAX_OUTPUT: usize = 65536;
+const ROWSET_MAX_OUTPUT: usize = 2048;
 
 /// Iterates on a `RowSet`
 pub struct RowSetIterator {
@@ -226,7 +226,9 @@ impl RowSetIterator {
             // in filter conditions
             if filter_bitmap.not_any() {
                 for (id, _) in self.column_refs.iter().enumerate() {
-                    self.column_iterators[id].skip(filter_bitmap.len());
+                    if !filter_columns[id] {
+                        self.column_iterators[id].skip(filter_bitmap.len());
+                    }
                 }
                 return Ok((false, None));
             }
@@ -251,8 +253,12 @@ impl RowSetIterator {
                     .await?
                 {
                     if let Some(x) = common_chunk_range {
-                        if x != (row_id, array.len()) {
-                            panic!("unmatched rowid from column iterator");
+                        let current_data = (row_id, array.len());
+                        if x != current_data {
+                            panic!(
+                                "unmatched rowid from column iterator: {:?} of [{:?}], {:?} != {:?}",
+                                self.column_refs[id], self.column_refs, x, current_data
+                            );
                         }
                     }
                     common_chunk_range = Some((row_id, array.len()));

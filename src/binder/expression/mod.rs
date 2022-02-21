@@ -92,6 +92,40 @@ impl BoundExpr {
         self.get_filter_column_inner(&mut filter_column);
         filter_column
     }
+
+    pub fn contains_column_ref(&self) -> bool {
+        match self {
+            BoundExpr::Constant(_) => false,
+            BoundExpr::ColumnRef(_) => true,
+            BoundExpr::InputRef(_) => false,
+            BoundExpr::BinaryOp(e) => {
+                e.left_expr.contains_column_ref() || e.right_expr.contains_column_ref()
+            }
+            BoundExpr::UnaryOp(e) => e.expr.contains_column_ref(),
+            BoundExpr::TypeCast(e) => e.expr.contains_column_ref(),
+            BoundExpr::AggCall(e) => e.args.iter().any(|e| e.contains_column_ref()),
+            BoundExpr::IsNull(e) => e.expr.contains_column_ref(),
+            BoundExpr::ExprWithAlias(e) => e.expr.contains_column_ref(),
+            BoundExpr::Alias(_) => true,
+        }
+    }
+
+    pub fn contains_row_count(&self) -> bool {
+        match self {
+            BoundExpr::Constant(_) => false,
+            BoundExpr::ColumnRef(_) => false,
+            BoundExpr::InputRef(_) => false,
+            BoundExpr::BinaryOp(e) => {
+                e.left_expr.contains_row_count() || e.right_expr.contains_row_count()
+            }
+            BoundExpr::UnaryOp(e) => e.expr.contains_row_count(),
+            BoundExpr::TypeCast(e) => e.expr.contains_row_count(),
+            BoundExpr::AggCall(e) => e.kind == AggKind::RowCount,
+            BoundExpr::IsNull(e) => e.expr.contains_row_count(),
+            BoundExpr::ExprWithAlias(e) => e.expr.contains_row_count(),
+            BoundExpr::Alias(_) => false,
+        }
+    }
 }
 
 impl std::fmt::Debug for BoundExpr {
@@ -106,6 +140,24 @@ impl std::fmt::Debug for BoundExpr {
             Self::InputRef(expr) => write!(f, "InputRef #{:?}", expr)?,
             Self::IsNull(expr) => write!(f, "{:?} (isnull)", expr)?,
             Self::ExprWithAlias(expr) => write!(f, "{:?}", expr)?,
+            Self::Alias(expr) => write!(f, "{:?}", expr)?,
+        }
+        Ok(())
+    }
+}
+
+impl std::fmt::Display for BoundExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Constant(expr) => write!(f, "{}", expr)?,
+            Self::ColumnRef(expr) => write!(f, "Column #{:?}", expr)?,
+            Self::BinaryOp(expr) => write!(f, "{}", expr)?,
+            Self::UnaryOp(expr) => write!(f, "{:?}", expr)?,
+            Self::TypeCast(expr) => write!(f, "{}", expr)?,
+            Self::AggCall(expr) => write!(f, "{:?} (agg)", expr)?,
+            Self::InputRef(expr) => write!(f, "InputRef #{:?}", expr)?,
+            Self::IsNull(expr) => write!(f, "{:?} (isnull)", expr)?,
+            Self::ExprWithAlias(expr) => write!(f, "{}", expr)?,
             Self::Alias(expr) => write!(f, "{:?}", expr)?,
         }
         Ok(())

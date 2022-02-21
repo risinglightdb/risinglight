@@ -12,7 +12,7 @@ use itertools::Itertools;
 
 use super::*;
 use crate::binder::{
-    AggKind, BoundAggCall, BoundExpr, BoundInputRef, BoundOrderBy, BoundSelect, BoundTableRef,
+    BoundAggCall, BoundExpr, BoundInputRef, BoundOrderBy, BoundSelect, BoundTableRef,
 };
 use crate::optimizer::plan_nodes::{
     Dummy, LogicalAggregate, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder,
@@ -36,20 +36,10 @@ impl LogicalPlaner {
             }
             if let BoundTableRef::JoinTableRef { join_tables, .. } = table_ref {
                 if join_tables.is_empty() {
-                    stmt.select_list.iter().for_each(|expr| match expr {
-                        BoundExpr::AggCall(expr) => {
-                            if expr.kind == AggKind::RowCount {
-                                with_row_handler = true;
-                            }
+                    stmt.select_list.iter().for_each(|expr| {
+                        if expr.contains_row_count() && !expr.contains_column_ref() {
+                            with_row_handler = true;
                         }
-                        BoundExpr::ExprWithAlias(expr) => {
-                            if let BoundExpr::AggCall(expr) = &*expr.expr {
-                                if expr.kind == AggKind::RowCount {
-                                    with_row_handler = true;
-                                }
-                            }
-                        }
-                        _ => {}
                     });
                 }
             }
@@ -64,7 +54,7 @@ impl LogicalPlaner {
         for expr in &mut stmt.select_list {
             agg_extractor.visit_expr(expr);
         }
-        if !agg_extractor.agg_calls.is_empty() {
+        if !agg_extractor.agg_calls.is_empty() || !stmt.group_by.is_empty() {
             plan = Arc::new(LogicalAggregate::new(
                 agg_extractor.agg_calls,
                 stmt.group_by,

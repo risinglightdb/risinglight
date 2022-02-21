@@ -6,7 +6,9 @@ use futures::TryStreamExt;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use tracing::debug;
 
-use crate::array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder};
+use crate::array::{
+    ArrayBuilder, ArrayBuilderImpl, Chunk, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder,
+};
 use crate::binder::{BindError, Binder};
 use crate::catalog::RootCatalogRef;
 use crate::executor::context::Context;
@@ -52,7 +54,7 @@ impl Database {
         Ok(())
     }
 
-    fn run_dt(&self) -> Result<Vec<DataChunk>, Error> {
+    fn run_dt(&self) -> Result<Vec<Chunk>, Error> {
         let mut db_id_vec = I32ArrayBuilder::new();
         let mut db_vec = Utf8ArrayBuilder::new();
         let mut schema_id_vec = I32ArrayBuilder::new();
@@ -79,10 +81,12 @@ impl Database {
             table_id_vec.into(),
             table_vec.into(),
         ];
-        Ok(vec![DataChunk::from_iter(vecs.into_iter())])
+        Ok(vec![Chunk::new(vec![DataChunk::from_iter(
+            vecs.into_iter(),
+        )])])
     }
 
-    pub async fn run_internal(&self, cmd: &str) -> Result<Vec<DataChunk>, Error> {
+    pub async fn run_internal(&self, cmd: &str) -> Result<Vec<Chunk>, Error> {
         if let Some((cmd, arg)) = cmd.split_once(' ') {
             if cmd == "stat" {
                 if let StorageImpl::SecondaryStorage(ref storage) = self.storage {
@@ -132,10 +136,10 @@ impl Database {
                             .to_string()
                             .as_str(),
                     ));
-                    Ok(vec![DataChunk::from_iter([
+                    Ok(vec![Chunk::new(vec![DataChunk::from_iter([
                         ArrayBuilderImpl::from(stat_name),
                         ArrayBuilderImpl::from(stat_value),
-                    ])])
+                    ])])])
                 } else {
                     Err(Error::InternalError(
                         "this storage engine doesn't support statistics".to_string(),
@@ -152,7 +156,8 @@ impl Database {
     }
 
     /// Run SQL queries and return the outputs.
-    pub async fn run(&self, sql: &str) -> Result<Vec<DataChunk>, Error> {
+
+    pub async fn run(&self, sql: &str) -> Result<Vec<Chunk>, Error> {
         self.run_with_context(Default::default(), sql).await
     }
 
@@ -160,7 +165,7 @@ impl Database {
         &self,
         context: Arc<Context>,
         sql: &str,
-    ) -> Result<Vec<DataChunk>, Error> {
+    ) -> Result<Vec<Chunk>, Error> {
         if let Some(cmdline) = sql.trim().strip_prefix('\\') {
             return self.run_internal(cmdline).await;
         }
@@ -174,7 +179,7 @@ impl Database {
             enable_filter_scan: self.storage.enable_filter_scan(),
         };
         // TODO: parallelize
-        let mut outputs = vec![];
+        let mut outputs: Vec<Chunk> = vec![];
         for stmt in stmts {
             let stmt = binder.bind(&stmt)?;
             debug!("{:#?}", stmt);
@@ -200,7 +205,7 @@ impl Database {
             if !column_names.is_empty() && !output.is_empty() {
                 output[0].set_header(column_names);
             }
-            outputs.extend(output);
+            outputs.push(Chunk::new(output));
         }
         Ok(outputs)
     }
