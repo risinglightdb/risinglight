@@ -72,25 +72,25 @@ where
             + std::mem::size_of::<u32>()
     }
 
-    fn size_of_append(&self, item: &Option<&A::Item>) -> usize {
-        self.block_builder.size_of_append(item) + std::mem::size_of::<u16>()
-    }
-
-    fn should_finish(&self, next_item: &Option<&A::Item>) -> bool {
-        if let &Some(item) = next_item {
+    fn size_to_append(&self, item: &Option<&A::Item>) -> usize {
+        if let &Some(item) = item {
             if let Some(previous_value) = &self.previous_value {
                 if previous_value.borrow() == item
                     && self.rle_counts.last().unwrap_or(&0) < &u16::MAX
                 {
-                    return false;
+                    return 0;
                 }
             }
         } else if self.previous_value.is_none() && self.rle_counts.last().unwrap_or(&0) < &u16::MAX
         {
-            return false;
+            return 0;
         }
+        self.block_builder.size_to_append(item) + std::mem::size_of::<u16>()
+    }
+
+    fn should_finish(&self, next_item: &Option<&A::Item>) -> bool {
         !self.rle_counts.is_empty()
-            && self.estimated_size() + self.size_of_append(next_item) > self.target_size
+            && self.estimated_size() + self.size_to_append(next_item) > self.target_size
     }
 
     fn get_statistics(&self) -> Vec<BlockStatistics> {
@@ -125,7 +125,7 @@ mod tests {
         // Test primitive rle block builder for i32
         let builder = PlainPrimitiveBlockBuilder::new(0);
         let mut rle_builder =
-            RLEBlockBuilder::<I32Array, PlainPrimitiveBlockBuilder<i32>>::new(builder, 20);
+            RLEBlockBuilder::<I32Array, PlainPrimitiveBlockBuilder<i32>>::new(builder, 22);
         for item in [Some(&1)].iter().cycle().cloned().take(30) {
             rle_builder.append(item);
         }
@@ -146,7 +146,7 @@ mod tests {
         // Test primitive nullable rle block builder for i32
         let builder = PlainPrimitiveNullableBlockBuilder::new(0);
         let mut rle_builder =
-            RLEBlockBuilder::<I32Array, PlainPrimitiveNullableBlockBuilder<i32>>::new(builder, 70);
+            RLEBlockBuilder::<I32Array, PlainPrimitiveNullableBlockBuilder<i32>>::new(builder, 72);
         for item in [None].iter().cycle().cloned().take(30) {
             rle_builder.append(item);
         }

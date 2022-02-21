@@ -55,7 +55,7 @@ impl BlockBuilder<Utf8Array> for PlainCharBlockBuilder {
         self.data.len()
     }
 
-    fn size_of_append(&self, _item: &Option<&str>) -> usize {
+    fn size_to_append(&self, _item: &Option<&str>) -> usize {
         self.char_width
     }
 

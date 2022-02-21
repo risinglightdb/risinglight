@@ -60,7 +60,7 @@ pub trait BlockBuilder<A: Array> {
     fn estimated_size(&self) -> usize;
 
     /// Get the size to append one data into the block
-    fn size_of_append(&self, item: &Option<&A::Item>) -> usize;
+    fn size_to_append(&self, item: &Option<&A::Item>) -> usize;
 
     /// Get statistics of block
     fn get_statistics(&self) -> Vec<BlockStatistics>;

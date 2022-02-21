@@ -18,16 +18,16 @@ where
     /// rle block
     rle_block: Block,
 
-    /// Indicates the beginning row of the next batch
-    next_row: usize,
+    /// Indicates current position in the rle block
+    cur_row: usize,
 
-    /// current pos count
-    cur_count: usize,
+    /// Indicates how many rows get scanned in the rle block
+    cur_rle_scanned: usize,
 
-    /// The number of rle_counts
-    rle_counts_num: usize,
+    /// Indicates the number of rows in the rle block
+    rle_row_count: usize,
 
-    /// Current array
+    /// Indicates the array of current row get from block_iter
     cur_array: Option<A>,
 }
 
@@ -36,19 +36,19 @@ where
     A: Array,
     B: BlockIterator<A>,
 {
-    pub fn new(block_iter: B, rle_block: Block, rle_counts_num: usize) -> Self {
+    pub fn new(block_iter: B, rle_block: Block, rle_row_count: usize) -> Self {
         Self {
             block_iter,
             rle_block,
-            next_row: 0,
-            cur_count: 0,
-            rle_counts_num,
+            cur_row: 0,
+            cur_rle_scanned: 0,
+            rle_row_count,
             cur_array: None,
         }
     }
 
     fn get_cur_rle_count(&self) -> u16 {
-        let mut rle_buffer = &self.rle_block[self.next_row * std::mem::size_of::<u16>()..];
+        let mut rle_buffer = &self.rle_block[self.cur_row * std::mem::size_of::<u16>()..];
         rle_buffer.get_u16_le()
     }
 }
@@ -59,16 +59,20 @@ where
     B: BlockIterator<A>,
 {
     fn next_batch(&mut self, expected_size: Option<usize>, builder: &mut A::Builder) -> usize {
-        if self.next_row >= self.rle_counts_num {
+        if self.cur_row >= self.rle_row_count {
             return 0;
         }
 
         // TODO(chi): error handling on corrupted block
 
         let mut cnt = 0;
+        // If self.cur_array is none, then we need to get the first array from block_iter
+        // Every time we get only one item from block_iter
         if self.cur_array.is_none() {
             let mut array_builder = A::Builder::new();
-            self.block_iter.next_batch(Some(1), &mut array_builder);
+            if self.block_iter.next_batch(Some(1), &mut array_builder) == 0 {
+                return cnt;
+            }
             self.cur_array = Some(array_builder.finish());
         }
         let mut rle_count = self.get_cur_rle_count();
@@ -81,18 +85,23 @@ where
                 }
             }
 
-            if self.cur_count < rle_count as usize {
+            // Check if we need to get the next array from block_iter
+            if self.cur_rle_scanned < rle_count as usize {
                 builder.append(self.cur_array.as_ref().unwrap());
-                self.cur_count += 1;
+                self.cur_rle_scanned += 1;
                 cnt += 1;
             } else {
-                self.next_row += 1;
-                self.cur_count = 0;
-                if self.next_row >= self.rle_counts_num {
+                // Every time cur_row is updated, we need to get the next array from block_iter
+                // And reset cur_rle_scanned
+                self.cur_row += 1;
+                self.cur_rle_scanned = 0;
+                if self.cur_row >= self.rle_row_count {
                     break;
                 }
                 let mut array_builder = A::Builder::new();
-                self.block_iter.next_batch(Some(1), &mut array_builder);
+                if self.block_iter.next_batch(Some(1), &mut array_builder) == 0 {
+                    break;
+                }
                 self.cur_array = Some(array_builder.finish());
                 rle_count = self.get_cur_rle_count();
             }
@@ -105,16 +114,16 @@ where
         let mut cnt = cnt;
         while cnt > 0 {
             let rle_count = self.get_cur_rle_count();
-            let cur_left = rle_count as usize - self.cur_count;
+            let cur_left = rle_count as usize - self.cur_rle_scanned;
             if cur_left > cnt {
-                self.cur_count += cnt;
+                self.cur_rle_scanned += cnt;
                 cnt = 0;
             } else {
                 cnt -= cur_left;
-                self.cur_count = 0;
-                self.next_row += 1;
+                self.cur_rle_scanned = 0;
+                self.cur_row += 1;
                 self.block_iter.skip(1);
-                if self.next_row >= self.rle_counts_num {
+                if self.cur_row >= self.rle_row_count {
                     break;
                 }
             }
@@ -123,12 +132,12 @@ where
 
     fn remaining_items(&self) -> usize {
         let mut remaining_items: usize = 0;
-        for next_row in self.next_row..self.rle_counts_num {
-            let mut rle_buffer = &self.rle_block[next_row * std::mem::size_of::<u16>()..];
+        for cur_row in self.cur_row..self.rle_row_count {
+            let mut rle_buffer = &self.rle_block[cur_row * std::mem::size_of::<u16>()..];
             let rle_count = rle_buffer.get_u16_le();
             remaining_items += rle_count as usize;
         }
-        remaining_items - self.cur_count
+        remaining_items - self.cur_rle_scanned
     }
 }
 
