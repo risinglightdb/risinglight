@@ -6,7 +6,7 @@ use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncWriteExt, BufWriter};
 
 use crate::catalog::ColumnCatalog;
-use crate::storage::secondary::rowset::RowsetRaw;
+use crate::storage::secondary::rowset::EncodedRowset;
 use crate::storage::StorageResult;
 
 pub fn path_of_data_column(base: impl AsRef<Path>, column_info: &ColumnCatalog) -> PathBuf {
@@ -67,9 +67,9 @@ impl RowsetWriter {
         Ok(())
     }
 
-    /// Flush rows in a raw rowset. Create files if not exists.
+    /// Flush rows in an encoded rowset. Create files if not exists.
     /// Panics if the rowset is empty.
-    pub async fn flush(self, rowset: RowsetRaw) -> StorageResult<()> {
+    pub async fn flush(self, rowset: EncodedRowset) -> StorageResult<()> {
         // Panic on empty flush.
         if rowset.is_empty() {
             panic!("empty rowset")

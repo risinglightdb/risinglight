@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use crate::catalog::ColumnCatalog;
 
-/// Raw columns.
-pub struct ColumnRaw {
+/// Encoded column.
+pub struct EncodedColumn {
     pub index: Vec<u8>,
     pub data: Vec<u8>,
 }
 
-/// Raw rowset.
-pub struct RowsetRaw {
+/// Encoded rowset.
+pub struct EncodedRowset {
     /// Size.
     pub size: usize,
 
@@ -17,10 +17,10 @@ pub struct RowsetRaw {
     pub columns_info: Arc<[ColumnCatalog]>,
 
     /// Column data.
-    pub columns: Vec<ColumnRaw>,
+    pub columns: Vec<EncodedColumn>,
 }
 
-impl RowsetRaw {
+impl EncodedRowset {
     #[allow(dead_code)]
     /// Number of rows in the rowset.
     pub fn cardinality(&self) -> usize {

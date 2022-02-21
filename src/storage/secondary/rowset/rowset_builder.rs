@@ -7,7 +7,7 @@ use itertools::Itertools;
 use super::super::{ColumnBuilderImpl, IndexBuilder};
 use crate::array::DataChunk;
 use crate::catalog::ColumnCatalog;
-use crate::storage::secondary::rowset::{ColumnRaw, RowsetRaw};
+use crate::storage::secondary::rowset::{EncodedColumn, EncodedRowset};
 use crate::storage::secondary::ColumnBuilderOptions;
 
 /// Builds a Rowset from [`DataChunk`].
@@ -48,9 +48,9 @@ impl RowsetBuilder {
         }
     }
 
-    pub fn finish(self) -> RowsetRaw {
+    pub fn finish(self) -> EncodedRowset {
         let checksum_type = self.column_options.checksum_type;
-        RowsetRaw {
+        EncodedRowset {
             size: self.row_cnt as usize,
             columns_info: self.columns.clone(),
             columns: self
@@ -64,7 +64,7 @@ impl RowsetBuilder {
                         index_builder.append(index);
                     }
 
-                    ColumnRaw {
+                    EncodedColumn {
                         index: index_builder.finish(),
                         data,
                     }

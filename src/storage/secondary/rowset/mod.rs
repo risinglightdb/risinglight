@@ -35,15 +35,15 @@
 //! * `IntColumnBuilder` - `IntColumn` - `IntColumnIterator` - an entry in proto
 
 pub use disk_rowset::*;
+pub use encoded::*;
 pub use mem_rowset::*;
-pub use raw::*;
 pub use rowset_builder::*;
 pub use rowset_iterator::*;
 pub use rowset_writer::*;
 
 mod disk_rowset;
+mod encoded;
 mod mem_rowset;
-mod raw;
 mod rowset_builder;
 mod rowset_iterator;
 mod rowset_writer;
