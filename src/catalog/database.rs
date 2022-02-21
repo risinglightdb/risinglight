@@ -99,7 +99,9 @@ impl DatabaseCatalog {
                 "contributors".to_string(),
                 vec![ColumnCatalog::new(
                     0,
-                    DataTypeKind::Char(None).not_null().to_column("name".into()),
+                    DataTypeKind::Char(None)
+                        .not_null()
+                        .to_column("github_id".into()),
                 )],
                 false,
             )

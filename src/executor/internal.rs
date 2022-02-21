@@ -1,7 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use super::*;
-use crate::array::{ArrayBuilder, ArrayImpl, Utf8ArrayBuilder};
+use crate::array::{ArrayImpl, Utf8Array};
 
 /// The executor of internal tables.
 pub struct InternalTableExecutor {
@@ -13,11 +13,7 @@ impl InternalTableExecutor {
     pub async fn execute(self) {
         match self.table_name.as_ref() {
             "contributors" => {
-                let mut builder: Utf8ArrayBuilder = Utf8ArrayBuilder::new();
-                env!("RISINGLIGHT_CONTRIBUTORS")
-                    .split(',')
-                    .for_each(|s| builder.push(Some(s)));
-                yield [ArrayImpl::Utf8(builder.finish())].into_iter().collect();
+                yield contributors();
             }
             _ => {
                 panic!(
@@ -27,4 +23,37 @@ impl InternalTableExecutor {
             }
         }
     }
+}
+
+// TODO: find a better way to maintain the contributors list instead of hard-coding.
+fn contributors() -> DataChunk {
+    let contributors = vec![
+        "skyzh",
+        "MingjiHan99",
+        "wangrunji0408",
+        "pleiadesian",
+        "TennyZhuang",
+        "st1page",
+        "likg227",
+        "xxchan",
+        "arkbriar",
+        "Fedomn",
+        "zzl200012",
+        "Sunt-ing",
+        "alissa-tung",
+        "ludics",
+        "tabVersion",
+        "yingjunwu",
+        "xiaoyong-z",
+        "PsiACE",
+        "LiuYuHui",
+        "rapiz1",
+        "zehaowei",
+        "nanderstabel",
+    ];
+    [ArrayImpl::Utf8(Utf8Array::from_iter(
+        contributors.iter().map(|s| Some(*s)),
+    ))]
+    .into_iter()
+    .collect()
 }
