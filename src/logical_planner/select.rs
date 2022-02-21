@@ -15,7 +15,7 @@ use crate::binder::{
     BoundAggCall, BoundExpr, BoundInputRef, BoundOrderBy, BoundSelect, BoundTableRef,
 };
 use crate::optimizer::plan_nodes::{
-    Dummy, LogicalAggregate, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder,
+    Dummy, Internal, LogicalAggregate, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder,
     LogicalProjection, LogicalTableScan,
 };
 
@@ -107,17 +107,29 @@ impl LogicalPlaner {
         match table_ref {
             BoundTableRef::BaseTableRef {
                 ref_id,
-                table_name: _,
+                table_name,
                 column_ids,
                 column_descs,
-            } => Ok(Arc::new(LogicalTableScan::new(
-                *ref_id,
-                column_ids.to_vec(),
-                column_descs.to_vec(),
-                with_row_handler,
-                is_sorted,
-                None,
-            ))),
+                is_internal,
+            } => {
+                if *is_internal {
+                    Ok(Arc::new(Internal::new(
+                        table_name.clone(),
+                        *ref_id,
+                        column_ids.to_vec(),
+                        column_descs.to_vec(),
+                    )))
+                } else {
+                    Ok(Arc::new(LogicalTableScan::new(
+                        *ref_id,
+                        column_ids.to_vec(),
+                        column_descs.to_vec(),
+                        with_row_handler,
+                        is_sorted,
+                        None,
+                    )))
+                }
+            }
             BoundTableRef::JoinTableRef {
                 relation,
                 join_tables,

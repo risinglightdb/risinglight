@@ -33,6 +33,7 @@ use self::filter::*;
 use self::hash_agg::*;
 use self::hash_join::*;
 use self::insert::*;
+use self::internal::*;
 use self::limit::*;
 use self::nested_loop_join::*;
 use self::order::*;
@@ -62,6 +63,7 @@ mod filter;
 mod hash_agg;
 mod hash_join;
 mod insert;
+mod internal;
 mod limit;
 mod nested_loop_join;
 mod order;
@@ -207,6 +209,15 @@ impl ExecutorExt for BoxedExecutor {
 impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
     fn visit_dummy(&mut self, _plan: &Dummy) -> Option<BoxedExecutor> {
         Some(DummyScanExecutor.execute())
+    }
+
+    fn visit_internal(&mut self, plan: &Internal) -> Option<BoxedExecutor> {
+        Some(
+            InternalTableExecutor {
+                table_name: plan.table_name(),
+            }
+            .execute(),
+        )
     }
 
     fn visit_physical_create_table(&mut self, plan: &PhysicalCreateTable) -> Option<BoxedExecutor> {

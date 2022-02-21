@@ -77,6 +77,15 @@ impl PlanRewriter for InputRefResolver {
         Arc::new(plan.clone())
     }
 
+    fn rewrite_internal(&mut self, plan: &Internal) -> PlanRef {
+        self.bindings = plan
+            .column_ids()
+            .iter()
+            .map(|col_id| Some(ColumnRefId::from_table(plan.table_ref_id(), *col_id)))
+            .collect();
+        Arc::new(plan.clone())
+    }
+
     fn rewrite_logical_projection(&mut self, proj: &LogicalProjection) -> PlanRef {
         let new_child = self.rewrite(proj.child());
         let bindings = proj
