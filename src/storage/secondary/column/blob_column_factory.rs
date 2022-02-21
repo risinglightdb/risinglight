@@ -7,13 +7,13 @@ use super::super::{Block, BlockIterator};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::{BlobArray, BlobArrayBuilder};
 use crate::storage::secondary::block::{
-    decode_rle_block, FakeBlockIterator, PlainBlobBlockIterator, RLEBytesBlockIterator,
+    decode_rle_block, FakeBlockIterator, PlainBlobBlockIterator, RLEBlockIterator,
 };
 use crate::types::BlobRef;
 
 pub enum BlobBlockIteratorImpl {
     PlainBlob(PlainBlobBlockIterator<BlobRef>),
-    RlePlainBlob(RLEBytesBlockIterator<BlobRef, PlainBlobBlockIterator<BlobRef>>),
+    RleBlob(RLEBlockIterator<BlobArray, PlainBlobBlockIterator<BlobRef>>),
     Fake(FakeBlockIterator<BlobArray>),
 }
 
@@ -25,7 +25,7 @@ impl BlockIterator<BlobArray> for BlobBlockIteratorImpl {
     ) -> usize {
         match self {
             Self::PlainBlob(it) => it.next_batch(expected_size, builder),
-            Self::RlePlainBlob(it) => it.next_batch(expected_size, builder),
+            Self::RleBlob(it) => it.next_batch(expected_size, builder),
             Self::Fake(it) => it.next_batch(expected_size, builder),
         }
     }
@@ -33,7 +33,7 @@ impl BlockIterator<BlobArray> for BlobBlockIteratorImpl {
     fn skip(&mut self, cnt: usize) {
         match self {
             Self::PlainBlob(it) => it.skip(cnt),
-            Self::RlePlainBlob(it) => it.skip(cnt),
+            Self::RleBlob(it) => it.skip(cnt),
             Self::Fake(it) => it.skip(cnt),
         }
     }
@@ -41,7 +41,7 @@ impl BlockIterator<BlobArray> for BlobBlockIteratorImpl {
     fn remaining_items(&self) -> usize {
         match self {
             Self::PlainBlob(it) => it.remaining_items(),
-            Self::RlePlainBlob(it) => it.remaining_items(),
+            Self::RleBlob(it) => it.remaining_items(),
             Self::Fake(it) => it.remaining_items(),
         }
     }
@@ -66,13 +66,13 @@ impl BlockIteratorFactory<BlobArray> for BlobBlockIteratorFactory {
             BlockType::PlainVarchar => BlobBlockIteratorImpl::PlainBlob(
                 PlainBlobBlockIterator::new(block, index.row_count as usize),
             ),
-            BlockType::RlePlainVarchar => {
+            BlockType::RleVarchar => {
                 let (rle_num, rle_data, block_data) = decode_rle_block(block);
                 let block_iter = PlainBlobBlockIterator::new(block_data, rle_num);
-                let it = RLEBytesBlockIterator::<BlobRef, PlainBlobBlockIterator<BlobRef>>::new(
+                let it = RLEBlockIterator::<BlobArray, PlainBlobBlockIterator<BlobRef>>::new(
                     block_iter, rle_data, rle_num,
                 );
-                BlobBlockIteratorImpl::RlePlainBlob(it)
+                BlobBlockIteratorImpl::RleBlob(it)
             }
             _ => todo!(),
         };

@@ -213,8 +213,7 @@ pub mod tests {
         )];
         let mut column_options = ColumnBuilderOptions::default_for_test();
         column_options.is_rle = true;
-        let mut builder =
-            RowsetBuilder::new(columns.clone().into(), tempdir.path(), column_options);
+        let mut builder = RowsetBuilder::new(columns.clone().into(), column_options);
 
         for _ in 0..100 {
             builder.append(
@@ -226,7 +225,8 @@ pub mod tests {
             )
         }
 
-        builder.finish_and_flush().await.unwrap();
+        let writer = RowsetWriter::new(tempdir.path());
+        writer.flush(builder.finish()).await.unwrap();
 
         DiskRowset::open(
             tempdir.path().to_path_buf(),

@@ -44,12 +44,13 @@ impl<T: BlobEncode + ?Sized> BlockBuilder<T::ArrayType> for PlainBlobBlockBuilde
         self.data.len() + self.offsets.len() * std::mem::size_of::<u32>()
     }
 
+    fn size_of_append(&self, item: &Option<&T>) -> usize {
+        item.map(|x| x.len()).unwrap_or(0) + std::mem::size_of::<u32>()
+    }
+
     fn should_finish(&self, next_item: &Option<&T>) -> bool {
         !self.data.is_empty()
-            && self.estimated_size()
-                + next_item.map(|x| x.len()).unwrap_or(0)
-                + std::mem::size_of::<u32>()
-                > self.target_size
+            && self.estimated_size() + self.size_of_append(next_item) > self.target_size
     }
 
     fn get_statistics(&self) -> Vec<BlockStatistics> {

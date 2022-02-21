@@ -13,10 +13,8 @@ mod primitive_block_iterator;
 mod primitive_nullable_block_builder;
 mod primitive_nullable_block_iterator;
 mod rle_block;
-mod rle_bytes_block_builder;
-mod rle_bytes_block_iterator;
-mod rle_primitive_block_builder;
-mod rle_primitive_block_iterator;
+mod rle_block_builder;
+mod rle_block_iterator;
 
 pub use blob_block_builder::*;
 pub use blob_block_iterator::*;
@@ -26,19 +24,17 @@ pub use primitive_block_builder::*;
 pub use primitive_block_iterator::*;
 pub use primitive_nullable_block_builder::*;
 use risinglight_proto::rowset::BlockStatistics;
-pub use rle_primitive_block_builder::*;
 mod char_block_iterator;
 pub use char_block_iterator::*;
 pub use primitive_nullable_block_iterator::*;
-pub use rle_primitive_block_iterator::*;
+pub use rle_block::*;
+pub use rle_block_builder::*;
+pub use rle_block_iterator::*;
 mod block_index_builder;
 pub use block_index_builder::*;
 use bytes::{Buf, BufMut, Bytes};
 use risinglight_proto::rowset::block_checksum::ChecksumType;
 use risinglight_proto::rowset::block_index::BlockType;
-pub use rle_block::*;
-pub use rle_bytes_block_builder::*;
-pub use rle_bytes_block_iterator::*;
 
 use super::StorageResult;
 use crate::array::Array;
@@ -62,6 +58,9 @@ pub trait BlockBuilder<A: Array> {
 
     /// Get estimated size of block. Will be useful on runlength or compression encoding.
     fn estimated_size(&self) -> usize;
+
+    /// Get the size to append one data into the block
+    fn size_of_append(&self, item: &Option<&A::Item>) -> usize;
 
     /// Get statistics of block
     fn get_statistics(&self) -> Vec<BlockStatistics>;

@@ -72,7 +72,7 @@ pub trait Array: Sized + Send + Sync + 'static {
     type Builder: ArrayBuilder<Array = Self>;
 
     /// Type of element in the array.
-    type Item: ToOwned + ?Sized;
+    type Item: ToOwned + ?Sized + PartialEq;
 
     /// Retrieve a reference to value.
     fn get(&self, idx: usize) -> Option<&Self::Item>;
