@@ -16,3 +16,9 @@ select * from t;
 2 20 200
 3 30 300
 4 40 400
+
+statement ok
+delete from t
+
+query III rowsort
+----
