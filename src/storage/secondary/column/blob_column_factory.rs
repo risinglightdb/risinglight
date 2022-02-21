@@ -7,13 +7,13 @@ use super::super::{Block, BlockIterator};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::{BlobArray, BlobArrayBuilder};
 use crate::storage::secondary::block::{
-    decode_rle_block, FakeBlockIterator, PlainBlobBlockIterator, RLEBlockIterator,
+    decode_rle_block, FakeBlockIterator, PlainBlobBlockIterator, RleBlockIterator,
 };
 use crate::types::BlobRef;
 
 pub enum BlobBlockIteratorImpl {
     PlainBlob(PlainBlobBlockIterator<BlobRef>),
-    RleBlob(RLEBlockIterator<BlobArray, PlainBlobBlockIterator<BlobRef>>),
+    RleBlob(RleBlockIterator<BlobArray, PlainBlobBlockIterator<BlobRef>>),
     Fake(FakeBlockIterator<BlobArray>),
 }
 
@@ -69,7 +69,7 @@ impl BlockIteratorFactory<BlobArray> for BlobBlockIteratorFactory {
             BlockType::RleVarchar => {
                 let (rle_num, rle_data, block_data) = decode_rle_block(block);
                 let block_iter = PlainBlobBlockIterator::new(block_data, rle_num);
-                let it = RLEBlockIterator::<BlobArray, PlainBlobBlockIterator<BlobRef>>::new(
+                let it = RleBlockIterator::<BlobArray, PlainBlobBlockIterator<BlobRef>>::new(
                     block_iter, rle_data, rle_num,
                 );
                 BlobBlockIteratorImpl::RleBlob(it)

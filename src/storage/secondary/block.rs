@@ -12,7 +12,6 @@ mod primitive_block_builder;
 mod primitive_block_iterator;
 mod primitive_nullable_block_builder;
 mod primitive_nullable_block_iterator;
-mod rle_block;
 mod rle_block_builder;
 mod rle_block_iterator;
 
@@ -27,7 +26,6 @@ use risinglight_proto::rowset::BlockStatistics;
 mod char_block_iterator;
 pub use char_block_iterator::*;
 pub use primitive_nullable_block_iterator::*;
-pub use rle_block::*;
 pub use rle_block_builder::*;
 pub use rle_block_iterator::*;
 mod block_index_builder;

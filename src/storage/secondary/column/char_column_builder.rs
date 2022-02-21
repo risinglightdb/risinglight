@@ -6,15 +6,15 @@ use risinglight_proto::rowset::BlockIndex;
 use super::super::{BlockBuilder, BlockIndexBuilder, PlainCharBlockBuilder};
 use super::{append_one_by_one, ColumnBuilder};
 use crate::array::{Array, Utf8Array};
-use crate::storage::secondary::block::{PlainBlobBlockBuilder, RLEBlockBuilder};
+use crate::storage::secondary::block::{PlainBlobBlockBuilder, RleBlockBuilder};
 use crate::storage::secondary::ColumnBuilderOptions;
 
 /// All supported block builders for char types.
 pub(super) enum CharBlockBuilderImpl {
     PlainFixedChar(PlainCharBlockBuilder),
     PlainVarchar(PlainBlobBlockBuilder<str>),
-    RleFixedChar(RLEBlockBuilder<Utf8Array, PlainCharBlockBuilder>),
-    RleVarchar(RLEBlockBuilder<Utf8Array, PlainBlobBlockBuilder<str>>),
+    RleFixedChar(RleBlockBuilder<Utf8Array, PlainCharBlockBuilder>),
+    RleVarchar(RleBlockBuilder<Utf8Array, PlainBlobBlockBuilder<str>>),
 }
 
 /// Column builder of char types.
@@ -91,7 +91,7 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                         if self.options.is_rle {
                             let builder = PlainCharBlockBuilder::new(0, char_width);
                             self.current_builder =
-                                Some(CharBlockBuilderImpl::RleFixedChar(RLEBlockBuilder::<
+                                Some(CharBlockBuilderImpl::RleFixedChar(RleBlockBuilder::<
                                     Utf8Array,
                                     PlainCharBlockBuilder,
                                 >::new(
@@ -111,7 +111,7 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                         if self.options.is_rle {
                             let builder = PlainBlobBlockBuilder::new(0);
                             self.current_builder =
-                                Some(CharBlockBuilderImpl::RleVarchar(RLEBlockBuilder::<
+                                Some(CharBlockBuilderImpl::RleVarchar(RleBlockBuilder::<
                                     Utf8Array,
                                     PlainBlobBlockBuilder<str>,
                                 >::new(

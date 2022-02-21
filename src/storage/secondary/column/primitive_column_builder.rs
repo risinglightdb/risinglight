@@ -12,15 +12,15 @@ use super::super::{
 };
 use super::ColumnBuilder;
 use crate::array::Array;
-use crate::storage::secondary::block::RLEBlockBuilder;
+use crate::storage::secondary::block::RleBlockBuilder;
 use crate::types::{Date, Interval};
 
 /// All supported block builders for primitive types.
 pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
     Plain(PlainPrimitiveBlockBuilder<T>),
     PlainNullable(PlainPrimitiveNullableBlockBuilder<T>),
-    RunLength(RLEBlockBuilder<T::ArrayType, PlainPrimitiveBlockBuilder<T>>),
-    RleNullable(RLEBlockBuilder<T::ArrayType, PlainPrimitiveNullableBlockBuilder<T>>),
+    RunLength(RleBlockBuilder<T::ArrayType, PlainPrimitiveBlockBuilder<T>>),
+    RleNullable(RleBlockBuilder<T::ArrayType, PlainPrimitiveNullableBlockBuilder<T>>),
 }
 
 pub type I32ColumnBuilder = PrimitiveColumnBuilder<i32>;
@@ -127,7 +127,7 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                     if self.options.is_rle {
                         let builder = PlainPrimitiveNullableBlockBuilder::new(0);
                         self.current_builder =
-                            Some(BlockBuilderImpl::RleNullable(RLEBlockBuilder::<
+                            Some(BlockBuilderImpl::RleNullable(RleBlockBuilder::<
                                 T::ArrayType,
                                 PlainPrimitiveNullableBlockBuilder<T>,
                             >::new(
@@ -143,7 +143,7 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                     }
                 } else if self.options.is_rle {
                     let builder = PlainPrimitiveBlockBuilder::new(0);
-                    self.current_builder = Some(BlockBuilderImpl::RunLength(RLEBlockBuilder::<
+                    self.current_builder = Some(BlockBuilderImpl::RunLength(RleBlockBuilder::<
                         T::ArrayType,
                         PlainPrimitiveBlockBuilder<T>,
                     >::new(

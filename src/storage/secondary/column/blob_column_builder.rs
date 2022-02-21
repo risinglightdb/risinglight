@@ -6,14 +6,14 @@ use risinglight_proto::rowset::BlockIndex;
 use super::super::{BlockBuilder, BlockIndexBuilder, PlainBlobBlockBuilder};
 use super::{append_one_by_one, ColumnBuilder};
 use crate::array::{Array, BlobArray};
-use crate::storage::secondary::block::RLEBlockBuilder;
+use crate::storage::secondary::block::RleBlockBuilder;
 use crate::storage::secondary::ColumnBuilderOptions;
 use crate::types::BlobRef;
 
 /// All supported block builders for blob types.
 pub(super) enum BlobBlockBuilderImpl {
     PlainBlob(PlainBlobBlockBuilder<BlobRef>),
-    RleBlob(RLEBlockBuilder<BlobArray, PlainBlobBlockBuilder<BlobRef>>),
+    RleBlob(RleBlockBuilder<BlobArray, PlainBlobBlockBuilder<BlobRef>>),
 }
 
 /// Column builder of blob types.
@@ -69,7 +69,7 @@ impl ColumnBuilder<BlobArray> for BlobColumnBuilder {
             if self.current_builder.is_none() {
                 if self.options.is_rle {
                     let builder = PlainBlobBlockBuilder::new(0);
-                    self.current_builder = Some(BlobBlockBuilderImpl::RleBlob(RLEBlockBuilder::<
+                    self.current_builder = Some(BlobBlockBuilderImpl::RleBlob(RleBlockBuilder::<
                         BlobArray,
                         PlainBlobBlockBuilder<BlobRef>,
                     >::new(

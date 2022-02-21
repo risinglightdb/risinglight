@@ -12,15 +12,15 @@ use super::super::{
 };
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::Array;
-use crate::storage::secondary::block::{decode_rle_block, FakeBlockIterator, RLEBlockIterator};
+use crate::storage::secondary::block::{decode_rle_block, FakeBlockIterator, RleBlockIterator};
 use crate::types::{Date, Interval};
 
 /// All supported block iterators for primitive types.
 pub enum PrimitiveBlockIteratorImpl<T: PrimitiveFixedWidthEncode> {
     Plain(PlainPrimitiveBlockIterator<T>),
     PlainNullable(PlainPrimitiveNullableBlockIterator<T>),
-    RunLength(RLEBlockIterator<T::ArrayType, PlainPrimitiveBlockIterator<T>>),
-    RleNullable(RLEBlockIterator<T::ArrayType, PlainPrimitiveNullableBlockIterator<T>>),
+    RunLength(RleBlockIterator<T::ArrayType, PlainPrimitiveBlockIterator<T>>),
+    RleNullable(RleBlockIterator<T::ArrayType, PlainPrimitiveNullableBlockIterator<T>>),
     Fake(FakeBlockIterator<T::ArrayType>),
 }
 
@@ -109,7 +109,7 @@ impl<T: PrimitiveFixedWidthEncode> BlockIteratorFactory<T::ArrayType>
             BlockType::RunLength => {
                 let (rle_num, rle_data, block_data) = decode_rle_block(block);
                 let block_iter = PlainPrimitiveBlockIterator::<T>::new(block_data, rle_num);
-                let it = RLEBlockIterator::<T::ArrayType, PlainPrimitiveBlockIterator<T>>::new(
+                let it = RleBlockIterator::<T::ArrayType, PlainPrimitiveBlockIterator<T>>::new(
                     block_iter, rle_data, rle_num,
                 );
                 PrimitiveBlockIteratorImpl::RunLength(it)
@@ -118,7 +118,7 @@ impl<T: PrimitiveFixedWidthEncode> BlockIteratorFactory<T::ArrayType>
                 let (rle_num, rle_data, block_data) = decode_rle_block(block);
                 let block_iter = PlainPrimitiveNullableBlockIterator::<T>::new(block_data, rle_num);
                 let it =
-                    RLEBlockIterator::<T::ArrayType, PlainPrimitiveNullableBlockIterator<T>>::new(
+                    RleBlockIterator::<T::ArrayType, PlainPrimitiveNullableBlockIterator<T>>::new(
                         block_iter, rle_data, rle_num,
                     );
                 PrimitiveBlockIteratorImpl::RleNullable(it)

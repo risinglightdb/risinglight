@@ -1,13 +1,22 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use bytes::Buf;
+use bytes::{Buf, Bytes};
 
 use super::{Block, BlockIterator};
 use crate::array::{Array, ArrayBuilder};
 
+pub fn decode_rle_block(data: Block) -> (usize, Block, Block) {
+    let mut buffer = &data[..];
+    let rle_num = buffer.get_u32_le() as usize;
+    let rle_length = std::mem::size_of::<u32>() + std::mem::size_of::<u16>() * rle_num;
+    let rle_data = data[std::mem::size_of::<u32>()..rle_length].to_vec();
+    let block_data = data[rle_length..].to_vec();
+    (rle_num, Bytes::from(rle_data), Bytes::from(block_data))
+}
+
 /// Scans one or several arrays from the RLE Primitive block content,
 /// including plain block and nullable block.
-pub struct RLEBlockIterator<A, B>
+pub struct RleBlockIterator<A, B>
 where
     A: Array,
     B: BlockIterator<A>,
@@ -31,7 +40,7 @@ where
     cur_array: Option<A>,
 }
 
-impl<A, B> RLEBlockIterator<A, B>
+impl<A, B> RleBlockIterator<A, B>
 where
     A: Array,
     B: BlockIterator<A>,
@@ -53,7 +62,7 @@ where
     }
 }
 
-impl<A, B> BlockIterator<A> for RLEBlockIterator<A, B>
+impl<A, B> BlockIterator<A> for RleBlockIterator<A, B>
 where
     A: Array,
     B: BlockIterator<A>,
@@ -146,8 +155,8 @@ mod tests {
     use bytes::Bytes;
     use itertools::Itertools;
 
-    use super::super::{PlainCharBlockBuilder, RLEBlockBuilder};
-    use super::RLEBlockIterator;
+    use super::super::{PlainCharBlockBuilder, RleBlockBuilder};
+    use super::RleBlockIterator;
     use crate::array::{
         ArrayBuilder, ArrayToVecExt, BlobArray, BlobArrayBuilder, I32Array, I32ArrayBuilder,
         Utf8Array, Utf8ArrayBuilder,
@@ -165,7 +174,7 @@ mod tests {
         // Test primitive rle block iterator for i32
         let builder = PlainPrimitiveBlockBuilder::new(0);
         let mut rle_builder =
-            RLEBlockBuilder::<I32Array, PlainPrimitiveBlockBuilder<i32>>::new(builder, 20);
+            RleBlockBuilder::<I32Array, PlainPrimitiveBlockBuilder<i32>>::new(builder, 20);
         for item in [Some(&1)].iter().cycle().cloned().take(3) {
             rle_builder.append(item);
         }
@@ -179,7 +188,7 @@ mod tests {
 
         let (rle_num, rle_data, block_data) = decode_rle_block(Bytes::from(data));
         let block_iter = PlainPrimitiveBlockIterator::new(block_data, rle_num);
-        let mut scanner = RLEBlockIterator::<I32Array, PlainPrimitiveBlockIterator<i32>>::new(
+        let mut scanner = RleBlockIterator::<I32Array, PlainPrimitiveBlockIterator<i32>>::new(
             block_iter, rle_data, rle_num,
         );
 
@@ -210,7 +219,7 @@ mod tests {
         // Test primitive nullable rle block iterator for i32
         let builder = PlainPrimitiveNullableBlockBuilder::new(0);
         let mut rle_builder =
-            RLEBlockBuilder::<I32Array, PlainPrimitiveNullableBlockBuilder<i32>>::new(builder, 70);
+            RleBlockBuilder::<I32Array, PlainPrimitiveNullableBlockBuilder<i32>>::new(builder, 70);
         for item in [None].iter().cycle().cloned().take(3) {
             rle_builder.append(item);
         }
@@ -234,7 +243,7 @@ mod tests {
         let (rle_num, rle_data, block_data) = decode_rle_block(Bytes::from(data));
         let block_iter = PlainPrimitiveNullableBlockIterator::new(block_data, rle_num);
         let mut scanner =
-            RLEBlockIterator::<I32Array, PlainPrimitiveNullableBlockIterator<i32>>::new(
+            RleBlockIterator::<I32Array, PlainPrimitiveNullableBlockIterator<i32>>::new(
                 block_iter, rle_data, rle_num,
             );
 
@@ -270,7 +279,7 @@ mod tests {
     fn test_scan_rle_char() {
         let builder = PlainCharBlockBuilder::new(0, 40);
         let mut rle_builder =
-            RLEBlockBuilder::<Utf8Array, PlainCharBlockBuilder>::new(builder, 150);
+            RleBlockBuilder::<Utf8Array, PlainCharBlockBuilder>::new(builder, 150);
 
         let width_40_char = ["2"].iter().cycle().take(40).join("");
 
@@ -287,7 +296,7 @@ mod tests {
 
         let (rle_num, rle_data, block_data) = decode_rle_block(Bytes::from(data));
         let block_iter = PlainCharBlockIterator::new(block_data, rle_num, 40);
-        let mut scanner = RLEBlockIterator::<Utf8Array, PlainCharBlockIterator>::new(
+        let mut scanner = RleBlockIterator::<Utf8Array, PlainCharBlockIterator>::new(
             block_iter, rle_data, rle_num,
         );
 
@@ -327,7 +336,7 @@ mod tests {
         // Test rle block iterator for varchar
         let builder = PlainBlobBlockBuilder::new(0);
         let mut rle_builder =
-            RLEBlockBuilder::<Utf8Array, PlainBlobBlockBuilder<str>>::new(builder, 40);
+            RleBlockBuilder::<Utf8Array, PlainBlobBlockBuilder<str>>::new(builder, 40);
         for item in [Some("233")].iter().cycle().cloned().take(3) {
             rle_builder.append(item);
         }
@@ -341,7 +350,7 @@ mod tests {
 
         let (rle_num, rle_data, block_data) = decode_rle_block(Bytes::from(data));
         let block_iter = PlainBlobBlockIterator::new(block_data, rle_num);
-        let mut scanner = RLEBlockIterator::<Utf8Array, PlainBlobBlockIterator<str>>::new(
+        let mut scanner = RleBlockIterator::<Utf8Array, PlainBlobBlockIterator<str>>::new(
             block_iter, rle_data, rle_num,
         );
 
@@ -377,7 +386,7 @@ mod tests {
         // Test rle block iterator for blob
         let builder = PlainBlobBlockBuilder::new(0);
         let mut rle_builder =
-            RLEBlockBuilder::<BlobArray, PlainBlobBlockBuilder<BlobRef>>::new(builder, 40);
+            RleBlockBuilder::<BlobArray, PlainBlobBlockBuilder<BlobRef>>::new(builder, 40);
         for item in [Some(BlobRef::new("233".as_bytes()))]
             .iter()
             .cycle()
@@ -406,7 +415,7 @@ mod tests {
 
         let (rle_num, rle_data, block_data) = decode_rle_block(Bytes::from(data));
         let block_iter = PlainBlobBlockIterator::new(block_data, rle_num);
-        let mut scanner = RLEBlockIterator::<BlobArray, PlainBlobBlockIterator<BlobRef>>::new(
+        let mut scanner = RleBlockIterator::<BlobArray, PlainBlobBlockIterator<BlobRef>>::new(
             block_iter, rle_data, rle_num,
         );
 

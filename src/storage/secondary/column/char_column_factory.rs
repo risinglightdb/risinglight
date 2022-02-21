@@ -8,15 +8,15 @@ use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::{Utf8Array, Utf8ArrayBuilder};
 use crate::storage::secondary::block::{
     decode_rle_block, FakeBlockIterator, PlainBlobBlockIterator, PlainCharBlockIterator,
-    RLEBlockIterator,
+    RleBlockIterator,
 };
 
 /// All supported block iterators for char types.
 pub enum CharBlockIteratorImpl {
     PlainFixedChar(PlainCharBlockIterator),
     PlainVarchar(PlainBlobBlockIterator<str>),
-    RleFixedChar(RLEBlockIterator<Utf8Array, PlainCharBlockIterator>),
-    RleVarchar(RLEBlockIterator<Utf8Array, PlainBlobBlockIterator<str>>),
+    RleFixedChar(RleBlockIterator<Utf8Array, PlainCharBlockIterator>),
+    RleVarchar(RleBlockIterator<Utf8Array, PlainBlobBlockIterator<str>>),
     Fake(FakeBlockIterator<Utf8Array>),
 }
 
@@ -91,7 +91,7 @@ impl BlockIteratorFactory<Utf8Array> for CharBlockIteratorFactory {
             (BlockType::RleFixedChar, Some(char_width)) => {
                 let (rle_num, rle_data, block_data) = decode_rle_block(block);
                 let block_iter = PlainCharBlockIterator::new(block_data, rle_num, char_width);
-                let it = RLEBlockIterator::<Utf8Array, PlainCharBlockIterator>::new(
+                let it = RleBlockIterator::<Utf8Array, PlainCharBlockIterator>::new(
                     block_iter, rle_data, rle_num,
                 );
                 CharBlockIteratorImpl::RleFixedChar(it)
@@ -99,7 +99,7 @@ impl BlockIteratorFactory<Utf8Array> for CharBlockIteratorFactory {
             (BlockType::RleVarchar, _) => {
                 let (rle_num, rle_data, block_data) = decode_rle_block(block);
                 let block_iter = PlainBlobBlockIterator::new(block_data, rle_num);
-                let it = RLEBlockIterator::<Utf8Array, PlainBlobBlockIterator<str>>::new(
+                let it = RleBlockIterator::<Utf8Array, PlainBlobBlockIterator<str>>::new(
                     block_iter, rle_data, rle_num,
                 );
                 CharBlockIteratorImpl::RleVarchar(it)
