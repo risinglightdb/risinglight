@@ -21,6 +21,7 @@ pub use join_predicate::*;
 // Import and use all plan nodes
 
 mod dummy;
+mod internal;
 mod logical_aggregate;
 mod logical_copy_from_file;
 mod logical_copy_to_file;
@@ -57,6 +58,7 @@ mod physical_top_n;
 mod physical_values;
 
 pub use dummy::*;
+pub use internal::*;
 pub use logical_aggregate::*;
 pub use logical_copy_from_file::*;
 pub use logical_copy_to_file::*;
@@ -197,6 +199,7 @@ macro_rules! for_all_plan_nodes {
         $macro! {
             [$($x),*],
             Dummy,
+            Internal,
             LogicalTableScan,
             LogicalInsert,
             LogicalValues,
