@@ -1,0 +1,28 @@
+statement ok
+create table t (v1 int, v2 bigint);
+
+statement ok
+insert into t values (1,8223372036854775807), (2,2), (3,3), (4,4), (5,9223372036854775807);
+
+query I
+select count(v2) from t where v2 > 2;
+----
+4
+
+query I
+select min(v2) from t where v2 > 2;
+----
+3
+
+query I
+select max(v2) from t where v2 > 2;
+----
+9223372036854775807
+
+query I
+select sum(v2) from t where v2 < 10;
+----
+9
+
+statement ok
+drop table t

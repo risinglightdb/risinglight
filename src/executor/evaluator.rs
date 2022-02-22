@@ -113,12 +113,14 @@ impl ArrayImpl {
         match op {
             UnaryOperator::Plus => match self {
                 A::Int32(_) => self.clone(),
+                A::Int64(_) => self.clone(),
                 A::Float64(_) => self.clone(),
                 A::Decimal(_) => self.clone(),
                 _ => panic!("+ can only be applied to Int, Float or Decimal array"),
             },
             UnaryOperator::Minus => match self {
                 A::Int32(a) => A::Int32(unary_op(a, |v| -v)),
+                A::Int64(a) => A::Int64(unary_op(a, |v| -v)),
                 A::Float64(a) => A::Float64(unary_op(a, |v| -v)),
                 A::Decimal(a) => A::Decimal(unary_op(a, |v| -v)),
                 _ => panic!("- can only be applied to Int, Float or Decimal array"),
@@ -140,10 +142,14 @@ impl ArrayImpl {
                     #[cfg(feature = "simd")]
                     (A::Int32(a), A::Int32(b)) => A::Int32(simd_op::<_, _, _, 32>(a, b, |a, b| a $op b)),
                     #[cfg(feature = "simd")]
+                    (A::Int64(a), A::Int64(b)) => A::Int64(simd_op::<_, _, _, 64>(a, b, |a, b| a $op b)),
+                    #[cfg(feature = "simd")]
                     (A::Float64(a), A::Float64(b)) => A::Float64(simd_op::<_, _, _, 32>(a, b, |a, b| a $op b)),
 
                     #[cfg(not(feature = "simd"))]
                     (A::Int32(a), A::Int32(b)) => A::Int32(binary_op(a, b, |a, b| a $op b)),
+                    #[cfg(not(feature = "simd"))]
+                    (A::Int64(a), A::Int64(b)) => A::Int64(binary_op(a, b, |a, b| a $op b)),
                     #[cfg(not(feature = "simd"))]
                     (A::Float64(a), A::Float64(b)) => A::Float64(binary_op(a, b, |a, b| a $op b)),
 
@@ -158,6 +164,7 @@ impl ArrayImpl {
                 match (self, right) {
                     (A::Bool(a), A::Bool(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
                     (A::Int32(a), A::Int32(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
+                    (A::Int64(a), A::Int64(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
                     #[allow(clippy::float_cmp)]
                     (A::Float64(a), A::Float64(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
                     (A::Utf8(a), A::Utf8(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
@@ -210,6 +217,7 @@ impl ArrayImpl {
             Self::Bool(a) => match data_type {
                 Type::Boolean => Self::Bool(a.clone()),
                 Type::Int(_) => Self::Int32(unary_op(a, |&b| b as i32)),
+                Type::BigInt(_) => Self::Int64(unary_op(a, |&b| b as i64)),
                 Type::Float(_) | Type::Double => Self::Float64(unary_op(a, |&b| b as u8 as f64)),
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::Utf8(unary_op(a, |&b| if b { "true" } else { "false" }))
@@ -221,6 +229,7 @@ impl ArrayImpl {
             Self::Int32(a) => match data_type {
                 Type::Boolean => Self::Bool(unary_op(a, |&i| i != 0)),
                 Type::Int(_) => Self::Int32(a.clone()),
+                Type::BigInt(_) => Self::Int64(unary_op(a, |&b| b as i64)),
                 Type::Float(_) | Type::Double => Self::Float64(unary_op(a, |&i| i as f64)),
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::Utf8(unary_op(a, |&i| i.to_string()))
@@ -231,7 +240,11 @@ impl ArrayImpl {
             },
             Self::Int64(a) => match data_type {
                 Type::Boolean => Self::Bool(unary_op(a, |&i| i != 0)),
-                Type::Int(_) => Self::Int64(a.clone()),
+                Type::Int(_) => Self::Int32(try_unary_op(a, |&b| match b.to_i32() {
+                    Some(d) => Ok(d),
+                    None => Err(ConvertError::Overflow(DataValue::Int64(b), Type::Int(None))),
+                })?),
+                Type::BigInt(_) => Self::Int64(a.clone()),
                 Type::Float(_) | Type::Double => Self::Float64(unary_op(a, |&i| i as f64)),
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::Utf8(unary_op(a, |&i| i.to_string()))
@@ -242,7 +255,20 @@ impl ArrayImpl {
             },
             Self::Float64(a) => match data_type {
                 Type::Boolean => Self::Bool(unary_op(a, |&f| f != 0.0)),
-                Type::Int(_) => Self::Int32(unary_op(a, |&f| f as i32)),
+                Type::Int(_) => Self::Int32(try_unary_op(a, |&b| match b.to_i32() {
+                    Some(d) => Ok(d),
+                    None => Err(ConvertError::Overflow(
+                        DataValue::Float64(b),
+                        Type::Int(None),
+                    )),
+                })?),
+                Type::BigInt(_) => Self::Int64(try_unary_op(a, |&b| match b.to_i64() {
+                    Some(d) => Ok(d),
+                    None => Err(ConvertError::Overflow(
+                        DataValue::Float64(b),
+                        Type::BigInt(None),
+                    )),
+                })?),
                 Type::Float(_) | Type::Double => Self::Float64(a.clone()),
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::Utf8(unary_op(a, |&f| f.to_string()))
@@ -270,6 +296,10 @@ impl ArrayImpl {
                     s.parse::<i32>()
                         .map_err(|e| ConvertError::ParseInt(s.to_string(), e))
                 })?),
+                Type::BigInt(_) => Self::Int64(try_unary_op(a, |s| {
+                    s.parse::<i64>()
+                        .map_err(|e| ConvertError::ParseInt(s.to_string(), e))
+                })?),
                 Type::Float(_) | Type::Double => Self::Float64(try_unary_op(a, |s| {
                     s.parse::<f64>()
                         .map_err(|e| ConvertError::ParseFloat(s.to_string(), e))
@@ -292,6 +322,12 @@ impl ArrayImpl {
                 Type::Int(_) => Self::Int32(try_unary_op(a, |&d| {
                     d.to_i32().ok_or(ConvertError::FromDecimalError(
                         DataTypeKind::Int(None),
+                        DataValue::Decimal(d),
+                    ))
+                })?),
+                Type::BigInt(_) => Self::Int64(try_unary_op(a, |&d| {
+                    d.to_i64().ok_or(ConvertError::FromDecimalError(
+                        DataTypeKind::BigInt(None),
                         DataValue::Decimal(d),
                     ))
                 })?),

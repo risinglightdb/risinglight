@@ -4,8 +4,8 @@ use bytes::{Buf, BufMut};
 use rust_decimal::Decimal;
 
 use crate::array::{
-    Array, BlobArray, BoolArray, DateArray, DecimalArray, F64Array, I32Array, IntervalArray,
-    Utf8Array,
+    Array, BlobArray, BoolArray, DateArray, DecimalArray, F64Array, I32Array, I64Array,
+    IntervalArray, Utf8Array,
 };
 use crate::types::{BlobRef, Date, Interval};
 
@@ -50,6 +50,21 @@ impl PrimitiveFixedWidthEncode for i32 {
 
     fn decode(buffer: &mut impl Buf) -> Self {
         buffer.get_i32_le()
+    }
+}
+
+impl PrimitiveFixedWidthEncode for i64 {
+    const WIDTH: usize = std::mem::size_of::<i64>();
+    const DEAFULT_VALUE: &'static i64 = &0;
+
+    type ArrayType = I64Array;
+
+    fn encode(&self, buffer: &mut impl BufMut) {
+        buffer.put_i64_le(*self);
+    }
+
+    fn decode(buffer: &mut impl Buf) -> Self {
+        buffer.get_i64_le()
     }
 }
 

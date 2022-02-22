@@ -243,6 +243,8 @@ impl From<&Value> for DataValue {
             Value::Number(n, _) => {
                 if let Ok(int) = n.parse::<i32>() {
                     Self::Int32(int)
+                } else if let Ok(bigint) = n.parse::<i64>() {
+                    Self::Int64(bigint)
                 } else if let Ok(float) = n.parse::<f64>() {
                     Self::Float64(float)
                 } else {
