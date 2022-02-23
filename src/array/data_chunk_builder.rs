@@ -18,7 +18,7 @@ pub struct DataChunkBuilder {
 
 impl Drop for DataChunkBuilder {
     fn drop(&mut self) {
-        assert_eq!(self.size, 0);
+        assert_eq!(self.size, 0, "dropping non-empty data chunk builder");
     }
 }
 
