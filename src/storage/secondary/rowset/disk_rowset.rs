@@ -113,6 +113,7 @@ pub mod tests {
     use super::*;
     use crate::array::ArrayImpl;
     use crate::storage::secondary::rowset::rowset_builder::RowsetBuilder;
+    use crate::storage::secondary::rowset::RowsetWriter;
     use crate::storage::secondary::ColumnBuilderOptions;
     use crate::types::{DataTypeExt, DataTypeKind};
 
@@ -158,7 +159,6 @@ pub mod tests {
 
         let mut builder = RowsetBuilder::new(
             columns.clone().into(),
-            tempdir.path(),
             ColumnBuilderOptions::default_for_test(),
         );
 
@@ -180,7 +180,8 @@ pub mod tests {
             )
         }
 
-        builder.finish_and_flush().await.unwrap();
+        let writer = RowsetWriter::new(tempdir.path());
+        writer.flush(builder.finish()).await.unwrap();
 
         DiskRowset::open(
             tempdir.path().to_path_buf(),

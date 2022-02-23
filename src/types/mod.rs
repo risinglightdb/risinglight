@@ -70,6 +70,16 @@ impl std::fmt::Debug for DataType {
     }
 }
 
+impl std::fmt::Display for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.kind)?;
+        if self.nullable {
+            write!(f, " (null)")?;
+        }
+        Ok(())
+    }
+}
+
 impl DataType {
     pub fn new(kind: DataTypeKind, nullable: bool) -> DataType {
         let physical_kind = kind.clone().into();
@@ -181,6 +191,7 @@ macro_rules! impl_arith_for_datavalue {
                 use DataValue::*;
                 match (self, rhs) {
                     (&Int32(x), &Int32(y)) => Int32(x.$name(y)),
+                    (&Int64(x), &Int64(y)) => Int64(x.$name(y)),
                     (&Float64(x), &Float64(y)) => Float64(x.$name(y)),
                     (&Decimal(x), &Decimal(y)) => Decimal(x.$name(y)),
                     (&Date(x), &Interval(y)) => Date(x.$name(y)),
@@ -207,6 +218,7 @@ impl DataValue {
         use DataValue::*;
         match (self, other) {
             (&Int32(x), &Int32(y)) => y != 0 && x % y == 0,
+            (&Int64(x), &Int64(y)) => y != 0 && x % y == 0,
             (&Float64(x), &Float64(y)) => y != 0.0 && x % y == 0.0,
             (&Decimal(x), &Decimal(y)) => {
                 y != rust_decimal::Decimal::from_str("0.0").unwrap()
@@ -315,7 +327,27 @@ pub enum ConvertError {
     FromIntervalError(DataTypeKind),
     #[error("failed to cast {0} to type {1}")]
     Cast(String, &'static str),
+    #[error("constant {0:?} overflows {1:?}")]
+    Overflow(DataValue, DataTypeKind),
 }
 
 /// memory table row type
 pub(crate) type Row = Vec<DataValue>;
+
+impl std::fmt::Display for DataValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Null => write!(f, "null")?,
+            Self::Bool(value) => write!(f, "{}", value)?,
+            Self::Int32(value) => write!(f, "{}", value)?,
+            Self::Int64(value) => write!(f, "{}", value)?,
+            Self::Float64(value) => write!(f, "{}", value)?,
+            Self::String(value) => write!(f, "{}", value)?,
+            Self::Blob(value) => write!(f, "{}", value)?,
+            Self::Decimal(value) => write!(f, "{}", value)?,
+            Self::Date(value) => write!(f, "{}", value)?,
+            Self::Interval(value) => write!(f, "{}", value)?,
+        }
+        Ok(())
+    }
+}

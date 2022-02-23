@@ -146,6 +146,24 @@ impl std::fmt::Debug for BoundExpr {
     }
 }
 
+impl std::fmt::Display for BoundExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Constant(expr) => write!(f, "{}", expr)?,
+            Self::ColumnRef(expr) => write!(f, "Column #{:?}", expr)?,
+            Self::BinaryOp(expr) => write!(f, "{}", expr)?,
+            Self::UnaryOp(expr) => write!(f, "{:?}", expr)?,
+            Self::TypeCast(expr) => write!(f, "{}", expr)?,
+            Self::AggCall(expr) => write!(f, "{:?} (agg)", expr)?,
+            Self::InputRef(expr) => write!(f, "InputRef #{:?}", expr)?,
+            Self::IsNull(expr) => write!(f, "{:?} (isnull)", expr)?,
+            Self::ExprWithAlias(expr) => write!(f, "{}", expr)?,
+            Self::Alias(expr) => write!(f, "{:?}", expr)?,
+        }
+        Ok(())
+    }
+}
+
 impl Binder {
     /// Bind an expression.
     pub fn bind_expr(&mut self, expr: &Expr) -> Result<BoundExpr, BindError> {
@@ -225,6 +243,8 @@ impl From<&Value> for DataValue {
             Value::Number(n, _) => {
                 if let Ok(int) = n.parse::<i32>() {
                     Self::Int32(int)
+                } else if let Ok(bigint) = n.parse::<i64>() {
+                    Self::Int64(bigint)
                 } else if let Ok(float) = n.parse::<f64>() {
                     Self::Float64(float)
                 } else {

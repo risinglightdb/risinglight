@@ -21,6 +21,7 @@ pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
 }
 
 pub type I32ColumnBuilder = PrimitiveColumnBuilder<i32>;
+pub type I64ColumnBuilder = PrimitiveColumnBuilder<i64>;
 pub type F64ColumnBuilder = PrimitiveColumnBuilder<f64>;
 pub type BoolColumnBuilder = PrimitiveColumnBuilder<bool>;
 pub type DecimalColumnBuilder = PrimitiveColumnBuilder<Decimal>;

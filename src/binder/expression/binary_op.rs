@@ -25,6 +25,12 @@ impl std::fmt::Debug for BoundBinaryOp {
     }
 }
 
+impl std::fmt::Display for BoundBinaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({} {} {})", self.left_expr, self.op, self.right_expr)
+    }
+}
+
 impl Binder {
     pub fn bind_binary_op(
         &mut self,
@@ -51,6 +57,7 @@ impl Binder {
                     // Insert type cast expr
                     match (left_physical_kind, right_physical_kind) {
                         (Float64 | Decimal, Int32 | Int64)
+                        | (Int64, Int32)
                         | (Date, String)
                         | (Decimal, Float64) => {
                             right_bound_expr = BoundExpr::TypeCast(BoundTypeCast {
@@ -59,6 +66,7 @@ impl Binder {
                             });
                         }
                         (Int32 | Int64, Float64 | Decimal)
+                        | (Int32, Int64)
                         | (String, Date)
                         | (Float64, Decimal) => {
                             left_bound_expr = BoundExpr::TypeCast(BoundTypeCast {

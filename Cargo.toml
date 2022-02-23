@@ -33,6 +33,7 @@ futures = { version = "0.3", default-features = false, features = ["alloc"] }
 futures-async-stream = { git = "https://github.com/taiki-e/futures-async-stream", rev = "944f407" }
 humantime = "2.1.0"
 indicatif = { version = "0.16" }
+indoc = "1"
 iter-chunks = "0.1"
 itertools = "0.10"
 manifest-dir-macros = "0.1.11"
@@ -47,7 +48,7 @@ rustyline = "9"
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 smallvec = { version = "1", features = ["serde"] }
-sqllogictest = "0.2"
+sqllogictest = { git = "https://github.com/risinglightdb/sqllogictest-rs", rev = "21357d4" }
 sqlparser = { git = "https://github.com/risinglightdb/sqlparser-rs", rev = "edead1b", features = ["serde"] }
 thiserror = "1"
 tikv-jemallocator = { version = "0.4", optional = true }

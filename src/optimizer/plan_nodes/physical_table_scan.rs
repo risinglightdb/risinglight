@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use indoc::indoc;
 use itertools::Itertools;
 use serde::Serialize;
 
@@ -40,12 +41,24 @@ impl fmt::Display for PhysicalTableScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "PhysicalTableScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}, expr: {}",
+            indoc! {"
+			PhysicalTableScan:
+			  table #{},
+			  columns [{}],
+			  with_row_handler: {},
+			  is_sorted: {},
+			  expr: {}"},
             self.logical().table_ref_id().table_id,
-            self.logical().column_ids().iter().map(ToString::to_string).join(", "),
+            self.logical()
+                .column_ids()
+                .iter()
+                .map(ToString::to_string)
+                .join(", "),
             self.logical().with_row_handler(),
             self.logical().is_sorted(),
-            self.logical().expr().map_or_else(|| "None".to_string(), |expr| format!("{:?}", expr))
+            self.logical()
+                .expr()
+                .map_or_else(|| "None".to_string(), |expr| format!("{:?}", expr))
         )
     }
 }

@@ -2,16 +2,20 @@
 
 //! A simple interactive shell of the database.
 
+#![feature(div_duration)]
+
 use std::fs::File;
-use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Result};
+use async_trait::async_trait;
 use clap::Parser;
 use humantime::format_duration;
 use risinglight::array::{datachunk_to_sqllogictest_string, Chunk};
 use risinglight::executor::context::Context;
 use risinglight::storage::SecondaryStorageOptions;
+use risinglight::utils::time::RoundingDuration;
 use risinglight::Database;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
@@ -71,6 +75,20 @@ fn print_chunk(chunk: &Chunk, output_format: &Option<String>) {
     }
 }
 
+fn print_execution_time(start_time: Instant) {
+    let duration = start_time.elapsed();
+    let duration_in_seconds = duration.div_duration_f64(Duration::new(1, 0));
+    if duration_in_seconds > 1.0 {
+        println!(
+            "in {:.3}s ({})",
+            duration_in_seconds,
+            format_duration(duration.round_to_seconds())
+        );
+    } else {
+        println!("in {:.3}s", duration_in_seconds);
+    }
+}
+
 async fn run_query_in_background(db: Arc<Database>, sql: String, output_format: Option<String>) {
     let context: Arc<Context> = Default::default();
     let start_time = Instant::now();
@@ -90,13 +108,13 @@ async fn run_query_in_background(db: Arc<Database>, sql: String, output_format: 
                     for chunk in chunks {
                         print_chunk(&chunk, &output_format)
                     }
+
+                    print_execution_time(start_time)
                 }
                 Err(err) => println!("{}", err),
             }
         }
     }
-    let duration = start_time.elapsed();
-    println!("in {}", format_duration(duration));
 
     // Wait detached tasks if cancelled, or do nothing if query ends.
     // Leak is guaranteed not to happen as long as all handles are joined
@@ -129,8 +147,10 @@ async fn interactive(db: Database, output_format: Option<String>) -> Result<()> 
         let readline = rl.readline("> ");
         match readline {
             Ok(line) => {
-                rl.add_history_entry(line.as_str());
-                run_query_in_background(db.clone(), line, output_format.clone()).await;
+                if !line.trim().is_empty() {
+                    rl.add_history_entry(line.as_str());
+                    run_query_in_background(db.clone(), line, output_format.clone()).await;
+                }
             }
             Err(ReadlineError::Interrupted) => {
                 println!("Interrupted");
@@ -170,52 +190,35 @@ async fn run_sql(db: Database, path: &str, output_format: Option<String>) -> Res
 
 /// Wrapper for sqllogictest
 struct DatabaseWrapper {
-    tx: tokio::sync::mpsc::Sender<String>,
-    rx: Mutex<tokio::sync::mpsc::Receiver<Result<Vec<Chunk>, risinglight::Error>>>,
+    db: Database,
     output_format: Option<String>,
 }
 
-impl sqllogictest::DB for DatabaseWrapper {
+#[async_trait]
+impl sqllogictest::AsyncDB for DatabaseWrapper {
     type Error = risinglight::Error;
-    fn run(&self, sql: &str) -> Result<String, Self::Error> {
+    async fn run(&mut self, sql: &str) -> Result<String, Self::Error> {
         info!("{}", sql);
-        self.tx.blocking_send(sql.to_string()).unwrap();
-        let chunks = self.rx.lock().unwrap().blocking_recv().unwrap()?;
+        let chunks = self.db.run(sql).await?;
         for chunk in &chunks {
             print_chunk(chunk, &self.output_format);
         }
-        let output = chunks
+        Ok(chunks
             .iter()
             .map(datachunk_to_sqllogictest_string)
-            .collect();
-        Ok(output)
+            .collect())
     }
 }
 
 /// Run a sqllogictest file in RisingLight
 async fn run_sqllogictest(db: Database, path: &str, output_format: Option<String>) -> Result<()> {
-    let (ttx, mut trx) = tokio::sync::mpsc::channel(1);
-    let (dtx, drx) = tokio::sync::mpsc::channel(1);
-    let mut tester = sqllogictest::Runner::new(DatabaseWrapper {
-        tx: ttx,
-        rx: Mutex::new(drx),
-        output_format,
-    });
-    let handle = tokio::spawn(async move {
-        while let Some(sql) = trx.recv().await {
-            dtx.send(db.run(&sql).await).await.unwrap();
-        }
-    });
-
+    let mut tester = sqllogictest::Runner::new(DatabaseWrapper { db, output_format });
     let path = path.to_string();
-    let sqllogictest_handler = tokio::task::spawn_blocking(move || {
+    tester
+        .run_file_async(path)
+        .await
         // `ParseError` isn't Send, so we cannot directly use it as anyhow Error.
-        tester.run_file(path).map_err(|err| anyhow!("{:?}", err))?;
-        Ok::<_, anyhow::Error>(())
-    });
-
-    sqllogictest_handler.await.unwrap().unwrap();
-    handle.await.unwrap();
+        .map_err(|err| anyhow!("{:?}", err))?;
     Ok(())
 }
 

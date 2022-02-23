@@ -2,7 +2,7 @@
 
 use super::{
     BlobColumnIterator, BoolColumnIterator, CharBlockIteratorFactory, CharColumnIterator, Column,
-    ColumnIterator, DecimalColumnIterator, F64ColumnIterator, I32ColumnIterator,
+    ColumnIterator, DecimalColumnIterator, F64ColumnIterator, I32ColumnIterator, I64ColumnIterator,
     PrimitiveBlockIteratorFactory, RowHandlerColumnIterator, StorageResult,
 };
 use crate::array::{Array, ArrayImpl};
@@ -13,6 +13,7 @@ use crate::types::DataTypeKind;
 /// [`ColumnIteratorImpl`] of all types
 pub enum ColumnIteratorImpl {
     Int32(I32ColumnIterator),
+    Int64(I64ColumnIterator),
     Float64(F64ColumnIterator),
     Bool(BoolColumnIterator),
     Char(CharColumnIterator),
@@ -33,6 +34,10 @@ impl ColumnIteratorImpl {
         let iter = match column_info.datatype().kind() {
             DataTypeKind::Int(_) => Self::Int32(
                 I32ColumnIterator::new(column, start_pos, PrimitiveBlockIteratorFactory::new())
+                    .await?,
+            ),
+            DataTypeKind::BigInt(_) => Self::Int64(
+                I64ColumnIterator::new(column, start_pos, PrimitiveBlockIteratorFactory::new())
                     .await?,
             ),
             DataTypeKind::Boolean => Self::Bool(
@@ -112,6 +117,7 @@ impl ColumnIteratorImpl {
     ) -> StorageResult<Option<(u32, ArrayImpl)>> {
         let result = match self {
             Self::Int32(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
+            Self::Int64(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
             Self::Float64(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
             Self::Bool(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
             Self::Char(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
@@ -127,6 +133,7 @@ impl ColumnIteratorImpl {
     pub fn fetch_hint(&self) -> usize {
         match self {
             Self::Int32(it) => it.fetch_hint(),
+            Self::Int64(it) => it.fetch_hint(),
             Self::Float64(it) => it.fetch_hint(),
             Self::Bool(it) => it.fetch_hint(),
             Self::Char(it) => it.fetch_hint(),
@@ -141,6 +148,7 @@ impl ColumnIteratorImpl {
     pub fn fetch_current_row_id(&self) -> u32 {
         match self {
             Self::Int32(it) => it.fetch_current_row_id(),
+            Self::Int64(it) => it.fetch_current_row_id(),
             Self::Float64(it) => it.fetch_current_row_id(),
             Self::Bool(it) => it.fetch_current_row_id(),
             Self::Char(it) => it.fetch_current_row_id(),
@@ -155,6 +163,7 @@ impl ColumnIteratorImpl {
     pub fn skip(&mut self, cnt: usize) {
         match self {
             Self::Int32(it) => it.skip(cnt),
+            Self::Int64(it) => it.skip(cnt),
             Self::Float64(it) => it.skip(cnt),
             Self::Bool(it) => it.skip(cnt),
             Self::Char(it) => it.skip(cnt),

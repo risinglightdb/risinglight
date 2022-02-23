@@ -115,7 +115,7 @@ pub trait Table: Sync + Send + Clone + 'static {
 }
 
 /// Reference to a column.
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum StorageColumnRef {
     /// A runtime column which contains necessary information to locate a row
     /// **only valid in the current transaction**.

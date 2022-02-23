@@ -40,3 +40,11 @@ select v1 from t limit 0
 query I
 select v1 from t offset 5
 ----
+
+# test case for https://github.com/risinglightdb/risinglight/issues/264
+statement ok
+insert into t values (1, 1)
+
+query I
+select v1 from t limit 0
+----
