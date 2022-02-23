@@ -37,10 +37,6 @@ impl<T: PrimitiveFixedWidthEncode> BlockBuilder<T::ArrayType> for PlainPrimitive
         self.data.len()
     }
 
-    fn size_to_append(&self, _item: &Option<&T>) -> usize {
-        T::WIDTH
-    }
-
     fn should_finish(&self, _next_item: &Option<&T>) -> bool {
         !self.data.is_empty() && self.estimated_size() + T::WIDTH > self.target_size
     }

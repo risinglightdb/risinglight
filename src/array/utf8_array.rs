@@ -19,7 +19,7 @@ pub struct BytesArray<T: ValueRef + ?Sized> {
 }
 
 /// The borrowed type of a variable-length value.
-pub trait ValueRef: ToOwned + AsRef<[u8]> + Send + Sync + 'static + PartialEq {
+pub trait ValueRef: ToOwned + AsRef<[u8]> + Send + Sync + 'static {
     fn from_bytes(s: &[u8]) -> &Self;
 }
 

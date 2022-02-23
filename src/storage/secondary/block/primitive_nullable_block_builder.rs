@@ -51,13 +51,8 @@ impl<T: PrimitiveFixedWidthEncode> BlockBuilder<T::ArrayType>
         self.data.len() + bitmap_byte_len
     }
 
-    fn size_to_append(&self, _item: &Option<&T>) -> usize {
-        T::WIDTH + ((self.bitmap.len() % 8 == 0) as usize)
-    }
-
-    fn should_finish(&self, next_item: &Option<&T>) -> bool {
-        !self.data.is_empty()
-            && self.estimated_size() + self.size_to_append(next_item) > self.target_size
+    fn should_finish(&self, _next_item: &Option<&T>) -> bool {
+        !self.data.is_empty() && self.estimated_size() + 1 + T::WIDTH > self.target_size
     }
 
     fn get_statistics(&self) -> Vec<BlockStatistics> {

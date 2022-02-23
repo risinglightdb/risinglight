@@ -1,6 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use bytes::{Buf, Bytes};
+use bytes::Buf;
 
 use super::{Block, BlockIterator};
 use crate::array::{Array, ArrayBuilder};
@@ -9,9 +9,9 @@ pub fn decode_rle_block(data: Block) -> (usize, Block, Block) {
     let mut buffer = &data[..];
     let rle_num = buffer.get_u32_le() as usize;
     let rle_length = std::mem::size_of::<u32>() + std::mem::size_of::<u16>() * rle_num;
-    let rle_data = data[std::mem::size_of::<u32>()..rle_length].to_vec();
-    let block_data = data[rle_length..].to_vec();
-    (rle_num, Bytes::from(rle_data), Bytes::from(block_data))
+    let rle_data = data.slice(std::mem::size_of::<u32>()..rle_length);
+    let block_data = data.slice(rle_length..);
+    (rle_num, rle_data, block_data)
 }
 
 /// Scans one or several arrays from the RLE Primitive block content,
@@ -30,14 +30,20 @@ where
     /// Indicates current position in the rle block
     cur_row: usize,
 
-    /// Indicates how many rows get scanned in the rle block
-    cur_rle_scanned: usize,
+    /// Indicates how many rows get scanned for cur_row
+    cur_scanned_count: usize,
 
     /// Indicates the number of rows in the rle block
     rle_row_count: usize,
 
     /// Indicates the array of current row get from block_iter
     cur_array: Option<A>,
+
+    /// Indicates how many rows get scanned for this iterator
+    row_scanned_count: usize,
+
+    /// Total count of elements in block
+    row_count: usize,
 }
 
 impl<A, B> RleBlockIterator<A, B>
@@ -46,13 +52,21 @@ where
     B: BlockIterator<A>,
 {
     pub fn new(block_iter: B, rle_block: Block, rle_row_count: usize) -> Self {
+        let mut row_count: usize = 0;
+        for row_id in 0..rle_row_count {
+            let mut rle_buffer = &rle_block[row_id * std::mem::size_of::<u16>()..];
+            let rle_count = rle_buffer.get_u16_le();
+            row_count += rle_count as usize;
+        }
         Self {
             block_iter,
             rle_block,
             cur_row: 0,
-            cur_rle_scanned: 0,
+            cur_scanned_count: 0,
             rle_row_count,
             cur_array: None,
+            row_scanned_count: 0,
+            row_count,
         }
     }
 
@@ -80,7 +94,7 @@ where
         if self.cur_array.is_none() {
             let mut array_builder = A::Builder::new();
             if self.block_iter.next_batch(Some(1), &mut array_builder) == 0 {
-                return cnt;
+                return 0;
             }
             self.cur_array = Some(array_builder.finish());
         }
@@ -95,15 +109,15 @@ where
             }
 
             // Check if we need to get the next array from block_iter
-            if self.cur_rle_scanned < rle_count as usize {
+            if self.cur_scanned_count < rle_count as usize {
                 builder.append(self.cur_array.as_ref().unwrap());
-                self.cur_rle_scanned += 1;
+                self.cur_scanned_count += 1;
                 cnt += 1;
             } else {
                 // Every time cur_row is updated, we need to get the next array from block_iter
-                // And reset cur_rle_scanned
+                // And reset cur_scanned_count
                 self.cur_row += 1;
-                self.cur_rle_scanned = 0;
+                self.cur_scanned_count = 0;
                 if self.cur_row >= self.rle_row_count {
                     break;
                 }
@@ -115,7 +129,7 @@ where
                 rle_count = self.get_cur_rle_count();
             }
         }
-
+        self.row_scanned_count += cnt;
         cnt
     }
 
@@ -123,13 +137,15 @@ where
         let mut cnt = cnt;
         while cnt > 0 {
             let rle_count = self.get_cur_rle_count();
-            let cur_left = rle_count as usize - self.cur_rle_scanned;
+            let cur_left = rle_count as usize - self.cur_scanned_count;
             if cur_left > cnt {
-                self.cur_rle_scanned += cnt;
-                cnt = 0;
+                self.cur_scanned_count += cnt;
+                self.row_scanned_count += cnt;
+                return;
             } else {
                 cnt -= cur_left;
-                self.cur_rle_scanned = 0;
+                self.row_scanned_count += cur_left;
+                self.cur_scanned_count = 0;
                 self.cur_row += 1;
                 self.block_iter.skip(1);
                 if self.cur_row >= self.rle_row_count {
@@ -140,13 +156,7 @@ where
     }
 
     fn remaining_items(&self) -> usize {
-        let mut remaining_items: usize = 0;
-        for cur_row in self.cur_row..self.rle_row_count {
-            let mut rle_buffer = &self.rle_block[cur_row * std::mem::size_of::<u16>()..];
-            let rle_count = rle_buffer.get_u16_le();
-            remaining_items += rle_count as usize;
-        }
-        remaining_items - self.cur_rle_scanned
+        self.row_count - self.row_scanned_count
     }
 }
 
@@ -172,9 +182,9 @@ mod tests {
     #[test]
     fn test_scan_rle_i32() {
         // Test primitive rle block iterator for i32
-        let builder = PlainPrimitiveBlockBuilder::new(0);
+        let builder = PlainPrimitiveBlockBuilder::new(20);
         let mut rle_builder =
-            RleBlockBuilder::<I32Array, PlainPrimitiveBlockBuilder<i32>>::new(builder, 20);
+            RleBlockBuilder::<I32Array, PlainPrimitiveBlockBuilder<i32>>::new(builder);
         for item in [Some(&1)].iter().cycle().cloned().take(3) {
             rle_builder.append(item);
         }
@@ -217,9 +227,9 @@ mod tests {
     #[test]
     fn test_scan_rle_nullable_i32() {
         // Test primitive nullable rle block iterator for i32
-        let builder = PlainPrimitiveNullableBlockBuilder::new(0);
+        let builder = PlainPrimitiveNullableBlockBuilder::new(50);
         let mut rle_builder =
-            RleBlockBuilder::<I32Array, PlainPrimitiveNullableBlockBuilder<i32>>::new(builder, 70);
+            RleBlockBuilder::<I32Array, PlainPrimitiveNullableBlockBuilder<i32>>::new(builder);
         for item in [None].iter().cycle().cloned().take(3) {
             rle_builder.append(item);
         }
@@ -277,9 +287,8 @@ mod tests {
 
     #[test]
     fn test_scan_rle_char() {
-        let builder = PlainCharBlockBuilder::new(0, 40);
-        let mut rle_builder =
-            RleBlockBuilder::<Utf8Array, PlainCharBlockBuilder>::new(builder, 150);
+        let builder = PlainCharBlockBuilder::new(120, 40);
+        let mut rle_builder = RleBlockBuilder::<Utf8Array, PlainCharBlockBuilder>::new(builder);
 
         let width_40_char = ["2"].iter().cycle().take(40).join("");
 
@@ -334,9 +343,9 @@ mod tests {
     #[test]
     fn test_scan_rle_varchar() {
         // Test rle block iterator for varchar
-        let builder = PlainBlobBlockBuilder::new(0);
+        let builder = PlainBlobBlockBuilder::new(30);
         let mut rle_builder =
-            RleBlockBuilder::<Utf8Array, PlainBlobBlockBuilder<str>>::new(builder, 40);
+            RleBlockBuilder::<Utf8Array, PlainBlobBlockBuilder<str>>::new(builder);
         for item in [Some("233")].iter().cycle().cloned().take(3) {
             rle_builder.append(item);
         }
@@ -384,9 +393,9 @@ mod tests {
     #[test]
     fn test_scan_rle_blob() {
         // Test rle block iterator for blob
-        let builder = PlainBlobBlockBuilder::new(0);
+        let builder = PlainBlobBlockBuilder::new(30);
         let mut rle_builder =
-            RleBlockBuilder::<BlobArray, PlainBlobBlockBuilder<BlobRef>>::new(builder, 40);
+            RleBlockBuilder::<BlobArray, PlainBlobBlockBuilder<BlobRef>>::new(builder);
         for item in [Some(BlobRef::new("233".as_bytes()))]
             .iter()
             .cycle()

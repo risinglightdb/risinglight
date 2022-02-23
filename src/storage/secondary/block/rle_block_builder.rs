@@ -17,48 +17,27 @@ pub struct RleBlockBuilder<A, B>
 where
     A: Array,
     B: BlockBuilder<A>,
+    A::Item: PartialEq,
 {
     block_builder: B,
     rle_counts: Vec<u16>,
     previous_value: Option<<A::Item as ToOwned>::Owned>,
-    target_size: usize,
+    cur_count: u16,
 }
 
 impl<A, B> RleBlockBuilder<A, B>
 where
     A: Array,
     B: BlockBuilder<A>,
+    A::Item: PartialEq,
 {
-    pub fn new(block_builder: B, target_size: usize) -> Self {
+    pub fn new(block_builder: B) -> Self {
         Self {
             block_builder,
             rle_counts: Vec::new(),
             previous_value: None,
-            target_size,
+            cur_count: 0,
         }
-    }
-
-    fn append_inner(&mut self, item: Option<&A::Item>) {
-        self.previous_value = item.map(|x| x.to_owned());
-        self.block_builder.append(item);
-        self.rle_counts.push(1);
-    }
-
-    fn should_append_inner(&self, item: &Option<&A::Item>) -> bool {
-        let len = self.rle_counts.len();
-        if len == 0 {
-            return true;
-        }
-        if let Some(item) = item {
-            if let Some(previous_value) = &self.previous_value {
-                if previous_value.borrow() == *item && self.rle_counts[len - 1] < u16::MAX {
-                    return false;
-                }
-            }
-        } else if self.previous_value.is_none() && self.rle_counts[len - 1] < u16::MAX {
-            return false;
-        }
-        true
     }
 }
 
@@ -66,12 +45,23 @@ impl<A, B> BlockBuilder<A> for RleBlockBuilder<A, B>
 where
     A: Array,
     B: BlockBuilder<A>,
+    A::Item: PartialEq,
 {
     fn append(&mut self, item: Option<&A::Item>) {
-        if self.should_append_inner(&item) {
-            self.append_inner(item);
+        if self.cur_count == 0 {
+            // only happens for the very first append
+            self.previous_value = item.map(|x| x.to_owned());
+            self.block_builder.append(item);
+            self.cur_count = 1;
+            return;
+        }
+        if item != self.previous_value.as_ref().map(|x| x.borrow()) || self.cur_count == u16::MAX {
+            self.previous_value = item.map(|x| x.to_owned());
+            self.block_builder.append(item);
+            self.rle_counts.push(self.cur_count);
+            self.cur_count = 1;
         } else {
-            *self.rle_counts.last_mut().unwrap() += 1;
+            self.cur_count += 1;
         }
     }
 
@@ -79,27 +69,24 @@ where
         self.block_builder.estimated_size()
             + self.rle_counts.len() * std::mem::size_of::<u16>()
             + std::mem::size_of::<u32>()
-    }
-
-    fn size_to_append(&self, item: &Option<&A::Item>) -> usize {
-        if self.should_append_inner(item) {
-            self.block_builder.size_to_append(item) + std::mem::size_of::<u16>()
-        } else {
-            0
-        }
+            + (self.cur_count != 0) as usize * std::mem::size_of::<u16>()
     }
 
     fn should_finish(&self, next_item: &Option<&A::Item>) -> bool {
-        !self.rle_counts.is_empty()
-            && self.estimated_size() + self.size_to_append(next_item) > self.target_size
+        self.block_builder.should_finish(next_item)
     }
 
     fn get_statistics(&self) -> Vec<BlockStatistics> {
         self.block_builder.get_statistics()
     }
 
-    fn finish(self) -> Vec<u8> {
+    fn finish(mut self) -> Vec<u8> {
         let mut encoded_data: Vec<u8> = vec![];
+        if self.cur_count == 0 {
+            // No data at all
+            return encoded_data;
+        }
+        self.rle_counts.push(self.cur_count);
         encoded_data.put_u32_le(self.rle_counts.len() as u32);
         for count in self.rle_counts {
             encoded_data.put_u16_le(count);
@@ -124,10 +111,9 @@ mod tests {
     #[test]
     fn test_build_rle_primitive_i32() {
         // Test primitive rle block builder for i32
-        let builder = PlainPrimitiveBlockBuilder::new(0);
+        let builder = PlainPrimitiveBlockBuilder::new(14);
         let mut rle_builder =
-            RleBlockBuilder::<I32Array, PlainPrimitiveBlockBuilder<i32>>::new(builder, 22);
-        assert_eq!(rle_builder.size_to_append(&None), 6);
+            RleBlockBuilder::<I32Array, PlainPrimitiveBlockBuilder<i32>>::new(builder);
         for item in [Some(&1)].iter().cycle().cloned().take(30) {
             rle_builder.append(item);
         }
@@ -138,7 +124,7 @@ mod tests {
             rle_builder.append(item);
         }
         assert_eq!(rle_builder.estimated_size(), 4 * 3 + 2 * 3 + 4);
-        assert!(!rle_builder.should_finish(&Some(&3)));
+        assert!(rle_builder.should_finish(&Some(&3)));
         assert!(rle_builder.should_finish(&Some(&4)));
         rle_builder.finish();
     }
@@ -146,9 +132,9 @@ mod tests {
     #[test]
     fn test_build_rle_primitive_nullable_i32() {
         // Test primitive nullable rle block builder for i32
-        let builder = PlainPrimitiveNullableBlockBuilder::new(0);
+        let builder = PlainPrimitiveNullableBlockBuilder::new(48);
         let mut rle_builder =
-            RleBlockBuilder::<I32Array, PlainPrimitiveNullableBlockBuilder<i32>>::new(builder, 72);
+            RleBlockBuilder::<I32Array, PlainPrimitiveNullableBlockBuilder<i32>>::new(builder);
         for item in [None].iter().cycle().cloned().take(30) {
             rle_builder.append(item);
         }
@@ -192,9 +178,8 @@ mod tests {
     #[test]
     fn test_build_rle_char() {
         // Test rle block builder for char
-        let builder = PlainCharBlockBuilder::new(0, 40);
-        let mut rle_builder =
-            RleBlockBuilder::<Utf8Array, PlainCharBlockBuilder>::new(builder, 150);
+        let builder = PlainCharBlockBuilder::new(120, 40);
+        let mut rle_builder = RleBlockBuilder::<Utf8Array, PlainCharBlockBuilder>::new(builder);
 
         let width_40_char = ["2"].iter().cycle().take(40).join("");
 
@@ -208,7 +193,8 @@ mod tests {
             rle_builder.append(item);
         }
         assert_eq!(rle_builder.estimated_size(), 40 * 3 + 2 * 3 + 4);
-        assert!(!rle_builder.should_finish(&Some(&width_40_char[..])));
+        assert!(rle_builder.should_finish(&Some(&width_40_char[..])));
+        // should_finish is not very accurate
         assert!(rle_builder.should_finish(&Some("2333333")));
         rle_builder.finish();
     }
@@ -216,9 +202,9 @@ mod tests {
     #[test]
     fn test_build_rle_varchar() {
         // Test rle block builder for varchar
-        let builder = PlainBlobBlockBuilder::new(0);
+        let builder = PlainBlobBlockBuilder::new(30);
         let mut rle_builder =
-            RleBlockBuilder::<Utf8Array, PlainBlobBlockBuilder<str>>::new(builder, 40);
+            RleBlockBuilder::<Utf8Array, PlainBlobBlockBuilder<str>>::new(builder);
         for item in [Some("233")].iter().cycle().cloned().take(30) {
             rle_builder.append(item);
         }
@@ -229,8 +215,9 @@ mod tests {
             rle_builder.append(item);
         }
         assert_eq!(rle_builder.estimated_size(), 15 + 4 * 3 + 2 * 3 + 4); // 37
+        assert!(rle_builder.should_finish(&Some("2333333")));
+        // should_finish is not very accurate
         assert!(rle_builder.should_finish(&Some("23333333")));
-        assert!(!rle_builder.should_finish(&Some("2333333")));
         rle_builder.finish();
     }
 }

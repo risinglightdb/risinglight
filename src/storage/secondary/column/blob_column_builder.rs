@@ -68,13 +68,12 @@ impl ColumnBuilder<BlobArray> for BlobColumnBuilder {
         while iter.peek().is_some() {
             if self.current_builder.is_none() {
                 if self.options.is_rle {
-                    let builder = PlainBlobBlockBuilder::new(0);
+                    let builder = PlainBlobBlockBuilder::new(self.options.target_block_size - 16);
                     self.current_builder = Some(BlobBlockBuilderImpl::RleBlob(RleBlockBuilder::<
                         BlobArray,
                         PlainBlobBlockBuilder<BlobRef>,
                     >::new(
-                        builder,
-                        self.options.target_block_size - 16,
+                        builder
                     )));
                 } else {
                     self.current_builder = Some(BlobBlockBuilderImpl::PlainBlob(

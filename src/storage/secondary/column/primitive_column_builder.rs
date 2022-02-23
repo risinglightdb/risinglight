@@ -123,37 +123,42 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
 
         while iter.peek().is_some() {
             if self.current_builder.is_none() {
-                if self.nullable {
-                    if self.options.is_rle {
-                        let builder = PlainPrimitiveNullableBlockBuilder::new(0);
+                match (self.nullable, self.options.is_rle) {
+                    (true, true) => {
+                        let builder = PlainPrimitiveNullableBlockBuilder::new(
+                            self.options.target_block_size - 16,
+                        );
                         self.current_builder =
                             Some(BlockBuilderImpl::RleNullable(RleBlockBuilder::<
                                 T::ArrayType,
                                 PlainPrimitiveNullableBlockBuilder<T>,
                             >::new(
-                                builder,
-                                self.options.target_block_size - 16,
+                                builder
                             )));
-                    } else {
+                    }
+                    (true, false) => {
                         self.current_builder = Some(BlockBuilderImpl::PlainNullable(
                             PlainPrimitiveNullableBlockBuilder::new(
                                 self.options.target_block_size - 16,
                             ),
                         ));
                     }
-                } else if self.options.is_rle {
-                    let builder = PlainPrimitiveBlockBuilder::new(0);
-                    self.current_builder = Some(BlockBuilderImpl::RunLength(RleBlockBuilder::<
-                        T::ArrayType,
-                        PlainPrimitiveBlockBuilder<T>,
-                    >::new(
-                        builder,
-                        self.options.target_block_size - 16,
-                    )));
-                } else {
-                    self.current_builder = Some(BlockBuilderImpl::Plain(
-                        PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16),
-                    ));
+                    (false, true) => {
+                        let builder =
+                            PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16);
+                        self.current_builder =
+                            Some(BlockBuilderImpl::RunLength(RleBlockBuilder::<
+                                T::ArrayType,
+                                PlainPrimitiveBlockBuilder<T>,
+                            >::new(
+                                builder
+                            )));
+                    }
+                    (false, false) => {
+                        self.current_builder = Some(BlockBuilderImpl::Plain(
+                            PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16),
+                        ));
+                    }
                 }
             }
 
@@ -262,7 +267,7 @@ mod tests {
 
     #[test]
     fn test_rle_i32_column_builder() {
-        let distinct_item_each_block = (128 - 16 - 4) / 6;
+        let distinct_item_each_block = (128 - 16) / 4;
 
         let mut builder =
             I32ColumnBuilder::new(true, ColumnBuilderOptions::default_for_rle_block_test());
