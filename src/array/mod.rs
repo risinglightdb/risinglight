@@ -10,11 +10,13 @@ use rust_decimal::Decimal;
 use crate::types::{Blob, ConvertError, DataType, DataValue, Date, Interval, PhysicalDataTypeKind};
 
 mod data_chunk;
+mod data_chunk_builder;
 mod iterator;
 mod primitive_array;
 mod utf8_array;
 
 pub use self::data_chunk::*;
+pub use self::data_chunk_builder::*;
 pub use self::iterator::ArrayIter;
 pub use self::primitive_array::*;
 pub use self::utf8_array::*;
@@ -47,14 +49,22 @@ pub trait ArrayBuilder: Sized + Send + Sync + 'static {
     /// Create a new builder with `capacity`.
     fn with_capacity(capacity: usize) -> Self;
 
+    /// Reserve at least `capacity` values.
+    fn reserve(&mut self, capacity: usize);
+
     /// Append a value to builder.
     fn push(&mut self, value: Option<&<Self::Array as Array>::Item>);
 
     /// Append an array to builder.
     fn append(&mut self, other: &Self::Array);
 
+    /// Take all elements and return a new array.
+    fn take(&mut self) -> Self::Array;
+
     /// Finish build and return a new array.
-    fn finish(self) -> Self::Array;
+    fn finish(mut self) -> Self::Array {
+        self.take()
+    }
 }
 
 /// A trait over all array.
@@ -150,7 +160,7 @@ pub enum ArrayImpl {
     Bool(BoolArray),
     // Int16(PrimitiveArray<i16>),
     Int32(I32Array),
-    Int64(PrimitiveArray<i64>),
+    Int64(I64Array),
     // Float32(PrimitiveArray<f32>),
     Float64(F64Array),
     Utf8(Utf8Array),
@@ -173,7 +183,7 @@ pub enum ArrayBuilderImpl {
     Bool(BoolArrayBuilder),
     // Int16(PrimitiveArrayBuilder<i16>),
     Int32(I32ArrayBuilder),
-    Int64(PrimitiveArrayBuilder<i64>),
+    Int64(I64ArrayBuilder),
     // Float32(PrimitiveArrayBuilder<f32>),
     Float64(F64ArrayBuilder),
     Utf8(Utf8ArrayBuilder),
@@ -288,6 +298,15 @@ for_all_variants! { impl_from }
 macro_rules! impl_array_builder {
     ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident } ),*) => {
         impl ArrayBuilderImpl {
+            /// Reserve at least `capacity` values.
+            pub fn reserve(&mut self, capacity: usize) {
+                match self {
+                    $(
+                        ArrayBuilderImpl::$Abc(a) => a.reserve(capacity),
+                    )*
+                }
+            }
+
             /// Create a new array builder with the same type of given array.
             pub fn from_type_of_array(array: &ArrayImpl) -> Self {
                 match array {
@@ -314,6 +333,14 @@ macro_rules! impl_array_builder {
                         (Self::$Abc(a), DataValue::Null) => a.push(None),
                     )*
                     _ => panic!("failed to push value: type mismatch"),
+                }
+            }
+
+            pub fn take(&mut self) -> ArrayImpl {
+                match self {
+                    $(
+                        Self::$Abc(a) => ArrayImpl::$Abc(a.take()),
+                    )*
                 }
             }
 

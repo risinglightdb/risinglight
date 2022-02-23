@@ -79,6 +79,7 @@ pub type PrimitiveColumnIterator<T> = ConcreteColumnIterator<
 >;
 
 pub type I32ColumnIterator = PrimitiveColumnIterator<i32>;
+pub type I64ColumnIterator = PrimitiveColumnIterator<i64>;
 pub type F64ColumnIterator = PrimitiveColumnIterator<f64>;
 pub type BoolColumnIterator = PrimitiveColumnIterator<bool>;
 pub type DecimalColumnIterator = PrimitiveColumnIterator<Decimal>;

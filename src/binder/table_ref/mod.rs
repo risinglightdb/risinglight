@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use super::BoundExpr::*;
 use super::*;
+use crate::catalog::INTERNAL_SCHEMA_NAME;
 use crate::parser::{JoinConstraint, JoinOperator, TableFactor, TableWithJoins};
 use crate::types::DataValue::Bool;
 
@@ -24,6 +25,7 @@ pub enum BoundTableRef {
         table_name: String,
         column_ids: Vec<ColumnId>,
         column_descs: Vec<ColumnDesc>,
+        is_internal: bool,
     },
     JoinTableRef {
         relation: Box<BoundTableRef>,
@@ -142,6 +144,7 @@ impl Binder {
             table_name: table_name.into(),
             column_ids: vec![],
             column_descs: vec![],
+            is_internal: schema_name == INTERNAL_SCHEMA_NAME,
         };
         self.base_table_refs.push(table_name.into());
         Ok(base_table_ref)

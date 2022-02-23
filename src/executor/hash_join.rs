@@ -6,7 +6,7 @@ use std::vec::Vec;
 use futures::TryStreamExt;
 
 use super::*;
-use crate::array::{ArrayBuilderImpl, DataChunk, RowRef};
+use crate::array::{DataChunk, DataChunkBuilder, RowRef};
 use crate::binder::{BoundExpr, BoundJoinOperator};
 use crate::types::{DataType, DataValue};
 
@@ -49,17 +49,16 @@ impl HashJoinExecutor {
                 .push(left_row);
         }
 
+        let data_types = self.left_types.iter().chain(self.right_types.iter());
+        let mut builder = DataChunkBuilder::new(data_types, PROCESSING_WINDOW_SIZE);
+
         // probe
-        let mut builders = (self.left_types.iter())
-            .chain(self.right_types.iter())
-            .map(|ty| ArrayBuilderImpl::with_capacity(PROCESSING_WINDOW_SIZE, ty))
-            .collect_vec();
         for right_row in right_rows() {
             let hash_value = right_row.get_by_indexes(&self.right_column_indexes);
             for left_row in hash_map.get(&hash_value).unwrap_or(&vec![]) {
                 let values = left_row.values().chain(right_row.values());
-                for (builder, v) in builders.iter_mut().zip_eq(values) {
-                    builder.push(&v);
+                if let Some(chunk) = builder.push_row(values) {
+                    yield chunk;
                 }
             }
         }
@@ -80,8 +79,8 @@ impl HashJoinExecutor {
                 // append row: (left, NULL)
                 let values =
                     (left_row.values()).chain(self.right_types.iter().map(|_| DataValue::Null));
-                for (builder, v) in builders.iter_mut().zip_eq(values) {
-                    builder.push(&v);
+                if let Some(chunk) = builder.push_row(values) {
+                    yield chunk;
                 }
             }
         }
@@ -99,12 +98,14 @@ impl HashJoinExecutor {
                 // append row: (NULL, right)
                 let values =
                     (self.left_types.iter().map(|_| DataValue::Null)).chain(right_row.values());
-                for (builder, v) in builders.iter_mut().zip_eq(values) {
-                    builder.push(&v);
+                if let Some(chunk) = builder.push_row(values) {
+                    yield chunk;
                 }
             }
         }
 
-        yield builders.into_iter().collect();
+        if let Some(chunk) = { builder }.take() {
+            yield chunk;
+        }
     }
 }

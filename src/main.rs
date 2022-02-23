@@ -2,9 +2,11 @@
 
 //! A simple interactive shell of the database.
 
+#![feature(div_duration)]
+
 use std::fs::File;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -13,6 +15,7 @@ use humantime::format_duration;
 use risinglight::array::{datachunk_to_sqllogictest_string, Chunk};
 use risinglight::executor::context::Context;
 use risinglight::storage::SecondaryStorageOptions;
+use risinglight::utils::time::RoundingDuration;
 use risinglight::Database;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
@@ -72,6 +75,20 @@ fn print_chunk(chunk: &Chunk, output_format: &Option<String>) {
     }
 }
 
+fn print_execution_time(start_time: Instant) {
+    let duration = start_time.elapsed();
+    let duration_in_seconds = duration.div_duration_f64(Duration::new(1, 0));
+    if duration_in_seconds > 1.0 {
+        println!(
+            "in {:.3}s ({})",
+            duration_in_seconds,
+            format_duration(duration.round_to_seconds())
+        );
+    } else {
+        println!("in {:.3}s", duration_in_seconds);
+    }
+}
+
 async fn run_query_in_background(db: Arc<Database>, sql: String, output_format: Option<String>) {
     let context: Arc<Context> = Default::default();
     let start_time = Instant::now();
@@ -91,13 +108,13 @@ async fn run_query_in_background(db: Arc<Database>, sql: String, output_format: 
                     for chunk in chunks {
                         print_chunk(&chunk, &output_format)
                     }
+
+                    print_execution_time(start_time)
                 }
                 Err(err) => println!("{}", err),
             }
         }
     }
-    let duration = start_time.elapsed();
-    println!("in {}", format_duration(duration));
 
     // Wait detached tasks if cancelled, or do nothing if query ends.
     // Leak is guaranteed not to happen as long as all handles are joined
@@ -130,8 +147,10 @@ async fn interactive(db: Database, output_format: Option<String>) -> Result<()> 
         let readline = rl.readline("> ");
         match readline {
             Ok(line) => {
-                rl.add_history_entry(line.as_str());
-                run_query_in_background(db.clone(), line, output_format.clone()).await;
+                if !line.trim().is_empty() {
+                    rl.add_history_entry(line.as_str());
+                    run_query_in_background(db.clone(), line, output_format.clone()).await;
+                }
             }
             Err(ReadlineError::Interrupted) => {
                 println!("Interrupted");

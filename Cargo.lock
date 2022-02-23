@@ -1832,7 +1832,7 @@ dependencies = [
 [[package]]
 name = "sqllogictest"
 version = "0.2.0"
-source = "git+https://github.com/singularity-data/sqllogictest-rs?rev=21357d4#21357d442785fba8d501cd8e006c8ebef1f36781"
+source = "git+https://github.com/risinglightdb/sqllogictest-rs?rev=21357d4#21357d442785fba8d501cd8e006c8ebef1f36781"
 dependencies = [
  "async-trait",
  "futures-lite",
