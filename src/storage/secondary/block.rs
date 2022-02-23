@@ -12,6 +12,8 @@ mod primitive_block_builder;
 mod primitive_block_iterator;
 mod primitive_nullable_block_builder;
 mod primitive_nullable_block_iterator;
+mod rle_block_builder;
+mod rle_block_iterator;
 
 pub use blob_block_builder::*;
 pub use blob_block_iterator::*;
@@ -24,6 +26,8 @@ use risinglight_proto::rowset::BlockStatistics;
 mod char_block_iterator;
 pub use char_block_iterator::*;
 pub use primitive_nullable_block_iterator::*;
+pub use rle_block_builder::*;
+pub use rle_block_iterator::*;
 mod block_index_builder;
 pub use block_index_builder::*;
 use bytes::{Buf, BufMut, Bytes};
@@ -53,7 +57,7 @@ pub trait BlockBuilder<A: Array> {
     /// Get estimated size of block. Will be useful on runlength or compression encoding.
     fn estimated_size(&self) -> usize;
 
-    /// Get distinct values count of block
+    /// Get statistics of block
     fn get_statistics(&self) -> Vec<BlockStatistics>;
 
     /// Check if we should finish the current block. If there is no item in the current

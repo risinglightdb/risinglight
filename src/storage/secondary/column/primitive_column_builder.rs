@@ -12,12 +12,15 @@ use super::super::{
 };
 use super::ColumnBuilder;
 use crate::array::Array;
+use crate::storage::secondary::block::RleBlockBuilder;
 use crate::types::{Date, Interval};
 
 /// All supported block builders for primitive types.
 pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
     Plain(PlainPrimitiveBlockBuilder<T>),
     PlainNullable(PlainPrimitiveNullableBlockBuilder<T>),
+    RunLength(RleBlockBuilder<T::ArrayType, PlainPrimitiveBlockBuilder<T>>),
+    RleNullable(RleBlockBuilder<T::ArrayType, PlainPrimitiveNullableBlockBuilder<T>>),
 }
 
 pub type I32ColumnBuilder = PrimitiveColumnBuilder<i32>;
@@ -69,6 +72,16 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
                 builder.get_statistics(),
                 builder.finish(),
             ),
+            BlockBuilderImpl::RunLength(builder) => (
+                BlockType::RunLength,
+                builder.get_statistics(),
+                builder.finish(),
+            ),
+            BlockBuilderImpl::RleNullable(builder) => (
+                BlockType::RleNullable,
+                builder.get_statistics(),
+                builder.finish(),
+            ),
         };
 
         self.block_index_builder
@@ -111,22 +124,50 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
 
         while iter.peek().is_some() {
             if self.current_builder.is_none() {
-                if self.nullable {
-                    self.current_builder = Some(BlockBuilderImpl::PlainNullable(
-                        PlainPrimitiveNullableBlockBuilder::new(
+                match (self.nullable, self.options.is_rle) {
+                    (true, true) => {
+                        let builder = PlainPrimitiveNullableBlockBuilder::new(
                             self.options.target_block_size - 16,
-                        ),
-                    ));
-                } else {
-                    self.current_builder = Some(BlockBuilderImpl::Plain(
-                        PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16),
-                    ));
+                        );
+                        self.current_builder =
+                            Some(BlockBuilderImpl::RleNullable(RleBlockBuilder::<
+                                T::ArrayType,
+                                PlainPrimitiveNullableBlockBuilder<T>,
+                            >::new(
+                                builder
+                            )));
+                    }
+                    (true, false) => {
+                        self.current_builder = Some(BlockBuilderImpl::PlainNullable(
+                            PlainPrimitiveNullableBlockBuilder::new(
+                                self.options.target_block_size - 16,
+                            ),
+                        ));
+                    }
+                    (false, true) => {
+                        let builder =
+                            PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16);
+                        self.current_builder =
+                            Some(BlockBuilderImpl::RunLength(RleBlockBuilder::<
+                                T::ArrayType,
+                                PlainPrimitiveBlockBuilder<T>,
+                            >::new(
+                                builder
+                            )));
+                    }
+                    (false, false) => {
+                        self.current_builder = Some(BlockBuilderImpl::Plain(
+                            PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16),
+                        ));
+                    }
                 }
             }
 
             let (row_count, should_finish) = match self.current_builder.as_mut().unwrap() {
                 BlockBuilderImpl::Plain(builder) => append_one_by_one(&mut iter, builder),
                 BlockBuilderImpl::PlainNullable(builder) => append_one_by_one(&mut iter, builder),
+                BlockBuilderImpl::RunLength(builder) => append_one_by_one(&mut iter, builder),
+                BlockBuilderImpl::RleNullable(builder) => append_one_by_one(&mut iter, builder),
             };
 
             self.block_index_builder.add_rows(row_count);
@@ -223,5 +264,19 @@ mod tests {
             ));
         }
         builder.finish();
+    }
+
+    #[test]
+    fn test_rle_i32_column_builder() {
+        let distinct_item_each_block = (128 - 16) / 4;
+
+        let mut builder =
+            I32ColumnBuilder::new(true, ColumnBuilderOptions::default_for_rle_block_test());
+        for num in 0..(distinct_item_each_block + 1) {
+            builder.append(&I32Array::from_iter(
+                [Some(num)].iter().cycle().cloned().take(23),
+            ));
+        }
+        assert_eq!(builder.finish().0.len(), 2);
     }
 }
