@@ -2,6 +2,7 @@
 
 use std::iter::FromIterator;
 use std::marker::PhantomData;
+use std::mem;
 
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
@@ -103,6 +104,14 @@ impl<T: ValueRef + ?Sized> ArrayBuilder for BytesArrayBuilder<T> {
         }
     }
 
+    fn reserve(&mut self, capacity: usize) {
+        self.offset.reserve(capacity + 1);
+        self.valid.reserve(capacity);
+        // For variable-length values, we cannot know the exact size of the value.
+        // Therefore, we reserve `capacity` here, but it may overflow during use.
+        self.data.reserve(capacity);
+    }
+
     fn push(&mut self, value: Option<&T>) {
         self.valid.push(value.is_some());
         if let Some(x) = value {
@@ -120,11 +129,11 @@ impl<T: ValueRef + ?Sized> ArrayBuilder for BytesArrayBuilder<T> {
         }
     }
 
-    fn finish(self) -> BytesArray<T> {
+    fn take(&mut self) -> BytesArray<T> {
         BytesArray {
-            valid: self.valid,
-            data: self.data,
-            offset: self.offset,
+            valid: mem::take(&mut self.valid),
+            data: mem::take(&mut self.data),
+            offset: mem::replace(&mut self.offset, vec![0]),
             _type: PhantomData,
         }
     }
