@@ -60,4 +60,10 @@ jobs:
         with:
           profile: minimal
       - name: Run TPC-H test
-        run: sudo -E ./tests/tpch-full.sh
+        run: |
+          rm -rf risinglight.secondary.db
+          make tpch
+          cargo build --release
+          sudo ./target/release/risinglight -f tests/sql/tpch/create.sql
+          sudo ./target/release/risinglight -f tests/sql/tpch/import.sql
+          sudo ./target/release/risinglight -f tests/sql/tpch-full/_tpch_full.slt
