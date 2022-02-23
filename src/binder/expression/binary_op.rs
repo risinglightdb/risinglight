@@ -57,6 +57,7 @@ impl Binder {
                     // Insert type cast expr
                     match (left_physical_kind, right_physical_kind) {
                         (Float64 | Decimal, Int32 | Int64)
+                        | (Int64, Int32)
                         | (Date, String)
                         | (Decimal, Float64) => {
                             right_bound_expr = BoundExpr::TypeCast(BoundTypeCast {
@@ -65,6 +66,7 @@ impl Binder {
                             });
                         }
                         (Int32 | Int64, Float64 | Decimal)
+                        | (Int32, Int64)
                         | (String, Date)
                         | (Float64, Decimal) => {
                             left_bound_expr = BoundExpr::TypeCast(BoundTypeCast {

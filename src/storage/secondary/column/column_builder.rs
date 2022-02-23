@@ -6,7 +6,7 @@ use super::super::ColumnBuilderOptions;
 use super::blob_column_builder::BlobColumnBuilder;
 use super::char_column_builder::CharColumnBuilder;
 use super::primitive_column_builder::{
-    DateColumnBuilder, DecimalColumnBuilder, F64ColumnBuilder, I32ColumnBuilder,
+    DateColumnBuilder, DecimalColumnBuilder, F64ColumnBuilder, I32ColumnBuilder, I64ColumnBuilder,
 };
 use super::{BoolColumnBuilder, ColumnBuilder};
 use crate::array::ArrayImpl;
@@ -16,6 +16,7 @@ use crate::types::{DataType, DataTypeKind};
 /// [`ColumnBuilder`] of all types
 pub enum ColumnBuilderImpl {
     Int32(I32ColumnBuilder),
+    Int64(I64ColumnBuilder),
     Float64(F64ColumnBuilder),
     Bool(BoolColumnBuilder),
     Utf8(CharColumnBuilder),
@@ -30,6 +31,9 @@ impl ColumnBuilderImpl {
         match datatype.kind() {
             DataTypeKind::Int(_) => {
                 Self::Int32(I32ColumnBuilder::new(datatype.is_nullable(), options))
+            }
+            DataTypeKind::BigInt(_) => {
+                Self::Int64(I64ColumnBuilder::new(datatype.is_nullable(), options))
             }
             DataTypeKind::Boolean => {
                 Self::Bool(BoolColumnBuilder::new(datatype.is_nullable(), options))
@@ -67,6 +71,7 @@ impl ColumnBuilderImpl {
     pub fn append(&mut self, array: &ArrayImpl) {
         match (self, array) {
             (Self::Int32(builder), ArrayImpl::Int32(array)) => builder.append(array),
+            (Self::Int64(builder), ArrayImpl::Int64(array)) => builder.append(array),
             (Self::Bool(builder), ArrayImpl::Bool(array)) => builder.append(array),
             (Self::Float64(builder), ArrayImpl::Float64(array)) => builder.append(array),
             (Self::Utf8(builder), ArrayImpl::Utf8(array)) => builder.append(array),
@@ -81,6 +86,7 @@ impl ColumnBuilderImpl {
     pub fn finish(self) -> (Vec<BlockIndex>, Vec<u8>) {
         match self {
             Self::Int32(builder) => builder.finish(),
+            Self::Int64(builder) => builder.finish(),
             Self::Bool(builder) => builder.finish(),
             Self::Float64(builder) => builder.finish(),
             Self::Utf8(builder) => builder.finish(),

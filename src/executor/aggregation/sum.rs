@@ -34,6 +34,7 @@ macro_rules! sum_func_gen {
 }
 
 sum_func_gen!(sum_i32, i32, i32);
+sum_func_gen!(sum_i64, i64, i64);
 sum_func_gen!(sum_f64, f64, f64);
 sum_func_gen!(sum_decimal, Decimal, Decimal);
 
@@ -59,6 +60,28 @@ impl AggregationState for SumAggregationState {
                     self.result = match self.result {
                         DataValue::Null => DataValue::Int32(val),
                         DataValue::Int32(res) => DataValue::Int32(res + val),
+                        _ => panic!("Mismatched type"),
+                    }
+                }
+            }
+            (ArrayImpl::Int64(arr), DataTypeKind::BigInt(_)) => {
+                let mut temp: Option<i64> = None;
+                #[cfg(feature = "simd")]
+                {
+                    use crate::array::ArrayValidExt;
+                    let bitmap = arr.get_valid_bitmap();
+                    if bitmap.any() {
+                        temp = Some(arr.batch_iter::<64>().sum());
+                    }
+                }
+                #[cfg(not(feature = "simd"))]
+                {
+                    temp = arr.iter().fold(temp, sum_i64);
+                }
+                if let Some(val) = temp {
+                    self.result = match self.result {
+                        DataValue::Null => DataValue::Int64(val),
+                        DataValue::Int64(res) => DataValue::Int64(res + val),
                         _ => panic!("Mismatched type"),
                     }
                 }
@@ -110,6 +133,13 @@ impl AggregationState for SumAggregationState {
                     _ => panic!("Mismatched type"),
                 }
             }
+            (DataValue::Int64(val), DataTypeKind::BigInt(_)) => {
+                self.result = match self.result {
+                    DataValue::Null => DataValue::Int64(*val),
+                    DataValue::Int64(res) => DataValue::Int64(res + val),
+                    _ => panic!("Mismatched type"),
+                }
+            }
             (DataValue::Float64(val), DataTypeKind::Double) => {
                 self.result = match self.result {
                     DataValue::Null => DataValue::Float64(*val),
@@ -144,6 +174,11 @@ mod tests {
         let array = ArrayImpl::Int32((1..5).collect());
         state.update(&array).unwrap();
         assert_eq!(state.output(), DataValue::Int32(10));
+
+        let mut state = SumAggregationState::new(DataTypeKind::BigInt(None));
+        let array = ArrayImpl::Int64((1..5).collect());
+        state.update(&array).unwrap();
+        assert_eq!(state.output(), DataValue::Int64(10));
 
         let mut state = SumAggregationState::new(DataTypeKind::Double);
         let array = ArrayImpl::Float64([0.1, 0.2, 0.3, 0.4].into_iter().collect());

@@ -35,6 +35,8 @@ macro_rules! min_max_func_gen {
 
 min_max_func_gen!(min_i32, i32, i32, min);
 min_max_func_gen!(max_i32, i32, i32, max);
+min_max_func_gen!(min_i64, i64, i64, min);
+min_max_func_gen!(max_i64, i64, i64, max);
 // TODO: To support min and max on `f64`, we should implement std::cmp::Ord for `f64`
 
 impl AggregationState for MinMaxAggregationState {
@@ -53,6 +55,19 @@ impl AggregationState for MinMaxAggregationState {
                     };
                 }
             }
+            (ArrayImpl::Int64(arr), DataTypeKind::BigInt(_)) => {
+                let temp = arr
+                    .iter()
+                    .fold(None, if self.is_min { min_i64 } else { max_i64 });
+                if let Some(val) = temp {
+                    self.result = match self.result {
+                        DataValue::Null => DataValue::Int64(val),
+                        DataValue::Int64(res) if self.is_min => DataValue::Int64(res.min(val)),
+                        DataValue::Int64(res) => DataValue::Int64(res.max(val)),
+                        _ => panic!("Mismatched type"),
+                    };
+                }
+            }
             _ => panic!("Mismatched type"),
         }
         Ok(())
@@ -65,6 +80,14 @@ impl AggregationState for MinMaxAggregationState {
                     DataValue::Null => DataValue::Int32(*val),
                     DataValue::Int32(res) if self.is_min => DataValue::Int32(res.min(*val)),
                     DataValue::Int32(res) => DataValue::Int32(res.max(*val)),
+                    _ => panic!("Mismatched type"),
+                };
+            }
+            (DataValue::Int64(val), DataTypeKind::BigInt(_)) => {
+                self.result = match self.result {
+                    DataValue::Null => DataValue::Int64(*val),
+                    DataValue::Int64(res) if self.is_min => DataValue::Int64(res.min(*val)),
+                    DataValue::Int64(res) => DataValue::Int64(res.max(*val)),
                     _ => panic!("Mismatched type"),
                 };
             }

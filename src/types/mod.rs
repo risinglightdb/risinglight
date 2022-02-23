@@ -191,6 +191,7 @@ macro_rules! impl_arith_for_datavalue {
                 use DataValue::*;
                 match (self, rhs) {
                     (&Int32(x), &Int32(y)) => Int32(x.$name(y)),
+                    (&Int64(x), &Int64(y)) => Int64(x.$name(y)),
                     (&Float64(x), &Float64(y)) => Float64(x.$name(y)),
                     (&Decimal(x), &Decimal(y)) => Decimal(x.$name(y)),
                     (&Date(x), &Interval(y)) => Date(x.$name(y)),
@@ -217,6 +218,7 @@ impl DataValue {
         use DataValue::*;
         match (self, other) {
             (&Int32(x), &Int32(y)) => y != 0 && x % y == 0,
+            (&Int64(x), &Int64(y)) => y != 0 && x % y == 0,
             (&Float64(x), &Float64(y)) => y != 0.0 && x % y == 0.0,
             (&Decimal(x), &Decimal(y)) => {
                 y != rust_decimal::Decimal::from_str("0.0").unwrap()
@@ -325,6 +327,8 @@ pub enum ConvertError {
     FromIntervalError(DataTypeKind),
     #[error("failed to cast {0} to type {1}")]
     Cast(String, &'static str),
+    #[error("constant {0:?} overflows {1:?}")]
+    Overflow(DataValue, DataTypeKind),
 }
 
 /// memory table row type
