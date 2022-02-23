@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use indoc::indoc;
 use serde::Serialize;
 
 use super::*;
@@ -44,6 +45,12 @@ impl PlanNode for PhysicalOrder {
 }
 impl fmt::Display for PhysicalOrder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "PhysicalOrder: {:?}", self.logical().comparators())
+        writeln!(
+            f,
+            indoc! {"
+                PhysicalOrder:
+                  {:?}"},
+            self.logical().comparators()
+        )
     }
 }
