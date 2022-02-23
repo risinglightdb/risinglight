@@ -38,7 +38,6 @@ impl HashJoinExecutor {
         // helper functions
         let left_rows = || left_chunks.iter().flat_map(|chunk| chunk.rows());
         let right_rows = || right_chunks.iter().flat_map(|chunk| chunk.rows());
-        let data_types = || self.left_types.iter().chain(self.right_types.iter());
 
         // build
         let mut hash_map: HashMap<Vec<DataValue>, Vec<RowRef<'_>>> = HashMap::new();
@@ -50,7 +49,8 @@ impl HashJoinExecutor {
                 .push(left_row);
         }
 
-        let mut builder = DataChunkBuilder::new(data_types(), PROCESSING_WINDOW_SIZE);
+        let data_types = self.left_types.iter().chain(self.right_types.iter());
+        let mut builder = DataChunkBuilder::new(data_types, PROCESSING_WINDOW_SIZE);
 
         // probe
         for right_row in right_rows() {
