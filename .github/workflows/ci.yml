@@ -60,4 +60,4 @@ jobs:
         with:
           profile: minimal
       - name: Run TPC-H test
-        run: ./tests/tpch-full.sh
+        run: sudo ./tests/tpch-full.sh
