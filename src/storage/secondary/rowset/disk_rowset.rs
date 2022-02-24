@@ -194,6 +194,51 @@ pub mod tests {
         .unwrap()
     }
 
+    pub async fn helper_build_rle_rowset(
+        tempdir: &TempDir,
+        nullable: bool,
+        len: usize,
+    ) -> DiskRowset {
+        let columns = vec![ColumnCatalog::new(
+            0,
+            if nullable {
+                DataTypeKind::Int(None)
+                    .nullable()
+                    .to_column("v1".to_string())
+            } else {
+                DataTypeKind::Int(None)
+                    .not_null()
+                    .to_column("v1".to_string())
+            },
+        )];
+        let mut column_options = ColumnBuilderOptions::default_for_test();
+        column_options.is_rle = true;
+        let mut builder = RowsetBuilder::new(columns.clone().into(), column_options);
+
+        for _ in 0..100 {
+            builder.append(
+                [ArrayImpl::Int32(
+                    [1, 1, 2, 2, 2].into_iter().cycle().take(len).collect(),
+                )]
+                .into_iter()
+                .collect(),
+            )
+        }
+
+        let writer = RowsetWriter::new(tempdir.path());
+        writer.flush(builder.finish()).await.unwrap();
+
+        DiskRowset::open(
+            tempdir.path().to_path_buf(),
+            columns.into(),
+            Cache::new(2333),
+            0,
+            IOBackend::NormalRead,
+        )
+        .await
+        .unwrap()
+    }
+
     #[tokio::test]
     async fn test_get_block() {
         let tempdir = tempfile::tempdir().unwrap();

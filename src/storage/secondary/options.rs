@@ -34,6 +34,9 @@ pub struct StorageOptions {
 
     /// Checksum type used by columns
     pub checksum_type: ChecksumType,
+
+    /// Whether using run-length encoding
+    pub is_rle: bool,
 }
 
 impl StorageOptions {
@@ -50,6 +53,7 @@ impl StorageOptions {
                 IOBackend::PositionedRead
             },
             checksum_type: ChecksumType::Crc32,
+            is_rle: false,
         }
     }
 
@@ -61,6 +65,7 @@ impl StorageOptions {
             target_block_size: 16 * (1 << 10), // 16KB
             io_backend: IOBackend::NormalRead,
             checksum_type: ChecksumType::None,
+            is_rle: false,
         }
     }
 }
@@ -73,6 +78,9 @@ pub struct ColumnBuilderOptions {
 
     /// Checksum type used by columns
     pub checksum_type: ChecksumType,
+
+    /// Whether using run-length encoding
+    pub is_rle: bool,
 }
 
 impl ColumnBuilderOptions {
@@ -80,6 +88,7 @@ impl ColumnBuilderOptions {
         Self {
             target_block_size: options.target_block_size,
             checksum_type: options.checksum_type,
+            is_rle: options.is_rle,
         }
     }
 
@@ -88,6 +97,7 @@ impl ColumnBuilderOptions {
         Self {
             target_block_size: 4096,
             checksum_type: ChecksumType::Crc32,
+            is_rle: false,
         }
     }
 
@@ -96,6 +106,16 @@ impl ColumnBuilderOptions {
         Self {
             target_block_size: 128,
             checksum_type: ChecksumType::None,
+            is_rle: false,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn default_for_rle_block_test() -> Self {
+        Self {
+            target_block_size: 128,
+            checksum_type: ChecksumType::None,
+            is_rle: true,
         }
     }
 }

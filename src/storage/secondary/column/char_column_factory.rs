@@ -7,13 +7,16 @@ use super::super::{Block, BlockIterator};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::{Utf8Array, Utf8ArrayBuilder};
 use crate::storage::secondary::block::{
-    FakeBlockIterator, PlainBlobBlockIterator, PlainCharBlockIterator,
+    decode_rle_block, FakeBlockIterator, PlainBlobBlockIterator, PlainCharBlockIterator,
+    RleBlockIterator,
 };
 
 /// All supported block iterators for char types.
 pub enum CharBlockIteratorImpl {
     PlainFixedChar(PlainCharBlockIterator),
     PlainVarchar(PlainBlobBlockIterator<str>),
+    RleFixedChar(RleBlockIterator<Utf8Array, PlainCharBlockIterator>),
+    RleVarchar(RleBlockIterator<Utf8Array, PlainBlobBlockIterator<str>>),
     Fake(FakeBlockIterator<Utf8Array>),
 }
 
@@ -26,6 +29,8 @@ impl BlockIterator<Utf8Array> for CharBlockIteratorImpl {
         match self {
             Self::PlainFixedChar(it) => it.next_batch(expected_size, builder),
             Self::PlainVarchar(it) => it.next_batch(expected_size, builder),
+            Self::RleFixedChar(it) => it.next_batch(expected_size, builder),
+            Self::RleVarchar(it) => it.next_batch(expected_size, builder),
             Self::Fake(it) => it.next_batch(expected_size, builder),
         }
     }
@@ -34,6 +39,8 @@ impl BlockIterator<Utf8Array> for CharBlockIteratorImpl {
         match self {
             Self::PlainFixedChar(it) => it.skip(cnt),
             Self::PlainVarchar(it) => it.skip(cnt),
+            Self::RleFixedChar(it) => it.skip(cnt),
+            Self::RleVarchar(it) => it.skip(cnt),
             Self::Fake(it) => it.skip(cnt),
         }
     }
@@ -42,6 +49,8 @@ impl BlockIterator<Utf8Array> for CharBlockIteratorImpl {
         match self {
             Self::PlainFixedChar(it) => it.remaining_items(),
             Self::PlainVarchar(it) => it.remaining_items(),
+            Self::RleFixedChar(it) => it.remaining_items(),
+            Self::RleVarchar(it) => it.remaining_items(),
             Self::Fake(it) => it.remaining_items(),
         }
     }
@@ -78,6 +87,22 @@ impl BlockIteratorFactory<Utf8Array> for CharBlockIteratorFactory {
             (BlockType::PlainVarchar, _) => {
                 let it = PlainBlobBlockIterator::new(block, index.row_count as usize);
                 CharBlockIteratorImpl::PlainVarchar(it)
+            }
+            (BlockType::RleFixedChar, Some(char_width)) => {
+                let (rle_num, rle_data, block_data) = decode_rle_block(block);
+                let block_iter = PlainCharBlockIterator::new(block_data, rle_num, char_width);
+                let it = RleBlockIterator::<Utf8Array, PlainCharBlockIterator>::new(
+                    block_iter, rle_data, rle_num,
+                );
+                CharBlockIteratorImpl::RleFixedChar(it)
+            }
+            (BlockType::RleVarchar, _) => {
+                let (rle_num, rle_data, block_data) = decode_rle_block(block);
+                let block_iter = PlainBlobBlockIterator::new(block_data, rle_num);
+                let it = RleBlockIterator::<Utf8Array, PlainBlobBlockIterator<str>>::new(
+                    block_iter, rle_data, rle_num,
+                );
+                CharBlockIteratorImpl::RleVarchar(it)
             }
             _ => todo!(),
         };
