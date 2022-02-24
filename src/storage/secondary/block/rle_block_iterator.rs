@@ -80,6 +80,14 @@ where
         let mut rle_buffer = &self.rle_block[self.cur_row * std::mem::size_of::<u16>()..];
         rle_buffer.get_u16_le()
     }
+
+    fn get_cur_element(&mut self) -> Option<Option<<A::Item as ToOwned>::Owned>> {
+        let mut array_builder = A::Builder::new();
+        if self.block_iter.next_batch(Some(1), &mut array_builder) == 0 {
+            return None;
+        }
+        Some(array_builder.finish().get(0).map(|x| x.to_owned()))
+    }
 }
 
 impl<A, B> BlockIterator<A> for RleBlockIterator<A, B>
@@ -99,11 +107,11 @@ where
         // Every time we get only one item from block_iter
         if self.never_used {
             self.never_used = false;
-            let mut array_builder = A::Builder::new();
-            if self.block_iter.next_batch(Some(1), &mut array_builder) == 0 {
+            if let Some(element) = self.get_cur_element() {
+                self.cur_element = element;
+            } else {
                 return 0;
             }
-            self.cur_element = array_builder.finish().get(0).map(|x| x.to_owned());
         }
         let mut cur_rle_count = self.get_cur_rle_count();
 
@@ -129,11 +137,11 @@ where
                 if self.cur_row >= self.rle_row_count {
                     break;
                 }
-                let mut array_builder = A::Builder::new();
-                if self.block_iter.next_batch(Some(1), &mut array_builder) == 0 {
+                if let Some(element) = self.get_cur_element() {
+                    self.cur_element = element;
+                } else {
                     break;
                 }
-                self.cur_element = array_builder.finish().get(0).map(|x| x.to_owned());
                 cur_rle_count = self.get_cur_rle_count();
             }
         }
@@ -164,11 +172,9 @@ where
         }
         if skip_count > 0 {
             self.block_iter.skip(skip_count - 1);
-            let mut array_builder = A::Builder::new();
-            if self.block_iter.next_batch(Some(1), &mut array_builder) == 0 {
-                return;
+            if let Some(element) = self.get_cur_element() {
+                self.cur_element = element;
             }
-            self.cur_element = array_builder.finish().get(0).map(|x| x.to_owned());
         }
     }
 
