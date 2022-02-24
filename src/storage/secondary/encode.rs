@@ -10,7 +10,7 @@ use crate::array::{
 use crate::types::{BlobRef, Date, Interval};
 
 /// Encode a primitive value into fixed-width buffer
-pub trait PrimitiveFixedWidthEncode: Copy + Clone + 'static + Send + Sync {
+pub trait PrimitiveFixedWidthEncode: Copy + Clone + 'static + Send + Sync + PartialEq {
     /// Width of each element
     const WIDTH: usize;
     const DEAFULT_VALUE: &'static Self;

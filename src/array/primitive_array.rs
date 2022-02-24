@@ -1,6 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::iter::FromIterator;
+use std::mem;
 
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
@@ -78,6 +79,11 @@ impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
         }
     }
 
+    fn reserve(&mut self, capacity: usize) {
+        self.valid.reserve(capacity);
+        self.data.reserve(capacity);
+    }
+
     fn push(&mut self, value: Option<&T>) {
         self.valid.push(value.is_some());
         self.data.push(value.cloned().unwrap_or_default());
@@ -88,10 +94,10 @@ impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
         self.data.extend_from_slice(&other.data);
     }
 
-    fn finish(self) -> PrimitiveArray<T> {
+    fn take(&mut self) -> PrimitiveArray<T> {
         PrimitiveArray {
-            valid: self.valid,
-            data: self.data,
+            valid: mem::take(&mut self.valid),
+            data: mem::take(&mut self.data),
         }
     }
 }
