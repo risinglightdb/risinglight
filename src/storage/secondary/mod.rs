@@ -43,6 +43,7 @@ mod row_handler;
 mod table;
 mod transaction;
 mod txn_iterator;
+
 // internal modules and structures
 mod block;
 mod checksum;
@@ -58,10 +59,11 @@ mod merge_iterator;
 mod rowset;
 mod statistics;
 mod storage;
-#[cfg(test)]
-mod tests;
 mod transaction_manager;
 mod version_manager;
+
+#[cfg(test)]
+mod tests;
 
 /// Secondary storage of RisingLight.
 pub struct SecondaryStorage {
