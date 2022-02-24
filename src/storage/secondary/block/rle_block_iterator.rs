@@ -81,7 +81,7 @@ where
         rle_buffer.get_u16_le()
     }
 
-    fn get_cur_element(&mut self) -> Option<Option<<A::Item as ToOwned>::Owned>> {
+    fn get_next_element(&mut self) -> Option<Option<<A::Item as ToOwned>::Owned>> {
         let mut array_builder = A::Builder::new();
         if self.block_iter.next_batch(Some(1), &mut array_builder) == 0 {
             return None;
@@ -107,7 +107,7 @@ where
         // Every time we get only one item from block_iter
         if self.never_used {
             self.never_used = false;
-            if let Some(element) = self.get_cur_element() {
+            if let Some(element) = self.get_next_element() {
                 self.cur_element = element;
             } else {
                 return 0;
@@ -137,7 +137,7 @@ where
                 if self.cur_row >= self.rle_row_count {
                     break;
                 }
-                if let Some(element) = self.get_cur_element() {
+                if let Some(element) = self.get_next_element() {
                     self.cur_element = element;
                 } else {
                     break;
@@ -172,7 +172,7 @@ where
         }
         if skip_count > 0 {
             self.block_iter.skip(skip_count - 1);
-            if let Some(element) = self.get_cur_element() {
+            if let Some(element) = self.get_next_element() {
                 self.cur_element = element;
             }
         }
