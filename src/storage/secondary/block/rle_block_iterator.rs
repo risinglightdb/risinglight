@@ -1,5 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::borrow::Borrow;
+
 use bytes::Buf;
 
 use super::{Block, BlockIterator};
@@ -36,14 +38,17 @@ where
     /// Indicates the number of rows in the rle block
     rle_row_count: usize,
 
-    /// Indicates the array of current row get from block_iter
-    cur_array: Option<A>,
+    /// Indicates the element of current row get from block_iter
+    cur_element: Option<<A::Item as ToOwned>::Owned>,
 
     /// Indicates how many rows get scanned for this iterator
     row_scanned_count: usize,
 
     /// Total count of elements in block
     row_count: usize,
+
+    /// If never_used is true, get an item from child iter in the beginning of next_batch()
+    never_used: bool,
 }
 
 impl<A, B> RleBlockIterator<A, B>
@@ -64,15 +69,24 @@ where
             cur_row: 0,
             cur_scanned_count: 0,
             rle_row_count,
-            cur_array: None,
+            cur_element: None,
             row_scanned_count: 0,
             row_count,
+            never_used: true,
         }
     }
 
     fn get_cur_rle_count(&self) -> u16 {
         let mut rle_buffer = &self.rle_block[self.cur_row * std::mem::size_of::<u16>()..];
         rle_buffer.get_u16_le()
+    }
+
+    fn get_next_element(&mut self) -> Option<Option<<A::Item as ToOwned>::Owned>> {
+        let mut array_builder = A::Builder::new();
+        if self.block_iter.next_batch(Some(1), &mut array_builder) == 0 {
+            return None;
+        }
+        Some(array_builder.finish().get(0).map(|x| x.to_owned()))
     }
 }
 
@@ -89,16 +103,17 @@ where
         // TODO(chi): error handling on corrupted block
 
         let mut cnt = 0;
-        // If self.cur_array is none, then we need to get the first array from block_iter
+        // If self.never_used is true, then we need to get the first element from block_iter
         // Every time we get only one item from block_iter
-        if self.cur_array.is_none() {
-            let mut array_builder = A::Builder::new();
-            if self.block_iter.next_batch(Some(1), &mut array_builder) == 0 {
+        if self.never_used {
+            self.never_used = false;
+            if let Some(element) = self.get_next_element() {
+                self.cur_element = element;
+            } else {
                 return 0;
             }
-            self.cur_array = Some(array_builder.finish());
         }
-        let mut rle_count = self.get_cur_rle_count();
+        let mut cur_rle_count = self.get_cur_rle_count();
 
         loop {
             if let Some(expected_size) = expected_size {
@@ -109,9 +124,10 @@ where
             }
 
             // Check if we need to get the next array from block_iter
-            if self.cur_scanned_count < rle_count as usize {
-                builder.append(self.cur_array.as_ref().unwrap());
+            if self.cur_scanned_count < cur_rle_count as usize {
+                builder.push(self.cur_element.as_ref().map(|x| x.borrow()));
                 self.cur_scanned_count += 1;
+                self.row_scanned_count += 1;
                 cnt += 1;
             } else {
                 // Every time cur_row is updated, we need to get the next array from block_iter
@@ -121,36 +137,43 @@ where
                 if self.cur_row >= self.rle_row_count {
                     break;
                 }
-                let mut array_builder = A::Builder::new();
-                if self.block_iter.next_batch(Some(1), &mut array_builder) == 0 {
+                if let Some(element) = self.get_next_element() {
+                    self.cur_element = element;
+                } else {
                     break;
                 }
-                self.cur_array = Some(array_builder.finish());
-                rle_count = self.get_cur_rle_count();
+                cur_rle_count = self.get_cur_rle_count();
             }
         }
-        self.row_scanned_count += cnt;
+
         cnt
     }
 
     fn skip(&mut self, cnt: usize) {
         let mut cnt = cnt;
+        let mut skip_count: usize = 0;
         while cnt > 0 {
-            let rle_count = self.get_cur_rle_count();
-            let cur_left = rle_count as usize - self.cur_scanned_count;
+            let cur_rle_count = self.get_cur_rle_count();
+            let cur_left = cur_rle_count as usize - self.cur_scanned_count;
             if cur_left > cnt {
                 self.cur_scanned_count += cnt;
                 self.row_scanned_count += cnt;
-                return;
+                break;
             } else {
                 cnt -= cur_left;
                 self.row_scanned_count += cur_left;
                 self.cur_scanned_count = 0;
                 self.cur_row += 1;
-                self.block_iter.skip(1);
+                skip_count += 1;
                 if self.cur_row >= self.rle_row_count {
                     break;
                 }
+            }
+        }
+        if skip_count > 0 {
+            self.block_iter.skip(skip_count - 1);
+            if let Some(element) = self.get_next_element() {
+                self.cur_element = element;
             }
         }
     }
@@ -204,21 +227,25 @@ mod tests {
 
         let mut builder = I32ArrayBuilder::new();
 
-        scanner.skip(3);
-        assert_eq!(scanner.remaining_items(), 6);
+        assert_eq!(scanner.next_batch(Some(1), &mut builder), 1);
+        assert_eq!(builder.finish().to_vec(), vec![Some(1)]);
 
+        scanner.skip(3);
+        assert_eq!(scanner.remaining_items(), 5);
+
+        let mut builder = I32ArrayBuilder::new();
         assert_eq!(scanner.next_batch(Some(2), &mut builder), 2);
         assert_eq!(builder.finish().to_vec(), vec![Some(2), Some(2)]);
 
         let mut builder = I32ArrayBuilder::new();
         assert_eq!(scanner.next_batch(Some(2), &mut builder), 2);
 
-        assert_eq!(builder.finish().to_vec(), vec![Some(2), Some(3)]);
+        assert_eq!(builder.finish().to_vec(), vec![Some(3), Some(3)]);
 
         let mut builder = I32ArrayBuilder::new();
-        assert_eq!(scanner.next_batch(Some(3), &mut builder), 2);
+        assert_eq!(scanner.next_batch(Some(3), &mut builder), 1);
 
-        assert_eq!(builder.finish().to_vec(), vec![Some(3), Some(3)]);
+        assert_eq!(builder.finish().to_vec(), vec![Some(3)]);
 
         let mut builder = I32ArrayBuilder::new();
         assert_eq!(scanner.next_batch(None, &mut builder), 0);
@@ -455,6 +482,67 @@ mod tests {
         );
 
         let mut builder = BlobArrayBuilder::new();
+        assert_eq!(scanner.next_batch(None, &mut builder), 0);
+    }
+
+    #[test]
+    fn test_scan_rle_skip() {
+        // Test primitive nullable rle block iterator for i32
+        let builder = PlainPrimitiveNullableBlockBuilder::new(50);
+        let mut rle_builder =
+            RleBlockBuilder::<I32Array, PlainPrimitiveNullableBlockBuilder<i32>>::new(builder);
+        for item in [None].iter().cycle().cloned().take(3) {
+            rle_builder.append(item);
+        }
+        for item in [Some(&1)].iter().cycle().cloned().take(3) {
+            rle_builder.append(item);
+        }
+        for item in [None].iter().cycle().cloned().take(3) {
+            rle_builder.append(item);
+        }
+        for item in [Some(&2)].iter().cycle().cloned().take(3) {
+            rle_builder.append(item);
+        }
+        for item in [None].iter().cycle().cloned().take(3) {
+            rle_builder.append(item);
+        }
+        for item in [Some(&3)].iter().cycle().cloned().take(3) {
+            rle_builder.append(item);
+        }
+        let data = rle_builder.finish();
+
+        let (rle_num, rle_data, block_data) = decode_rle_block(Bytes::from(data));
+        let block_iter = PlainPrimitiveNullableBlockIterator::new(block_data, rle_num);
+        let mut scanner =
+            RleBlockIterator::<I32Array, PlainPrimitiveNullableBlockIterator<i32>>::new(
+                block_iter, rle_data, rle_num,
+            );
+
+        let mut builder = I32ArrayBuilder::new();
+
+        scanner.skip(3);
+        assert_eq!(scanner.remaining_items(), 15);
+
+        assert_eq!(scanner.next_batch(Some(2), &mut builder), 2);
+        assert_eq!(builder.finish().to_vec(), vec![Some(1), Some(1)]);
+
+        scanner.skip(8);
+        assert_eq!(scanner.remaining_items(), 5);
+
+        let mut builder = I32ArrayBuilder::new();
+        assert_eq!(scanner.next_batch(Some(3), &mut builder), 3);
+
+        assert_eq!(builder.finish().to_vec(), vec![None, None, Some(3)]);
+
+        scanner.skip(1);
+        assert_eq!(scanner.remaining_items(), 1);
+
+        let mut builder = I32ArrayBuilder::new();
+        assert_eq!(scanner.next_batch(Some(3), &mut builder), 1);
+
+        assert_eq!(builder.finish().to_vec(), vec![Some(3)]);
+
+        let mut builder = I32ArrayBuilder::new();
         assert_eq!(scanner.next_batch(None, &mut builder), 0);
     }
 }
