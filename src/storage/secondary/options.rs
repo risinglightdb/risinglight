@@ -43,9 +43,9 @@ impl StorageOptions {
     pub fn default_for_cli() -> Self {
         Self {
             path: PathBuf::new().join("risinglight.secondary.db"),
-            cache_size: 1024,
+            cache_size: 262144,                  // 4GB (16KB * 262144)
             target_rowset_size: 256 * (1 << 20), // 256MB
-            target_block_size: 64 * (1 << 10),   // 64KB
+            target_block_size: 16 * (1 << 10),   // 16KB
             io_backend: if cfg!(target_os = "windows") {
                 warn!("RisingLight's storage is running in compatibility mode (NormalRead), which might hurt I/O performance.");
                 IOBackend::NormalRead
