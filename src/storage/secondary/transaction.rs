@@ -7,13 +7,14 @@ use futures::Future;
 use itertools::Itertools;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use risinglight_proto::rowset::DeleteRecord;
+use tokio::sync::OwnedMutexGuard;
 use tracing::{info, warn};
 
 use super::version_manager::{Snapshot, VersionManager};
 use super::{
     AddDVEntry, AddRowSetEntry, ColumnBuilderOptions, ColumnSeekPosition, ConcatIterator,
     DeleteVector, DiskRowset, EpochOp, MergeIterator, RowSetIterator, SecondaryMemRowsetImpl,
-    SecondaryRowHandler, SecondaryTable, SecondaryTableTxnIterator, TransactionLock,
+    SecondaryRowHandler, SecondaryTable, SecondaryTableTxnIterator,
 };
 use crate::array::DataChunk;
 use crate::binder::BoundExpr;
@@ -50,7 +51,7 @@ pub struct SecondaryTransaction {
     /// The rowsets produced in the txn.
     to_be_committed_rowsets: Vec<DiskRowset>,
 
-    delete_lock: Option<TransactionLock>,
+    delete_lock: Option<OwnedMutexGuard<()>>,
 
     read_only: bool,
 

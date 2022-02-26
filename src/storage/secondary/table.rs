@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::Arc;
 
 use moka::future::Cache;
+use tokio::sync::OwnedMutexGuard;
 
 use super::*;
 use crate::catalog::TableRefId;
@@ -99,7 +100,7 @@ impl SecondaryTable {
         self.table_ref_id.table_id
     }
 
-    pub async fn lock_for_deletion(&self) -> TransactionLock {
+    pub async fn lock_for_deletion(&self) -> OwnedMutexGuard<()> {
         self.txn_mgr.lock_for_deletion(self.table_id()).await
     }
 }
