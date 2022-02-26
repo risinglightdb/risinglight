@@ -1,5 +1,4 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
-
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -15,6 +14,11 @@ use crate::catalog::ColumnCatalog;
 use crate::storage::secondary::column::ColumnReadableFile;
 use crate::storage::secondary::DeleteVector;
 use crate::storage::{StorageColumnRef, StorageResult};
+
+/// Copied from `libc::O_DIRECT`.
+///
+/// Checkout [reference](https://docs.rs/libc/latest/libc/constant.O_DIRECT.html)
+const O_DIRECT: i32 = 0x4000;
 
 /// Represents a column in Secondary.
 ///
@@ -36,12 +40,6 @@ impl DiskRowset {
         let mut columns = vec![];
 
         for (id, column_info) in column_infos.iter().enumerate() {
-            let file = OpenOptions::default()
-                .read(true)
-                .write(false)
-                .open(path_of_data_column(&directory, column_info))
-                .await?;
-
             let mut index = OpenOptions::default()
                 .read(true)
                 .write(false)
@@ -52,13 +50,34 @@ impl DiskRowset {
             let mut index_content = vec![];
             index.read_to_end(&mut index_content).await?;
 
+            let column_path = path_of_data_column(&directory, column_info);
+
             let column = Column::new(
                 ColumnIndex::from_bytes(&index_content)?,
                 match io_backend {
                     IOBackend::NormalRead => {
+                        let file = OpenOptions::default()
+                            .read(true)
+                            .write(false)
+                            .open(column_path)
+                            .await?;
                         ColumnReadableFile::NormalRead(Arc::new(Mutex::new(file.into_std().await)))
                     }
                     IOBackend::PositionedRead => {
+                        let file = OpenOptions::default()
+                            .read(true)
+                            .write(false)
+                            .open(column_path)
+                            .await?;
+                        ColumnReadableFile::PositionedRead(Arc::new(file.into_std().await))
+                    }
+                    IOBackend::DirectPositionedRead => {
+                        let file = OpenOptions::default()
+                            .read(true)
+                            .write(false)
+                            .custom_flags(O_DIRECT)
+                            .open(column_path)
+                            .await?;
                         ColumnReadableFile::PositionedRead(Arc::new(file.into_std().await))
                     }
                 },
@@ -175,8 +194,8 @@ pub mod tests {
                             .collect(),
                     ),
                 ]
-                .into_iter()
-                .collect(),
+                    .into_iter()
+                    .collect(),
             )
         }
 
@@ -190,8 +209,8 @@ pub mod tests {
             0,
             IOBackend::NormalRead,
         )
-        .await
-        .unwrap()
+            .await
+            .unwrap()
     }
 
     pub async fn helper_build_rle_rowset(
@@ -220,8 +239,8 @@ pub mod tests {
                 [ArrayImpl::Int32(
                     [1, 1, 2, 2, 2].into_iter().cycle().take(len).collect(),
                 )]
-                .into_iter()
-                .collect(),
+                    .into_iter()
+                    .collect(),
             )
         }
 
@@ -235,8 +254,8 @@ pub mod tests {
             0,
             IOBackend::NormalRead,
         )
-        .await
-        .unwrap()
+            .await
+            .unwrap()
     }
 
     #[tokio::test]

@@ -8,6 +8,8 @@ use tracing::warn;
 /// IO Backend of the rowset readers
 #[derive(Clone, Copy)]
 pub enum IOBackend {
+    /// Use Linux's `pread` API to read from the files that opened via `O_DIRECT`.
+    DirectPositionedRead,
     /// Use Linux's `pread` API to read from the files.
     PositionedRead,
     /// Use cross-platform API to read from files. Note that this would hurt performance
@@ -50,7 +52,7 @@ impl StorageOptions {
                 warn!("RisingLight's storage is running in compatibility mode (NormalRead), which might hurt I/O performance.");
                 IOBackend::NormalRead
             } else {
-                IOBackend::PositionedRead
+                IOBackend::DirectPositionedRead
             },
             checksum_type: ChecksumType::Crc32,
             is_rle: false,
