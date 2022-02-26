@@ -194,8 +194,8 @@ pub mod tests {
                             .collect(),
                     ),
                 ]
-                    .into_iter()
-                    .collect(),
+                .into_iter()
+                .collect(),
             )
         }
 
@@ -209,8 +209,8 @@ pub mod tests {
             0,
             IOBackend::NormalRead,
         )
-            .await
-            .unwrap()
+        .await
+        .unwrap()
     }
 
     pub async fn helper_build_rle_rowset(
@@ -239,8 +239,8 @@ pub mod tests {
                 [ArrayImpl::Int32(
                     [1, 1, 2, 2, 2].into_iter().cycle().take(len).collect(),
                 )]
-                    .into_iter()
-                    .collect(),
+                .into_iter()
+                .collect(),
             )
         }
 
@@ -254,8 +254,8 @@ pub mod tests {
             0,
             IOBackend::NormalRead,
         )
-            .await
-            .unwrap()
+        .await
+        .unwrap()
     }
 
     #[tokio::test]
