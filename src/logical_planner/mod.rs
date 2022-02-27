@@ -28,6 +28,8 @@ pub enum LogicalPlanError {
     InvalidSQL,
     #[error("conversion error: {0}")]
     Convert(#[from] ConvertError),
+    #[error("{0} must appear in the GROUP BY clause or be used in an aggregate function")]
+    IllegalGroupBySQL(String),
 }
 
 #[derive(Default)]

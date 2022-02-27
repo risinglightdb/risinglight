@@ -126,6 +126,67 @@ impl BoundExpr {
             BoundExpr::Alias(_) => false,
         }
     }
+
+    pub fn resolve_column_ref_id(&self, column_ref_ids: &mut Vec<ColumnRefId>) {
+        match self {
+            BoundExpr::Constant(_) => {}
+            BoundExpr::ColumnRef(e) => column_ref_ids.push(e.column_ref_id),
+            BoundExpr::InputRef(_) => {}
+            BoundExpr::BinaryOp(e) => {
+                e.left_expr.resolve_column_ref_id(column_ref_ids);
+                e.right_expr.resolve_column_ref_id(column_ref_ids);
+            }
+            BoundExpr::UnaryOp(e) => e.expr.resolve_column_ref_id(column_ref_ids),
+            BoundExpr::TypeCast(e) => e.expr.resolve_column_ref_id(column_ref_ids),
+            BoundExpr::AggCall(agg) => agg
+                .args
+                .iter()
+                .map(|e| e.resolve_column_ref_id(column_ref_ids))
+                .collect(),
+            BoundExpr::IsNull(e) => e.expr.resolve_column_ref_id(column_ref_ids),
+            BoundExpr::ExprWithAlias(e) => e.expr.resolve_column_ref_id(column_ref_ids),
+            BoundExpr::Alias(_) => {}
+        }
+    }
+
+    pub fn resolve_input_ref(&self, input_refs: &mut Vec<BoundInputRef>) {
+        match self {
+            BoundExpr::Constant(_) => {}
+            BoundExpr::ColumnRef(_) => {}
+            BoundExpr::InputRef(e) => input_refs.push(e.clone()),
+            BoundExpr::BinaryOp(e) => {
+                e.left_expr.resolve_input_ref(input_refs);
+                e.right_expr.resolve_input_ref(input_refs);
+            }
+            BoundExpr::UnaryOp(e) => e.expr.resolve_input_ref(input_refs),
+            BoundExpr::TypeCast(e) => e.expr.resolve_input_ref(input_refs),
+            BoundExpr::AggCall(agg) => agg
+                .args
+                .iter()
+                .map(|e| e.resolve_input_ref(input_refs))
+                .collect(),
+            BoundExpr::IsNull(e) => e.expr.resolve_input_ref(input_refs),
+            BoundExpr::ExprWithAlias(e) => e.expr.resolve_input_ref(input_refs),
+            BoundExpr::Alias(_) => {}
+        }
+    }
+
+    pub fn contains_agg_call(&self) -> bool {
+        match self {
+            BoundExpr::Constant(_) => false,
+            BoundExpr::ColumnRef(_) => false,
+            BoundExpr::InputRef(_) => false,
+            BoundExpr::BinaryOp(e) => {
+                e.left_expr.contains_agg_call() || e.right_expr.contains_agg_call()
+            }
+            BoundExpr::UnaryOp(e) => e.expr.contains_agg_call(),
+            BoundExpr::TypeCast(e) => e.expr.contains_agg_call(),
+            BoundExpr::AggCall(_) => true,
+            BoundExpr::IsNull(e) => e.expr.contains_agg_call(),
+            BoundExpr::ExprWithAlias(e) => e.expr.contains_agg_call(),
+            BoundExpr::Alias(_) => false,
+        }
+    }
 }
 
 impl std::fmt::Debug for BoundExpr {

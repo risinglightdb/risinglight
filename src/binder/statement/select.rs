@@ -72,10 +72,6 @@ impl Binder {
             Some(offset) => Some(self.bind_expr(&offset.value)?),
             None => None,
         };
-        let mut group_by = vec![];
-        for group_key in &select.group_by {
-            group_by.push(self.bind_expr(group_key)?);
-        }
 
         // Bind the select list.
         let mut select_list = vec![];
@@ -97,6 +93,11 @@ impl Binder {
                 _ => todo!("bind select list"),
             };
             // return_names.push(expr.get_name());
+        }
+
+        let mut group_by = vec![];
+        for group_key in &select.group_by {
+            group_by.push(self.bind_expr(group_key)?);
         }
 
         let mut orderby = vec![];

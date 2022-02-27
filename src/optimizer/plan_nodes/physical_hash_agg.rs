@@ -44,6 +44,9 @@ impl PlanNode for PhysicalHashAgg {
 impl fmt::Display for PhysicalHashAgg {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "PhysicalHashAgg:")?;
+        for group_key in self.logical().group_keys().iter() {
+            writeln!(f, "  {}", group_key)?
+        }
         for agg in self.logical().agg_calls().iter() {
             writeln!(f, "  {}", agg)?
         }

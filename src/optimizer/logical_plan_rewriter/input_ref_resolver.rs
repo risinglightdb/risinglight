@@ -6,7 +6,7 @@ use crate::catalog::ColumnRefId;
 
 /// Resolves column references into physical indices into the `DataChunk`.
 ///
-/// This will rewrite all `ColumnRef` expressions to `InputRef`.
+/// This will rewrite all `BoundExpr` expressions to `InputRef`.
 #[derive(Default)]
 pub struct InputRefResolver {
     /// The output columns of the last visited plan.
@@ -14,24 +14,25 @@ pub struct InputRefResolver {
     /// For those plans that don't change columns (e.g. Order, Filter), this variable should
     /// not be touched. For other plans that change columns (e.g. SeqScan, Join, Projection,
     /// Aggregate), this variable should be set before the function returns.
-    bindings: Vec<Option<ColumnRefId>>,
+    bindings: Vec<Option<BoundExpr>>,
 }
 
 impl ExprRewriter for InputRefResolver {
     fn rewrite_expr(&self, expr: &mut BoundExpr) {
         use BoundExpr::*;
+        if let Some(idx) = self
+            .bindings
+            .iter()
+            .position(|col| *col == Some(expr.clone()))
+        {
+            *expr = InputRef(BoundInputRef {
+                index: idx,
+                return_type: expr.return_type().unwrap(),
+            });
+            return;
+        }
+
         match expr {
-            ColumnRef(column_ref) => {
-                let new = InputRef(BoundInputRef {
-                    index: self
-                        .bindings
-                        .iter()
-                        .position(|col| *col == Some(column_ref.column_ref_id))
-                        .expect("column reference not found"),
-                    return_type: column_ref.desc.datatype().clone(),
-                });
-                *expr = new;
-            }
             AggCall(agg) => {
                 for expr in &mut agg.args {
                     self.rewrite_expr(expr);
@@ -72,7 +73,14 @@ impl PlanRewriter for InputRefResolver {
         self.bindings = plan
             .column_ids()
             .iter()
-            .map(|col_id| Some(ColumnRefId::from_table(plan.table_ref_id(), *col_id)))
+            .zip(plan.column_descs())
+            .map(|(col_id, col_desc)| {
+                Some(BoundExpr::ColumnRef(BoundColumnRef {
+                    column_ref_id: ColumnRefId::from_table(plan.table_ref_id(), *col_id),
+                    is_primary_key: col_desc.is_primary(),
+                    desc: col_desc.clone(),
+                }))
+            })
             .collect();
         Arc::new(plan.clone())
     }
@@ -81,7 +89,14 @@ impl PlanRewriter for InputRefResolver {
         self.bindings = plan
             .column_ids()
             .iter()
-            .map(|col_id| Some(ColumnRefId::from_table(plan.table_ref_id(), *col_id)))
+            .zip(plan.column_descs())
+            .map(|(col_id, col_desc)| {
+                Some(BoundExpr::ColumnRef(BoundColumnRef {
+                    column_ref_id: ColumnRefId::from_table(plan.table_ref_id(), *col_id),
+                    is_primary_key: col_desc.is_primary(),
+                    desc: col_desc.clone(),
+                }))
+            })
             .collect();
         Arc::new(plan.clone())
     }
@@ -91,10 +106,7 @@ impl PlanRewriter for InputRefResolver {
         let bindings = proj
             .project_expressions()
             .iter()
-            .map(|expr| match &expr {
-                BoundExpr::ColumnRef(col) => Some(col.column_ref_id),
-                _ => None,
-            })
+            .map(|e| Some(e.clone()))
             .collect();
         let ret = Arc::new(proj.clone_with_rewrite_expr(new_child, self));
         self.bindings = bindings;
@@ -103,14 +115,7 @@ impl PlanRewriter for InputRefResolver {
 
     fn rewrite_logical_aggregate(&mut self, agg: &LogicalAggregate) -> PlanRef {
         let new_child = self.rewrite(agg.child());
-        let bindings = agg
-            .group_keys()
-            .iter()
-            .map(|expr| match &expr {
-                BoundExpr::ColumnRef(col) => Some(col.column_ref_id),
-                _ => panic!("{:?} cannot be a group key", expr),
-            })
-            .collect();
+        let bindings = agg.group_keys().iter().map(|e| Some(e.clone())).collect();
         let ret = Arc::new(agg.clone_with_rewrite_expr(new_child, self));
         self.bindings = bindings;
         ret

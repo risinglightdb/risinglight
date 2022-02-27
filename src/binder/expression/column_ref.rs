@@ -9,7 +9,6 @@ use crate::catalog::ColumnDesc;
 /// A bound column reference expression.
 #[derive(PartialEq, Clone, Serialize)]
 pub struct BoundColumnRef {
-    pub table_name: String,
     pub column_ref_id: ColumnRefId,
     pub is_primary_key: bool,
     pub desc: ColumnDesc,
@@ -35,7 +34,6 @@ impl Binder {
                     col.desc().clone(),
                 );
                 let expr = BoundExpr::ColumnRef(BoundColumnRef {
-                    table_name: table.name().clone(),
                     column_ref_id,
                     is_primary_key: col.is_primary(),
                     desc: col.desc().clone(),
@@ -70,7 +68,6 @@ impl Binder {
             let column_ref_id = ColumnRefId::from_table(table_ref_id, col.id());
             self.record_regular_table_column(name, column_name, col.id(), col.desc().clone());
             Ok(BoundExpr::ColumnRef(BoundColumnRef {
-                table_name: name.clone(),
                 column_ref_id,
                 is_primary_key: col.is_primary(),
                 desc: col.desc().clone(),
@@ -111,7 +108,6 @@ impl Binder {
                 );
 
                 Ok(BoundExpr::ColumnRef(BoundColumnRef {
-                    table_name: table_name.clone(),
                     column_ref_id,
                     is_primary_key,
                     desc,
