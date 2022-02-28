@@ -2,3 +2,4 @@
 *.db
 .idea
 /tpch-dbgen
+/.vscode
