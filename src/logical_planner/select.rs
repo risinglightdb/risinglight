@@ -50,7 +50,6 @@ impl LogicalPlaner {
                     .iter()
                     .map(|expr| expr.return_type().unwrap())
                     .collect_vec(),
-                vec![],
                 vec![stmt.select_list.clone()],
             ));
             return Ok(plan);
