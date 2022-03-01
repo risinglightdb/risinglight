@@ -30,10 +30,10 @@ impl Binder {
             let (database_name, schema_name, table_name) = split_name(table_name)?;
             let mut from_table =
                 self.bind_table_ref_with_name(database_name, schema_name, table_name)?;
-            let where_clause = match &selection {
-                Some(expr) => Some(self.bind_expr(expr)?),
-                None => None,
-            };
+            let where_clause = selection
+                .as_ref()
+                .map(|expr| self.bind_expr(expr))
+                .transpose()?;
             self.bind_column_ids(&mut from_table);
             Ok(Box::new(BoundDelete {
                 from_table,
