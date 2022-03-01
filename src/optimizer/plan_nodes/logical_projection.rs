@@ -95,7 +95,6 @@ mod tests {
         let plan = LogicalProjection::new(
             vec![
                 BoundExpr::ColumnRef(BoundColumnRef {
-                    table_name: "t".to_string(),
                     column_ref_id: ColumnRefId::new(0, 0, 0, 0),
                     is_primary_key: false,
                     desc: DataTypeKind::Int(None).not_null().to_column("v1".into()),

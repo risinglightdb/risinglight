@@ -51,13 +51,20 @@ impl LogicalPlaner {
         }
 
         let mut agg_extractor = AggExtractor::new(stmt.group_by.len());
-        for expr in &mut stmt.select_list {
-            agg_extractor.visit_expr(expr);
+
+        if !stmt.group_by.is_empty() {
+            agg_extractor.validate_illegal_column(&stmt.select_list, &stmt.group_by)?;
         }
-        if !agg_extractor.agg_calls.is_empty() || !stmt.group_by.is_empty() {
+        for expr in &mut stmt.select_list {
+            agg_extractor.visit_select_expr(expr);
+        }
+        for expr in &mut stmt.group_by {
+            agg_extractor.visit_group_by_expr(expr, &mut stmt.select_list);
+        }
+        if !agg_extractor.agg_calls.is_empty() || !agg_extractor.group_by_exprs.is_empty() {
             plan = Arc::new(LogicalAggregate::new(
                 agg_extractor.agg_calls,
-                stmt.group_by,
+                agg_extractor.group_by_exprs,
                 plan,
             ));
         }
@@ -161,6 +168,7 @@ impl LogicalPlaner {
 #[derive(Default)]
 struct AggExtractor {
     agg_calls: Vec<BoundAggCall>,
+    group_by_exprs: Vec<BoundExpr>,
     index: usize,
 }
 
@@ -168,11 +176,48 @@ impl AggExtractor {
     fn new(group_key_count: usize) -> Self {
         AggExtractor {
             agg_calls: vec![],
+            group_by_exprs: vec![],
             index: group_key_count,
         }
     }
 
-    fn visit_expr(&mut self, expr: &mut BoundExpr) {
+    /// validate select exprs must appear in the GROUP BY clause or be used in an aggregate function
+    fn validate_illegal_column(
+        &mut self,
+        select_exprs: &[BoundExpr],
+        group_by_exprs: &[BoundExpr],
+    ) -> Result<(), LogicalPlanError> {
+        use BoundExpr::*;
+        let mut group_by_raw_exprs = vec![];
+        group_by_exprs.iter().for_each(|e| {
+            if let Alias(alias) = e {
+                let alias_expr = select_exprs.iter().find(|inner_expr| {
+                    if let ExprWithAlias(e) = inner_expr {
+                        e.alias == alias.alias
+                    } else {
+                        false
+                    }
+                });
+                if let Some(inner_expr) = alias_expr {
+                    group_by_raw_exprs.push(inner_expr.clone());
+                }
+            } else {
+                group_by_raw_exprs.push(e.clone());
+            }
+        });
+
+        for expr in select_exprs {
+            if expr.contains_agg_call() {
+                continue;
+            }
+            if !group_by_raw_exprs.iter().contains(expr) {
+                return Err(LogicalPlanError::IllegalGroupBySQL(format!(r#"{}"#, expr)));
+            }
+        }
+        Ok(())
+    }
+
+    fn visit_select_expr(&mut self, expr: &mut BoundExpr) {
         use BoundExpr::*;
         match expr {
             AggCall(agg) => {
@@ -187,15 +232,56 @@ impl AggExtractor {
                 self.index += 1;
             }
             BinaryOp(bin_op) => {
-                self.visit_expr(&mut bin_op.left_expr);
-                self.visit_expr(&mut bin_op.right_expr);
+                self.visit_select_expr(&mut bin_op.left_expr);
+                self.visit_select_expr(&mut bin_op.right_expr);
             }
-            UnaryOp(unary_op) => self.visit_expr(&mut unary_op.expr),
-            TypeCast(type_cast) => self.visit_expr(&mut type_cast.expr),
-            ExprWithAlias(expr_with_alias) => self.visit_expr(&mut expr_with_alias.expr),
-            IsNull(isnull) => self.visit_expr(&mut isnull.expr),
+            UnaryOp(unary_op) => self.visit_select_expr(&mut unary_op.expr),
+            TypeCast(type_cast) => self.visit_select_expr(&mut type_cast.expr),
+            ExprWithAlias(expr_with_alias) => self.visit_select_expr(&mut expr_with_alias.expr),
+            IsNull(isnull) => self.visit_select_expr(&mut isnull.expr),
             Constant(_) | ColumnRef(_) | InputRef(_) | Alias(_) => {}
         }
+    }
+
+    fn visit_group_by_expr(&mut self, expr: &mut BoundExpr, select_list: &mut Vec<BoundExpr>) {
+        use BoundExpr::*;
+        if let Alias(alias) = expr {
+            if let Some(i) = select_list.iter().position(|inner_expr| {
+                if let ExprWithAlias(e) = inner_expr {
+                    e.alias == alias.alias
+                } else {
+                    false
+                }
+            }) {
+                let select_item = &mut select_list[i];
+                self.group_by_exprs.push(std::mem::replace(
+                    select_item,
+                    InputRef(BoundInputRef {
+                        index: self.group_by_exprs.len(),
+                        return_type: select_item.return_type().unwrap(),
+                    }),
+                ));
+                return;
+            }
+        }
+
+        if let Some(i) = select_list.iter().position(|e| e == expr) {
+            match select_list[i] {
+                Constant(_) | ColumnRef(_) => self.group_by_exprs.push(select_list[i].clone()),
+                _ => {
+                    self.group_by_exprs.push(std::mem::replace(
+                        &mut select_list[i],
+                        InputRef(BoundInputRef {
+                            index: self.group_by_exprs.len(),
+                            return_type: expr.return_type().unwrap(),
+                        }),
+                    ));
+                }
+            }
+            return;
+        }
+
+        self.group_by_exprs.push(expr.clone());
     }
 }
 
