@@ -13,19 +13,13 @@ use crate::types::DataType;
 #[derive(Debug, Clone, Serialize)]
 pub struct LogicalValues {
     column_types: Vec<DataType>,
-    schema: Vec<ColumnDesc>,
     values: Vec<Vec<BoundExpr>>,
 }
 
 impl LogicalValues {
-    pub fn new(
-        column_types: Vec<DataType>,
-        schema: Vec<ColumnDesc>,
-        values: Vec<Vec<BoundExpr>>,
-    ) -> Self {
+    pub fn new(column_types: Vec<DataType>, values: Vec<Vec<BoundExpr>>) -> Self {
         Self {
             column_types,
-            schema,
             values,
         }
     }
@@ -47,17 +41,13 @@ impl LogicalValues {
             }
         }
 
-        LogicalValues::new(self.column_types().to_vec(), self.schema.clone(), values)
+        LogicalValues::new(self.column_types().to_vec(), values)
     }
 }
 impl PlanTreeNodeLeaf for LogicalValues {}
 impl_plan_tree_node_for_leaf!(LogicalValues);
 
-impl PlanNode for LogicalValues {
-    fn schema(&self) -> Vec<ColumnDesc> {
-        self.schema.clone()
-    }
-}
+impl PlanNode for LogicalValues {}
 
 impl fmt::Display for LogicalValues {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -18,11 +18,7 @@ impl LogicalPlaner {
             None => Ok(Arc::new(LogicalInsert::new(
                 stmt.table_ref_id,
                 stmt.column_ids,
-                Arc::new(LogicalValues::new(
-                    stmt.column_types,
-                    stmt.column_descs,
-                    stmt.values,
-                )),
+                Arc::new(LogicalValues::new(stmt.column_types, stmt.values)),
             ))),
         }
     }
