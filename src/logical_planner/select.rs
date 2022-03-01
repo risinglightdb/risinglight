@@ -15,13 +15,13 @@ use crate::binder::{
     BoundAggCall, BoundExpr, BoundInputRef, BoundOrderBy, BoundSelect, BoundTableRef,
 };
 use crate::optimizer::plan_nodes::{
-    Dummy, Internal, LogicalAggregate, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder,
-    LogicalProjection, LogicalTableScan,
+    Internal, LogicalAggregate, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder,
+    LogicalProjection, LogicalTableScan, LogicalValues,
 };
 
 impl LogicalPlaner {
     pub fn plan_select(&self, mut stmt: Box<BoundSelect>) -> Result<PlanRef, LogicalPlanError> {
-        let mut plan: PlanRef = Arc::new(Dummy {});
+        let mut plan: PlanRef;
         let mut is_sorted = false;
         let mut with_row_handler = false;
 
@@ -44,6 +44,15 @@ impl LogicalPlaner {
                 }
             }
             plan = self.plan_table_ref(table_ref, with_row_handler, is_sorted)?;
+        } else {
+            plan = Arc::new(LogicalValues::new(
+                stmt.select_list
+                    .iter()
+                    .map(|expr| expr.return_type().unwrap())
+                    .collect_vec(),
+                vec![stmt.select_list.clone()],
+            ));
+            return Ok(plan);
         }
 
         if let Some(expr) = stmt.where_clause {

@@ -52,6 +52,7 @@ impl Binder {
             (Some(left_data_type), Some(right_data_type)) => {
                 let left_physical_kind = left_data_type.physical_kind();
                 let right_physical_kind = right_data_type.physical_kind();
+                let mut return_type_tmp = left_data_type.kind();
                 // Check if implicit type conversion is needed
                 if left_physical_kind != right_physical_kind {
                     // Insert type cast expr
@@ -73,6 +74,7 @@ impl Binder {
                                 expr: Box::new(left_bound_expr),
                                 ty: right_data_type.kind(),
                             });
+                            return_type_tmp = right_data_type.kind();
                         }
                         (Date, Interval) => {}
                         (left_kind, right_kind) => todo!(
@@ -82,7 +84,7 @@ impl Binder {
                         ),
                     }
                 }
-                Some(left_data_type.kind().nullable())
+                Some(return_type_tmp.nullable())
             }
             (None, None) => None,
             (left, right) => {
