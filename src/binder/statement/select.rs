@@ -60,18 +60,21 @@ impl Binder {
             })
         };
 
-        let where_clause = match &select.selection {
-            Some(expr) => Some(self.bind_expr(expr)?),
-            None => None,
-        };
-        let limit = match &query.limit {
-            Some(expr) => Some(self.bind_expr(expr)?),
-            None => None,
-        };
-        let offset = match &query.offset {
-            Some(offset) => Some(self.bind_expr(&offset.value)?),
-            None => None,
-        };
+        let where_clause = select
+            .selection
+            .as_ref()
+            .map(|expr| self.bind_expr(expr))
+            .transpose()?;
+        let limit = query
+            .limit
+            .as_ref()
+            .map(|expr| self.bind_expr(expr))
+            .transpose()?;
+        let offset = query
+            .offset
+            .as_ref()
+            .map(|offset| self.bind_expr(&offset.value))
+            .transpose()?;
 
         // Bind the select list.
         let mut select_list = vec![];
