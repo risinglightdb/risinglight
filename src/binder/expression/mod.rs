@@ -60,31 +60,13 @@ impl BoundExpr {
     }
 
     fn get_filter_column_inner(&self, filter_column: &mut BitVec) {
-        match self {
-            Self::Constant(_) => {}
-            Self::ColumnRef(_) => {}
-            Self::InputRef(expr) => filter_column.set(expr.index, true),
-            Self::BinaryOp(expr) => {
-                expr.left_expr.get_filter_column_inner(filter_column);
-                expr.right_expr.get_filter_column_inner(filter_column);
+        struct Visitor<'a>(&'a mut BitVec);
+        impl<'a> ExprVisitor for Visitor<'a> {
+            fn visit_input_ref(&mut self, expr: &BoundInputRef) {
+                self.0.set(expr.index, true)
             }
-            Self::UnaryOp(expr) => {
-                expr.expr.get_filter_column_inner(filter_column);
-            }
-            Self::TypeCast(expr) => {
-                expr.expr.get_filter_column_inner(filter_column);
-            }
-            Self::AggCall(expr) => {
-                for sub_expr in &expr.args {
-                    sub_expr.get_filter_column_inner(filter_column);
-                }
-            }
-            Self::IsNull(expr) => expr.expr.get_filter_column_inner(filter_column),
-            Self::ExprWithAlias(expr) => {
-                expr.expr.get_filter_column_inner(filter_column);
-            }
-            Self::Alias(_) => {}
         }
+        Visitor(filter_column).visit_expr(self);
     }
 
     pub fn get_filter_column(&self, len: usize) -> BitVec {
@@ -94,98 +76,62 @@ impl BoundExpr {
     }
 
     pub fn contains_column_ref(&self) -> bool {
-        match self {
-            BoundExpr::Constant(_) => false,
-            BoundExpr::ColumnRef(_) => true,
-            BoundExpr::InputRef(_) => false,
-            BoundExpr::BinaryOp(e) => {
-                e.left_expr.contains_column_ref() || e.right_expr.contains_column_ref()
+        struct Visitor(bool);
+        impl ExprVisitor for Visitor {
+            fn visit_column_ref(&mut self, _: &BoundColumnRef) {
+                self.0 = true;
             }
-            BoundExpr::UnaryOp(e) => e.expr.contains_column_ref(),
-            BoundExpr::TypeCast(e) => e.expr.contains_column_ref(),
-            BoundExpr::AggCall(e) => e.args.iter().any(|e| e.contains_column_ref()),
-            BoundExpr::IsNull(e) => e.expr.contains_column_ref(),
-            BoundExpr::ExprWithAlias(e) => e.expr.contains_column_ref(),
-            BoundExpr::Alias(_) => true,
+            fn visit_alias(&mut self, _: &BoundAlias) {
+                self.0 = true;
+            }
         }
+        let mut visitor = Visitor(false);
+        visitor.visit_expr(self);
+        visitor.0
     }
 
     pub fn contains_row_count(&self) -> bool {
-        match self {
-            BoundExpr::Constant(_) => false,
-            BoundExpr::ColumnRef(_) => false,
-            BoundExpr::InputRef(_) => false,
-            BoundExpr::BinaryOp(e) => {
-                e.left_expr.contains_row_count() || e.right_expr.contains_row_count()
+        struct Visitor(bool);
+        impl ExprVisitor for Visitor {
+            fn visit_agg_call(&mut self, expr: &BoundAggCall) {
+                self.0 = expr.kind == AggKind::RowCount;
             }
-            BoundExpr::UnaryOp(e) => e.expr.contains_row_count(),
-            BoundExpr::TypeCast(e) => e.expr.contains_row_count(),
-            BoundExpr::AggCall(e) => e.kind == AggKind::RowCount,
-            BoundExpr::IsNull(e) => e.expr.contains_row_count(),
-            BoundExpr::ExprWithAlias(e) => e.expr.contains_row_count(),
-            BoundExpr::Alias(_) => false,
         }
+        let mut visitor = Visitor(false);
+        visitor.visit_expr(self);
+        visitor.0
     }
 
     pub fn resolve_column_ref_id(&self, column_ref_ids: &mut Vec<ColumnRefId>) {
-        match self {
-            BoundExpr::Constant(_) => {}
-            BoundExpr::ColumnRef(e) => column_ref_ids.push(e.column_ref_id),
-            BoundExpr::InputRef(_) => {}
-            BoundExpr::BinaryOp(e) => {
-                e.left_expr.resolve_column_ref_id(column_ref_ids);
-                e.right_expr.resolve_column_ref_id(column_ref_ids);
+        struct Visitor<'a>(&'a mut Vec<ColumnRefId>);
+        impl<'a> ExprVisitor for Visitor<'a> {
+            fn visit_column_ref(&mut self, expr: &BoundColumnRef) {
+                self.0.push(expr.column_ref_id);
             }
-            BoundExpr::UnaryOp(e) => e.expr.resolve_column_ref_id(column_ref_ids),
-            BoundExpr::TypeCast(e) => e.expr.resolve_column_ref_id(column_ref_ids),
-            BoundExpr::AggCall(agg) => agg
-                .args
-                .iter()
-                .map(|e| e.resolve_column_ref_id(column_ref_ids))
-                .collect(),
-            BoundExpr::IsNull(e) => e.expr.resolve_column_ref_id(column_ref_ids),
-            BoundExpr::ExprWithAlias(e) => e.expr.resolve_column_ref_id(column_ref_ids),
-            BoundExpr::Alias(_) => {}
         }
+        Visitor(column_ref_ids).visit_expr(self);
     }
 
     pub fn resolve_input_ref(&self, input_refs: &mut Vec<BoundInputRef>) {
-        match self {
-            BoundExpr::Constant(_) => {}
-            BoundExpr::ColumnRef(_) => {}
-            BoundExpr::InputRef(e) => input_refs.push(e.clone()),
-            BoundExpr::BinaryOp(e) => {
-                e.left_expr.resolve_input_ref(input_refs);
-                e.right_expr.resolve_input_ref(input_refs);
+        struct Visitor<'a>(&'a mut Vec<BoundInputRef>);
+        impl<'a> ExprVisitor for Visitor<'a> {
+            fn visit_input_ref(&mut self, expr: &BoundInputRef) {
+                self.0.push(expr.clone());
             }
-            BoundExpr::UnaryOp(e) => e.expr.resolve_input_ref(input_refs),
-            BoundExpr::TypeCast(e) => e.expr.resolve_input_ref(input_refs),
-            BoundExpr::AggCall(agg) => agg
-                .args
-                .iter()
-                .map(|e| e.resolve_input_ref(input_refs))
-                .collect(),
-            BoundExpr::IsNull(e) => e.expr.resolve_input_ref(input_refs),
-            BoundExpr::ExprWithAlias(e) => e.expr.resolve_input_ref(input_refs),
-            BoundExpr::Alias(_) => {}
         }
+        Visitor(input_refs).visit_expr(self);
     }
 
     pub fn contains_agg_call(&self) -> bool {
-        match self {
-            BoundExpr::Constant(_) => false,
-            BoundExpr::ColumnRef(_) => false,
-            BoundExpr::InputRef(_) => false,
-            BoundExpr::BinaryOp(e) => {
-                e.left_expr.contains_agg_call() || e.right_expr.contains_agg_call()
+        struct Visitor(bool);
+        impl ExprVisitor for Visitor {
+            fn visit_agg_call(&mut self, _: &BoundAggCall) {
+                self.0 = true;
             }
-            BoundExpr::UnaryOp(e) => e.expr.contains_agg_call(),
-            BoundExpr::TypeCast(e) => e.expr.contains_agg_call(),
-            BoundExpr::AggCall(_) => true,
-            BoundExpr::IsNull(e) => e.expr.contains_agg_call(),
-            BoundExpr::ExprWithAlias(e) => e.expr.contains_agg_call(),
-            BoundExpr::Alias(_) => false,
         }
+        let mut visitor = Visitor(false);
+        visitor.visit_expr(self);
+        visitor.0
     }
 }
 

@@ -17,8 +17,9 @@ use crate::types::DataValue::*;
 pub struct ArithExprSimplificationRule;
 
 impl ExprRewriter for ArithExprSimplificationRule {
-    fn rewrite_expr(&self, expr: &mut BoundExpr) {
-        // TODO: support more data types.
+    // TODO: support more data types.
+
+    fn rewrite_binary_op(&self, expr: &mut BoundExpr) {
         let new = match &expr {
             BinaryOp(op) => match (&op.op, &*op.left_expr, &*op.right_expr) {
                 // x + 0, 0 + x
@@ -42,13 +43,26 @@ impl ExprRewriter for ArithExprSimplificationRule {
                 // x / 1
                 (Divide, other, Constant(Int32(1))) => other.clone(),
                 (Divide, other, Constant(Float64(f))) if *f == 1.0 => other.clone(),
-
                 _ => return,
             },
+            _ => unreachable!(),
+        };
+        *expr = new;
+    }
+
+    fn rewrite_unary_op(&self, expr: &mut BoundExpr) {
+        let new = match &expr {
             UnaryOp(op) => match (&op.op, &*op.expr) {
                 (UnaryOperator::Plus, other) => other.clone(),
                 _ => return,
             },
+            _ => unreachable!(),
+        };
+        *expr = new;
+    }
+
+    fn rewrite_type_cast(&self, expr: &mut BoundExpr) {
+        let new = match &expr {
             TypeCast(op) => match (&op.ty, &*op.expr) {
                 (Ty::Boolean, k @ Constant(Bool(_))) => k.clone(),
                 (Ty::Int(_), k @ Constant(Int32(_))) => k.clone(),
@@ -57,7 +71,7 @@ impl ExprRewriter for ArithExprSimplificationRule {
                 (Ty::String, k @ Constant(String(_))) => k.clone(),
                 _ => return,
             },
-            _ => return,
+            _ => unreachable!(),
         };
         *expr = new;
     }
