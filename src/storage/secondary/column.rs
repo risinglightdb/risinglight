@@ -33,7 +33,7 @@ mod char_column_factory;
 use std::os::unix::fs::FileExt;
 use std::sync::{Arc, Mutex};
 
-use bytes::Bytes;
+use bytes::{BufMut, Bytes};
 pub use char_column_factory::*;
 use moka::future::Cache;
 
@@ -194,13 +194,11 @@ impl Column {
         let mut header = &block[..BLOCK_HEADER_SIZE];
         let block_data = &block[BLOCK_HEADER_SIZE..];
         block_header.decode(&mut header)?;
-
+        let mut data = vec![]
+            .put_i32(block_header.block_type.into())
+            .append(block_data);
         if do_verify_checksum {
-            verify_checksum(
-                block_header.checksum_type,
-                block_data,
-                block_header.checksum,
-            )?;
+            verify_checksum(block_header.checksum_type, data, block_header.checksum)?;
         }
 
         Ok((block_header, block.slice(BLOCK_HEADER_SIZE..)))

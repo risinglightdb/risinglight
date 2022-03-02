@@ -1,5 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use bytes::BufMut;
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::{BlockIndex, BlockStatistics};
 
@@ -60,11 +61,11 @@ impl BlockIndexBuilder {
         let mut block_header_ref = &mut self.block_header[..];
 
         let checksum_type = self.options.checksum_type;
-
+        let mut data = vec![].put_i32(self.block_type.into()).append(block_data);
         BlockHeader {
             block_type,
             checksum_type,
-            checksum: build_checksum(checksum_type, block_data),
+            checksum: build_checksum(checksum_type, &data),
         }
         .encode(&mut block_header_ref);
 
