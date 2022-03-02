@@ -1,8 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-
 use std::fmt;
-
 
 use serde::Serialize;
 
@@ -100,8 +98,7 @@ mod tests {
     use sqlparser::ast::BinaryOperator;
 
     use super::*;
-    use crate::binder::{BoundBinaryOp};
-    
+    use crate::binder::BoundBinaryOp;
     use crate::types::{DataTypeExt, DataTypeKind, DataValue};
 
     #[test]
@@ -160,7 +157,7 @@ mod tests {
                     return_type: ty.clone(),
                 })),
                 right_expr: Box::new(BoundExpr::Constant(DataValue::Int32(5))),
-                return_type: Some(ty.clone()),
+                return_type: Some(ty),
             })
         );
         let child = plan.child.as_logical_table_scan().unwrap();

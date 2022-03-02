@@ -2,7 +2,6 @@
 
 use std::fmt;
 
-
 use itertools::Itertools;
 use serde::Serialize;
 
