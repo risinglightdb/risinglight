@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+
 use itertools::Itertools;
 use serde::Serialize;
 
@@ -79,6 +80,27 @@ impl PlanNode for LogicalTableScan {
     // TODO: get statistics from storage system
     fn estimated_cardinality(&self) -> usize {
         1
+    }
+
+    fn prune_col(&self, required_cols: BitSet) -> PlanRef {
+        let (column_ids, column_descs) = required_cols
+            .iter()
+            .map(|id| {
+                (
+                    self.column_ids[id as usize],
+                    self.column_descs[id as usize].clone(),
+                )
+            })
+            .unzip();
+        Self {
+            table_ref_id: self.table_ref_id,
+            column_ids,
+            column_descs,
+            with_row_handler: self.with_row_handler,
+            is_sorted: self.is_sorted,
+            expr: self.expr.clone(),
+        }
+        .into_plan_ref()
     }
 }
 impl fmt::Display for LogicalTableScan {
