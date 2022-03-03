@@ -10,10 +10,12 @@ use crate::catalog::{
 use crate::parser::{Ident, ObjectName, Statement};
 use crate::types::{ColumnId, DataTypeKind, DataValue};
 
+mod expr_visitor;
 mod expression;
 pub(crate) mod statement;
 mod table_ref;
 
+pub use self::expr_visitor::*;
 pub use self::expression::*;
 pub use self::statement::*;
 pub use self::table_ref::*;

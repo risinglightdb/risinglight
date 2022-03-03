@@ -1,5 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use BoundExpr::*;
+
 use super::*;
 use crate::array::ArrayImpl;
 use crate::binder::BoundExpr;
@@ -14,8 +16,7 @@ use crate::binder::BoundExpr;
 pub struct ConstantFoldingRule;
 
 impl ExprRewriter for ConstantFoldingRule {
-    fn rewrite_expr(&self, expr: &mut BoundExpr) {
-        use BoundExpr::*;
+    fn rewrite_binary_op(&self, expr: &mut BoundExpr) {
         match expr {
             BinaryOp(op) => {
                 self.rewrite_expr(&mut *op.left_expr);
@@ -27,6 +28,12 @@ impl ExprRewriter for ConstantFoldingRule {
                     *expr = Constant(res);
                 }
             }
+            _ => unreachable!(),
+        }
+    }
+
+    fn rewrite_unary_op(&self, expr: &mut BoundExpr) {
+        match expr {
             UnaryOp(op) => {
                 self.rewrite_expr(&mut *op.expr);
                 if let Constant(v) = &*op.expr {
@@ -34,6 +41,12 @@ impl ExprRewriter for ConstantFoldingRule {
                     *expr = Constant(res);
                 }
             }
+            _ => unreachable!(),
+        }
+    }
+
+    fn rewrite_type_cast(&self, expr: &mut BoundExpr) {
+        match expr {
             TypeCast(cast) => {
                 self.rewrite_expr(&mut *cast.expr);
                 if let Constant(v) = &*cast.expr {
@@ -45,12 +58,7 @@ impl ExprRewriter for ConstantFoldingRule {
                     // TODO: raise an error
                 }
             }
-            AggCall(agg_call) => {
-                for expr in &mut agg_call.args {
-                    self.rewrite_expr(expr);
-                }
-            }
-            _ => {}
+            _ => unreachable!(),
         }
     }
 }

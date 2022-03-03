@@ -17,7 +17,7 @@ use crate::parser::BinaryOperator::*;
 pub struct ConstantMovingRule;
 
 impl ExprRewriter for ConstantMovingRule {
-    fn rewrite_expr(&self, expr: &mut BoundExpr) {
+    fn rewrite_binary_op(&self, expr: &mut BoundExpr) {
         let new = match expr {
             BinaryOp(op) => match (&op.op, &*op.left_expr, &*op.right_expr) {
                 (Eq | NotEq | Gt | Lt | GtEq | LtEq, BinaryOp(bin_op), Constant(rval)) => {
@@ -58,7 +58,7 @@ impl ExprRewriter for ConstantMovingRule {
                 }
                 _ => return,
             },
-            _ => return,
+            _ => unreachable!(),
         };
         *expr = new;
     }

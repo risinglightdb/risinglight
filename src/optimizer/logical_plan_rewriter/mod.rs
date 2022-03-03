@@ -20,12 +20,9 @@ pub use input_ref_resolver::*;
 use itertools::Itertools;
 use paste::paste;
 
-use crate::binder::BoundExpr;
+pub use crate::binder::ExprRewriter;
 use crate::for_all_plan_nodes;
 
-pub trait ExprRewriter {
-    fn rewrite_expr(&self, _expr: &mut BoundExpr) {}
-}
 macro_rules! def_rewriter {
   ([], $($node:ident),*) => {
 

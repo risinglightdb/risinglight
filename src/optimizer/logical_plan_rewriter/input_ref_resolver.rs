@@ -18,44 +18,22 @@ pub struct InputRefResolver {
 }
 
 impl ExprRewriter for InputRefResolver {
-    fn rewrite_expr(&self, expr: &mut BoundExpr) {
+    fn rewrite_column_ref(&self, expr: &mut BoundExpr) {
         use BoundExpr::*;
-        if let Some(idx) = self
-            .bindings
-            .iter()
-            .position(|col| *col == Some(expr.clone()))
-        {
-            *expr = InputRef(BoundInputRef {
-                index: idx,
-                return_type: expr.return_type().unwrap(),
-            });
-            return;
-        }
-
         match expr {
-            AggCall(agg) => {
-                for expr in &mut agg.args {
-                    self.rewrite_expr(expr);
+            BoundExpr::ColumnRef(_) => {
+                if let Some(idx) = self
+                    .bindings
+                    .iter()
+                    .position(|col| *col == Some(expr.clone()))
+                {
+                    *expr = InputRef(BoundInputRef {
+                        index: idx,
+                        return_type: expr.return_type().unwrap(),
+                    });
                 }
             }
-            // rewrite sub-expressions
-            BinaryOp(binary_op) => {
-                self.rewrite_expr(&mut *binary_op.left_expr);
-                self.rewrite_expr(&mut *binary_op.right_expr);
-            }
-            UnaryOp(unary_op) => {
-                self.rewrite_expr(&mut *unary_op.expr);
-            }
-            TypeCast(cast) => {
-                self.rewrite_expr(&mut *cast.expr);
-            }
-            IsNull(isnull) => {
-                self.rewrite_expr(&mut *isnull.expr);
-            }
-            ExprWithAlias(expr_with_alias) => {
-                self.rewrite_expr(&mut *expr_with_alias.expr);
-            }
-            _ => {}
+            _ => unreachable!(),
         }
     }
 }

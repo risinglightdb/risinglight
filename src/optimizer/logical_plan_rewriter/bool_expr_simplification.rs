@@ -20,7 +20,7 @@ use crate::types::DataValue::*;
 pub struct BoolExprSimplificationRule;
 
 impl ExprRewriter for BoolExprSimplificationRule {
-    fn rewrite_expr(&self, expr: &mut BoundExpr) {
+    fn rewrite_binary_op(&self, expr: &mut BoundExpr) {
         let new = match expr {
             BinaryOp(op) => {
                 self.rewrite_expr(&mut *op.left_expr);
@@ -39,8 +39,7 @@ impl ExprRewriter for BoolExprSimplificationRule {
                     _ => BinaryOp(op.clone()),
                 }
             }
-            // FIXME: rewrite child expressions
-            _ => expr.clone(),
+            _ => unreachable!(),
         };
         *expr = new;
     }
