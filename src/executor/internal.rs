@@ -26,6 +26,7 @@ impl InternalTableExecutor {
 }
 
 // TODO: find a better way to maintain the contributors list instead of hard-coding.
+// update this funciton with `curl https://api.github.com/repos/risinglightdb/risinglight/contributors | jq ".[].login"`
 fn contributors() -> DataChunk {
     let contributors = vec![
         "skyzh",
@@ -34,15 +35,16 @@ fn contributors() -> DataChunk {
         "pleiadesian",
         "TennyZhuang",
         "st1page",
-        "likg227",
         "xxchan",
         "arkbriar",
         "Fedomn",
+        "likg227",
         "zzl200012",
-        "Sunt-ing",
-        "alissa-tung",
         "ludics",
+        "alissa-tung",
+        "Sunt-ing",
         "tabVersion",
+        "WindowsXp-Beta",
         "yingjunwu",
         "xiaoyong-z",
         "PsiACE",
@@ -52,7 +54,7 @@ fn contributors() -> DataChunk {
         "nanderstabel",
     ];
     [ArrayImpl::Utf8(Utf8Array::from_iter(
-        contributors.iter().map(|s| Some(*s)),
+        contributors.iter().map(|s| Some(*s)).sorted(),
     ))]
     .into_iter()
     .collect()
