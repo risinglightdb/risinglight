@@ -1,5 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::collections::HashMap;
 use std::fmt;
 
 use serde::Serialize;
@@ -43,6 +44,7 @@ impl PlanTreeNodeUnary for LogicalFilter {
         Self::new(self.expr().clone(), child)
     }
 }
+
 impl_plan_tree_node_for_unary!(LogicalFilter);
 impl PlanNode for LogicalFilter {
     fn schema(&self) -> Vec<ColumnDesc> {
@@ -60,15 +62,21 @@ impl PlanNode for LogicalFilter {
                 self.0.insert(expr.index);
             }
         }
-        let mut visitor = CollectRequiredCols(required_cols);
+        let mut visitor = CollectRequiredCols(required_cols.clone());
         visitor.visit_expr(&self.expr);
+        let input_cols = visitor.0;
 
-        struct ShiftLeft(usize);
-        impl ExprRewriter for ShiftLeft {
+        let mut idx_table = HashMap::new();
+        for (new_idx, old_idx) in input_cols.iter().enumerate() {
+            idx_table.insert(old_idx, new_idx);
+        }
+
+        struct Mapper(HashMap<usize, usize>);
+        impl ExprRewriter for Mapper {
             fn rewrite_input_ref(&self, expr: &mut BoundExpr) {
                 match expr {
                     BoundExpr::InputRef(ref mut input_ref) => {
-                        input_ref.index -= self.0;
+                        input_ref.index = self.0[&input_ref.index];
                     }
                     _ => unreachable!(),
                 }
@@ -76,14 +84,28 @@ impl PlanNode for LogicalFilter {
         }
 
         let mut expr = self.expr.clone();
-        if let Some(min_id) = &visitor.0.iter().next() {
-            ShiftLeft(*min_id).rewrite_expr(&mut expr);
-        }
-        Self {
+        Mapper(idx_table).rewrite_expr(&mut expr);
+
+        let new_filter = Self {
             expr,
-            child: self.child.prune_col(visitor.0),
+            child: self.child.prune_col(input_cols.clone()),
         }
-        .into_plan_ref()
+        .into_plan_ref();
+
+        if required_cols == input_cols {
+            return new_filter;
+        }
+        let input_types = self.out_types();
+        let exprs = required_cols
+            .iter()
+            .map(|index| {
+                BoundExpr::InputRef(BoundInputRef {
+                    index,
+                    return_type: input_types[index].clone(),
+                })
+            })
+            .collect();
+        LogicalProjection::new(exprs, new_filter).into_plan_ref()
     }
 }
 
@@ -107,10 +129,10 @@ mod tests {
     /// Filter(cond: input_ref(1)<5)
     ///   TableScan(v1, v2, v3)
     /// ```
-    /// with required columns [2] will result in
+    /// with required columns [1] will result in
     /// ```text
     /// Filter(cond: input_ref(0)<5)
-    ///   TableScan(v2, v3)
+    ///   TableScan(v2)
     /// ```
     fn test_prune_filter() {
         let ty = DataTypeKind::Int(None).not_null();
@@ -145,7 +167,7 @@ mod tests {
         );
 
         let mut required_cols = BitSet::new();
-        required_cols.insert(2);
+        required_cols.insert(1);
         let plan = filter.prune_col(required_cols);
         let plan = plan.as_logical_filter().unwrap();
         assert_eq!(
@@ -161,7 +183,70 @@ mod tests {
             })
         );
         let child = plan.child.as_logical_table_scan().unwrap();
-        assert_eq!(child.column_descs(), &col_descs[1..]);
-        assert_eq!(child.column_ids(), &[2, 3]);
+        assert_eq!(child.column_descs(), &col_descs[1..2]);
+        assert_eq!(child.column_ids(), &[2]);
+    }
+
+    #[test]
+    /// Pruning
+    /// ```text
+    /// Filter(cond: input_ref(0)<5)
+    ///   TableScan(v1, v2, v3)
+    /// ```
+    /// with required columns [2] will result in
+    /// ```text
+    /// Project(expr0 = inputref(1))
+    ///   Filter(cond: input_ref(0)<5)
+    ///     TableScan(v1, v3)
+    /// ```
+    fn test_prune_filter_with_project() {
+        let ty = DataTypeKind::Int(None).not_null();
+        let col_descs = vec![
+            ty.clone().to_column("v1".into()),
+            ty.clone().to_column("v2".into()),
+            ty.clone().to_column("v3".into()),
+        ];
+        let table_scan = LogicalTableScan::new(
+            crate::catalog::TableRefId {
+                database_id: 0,
+                schema_id: 0,
+                table_id: 0,
+            },
+            vec![1, 2, 3],
+            col_descs,
+            false,
+            false,
+            None,
+        );
+        let filter = LogicalFilter::new(
+            BoundExpr::BinaryOp(BoundBinaryOp {
+                op: BinaryOperator::Lt,
+                left_expr: Box::new(BoundExpr::InputRef(BoundInputRef {
+                    index: 0,
+                    return_type: ty.clone(),
+                })),
+                right_expr: Box::new(BoundExpr::Constant(DataValue::Int32(5))),
+                return_type: Some(ty),
+            }),
+            table_scan.into_plan_ref(),
+        );
+
+        let mut required_cols = BitSet::new();
+        required_cols.insert(2);
+        let plan = filter.prune_col(required_cols);
+        let plan = plan.as_logical_projection().unwrap();
+        let child = plan.child();
+        let child = child.as_logical_filter().unwrap();
+        let input_types = child.out_types();
+        assert_eq!(plan.project_expressions().len(), 1);
+        assert_eq!(
+            plan.project_expressions()[0],
+            BoundExpr::InputRef(BoundInputRef {
+                index: 2,
+                return_type: input_types[1].clone(),
+            })
+        );
+        let table_scan = child.child.as_logical_table_scan().unwrap();
+        assert_eq!(table_scan.column_ids(), &[1, 3]);
     }
 }
