@@ -84,7 +84,7 @@ impl PlanNode for LogicalFilter {
         }
 
         let mut expr = self.expr.clone();
-        Mapper(idx_table).rewrite_expr(&mut expr);
+        Mapper(idx_table.clone()).rewrite_expr(&mut expr);
 
         let new_filter = Self {
             expr,
@@ -98,10 +98,10 @@ impl PlanNode for LogicalFilter {
         let input_types = self.out_types();
         let exprs = required_cols
             .iter()
-            .map(|index| {
+            .map(|old_idx| {
                 BoundExpr::InputRef(BoundInputRef {
-                    index,
-                    return_type: input_types[index].clone(),
+                    index: idx_table[&old_idx],
+                    return_type: input_types[old_idx].clone(),
                 })
             })
             .collect();
@@ -190,14 +190,14 @@ mod tests {
     #[test]
     /// Pruning
     /// ```text
-    /// Filter(cond: input_ref(0)<5)
-    ///   TableScan(v1, v2, v3)
+    /// Filter(cond: input_ref(1)<5)
+    ///   TableScan(v1, v2, v3, v4)
     /// ```
-    /// with required columns [2] will result in
+    /// with required columns [3] will result in
     /// ```text
     /// Project(expr0 = inputref(1))
     ///   Filter(cond: input_ref(0)<5)
-    ///     TableScan(v1, v3)
+    ///     TableScan(v2, v4)
     /// ```
     fn test_prune_filter_with_project() {
         let ty = DataTypeKind::Int(None).not_null();
@@ -205,6 +205,7 @@ mod tests {
             ty.clone().to_column("v1".into()),
             ty.clone().to_column("v2".into()),
             ty.clone().to_column("v3".into()),
+            ty.clone().to_column("v4".into()),
         ];
         let table_scan = LogicalTableScan::new(
             crate::catalog::TableRefId {
@@ -212,7 +213,7 @@ mod tests {
                 schema_id: 0,
                 table_id: 0,
             },
-            vec![1, 2, 3],
+            vec![1, 2, 3, 4],
             col_descs,
             false,
             false,
@@ -222,7 +223,7 @@ mod tests {
             BoundExpr::BinaryOp(BoundBinaryOp {
                 op: BinaryOperator::Lt,
                 left_expr: Box::new(BoundExpr::InputRef(BoundInputRef {
-                    index: 0,
+                    index: 1,
                     return_type: ty.clone(),
                 })),
                 right_expr: Box::new(BoundExpr::Constant(DataValue::Int32(5))),
@@ -232,7 +233,7 @@ mod tests {
         );
 
         let mut required_cols = BitSet::new();
-        required_cols.insert(2);
+        required_cols.insert(3);
         let plan = filter.prune_col(required_cols);
         let plan = plan.as_logical_projection().unwrap();
         let child = plan.child();
@@ -242,11 +243,11 @@ mod tests {
         assert_eq!(
             plan.project_expressions()[0],
             BoundExpr::InputRef(BoundInputRef {
-                index: 2,
+                index: 1,
                 return_type: input_types[1].clone(),
             })
         );
         let table_scan = child.child.as_logical_table_scan().unwrap();
-        assert_eq!(table_scan.column_ids(), &[1, 3]);
+        assert_eq!(table_scan.column_ids(), &[2, 4]);
     }
 }
