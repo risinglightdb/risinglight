@@ -172,7 +172,8 @@ impl Compactor {
         loop {
             {
                 let tables = self.storage.tables.read().clone();
-                let (epoch, snapshot) = self.storage.version.pin();
+                let version = self.storage.version.pin();
+                let snapshot = version.as_ref().snapshot.as_ref();
                 for (_, table) in tables {
                     if let Some(_guard) = self
                         .storage
@@ -189,7 +190,6 @@ impl Compactor {
                     Err(tokio::sync::oneshot::error::TryRecvError::Closed) => break,
                     _ => {}
                 }
-                self.storage.version.unpin(epoch);
             }
             tokio::time::sleep(Duration::from_secs(1)).await;
         }

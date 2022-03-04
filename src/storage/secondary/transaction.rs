@@ -45,9 +45,6 @@ pub struct SecondaryTransaction {
     /// Snapshot content
     snapshot: Arc<Snapshot>,
 
-    /// Epoch of the snapshot
-    epoch: u64,
-
     /// The rowsets produced in the txn.
     to_be_committed_rowsets: Vec<DiskRowset>,
 
@@ -70,7 +67,8 @@ impl SecondaryTransaction {
         update: bool,
     ) -> StorageResult<Self> {
         // pin a snapshot at version manager
-        let (epoch, snapshot) = table.version.pin();
+        let version = table.version.pin();
+        let snapshot = version.as_ref().snapshot.clone();
 
         Ok(Self {
             finished: false,
@@ -78,7 +76,6 @@ impl SecondaryTransaction {
             delete_buffer: vec![],
             table: table.clone(),
             version: table.version.clone(),
-            epoch,
             snapshot,
             delete_lock: if update {
                 Some(table.lock_for_deletion().await)
@@ -187,7 +184,6 @@ impl SecondaryTransaction {
         self.version.commit_changes(changeset).await?;
 
         self.finished = true;
-        self.version.unpin(self.epoch);
 
         Ok(())
     }
@@ -384,7 +380,6 @@ impl Transaction for SecondaryTransaction {
     fn abort<'a>(mut self) -> Self::AbortResultFuture<'a> {
         async move {
             self.finished = true;
-            self.version.unpin(self.epoch);
             Ok(())
         }
     }
@@ -394,7 +389,6 @@ impl Drop for SecondaryTransaction {
     fn drop(&mut self) {
         if !self.finished {
             warn!("Transaction dropped without committing or aborting");
-            self.version.unpin(self.epoch);
         }
     }
 }
