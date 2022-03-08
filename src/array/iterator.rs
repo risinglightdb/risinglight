@@ -42,13 +42,13 @@ impl<'a, A: Array> Iterator for ArrayIter<'a, A> {
     }
 }
 
-pub struct NoNullArrayIter<'a, A: Array> {
+pub struct NonNullArrayIter<'a, A: Array> {
     data: &'a A,
     pos: usize,
     _phantom: PhantomData<&'a usize>,
 }
 
-impl<'a, A: Array> NoNullArrayIter<'a, A> {
+impl<'a, A: Array> NonNullArrayIter<'a, A> {
     pub fn new(data: &'a A) -> Self {
         Self {
             data,
@@ -58,7 +58,7 @@ impl<'a, A: Array> NoNullArrayIter<'a, A> {
     }
 }
 
-impl<'a, A: Array> Iterator for NoNullArrayIter<'a, A> {
+impl<'a, A: Array> Iterator for NonNullArrayIter<'a, A> {
     type Item = &'a A::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -79,4 +79,4 @@ impl<'a, A: Array> Iterator for NoNullArrayIter<'a, A> {
 
 unsafe impl<'a, A: Array> TrustedLen for ArrayIter<'_, A> {}
 
-unsafe impl<'a, A: Array> TrustedLen for NoNullArrayIter<'_, A> {}
+unsafe impl<'a, A: Array> TrustedLen for NonNullArrayIter<'_, A> {}

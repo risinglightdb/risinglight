@@ -6,7 +6,7 @@ use std::mem;
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
-use super::iterator::NoNullArrayIter;
+use super::iterator::NonNullArrayIter;
 use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt};
 use crate::types::BlobRef;
 
@@ -55,7 +55,7 @@ impl<T: ValueRef + ?Sized> Clone for BytesArray<T> {
 impl<T: ValueRef + ?Sized> Array for BytesArray<T> {
     type Item = T;
     type Builder = BytesArrayBuilder<T>;
-    type NonNullIterator<'a> = NoNullArrayIter<'a, Self>;
+    type NonNullIterator<'a> = NonNullArrayIter<'a, Self>;
 
     fn get(&self, idx: usize) -> Option<&T> {
         if self.valid[idx] {
@@ -71,7 +71,7 @@ impl<T: ValueRef + ?Sized> Array for BytesArray<T> {
     }
 
     fn non_null_iter(&self) -> Self::NonNullIterator<'_> {
-        NoNullArrayIter::new(self)
+        NonNullArrayIter::new(self)
     }
 }
 
