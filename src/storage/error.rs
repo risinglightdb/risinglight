@@ -1,6 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::backtrace::Backtrace;
+use std::sync::Arc;
 
 use thiserror::Error;
 
@@ -30,6 +31,12 @@ pub enum StorageError {
     ProstEncode(prost::EncodeError),
     #[error("Prost decode error: {0}")]
     ProstDecode(prost::DecodeError),
+    #[error("{0}")]
+    Nested(
+        #[from]
+        #[backtrace]
+        Arc<TracedStorageError>,
+    ),
 }
 
 impl From<std::io::Error> for TracedStorageError {
@@ -57,6 +64,13 @@ impl From<prost::DecodeError> for TracedStorageError {
     #[inline]
     fn from(e: prost::DecodeError) -> TracedStorageError {
         StorageError::ProstDecode(e).into()
+    }
+}
+
+impl From<Arc<TracedStorageError>> for TracedStorageError {
+    #[inline]
+    fn from(e: Arc<TracedStorageError>) -> TracedStorageError {
+        StorageError::Nested(e).into()
     }
 }
 
