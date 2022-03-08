@@ -12,11 +12,25 @@ fn array_mul(c: &mut Criterion) {
             let a1: I32Array = (0..size).collect();
             let a2: I32Array = (0..size).collect();
             b.iter(|| {
-                let _: I32Array = evaluator::binary_op(&a1, &a2, |a, b| a * b);
+                let _: I32Array = evaluator::binary_op_masks(&a1, &a2, |a, b| a * b);
             });
         });
     }
     group.finish();
+
+    let mut group = c.benchmark_group("array mul native");
+    group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    for size in [1, 16, 256, 4096, 65536] {
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+            let a1: Vec<i32> = (0..size).collect();
+            let a2: Vec<i32> = (0..size).collect();
+            b.iter(|| {
+                let _: I32Array = a1.iter().zip(a2.iter()).map(|(a, b)| a * b).collect();
+            });
+        });
+    }
+    group.finish();
+
 
     let mut group = c.benchmark_group("array mul simd");
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));

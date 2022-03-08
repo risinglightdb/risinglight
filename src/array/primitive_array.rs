@@ -1,12 +1,12 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::iter::FromIterator;
+use std::iter::{FromIterator, TrustedLen};
 use std::mem;
 
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
-use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt};
+use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt, ArrayFromDataExt};
 use crate::types::NativeType;
 
 mod simd;
@@ -34,13 +34,19 @@ impl<T: NativeType> FromIterator<Option<T>> for PrimitiveArray<T> {
 // Enable `collect()` an array from iterator of `T`.
 impl<T: NativeType> FromIterator<T> for PrimitiveArray<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        iter.into_iter().map(Some).collect()
+        let data: Vec<T> = iter.into_iter().collect();
+        let size = data.len();
+        Self {
+            data,
+            valid: BitVec::repeat( true, size)
+        }
     }
 }
 
 impl<T: NativeType> Array for PrimitiveArray<T> {
     type Item = T;
     type Builder = PrimitiveArrayBuilder<T>;
+    type NonNullIterator<'a> = std::slice::Iter<'a, T>;
 
     fn get(&self, idx: usize) -> Option<&T> {
         self.valid[idx].then(|| &self.data[idx])
@@ -48,6 +54,10 @@ impl<T: NativeType> Array for PrimitiveArray<T> {
 
     fn len(&self) -> usize {
         self.valid.len()
+    }
+
+    fn non_null_iter(&self) -> Self::NonNullIterator<'_> {
+       self.data.iter()
     }
 }
 
@@ -62,6 +72,18 @@ impl<T: NativeType> ArrayEstimateExt for PrimitiveArray<T> {
         self.data.len() * std::mem::size_of::<T>() + self.valid.len() / 8
     }
 }
+
+impl<T: NativeType> ArrayFromDataExt for PrimitiveArray<T> {
+    fn from_data(data_iter: impl Iterator<Item = Self::Item> + TrustedLen, valid: BitVec) -> Self {
+        let data = data_iter.collect();
+        Self {
+            data,
+            valid,
+        }
+    }
+}
+
+
 
 /// A builder that constructs a [`PrimitiveArray`] from `Option<T>`.
 pub struct PrimitiveArrayBuilder<T: NativeType> {
