@@ -182,8 +182,7 @@ impl Column {
                 do_verify_checksum = true;
                 block
             })
-            .await
-            .unwrap();
+            .await?;
 
         if block.len() < BLOCK_HEADER_SIZE {
             return Err(TracedStorageError::decode(
