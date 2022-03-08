@@ -76,7 +76,7 @@ impl<T: NativeType> ArrayEstimateExt for PrimitiveArray<T> {
 impl<T: NativeType> ArrayFromDataExt for PrimitiveArray<T> {
     fn from_data(data_iter: impl Iterator<Item = Self::Item> + TrustedLen, valid: BitVec) -> Self {
         let data = data_iter.collect();
-        Self { data, valid }
+        Self { valid, data }
     }
 }
 

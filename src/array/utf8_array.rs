@@ -71,7 +71,7 @@ impl<T: ValueRef + ?Sized> Array for BytesArray<T> {
     }
 
     fn non_null_iter(&self) -> Self::NonNullIterator<'_> {
-        NoNullArrayIter::new(&self)
+        NoNullArrayIter::new(self)
     }
 }
 
