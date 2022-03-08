@@ -36,13 +36,11 @@ impl<'a, A: Array> Iterator for ArrayIter<'a, A> {
         }
     }
 
-
     fn size_hint(&self) -> (usize, Option<usize>) {
-         let exact = self.data.len() - self.pos;
+        let exact = self.data.len() - self.pos;
         (exact, Some(exact))
     }
 }
-
 
 pub struct NoNullArrayIter<'a, A: Array> {
     data: &'a A,
@@ -67,22 +65,18 @@ impl<'a, A: Array> Iterator for NoNullArrayIter<'a, A> {
         if self.pos >= self.data.len() {
             None
         } else {
-            let value =  self.data.get(self.pos);
+            let value = self.data.get(self.pos);
             self.pos += 1;
             value
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-         let exact = self.data.len() - self.pos;
+        let exact = self.data.len() - self.pos;
         (exact, Some(exact))
     }
 }
 
+unsafe impl<'a, A: Array> TrustedLen for ArrayIter<'_, A> {}
 
-
-unsafe impl<'a, A: Array> TrustedLen for ArrayIter<'_, A> {
-}
-
-unsafe impl<'a, A: Array> TrustedLen for NoNullArrayIter<'_, A> {
-}
+unsafe impl<'a, A: Array> TrustedLen for NoNullArrayIter<'_, A> {}

@@ -6,7 +6,8 @@ use std::mem;
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
-use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt, iterator::NoNullArrayIter};
+use super::iterator::NoNullArrayIter;
+use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt};
 use crate::types::BlobRef;
 
 /// A collection of variable-length values.

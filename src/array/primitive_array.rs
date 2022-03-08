@@ -6,7 +6,7 @@ use std::mem;
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
-use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt, ArrayFromDataExt};
+use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidExt};
 use crate::types::NativeType;
 
 mod simd;
@@ -38,7 +38,7 @@ impl<T: NativeType> FromIterator<T> for PrimitiveArray<T> {
         let size = data.len();
         Self {
             data,
-            valid: BitVec::repeat( true, size)
+            valid: BitVec::repeat(true, size),
         }
     }
 }
@@ -57,7 +57,7 @@ impl<T: NativeType> Array for PrimitiveArray<T> {
     }
 
     fn non_null_iter(&self) -> Self::NonNullIterator<'_> {
-       self.data.iter()
+        self.data.iter()
     }
 }
 
@@ -76,14 +76,9 @@ impl<T: NativeType> ArrayEstimateExt for PrimitiveArray<T> {
 impl<T: NativeType> ArrayFromDataExt for PrimitiveArray<T> {
     fn from_data(data_iter: impl Iterator<Item = Self::Item> + TrustedLen, valid: BitVec) -> Self {
         let data = data_iter.collect();
-        Self {
-            data,
-            valid,
-        }
+        Self { data, valid }
     }
 }
-
-
 
 /// A builder that constructs a [`PrimitiveArray`] from `Option<T>`.
 pub struct PrimitiveArrayBuilder<T: NativeType> {

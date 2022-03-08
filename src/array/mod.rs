@@ -84,7 +84,7 @@ pub trait Array: Sized + Send + Sync + 'static {
     /// Type of element in the array.
     type Item: ToOwned + ?Sized;
 
-    type NonNullIterator<'a> : Iterator<Item = &'a Self::Item> + TrustedLen;
+    type NonNullIterator<'a>: Iterator<Item = &'a Self::Item> + TrustedLen;
 
     /// Retrieve a reference to value.
     fn get(&self, idx: usize) -> Option<&Self::Item>;

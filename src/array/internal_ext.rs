@@ -27,9 +27,8 @@ pub trait ArrayImplEstimateExt {
     fn get_estimated_size(&self) -> usize;
 }
 
-
-pub trait ArrayFromDataExt : Array{
-    fn from_data(data_iter: impl Iterator<Item =  Self::Item> + TrustedLen , valid: BitVec) -> Self;
+pub trait ArrayFromDataExt: Array {
+    fn from_data(data_iter: impl Iterator<Item = Self::Item> + TrustedLen, valid: BitVec) -> Self;
 }
 
 /// Implement dispatch functions for `ArrayImplValidExt` and `ArrayImplEstimateExt`

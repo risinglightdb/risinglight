@@ -31,7 +31,6 @@ fn array_mul(c: &mut Criterion) {
     }
     group.finish();
 
-
     let mut group = c.benchmark_group("array mul simd");
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for size in [1, 16, 256, 4096, 65536] {
