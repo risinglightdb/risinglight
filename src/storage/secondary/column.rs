@@ -160,7 +160,6 @@ impl Column {
                 let info = self.index.index(block_id).clone();
                 let block = tokio::task::spawn_blocking(move || {
                     let mut data = vec![0; info.length as usize];
-                    // TODO(chi): handle file system errors
                     match file {
                         ColumnReadableFile::PositionedRead(file) => {
                             file.read_exact_at(&mut data[..], info.offset)?;
