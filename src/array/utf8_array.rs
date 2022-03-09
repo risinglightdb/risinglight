@@ -1,12 +1,12 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::mem;
 
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
+use super::iterator::NonNullArrayIter;
 use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt};
 use crate::types::BlobRef;
 
@@ -55,6 +55,7 @@ impl<T: ValueRef + ?Sized> Clone for BytesArray<T> {
 impl<T: ValueRef + ?Sized> Array for BytesArray<T> {
     type Item = T;
     type Builder = BytesArrayBuilder<T>;
+    type NonNullIterator<'a> = NonNullArrayIter<'a, Self>;
 
     fn get(&self, idx: usize) -> Option<&T> {
         if self.valid[idx] {
@@ -67,6 +68,10 @@ impl<T: ValueRef + ?Sized> Array for BytesArray<T> {
 
     fn len(&self) -> usize {
         self.valid.len()
+    }
+
+    fn non_null_iter(&self) -> Self::NonNullIterator<'_> {
+        NonNullArrayIter::new(self)
     }
 }
 

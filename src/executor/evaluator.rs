@@ -406,6 +406,23 @@ where
     builder.finish()
 }
 
+pub fn binary_op_masks<A, B, O, F>(a: &A, b: &B, f: F) -> O
+where
+    A: ArrayValidExt,
+    B: ArrayValidExt,
+    O: ArrayFromDataExt,
+    O::Item: Sized,
+    F: Fn(&A::Item, &B::Item) -> O::Item,
+{
+    assert_eq!(a.len(), b.len());
+    let it = a
+        .non_null_iter()
+        .zip(b.non_null_iter())
+        .map(|(a, b)| f(a, b));
+    let valid = a.get_valid_bitmap().clone() & b.get_valid_bitmap().clone();
+    O::from_data(it, valid)
+}
+
 fn binary_op_with_null<A, B, O, F, V>(a: &A, b: &B, f: F) -> O
 where
     A: Array,
