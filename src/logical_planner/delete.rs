@@ -11,7 +11,7 @@ impl LogicalPlaner {
 
         if let BoundTableRef::BaseTableRef { ref ref_id, .. } = stmt.from_table {
             if let Some(expr) = stmt.where_clause {
-                let child = self.plan_table_ref(&stmt.from_table, true, false)?;
+                let child = self.plan_table_ref(&stmt.from_table, true, false, true)?;
                 Ok(Arc::new(LogicalDelete::new(
                     *ref_id,
                     Arc::new(LogicalFilter::new(expr, child)),
