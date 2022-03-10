@@ -37,7 +37,13 @@ impl ValuesExecutor {
                         _ => None,
                     };
                     if let Some(width) = size {
-                        let item_length = value.get(0).len() as u64;
+                        let item_length = if let DataValue::String(x) = &value.get(0) {
+                            x.len() as u64
+                        } else if let DataValue::Null = &value.get(0) {
+                            0
+                        } else {
+                            unreachable!()
+                        };
                         if item_length > width {
                             return Err(ExecutorError::ExceedLengthLimit {
                                 length: item_length,

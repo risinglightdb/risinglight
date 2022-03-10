@@ -296,23 +296,6 @@ impl DataValue {
             }
         }))
     }
-
-    /// Return the len of value, the length for [Decimal| Date| Interval] is based on the number of
-    /// i32 element variable it contains.
-    pub fn len(&self) -> usize {
-        match self {
-            Self::Bool(_) => 1,
-            Self::Int32(_) => 4,
-            Self::Int64(_) => 8,
-            Self::Float64(_) => 8,
-            Self::String(v) => v.len(),
-            Self::Blob(v) => v.len(),
-            Self::Decimal(_) => 12,
-            Self::Date(_) => 4,
-            Self::Interval(_) => 8,
-            Self::Null => 0,
-        }
-    }
 }
 
 /// The error type of value type convention.
