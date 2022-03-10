@@ -1,9 +1,11 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use itertools::izip;
+
 use super::*;
 use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::binder::BoundExpr;
-use crate::types::DataType;
+use crate::types::{DataType, DataTypeKind};
 
 /// The executor of `values`.
 pub struct ValuesExecutor {
@@ -17,17 +19,35 @@ impl ValuesExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         for chunk in self.values.chunks(PROCESSING_WINDOW_SIZE) {
+            type Type = DataTypeKind;
             // Create array builders.
-            let mut builders = self
-                .column_types
+            let column_types = &self.column_types;
+            let mut builders = column_types
                 .iter()
                 .map(|ty| ArrayBuilderImpl::with_capacity(chunk.len(), ty))
                 .collect_vec();
             // Push value into the builder.
             let dummy = DataChunk::single(0);
             for row in chunk {
-                for (expr, builder) in row.iter().zip_eq(&mut builders) {
+                for (expr, column_type, builder) in izip!(row, column_types, &mut builders) {
                     let value = expr.eval(&dummy)?;
+                    if let Type::Varchar(Some(size)) = column_type.kind {
+                        let item_length = value.get(0).to_string().len() as u64;
+                        if item_length > size {
+                            return Err(ExecutorError::ExceedLengthLimit {
+                                length: item_length,
+                                width: size,
+                            });
+                        }
+                    } else if let Type::Char(Some(size)) = column_type.kind {
+                        let item_length = value.get(0).to_string().len() as u64;
+                        if item_length > size {
+                            return Err(ExecutorError::ExceedLengthLimit {
+                                length: item_length,
+                                width: size,
+                            });
+                        }
+                    }
                     builder.push(&value.get(0));
                 }
             }
