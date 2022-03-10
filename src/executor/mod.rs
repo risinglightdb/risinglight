@@ -18,6 +18,7 @@ use std::sync::Arc;
 use futures::stream::{BoxStream, StreamExt};
 use futures_async_stream::{for_await, try_stream};
 use itertools::Itertools;
+use minitrace::prelude::*;
 use tokio_util::sync::CancellationToken;
 
 pub use self::aggregation::*;
@@ -131,9 +132,27 @@ impl ExecutorBuilder {
         ExecutorBuilder { context, storage }
     }
 
-    pub fn build(&mut self, plan: PlanRef) -> BoxedExecutor {
-        self.visit(plan).unwrap()
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn build(&mut self, plan: PlanRef) {
+        let mut executor_stream = self.visit(plan).unwrap();
+        while let Some(item) = executor_stream
+            .next()
+            .in_span(Span::enter_with_local_parent("test"))
+            .await
+        {
+            yield item?
+        }
     }
+    // #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    // pub async fn wrap_span_executor(mut executor_stream: BoxedExecutor) {
+    //     while let Some(item) = executor_stream
+    //         .next()
+    //         .in_span(Span::enter_with_local_parent("test"))
+    //         .await
+    //     {
+    //         yield item?
+    //     }
+    // }
 }
 
 /// Helper function to select the given future along with cancellation token.
