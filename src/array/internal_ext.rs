@@ -2,6 +2,8 @@
 
 //! Provide utilities to access the internal states of the [`Array`].
 
+use std::iter::TrustedLen;
+
 use bitvec::vec::BitVec;
 
 use super::{Array, ArrayImpl};
@@ -23,6 +25,10 @@ pub trait ArrayEstimateExt: Array {
 pub trait ArrayImplEstimateExt {
     /// Get estimated size of the array in memory
     fn get_estimated_size(&self) -> usize;
+}
+
+pub trait ArrayFromDataExt: Array {
+    fn from_data(data_iter: impl Iterator<Item = Self::Item> + TrustedLen, valid: BitVec) -> Self;
 }
 
 /// Implement dispatch functions for `ArrayImplValidExt` and `ArrayImplEstimateExt`

@@ -237,15 +237,40 @@ impl SecondaryStorage {
     }
 
     pub(super) async fn drop_table_inner(&self, table_id: TableRefId) -> StorageResult<()> {
+        let mut changeset = vec![];
+
         let entry = DropTableEntry { table_id };
 
         // contrary to create table, we first modify the catalog
         self.apply_drop_table(&entry)?;
 
+        changeset.push(EpochOp::DropTable(entry));
+
+        let (epoch, snapshot) = self.version.pin();
+
+        if let Some(rowsets) = snapshot.get_rowsets_of(table_id.table_id) {
+            for rowset_id in rowsets {
+                changeset.push(EpochOp::DeleteRowSet(DeleteRowsetEntry {
+                    table_id,
+                    rowset_id: *rowset_id,
+                }));
+
+                if let Some(dvs) = snapshot.get_dvs_of(table_id.table_id, *rowset_id) {
+                    for dv_id in dvs {
+                        changeset.push(EpochOp::DeleteDV(DeleteDVEntry {
+                            table_id,
+                            dv_id: *dv_id,
+                            rowset_id: *rowset_id,
+                        }));
+                    }
+                }
+            }
+        }
+
+        self.version.unpin(epoch);
+
         // and then persist to manifest
-        self.version
-            .commit_changes(vec![EpochOp::DropTable(entry)])
-            .await?;
+        self.version.commit_changes(changeset).await?;
 
         Ok(())
     }

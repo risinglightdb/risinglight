@@ -2,6 +2,7 @@
 
 use std::convert::TryFrom;
 use std::fmt::Debug;
+use std::iter::TrustedLen;
 use std::ops::{Bound, RangeBounds};
 
 use rust_decimal::prelude::FromStr;
@@ -80,9 +81,10 @@ pub trait ArrayBuilder: Sized + Send + Sync + 'static {
 pub trait Array: Sized + Send + Sync + 'static {
     /// Corresponding builder of this array.
     type Builder: ArrayBuilder<Array = Self>;
-
     /// Type of element in the array.
     type Item: ToOwned + ?Sized;
+
+    type NonNullIterator<'a>: Iterator<Item = &'a Self::Item> + TrustedLen;
 
     /// Retrieve a reference to value.
     fn get(&self, idx: usize) -> Option<&Self::Item>;
@@ -99,6 +101,8 @@ pub trait Array: Sized + Send + Sync + 'static {
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    fn non_null_iter(&self) -> Self::NonNullIterator<'_>;
 }
 
 /// An extension trait for [`Array`].

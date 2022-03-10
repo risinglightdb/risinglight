@@ -104,6 +104,8 @@ pub enum ExecutorError {
     ),
     #[error("value can not be null")]
     NotNullable,
+    #[error("exceed char/varchar length limit: item length {length} > char/varchar width {width}")]
+    ExceedLengthLimit { length: u64, width: u64 },
     #[error("abort")]
     Abort,
 }

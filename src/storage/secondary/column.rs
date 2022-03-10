@@ -149,42 +149,39 @@ impl Column {
         let key = self.base_block_key.clone().block(block_id);
 
         let mut block_header = BlockHeader::default();
-        let do_verify_checksum;
+        let mut do_verify_checksum = false;
 
-        let block = if let Some(block) = self.block_cache.get(&key) {
-            // No need to verify checksum when read from cache
-            do_verify_checksum = false;
-            block
-        } else {
-            // block has not been in cache, so we fetch it from disk
-            // TODO(chi): support multiple I/O backend
+        // support multiple I/O backend
+        let block = self
+            .block_cache
+            .get_or_try_insert_with(key, async {
+                // block has not been in cache, so we fetch it from disk
+                let file = self.file.clone();
+                let info = self.index.index(block_id).clone();
+                let block = tokio::task::spawn_blocking(move || {
+                    let mut data = vec![0; info.length as usize];
+                    match file {
+                        ColumnReadableFile::PositionedRead(file) => {
+                            file.read_exact_at(&mut data[..], info.offset)?;
+                        }
+                        ColumnReadableFile::NormalRead(file) => {
+                            let mut file = file.lock().unwrap();
+                            file.seek(SeekFrom::Start(info.offset as u64))?;
+                            file.read_exact(&mut data[..])?;
+                        }
+                    }
+                    Ok::<_, TracedStorageError>(Bytes::from(data))
+                })
+                .await
+                .unwrap();
+                // TODO(chi): we should invalidate cache item after a RowSet has been compacted.
+                // self.block_cache.insert(key, block.clone()).await;
 
-            let file = self.file.clone();
-            let info = self.index.index(block_id).clone();
-            let block = tokio::task::spawn_blocking(move || {
-                let mut data = vec![0; info.length as usize];
-                // TODO(chi): handle file system errors
-                match file {
-                    ColumnReadableFile::PositionedRead(file) => {
-                        file.read_exact_at(&mut data[..], info.offset)?;
-                    }
-                    ColumnReadableFile::NormalRead(file) => {
-                        let mut file = file.lock().unwrap();
-                        file.seek(SeekFrom::Start(info.offset as u64))?;
-                        file.read_exact(&mut data[..])?;
-                    }
-                }
-                Ok::<_, TracedStorageError>(Bytes::from(data))
+                // need to verify checksum when read from disk
+                do_verify_checksum = true;
+                block
             })
-            .await
-            .unwrap()?;
-
-            // TODO(chi): we should invalidate cache item after a RowSet has been compacted.
-            self.block_cache.insert(key, block.clone()).await;
-
-            do_verify_checksum = true;
-            block
-        };
+            .await?;
 
         if block.len() < BLOCK_HEADER_SIZE {
             return Err(TracedStorageError::decode(
