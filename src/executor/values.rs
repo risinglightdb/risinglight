@@ -31,20 +31,17 @@ impl ValuesExecutor {
             for row in chunk {
                 for (expr, column_type, builder) in izip!(row, column_types, &mut builders) {
                     let value = expr.eval(&dummy)?;
-                    if let Type::Varchar(Some(size)) = column_type.kind {
-                        let item_length = value.get(0).to_string().len() as u64;
-                        if item_length > size {
+                    let size = match column_type.kind {
+                        Type::Varchar(size) => size,
+                        Type::Char(size) => size,
+                        _ => None,
+                    };
+                    if let Some(width) = size {
+                        let item_length = value.get(0).len() as u64;
+                        if item_length > width {
                             return Err(ExecutorError::ExceedLengthLimit {
                                 length: item_length,
-                                width: size,
-                            });
-                        }
-                    } else if let Type::Char(Some(size)) = column_type.kind {
-                        let item_length = value.get(0).to_string().len() as u64;
-                        if item_length > size {
-                            return Err(ExecutorError::ExceedLengthLimit {
-                                length: item_length,
-                                width: size,
+                                width,
                             });
                         }
                     }
