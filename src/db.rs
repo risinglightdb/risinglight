@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
+use futures::executor::block_on;
 use futures::TryStreamExt;
+use minitrace::prelude::*;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use tracing::debug;
-use minitrace::prelude::*;
-use futures::executor::block_on;
 
 use crate::array::{
     ArrayBuilder, ArrayBuilderImpl, Chunk, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder,
@@ -182,8 +182,6 @@ impl Database {
         };
         // TODO: parallelize
         let mut outputs: Vec<Chunk> = vec![];
-        let (root, collector) = Span::root("Root");
-        let _g = root.set_local_parent();
         for stmt in stmts {
             let stmt = binder.bind(&stmt)?;
             debug!("{:#?}", stmt);
@@ -199,10 +197,14 @@ impl Database {
 
             let mut executor_builder = ExecutorBuilder::new(context.clone(), self.storage.clone());
             let executor = executor_builder.build(optimized_plan);
-            let mut output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
-                debug!("error: {}", e);
-                e
-            })?;
+
+            let (root, collector) = Span::root("root");
+
+            let mut output: Vec<DataChunk> =
+                executor.try_collect().in_span(root).await.map_err(|e| {
+                    debug!("error: {}", e);
+                    e
+                })?;
             for chunk in &output {
                 debug!("output:\n{}", chunk);
             }
@@ -210,10 +212,10 @@ impl Database {
                 output[0].set_header(column_names);
             }
             outputs.push(Chunk::new(output));
+
+            let records: Vec<SpanRecord> = block_on(collector.collect());
+            println!("{records:#?}");
         }
-        drop(root);
-        let records: Vec<SpanRecord> = block_on(collector.collect());
-        println!("{records:#?}");
         Ok(outputs)
     }
 
