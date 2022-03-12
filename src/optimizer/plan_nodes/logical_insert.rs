@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use super::*;
 use crate::catalog::TableRefId;
-use crate::types::ColumnId;
+use crate::types::{ColumnId, DataTypeKind};
 
 /// The logical plan of `INSERT`.
 #[derive(Debug, Clone, Serialize)]
@@ -47,7 +47,15 @@ impl PlanTreeNodeUnary for LogicalInsert {
 }
 impl_plan_tree_node_for_unary!(LogicalInsert);
 
-impl PlanNode for LogicalInsert {}
+impl PlanNode for LogicalInsert {
+    fn schema(&self) -> Vec<ColumnDesc> {
+        vec![ColumnDesc::new(
+            DataType::new(DataTypeKind::Int(None), false),
+            "$insert.row_counts".to_string(),
+            false,
+        )]
+    }
+}
 
 impl fmt::Display for LogicalInsert {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
