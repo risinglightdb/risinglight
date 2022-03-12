@@ -195,17 +195,18 @@ impl Database {
 
             let executor_builder = ExecutorBuilder::new(context.clone(), self.storage.clone());
             let executor = executor_builder.clone().build(optimized_plan);
-            let mut output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
+            let output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
                 debug!("error: {}", e);
                 e
             })?;
             for chunk in &output {
                 debug!("output:\n{}", chunk);
             }
-            if !column_names.is_empty() && !output.is_empty() {
-                output[0].set_header(column_names);
+            let mut chunk = Chunk::new(output);
+            if !column_names.is_empty() && !chunk.data_chunks().is_empty() {
+                chunk.set_header(column_names);
             }
-            outputs.push(Chunk::new(output));
+            outputs.push(chunk);
         }
         Ok(outputs)
     }

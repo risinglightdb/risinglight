@@ -13,7 +13,6 @@ use crate::types::DataValue;
 #[derive(Clone, PartialEq)]
 pub struct DataChunk {
     arrays: Arc<[ArrayImpl]>,
-    header: Option<Vec<String>>,
 }
 
 impl FromIterator<ArrayImpl> for DataChunk {
@@ -24,10 +23,7 @@ impl FromIterator<ArrayImpl> for DataChunk {
             arrays.iter().map(|a| a.len()).all(|l| l == cardinality),
             "all arrays must have the same length"
         );
-        DataChunk {
-            arrays,
-            header: None,
-        }
+        DataChunk { arrays }
     }
 }
 
@@ -44,7 +40,6 @@ impl DataChunk {
             arrays: [ArrayImpl::Int32([item].into_iter().collect())]
                 .into_iter()
                 .collect(),
-            header: None,
         }
     }
 
@@ -83,10 +78,7 @@ impl DataChunk {
             .iter()
             .map(|a| a.filter(visibility.clone()))
             .collect();
-        DataChunk {
-            arrays,
-            header: None,
-        }
+        DataChunk { arrays }
     }
 
     /// Return the number of columns.
@@ -97,25 +89,12 @@ impl DataChunk {
     /// Returns a slice of self that is equivalent to the given subset.
     pub fn slice(&self, range: impl RangeBounds<usize> + Clone) -> Self {
         let arrays = self.arrays.iter().map(|a| a.slice(range.clone())).collect();
-        DataChunk {
-            arrays,
-            header: None,
-        }
+        DataChunk { arrays }
     }
 
     /// Get the estimated in-memory size.
     pub fn estimated_size(&self) -> usize {
         self.arrays.iter().map(|a| a.get_estimated_size()).sum()
-    }
-
-    /// This function should only be called in plan nodes. If you want to change column name, you
-    /// should change the plan node, instead of directly attaching a header to the chunk.
-    pub fn set_header(&mut self, header: Vec<String>) {
-        self.header = Some(header);
-    }
-
-    pub fn header(&self) -> Option<&[String]> {
-        self.header.as_deref()
     }
 
     pub fn from_rows<'a>(rows: &[RowRef<'a>], chunk: &Self) -> Self {
@@ -136,9 +115,6 @@ impl fmt::Display for DataChunk {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use comfy_table::Table;
         let mut table = Table::new();
-        if let Some(header) = &self.header {
-            table.set_header(header);
-        }
         table.load_preset("||--+-++|    ++++++");
         for i in 0..self.cardinality() {
             let row: Vec<_> = self.arrays.iter().map(|a| a.get_to_string(i)).collect();
@@ -158,12 +134,16 @@ impl fmt::Debug for DataChunk {
 #[derive(Clone, PartialEq)]
 pub struct Chunk {
     data_chunks: Vec<DataChunk>,
+    header: Option<Vec<String>>,
 }
 
 impl Chunk {
     /// New a Chunk with some data chunks.
     pub fn new(data_chunks: Vec<DataChunk>) -> Self {
-        Chunk { data_chunks }
+        Chunk {
+            data_chunks,
+            header: None,
+        }
     }
 
     /// Get all data chunks.
@@ -178,7 +158,12 @@ impl Chunk {
 
     /// Get header of chunk
     pub fn header(&self) -> Option<&[String]> {
-        self.data_chunks[0].header()
+        self.header.as_deref()
+    }
+
+    /// Set header for current chunk
+    pub fn set_header(&mut self, header: Vec<String>) {
+        self.header = Some(header);
     }
 }
 
