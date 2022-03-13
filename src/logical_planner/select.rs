@@ -34,16 +34,22 @@ impl LogicalPlaner {
                     }
                 }
             }
-            if let BoundTableRef::JoinTableRef { join_tables, .. } = table_ref {
-                if join_tables.is_empty() {
-                    stmt.select_list.iter().for_each(|expr| {
-                        if expr.contains_row_count() && !expr.contains_column_ref() {
-                            with_row_handler = true;
-                        }
-                    });
+            if let BoundTableRef::JoinTableRef {
+                relation,
+                join_tables,
+            } = table_ref
+            {
+                if let BoundTableRef::BaseTableRef { column_ids, .. } = &**relation {
+                    if join_tables.is_empty() && column_ids.is_empty() {
+                        stmt.select_list.iter().for_each(|expr| {
+                            if expr.contains_row_count() && !expr.contains_column_ref() {
+                                with_row_handler = true;
+                            }
+                        });
+                    }
                 }
             }
-            plan = self.plan_table_ref(table_ref, with_row_handler, is_sorted, false)?;
+            plan = self.plan_table_ref(table_ref, with_row_handler, is_sorted)?;
         } else {
             plan = Arc::new(LogicalValues::new(
                 stmt.select_list
@@ -119,7 +125,6 @@ impl LogicalPlaner {
         table_ref: &BoundTableRef,
         with_row_handler: bool,
         is_sorted: bool,
-        is_delete: bool,
     ) -> Result<PlanRef, LogicalPlanError> {
         match table_ref {
             BoundTableRef::BaseTableRef {
@@ -141,7 +146,7 @@ impl LogicalPlaner {
                         *ref_id,
                         column_ids.to_vec(),
                         column_descs.to_vec(),
-                        is_delete || (with_row_handler && column_ids.is_empty()),
+                        with_row_handler,
                         is_sorted,
                         None,
                     )))
@@ -151,15 +156,10 @@ impl LogicalPlaner {
                 relation,
                 join_tables,
             } => {
-                let mut plan =
-                    self.plan_table_ref(relation, with_row_handler, is_sorted, is_delete)?;
+                let mut plan = self.plan_table_ref(relation, with_row_handler, is_sorted)?;
                 for join_table in join_tables.iter() {
-                    let table_plan = self.plan_table_ref(
-                        &join_table.table_ref,
-                        with_row_handler,
-                        is_sorted,
-                        is_delete,
-                    )?;
+                    let table_plan =
+                        self.plan_table_ref(&join_table.table_ref, with_row_handler, is_sorted)?;
                     plan = Arc::new(LogicalJoin::create(
                         plan,
                         table_plan,
