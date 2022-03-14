@@ -198,7 +198,7 @@ impl Database {
             let executor = executor_builder.build(optimized_plan);
 
             let (root, _collector) = Span::root("root");
-            let mut output: Vec<DataChunk> = if cfg!(feature = "enable_tracing") {
+            let output: Vec<DataChunk> = if cfg!(feature = "enable_tracing") {
                 executor.try_collect().in_span(root).await.map_err(|e| {
                     debug!("error: {}", e);
                     e
@@ -212,10 +212,11 @@ impl Database {
             for chunk in &output {
                 debug!("output:\n{}", chunk);
             }
-            if !column_names.is_empty() && !output.is_empty() {
-                output[0].set_header(column_names);
+            let mut chunk = Chunk::new(output);
+            if !column_names.is_empty() && !chunk.data_chunks().is_empty() {
+                chunk.set_header(column_names);
             }
-            outputs.push(Chunk::new(output));
+            outputs.push(chunk);
             #[cfg(feature = "enable_tracing")]
             let records: Vec<SpanRecord> = _collector.collect().await;
             #[cfg(feature = "enable_tracing")]

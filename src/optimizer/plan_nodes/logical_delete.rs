@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use super::*;
 use crate::catalog::TableRefId;
+use crate::types::DataTypeKind;
 
 /// The logical plan of `DELETE`.
 #[derive(Debug, Clone, Serialize)]
@@ -37,7 +38,15 @@ impl PlanTreeNodeUnary for LogicalDelete {
     }
 }
 impl_plan_tree_node_for_unary!(LogicalDelete);
-impl PlanNode for LogicalDelete {}
+impl PlanNode for LogicalDelete {
+    fn schema(&self) -> Vec<ColumnDesc> {
+        vec![ColumnDesc::new(
+            DataType::new(DataTypeKind::Int(None), false),
+            "$delete.row_counts".to_string(),
+            false,
+        )]
+    }
+}
 
 impl fmt::Display for LogicalDelete {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
