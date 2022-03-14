@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use futures::TryStreamExt;
+use minitrace::prelude::*;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use tracing::debug;
 
@@ -193,12 +194,21 @@ impl Database {
             let optimized_plan = optimizer.optimize(logical_plan);
             debug!("{:#?}", optimized_plan);
 
-            let executor_builder = ExecutorBuilder::new(context.clone(), self.storage.clone());
-            let executor = executor_builder.clone().build(optimized_plan);
-            let output: Vec<DataChunk> = executor.try_collect().await.map_err(|e| {
-                debug!("error: {}", e);
-                e
-            })?;
+            let mut executor_builder = ExecutorBuilder::new(context.clone(), self.storage.clone());
+            let executor = executor_builder.build(optimized_plan);
+
+            let (root, _collector) = Span::root("root");
+            let output: Vec<DataChunk> = if cfg!(feature = "enable_tracing") {
+                executor.try_collect().in_span(root).await.map_err(|e| {
+                    debug!("error: {}", e);
+                    e
+                })?
+            } else {
+                executor.try_collect().await.map_err(|e| {
+                    debug!("error: {}", e);
+                    e
+                })?
+            };
             for chunk in &output {
                 debug!("output:\n{}", chunk);
             }
@@ -207,6 +217,10 @@ impl Database {
                 chunk.set_header(column_names);
             }
             outputs.push(chunk);
+            #[cfg(feature = "enable_tracing")]
+            let records: Vec<SpanRecord> = _collector.collect().await;
+            #[cfg(feature = "enable_tracing")]
+            println!("{records:#?}");
         }
         Ok(outputs)
     }
