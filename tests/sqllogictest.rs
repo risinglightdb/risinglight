@@ -31,7 +31,7 @@ fn run_all_test_files() {
     assert!(pass);
 }
 
-fn test_mem(name: &str) ->bool {
+fn test_mem(name: &str) -> bool {
     init_logger();
     let mut tester = sqllogictest::Runner::new(DatabaseWrapper {
         rt: Runtime::new().unwrap(),
@@ -44,7 +44,7 @@ fn test_mem(name: &str) ->bool {
         .is_ok()
 }
 
-fn test_disk(name: &str) ->bool {
+fn test_disk(name: &str) -> bool {
     init_logger();
     let temp_dir = tempdir().unwrap();
     let rt = Runtime::new().unwrap();
