@@ -21,11 +21,11 @@ fn run_all_test_files() {
         let subpath = path.strip_prefix("tests/sql").unwrap().to_str().unwrap();
         if !MEM_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
             println!("-- running {} (mem) --", path.to_str().unwrap());
-            pass = pass & test_mem(subpath);
+            pass &= test_mem(subpath);
         }
         if !DISK_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
             println!("-- running {} (disk) --", path.to_str().unwrap());
-            pass = pass & test_disk(subpath);
+            pass &= test_disk(subpath);
         }
     }
     assert!(pass);
