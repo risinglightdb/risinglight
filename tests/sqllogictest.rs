@@ -8,9 +8,30 @@ use risinglight::{Database, Error};
 use tempfile::tempdir;
 use tokio::runtime::Runtime;
 
-include!(concat!(env!("OUT_DIR"), "/testcase.rs"));
+#[test]
+fn run_all_test_files() {
+    const PATTERN: &str = "tests/sql/**/[!_]*.slt"; // ignore files start with '_'
+    const MEM_BLOCKLIST: &[&str] = &["statistics.slt"];
+    const DISK_BLOCKLIST: &[&str] = &[];
 
-fn test_mem(name: &str) {
+    let paths = glob::glob(PATTERN).expect("failed to find test files");
+    let mut pass = true;
+    for entry in paths {
+        let path = entry.expect("failed to read glob entry");
+        let subpath = path.strip_prefix("tests/sql").unwrap().to_str().unwrap();
+        if !MEM_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
+            println!("-- running {} (mem) --", path.to_str().unwrap());
+            pass = pass & test_mem(subpath);
+        }
+        if !DISK_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
+            println!("-- running {} (disk) --", path.to_str().unwrap());
+            pass = pass & test_disk(subpath);
+        }
+    }
+    assert!(pass);
+}
+
+fn test_mem(name: &str) ->bool {
     init_logger();
     let mut tester = sqllogictest::Runner::new(DatabaseWrapper {
         rt: Runtime::new().unwrap(),
@@ -19,11 +40,11 @@ fn test_mem(name: &str) {
     tester.enable_testdir();
     tester
         .run_file(Path::new("tests/sql").join(name))
-        .map_err(|e| panic!("{}", e))
-        .unwrap();
+        .map_err(|e| println!("{}", e))
+        .is_ok()
 }
 
-fn test_disk(name: &str) {
+fn test_disk(name: &str) ->bool {
     init_logger();
     let temp_dir = tempdir().unwrap();
     let rt = Runtime::new().unwrap();
@@ -34,8 +55,8 @@ fn test_disk(name: &str) {
     tester.enable_testdir();
     tester
         .run_file(Path::new("tests/sql").join(name))
-        .map_err(|e| panic!("{}", e))
-        .unwrap();
+        .map_err(|e| println!("{}", e))
+        .is_ok()
 }
 
 fn init_logger() {
