@@ -32,6 +32,7 @@ enum_dispatch = "0.3"
 erased-serde = "0.3"
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
 futures-async-stream = { git = "https://github.com/taiki-e/futures-async-stream", rev = "944f407" }
+glob = "0.3"
 humantime = "2.1.0"
 indicatif = { version = "0.16" }
 indoc = "1"
@@ -64,9 +65,6 @@ criterion = { version = "0.3", features = ["async_tokio"] }
 env_logger = "0.9"
 tempfile = "3"
 test-case = "1"
-
-[build-dependencies]
-glob = "0.3"
 
 [[bench]]
 harness = false
