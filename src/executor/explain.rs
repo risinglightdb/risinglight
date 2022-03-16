@@ -13,10 +13,9 @@ impl ExplainExecutor {
     pub fn execute(self) -> BoxedExecutor {
         let mut explain_result = String::new();
         self.plan.child().explain(0, &mut explain_result).unwrap();
-        let mut chunk = DataChunk::from_iter([ArrayImpl::Utf8(Utf8Array::from_iter([Some(
+        let chunk = DataChunk::from_iter([ArrayImpl::Utf8(Utf8Array::from_iter([Some(
             explain_result,
         )]))]);
-        chunk.set_header(vec!["$explain".to_string()]);
         async_stream::try_stream! {
             yield chunk;
         }

@@ -19,8 +19,7 @@ impl<S: Storage> DropExecutor<S> {
             Object::Table(ref_id) => self.storage.drop_table(ref_id).await?,
         }
 
-        let mut chunk = DataChunk::single(0);
-        chunk.set_header(vec!["$drop".to_string()]);
+        let chunk = DataChunk::single(0);
         yield chunk
     }
 }

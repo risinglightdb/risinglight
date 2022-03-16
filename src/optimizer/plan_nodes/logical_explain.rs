@@ -5,6 +5,7 @@ use std::fmt;
 use serde::Serialize;
 
 use super::*;
+use crate::types::DataTypeKind;
 
 /// The logical plan of `EXPLAIN`.
 #[derive(Debug, Clone, Serialize)]
@@ -38,6 +39,13 @@ impl PlanNode for LogicalExplain {
         let out_types_num = self.plan.out_types().len();
         self.clone_with_child(self.plan.prune_col(BitSet::from_iter(0..out_types_num)))
             .into_plan_ref()
+    }
+    fn schema(&self) -> Vec<ColumnDesc> {
+        vec![ColumnDesc::new(
+            DataType::new(DataTypeKind::Int(None), false),
+            "$explain".to_string(),
+            false,
+        )]
     }
 }
 

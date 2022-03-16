@@ -53,8 +53,7 @@ impl<S: Storage> DeleteExecutor<S> {
         match context.spawn(|token| async move { self.execute_inner(token).await }) {
             Some(handler) => {
                 let cnt = handler.await.expect("failed to join delete thread")?;
-                let mut chunk = DataChunk::single(cnt as i32);
-                chunk.set_header(vec!["$delete.row_counts".to_string()]);
+                let chunk = DataChunk::single(cnt as i32);
                 yield chunk;
             }
             None => return Err(ExecutorError::Abort),

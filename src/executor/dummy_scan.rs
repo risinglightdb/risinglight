@@ -7,7 +7,5 @@ pub struct DummyScanExecutor;
 
 impl DummyScanExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
-    pub async fn execute(self) {
-        yield DataChunk::single(0);
-    }
+    pub async fn execute(self) {}
 }

@@ -41,3 +41,8 @@ query I
 select count(*) from t where v > 5
 ----
 2
+
+query I
+select count(*) from t where 0 = 1
+----
+0

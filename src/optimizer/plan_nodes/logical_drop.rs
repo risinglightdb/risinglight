@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use super::*;
 use crate::binder::statement::drop::Object;
+use crate::types::DataTypeKind;
 
 /// The logical plan of `DROP`.
 #[derive(Debug, Clone, Serialize)]
@@ -25,7 +26,15 @@ impl LogicalDrop {
 }
 impl PlanTreeNodeLeaf for LogicalDrop {}
 impl_plan_tree_node_for_leaf!(LogicalDrop);
-impl PlanNode for LogicalDrop {}
+impl PlanNode for LogicalDrop {
+    fn schema(&self) -> Vec<ColumnDesc> {
+        vec![ColumnDesc::new(
+            DataType::new(DataTypeKind::Int(None), false),
+            "$drop".to_string(),
+            false,
+        )]
+    }
+}
 
 impl fmt::Display for LogicalDrop {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
