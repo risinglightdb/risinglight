@@ -34,13 +34,19 @@ impl LogicalPlaner {
                     }
                 }
             }
-            if let BoundTableRef::JoinTableRef { join_tables, .. } = table_ref {
-                if join_tables.is_empty() {
-                    stmt.select_list.iter().for_each(|expr| {
-                        if expr.contains_row_count() && !expr.contains_column_ref() {
-                            with_row_handler = true;
-                        }
-                    });
+            if let BoundTableRef::JoinTableRef {
+                relation,
+                join_tables,
+            } = table_ref
+            {
+                if let BoundTableRef::BaseTableRef { column_ids, .. } = &**relation {
+                    if join_tables.is_empty() && column_ids.is_empty() {
+                        stmt.select_list.iter().for_each(|expr| {
+                            if expr.contains_row_count() && !expr.contains_column_ref() {
+                                with_row_handler = true;
+                            }
+                        });
+                    }
                 }
             }
             plan = self.plan_table_ref(table_ref, with_row_handler, is_sorted)?;
