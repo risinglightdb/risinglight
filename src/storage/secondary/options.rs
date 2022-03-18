@@ -1,17 +1,33 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use bytes::Bytes;
+use parking_lot::Mutex;
 use risinglight_proto::rowset::block_checksum::ChecksumType;
 use tracing::warn;
 
 /// IO Backend of the rowset readers
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub enum IOBackend {
     /// Use Linux's `pread` API to read from the files.
     PositionedRead,
     /// Use cross-platform API to read from files. Note that this would hurt performance
     NormalRead,
+    /// Store all files in-memory
+    InMemory(Arc<Mutex<HashMap<PathBuf, Bytes>>>),
+}
+
+impl IOBackend {
+    pub fn in_memory() -> Self {
+        Self::InMemory(Arc::new(Mutex::new(HashMap::new())))
+    }
+
+    pub fn is_in_memory(&self) -> bool {
+        matches!(self, Self::InMemory(_))
+    }
 }
 
 /// Options for `SecondaryStorage`
@@ -63,7 +79,7 @@ impl StorageOptions {
             cache_size: 1024,
             target_rowset_size: 1 << 20,       // 1MB
             target_block_size: 16 * (1 << 10), // 16KB
-            io_backend: IOBackend::NormalRead,
+            io_backend: IOBackend::in_memory(),
             checksum_type: ChecksumType::None,
             is_rle: false,
         }

@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use bytes::Bytes;
 use itertools::Itertools;
 use moka::future::Cache;
 use tokio::fs::OpenOptions;
@@ -36,32 +37,58 @@ impl DiskRowset {
         let mut columns = vec![];
 
         for (id, column_info) in column_infos.iter().enumerate() {
-            let file = OpenOptions::default()
-                .read(true)
-                .write(false)
-                .open(path_of_data_column(&directory, column_info))
-                .await?;
+            let path_of_index_column = path_of_index_column(&directory, column_info);
 
-            let mut index = OpenOptions::default()
-                .read(true)
-                .write(false)
-                .open(path_of_index_column(&directory, column_info))
-                .await?;
+            let index_content = match &io_backend {
+                IOBackend::NormalRead | IOBackend::PositionedRead => {
+                    let mut index = OpenOptions::default()
+                        .read(true)
+                        .write(false)
+                        .open(path_of_index_column)
+                        .await?;
 
-            // TODO(chi): add an index cache later
-            let mut index_content = vec![];
-            index.read_to_end(&mut index_content).await?;
+                    // TODO(chi): add an index cache later
+                    let mut index_content = vec![];
+                    index.read_to_end(&mut index_content).await?;
+                    Bytes::from(index_content)
+                }
+                IOBackend::InMemory(map) => {
+                    let guard = map.lock();
+                    guard.get(&path_of_index_column).expect("not found").clone()
+                }
+            };
+
+            let column_index = ColumnIndex::from_bytes(&index_content)?;
+
+            let path_of_data_column = path_of_data_column(&directory, column_info);
+
+            let column_file = match &io_backend {
+                IOBackend::NormalRead => {
+                    let file = OpenOptions::default()
+                        .read(true)
+                        .write(false)
+                        .open(&path_of_data_column)
+                        .await?;
+                    ColumnReadableFile::NormalRead(Arc::new(Mutex::new(file.into_std().await)))
+                }
+                IOBackend::PositionedRead => {
+                    let file = OpenOptions::default()
+                        .read(true)
+                        .write(false)
+                        .open(&path_of_data_column)
+                        .await?;
+                    ColumnReadableFile::PositionedRead(Arc::new(file.into_std().await))
+                }
+                IOBackend::InMemory(map) => {
+                    let guard = map.lock();
+                    let file = guard.get(&path_of_data_column).expect("not found").clone();
+                    ColumnReadableFile::InMemory(file)
+                }
+            };
 
             let column = Column::new(
-                ColumnIndex::from_bytes(&index_content)?,
-                match io_backend {
-                    IOBackend::NormalRead => {
-                        ColumnReadableFile::NormalRead(Arc::new(Mutex::new(file.into_std().await)))
-                    }
-                    IOBackend::PositionedRead => {
-                        ColumnReadableFile::PositionedRead(Arc::new(file.into_std().await))
-                    }
-                },
+                column_index,
+                column_file,
                 block_cache.clone(),
                 BlockCacheKey::default().rowset(rowset_id).column(id as u32),
             );
@@ -180,7 +207,9 @@ pub mod tests {
             )
         }
 
-        let writer = RowsetWriter::new(tempdir.path());
+        let backend = IOBackend::in_memory();
+
+        let writer = RowsetWriter::new(tempdir.path(), backend.clone());
         writer.flush(builder.finish()).await.unwrap();
 
         DiskRowset::open(
@@ -188,7 +217,7 @@ pub mod tests {
             columns.into(),
             Cache::new(2333),
             0,
-            IOBackend::NormalRead,
+            backend,
         )
         .await
         .unwrap()
@@ -225,7 +254,9 @@ pub mod tests {
             )
         }
 
-        let writer = RowsetWriter::new(tempdir.path());
+        let backend = IOBackend::in_memory();
+
+        let writer = RowsetWriter::new(tempdir.path(), backend.clone());
         writer.flush(builder.finish()).await.unwrap();
 
         DiskRowset::open(
@@ -233,7 +264,7 @@ pub mod tests {
             columns.into(),
             Cache::new(2333),
             0,
-            IOBackend::NormalRead,
+            backend,
         )
         .await
         .unwrap()

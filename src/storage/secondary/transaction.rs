@@ -102,14 +102,15 @@ impl SecondaryTransaction {
         let directory = self.table.get_rowset_path(rowset_id);
 
         // flush data to disk
-        mem.flush(&directory).await?;
+        mem.flush(self.table.storage_options.io_backend.clone(), &directory)
+            .await?;
 
         let on_disk = DiskRowset::open(
             directory,
             self.table.columns.clone(),
             self.table.block_cache.clone(),
             rowset_id,
-            self.table.storage_options.io_backend,
+            self.table.storage_options.io_backend.clone(),
         )
         .await?;
 
