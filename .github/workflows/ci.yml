@@ -30,7 +30,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --all-targets --all-features --locked -- -D warnings
+          args: --workspace --all-targets --all-features --locked -- -D warnings
 
   test:
     runs-on: ubuntu-latest
@@ -45,12 +45,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: nextest
-          args: run --no-fail-fast --all-features --locked
+          args: run --workspace --no-fail-fast --all-features --locked
       - name: Doctest
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --doc --no-fail-fast --all-features --locked
+          args: --doc --workspace --no-fail-fast --all-features --locked
 
   tpch-test:
     runs-on: ubuntu-latest

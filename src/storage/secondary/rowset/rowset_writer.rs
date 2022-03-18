@@ -2,11 +2,13 @@
 
 use std::path::{Path, PathBuf};
 
+use bytes::Bytes;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncWriteExt, BufWriter};
 
 use crate::catalog::ColumnCatalog;
 use crate::storage::secondary::rowset::EncodedRowset;
+use crate::storage::secondary::IOBackend;
 use crate::storage::StorageResult;
 
 pub fn path_of_data_column(base: impl AsRef<Path>, column_info: &ColumnCatalog) -> PathBuf {
@@ -30,40 +32,62 @@ pub fn path_of_column(
 pub struct RowsetWriter {
     /// Directory of the rowset.
     directory: PathBuf,
+
+    /// The backend used to write the rowset
+    io_backend: IOBackend,
 }
 
 impl RowsetWriter {
-    pub fn new(directory: impl AsRef<Path>) -> Self {
+    pub fn new(directory: impl AsRef<Path>, io_backend: IOBackend) -> Self {
         Self {
             directory: directory.as_ref().to_path_buf(),
+            io_backend,
         }
     }
 
     pub async fn create_dir(&self) -> StorageResult<()> {
-        tokio::fs::create_dir(&self.directory)
-            .await
-            .map_err(|err| err.into())
+        if !self.io_backend.is_in_memory() {
+            tokio::fs::create_dir(&self.directory)
+                .await
+                .map_err(|err| err.into())
+        } else {
+            Ok(())
+        }
     }
 
-    async fn pipe_to_file(path: impl AsRef<Path>, data: Vec<u8>) -> StorageResult<()> {
-        let file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(path.as_ref())
-            .await?;
+    async fn pipe_to_file(
+        io_backend: &IOBackend,
+        path: impl AsRef<Path>,
+        data: Vec<u8>,
+    ) -> StorageResult<()> {
+        match io_backend {
+            IOBackend::InMemory(map) => {
+                let mut guard = map.lock();
+                guard.insert(path.as_ref().to_path_buf(), Bytes::from(data));
+            }
+            _ => {
+                let file = OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(path.as_ref())
+                    .await?;
 
-        let mut writer = BufWriter::new(file);
-        writer.write_all(&data).await?;
-        writer.flush().await?;
+                let mut writer = BufWriter::new(file);
+                writer.write_all(&data).await?;
+                writer.flush().await?;
 
-        let file = writer.into_inner();
-        file.sync_data().await?;
+                let file = writer.into_inner();
+                file.sync_data().await?;
+            }
+        }
 
         Ok(())
     }
 
-    async fn sync_dir(path: &impl AsRef<Path>) -> StorageResult<()> {
-        File::open(path.as_ref()).await?.sync_data().await?;
+    async fn sync_dir(io_backend: &IOBackend, path: &impl AsRef<Path>) -> StorageResult<()> {
+        if !io_backend.is_in_memory() {
+            File::open(path.as_ref()).await?.sync_data().await?;
+        }
         Ok(())
     }
 
@@ -77,18 +101,20 @@ impl RowsetWriter {
 
         for (column_info, column) in rowset.columns_info.iter().zip(rowset.columns) {
             Self::pipe_to_file(
+                &self.io_backend,
                 path_of_data_column(&self.directory, column_info),
                 column.data,
             )
             .await?;
             Self::pipe_to_file(
+                &self.io_backend,
                 path_of_index_column(&self.directory, column_info),
                 column.index,
             )
             .await?;
         }
 
-        Self::sync_dir(&self.directory).await?;
+        Self::sync_dir(&self.io_backend, &self.directory).await?;
 
         Ok(())
     }
@@ -126,8 +152,8 @@ mod tests {
                 .collect(),
             )
         }
-
-        let writer = RowsetWriter::new(tempdir.path());
+        let backend = IOBackend::in_memory();
+        let writer = RowsetWriter::new(tempdir.path(), backend);
         writer.flush(builder.finish()).await.unwrap();
     }
 }

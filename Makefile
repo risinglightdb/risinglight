@@ -13,16 +13,16 @@ fmt:
 	cargo fmt --all
 
 clippy_check:
-	cargo clippy --all-features --all-targets
+	cargo clippy --workspace --all-features --all-targets
 
 clippy:
-	cargo clippy --all-features --all-targets --fix
+	cargo clippy --workspace --all-features --all-targets --fix
 
 build:
 	cargo build --all-features --all-targets
 
 test:
-	cargo test --all-features
+	cargo test --workspace --all-features
 
 check: fmt_check clippy_check build test docs_check
 
