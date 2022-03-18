@@ -49,15 +49,15 @@ The `make check` command contains the following parts:
 
 * `cargo fmt --all -- --check` ensures your code is well-formatted.
   * If this check fails, simply run `cargo fmt` and all code will be formatted.
-* `cargo clippy --all-features --all-targets` ensures some best practices in Rust.
+* `cargo clippy --workspace --all-features --all-targets` ensures some best practices in Rust.
   * If this check fails, follow the reported warnings and fix your code.
-  * You can also use `cargo clippy --all-features --all-targets --fix` to automatically fix clippy issues. Note that
+  * You can also use `cargo clippy --workspace --all-features --all-targets --fix` to automatically fix clippy issues. Note that
     some warnings cannot be automatically fixed.
 * `cargo build --all-features --all-targets` builds the project.
   * We assume all warnings as errors, so you will need to fix warnings for your changes.
   * At the same time, this build also checks for compile error for optional features (like SIMD) and benchmark code.
     If your changes break benchmark code, you will also need to fix it.
-* `cargo test --all-features` runs all unit tests.
+* `cargo test --workspace --all-features` runs all unit tests.
   * If any unit test fails, there might be some logical error in your changes.
 
 After all the checks pass, your changes will likely be accepted.

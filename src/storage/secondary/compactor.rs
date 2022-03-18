@@ -113,7 +113,7 @@ impl Compactor {
             let rowset_id = rowset_id.unwrap();
             let directory = table.get_rowset_path(rowset_id);
 
-            let writer = RowsetWriter::new(&directory);
+            let writer = RowsetWriter::new(&directory, self.storage.options.io_backend.clone());
             writer.create_dir().await?;
             writer.flush(rowset).await?;
 
@@ -122,7 +122,7 @@ impl Compactor {
                 table.columns.clone(),
                 self.storage.block_cache.clone(),
                 rowset_id,
-                self.storage.options.io_backend,
+                self.storage.options.io_backend.clone(),
             )
             .await?;
 

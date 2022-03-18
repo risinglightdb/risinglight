@@ -102,6 +102,8 @@ pub enum ColumnReadableFile {
     PositionedRead(Arc<std::fs::File>),
     /// For `file.lock().seek().read()`
     NormalRead(Arc<Mutex<std::fs::File>>),
+    /// An in-memory file
+    InMemory(Bytes),
     // In the future, we can even add minio / S3 file backend
 }
 
@@ -152,36 +154,41 @@ impl Column {
         let mut do_verify_checksum = false;
 
         // support multiple I/O backend
-        let block = self
-            .block_cache
-            .get_or_try_insert_with(key, async {
-                // block has not been in cache, so we fetch it from disk
-                let file = self.file.clone();
-                let info = self.index.index(block_id).clone();
-                let block = tokio::task::spawn_blocking(move || {
-                    let mut data = vec![0; info.length as usize];
-                    match file {
-                        ColumnReadableFile::PositionedRead(file) => {
-                            file.read_exact_at(&mut data[..], info.offset)?;
-                        }
-                        ColumnReadableFile::NormalRead(file) => {
-                            let mut file = file.lock().unwrap();
-                            file.seek(SeekFrom::Start(info.offset as u64))?;
-                            file.read_exact(&mut data[..])?;
-                        }
-                    }
-                    Ok::<_, TracedStorageError>(Bytes::from(data))
-                })
-                .await
-                .unwrap();
-                // TODO(chi): we should invalidate cache item after a RowSet has been compacted.
-                // self.block_cache.insert(key, block.clone()).await;
+        let block =
+            self.block_cache
+                .get_or_try_insert_with(key, async {
+                    // block has not been in cache, so we fetch it from disk
+                    let file = self.file.clone();
+                    let info = self.index.index(block_id).clone();
+                    let block = tokio::task::spawn_blocking(move || {
+                        let data = match file {
+                            ColumnReadableFile::PositionedRead(file) => {
+                                let mut data = vec![0; info.length as usize];
+                                file.read_exact_at(&mut data[..], info.offset)?;
+                                Bytes::from(data)
+                            }
+                            ColumnReadableFile::NormalRead(file) => {
+                                let mut data = vec![0; info.length as usize];
+                                let mut file = file.lock().unwrap();
+                                file.seek(SeekFrom::Start(info.offset as u64))?;
+                                file.read_exact(&mut data[..])?;
+                                Bytes::from(data)
+                            }
+                            ColumnReadableFile::InMemory(file) => file
+                                .slice(info.offset as usize..(info.offset + info.length) as usize),
+                        };
+                        Ok::<_, TracedStorageError>(data)
+                    })
+                    .await
+                    .unwrap();
+                    // TODO(chi): we should invalidate cache item after a RowSet has been compacted.
+                    // self.block_cache.insert(key, block.clone()).await;
 
-                // need to verify checksum when read from disk
-                do_verify_checksum = true;
-                block
-            })
-            .await?;
+                    // need to verify checksum when read from disk
+                    do_verify_checksum = true;
+                    block
+                })
+                .await?;
 
         if block.len() < BLOCK_HEADER_SIZE {
             return Err(TracedStorageError::decode(

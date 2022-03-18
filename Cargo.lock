@@ -1678,11 +1678,9 @@ dependencies = [
  "dirs",
  "downcast-rs",
  "enum_dispatch",
- "env_logger",
  "erased-serde",
  "futures",
  "futures-async-stream",
- "glob",
  "humantime",
  "indicatif",
  "indoc",
@@ -1720,6 +1718,20 @@ dependencies = [
  "bytes",
  "prost",
  "prost-build",
+]
+
+[[package]]
+name = "risinglight_sqllogictest"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "env_logger",
+ "glob",
+ "risinglight",
+ "sqllogictest",
+ "tempfile",
+ "test-case",
+ "tokio",
 ]
 
 [[package]]
