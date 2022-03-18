@@ -24,11 +24,21 @@ mod table;
 pub type RootCatalogRef = Arc<RootCatalog>;
 
 /// The reference ID of a table.
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
 pub struct TableRefId {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_id: TableId,
+}
+
+impl std::fmt::Debug for TableRefId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}.{}.{}",
+            self.database_id, self.schema_id, self.table_id
+        )
+    }
 }
 
 impl TableRefId {
