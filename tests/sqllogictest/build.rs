@@ -7,11 +7,12 @@ use std::path::PathBuf;
 fn main() {
     // Scan test scripts and generate test cases.
     println!("cargo:rerun-if-changed=../../tests/sql");
+
     const PATTERN: &str = "../../tests/sql/**/[!_]*.slt"; // ignore files start with '_'
     const MEM_BLOCKLIST: &[&str] = &["statistics.slt"];
     const DISK_BLOCKLIST: &[&str] = &[];
 
-    let path = PathBuf::from("tests").join("testcase.rs");
+    let path = PathBuf::from("tests").join("gen/testcase.rs");
     let mut fout = std::fs::File::create(path).expect("failed to create file");
 
     let paths = glob::glob(PATTERN).expect("failed to find test files");
