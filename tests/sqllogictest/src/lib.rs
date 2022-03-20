@@ -77,3 +77,9 @@ impl sqllogictest::AsyncDB for DatabaseWrapper {
         Ok(output)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_placeholder() {}
+}
