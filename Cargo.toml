@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "risinglight"
-version = "0.1.0"
+version = "0.1.1"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
@@ -44,7 +44,7 @@ num-traits = "0.2"
 parking_lot = "0.12"
 paste = "1"
 prost = "0.9"
-risinglight_proto = { path = "proto" }
+risinglight_proto = "0.1"
 rust_decimal = "1"
 rustyline = "9"
 serde = { version = "1", features = ["derive", "rc"] }
@@ -81,3 +81,6 @@ members = [
   "proto",
   "tests/sqllogictest"
 ]
+
+[patch.crates-io]
+risinglight_proto = { path = "proto" }
