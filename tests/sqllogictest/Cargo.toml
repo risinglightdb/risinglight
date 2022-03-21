@@ -8,7 +8,7 @@ edition = "2021"
 async-trait = "0.1"
 env_logger = "0.9"
 risinglight = { path = "../.." }
-sqllogictest = { git = "https://github.com/risinglightdb/sqllogictest-rs", rev = "21357d4" }
+sqllogictest = "0.3"
 tempfile = "3"
 tokio = { version = "1", features = ["full"] }
 
