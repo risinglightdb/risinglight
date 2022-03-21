@@ -150,16 +150,28 @@ impl SecondaryTransaction {
 
         let mut changeset = vec![];
 
-        info!(
-            "RowSet {} flushed, DV {} flushed",
-            rowsets
-                .iter()
-                .map(|x| format!("#{}", x.rowset_id()))
-                .join(","),
-            dvs.iter()
-                .map(|x| format!("#{}(RS{})", x.dv_id(), x.rowset_id()))
-                .join(",")
-        );
+        match rowsets[..] {
+            [] => {
+                info!(
+                    "DV {} flushed",
+                    dvs.iter()
+                        .map(|x| format!("#{}(RS{})", x.dv_id(), x.rowset_id()))
+                        .join(",")
+                );
+            }
+            _ => {
+                info!(
+                    "RowSet {} flushed, DV {} flushed",
+                    rowsets
+                        .iter()
+                        .map(|x| format!("#{}", x.rowset_id()))
+                        .join(","),
+                    dvs.iter()
+                        .map(|x| format!("#{}(RS{})", x.dv_id(), x.rowset_id()))
+                        .join(",")
+                );
+            }
+        }
 
         // Add RowSets
         changeset.extend(rowsets.into_iter().map(|x| {
