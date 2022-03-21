@@ -1701,7 +1701,7 @@ dependencies = [
  "serde",
  "serde_json",
  "smallvec",
- "sqllogictest 0.3.0",
+ "sqllogictest",
  "sqlparser",
  "tempfile",
  "test-case",
@@ -1730,7 +1730,7 @@ dependencies = [
  "env_logger",
  "glob",
  "risinglight",
- "sqllogictest 0.2.0",
+ "sqllogictest",
  "tempfile",
  "test-case",
  "tokio",
@@ -1936,20 +1936,6 @@ checksum = "66d72b759436ae32898a2af0a14218dbf55efde3feeb170eb623637db85ee1e0"
 dependencies = [
  "libc",
  "winapi",
-]
-
-[[package]]
-name = "sqllogictest"
-version = "0.2.0"
-source = "git+https://github.com/risinglightdb/sqllogictest-rs?rev=21357d4#21357d442785fba8d501cd8e006c8ebef1f36781"
-dependencies = [
- "async-trait",
- "futures-lite",
- "humantime",
- "itertools",
- "log",
- "tempfile",
- "thiserror",
 ]
 
 [[package]]
