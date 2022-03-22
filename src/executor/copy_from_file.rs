@@ -173,9 +173,9 @@ mod tests {
         let actual = executor.execute().next().await.unwrap().unwrap();
 
         let expected: DataChunk = [
-            ArrayImpl::Int32([1, 2].into_iter().collect()),
-            ArrayImpl::Float64([1.5, 2.5].into_iter().collect()),
-            ArrayImpl::Utf8(["one", "two"].iter().map(Some).collect()),
+            ArrayImpl::new_int32([1, 2].into_iter().collect()),
+            ArrayImpl::new_float64([1.5, 2.5].into_iter().collect()),
+            ArrayImpl::new_utf8(["one", "two"].iter().map(Some).collect()),
         ]
         .into_iter()
         .collect();

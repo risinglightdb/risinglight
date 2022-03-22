@@ -53,7 +53,7 @@ fn contributors() -> DataChunk {
         "zehaowei",
         "nanderstabel",
     ];
-    [ArrayImpl::Utf8(Utf8Array::from_iter(
+    [ArrayImpl::new_utf8(Utf8Array::from_iter(
         contributors.iter().map(|s| Some(*s)).sorted(),
     ))]
     .into_iter()

@@ -41,7 +41,7 @@ impl MergeIterator {
             has_finished: vec![false; iters.len()],
             iters,
             pending_heap: vec![],
-            dummy_array: Arc::new(ArrayImpl::Int32(I32Array::from_iter([0]))),
+            dummy_array: Arc::new(ArrayImpl::new_int32(I32Array::from_iter([0]))),
         }
     }
 

@@ -83,7 +83,7 @@ mod tests {
     }
 
     fn range_to_chunk(range: &Range<i32>) -> DataChunk {
-        [ArrayImpl::Int32(range.clone().collect())]
+        [ArrayImpl::new_int32(range.clone().collect())]
             .into_iter()
             .collect()
     }

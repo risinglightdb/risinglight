@@ -6,6 +6,7 @@ use std::iter::TrustedLen;
 use std::ops::{Bound, RangeBounds};
 use std::sync::Arc;
 
+use paste::paste;
 use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 
@@ -164,21 +165,15 @@ pub type IntervalArray = PrimitiveArray<Interval>;
 pub enum ArrayImpl {
     Bool(Arc<BoolArray>),
     // Int16(PrimitiveArray<i16>),
-    Int32(I32Array),
-    Int64(I64Array),
+    Int32(Arc<I32Array>),
+    Int64(Arc<I64Array>),
     // Float32(PrimitiveArray<f32>),
-    Float64(F64Array),
-    Utf8(Utf8Array),
-    Blob(BlobArray),
-    Decimal(DecimalArray),
-    Date(DateArray),
-    Interval(IntervalArray),
-}
-
-impl ArrayImpl {
-    pub fn new_bool(bool_array: BoolArray) -> Self {
-        Self::Bool(Arc::new(bool_array))
-    }
+    Float64(Arc<F64Array>),
+    Utf8(Arc<Utf8Array>),
+    Blob(Arc<BlobArray>),
+    Decimal(Arc<DecimalArray>),
+    Date(Arc<DateArray>),
+    Interval(Arc<IntervalArray>),
 }
 
 pub type BoolArrayBuilder = PrimitiveArrayBuilder<bool>;
@@ -251,7 +246,7 @@ macro_rules! impl_from {
 
                 fn try_from(array: ArrayImpl) -> Result<Self, Self::Error> {
                     match array {
-                        ArrayImpl::$Abc(array) => Ok(array.into()),
+                        ArrayImpl::$Abc(array) => Ok(array),
                         _ => Err(TypeMismatch),
                     }
                 }
@@ -440,6 +435,15 @@ impl ArrayBuilderImpl {
 macro_rules! impl_array {
     ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident } ),*) => {
         impl ArrayImpl {
+            $(
+                paste! {
+                    /// Create a new array of the corresponding type
+                    pub fn [<new_ $abc>](array: $AbcArray) -> Self {
+                        ArrayImpl::$Abc(array.into())
+                    }
+                }
+            )*
+
             /// Get the value and convert it to string.
             pub fn get_to_string(&self, idx: usize) -> String {
                 match self {
@@ -506,14 +510,14 @@ impl From<&DataValue> for ArrayImpl {
     fn from(val: &DataValue) -> Self {
         match val {
             &DataValue::Bool(v) => Self::new_bool([v].into_iter().collect()),
-            &DataValue::Int32(v) => Self::Int32([v].into_iter().collect()),
-            &DataValue::Int64(v) => Self::Int64([v].into_iter().collect()),
-            &DataValue::Float64(v) => Self::Float64([v].into_iter().collect()),
-            DataValue::String(v) => Self::Utf8([Some(v)].into_iter().collect()),
-            DataValue::Blob(v) => Self::Blob([Some(v)].into_iter().collect()),
-            &DataValue::Decimal(v) => Self::Decimal([v].into_iter().collect()),
-            &DataValue::Date(v) => Self::Date([v].into_iter().collect()),
-            &DataValue::Interval(v) => Self::Interval([v].into_iter().collect()),
+            &DataValue::Int32(v) => Self::new_int32([v].into_iter().collect()),
+            &DataValue::Int64(v) => Self::new_int64([v].into_iter().collect()),
+            &DataValue::Float64(v) => Self::new_float64([v].into_iter().collect()),
+            DataValue::String(v) => Self::new_utf8([Some(v)].into_iter().collect()),
+            DataValue::Blob(v) => Self::new_blob([Some(v)].into_iter().collect()),
+            &DataValue::Decimal(v) => Self::new_decimal([v].into_iter().collect()),
+            &DataValue::Date(v) => Self::new_date([v].into_iter().collect()),
+            &DataValue::Interval(v) => Self::new_interval([v].into_iter().collect()),
             DataValue::Null => panic!("can not build array from NULL"),
         }
     }

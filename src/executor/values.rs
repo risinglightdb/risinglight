@@ -83,8 +83,8 @@ mod tests {
         };
         let output = executor.execute().next().await.unwrap().unwrap();
         let expected = [
-            ArrayImpl::Int32((0..4).collect()),
-            ArrayImpl::Int32((100..104).collect()),
+            ArrayImpl::new_int32((0..4).collect()),
+            ArrayImpl::new_int32((100..104).collect()),
         ]
         .into_iter()
         .collect::<DataChunk>();

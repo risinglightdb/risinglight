@@ -171,17 +171,17 @@ mod tests {
     #[test]
     fn test_sum() {
         let mut state = SumAggregationState::new(DataTypeKind::Int(None));
-        let array = ArrayImpl::Int32((1..5).collect());
+        let array = ArrayImpl::new_int32((1..5).collect());
         state.update(&array).unwrap();
         assert_eq!(state.output(), DataValue::Int32(10));
 
         let mut state = SumAggregationState::new(DataTypeKind::BigInt(None));
-        let array = ArrayImpl::Int64((1..5).collect());
+        let array = ArrayImpl::new_int64((1..5).collect());
         state.update(&array).unwrap();
         assert_eq!(state.output(), DataValue::Int64(10));
 
         let mut state = SumAggregationState::new(DataTypeKind::Double);
-        let array = ArrayImpl::Float64([0.1, 0.2, 0.3, 0.4].into_iter().collect());
+        let array = ArrayImpl::new_float64([0.1, 0.2, 0.3, 0.4].into_iter().collect());
         state.update(&array).unwrap();
         assert_eq!(state.output(), DataValue::Float64(1.));
     }

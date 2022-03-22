@@ -145,7 +145,7 @@ mod tests {
 
         for _ in 0..1000 {
             builder.append(
-                [ArrayImpl::Int32(
+                [ArrayImpl::new_int32(
                     [1, 2, 3].into_iter().cycle().take(1000).collect(),
                 )]
                 .into_iter()

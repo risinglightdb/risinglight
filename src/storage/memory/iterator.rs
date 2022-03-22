@@ -59,10 +59,10 @@ impl InMemoryTxnIterator {
                     StorageColumnRef::Idx(idx) => selected_chunk
                         .array_at(*idx as usize)
                         .filter(visibility.iter().map(|x| *x)),
-                    StorageColumnRef::RowHandler => {
-                        ArrayImpl::Int64(I64Array::from_iter(batch_range.clone().map(|x| x as i64)))
-                            .filter(visibility.iter().map(|x| *x))
-                    }
+                    StorageColumnRef::RowHandler => ArrayImpl::new_int64(I64Array::from_iter(
+                        batch_range.clone().map(|x| x as i64),
+                    ))
+                    .filter(visibility.iter().map(|x| *x)),
                 })
                 .collect::<DataChunk>();
 

@@ -114,7 +114,7 @@ mod tests {
         } else {
             range.clone().collect()
         };
-        [ArrayImpl::Int32(array)].into_iter().collect()
+        [ArrayImpl::new_int32(array)].into_iter().collect()
     }
 
     fn equivalent_executors(
