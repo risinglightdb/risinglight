@@ -1,7 +1,13 @@
 [package]
 name = "risinglight_proto"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
+description = "Proto for RisingLight"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+homepage = "https://github.com/risinglightdb/risinglight"
+repository = "https://github.com/risinglightdb/risinglight"
+keywords = ["sql", "database", "embedded", "cli"]
 
 [dependencies]
 bytes = "1"

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use futures::lock::Mutex;
 use parking_lot::Mutex as PLMutex;
 use tokio::select;
-use tracing::info;
+use tracing::{info, warn};
 
 use super::manifest::*;
 use super::{DeleteVector, DiskRowset, StorageOptions, StorageResult};
@@ -20,6 +20,19 @@ pub enum EpochOp {
     DeleteRowSet(DeleteRowsetEntry),
     AddDV((AddDVEntry, DeleteVector)),
     DeleteDV(DeleteDVEntry),
+}
+
+impl std::fmt::Debug for EpochOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CreateTable(e) => f.debug_tuple("EpochOp::CreateTable").field(e).finish(),
+            Self::DropTable(e) => f.debug_tuple("EpochOp::DropTable").field(e).finish(),
+            Self::AddRowSet((e, _)) => f.debug_tuple("EpochOp::AddRowSet").field(e).finish(),
+            Self::DeleteRowSet(e) => f.debug_tuple("EpochOp::DeleteRowSet").field(e).finish(),
+            Self::AddDV((e, _)) => f.debug_tuple("EpochOp::AddDV").field(e).finish(),
+            Self::DeleteDV(e) => f.debug_tuple("EpochOp::DeleteDV").field(e).finish(),
+        }
+    }
 }
 
 /// We store the full information of a snapshot in one `Snapshot` object. In the future, we should
@@ -310,10 +323,13 @@ impl VersionManager {
             .rowset_deletion_to_apply
             .retain(|k, _| !can_apply(*k, vacuum_epoch));
         for deletion in &deletions {
-            let rowset = inner.rowsets.remove(deletion).unwrap();
-            match Arc::try_unwrap(rowset) {
-                Ok(rowset) => drop(rowset),
-                Err(_) => panic!("rowset {:?} is still being used", deletion),
+            if let Some(rowset) = inner.rowsets.remove(deletion) {
+                match Arc::try_unwrap(rowset) {
+                    Ok(rowset) => drop(rowset),
+                    Err(_) => panic!("rowset {:?} is still being used", deletion),
+                }
+            } else {
+                warn!("duplicated deletion dectected, but we can't solve this issue for now -- see https://github.com/risinglightdb/risinglight/issues/566 for more information.");
             }
         }
         Ok(deletions)

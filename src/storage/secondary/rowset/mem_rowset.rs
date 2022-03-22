@@ -11,7 +11,7 @@ use super::rowset_builder::RowsetBuilder;
 use crate::array::{ArrayBuilderImpl, DataChunk};
 use crate::catalog::{find_sort_key_id, ColumnCatalog};
 use crate::storage::secondary::rowset::RowsetWriter;
-use crate::storage::secondary::ColumnBuilderOptions;
+use crate::storage::secondary::{ColumnBuilderOptions, IOBackend};
 use crate::storage::StorageResult;
 use crate::types::{DataValue, Row};
 
@@ -131,11 +131,15 @@ impl SecondaryMemRowset<BTreeMapMemTable> {
     }
 
     /// Flush memory table to disk and return a handler
-    pub async fn flush(self, directory: impl AsRef<Path>) -> StorageResult<()> {
+    pub async fn flush(
+        self,
+        io_backend: IOBackend,
+        directory: impl AsRef<Path>,
+    ) -> StorageResult<()> {
         let chunk = self.mem_table.flush()?;
         let mut builder = self.rowset_builder;
         builder.append(chunk);
-        let writer = RowsetWriter::new(directory);
+        let writer = RowsetWriter::new(directory, io_backend);
         writer.flush(builder.finish()).await?;
         // TODO(chi): do not reload index from disk, we can directly fetch it from cache.
         Ok(())
@@ -148,8 +152,12 @@ impl SecondaryMemRowset<ColumnMemTable> {
         Ok(())
     }
 
-    pub async fn flush(self, directory: impl AsRef<Path>) -> StorageResult<()> {
-        let writer = RowsetWriter::new(directory);
+    pub async fn flush(
+        self,
+        io_backend: IOBackend,
+        directory: impl AsRef<Path>,
+    ) -> StorageResult<()> {
+        let writer = RowsetWriter::new(directory, io_backend);
         writer.flush(self.rowset_builder.finish()).await?;
         Ok(())
     }
@@ -188,10 +196,14 @@ impl SecondaryMemRowsetImpl {
         }
     }
 
-    pub async fn flush(self, directory: impl AsRef<Path>) -> StorageResult<()> {
+    pub async fn flush(
+        self,
+        io_backend: IOBackend,
+        directory: impl AsRef<Path>,
+    ) -> StorageResult<()> {
         match self {
-            Self::BTree(btree_table) => btree_table.flush(directory).await,
-            Self::Column(column_table) => column_table.flush(directory).await,
+            Self::BTree(btree_table) => btree_table.flush(io_backend, directory).await,
+            Self::Column(column_table) => column_table.flush(io_backend, directory).await,
         }
     }
 

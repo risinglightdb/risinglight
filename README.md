@@ -27,8 +27,8 @@ All documentation can be found in [docs](docs/) folder. At the same time, dev do
 
 ## Roadmap
 
-We plan to release a stable version of RisingLight in the near future, as well as a tutorial on how to build an OLAP database from scratch. See the pinned
-[Roadmap](https://github.com/risinglightdb/risinglight/issues/317) issue for more information.
+We plan to release RisingLight v0.2 this year, as well as a tutorial on how to build an OLAP database from scratch. See the pinned
+[Roadmap](https://github.com/risinglightdb/risinglight/issues/572) issue for more information.
 
 ## License
 

@@ -22,15 +22,9 @@ jobs:
           profile: minimal
           components: rustfmt, clippy
       - name: Check code format
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check
       - name: Clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-targets --all-features --locked -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
   test:
     runs-on: ubuntu-latest
@@ -42,15 +36,9 @@ jobs:
       - name: Download nextest
         run: curl -fsSL https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
       - name: Test
-        uses: actions-rs/cargo@v1
-        with:
-          command: nextest
-          args: run --no-fail-fast --all-features --locked
+        run: cargo nextest run --workspace --no-fail-fast --all-features --locked
       - name: Doctest
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --doc --no-fail-fast --all-features --locked
+        run: cargo test --doc --workspace --no-fail-fast --all-features --locked
 
   tpch-test:
     runs-on: ubuntu-latest

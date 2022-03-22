@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "risinglight"
-version = "0.1.0"
+version = "0.1.1"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
@@ -31,26 +31,26 @@ downcast-rs = "1"
 enum_dispatch = "0.3"
 erased-serde = "0.3"
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
-futures-async-stream = { git = "https://github.com/taiki-e/futures-async-stream", rev = "944f407" }
-glob = "0.3"
+futures-async-stream = "0.2"
 humantime = "2.1.0"
 indicatif = { version = "0.16" }
 indoc = "1"
 iter-chunks = "0.1"
 itertools = "0.10"
 manifest-dir-macros = "0.1.11"
+minitrace = "0.4.0"
 moka = { version = "0.7", features = ["future"] }
 num-traits = "0.2"
 parking_lot = "0.12"
 paste = "1"
 prost = "0.9"
-risinglight_proto = { path = "proto" }
+risinglight_proto = "0.1"
 rust_decimal = "1"
 rustyline = "9"
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 smallvec = { version = "1", features = ["serde"] }
-sqllogictest = { git = "https://github.com/risinglightdb/sqllogictest-rs", rev = "21357d4" }
+sqllogictest = "0.3"
 sqlparser = { git = "https://github.com/risinglightdb/sqlparser-rs", rev = "edead1b", features = ["serde"] }
 thiserror = "1"
 tikv-jemallocator = { version = "0.4", optional = true }
@@ -58,11 +58,9 @@ tokio = { version = "1", features = ["full"] }
 tokio-util = "0.7"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "parking_lot"] }
-minitrace = "0.4.0"
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["async_tokio"] }
-env_logger = "0.9"
 tempfile = "3"
 test-case = "1"
 
@@ -81,4 +79,8 @@ lto = 'thin'
 [workspace]
 members = [
   "proto",
+  "tests/sqllogictest"
 ]
+
+[patch.crates-io]
+risinglight_proto = { path = "proto" }

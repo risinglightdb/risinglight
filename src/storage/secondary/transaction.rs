@@ -102,14 +102,15 @@ impl SecondaryTransaction {
         let directory = self.table.get_rowset_path(rowset_id);
 
         // flush data to disk
-        mem.flush(&directory).await?;
+        mem.flush(self.table.storage_options.io_backend.clone(), &directory)
+            .await?;
 
         let on_disk = DiskRowset::open(
             directory,
             self.table.columns.clone(),
             self.table.block_cache.clone(),
             rowset_id,
-            self.table.storage_options.io_backend,
+            self.table.storage_options.io_backend.clone(),
         )
         .await?;
 
@@ -149,16 +150,28 @@ impl SecondaryTransaction {
 
         let mut changeset = vec![];
 
-        info!(
-            "RowSet {} flushed, DV {} flushed",
-            rowsets
-                .iter()
-                .map(|x| format!("#{}", x.rowset_id()))
-                .join(","),
-            dvs.iter()
-                .map(|x| format!("#{}(RS{})", x.dv_id(), x.rowset_id()))
-                .join(",")
-        );
+        match rowsets[..] {
+            [] => {
+                info!(
+                    "DV {} flushed",
+                    dvs.iter()
+                        .map(|x| format!("#{}(RS{})", x.dv_id(), x.rowset_id()))
+                        .join(",")
+                );
+            }
+            _ => {
+                info!(
+                    "RowSet {} flushed, DV {} flushed",
+                    rowsets
+                        .iter()
+                        .map(|x| format!("#{}", x.rowset_id()))
+                        .join(","),
+                    dvs.iter()
+                        .map(|x| format!("#{}(RS{})", x.dv_id(), x.rowset_id()))
+                        .join(",")
+                );
+            }
+        }
 
         // Add RowSets
         changeset.extend(rowsets.into_iter().map(|x| {

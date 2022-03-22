@@ -21,7 +21,7 @@ use super::{SecondaryStorage, SecondaryTable, StorageResult, TracedStorageError}
 use crate::catalog::{ColumnCatalog, TableRefId};
 use crate::types::{DatabaseId, SchemaId};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CreateTableEntry {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,
@@ -29,37 +29,37 @@ pub struct CreateTableEntry {
     pub column_descs: Vec<ColumnCatalog>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DropTableEntry {
     pub table_id: TableRefId,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AddRowSetEntry {
     pub table_id: TableRefId,
     pub rowset_id: u32,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DeleteRowsetEntry {
     pub table_id: TableRefId,
     pub rowset_id: u32,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AddDVEntry {
     pub table_id: TableRefId,
     pub dv_id: u64,
     pub rowset_id: u32,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DeleteDVEntry {
     pub table_id: TableRefId,
     pub dv_id: u64,
     pub rowset_id: u32,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ManifestOperation {
     CreateTable(CreateTableEntry),
     DropTable(DropTableEntry),

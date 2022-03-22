@@ -755,7 +755,8 @@ dependencies = [
 [[package]]
 name = "futures-async-stream"
 version = "0.2.5"
-source = "git+https://github.com/taiki-e/futures-async-stream?rev=944f407#944f407c90f5ec86f4d90fdca1dc0cf6b20d47dc"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b492e1173b06145d9324d105cca85fb9249f48676800a2c085138f0d9bae19e6"
 dependencies = [
  "futures-async-stream-macro",
  "futures-core",
@@ -765,7 +766,8 @@ dependencies = [
 [[package]]
 name = "futures-async-stream-macro"
 version = "0.2.5"
-source = "git+https://github.com/taiki-e/futures-async-stream?rev=944f407#944f407c90f5ec86f4d90fdca1dc0cf6b20d47dc"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6716fcdbbcebe690099a18cad71b61fbba10a0a3f8a8c0c1ed36583b42b06590"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1657,7 +1659,7 @@ checksum = "8c31b5c4033f8fdde8700e4657be2c497e7288f01515be52168c631e2e4d4086"
 
 [[package]]
 name = "risinglight"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -1678,11 +1680,9 @@ dependencies = [
  "dirs",
  "downcast-rs",
  "enum_dispatch",
- "env_logger",
  "erased-serde",
  "futures",
  "futures-async-stream",
- "glob",
  "humantime",
  "indicatif",
  "indoc",
@@ -1715,11 +1715,25 @@ dependencies = [
 
 [[package]]
 name = "risinglight_proto"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bytes",
  "prost",
  "prost-build",
+]
+
+[[package]]
+name = "risinglight_sqllogictest"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "env_logger",
+ "glob",
+ "risinglight",
+ "sqllogictest",
+ "tempfile",
+ "test-case",
+ "tokio",
 ]
 
 [[package]]
@@ -1926,8 +1940,9 @@ dependencies = [
 
 [[package]]
 name = "sqllogictest"
-version = "0.2.0"
-source = "git+https://github.com/risinglightdb/sqllogictest-rs?rev=21357d4#21357d442785fba8d501cd8e006c8ebef1f36781"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5104b841ded6885b1c2021db311632c424d1a3d63cc7cb0a63412411aba10234"
 dependencies = [
  "async-trait",
  "futures-lite",
