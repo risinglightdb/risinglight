@@ -45,7 +45,7 @@ impl BoundExpr {
             }
             BoundExpr::IsNull(expr) => {
                 let array = expr.expr.eval(chunk)?;
-                Ok(ArrayImpl::Bool(
+                Ok(ArrayImpl::new_bool(
                     (0..array.len())
                         .map(|i| array.get(i) == DataValue::Null)
                         .collect(),
@@ -95,7 +95,7 @@ impl BoundExpr {
             }
             BoundExpr::IsNull(expr) => {
                 let array = expr.expr.eval_array_in_storage(chunk, cardinality)?;
-                Ok(ArrayImpl::Bool(
+                Ok(ArrayImpl::new_bool(
                     (0..array.len())
                         .map(|i| array.get(i) == DataValue::Null)
                         .collect(),
@@ -126,7 +126,7 @@ impl ArrayImpl {
                 _ => panic!("- can only be applied to Int, Float or Decimal array"),
             },
             UnaryOperator::Not => match self {
-                A::Bool(a) => A::Bool(unary_op(a, |b| !b)),
+                A::Bool(a) => A::new_bool(unary_op(a.as_ref(), |b| !b)),
                 _ => panic!("Not can only be applied to BOOL array"),
             },
             _ => todo!("evaluate operator: {:?}", op),
@@ -162,14 +162,14 @@ impl ArrayImpl {
         macro_rules! cmp {
             ($op:tt) => {
                 match (self, right) {
-                    (A::Bool(a), A::Bool(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
-                    (A::Int32(a), A::Int32(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
-                    (A::Int64(a), A::Int64(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
+                    (A::Bool(a), A::Bool(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+                    (A::Int32(a), A::Int32(b)) => A::new_bool(binary_op(a, b, |a, b| a $op b)),
+                    (A::Int64(a), A::Int64(b)) => A::new_bool(binary_op(a, b, |a, b| a $op b)),
                     #[allow(clippy::float_cmp)]
-                    (A::Float64(a), A::Float64(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
-                    (A::Utf8(a), A::Utf8(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
-                    (A::Date(a), A::Date(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
-                    (A::Decimal(a), A::Decimal(b)) => A::Bool(binary_op(a, b, |a, b| a $op b)),
+                    (A::Float64(a), A::Float64(b)) => A::new_bool(binary_op(a, b, |a, b| a $op b)),
+                    (A::Utf8(a), A::Utf8(b)) => A::new_bool(binary_op(a, b, |a, b| a $op b)),
+                    (A::Date(a), A::Date(b)) => A::new_bool(binary_op(a, b, |a, b| a $op b)),
+                    (A::Decimal(a), A::Decimal(b)) => A::new_bool(binary_op(a, b, |a, b| a $op b)),
                     _ => todo!("Support more types for {}", stringify!($op)),
                 }
             }
@@ -188,20 +188,24 @@ impl ArrayImpl {
             BinaryOperator::LtEq => cmp!(<=),
             BinaryOperator::And => match (self, right) {
                 (A::Bool(a), A::Bool(b)) => {
-                    A::Bool(binary_op_with_null(a, b, |a, b| match (a, b) {
-                        (Some(a), Some(b)) => Some(*a && *b),
-                        (Some(false), _) | (_, Some(false)) => Some(false),
-                        _ => None,
+                    A::new_bool(binary_op_with_null(a.as_ref(), b.as_ref(), |a, b| {
+                        match (a, b) {
+                            (Some(a), Some(b)) => Some(*a && *b),
+                            (Some(false), _) | (_, Some(false)) => Some(false),
+                            _ => None,
+                        }
                     }))
                 }
                 _ => panic!("And can only be applied to BOOL arrays"),
             },
             BinaryOperator::Or => match (self, right) {
                 (A::Bool(a), A::Bool(b)) => {
-                    A::Bool(binary_op_with_null(a, b, |a, b| match (a, b) {
-                        (Some(a), Some(b)) => Some(*a || *b),
-                        (Some(true), _) | (_, Some(true)) => Some(true),
-                        _ => None,
+                    A::new_bool(binary_op_with_null(a.as_ref(), b.as_ref(), |a, b| {
+                        match (a, b) {
+                            (Some(a), Some(b)) => Some(*a || *b),
+                            (Some(true), _) | (_, Some(true)) => Some(true),
+                            _ => None,
+                        }
                     }))
                 }
                 _ => panic!("Or can only be applied to BOOL arrays"),
@@ -216,18 +220,22 @@ impl ArrayImpl {
         Ok(match self {
             Self::Bool(a) => match data_type {
                 Type::Boolean => Self::Bool(a.clone()),
-                Type::Int(_) => Self::Int32(unary_op(a, |&b| b as i32)),
-                Type::BigInt(_) => Self::Int64(unary_op(a, |&b| b as i64)),
-                Type::Float(_) | Type::Double => Self::Float64(unary_op(a, |&b| b as u8 as f64)),
-                Type::String | Type::Char(_) | Type::Varchar(_) => {
-                    Self::Utf8(unary_op(a, |&b| if b { "true" } else { "false" }))
+                Type::Int(_) => Self::Int32(unary_op(a.as_ref(), |&b| b as i32)),
+                Type::BigInt(_) => Self::Int64(unary_op(a.as_ref(), |&b| b as i64)),
+                Type::Float(_) | Type::Double => {
+                    Self::Float64(unary_op(a.as_ref(), |&b| b as u8 as f64))
                 }
-                Type::Decimal(_, _) => Self::Decimal(unary_op(a, |&b| Decimal::from(b as u8))),
+                Type::String | Type::Char(_) | Type::Varchar(_) => {
+                    Self::Utf8(unary_op(a.as_ref(), |&b| if b { "true" } else { "false" }))
+                }
+                Type::Decimal(_, _) => {
+                    Self::Decimal(unary_op(a.as_ref(), |&b| Decimal::from(b as u8)))
+                }
                 Type::Date => return Err(ConvertError::ToDateError(Type::Boolean)),
                 _ => todo!("cast array"),
             },
             Self::Int32(a) => match data_type {
-                Type::Boolean => Self::Bool(unary_op(a, |&i| i != 0)),
+                Type::Boolean => Self::new_bool(unary_op(a, |&i| i != 0)),
                 Type::Int(_) => Self::Int32(a.clone()),
                 Type::BigInt(_) => Self::Int64(unary_op(a, |&b| b as i64)),
                 Type::Float(_) | Type::Double => Self::Float64(unary_op(a, |&i| i as f64)),
@@ -239,7 +247,7 @@ impl ArrayImpl {
                 _ => todo!("cast array"),
             },
             Self::Int64(a) => match data_type {
-                Type::Boolean => Self::Bool(unary_op(a, |&i| i != 0)),
+                Type::Boolean => Self::new_bool(unary_op(a, |&i| i != 0)),
                 Type::Int(_) => Self::Int32(try_unary_op(a, |&b| match b.to_i32() {
                     Some(d) => Ok(d),
                     None => Err(ConvertError::Overflow(DataValue::Int64(b), Type::Int(None))),
@@ -254,7 +262,7 @@ impl ArrayImpl {
                 _ => todo!("cast array"),
             },
             Self::Float64(a) => match data_type {
-                Type::Boolean => Self::Bool(unary_op(a, |&f| f != 0.0)),
+                Type::Boolean => Self::new_bool(unary_op(a, |&f| f != 0.0)),
                 Type::Int(_) => Self::Int32(try_unary_op(a, |&b| match b.to_i32() {
                     Some(d) => Ok(d),
                     None => Err(ConvertError::Overflow(
@@ -288,7 +296,7 @@ impl ArrayImpl {
                 _ => todo!("cast array"),
             },
             Self::Utf8(a) => match data_type {
-                Type::Boolean => Self::Bool(try_unary_op(a, |s| {
+                Type::Boolean => Self::new_bool(try_unary_op(a, |s| {
                     s.parse::<bool>()
                         .map_err(|e| ConvertError::ParseBool(s.to_string(), e))
                 })?),
@@ -318,7 +326,7 @@ impl ArrayImpl {
             },
             Self::Blob(_) => todo!("cast array"),
             Self::Decimal(a) => match data_type {
-                Type::Boolean => Self::Bool(unary_op(a, |&d| d != Decimal::from(0_i32))),
+                Type::Boolean => Self::new_bool(unary_op(a, |&d| d != Decimal::from(0_i32))),
                 Type::Int(_) => Self::Int32(try_unary_op(a, |&d| {
                     d.to_i32().ok_or(ConvertError::FromDecimalError(
                         DataTypeKind::Int(None),

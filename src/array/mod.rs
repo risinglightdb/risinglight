@@ -4,6 +4,7 @@ use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::iter::TrustedLen;
 use std::ops::{Bound, RangeBounds};
+use std::sync::Arc;
 
 use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
@@ -161,7 +162,7 @@ pub type IntervalArray = PrimitiveArray<Interval>;
 /// Embeds all types of arrays in `array` module.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArrayImpl {
-    Bool(BoolArray),
+    Bool(Arc<BoolArray>),
     // Int16(PrimitiveArray<i16>),
     Int32(I32Array),
     Int64(I64Array),
@@ -172,6 +173,12 @@ pub enum ArrayImpl {
     Decimal(DecimalArray),
     Date(DateArray),
     Interval(IntervalArray),
+}
+
+impl ArrayImpl {
+    pub fn new_bool(bool_array: BoolArray) -> Self {
+        Self::Bool(Arc::new(bool_array))
+    }
 }
 
 pub type BoolArrayBuilder = PrimitiveArrayBuilder<bool>;
@@ -234,17 +241,17 @@ macro_rules! impl_from {
             /// Implement `AbcArray -> ArrayImpl`
             impl From<$AbcArray> for ArrayImpl {
                 fn from(array: $AbcArray) -> Self {
-                    Self::$Abc(array)
+                    Self::$Abc(array.into())
                 }
             }
 
             /// Implement `ArrayImpl -> AbcArray`
-            impl TryFrom<ArrayImpl> for $AbcArray {
+            impl TryFrom<ArrayImpl> for Arc<$AbcArray> {
                 type Error = TypeMismatch;
 
                 fn try_from(array: ArrayImpl) -> Result<Self, Self::Error> {
                     match array {
-                        ArrayImpl::$Abc(array) => Ok(array),
+                        ArrayImpl::$Abc(array) => Ok(array.into()),
                         _ => Err(TypeMismatch),
                     }
                 }
@@ -343,7 +350,7 @@ macro_rules! impl_array_builder {
             pub fn take(&mut self) -> ArrayImpl {
                 match self {
                     $(
-                        Self::$Abc(a) => ArrayImpl::$Abc(a.take()),
+                        Self::$Abc(a) => ArrayImpl::$Abc(a.take().into()),
                     )*
                 }
             }
@@ -352,7 +359,7 @@ macro_rules! impl_array_builder {
             pub fn finish(self) -> ArrayImpl {
                 match self {
                     $(
-                        Self::$Abc(a) => ArrayImpl::$Abc(a.finish()),
+                        Self::$Abc(a) => ArrayImpl::$Abc(a.finish().into()),
                     )*
                 }
             }
@@ -468,7 +475,7 @@ macro_rules! impl_array {
             pub fn filter(&self, visibility: impl Iterator<Item = bool>) -> Self {
                 match self {
                     $(
-                        Self::$Abc(a) => Self::$Abc(a.filter(visibility)),
+                        Self::$Abc(a) => Self::$Abc(a.filter(visibility).into()),
                     )*
                 }
             }
@@ -477,7 +484,7 @@ macro_rules! impl_array {
             pub fn slice(&self, range: impl RangeBounds<usize>) -> Self {
                 match self {
                     $(
-                        Self::$Abc(a) => Self::$Abc(a.slice(range)),
+                        Self::$Abc(a) => Self::$Abc(a.slice(range).into()),
                     )*
                 }
             }
@@ -498,7 +505,7 @@ impl ArrayImpl {
 impl From<&DataValue> for ArrayImpl {
     fn from(val: &DataValue) -> Self {
         match val {
-            &DataValue::Bool(v) => Self::Bool([v].into_iter().collect()),
+            &DataValue::Bool(v) => Self::new_bool([v].into_iter().collect()),
             &DataValue::Int32(v) => Self::Int32([v].into_iter().collect()),
             &DataValue::Int64(v) => Self::Int64([v].into_iter().collect()),
             &DataValue::Float64(v) => Self::Float64([v].into_iter().collect()),
