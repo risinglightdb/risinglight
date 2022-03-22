@@ -114,8 +114,8 @@ mod tests {
             storage: storage.as_in_memory_storage(),
             child: async_stream::try_stream! {
                 yield [
-                    ArrayImpl::Int32((0..4).collect()),
-                    ArrayImpl::Int32((100..104).collect()),
+                    ArrayImpl::new_int32((0..4).collect()),
+                    ArrayImpl::new_int32((100..104).collect()),
                 ]
                 .into_iter()
                 .collect();

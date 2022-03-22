@@ -37,7 +37,7 @@ impl DataChunk {
     /// Return a [`DataChunk`] with 1 element in 1 array.
     pub fn single(item: i32) -> Self {
         DataChunk {
-            arrays: [ArrayImpl::Int32([item].into_iter().collect())]
+            arrays: [ArrayImpl::new_int32([item].into_iter().collect())]
                 .into_iter()
                 .collect(),
         }

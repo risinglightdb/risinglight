@@ -192,9 +192,9 @@ pub mod tests {
         for _ in 0..100 {
             builder.append(
                 [
-                    ArrayImpl::Int32([1, 2, 3].into_iter().cycle().take(len).collect()),
-                    ArrayImpl::Int32([1, 3, 5, 7, 9].into_iter().cycle().take(len).collect()),
-                    ArrayImpl::Int32(
+                    ArrayImpl::new_int32([1, 2, 3].into_iter().cycle().take(len).collect()),
+                    ArrayImpl::new_int32([1, 3, 5, 7, 9].into_iter().cycle().take(len).collect()),
+                    ArrayImpl::new_int32(
                         [2, 3, 3, 3, 3, 3, 3]
                             .into_iter()
                             .cycle()
@@ -246,7 +246,7 @@ pub mod tests {
 
         for _ in 0..100 {
             builder.append(
-                [ArrayImpl::Int32(
+                [ArrayImpl::new_int32(
                     [1, 1, 2, 2, 2].into_iter().cycle().take(len).collect(),
                 )]
                 .into_iter()
