@@ -5,9 +5,9 @@ use std::vec::Vec;
 use futures::TryStreamExt;
 
 use super::*;
-use crate::array::{Array, ArrayBuilderImpl, ArrayImpl, DataChunk};
+use crate::array::{Array, ArrayBuilderImpl, ArrayImpl, DataChunk, DataChunkBuilder};
 use crate::binder::{BoundExpr, BoundJoinOperator};
-use crate::types::{DataType, DataValue};
+use crate::types::{DataType, DataValue, PhysicalDataTypeKind};
 
 /// The executor for nested loop join.
 pub struct NestedLoopJoinExecutor {
@@ -31,42 +31,52 @@ impl NestedLoopJoinExecutor {
         }
         .await?;
 
-        // helper functions
-        let create_builders = || {
-            self.left_types
-                .iter()
-                .chain(self.right_types.iter())
-                .map(|ty| ArrayBuilderImpl::with_capacity(PROCESSING_WINDOW_SIZE, ty))
-                .collect_vec()
-        };
         let left_rows = || left_chunks.iter().flat_map(|chunk| chunk.rows());
         let right_rows = || right_chunks.iter().flat_map(|chunk| chunk.rows());
 
+        let data_types = self.left_types.iter().chain(self.right_types.iter());
+        let mut builder = DataChunkBuilder::new(data_types, PROCESSING_WINDOW_SIZE);
+        let mut filter_builder = ArrayBuilderImpl::with_capacity_and_physical(
+            PROCESSING_WINDOW_SIZE,
+            PhysicalDataTypeKind::Bool,
+        );
         // cross join: left x right
-        let mut builders = create_builders();
         for left_row in left_rows() {
             for right_row in right_rows() {
                 let values = left_row.values().chain(right_row.values());
-                for (builder, v) in builders.iter_mut().zip_eq(values) {
-                    builder.push(&v);
+                if let Some(chunk) = builder.push_row(values) {
+                    // evaluate filter bitmap
+                    match self.condition.eval(&chunk)? {
+                        ArrayImpl::Bool(a) => {
+                            yield chunk.filter(a.iter().map(|b| matches!(b, Some(true))));
+                            filter_builder.append(&ArrayImpl::Bool(a))
+                        }
+                        _ => panic!("unsupported value from join condition"),
+                    }
                 }
             }
         }
-        let cross_chunk = builders.into_iter().collect();
+        // take rest of data
+        if let Some(chunk) = builder.take() {
+            match self.condition.eval(&chunk)? {
+                ArrayImpl::Bool(a) => {
+                    yield chunk.filter(a.iter().map(|b| matches!(b, Some(true))));
+                    filter_builder.append(&ArrayImpl::Bool(a))
+                }
+                _ => panic!("unsupported value from join condition"),
+            }
+        }
 
-        // evaluate filter bitmap
-        let filter = match self.condition.eval(&cross_chunk)? {
+        let filter = match filter_builder.take() {
             ArrayImpl::Bool(a) => a,
             _ => panic!("unsupported value from join condition"),
         };
-        yield cross_chunk.filter(filter.iter().map(|b| matches!(b, Some(true))));
 
         // append rows for left outer join
         if matches!(
             self.join_op,
             BoundJoinOperator::LeftOuter | BoundJoinOperator::FullOuter
         ) {
-            let mut builders = create_builders();
             let mut i = 0;
             for left_row in left_rows() {
                 let mut matched = false;
@@ -80,11 +90,10 @@ impl NestedLoopJoinExecutor {
                 // append row: (left, NULL)
                 let values =
                     (left_row.values()).chain(self.right_types.iter().map(|_| DataValue::Null));
-                for (builder, v) in builders.iter_mut().zip_eq(values) {
-                    builder.push(&v);
+                if let Some(chunk) = builder.push_row(values) {
+                    yield chunk;
                 }
             }
-            yield builders.into_iter().collect();
         }
 
         // append rows for right outer join
@@ -92,7 +101,6 @@ impl NestedLoopJoinExecutor {
             self.join_op,
             BoundJoinOperator::RightOuter | BoundJoinOperator::FullOuter
         ) {
-            let mut builders = create_builders();
             let left_row_num = left_rows().count();
             let right_row_num = right_rows().count();
             for (mut i, right_row) in right_rows().enumerate() {
@@ -108,11 +116,14 @@ impl NestedLoopJoinExecutor {
                 // append row: (NULL, right)
                 let values =
                     (self.left_types.iter().map(|_| DataValue::Null)).chain(right_row.values());
-                for (builder, v) in builders.iter_mut().zip_eq(values) {
-                    builder.push(&v);
+                if let Some(chunk) = builder.push_row(values) {
+                    yield chunk;
                 }
             }
-            yield builders.into_iter().collect();
+        }
+
+        if let Some(chunk) = { builder }.take() {
+            yield chunk;
         }
     }
 }
