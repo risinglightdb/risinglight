@@ -40,13 +40,14 @@ pub mod executor;
 pub mod array;
 /// Metadata of database objects.
 pub mod catalog;
+/// Functions
+pub mod function;
 /// Persistent storage engine.
 pub mod storage;
 /// Basic type definitions.
 pub mod types;
 /// Utilities.
 pub mod utils;
-
 #[cfg(feature = "jemalloc")]
 use tikv_jemallocator::Jemalloc;
 
