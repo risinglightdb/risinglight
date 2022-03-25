@@ -35,13 +35,7 @@ impl Function for AbsFunction {
                 let mut builder = I32ArrayBuilder::new();
                 for val in i32_arr.iter() {
                     match val {
-                        Some(val) => {
-                            if *val >= 0 {
-                                builder.push(Some(&*val));
-                            } else {
-                                builder.push(Some(&-*val));
-                            }
-                        }
+                        Some(val) => builder.push(Some(&(*val).abs())),
                         None => builder.push(None),
                     }
                 }
@@ -53,13 +47,7 @@ impl Function for AbsFunction {
                 let mut builder = I64ArrayBuilder::new();
                 for val in i64_arr.iter() {
                     match val {
-                        Some(val) => {
-                            if *val >= 0 {
-                                builder.push(Some(&*val));
-                            } else {
-                                builder.push(Some(&-*val));
-                            }
-                        }
+                        Some(val) => builder.push(Some(&(*val).abs())),
                         None => builder.push(None),
                     }
                 }
@@ -71,13 +59,7 @@ impl Function for AbsFunction {
                 let mut builder = F64ArrayBuilder::new();
                 for val in f64_arr.iter() {
                     match val {
-                        Some(val) => {
-                            if *val >= 0.0 {
-                                builder.push(Some(&*val));
-                            } else {
-                                builder.push(Some(&-*val));
-                            }
-                        }
+                        Some(val) => builder.push(Some(&(*val).abs())),
                         None => builder.push(None),
                     }
                 }
