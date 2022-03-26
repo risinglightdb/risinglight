@@ -125,7 +125,7 @@ impl SecondaryStorage {
 
         // TODO: parallel open
 
-        let tables = engine.tables.read();
+        let tables = engine.tables.read().clone();
 
         for (_, entry) in rowsets_to_open {
             let table = tables.get(&entry.table_id).unwrap();
@@ -154,8 +154,6 @@ impl SecondaryStorage {
         engine.version.commit_changes(changeset).await?;
 
         // TODO: compact manifest entries
-
-        drop(tables);
 
         Ok(engine)
     }

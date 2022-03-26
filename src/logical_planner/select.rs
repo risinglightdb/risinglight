@@ -258,7 +258,7 @@ impl AggExtractor {
         }
     }
 
-    fn visit_group_by_expr(&mut self, expr: &mut BoundExpr, select_list: &mut Vec<BoundExpr>) {
+    fn visit_group_by_expr(&mut self, expr: &mut BoundExpr, select_list: &mut [BoundExpr]) {
         use BoundExpr::*;
         if let Alias(alias) = expr {
             if let Some(i) = select_list.iter().position(|inner_expr| {
