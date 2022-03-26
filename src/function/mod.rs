@@ -1,5 +1,3 @@
-use std::vec::Vec;
-
 use crate::array::*;
 use crate::types::PhysicalDataTypeKind;
 
@@ -23,7 +21,7 @@ pub trait Function {
     fn return_types(
         &self,
         input_types: &[PhysicalDataTypeKind],
-    ) -> Result<Vec<PhysicalDataTypeKind>, FunctionError>;
+    ) -> Result<PhysicalDataTypeKind, FunctionError>;
     // The execution logic of function.
     fn execute(&self, input: &DataChunk) -> Result<DataChunk, FunctionError>;
 }

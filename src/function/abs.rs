@@ -12,14 +12,14 @@ impl Function for AbsFunction {
     fn return_types(
         &self,
         input_types: &[PhysicalDataTypeKind],
-    ) -> Result<Vec<PhysicalDataTypeKind>, FunctionError> {
+    ) -> Result<PhysicalDataTypeKind, FunctionError> {
         if input_types.len() != 1 {
             return Err(InvalidDataTypes("The column size should be 1".to_string()));
         }
         match &input_types[0] {
-            PhysicalDataTypeKind::Int32 => Ok(vec![PhysicalDataTypeKind::Int32]),
-            PhysicalDataTypeKind::Int64 => Ok(vec![PhysicalDataTypeKind::Int64]),
-            PhysicalDataTypeKind::Float64 => Ok(vec![PhysicalDataTypeKind::Float64]),
+            PhysicalDataTypeKind::Int32 => Ok(PhysicalDataTypeKind::Int32),
+            PhysicalDataTypeKind::Int64 => Ok(PhysicalDataTypeKind::Int64),
+            PhysicalDataTypeKind::Float64 => Ok(PhysicalDataTypeKind::Float64),
             _ => Err(InvalidDataTypes("Data type is not supported".to_string())),
         }
     }
