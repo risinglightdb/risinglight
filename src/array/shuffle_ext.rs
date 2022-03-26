@@ -62,11 +62,7 @@ impl<T: ArrayBuilder> ArrayBuilderPickExt for T {}
 pub trait ArrayImplBuilderPickExt {
     fn pick_from(&mut self, array: &ArrayImpl, logical_rows: &[usize]);
 
-    fn pick_from_multiple(
-        &mut self,
-        arrays: &[impl AsRef<ArrayImpl>],
-        logical_rows: &[(usize, usize)],
-    );
+    fn pick_from_multiple(&mut self, arrays: &[ArrayImpl], logical_rows: &[(usize, usize)]);
 }
 
 /// Get sorted indices from the current [`Array`]
@@ -139,7 +135,7 @@ macro_rules! impl_array_impl_shuffle_ext {
 
             fn pick_from_multiple(
                 &mut self,
-                arrays: &[impl AsRef<ArrayImpl>],
+                arrays: &[ArrayImpl],
                 logical_rows: &[(usize, usize)],
             ) {
                 match self {
@@ -147,7 +143,7 @@ macro_rules! impl_array_impl_shuffle_ext {
                         Self::$Abc(builder) => {
                             let typed_arrays = arrays
                                 .iter()
-                                .map(|x| x.as_ref().try_into().unwrap())
+                                .map(|x| x.try_into().unwrap())
                                 .collect::<SmallVec<[_; 8]>>();
                             builder.pick_from_multiple(&typed_arrays, logical_rows);
                         }
