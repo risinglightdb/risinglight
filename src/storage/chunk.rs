@@ -1,7 +1,5 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::sync::Arc;
-
 use bitvec::prelude::BitVec;
 use smallvec::SmallVec;
 
@@ -20,7 +18,7 @@ pub struct StorageChunk {
     visibility: Option<BitVec>,
 
     /// Plain array from the blocks.
-    arrays: PackedVec<Arc<ArrayImpl>>,
+    arrays: PackedVec<ArrayImpl>,
 
     /// Number of accessible rows.
     cardinality: usize,
@@ -31,7 +29,7 @@ impl StorageChunk {
     /// chunk, the function will return `None`.
     pub fn construct(
         visibility: Option<BitVec>,
-        arrays: SmallVec<[Arc<ArrayImpl>; 16]>,
+        arrays: SmallVec<[ArrayImpl; 16]>,
     ) -> Option<Self> {
         assert!(!arrays.is_empty());
         let first_length = arrays[0].len();
@@ -68,11 +66,11 @@ impl StorageChunk {
         self.arrays.len()
     }
 
-    pub fn arrays(&self) -> &[Arc<ArrayImpl>] {
+    pub fn arrays(&self) -> &[ArrayImpl] {
         &self.arrays
     }
 
-    pub fn array_at(&self, idx: usize) -> &Arc<ArrayImpl> {
+    pub fn array_at(&self, idx: usize) -> &ArrayImpl {
         &self.arrays[idx]
     }
 

@@ -275,11 +275,7 @@ impl RowSetIterator {
             false,
             StorageChunk::construct(
                 visibility_map,
-                arrays
-                    .into_iter()
-                    .map(Option::unwrap)
-                    .map(Arc::new)
-                    .collect(),
+                arrays.into_iter().map(Option::unwrap).collect(),
             ),
         ))
     }
@@ -334,7 +330,7 @@ mod tests {
             .unwrap();
         // 1 block contains 20 rows, so only 20 rows will be returned if `expected_size` > 20 here
         let chunk = it.next_batch(Some(1000)).await.unwrap().unwrap();
-        if let ArrayImpl::Int32(array) = chunk.array_at(2).as_ref() {
+        if let ArrayImpl::Int32(array) = chunk.array_at(2) {
             let left = array.to_vec();
             let right = [1, 2, 3]
                 .iter()
@@ -349,7 +345,7 @@ mod tests {
             unreachable!()
         }
 
-        if let ArrayImpl::Int32(array) = chunk.array_at(1).as_ref() {
+        if let ArrayImpl::Int32(array) = chunk.array_at(1) {
             let left = array.to_vec();
             let right = [2, 3, 3, 3, 3, 3, 3]
                 .iter()
@@ -364,7 +360,7 @@ mod tests {
             unreachable!()
         }
 
-        if let ArrayImpl::Int64(array) = chunk.array_at(0).as_ref() {
+        if let ArrayImpl::Int64(array) = chunk.array_at(0) {
             assert_eq!(array.get(0), Some(&SecondaryRowHandler(0, 1000).as_i64()))
         } else {
             unreachable!()
@@ -418,7 +414,7 @@ mod tests {
             .await
             .unwrap();
         let chunk = it.next_batch(Some(1000)).await.unwrap().unwrap();
-        if let ArrayImpl::Int32(array) = chunk.array_at(2).as_ref() {
+        if let ArrayImpl::Int32(array) = chunk.array_at(2) {
             let left = array.to_vec();
             let right = [1, 2, 3]
                 .iter()
@@ -433,7 +429,7 @@ mod tests {
             unreachable!()
         }
 
-        if let ArrayImpl::Int32(array) = chunk.array_at(1).as_ref() {
+        if let ArrayImpl::Int32(array) = chunk.array_at(1) {
             let left = array.to_vec();
             let right = [2, 3, 3, 3, 3, 3, 3]
                 .iter()
@@ -448,7 +444,7 @@ mod tests {
             unreachable!()
         }
 
-        if let ArrayImpl::Int64(array) = chunk.array_at(0).as_ref() {
+        if let ArrayImpl::Int64(array) = chunk.array_at(0) {
             assert_eq!(array.get(0), Some(&SecondaryRowHandler(0, 1000).as_i64()))
         } else {
             unreachable!()

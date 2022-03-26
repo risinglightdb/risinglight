@@ -1,7 +1,5 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::sync::Arc;
-
 use super::{SecondaryIterator, SecondaryIteratorImpl};
 use crate::array::{ArrayBuilderImpl, ArrayImpl, ArrayImplBuilderPickExt, I32Array};
 use crate::storage::{PackedVec, StorageChunk, StorageResult};
@@ -30,7 +28,7 @@ pub struct MergeIterator {
     pending_heap: Vec<(usize, usize)>,
 
     /// Sometimes we need an array placeholder
-    dummy_array: Arc<ArrayImpl>,
+    dummy_array: ArrayImpl,
 }
 
 impl MergeIterator {
@@ -41,7 +39,7 @@ impl MergeIterator {
             has_finished: vec![false; iters.len()],
             iters,
             pending_heap: vec![],
-            dummy_array: Arc::new(ArrayImpl::new_int32(I32Array::from_iter([0]))),
+            dummy_array: ArrayImpl::new_int32(I32Array::from_iter([0])),
         }
     }
 
@@ -283,10 +281,11 @@ impl MergeIterator {
                             .as_ref()
                             .map(|x| x.array_at(col_idx))
                             .unwrap_or(&self.dummy_array)
+                            .clone()
                     })
                     .collect::<PackedVec<_>>();
                 builder.pick_from_multiple(&arrays, &pick_from);
-                Arc::new(builder.finish())
+                builder.finish()
             })
             .collect::<PackedVec<_>>();
 
@@ -315,7 +314,7 @@ mod tests {
         visibility: Option<BitVec>,
         array: impl Array + Into<ArrayImpl>,
     ) -> StorageChunk {
-        StorageChunk::construct(visibility, smallvec![Arc::new(array.into())])
+        StorageChunk::construct(visibility, smallvec![array.into()])
             .expect("failed to construct StorageChunk")
     }
 
@@ -330,13 +329,13 @@ mod tests {
         ]);
         let mut merge_iterator = MergeIterator::new(vec![iter1.into()], 0);
         let batch = merge_iterator.next_batch(Some(1)).await.unwrap().unwrap();
-        let array: &I32Array = batch.array_at(0).as_ref().try_into().unwrap();
+        let array: &I32Array = batch.array_at(0).try_into().unwrap();
         assert_eq!(array.to_vec(), vec![Some(1)]);
         let batch = merge_iterator.next_batch(Some(2)).await.unwrap().unwrap();
-        let array: &I32Array = batch.array_at(0).as_ref().try_into().unwrap();
+        let array: &I32Array = batch.array_at(0).try_into().unwrap();
         assert_eq!(array.to_vec(), vec![Some(2), Some(3)]);
         let batch = merge_iterator.next_batch(None).await.unwrap().unwrap();
-        let array: &I32Array = batch.array_at(0).as_ref().try_into().unwrap();
+        let array: &I32Array = batch.array_at(0).try_into().unwrap();
         assert_eq!(array.to_vec(), vec![Some(6)]);
     }
 
@@ -360,7 +359,7 @@ mod tests {
         let answers = vec![vec![1, 2, 3, 4, 4, 5], vec![6], vec![6], vec![7, 9]];
         for answer in answers {
             let batch = merge_iterator.next_batch(None).await.unwrap().unwrap();
-            let array: &I32Array = batch.array_at(0).as_ref().try_into().unwrap();
+            let array: &I32Array = batch.array_at(0).try_into().unwrap();
             assert_eq!(array.to_vec(), answer.into_iter().map(Some).collect_vec());
         }
     }
