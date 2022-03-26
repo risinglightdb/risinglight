@@ -8,7 +8,7 @@ version = "0.1.1"
 default = ["jemalloc"]
 simd = []
 jemalloc = ["tikv-jemallocator"]
-enable_tracing = []
+
 
 [dependencies]
 anyhow = "1"
