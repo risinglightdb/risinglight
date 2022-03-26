@@ -158,14 +158,16 @@ impl Database {
 
     /// Run SQL queries and return the outputs.
 
-    pub async fn run(&self, sql: &str) -> Result<Vec<Chunk>, Error> {
-        self.run_with_context(Default::default(), sql).await
+    pub async fn run(&self, sql: &str, enable_tracing: bool) -> Result<Vec<Chunk>, Error> {
+        self.run_with_context(Default::default(), sql, enable_tracing)
+            .await
     }
 
     pub async fn run_with_context(
         &self,
         context: Arc<Context>,
         sql: &str,
+        enable_tracing: bool,
     ) -> Result<Vec<Chunk>, Error> {
         if let Some(cmdline) = sql.trim().strip_prefix('\\') {
             return self.run_internal(cmdline).await;
@@ -198,7 +200,7 @@ impl Database {
             let executor = executor_builder.build(optimized_plan);
 
             let (root, _collector) = Span::root("root");
-            let output: Vec<DataChunk> = if cfg!(feature = "enable_tracing") {
+            let output: Vec<DataChunk> = if enable_tracing {
                 executor.try_collect().in_span(root).await.map_err(|e| {
                     debug!("error: {}", e);
                     e
@@ -217,10 +219,11 @@ impl Database {
                 chunk.set_header(column_names);
             }
             outputs.push(chunk);
-            #[cfg(feature = "enable_tracing")]
-            let records: Vec<SpanRecord> = _collector.collect().await;
-            #[cfg(feature = "enable_tracing")]
-            println!("{records:#?}");
+
+            if enable_tracing {
+                let records: Vec<SpanRecord> = _collector.collect().await;
+                println!("{records:#?}");
+            }
         }
         Ok(outputs)
     }
