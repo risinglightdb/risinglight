@@ -69,8 +69,7 @@ struct DatabaseWrapper {
 impl sqllogictest::AsyncDB for DatabaseWrapper {
     type Error = Error;
     async fn run(&mut self, sql: &str) -> Result<String, Self::Error> {
-        let enable_tracing = false;
-        let chunks = self.db.run(sql, enable_tracing).await?;
+        let chunks = self.db.run(sql).await?;
         let output = chunks
             .iter()
             .map(datachunk_to_sqllogictest_string)
