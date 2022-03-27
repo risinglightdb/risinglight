@@ -76,17 +76,18 @@ pub enum ManifestOperation {
 /// Handles all reads and writes to a manifest file
 pub struct Manifest {
     file: tokio::fs::File,
+    enable_fsync: bool,
 }
 
 impl Manifest {
-    pub async fn open(path: impl AsRef<Path>) -> StorageResult<Self> {
+    pub async fn open(path: impl AsRef<Path>, enable_fsync: bool) -> StorageResult<Self> {
         let file = OpenOptions::default()
             .read(true)
             .write(true)
             .create(true)
             .open(path.as_ref())
             .await?;
-        Ok(Self { file })
+        Ok(Self { file, enable_fsync })
     }
 
     pub async fn replay(&mut self) -> StorageResult<Vec<ManifestOperation>> {
@@ -136,7 +137,9 @@ impl Manifest {
         }
         serde_json::to_writer(&mut json, &ManifestOperation::End)?;
         self.file.write_all(&json).await?;
-        self.file.sync_data().await?;
+        if self.enable_fsync {
+            self.file.sync_data().await?;
+        }
         Ok(())
     }
 }

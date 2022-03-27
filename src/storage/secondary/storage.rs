@@ -15,7 +15,7 @@ use crate::catalog::RootCatalog;
 use crate::storage::secondary::manifest::*;
 use crate::storage::secondary::transaction_manager::TransactionManager;
 use crate::storage::secondary::version_manager::{EpochOp, VersionManager};
-use crate::storage::secondary::DeleteVector;
+use crate::storage::secondary::{DeleteVector, IOBackend};
 
 impl SecondaryStorage {
     pub(super) async fn bootstrap(options: StorageOptions) -> StorageResult<Self> {
@@ -34,7 +34,9 @@ impl SecondaryStorage {
             fs::create_dir(&dv_directory).await?;
         }
 
-        let mut manifest = Manifest::open(options.path.join("manifest.json")).await?;
+        let enable_fsync = !matches!(options.io_backend, IOBackend::InMemory(_));
+
+        let mut manifest = Manifest::open(options.path.join("manifest.json"), enable_fsync).await?;
 
         let manifest_ops = manifest.replay().await?;
 

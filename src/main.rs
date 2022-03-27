@@ -12,6 +12,7 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use clap::Parser;
 use humantime::format_duration;
+use minitrace::prelude::*;
 use risinglight::array::{datachunk_to_sqllogictest_string, Chunk};
 use risinglight::executor::context::Context;
 use risinglight::storage::SecondaryStorageOptions;
@@ -103,7 +104,17 @@ async fn run_query_in_background(
     let start_time = Instant::now();
     let handle = tokio::spawn({
         let context = context.clone();
-        async move { db.run_with_context(context, &sql, enable_tracing).await }
+        async move {
+            if enable_tracing {
+                let (root, collector) = Span::root("root");
+                let result = db.run_with_context(context, &sql).in_span(root).await;
+                let records: Vec<SpanRecord> = collector.collect().await;
+                println!("{records:#?}");
+                result
+            } else {
+                db.run_with_context(context, &sql).await
+            }
+        }
     });
 
     select! {
@@ -204,7 +215,17 @@ async fn run_sql(
     let lines = std::fs::read_to_string(path)?;
 
     info!("{}", lines);
-    let chunks = db.run(&lines, enable_tracing).await?;
+
+    let chunks = if enable_tracing {
+        let (root, collector) = Span::root("root");
+        let chunk = db.run(&lines).in_span(root).await?;
+        let records: Vec<SpanRecord> = collector.collect().await;
+        println!("{records:#?}");
+        chunk
+    } else {
+        db.run(&lines).await?
+    };
+
     for chunk in chunks {
         print_chunk(&chunk, &output_format);
     }
@@ -224,7 +245,16 @@ impl sqllogictest::AsyncDB for DatabaseWrapper {
     type Error = risinglight::Error;
     async fn run(&mut self, sql: &str) -> Result<String, Self::Error> {
         info!("{}", sql);
-        let chunks = self.db.run(sql, self.enable_tracing).await?;
+        let chunks = if self.enable_tracing {
+            let (root, collector) = Span::root("root");
+            let chunk = self.db.run(sql).in_span(root).await?;
+            let records: Vec<SpanRecord> = collector.collect().await;
+            println!("{records:#?}");
+            chunk
+        } else {
+            self.db.run(sql).await?
+        };
+
         for chunk in &chunks {
             print_chunk(chunk, &self.output_format);
         }
@@ -248,6 +278,7 @@ async fn run_sqllogictest(
         enable_tracing,
     });
     let path = path.to_string();
+
     tester
         .run_file_async(path)
         .await

@@ -3,7 +3,6 @@
 use std::sync::Arc;
 
 use futures::TryStreamExt;
-use minitrace::prelude::*;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use tracing::debug;
 
@@ -158,16 +157,14 @@ impl Database {
 
     /// Run SQL queries and return the outputs.
 
-    pub async fn run(&self, sql: &str, enable_tracing: bool) -> Result<Vec<Chunk>, Error> {
-        self.run_with_context(Default::default(), sql, enable_tracing)
-            .await
+    pub async fn run(&self, sql: &str) -> Result<Vec<Chunk>, Error> {
+        self.run_with_context(Default::default(), sql).await
     }
 
     pub async fn run_with_context(
         &self,
         context: Arc<Context>,
         sql: &str,
-        enable_tracing: bool,
     ) -> Result<Vec<Chunk>, Error> {
         if let Some(cmdline) = sql.trim().strip_prefix('\\') {
             return self.run_internal(cmdline).await;
@@ -199,31 +196,13 @@ impl Database {
             let mut executor_builder = ExecutorBuilder::new(context.clone(), self.storage.clone());
             let executor = executor_builder.build(optimized_plan);
 
-            let (root, _collector) = Span::root("root");
-            let output: Vec<DataChunk> = if enable_tracing {
-                executor.try_collect().in_span(root).await.map_err(|e| {
-                    debug!("error: {}", e);
-                    e
-                })?
-            } else {
-                executor.try_collect().await.map_err(|e| {
-                    debug!("error: {}", e);
-                    e
-                })?
-            };
-            for chunk in &output {
-                debug!("output:\n{}", chunk);
-            }
+            let output = executor.try_collect().await?;
+
             let mut chunk = Chunk::new(output);
             if !column_names.is_empty() && !chunk.data_chunks().is_empty() {
                 chunk.set_header(column_names);
             }
             outputs.push(chunk);
-
-            if enable_tracing {
-                let records: Vec<SpanRecord> = _collector.collect().await;
-                println!("{records:#?}");
-            }
         }
         Ok(outputs)
     }
