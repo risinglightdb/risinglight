@@ -1,6 +1,6 @@
 use crate::array::*;
 use crate::types::PhysicalDataTypeKind;
-
+use std::collections::HashMap;
 pub mod abs;
 
 pub use self::abs::*;
@@ -24,4 +24,14 @@ pub trait Function {
     ) -> Result<PhysicalDataTypeKind, FunctionError>;
     // The execution logic of function.
     fn execute(&self, input: &DataChunk) -> Result<DataChunk, FunctionError>;
+}
+
+pub struct FunctionManager {
+    
+}
+
+pub fn manager() -> FunctionManager {
+    FunctionManager {
+        
+    }
 }
