@@ -40,6 +40,10 @@ struct Args {
     /// - `human`: human readable format
     #[clap(long)]
     output_format: Option<String>,
+
+    /// Whether to use minitrace
+    #[clap(long)]
+    enable_tracing: bool,
 }
 
 // human-readable message
@@ -89,12 +93,17 @@ fn print_execution_time(start_time: Instant) {
     }
 }
 
-async fn run_query_in_background(db: Arc<Database>, sql: String, output_format: Option<String>) {
+async fn run_query_in_background(
+    db: Arc<Database>,
+    sql: String,
+    output_format: Option<String>,
+    enable_tracing: bool,
+) {
     let context: Arc<Context> = Default::default();
     let start_time = Instant::now();
     let handle = tokio::spawn({
         let context = context.clone();
-        async move { db.run_with_context(context, &sql).await }
+        async move { db.run_with_context(context, &sql, enable_tracing).await }
     });
 
     select! {
@@ -123,7 +132,11 @@ async fn run_query_in_background(db: Arc<Database>, sql: String, output_format: 
 }
 
 /// Run RisingLight interactive mode
-async fn interactive(db: Database, output_format: Option<String>) -> Result<()> {
+async fn interactive(
+    db: Database,
+    output_format: Option<String>,
+    enable_tracing: bool,
+) -> Result<()> {
     let mut rl = Editor::<()>::new();
     let history_path = dirs::cache_dir().map(|p| {
         let cache_dir = p.join("risinglight");
@@ -149,7 +162,13 @@ async fn interactive(db: Database, output_format: Option<String>) -> Result<()> 
             Ok(line) => {
                 if !line.trim().is_empty() {
                     rl.add_history_entry(line.as_str());
-                    run_query_in_background(db.clone(), line, output_format.clone()).await;
+                    run_query_in_background(
+                        db.clone(),
+                        line,
+                        output_format.clone(),
+                        enable_tracing,
+                    )
+                    .await;
                 }
             }
             Err(ReadlineError::Interrupted) => {
@@ -176,11 +195,16 @@ async fn interactive(db: Database, output_format: Option<String>) -> Result<()> 
 }
 
 /// Run a SQL file in RisingLight
-async fn run_sql(db: Database, path: &str, output_format: Option<String>) -> Result<()> {
+async fn run_sql(
+    db: Database,
+    path: &str,
+    output_format: Option<String>,
+    enable_tracing: bool,
+) -> Result<()> {
     let lines = std::fs::read_to_string(path)?;
 
     info!("{}", lines);
-    let chunks = db.run(&lines).await?;
+    let chunks = db.run(&lines, enable_tracing).await?;
     for chunk in chunks {
         print_chunk(&chunk, &output_format);
     }
@@ -192,6 +216,7 @@ async fn run_sql(db: Database, path: &str, output_format: Option<String>) -> Res
 struct DatabaseWrapper {
     db: Database,
     output_format: Option<String>,
+    enable_tracing: bool,
 }
 
 #[async_trait]
@@ -199,7 +224,7 @@ impl sqllogictest::AsyncDB for DatabaseWrapper {
     type Error = risinglight::Error;
     async fn run(&mut self, sql: &str) -> Result<String, Self::Error> {
         info!("{}", sql);
-        let chunks = self.db.run(sql).await?;
+        let chunks = self.db.run(sql, self.enable_tracing).await?;
         for chunk in &chunks {
             print_chunk(chunk, &self.output_format);
         }
@@ -211,8 +236,17 @@ impl sqllogictest::AsyncDB for DatabaseWrapper {
 }
 
 /// Run a sqllogictest file in RisingLight
-async fn run_sqllogictest(db: Database, path: &str, output_format: Option<String>) -> Result<()> {
-    let mut tester = sqllogictest::Runner::new(DatabaseWrapper { db, output_format });
+async fn run_sqllogictest(
+    db: Database,
+    path: &str,
+    output_format: Option<String>,
+    enable_tracing: bool,
+) -> Result<()> {
+    let mut tester = sqllogictest::Runner::new(DatabaseWrapper {
+        db,
+        output_format,
+        enable_tracing,
+    });
     let path = path.to_string();
     tester
         .run_file_async(path)
@@ -245,15 +279,15 @@ async fn main() -> Result<()> {
 
     if let Some(file) = args.file {
         if file.ends_with(".sql") {
-            run_sql(db, &file, args.output_format).await?;
+            run_sql(db, &file, args.output_format, args.enable_tracing).await?;
         } else if file.ends_with(".slt") {
-            run_sqllogictest(db, &file, args.output_format).await?;
+            run_sqllogictest(db, &file, args.output_format, args.enable_tracing).await?;
         } else {
             warn!("No suffix detected, assume sql file");
-            run_sql(db, &file, args.output_format).await?;
+            run_sql(db, &file, args.output_format, args.enable_tracing).await?;
         }
     } else {
-        interactive(db, args.output_format).await?;
+        interactive(db, args.output_format, args.enable_tracing).await?;
     }
 
     Ok(())

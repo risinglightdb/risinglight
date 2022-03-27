@@ -122,7 +122,8 @@ mod tests {
         let create_stmt = "create table t(a int)";
         let sql0 = "select a + 0 from t";
         // a + 0 should be converted to a
-        let _ = db.run(create_stmt).await;
+        let enable_tracing = false;
+        let _ = db.run(create_stmt, enable_tracing).await;
 
         let plans = db.generate_execution_plan(sql0).unwrap();
         assert_eq!(plans.len(), 1);

@@ -9,7 +9,8 @@ fn create_table(c: &mut Criterion) {
         b.to_async(&runtime).iter_batched(
             Database::new_in_memory,
             |db| async move {
-                db.run("create table t(v1 int, v2 int, v3 int)")
+                let enable_tracing = false;
+                db.run("create table t(v1 int, v2 int, v3 int)", enable_tracing)
                     .await
                     .unwrap()
             },
@@ -29,16 +30,17 @@ fn insert(c: &mut Criterion) {
                 .chain(std::iter::repeat("(1,10,100),").take(size - 1))
                 .chain(std::iter::once("(1,10,100)"))
                 .collect::<String>();
+            let enable_tracing = false;
             b.to_async(&runtime).iter_batched(
                 || async {
                     let db = Database::new_in_memory();
-                    db.run("create table t(v1 int, v2 int, v3 int)")
+                    db.run("create table t(v1 int, v2 int, v3 int)", enable_tracing)
                         .await
                         .unwrap();
                     db
                 },
                 |db| async {
-                    db.await.run(&sql).await.unwrap();
+                    db.await.run(&sql, enable_tracing).await.unwrap();
                 },
                 BatchSize::LargeInput,
             );
@@ -58,15 +60,21 @@ fn select_add(c: &mut Criterion) {
                 .chain(std::iter::repeat("(1,10),").take(size - 1))
                 .chain(std::iter::once("(1,10)"))
                 .collect::<String>();
+            let enable_tracing = false;
             b.to_async(&runtime).iter_batched(
                 || async {
                     let db = Database::new_in_memory();
-                    db.run("create table t(v1 int, v2 int)").await.unwrap();
-                    db.run(&insert_sql).await.unwrap();
+                    db.run("create table t(v1 int, v2 int)", enable_tracing)
+                        .await
+                        .unwrap();
+                    db.run(&insert_sql, enable_tracing).await.unwrap();
                     db
                 },
                 |db| async {
-                    db.await.run("select v1 + v2 from t").await.unwrap();
+                    db.await
+                        .run("select v1 + v2 from t", enable_tracing)
+                        .await
+                        .unwrap();
                 },
                 BatchSize::LargeInput,
             );
