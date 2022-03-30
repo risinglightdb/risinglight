@@ -29,6 +29,8 @@ may switch to a mirror site with full Rust toolchain or use the official rustup 
 
 After installing the Rust toolchain, you may download and compile RisingLight.
 
+> You'd better use the rust toolchain specified in `rust-toolchain.toml`, otherwise you may encounter compilation errors. But fixing bugs of this project with latest rust toolchain and updating rust-toolchain.toml is welcome.
+
 ```shell
 git clone https://github.com/risinglightdb/risinglight
 cd risinglight
