@@ -28,6 +28,16 @@ pub trait BlockIteratorFactory<A: Array>: Send + Sync + 'static {
     fn get_fake_iterator(&self, index: &BlockIndex, start_pos: usize) -> Self::BlockIteratorImpl;
 }
 
+/// `ConcreteColumnIterator` Statistics
+#[derive(Debug, Default)]
+pub struct Statistics {
+    /// next_batch call times
+    next_batch_count: u32,
+
+    /// get_block call times
+    fetched_block_count: u32,
+}
+
 /// Column iterator that operates on a concrete type
 pub struct ConcreteColumnIterator<A: Array, F: BlockIteratorFactory<A>> {
     /// The [`Column`] object to iterate.
@@ -50,6 +60,9 @@ pub struct ConcreteColumnIterator<A: Array, F: BlockIteratorFactory<A>> {
 
     /// Indicate whether current_block_iter is fake.
     is_fake_iter: bool,
+
+    /// Statistics which used for reporting.
+    statistics: Statistics,
 }
 
 impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
@@ -71,6 +84,10 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             finished: false,
             factory,
             is_fake_iter: false,
+            statistics: Statistics {
+                next_batch_count: 0,
+                fetched_block_count: 1,
+            },
         })
     }
 
@@ -96,6 +113,7 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         if self.is_fake_iter {
             self.is_fake_iter = false;
             let (header, block) = self.column.get_block(self.current_block_id).await?;
+            self.statistics.fetched_block_count += 1;
             self.block_iterator = self.factory.get_iterator_for(
                 header.block_type,
                 block,
@@ -128,6 +146,7 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             }
 
             let (header, block) = self.column.get_block(self.current_block_id).await?;
+            self.statistics.fetched_block_count += 1;
             self.block_iterator = self.factory.get_iterator_for(
                 header.block_type,
                 block,
@@ -221,7 +240,10 @@ impl<A: Array, F: BlockIteratorFactory<A>> ColumnIterator<A> for ConcreteColumnI
     type NextFuture<'a> = impl Future<Output = StorageResult<Option<(u32, A)>>> + 'a;
 
     fn next_batch(&mut self, expected_size: Option<usize>) -> Self::NextFuture<'_> {
-        async move { self.next_batch_inner(expected_size).await }
+        async move {
+            self.statistics.next_batch_count += 1;
+            self.next_batch_inner(expected_size).await
+        }
     }
     fn fetch_hint(&self) -> usize {
         self.fetch_hint_inner()
@@ -233,5 +255,16 @@ impl<A: Array, F: BlockIteratorFactory<A>> ColumnIterator<A> for ConcreteColumnI
 
     fn skip(&mut self, cnt: usize) {
         self.skip_inner(cnt);
+    }
+}
+
+impl<A: Array, F: BlockIteratorFactory<A>> Drop for ConcreteColumnIterator<A, F> {
+    fn drop(&mut self) {
+        tracing::debug!(
+            "{:#?}, total_block_count:{}, fetch_ratio:{}",
+            self.statistics,
+            self.current_block_id,
+            self.statistics.fetched_block_count as f64 / self.current_block_id as f64
+        );
     }
 }
