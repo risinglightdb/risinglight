@@ -103,7 +103,7 @@ macro_rules! impl_sum {
             LaneCount<N>: SupportedLaneCount,
         {
             fn sum<I: Iterator<Item = BatchItem<$t, N>>>(iter: I) -> $t {
-                iter.map(|batch| batch.data.horizontal_sum()).sum()
+                iter.map(|batch| batch.data.reduce_sum()).sum()
             }
         }
     )*}
