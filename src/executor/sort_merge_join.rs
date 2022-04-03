@@ -41,7 +41,7 @@ impl SortMergeJoinExecutor {
                 .peekable()
         };
 
-        //build
+        // build
         let data_types = self.left_types.iter().chain(self.right_types.iter());
         let mut builder = DataChunkBuilder::new(data_types, PROCESSING_WINDOW_SIZE);
         let mut left_row = left_rows().next().unwrap();
