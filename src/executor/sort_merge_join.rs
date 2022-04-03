@@ -7,7 +7,6 @@ use futures::TryStreamExt;
 
 use super::*;
 use crate::array::{DataChunk, DataChunkBuilder, RowRef};
-use crate::binder::{BoundExpr, BoundJoinOperator};
 use crate::types::DataType;
 
 /// The executor for sort merge join
@@ -54,7 +53,7 @@ impl SortMergeJoinExecutor {
                 &self.left_column_indexes,
                 &self.right_column_indexes,
             ) {
-                std::cmp::Ordering::Equal => {
+                Ordering::Equal => {
                     let values = left_row.values().chain(right_row.values());
                     if let Some(chunk) = builder.push_row(values) {
                         yield chunk;
@@ -64,13 +63,13 @@ impl SortMergeJoinExecutor {
                     }
                     left_row = left_rows().next().unwrap();
                 }
-                std::cmp::Ordering::Greater => {
+                Ordering::Greater => {
                     if right_rows().peek().is_none() {
                         break;
                     }
                     right_row = right_rows().next().unwrap();
                 }
-                std::cmp::Ordering::Less => {
+                Ordering::Less => {
                     if left_rows().peek().is_none() {
                         break;
                     }
