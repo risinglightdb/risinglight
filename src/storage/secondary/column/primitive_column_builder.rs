@@ -45,6 +45,9 @@ pub struct PrimitiveColumnBuilder<T: PrimitiveFixedWidthEncode> {
 
     /// Block index builder
     block_index_builder: BlockIndexBuilder,
+
+    /// First key
+    first_key: Vec<u8>,
 }
 
 impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
@@ -55,6 +58,7 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
             options,
             current_builder: None,
             nullable,
+            first_key: vec![],
         }
     }
 
@@ -84,8 +88,13 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
             ),
         };
 
-        self.block_index_builder
-            .finish_block(block_type, &mut self.data, &mut block_data, stats);
+        self.block_index_builder.finish_block(
+            block_type,
+            &mut self.data,
+            &mut block_data,
+            stats,
+            &mut self.first_key,
+        );
     }
 }
 
@@ -121,7 +130,6 @@ pub fn append_one_by_one<'a, A: Array>(
 impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColumnBuilder<T> {
     fn append(&mut self, array: &T::ArrayType) {
         let mut iter = array.iter().peekable();
-
         while iter.peek().is_some() {
             if self.current_builder.is_none() {
                 match (self.nullable, self.options.is_rle) {
@@ -159,6 +167,12 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                         self.current_builder = Some(BlockBuilderImpl::Plain(
                             PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16),
                         ));
+                    }
+                }
+
+                if let Some(to_be_appended) = iter.peek() {
+                    if to_be_appended.is_some() {
+                        to_be_appended.unwrap().encode(&mut self.first_key);
                     }
                 }
             }

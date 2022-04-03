@@ -42,6 +42,7 @@ impl BlockIndexBuilder {
         column_data: &mut Vec<u8>,
         block_data: &mut Vec<u8>,
         stats: Vec<BlockStatistics>,
+        first_key: &mut Vec<u8>,
     ) {
         self.indexes.push(BlockIndex {
             offset: column_data.len() as u64,
@@ -49,7 +50,7 @@ impl BlockIndexBuilder {
             first_rowid: self.last_row_count as u32,
             row_count: (self.row_count - self.last_row_count) as u32,
             /// TODO(chi): support sort key
-            first_key: "".into(),
+            first_key: first_key.drain(..).collect(),
             stats,
         });
 

@@ -26,6 +26,9 @@ pub struct BlobColumnBuilder {
 
     /// Block index builder
     block_index_builder: BlockIndexBuilder,
+
+    /// First key
+    first_key: Vec<u8>,
 }
 
 impl BlobColumnBuilder {
@@ -35,6 +38,7 @@ impl BlobColumnBuilder {
             block_index_builder: BlockIndexBuilder::new(options.clone()),
             options,
             current_builder: None,
+            first_key: vec![],
         }
     }
 
@@ -56,8 +60,13 @@ impl BlobColumnBuilder {
             ),
         };
 
-        self.block_index_builder
-            .finish_block(block_type, &mut self.data, &mut block_data, stats);
+        self.block_index_builder.finish_block(
+            block_type,
+            &mut self.data,
+            &mut block_data,
+            stats,
+            &mut self.first_key,
+        );
     }
 }
 
@@ -79,6 +88,11 @@ impl ColumnBuilder<BlobArray> for BlobColumnBuilder {
                     self.current_builder = Some(BlobBlockBuilderImpl::PlainBlob(
                         PlainBlobBlockBuilder::new(self.options.target_block_size - 16),
                     ));
+                }
+                if let Some(to_be_appended) = iter.peek() {
+                    if to_be_appended.is_some() {
+                        self.first_key = to_be_appended.unwrap().iter().cloned().collect();
+                    }
                 }
             }
 
