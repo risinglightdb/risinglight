@@ -9,8 +9,8 @@ fn main() {
     println!("cargo:rerun-if-changed=../../tests/sql");
 
     const PATTERN: &str = "../../tests/sql/**/[!_]*.slt"; // ignore files start with '_'
-    const MEM_BLOCKLIST: &[&str] = &["statistics.slt", "join.slt"];
-    const DISK_BLOCKLIST: &[&str] = &["join.slt"];
+    const MEM_BLOCKLIST: &[&str] = &["statistics.slt"];
+    const DISK_BLOCKLIST: &[&str] = &[];
 
     let path = PathBuf::from("tests").join("gen/testcase.rs");
     let mut fout = std::fs::File::create(path).expect("failed to create file");

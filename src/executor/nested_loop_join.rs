@@ -23,6 +23,12 @@ impl NestedLoopJoinExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         // only support inner and left outer join
+        if matches!(
+            self.join_op,
+            BoundJoinOperator::RightOuter | BoundJoinOperator::FullOuter
+        ) {
+            panic!("unsupported join type");
+        }
         let left_chunks = self.left_child.try_collect::<Vec<DataChunk>>().await?;
 
         let left_rows = || left_chunks.iter().flat_map(|chunk| chunk.rows());
@@ -75,21 +81,22 @@ impl NestedLoopJoinExecutor {
         };
 
         // append rows for left outer join
-        if matches!(
-            self.join_op,
-            BoundJoinOperator::LeftOuter | BoundJoinOperator::FullOuter
-        ) {
+        if matches!(self.join_op, BoundJoinOperator::LeftOuter) {
+            // we need to pick row of left_row which unmatched rows
             let left_row_num = left_rows().count();
             for (mut i, left_row) in left_rows().enumerate() {
                 let mut matched = false;
                 for _ in 0..right_row_num {
+                    // the `filter` has all matching results of the cross join result `right x left`
+                    // to compute the unmatched rows, we will need to first pick a row of left_row
+                    // (namely the i-th row). then we check if all `filter[i + left_row_num * j]`
                     matched |= matches!(filter.get(i), Some(true));
                     i += left_row_num;
                 }
                 if matched {
                     continue;
                 }
-                // append row: (left, NULL)
+                // if all false, we append row: (left, NULL)
                 let values =
                     (left_row.values()).chain(self.right_types.iter().map(|_| DataValue::Null));
                 if let Some(chunk) = builder.push_row(values) {
