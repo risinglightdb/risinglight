@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "risinglight"
-version = "0.1.1"
+version = "0.1.3"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
@@ -44,7 +44,7 @@ num-traits = "0.2"
 parking_lot = "0.12"
 paste = "1"
 prost = "0.9"
-risinglight_proto = "0.1"
+risinglight_proto = { path = "proto" }
 rust_decimal = "1"
 rustyline = "9"
 serde = { version = "1", features = ["derive", "rc"] }
@@ -62,7 +62,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "parking_lot"]
 [dev-dependencies]
 criterion = { version = "0.3", features = ["async_tokio"] }
 tempfile = "3"
-test-case = "1"
+test-case = "2"
 
 [[bench]]
 harness = false
@@ -81,6 +81,3 @@ members = [
   "proto",
   "tests/sqllogictest"
 ]
-
-[patch.crates-io]
-risinglight_proto = { path = "proto" }
