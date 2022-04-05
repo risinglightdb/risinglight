@@ -57,3 +57,6 @@ pub use self::db::{Database, Error};
 #[cfg(feature = "jemalloc")]
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
+
+#[macro_use]
+extern crate lazy_static;

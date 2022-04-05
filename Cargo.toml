@@ -11,6 +11,7 @@ jemalloc = ["tikv-jemallocator"]
 
 
 [dependencies]
+lazy_static = "1.4.0"
 anyhow = "1"
 async-channel = "1"
 async-recursion = "1"

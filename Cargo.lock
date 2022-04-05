@@ -1688,6 +1688,7 @@ dependencies = [
  "indoc",
  "iter-chunks",
  "itertools",
+ "lazy_static",
  "manifest-dir-macros",
  "minitrace",
  "moka",
