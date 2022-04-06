@@ -7,6 +7,7 @@ use super::super::{BlockBuilder, BlockIndexBuilder, PlainBlobBlockBuilder};
 use super::{append_one_by_one, ColumnBuilder};
 use crate::array::{Array, BlobArray};
 use crate::storage::secondary::block::RleBlockBuilder;
+use crate::storage::secondary::encode::BlobEncode;
 use crate::storage::secondary::ColumnBuilderOptions;
 use crate::types::BlobRef;
 
@@ -28,7 +29,7 @@ pub struct BlobColumnBuilder {
     block_index_builder: BlockIndexBuilder,
 
     /// First key
-    first_key: Vec<u8>,
+    first_key: Option<Vec<u8>>,
 }
 
 impl BlobColumnBuilder {
@@ -38,7 +39,7 @@ impl BlobColumnBuilder {
             block_index_builder: BlockIndexBuilder::new(options.clone()),
             options,
             current_builder: None,
-            first_key: vec![],
+            first_key: None,
         }
     }
 
@@ -65,7 +66,7 @@ impl BlobColumnBuilder {
             &mut self.data,
             &mut block_data,
             stats,
-            &mut self.first_key,
+            self.first_key.clone(),
         );
     }
 }
@@ -90,8 +91,8 @@ impl ColumnBuilder<BlobArray> for BlobColumnBuilder {
                     ));
                 }
                 if let Some(to_be_appended) = iter.peek() {
-                    if to_be_appended.is_some() {
-                        self.first_key = to_be_appended.unwrap().iter().cloned().collect();
+                    if self.options.record_first_key {
+                        self.first_key = to_be_appended.map(|x| x.to_byte_slice().to_vec());
                     }
                 }
             }

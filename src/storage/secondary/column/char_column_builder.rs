@@ -35,7 +35,7 @@ pub struct CharColumnBuilder {
     char_width: Option<u64>,
 
     /// First key
-    first_key: Vec<u8>,
+    first_key: Option<Vec<u8>>,
 }
 
 impl CharColumnBuilder {
@@ -47,7 +47,7 @@ impl CharColumnBuilder {
             current_builder: None,
             nullable,
             char_width,
-            first_key: vec![],
+            first_key: None,
         }
     }
 
@@ -84,7 +84,7 @@ impl CharColumnBuilder {
             &mut self.data,
             &mut block_data,
             stats,
-            &mut self.first_key,
+            self.first_key.clone(),
         );
     }
 }
@@ -141,8 +141,8 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                 }
 
                 if let Some(to_be_appended) = iter.peek() {
-                    if to_be_appended.is_some() {
-                        self.first_key = to_be_appended.unwrap().as_bytes().to_vec();
+                    if self.options.record_first_key {
+                        self.first_key = to_be_appended.map(|x| x.as_bytes().to_vec());
                     }
                 }
             }
