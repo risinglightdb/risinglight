@@ -23,7 +23,7 @@ After successfully building RisingLight, you may import some data and run SQL qu
 ## Documentation
 
 All documentation can be found in [docs](docs/) folder. At the same time, dev docs are also available in `make docs`
-(latest) or [crates.io](https://docs.rs/risinglight) (stable, to-be-released).
+(latest) or [crates.io](https://docs.rs/risinglight) (stable).
 
 ## Roadmap
 
@@ -46,10 +46,10 @@ RisingLight developers are active in a variety of places:
 
 **Slack Channel**
 
-The RisingLight Slack channel is currently hosted in the RisingWave community. You may step in the RisingWave community with the [invitation link](https://join.slack.com/t/risingwave-community/shared_invite/zt-120rft0mr-d8uGk3d~NZiZAQWPnElOfw), and then join the following channels:
+You can join the RisingLight Slack community with the [invitation link](https://join.slack.com/t/risinglightworkspace/shared_invite/zt-16qnqdt2r-Nfr_FeIh58PmBPkEBQaIVQ), and then join the following channels:
 
-* [risinglight-english](https://risingwave-community.slack.com/archives/C030SJRDT4J)
-* [risinglight-chinese](https://risingwave-community.slack.com/archives/C02UZDEE4AC)
+* [risinglight](https://risinglightworkspace.slack.com/archives/C03A2KUSQG6)
+* [risinglight-cn](https://risinglightworkspace.slack.com/archives/C03A99MSGCA)
 
 If the Slack invitation link expires (which normally should not happen), please create an issue :-)
 
