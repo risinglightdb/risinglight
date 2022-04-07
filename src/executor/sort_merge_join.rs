@@ -98,16 +98,20 @@ async fn row_stream(stream: BoxedExecutor) {
 
 #[cfg(test)]
 mod tests {
+    use test_case::test_case;
+
     use super::*;
     use crate::array::ArrayImpl;
     use crate::types::{DataTypeExt, DataTypeKind};
+    #[test_case(vec![1],vec![1],vec![1])]
+    #[test_case(vec![1],vec![1,2,3],vec![1])]
+    #[test_case(vec![1,2,3,4],vec![2,4,6],vec![2,4])]
     #[tokio::test]
-    async fn test() -> Result<(), ExecutorError> {
-        let left_vec = (0..100).filter(|x| x % 2 == 0).collect::<Vec<i32>>();
-        let right_vec = (0..100).filter(|x| x % 4 == 0).collect::<Vec<i32>>();
+    async fn sort_merge_test(left_col: Vec<i32>, right_col: Vec<i32>, expected_col: Vec<i32>) {
         let left_child: BoxedExecutor = async_stream::try_stream! {
                 yield  [
-                ArrayImpl::new_int32(left_vec.into_iter().collect()),
+                ArrayImpl::new_int32(left_col.clone().into_iter().collect()),
+                ArrayImpl::new_int32(left_col.into_iter().collect())
             ]
             .into_iter()
             .collect()
@@ -115,7 +119,8 @@ mod tests {
         .boxed();
         let right_child: BoxedExecutor = async_stream::try_stream! {
                 yield  [
-                ArrayImpl::new_int32(right_vec.into_iter().collect()),
+                    ArrayImpl::new_int32(right_col.clone().into_iter().collect()),
+                    ArrayImpl::new_int32(right_col.into_iter().collect())
             ]
             .into_iter()
             .collect()
@@ -126,22 +131,16 @@ mod tests {
             right_child,
             left_column_index: 0,
             right_column_index: 0,
-            left_types: vec![DataTypeKind::Int(None).nullable()],
-            right_types: vec![DataTypeKind::Int(None).nullable()],
+            left_types: vec![DataTypeKind::Int(None).nullable(); 2],
+            right_types: vec![DataTypeKind::Int(None).nullable(); 2],
         };
 
         let mut executor = executor.execute();
 
-        let result_vec = (0..100).filter(|x| x % 4 == 0).collect::<Vec<i32>>();
-        let chunk = executor.next().await.unwrap()?;
+        let chunk = executor.next().await.unwrap().unwrap();
         assert_eq!(
-            chunk.array_at(0),
-            &ArrayImpl::new_int32(result_vec.clone().into_iter().collect())
+            chunk.arrays(),
+            &vec![ArrayImpl::new_int32(expected_col.clone().into_iter().collect()); 4]
         );
-        assert_eq!(
-            chunk.array_at(1),
-            &ArrayImpl::new_int32(result_vec.into_iter().collect())
-        );
-        Ok(())
     }
 }
