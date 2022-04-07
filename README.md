@@ -22,8 +22,9 @@ After successfully building RisingLight, you may import some data and run SQL qu
 
 ## Documentation
 
-All documentation can be found in [docs](docs/) folder. At the same time, dev docs are also available in `make docs`
-(latest) or [crates.io](https://docs.rs/risinglight) (stable).
+All documentation can be found in [docs](docs/) folder.
+
+At the same time, dev docs are also available in `make docs` (latest) or [crates.io](https://docs.rs/risinglight) (stable).
 
 ## Roadmap
 
