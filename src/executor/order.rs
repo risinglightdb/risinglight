@@ -3,13 +3,15 @@
 use std::cmp::Ordering;
 
 use super::*;
-use crate::array::{DataChunk, RowRef};
+use crate::array::{DataChunk, DataChunkBuilder, RowRef};
 use crate::binder::{BoundExpr, BoundOrderBy};
+use crate::types::DataType;
 
 /// The executor of an order operation.
 pub struct OrderExecutor {
     pub child: BoxedExecutor,
     pub comparators: Vec<BoundOrderBy>,
+    pub output_types: Vec<DataType>,
 }
 
 impl OrderExecutor {
@@ -26,7 +28,15 @@ impl OrderExecutor {
         let comparators = self.comparators;
         indexes.sort_unstable_by(|row1, row2| cmp(row1, row2, &comparators));
         // build chunk by the new order
-        yield DataChunk::from_rows(indexes.as_ref(), &chunks[0]);
+        let mut builder = DataChunkBuilder::new(self.output_types.iter(), PROCESSING_WINDOW_SIZE);
+        for row in indexes {
+            if let Some(chunk) = builder.push_row(row.values()) {
+                yield chunk;
+            }
+        }
+        if let Some(chunk) = { builder }.take() {
+            yield chunk;
+        }
     }
 }
 
