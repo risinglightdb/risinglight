@@ -19,7 +19,7 @@ jobs:
       PROTOC_NO_VENDOR: 1
     steps:
       - uses: actions/checkout@v2
-      - run: apt install -y protobuf-compiler
+      - run: sudo apt-get install -y protobuf-compiler
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -35,7 +35,7 @@ jobs:
       PROTOC_NO_VENDOR: 1
     steps:
       - uses: actions/checkout@v2
-      - run: apt install -y protobuf-compiler
+      - run: sudo apt-get install -y protobuf-compiler
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -52,7 +52,7 @@ jobs:
       PROTOC_NO_VENDOR: 1
     steps:
       - uses: actions/checkout@v2
-      - run: apt install -y protobuf-compiler
+      - run: sudo apt-get install -y protobuf-compiler
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
