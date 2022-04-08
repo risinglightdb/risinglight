@@ -147,12 +147,11 @@ mod tests {
             child: OrderExecutor {
                 child: futures::stream::iter(inputs.into_iter().map(Ok)).boxed(),
                 comparators,
-                output_types: input_types.clone(),
+                output_types: input_types,
             }
             .execute(),
             offset,
             limit,
-            output_types: input_types,
         };
         (top_n, limit_order)
     }

@@ -384,7 +384,6 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                 child: self.visit(plan.child()).unwrap(),
                 offset: plan.logical().offset(),
                 limit: plan.logical().limit(),
-                output_types: plan.logical().out_types(),
             }
             .execute(),
             "LimitExecutor",

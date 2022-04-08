@@ -1,15 +1,13 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use super::*;
-use crate::array::{DataChunk, DataChunkBuilder};
-use crate::types::DataType;
+use crate::array::DataChunk;
 
 /// The executor of a limit operation.
 pub struct LimitExecutor {
     pub child: BoxedExecutor,
     pub offset: usize,
     pub limit: usize,
-    pub output_types: Vec<DataType>,
 }
 
 impl LimitExecutor {
@@ -17,7 +15,6 @@ impl LimitExecutor {
     pub async fn execute(self) {
         // the number of rows have been processed
         let mut processed = 0;
-        let mut builder = DataChunkBuilder::new(self.output_types.iter(), PROCESSING_WINDOW_SIZE);
 
         #[for_await]
         for batch in self.child {
@@ -32,18 +29,14 @@ impl LimitExecutor {
             if start >= end {
                 continue;
             }
-            for row in batch.rows().skip(start).take(end - start) {
-                if let Some(chunk) = builder.push_row(row.values()) {
-                    yield chunk
-                }
+            if (start..end) == (0..cardinality) {
+                yield batch;
+            } else {
+                yield batch.slice(start..end);
             }
             if processed >= self.offset + self.limit {
                 break;
             }
-        }
-
-        if let Some(chunk) = { builder }.take() {
-            yield chunk;
         }
     }
 }
@@ -57,13 +50,12 @@ mod tests {
 
     use super::*;
     use crate::array::ArrayImpl;
-    use crate::types::DataTypeKind;
 
     #[test_case(&[(0..6)], 1, 4, &[(1..5)])]
     #[test_case(&[(0..6)], 0, 10, &[(0..6)])]
     #[test_case(&[(0..6)], 10, 0, &[])]
-    #[test_case(&[(0..2), (2..4), (4..6)], 1, 4, &[(1..5)])]
-    #[test_case(&[(0..2), (2..4), (4..6)], 1, 2, &[(1..3)])]
+    #[test_case(&[(0..2), (2..4), (4..6)], 1, 4, &[(1..2),(2..4),(4..5)])]
+    #[test_case(&[(0..2), (2..4), (4..6)], 1, 2, &[(1..2),(2..3)])]
     #[test_case(&[(0..2), (2..4), (4..6)], 3, 0, &[])]
     #[tokio::test]
     async fn limit(
@@ -76,7 +68,6 @@ mod tests {
             child: futures::stream::iter(inputs.iter().map(range_to_chunk).map(Ok)).boxed(),
             offset,
             limit,
-            output_types: vec![DataType::new(DataTypeKind::Int(None), false)],
         };
         let actual = executor.execute().try_collect::<Vec<_>>().await.unwrap();
         let outputs = outputs.iter().map(range_to_chunk).collect_vec();

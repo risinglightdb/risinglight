@@ -89,16 +89,7 @@ impl Binder {
             }
         }
         let (kind, return_type) = match func.name.to_string().to_lowercase().as_str() {
-            "avg" => {
-                let agg_kind = AggKind::Avg;
-                let mut default_data_type = Some(DataType::new(DataTypeKind::Double, false));
-                if let Some(ref data_type) = args[0].return_type() {
-                    if let DataTypeKind::Decimal(_, _) = data_type.kind {
-                        default_data_type = args[0].return_type();
-                    }
-                }
-                (agg_kind, default_data_type)
-            }
+            "avg" => (AggKind::Avg, args[0].return_type()),
             "count" => {
                 if args.is_empty() {
                     let first_index_column = BoundExpr::InputRef(BoundInputRef {
