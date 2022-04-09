@@ -53,6 +53,9 @@ pub struct StorageOptions {
 
     /// Whether using run-length encoding
     pub is_rle: bool,
+
+    /// Whether record first_key of each block into block_index
+    pub record_first_key: bool,
 }
 
 impl StorageOptions {
@@ -70,6 +73,7 @@ impl StorageOptions {
             },
             checksum_type: ChecksumType::Crc32,
             is_rle: false,
+            record_first_key: false,
         }
     }
 
@@ -82,6 +86,7 @@ impl StorageOptions {
             io_backend: IOBackend::in_memory(),
             checksum_type: ChecksumType::None,
             is_rle: false,
+            record_first_key: false,
         }
     }
 }
@@ -97,6 +102,9 @@ pub struct ColumnBuilderOptions {
 
     /// Whether using run-length encoding
     pub is_rle: bool,
+
+    /// Whether record first_key of each block
+    pub record_first_key: bool,
 }
 
 impl ColumnBuilderOptions {
@@ -105,6 +113,7 @@ impl ColumnBuilderOptions {
             target_block_size: options.target_block_size,
             checksum_type: options.checksum_type,
             is_rle: options.is_rle,
+            record_first_key: options.record_first_key,
         }
     }
 
@@ -114,6 +123,7 @@ impl ColumnBuilderOptions {
             target_block_size: 4096,
             checksum_type: ChecksumType::Crc32,
             is_rle: false,
+            record_first_key: false,
         }
     }
 
@@ -123,6 +133,7 @@ impl ColumnBuilderOptions {
             target_block_size: 128,
             checksum_type: ChecksumType::None,
             is_rle: false,
+            record_first_key: false,
         }
     }
 
@@ -132,6 +143,17 @@ impl ColumnBuilderOptions {
             target_block_size: 128,
             checksum_type: ChecksumType::None,
             is_rle: true,
+            record_first_key: false,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn record_first_key_test() -> Self {
+        Self {
+            target_block_size: 128,
+            checksum_type: ChecksumType::None,
+            is_rle: false,
+            record_first_key: true,
         }
     }
 }

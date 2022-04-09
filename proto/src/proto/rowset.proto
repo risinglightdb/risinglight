@@ -57,6 +57,9 @@ message BlockIndex {
 
   // Statistics of the block.
   repeated BlockStatistics stats = 7;
+
+  // If first_key is null
+  bool is_first_key_null = 8;
 }
 
 // An entry of a delete record.
