@@ -45,6 +45,9 @@ pub struct PrimitiveColumnBuilder<T: PrimitiveFixedWidthEncode> {
 
     /// Block index builder
     block_index_builder: BlockIndexBuilder,
+
+    /// First key
+    first_key: Option<Vec<u8>>,
 }
 
 impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
@@ -55,6 +58,7 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
             options,
             current_builder: None,
             nullable,
+            first_key: None,
         }
     }
 
@@ -84,8 +88,13 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
             ),
         };
 
-        self.block_index_builder
-            .finish_block(block_type, &mut self.data, &mut block_data, stats);
+        self.block_index_builder.finish_block(
+            block_type,
+            &mut self.data,
+            &mut block_data,
+            stats,
+            self.first_key.clone(),
+        );
     }
 }
 
@@ -121,7 +130,6 @@ pub fn append_one_by_one<'a, A: Array>(
 impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColumnBuilder<T> {
     fn append(&mut self, array: &T::ArrayType) {
         let mut iter = array.iter().peekable();
-
         while iter.peek().is_some() {
             if self.current_builder.is_none() {
                 match (self.nullable, self.options.is_rle) {
@@ -159,6 +167,16 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                         self.current_builder = Some(BlockBuilderImpl::Plain(
                             PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16),
                         ));
+                    }
+                }
+
+                if let Some(to_be_appended) = iter.peek() {
+                    if self.options.record_first_key {
+                        self.first_key = to_be_appended.map(|x| {
+                            let mut first_key = vec![];
+                            x.encode(&mut first_key);
+                            first_key
+                        });
                     }
                 }
             }
@@ -278,5 +296,44 @@ mod tests {
             ));
         }
         assert_eq!(builder.finish().0.len(), 2);
+    }
+
+    #[test]
+    fn test_i32_block_index_first_key() {
+        let item_each_block = (128 - 16) / 4;
+
+        // Test for first key
+        let mut builder =
+            I32ColumnBuilder::new(true, ColumnBuilderOptions::record_first_key_test());
+        for _ in 0..10 {
+            builder.append(&I32Array::from_iter(
+                [Some(1)].iter().cycle().cloned().take(item_each_block),
+            ));
+        }
+
+        let (index, _) = builder.finish();
+        assert_eq!(index.len(), 11);
+
+        let mut f2: &[u8];
+        for item in index {
+            f2 = &item.first_key;
+            let x: i32 = PrimitiveFixedWidthEncode::decode(&mut f2);
+            assert_eq!(x, 1);
+        }
+
+        // Test for null first key
+        let mut builder =
+            I32ColumnBuilder::new(true, ColumnBuilderOptions::record_first_key_test());
+        for _ in 0..10 {
+            builder.append(&I32Array::from_iter(
+                [None].iter().cycle().cloned().take(item_each_block),
+            ));
+        }
+        let (index, _) = builder.finish();
+        assert_eq!(index.len(), 11);
+
+        for item in index {
+            assert!(item.is_first_key_null);
+        }
     }
 }
