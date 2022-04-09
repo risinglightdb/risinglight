@@ -1,6 +1,6 @@
 [package]
 name = "risinglight_proto"
-version = "0.1.1"
+version = "0.1.3"
 edition = "2021"
 description = "Proto for RisingLight"
 license = "MIT OR Apache-2.0"
@@ -11,7 +11,7 @@ keywords = ["sql", "database", "embedded", "cli"]
 
 [dependencies]
 bytes = "1"
-prost = "0.9"
+prost = "0.10.0"
 
 [build-dependencies]
-prost-build = "0.9"
+prost-build = "0.10.0"

@@ -6,6 +6,8 @@ checks and sign DCO. If you have any question, feel free to ping community membe
 
 Besides sending Pull Requests, you may also take part in our community scrum meeting (see [README](README.md) for more information), chat in Slack channels, and become a RisingLight member (see [GOVERNANCE](GOVERNANCE.md) for more information).
 
+Also you may take a look at the [architecture overview](./docs/03-architecture-overview.md) to have a better idea of RisingLight's design.
+
 ## Create Tracking Issue if Necessary
 
 If you are working on a large feature (>= 300 LoCs), it is recommended to create a tracking issue first, so that

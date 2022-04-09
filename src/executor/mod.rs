@@ -396,6 +396,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                 offset: plan.logical().offset(),
                 limit: plan.logical().limit(),
                 comparators: plan.logical().comparators().to_owned(),
+                output_types: plan.logical().out_types(),
             }
             .execute(),
             "TopNExecutor",
