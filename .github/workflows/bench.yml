@@ -7,6 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CACHE_KEY_SUFFIX: v20220409
   PROTOC_NO_VENDOR: 1
 
 jobs:
@@ -20,6 +21,13 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ env.CACHE_KEY_SUFFIX }}
       - name: Bench
         uses: actions-rs/cargo@v1
         with:
