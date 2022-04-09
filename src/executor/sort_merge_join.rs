@@ -16,6 +16,7 @@ pub struct SortMergeJoinExecutor {
     pub right_types: Vec<DataType>,
 }
 impl SortMergeJoinExecutor {
+    #[allow(clippy::eval_order_dependence)]
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         let mut left_chunks = same_key_chunks(row_stream(self.left_child), self.left_column_index);
@@ -112,32 +113,22 @@ async fn same_key_chunks(
     let mut chunk = Vec::new();
     #[for_await]
     for row in row_stream {
-        match row {
-            Ok(row) => {
-                if current_row.is_none() {
-                    current_row = Some(row);
-                    chunk.push(current_row.clone().unwrap());
-                    continue;
-                }
-                if current_row.as_ref().unwrap().get(column_index) == row.get(column_index) {
-                    chunk.push(row);
-                } else {
-                    yield chunk;
-                    chunk = Vec::new();
-                    current_row = Some(row);
-                    chunk.push(current_row.clone().unwrap());
-                }
-            }
-            Err(e) => {
-                yield Err(e)?;
-            }
+        let row = row?;
+        if current_row.is_none() {
+            current_row = Some(row);
+            chunk.push(current_row.clone().unwrap());
+            continue;
+        }
+        if current_row.as_ref().unwrap().get(column_index) == row.get(column_index) {
+            chunk.push(row);
+        } else {
+            yield chunk;
+            chunk = Vec::new();
+            current_row = Some(row);
+            chunk.push(current_row.clone().unwrap());
         }
     }
-    if !chunk.is_empty() {
-        yield chunk;
-    } else {
-        yield Err(ExecutorError::NotNullable)?;
-    }
+    yield chunk;
 }
 
 // for example:
@@ -179,6 +170,7 @@ mod tests {
     #[test_case(vec![1],vec![1,1],vec![1,1])]
     #[test_case(vec![1,1],vec![1,1],vec![1,1,1,1])]
     #[test_case(vec![1,2,2,3,3],vec![2,3,3,4],vec![2,2,3,3,3,3])]
+    #[test_case(vec![1,2,3],vec![4,5,6],vec![])]
     #[tokio::test]
     async fn sort_merge_test(left_col: Vec<i32>, right_col: Vec<i32>, expected_col: Vec<i32>) {
         let left_child: BoxedExecutor = async_stream::try_stream! {
