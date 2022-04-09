@@ -46,7 +46,7 @@ impl TopNExecutor {
         });
 
         let mut builder = DataChunkBuilder::new(self.output_types.iter(), PROCESSING_WINDOW_SIZE);
-        for ref row in heap
+        for row in heap
             .into_sorted_vec()
             .into_iter()
             .skip(self.offset)
@@ -77,13 +77,11 @@ mod tests {
 
     #[test_case(&[(0..6)], 1, 4, false, &[(1..5)])]
     #[test_case(&[(0..6)], 0, 10, false, &[(0..6)])]
-    // todo: introduce DataChunkBuilder in TopNExecutor & LimitExecutor
-    // #[test_case(&[(0..6)], 10, 0, false, &[(0..0)])]
+    #[test_case(&[(0..6)], 10, 0, false, &[])]
     #[test_case(&[(0..2), (2..4), (4..6)], 1, 4, false, &[(1..5)])]
     #[test_case(&[(0..6)], 1, 4, true, &[(1..5)])]
     #[test_case(&[(0..6)], 0, 10, true, &[(0..6)])]
-    // todo: introduce DataChunkBuilder in TopNExecutor & LimitExecutor
-    // #[test_case(&[(0..6)], 10, 0, true, &[(0..0)])]
+    #[test_case(&[(0..6)], 10, 0, true, &[])]
     #[test_case(&[(0..2), (2..4), (4..6)], 1, 4, true, &[(1..5)])]
     #[tokio::test]
     async fn simple(
@@ -131,7 +129,7 @@ mod tests {
         inputs: Vec<DataChunk>,
         offset: usize,
         limit: usize,
-        inputs_type: Vec<DataType>,
+        input_types: Vec<DataType>,
         catalog: Vec<ColumnCatalog>,
         idx_desc: Vec<(usize, bool)>,
     ) -> (TopNExecutor, LimitExecutor) {
@@ -142,13 +140,14 @@ mod tests {
             offset,
             limit,
             comparators: comparators.clone(),
-            output_types: inputs_type,
+            output_types: input_types.clone(),
         };
 
         let limit_order = LimitExecutor {
             child: OrderExecutor {
                 child: futures::stream::iter(inputs.into_iter().map(Ok)).boxed(),
                 comparators,
+                output_types: input_types,
             }
             .execute(),
             offset,

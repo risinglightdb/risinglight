@@ -371,6 +371,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
             OrderExecutor {
                 comparators: plan.logical().comparators().to_vec(),
                 child: self.visit(plan.child()).unwrap(),
+                output_types: plan.logical().out_types(),
             }
             .execute(),
             "OrderExecutor",
