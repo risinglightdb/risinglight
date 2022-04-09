@@ -10,20 +10,28 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  CACHE_KEY_SUFFIX: v20220118
+  CACHE_KEY_SUFFIX: v20220409
+  PROTOC_NO_VENDOR: 1
 
 jobs:
   fmt:
     runs-on: ubuntu-latest
-    env:
-      PROTOC_NO_VENDOR: 1
     steps:
       - uses: actions/checkout@v2
-      - run: sudo apt-get install -y protobuf-compiler
+      - uses: arduino/setup-protoc@v1
+        with:
+          version: "3.x"
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           components: rustfmt, clippy
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ env.CACHE_KEY_SUFFIX }}
       - name: Check code format
         run: cargo fmt --all -- --check
       - name: Clippy
@@ -35,12 +43,20 @@ jobs:
       PROTOC_NO_VENDOR: 1
     steps:
       - uses: actions/checkout@v2
-      - run: sudo apt-get install -y protobuf-compiler
+      - uses: arduino/setup-protoc@v1
+        with:
+          version: "3.x"
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-      - name: Download nextest
-        run: curl -fsSL https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ env.CACHE_KEY_SUFFIX }}
+      - uses: taiki-e/install-action@nextest
       - name: Test
         run: cargo nextest run --workspace --no-fail-fast --all-features --locked
       - name: Doctest
@@ -48,19 +64,30 @@ jobs:
 
   tpch-test:
     runs-on: ubuntu-latest
-    env:
-      PROTOC_NO_VENDOR: 1
     steps:
       - uses: actions/checkout@v2
-      - run: sudo apt-get install -y protobuf-compiler
+      - uses: arduino/setup-protoc@v1
+        with:
+          version: "3.x"
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-      - name: Run TPC-H test
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ env.CACHE_KEY_SUFFIX }}
+      - name: Generate TPC-H 1GB dataset
         run: |
           rm -rf risinglight.secondary.db
           make tpch
+      - name: Build RisingLight (in release mode)
+        run: |
           cargo build --release
+      - name: Run TPC-H Test
+        run: |
           sudo ./target/release/risinglight -f tests/sql/tpch/create.sql
           sudo ./target/release/risinglight -f tests/sql/tpch/import.sql
           sudo ./target/release/risinglight -f tests/sql/tpch-full/_tpch_full.slt
