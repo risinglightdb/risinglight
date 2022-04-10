@@ -16,7 +16,6 @@ pub struct SortMergeJoinExecutor {
     pub right_types: Vec<DataType>,
 }
 impl SortMergeJoinExecutor {
-    #[allow(clippy::eval_order_dependence)]
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         let mut left_chunks = same_key_chunks(row_stream(self.left_child), self.left_column_index);
@@ -24,59 +23,57 @@ impl SortMergeJoinExecutor {
             same_key_chunks(row_stream(self.right_child), self.right_column_index);
         let mut left_current_chunk;
         let mut right_current_chunk;
+        let left = left_chunks.next().await;
+        let right = right_chunks.next().await;
 
-        match (left_chunks.next().await, right_chunks.next().await) {
-            (Some(left_chunk), Some(right_chunk)) => {
-                left_current_chunk = left_chunk?;
-                right_current_chunk = right_chunk?;
-                // build
-                let data_types = self.left_types.iter().chain(self.right_types.iter());
-                let mut builder = DataChunkBuilder::new(data_types, PROCESSING_WINDOW_SIZE);
+        if let (Some(left_chunk), Some(right_chunk)) = (left, right) {
+            left_current_chunk = left_chunk?;
+            right_current_chunk = right_chunk?;
+            // build
+            let data_types = self.left_types.iter().chain(self.right_types.iter());
+            let mut builder = DataChunkBuilder::new(data_types, PROCESSING_WINDOW_SIZE);
 
-                loop {
-                    match compare_row(
-                        &left_current_chunk[0],
-                        &right_current_chunk[0],
-                        self.left_column_index,
-                        self.right_column_index,
-                    ) {
-                        Ordering::Equal => {
-                            let full_join_chunk =
-                                full_join(&left_current_chunk, &right_current_chunk);
-                            for row in full_join_chunk {
-                                if let Some(chunk) = builder.push_row(row) {
-                                    yield chunk;
-                                }
-                            }
-
-                            if let Some(chunk) = left_chunks.next().await {
-                                left_current_chunk = chunk?;
-                            } else {
-                                break;
+            loop {
+                match compare_row(
+                    &left_current_chunk[0],
+                    &right_current_chunk[0],
+                    self.left_column_index,
+                    self.right_column_index,
+                ) {
+                    Ordering::Equal => {
+                        let full_join_chunk = full_join(&left_current_chunk, &right_current_chunk);
+                        for row in full_join_chunk {
+                            if let Some(chunk) = builder.push_row(row) {
+                                yield chunk;
                             }
                         }
-                        Ordering::Greater => {
-                            if let Some(chunk) = right_chunks.next().await {
-                                right_current_chunk = chunk?;
-                            } else {
-                                break;
-                            }
+
+                        if let Some(chunk) = left_chunks.next().await {
+                            left_current_chunk = chunk?;
+                        } else {
+                            break;
                         }
-                        Ordering::Less => {
-                            if let Some(chunk) = left_chunks.next().await {
-                                left_current_chunk = chunk?;
-                            } else {
-                                break;
-                            }
+                    }
+                    Ordering::Greater => {
+                        if let Some(chunk) = right_chunks.next().await {
+                            right_current_chunk = chunk?;
+                        } else {
+                            break;
+                        }
+                    }
+                    Ordering::Less => {
+                        if let Some(chunk) = left_chunks.next().await {
+                            left_current_chunk = chunk?;
+                        } else {
+                            break;
                         }
                     }
                 }
-                // if rows line < PROCESSING_WINDOW_SIZE ,take rest rows out of builder
-                if let Some(chunk) = { builder }.take() {
-                    yield chunk;
-                }
             }
-            _ => yield Err(ExecutorError::NotNullable)?,
+            // if rows line < PROCESSING_WINDOW_SIZE ,take rest rows out of builder
+            if let Some(chunk) = { builder }.take() {
+                yield chunk;
+            }
         }
     }
 }
