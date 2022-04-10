@@ -24,6 +24,23 @@ version of nightly toolchain, as it is using some experimental features in the R
 sites only retain recent versions of nightly releases. If you encountered errors when downloading Rust toolchains, you
 may switch to a mirror site with full Rust toolchain or use the official rustup source.
 
+## Install Tools
+
+RisingLight uses protobuf to encode some on-disk data. Therefore, you will need to install protobuf compiler
+or toolchains to build protobuf compiler in advance.
+
+
+On Debian-based Linux distros,
+
+```bash
+sudo apt install make build-essential cmake protobuf-compiler
+```
+
+On macOS with Homebrew,
+
+```bash
+brew install cmake protobuf
+```
 
 ## Compile RisingLight
 

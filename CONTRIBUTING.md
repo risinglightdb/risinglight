@@ -1,12 +1,28 @@
 # Contributing to RisingLight
 
+- [Contributing to RisingLight](#contributing-to-risinglight)
+  - [Architecture Design](#architecture-design)
+  - [Build and Run RisingLight](#build-and-run-risinglight)
+  - [Create Tracking Issue if Necessary](#create-tracking-issue-if-necessary)
+  - [Write Documentation](#write-documentation)
+  - [Write Tests](#write-tests)
+  - [Running Test and Checks](#running-test-and-checks)
+  - [Sign DCO (Developer Certificate of Origin)](#sign-dco-developer-certificate-of-origin)
+  - [Send Pull Requests](#send-pull-requests)
+
 Thanks for your contribution! The RisingLight project welcomes contribution of various types -- new features, bug fixes
 and reports, typo fixes, etc. If you want to contribute to the RisingLight project, you will need to pass necessary
 checks and sign DCO. If you have any question, feel free to ping community members on GitHub and in Slack channels.
 
 Besides sending Pull Requests, you may also take part in our community scrum meeting (see [README](README.md) for more information), chat in Slack channels, and become a RisingLight member (see [GOVERNANCE](GOVERNANCE.md) for more information).
 
-Also you may take a look at the [architecture overview](./docs/03-architecture-overview.md) to have a better idea of RisingLight's design.
+## Architecture Design
+
+You may take a look at the [architecture overview](./docs/03-architecture-overview.md) to have a better idea of RisingLight's design.
+
+## Build and Run RisingLight
+
+Please refer to [Install, Run, and Develop RisingLight](./docs/00-develop.md) for more information.
 
 ## Create Tracking Issue if Necessary
 
