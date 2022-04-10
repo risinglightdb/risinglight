@@ -10,13 +10,12 @@ Currently, RisingLight only supports Linux or macOS. If you are familiar with th
 start an interactive shell with:
 
 ```
-cargo run
-# or start in release mode
-cargo run --release
+cargo run           # start in debug mode
+cargo run --release # or start in release mode
 ```
 
-Otherwise, see [Install, Run, and Develop RisingLight](docs/00-develop.md) for more information. We provide
-step-by-step guide on how to compile and run RisingLight from scratch.
+If you meet with any build issues, see [Install, Run, and Develop RisingLight](docs/00-develop.md) for more
+information. We provide step-by-step guide on how to compile and run RisingLight from scratch.
 
 After successfully building RisingLight, you may import some data and run SQL queries. See [Running TPC-H Queries](docs/01-tpch.md).
 
