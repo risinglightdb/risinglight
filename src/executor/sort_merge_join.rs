@@ -167,7 +167,7 @@ mod tests {
     #[test_case(vec![1],vec![1,1],vec![1,1])]
     #[test_case(vec![1,1],vec![1,1],vec![1,1,1,1])]
     #[test_case(vec![1,2,2,3,3],vec![2,3,3,4],vec![2,2,3,3,3,3])]
-    // #[test_case(vec![1,2,3],vec![4,5,6],vec![])]
+    #[test_case(vec![1,2,3],vec![4,5,6],vec![])]
     #[tokio::test]
     async fn sort_merge_test(left_col: Vec<i32>, right_col: Vec<i32>, expected_col: Vec<i32>) {
         let left_child: BoxedExecutor = async_stream::try_stream! {
@@ -197,10 +197,14 @@ mod tests {
 
         let mut executor = executor.execute();
 
-        let chunk = executor.next().await.unwrap().unwrap();
-        assert_eq!(
-            chunk.arrays(),
-            &vec![ArrayImpl::new_int32(expected_col.clone().into_iter().collect()); 4]
-        );
+        if let Some(chunk) = executor.next().await {
+            let chunk = chunk.unwrap();
+            assert_eq!(
+                chunk.arrays(),
+                &vec![ArrayImpl::new_int32(expected_col.clone().into_iter().collect()); 4]
+            );
+        } else {
+            assert!(expected_col.is_empty());
+        }
     }
 }
