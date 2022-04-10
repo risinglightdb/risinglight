@@ -89,10 +89,7 @@ impl Binder {
             }
         }
         let (kind, return_type) = match func.name.to_string().to_lowercase().as_str() {
-            "avg" => (
-                AggKind::Avg,
-                Some(DataType::new(DataTypeKind::Double, false)),
-            ),
+            "avg" => (AggKind::Avg, args[0].return_type()),
             "count" => {
                 if args.is_empty() {
                     let first_index_column = BoundExpr::InputRef(BoundInputRef {

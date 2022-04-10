@@ -5,8 +5,9 @@ use std::cmp::Ordering;
 use binary_heap_plus::BinaryHeap;
 
 use super::*;
-use crate::array::DataChunk;
+use crate::array::{DataChunk, DataChunkBuilder};
 use crate::binder::BoundOrderBy;
+use crate::types::DataType;
 
 /// The executor of a Top N operation.
 pub struct TopNExecutor {
@@ -14,6 +15,7 @@ pub struct TopNExecutor {
     pub offset: usize,
     pub limit: usize,
     pub comparators: Vec<BoundOrderBy>,
+    pub output_types: Vec<DataType>,
 }
 
 impl TopNExecutor {
@@ -43,15 +45,20 @@ impl TopNExecutor {
             })
         });
 
-        yield DataChunk::from_rows(
-            heap.into_sorted_vec()
-                .into_iter()
-                .skip(self.offset)
-                .take(self.limit)
-                .collect::<Vec<_>>()
-                .as_ref(),
-            &chunks[0],
-        );
+        let mut builder = DataChunkBuilder::new(self.output_types.iter(), PROCESSING_WINDOW_SIZE);
+        for row in heap
+            .into_sorted_vec()
+            .into_iter()
+            .skip(self.offset)
+            .take(self.limit)
+        {
+            if let Some(chunk) = builder.push_row(row.values()) {
+                yield chunk;
+            }
+        }
+        if let Some(chunk) = { builder }.take() {
+            yield chunk;
+        }
     }
 }
 
@@ -70,11 +77,11 @@ mod tests {
 
     #[test_case(&[(0..6)], 1, 4, false, &[(1..5)])]
     #[test_case(&[(0..6)], 0, 10, false, &[(0..6)])]
-    #[test_case(&[(0..6)], 10, 0, false, &[(0..0)])]
+    #[test_case(&[(0..6)], 10, 0, false, &[])]
     #[test_case(&[(0..2), (2..4), (4..6)], 1, 4, false, &[(1..5)])]
     #[test_case(&[(0..6)], 1, 4, true, &[(1..5)])]
     #[test_case(&[(0..6)], 0, 10, true, &[(0..6)])]
-    #[test_case(&[(0..6)], 10, 0, true, &[(0..0)])]
+    #[test_case(&[(0..6)], 10, 0, true, &[])]
     #[test_case(&[(0..2), (2..4), (4..6)], 1, 4, true, &[(1..5)])]
     #[tokio::test]
     async fn simple(
@@ -90,6 +97,7 @@ mod tests {
             inputs,
             offset,
             limit,
+            vec![DataType::new(DataTypeKind::Int(None), false)],
             vec![ColumnCatalog::new(
                 0,
                 DataTypeKind::Int(None).not_null().to_column("v1".into()),
@@ -121,6 +129,7 @@ mod tests {
         inputs: Vec<DataChunk>,
         offset: usize,
         limit: usize,
+        input_types: Vec<DataType>,
         catalog: Vec<ColumnCatalog>,
         idx_desc: Vec<(usize, bool)>,
     ) -> (TopNExecutor, LimitExecutor) {
@@ -131,12 +140,14 @@ mod tests {
             offset,
             limit,
             comparators: comparators.clone(),
+            output_types: input_types.clone(),
         };
 
         let limit_order = LimitExecutor {
             child: OrderExecutor {
                 child: futures::stream::iter(inputs.into_iter().map(Ok)).boxed(),
                 comparators,
+                output_types: input_types,
             }
             .execute(),
             offset,

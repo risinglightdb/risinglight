@@ -1,7 +1,13 @@
 [package]
 edition = "2021"
 name = "risinglight"
-version = "0.1.1"
+version = "0.1.3"
+description = "An OLAP database system for educational purpose"
+license = "Apache-2.0"
+readme = "README.md"
+homepage = "https://github.com/risinglightdb/risinglight"
+repository = "https://github.com/risinglightdb/risinglight"
+keywords = ["sql", "database", "embedded", "cli"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
@@ -43,7 +49,7 @@ moka = { version = "0.7", features = ["future"] }
 num-traits = "0.2"
 parking_lot = "0.12"
 paste = "1"
-prost = "0.9"
+prost = "0.10.0"
 risinglight_proto = "0.1"
 rust_decimal = "1"
 rustyline = "9"
@@ -51,7 +57,7 @@ serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 smallvec = { version = "1", features = ["serde"] }
 sqllogictest = "0.3"
-sqlparser = { git = "https://github.com/risinglightdb/sqlparser-rs", rev = "edead1b", features = ["serde"] }
+sqlparser = { version = "0.16", features = ["serde"] }
 thiserror = "1"
 tikv-jemallocator = { version = "0.4", optional = true }
 tokio = { version = "1", features = ["full"] }
@@ -62,7 +68,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "parking_lot"]
 [dev-dependencies]
 criterion = { version = "0.3", features = ["async_tokio"] }
 tempfile = "3"
-test-case = "1"
+test-case = "2"
 
 [[bench]]
 harness = false
