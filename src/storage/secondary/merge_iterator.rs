@@ -1,5 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::cmp::Ordering;
+
 use super::{SecondaryIterator, SecondaryIteratorImpl};
 use crate::array::{ArrayBuilderImpl, ArrayImpl, ArrayImplBuilderPickExt, I32Array};
 use crate::storage::{PackedVec, StorageChunk, StorageResult};
@@ -19,7 +21,7 @@ pub struct MergeIterator {
     has_finished: Vec<bool>,
 
     /// The column id to be used as sort key
-    sort_key_idx: usize,
+    sort_key_idx: Vec<usize>,
 
     /// The min-heap of all pending data. Heap will be no larger than
     /// `len(iters)` size. Each element represents `(iter_id, batch_row_id)`.
@@ -32,7 +34,7 @@ pub struct MergeIterator {
 }
 
 impl MergeIterator {
-    pub fn new(iters: Vec<SecondaryIterator>, sort_key_idx: usize) -> Self {
+    pub fn new(iters: Vec<SecondaryIterator>, sort_key_idx: Vec<usize>) -> Self {
         Self {
             sort_key_idx,
             chunk_buffer: vec![None; iters.len()],
@@ -48,19 +50,25 @@ impl MergeIterator {
         (left_id, left_batch_row_id): &(usize, usize),
         (right_id, right_batch_row_id): &(usize, usize),
     ) -> std::cmp::Ordering {
-        let left_data = self.chunk_buffer[*left_id]
-            .as_ref()
-            .unwrap()
-            .array_at(self.sort_key_idx)
-            .get(*left_batch_row_id);
-        let right_data = self.chunk_buffer[*right_id]
-            .as_ref()
-            .unwrap()
-            .array_at(self.sort_key_idx)
-            .get(*right_batch_row_id);
-
-        // TODO: handle can-not-compare
-        left_data.partial_cmp(&right_data).unwrap()
+        let mut res = Ordering::Equal;
+        for sort_key_idx in &self.sort_key_idx {
+            let left_data = self.chunk_buffer[*left_id]
+                .as_ref()
+                .unwrap()
+                .array_at(*sort_key_idx)
+                .get(*left_batch_row_id);
+            let right_data = self.chunk_buffer[*right_id]
+                .as_ref()
+                .unwrap()
+                .array_at(*sort_key_idx)
+                .get(*right_batch_row_id);
+            // TODO: handle can-not-compare
+            res = left_data.partial_cmp(&right_data).unwrap();
+            if Ordering::Equal != res {
+                break;
+            }
+        }
+        res
     }
 
     fn compare_in_heap(&self, left_idx: usize, right_idx: usize) -> std::cmp::Ordering {
@@ -304,30 +312,32 @@ impl SecondaryIteratorImpl for MergeIterator {}
 mod tests {
     use bitvec::prelude::{BitVec, *};
     use itertools::Itertools;
-    use smallvec::smallvec;
+    use smallvec::{smallvec, SmallVec};
 
     use super::*;
-    use crate::array::{Array, ArrayImpl, ArrayToVecExt, I32Array};
+    use crate::array::{ArrayImpl, ArrayToVecExt, I32Array};
     use crate::storage::secondary::tests::TestIterator;
 
     pub fn array_to_chunk(
         visibility: Option<BitVec>,
-        array: impl Array + Into<ArrayImpl>,
+        arrays: SmallVec<[ArrayImpl; 16]>,
     ) -> StorageChunk {
-        StorageChunk::construct(visibility, smallvec![array.into()])
-            .expect("failed to construct StorageChunk")
+        StorageChunk::construct(visibility, arrays).expect("failed to construct StorageChunk")
     }
 
     #[tokio::test]
     async fn test_merge_iterator_one_iter() {
         let iter1 = TestIterator::new(vec![
-            array_to_chunk(None, I32Array::from_iter([1, 2, 3].map(Some))),
+            array_to_chunk(
+                None,
+                smallvec![I32Array::from_iter([1, 2, 3].map(Some)).into()],
+            ),
             array_to_chunk(
                 Some(bitvec![0, 0, 1]),
-                I32Array::from_iter([4, 5, 6].map(Some)),
+                smallvec![I32Array::from_iter([4, 5, 6].map(Some)).into()],
             ),
         ]);
-        let mut merge_iterator = MergeIterator::new(vec![iter1.into()], 0);
+        let mut merge_iterator = MergeIterator::new(vec![iter1.into()], vec![0]);
         let batch = merge_iterator.next_batch(Some(1)).await.unwrap().unwrap();
         let array: &I32Array = batch.array_at(0).try_into().unwrap();
         assert_eq!(array.to_vec(), vec![Some(1)]);
@@ -342,25 +352,67 @@ mod tests {
     #[tokio::test]
     async fn test_merge_iterator_two_iter() {
         let iter1 = TestIterator::new(vec![
-            array_to_chunk(None, I32Array::from_iter([1, 2, 4, 6].map(Some))),
+            array_to_chunk(
+                None,
+                smallvec![I32Array::from_iter([1, 2, 4, 6].map(Some)).into()],
+            ),
             array_to_chunk(
                 Some(bitvec![0, 0, 1]),
-                I32Array::from_iter([5, 5, 6].map(Some)),
+                smallvec![I32Array::from_iter([5, 5, 6].map(Some)).into()],
             ),
         ]);
         let iter2 = TestIterator::new(vec![
-            array_to_chunk(None, I32Array::from_iter([3, 4, 5].map(Some))),
+            array_to_chunk(
+                None,
+                smallvec![I32Array::from_iter([3, 4, 5].map(Some)).into()],
+            ),
             array_to_chunk(
                 Some(bitvec![1, 0, 1]),
-                I32Array::from_iter([7, 8, 9].map(Some)),
+                smallvec![I32Array::from_iter([7, 8, 9].map(Some)).into()],
             ),
         ]);
-        let mut merge_iterator = MergeIterator::new(vec![iter1.into(), iter2.into()], 0);
+        let mut merge_iterator = MergeIterator::new(vec![iter1.into(), iter2.into()], vec![0]);
         let answers = vec![vec![1, 2, 3, 4, 4, 5], vec![6], vec![6], vec![7, 9]];
         for answer in answers {
             let batch = merge_iterator.next_batch(None).await.unwrap().unwrap();
             let array: &I32Array = batch.array_at(0).try_into().unwrap();
             assert_eq!(array.to_vec(), answer.into_iter().map(Some).collect_vec());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_merge_iterator_two_iter_composite() {
+        let iter1 = TestIterator::new(vec![array_to_chunk(
+            None,
+            smallvec![
+                I32Array::from_iter([1, 2, 3].map(Some)).into(),
+                I32Array::from_iter([1, 3, 1].map(Some)).into()
+            ],
+        )]);
+
+        let iter2 = TestIterator::new(vec![array_to_chunk(
+            None,
+            smallvec![
+                I32Array::from_iter([1, 2, 2].map(Some)).into(),
+                I32Array::from_iter([7, 1, 2].map(Some)).into()
+            ],
+        )]);
+
+        let mut merge_iterator = MergeIterator::new(vec![iter1.into(), iter2.into()], vec![0, 1]);
+        let answers = vec![
+            vec![vec![1, 1, 2, 2], vec![1, 7, 1, 2]],
+            vec![vec![2, 3], vec![3, 1]],
+        ];
+        for answer in answers {
+            let batch = merge_iterator.next_batch(None).await.unwrap().unwrap();
+            for (idx, item) in answer.iter().enumerate() {
+                let answer_cmp = (*item).clone();
+                let array: &I32Array = batch.array_at(idx).try_into().unwrap();
+                assert_eq!(
+                    array.to_vec(),
+                    answer_cmp.into_iter().map(Some).collect_vec()
+                );
+            }
         }
     }
 }
