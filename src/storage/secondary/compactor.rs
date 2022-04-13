@@ -83,7 +83,7 @@ impl Compactor {
         let mut iter: SecondaryIterator = if let Some(sort_key) = sort_key {
             MergeIterator::new(
                 iters.into_iter().map(|iter| iter.into()).collect_vec(),
-                sort_key,
+                vec![sort_key],
             )
             .into()
         } else {

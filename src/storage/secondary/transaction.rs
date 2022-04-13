@@ -265,7 +265,7 @@ impl SecondaryTransaction {
                 });
                 MergeIterator::new(
                     iters.into_iter().map(|iter| iter.into()).collect_vec(),
-                    real_col_idx.expect("sort key not in column list"),
+                    vec![real_col_idx.expect("sort key not in column list")],
                 )
                 .into()
             } else {
