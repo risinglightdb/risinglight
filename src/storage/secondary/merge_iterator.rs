@@ -50,25 +50,19 @@ impl MergeIterator {
         (left_id, left_batch_row_id): &(usize, usize),
         (right_id, right_batch_row_id): &(usize, usize),
     ) -> std::cmp::Ordering {
-        let mut res = Ordering::Equal;
+        let left_chunk = self.chunk_buffer[*left_id].as_ref().unwrap();
+        let right_chunk = self.chunk_buffer[*right_id].as_ref().unwrap();
+
         for sort_key_idx in &self.sort_key_idx {
-            let left_data = self.chunk_buffer[*left_id]
-                .as_ref()
-                .unwrap()
-                .array_at(*sort_key_idx)
-                .get(*left_batch_row_id);
-            let right_data = self.chunk_buffer[*right_id]
-                .as_ref()
-                .unwrap()
-                .array_at(*sort_key_idx)
-                .get(*right_batch_row_id);
+            let left_data = left_chunk.array_at(*sort_key_idx).get(*left_batch_row_id);
+            let right_data = right_chunk.array_at(*sort_key_idx).get(*right_batch_row_id);
             // TODO: handle can-not-compare
-            res = left_data.partial_cmp(&right_data).unwrap();
+            let res = left_data.partial_cmp(&right_data).unwrap();
             if Ordering::Equal != res {
-                break;
+                return res;
             }
         }
-        res
+        Ordering::Equal
     }
 
     fn compare_in_heap(&self, left_idx: usize, right_idx: usize) -> std::cmp::Ordering {
