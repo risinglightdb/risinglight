@@ -135,7 +135,6 @@ impl BoundExpr {
     }
 
     pub fn format_name(&self, child_schema: &Vec<ColumnDesc>) -> String {
-        println!("{:?}", self);
         match self {
             Self::Constant(DataValue::Int64(num)) => format!("{}", num),
             Self::Constant(DataValue::Int32(num)) => format!("{}", num),
