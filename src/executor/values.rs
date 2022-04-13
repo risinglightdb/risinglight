@@ -3,7 +3,7 @@
 use itertools::izip;
 
 use super::*;
-use crate::array::{ArrayBuilderImpl, DataChunk};
+use crate::array::{DataChunk, DataChunkBuilder};
 use crate::binder::BoundExpr;
 use crate::types::{DataType, DataTypeKind};
 
@@ -18,18 +18,12 @@ pub struct ValuesExecutor {
 impl ValuesExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
-        for chunk in self.values.chunks(PROCESSING_WINDOW_SIZE) {
-            type Type = DataTypeKind;
-            // Create array builders.
-            let column_types = &self.column_types;
-            let mut builders = column_types
-                .iter()
-                .map(|ty| ArrayBuilderImpl::with_capacity(chunk.len(), ty))
-                .collect_vec();
-            // Push value into the builder.
-            let dummy = DataChunk::single(0);
-            for row in chunk {
-                for (expr, column_type, builder) in izip!(row, column_types, &mut builders) {
+        type Type = DataTypeKind;
+        let mut builder = DataChunkBuilder::new(self.column_types.iter(), PROCESSING_WINDOW_SIZE);
+        let dummy = DataChunk::single(0);
+        for row in self.values {
+            let row_data: Result<Vec<DataValue>, _> = izip!(row, &self.column_types)
+                .map(|(expr, column_type)| {
                     let value = expr.eval(&dummy)?;
                     let size = match column_type.kind {
                         Type::Varchar(size) => size,
@@ -51,11 +45,15 @@ impl ValuesExecutor {
                             });
                         }
                     }
-                    builder.push(&value.get(0));
-                }
+                    Ok(value.get(0))
+                })
+                .collect();
+            if let Some(chunk) = builder.push_row(row_data?) {
+                yield chunk;
             }
-            // Finish build and yield chunk.
-            yield builders.into_iter().collect();
+        }
+        if let Some(chunk) = builder.take() {
+            yield chunk;
         }
     }
 }
