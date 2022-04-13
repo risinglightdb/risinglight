@@ -133,6 +133,26 @@ impl BoundExpr {
         visitor.visit_expr(self);
         visitor.0
     }
+
+    pub fn format_name(&self, child_schema: &Vec<ColumnDesc>) -> String {
+        println!("{:?}", self);
+        match self {
+            Self::Constant(DataValue::Int64(num)) => format!("{}", num),
+            Self::Constant(DataValue::Int32(num)) => format!("{}", num),
+            Self::Constant(DataValue::Float64(num)) => format!("{}", num),
+            Self::BinaryOp(expr) => {
+                let left_expr_name = expr.left_expr.format_name(child_schema);
+                let right_expr_name = expr.right_expr.format_name(child_schema);
+                format!("{}{}{}", left_expr_name, expr.op, right_expr_name)
+            }
+            Self::UnaryOp(expr) => {
+                let expr_name = expr.expr.format_name(child_schema);
+                format!("{}{}", expr.op, expr_name)
+            }
+            Self::InputRef(expr) => child_schema[expr.index].name().to_string(),
+            _ => "".to_string(),
+        }
+    }
 }
 
 impl std::fmt::Debug for BoundExpr {

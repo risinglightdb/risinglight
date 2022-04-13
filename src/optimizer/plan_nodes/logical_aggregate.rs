@@ -69,13 +69,25 @@ impl_plan_tree_node_for_unary!(LogicalAggregate);
 impl PlanNode for LogicalAggregate {
     fn schema(&self) -> Vec<ColumnDesc> {
         let child_schema = self.child.schema();
+        let mut out_names = vec![];
         let mut input_refs = vec![];
-        self.group_keys
-            .iter()
-            .for_each(|expr| expr.resolve_input_ref(&mut input_refs));
+        self.group_keys.iter().for_each(|expr| {
+            out_names.push(expr.format_name(&child_schema));
+            expr.resolve_input_ref(&mut input_refs)
+        });
         input_refs
             .iter()
-            .map(|expr| child_schema[expr.index].clone())
+            .map(|expr| {
+                if expr.index < out_names.len() {
+                    ColumnDesc::new(
+                        expr.return_type.clone(),
+                        out_names[expr.index].clone(),
+                        false,
+                    )
+                } else {
+                    child_schema[expr.index].clone()
+                }
+            })
             .chain(self.agg_calls.iter().map(|agg_call| {
                 agg_call
                     .return_type
