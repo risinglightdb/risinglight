@@ -21,8 +21,8 @@ impl ValuesExecutor {
         type Type = DataTypeKind;
         let mut builder = DataChunkBuilder::new(self.column_types.iter(), PROCESSING_WINDOW_SIZE);
         let dummy = DataChunk::single(0);
-        for ref row in self.values{
-            let mut row_data:Vec<DataValue>=Vec::with_capacity(row.len());
+        for ref row in self.values {
+            let mut row_data: Vec<DataValue> = Vec::with_capacity(row.len());
             for (expr, column_type) in izip!(row, &self.column_types) {
                 let value = expr.eval(&dummy)?;
                 let size = match column_type.kind {
@@ -47,11 +47,11 @@ impl ValuesExecutor {
                 }
                 row_data.push(value.get(0));
             }
-            if let Some(chunk)=builder.push_row(row_data){
+            if let Some(chunk) = builder.push_row(row_data) {
                 yield chunk;
             }
         }
-        if let Some(chunk)=builder.take(){
+        if let Some(chunk) = builder.take() {
             yield chunk;
         }
     }
