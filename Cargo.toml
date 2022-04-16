@@ -15,10 +15,8 @@ default = ["jemalloc"]
 simd = []
 jemalloc = ["tikv-jemallocator"]
 
-
 [dependencies]
 anyhow = "1"
-async-channel = "1"
 async-recursion = "1"
 async-stream = "0.3"
 async-trait = "0.1"
