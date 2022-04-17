@@ -71,10 +71,9 @@ impl PlanNode for LogicalAggregate {
         let child_schema = self.child.schema();
         self.group_keys
             .iter()
-            .enumerate()
-            .map(|(index, expr)| {
+            .map(|expr| {
                 ColumnDesc::new(
-                    child_schema[index].datatype().clone(),
+                    expr.return_type().unwrap(),
                     expr.format_name(&child_schema),
                     false,
                 )

@@ -138,7 +138,7 @@ impl BoundExpr {
         match self {
             Self::Constant(DataValue::Int64(num)) => format!("{}", num),
             Self::Constant(DataValue::Int32(num)) => format!("{}", num),
-            Self::Constant(DataValue::Float64(num)) => format!("{}", num),
+            Self::Constant(DataValue::Float64(num)) => format!("{:.3}", num),
             Self::BinaryOp(expr) => {
                 let left_expr_name = expr.left_expr.format_name(child_schema);
                 let right_expr_name = expr.right_expr.format_name(child_schema);
@@ -298,6 +298,89 @@ impl From<&Value> for DataValue {
                 _ => todo!("Support interval with leading field: {:?}", leading_field),
             },
             _ => todo!("parse value: {:?}", v),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sqlparser::ast::{BinaryOperator, UnaryOperator};
+
+    use crate::binder::{BoundBinaryOp, BoundExpr, BoundInputRef, BoundUnaryOp};
+    use crate::catalog::ColumnDesc;
+    use crate::types::{DataType, DataTypeKind, DataValue};
+
+    // test when BoundExpr is Constant
+    #[test]
+    fn test_format_name_constant() {
+        let expr = BoundExpr::Constant(DataValue::Int32(1_i32));
+        assert_eq!("1", expr.format_name(&vec![]));
+        let expr = BoundExpr::Constant(DataValue::Int64(1_i64));
+        assert_eq!("1", expr.format_name(&vec![]));
+        let expr = BoundExpr::Constant(DataValue::Float64(32.0_f64));
+        assert_eq!("32.000", expr.format_name(&vec![]));
+    }
+
+    // test when BoundExpr is UnaryOp(form like -a)
+    #[test]
+    fn test_format_name_unary_op() {
+        let data_type = DataType::new(DataTypeKind::Int(None), true);
+        let expr = BoundExpr::InputRef(BoundInputRef {
+            index: 0,
+            return_type: data_type.clone(),
+        });
+        let child_schema = vec![ColumnDesc::new(data_type.clone(), "a".to_string(), false)];
+        let expr = BoundExpr::UnaryOp(BoundUnaryOp {
+            op: UnaryOperator::Minus,
+            expr: Box::new(expr),
+            return_type: Some(data_type),
+        });
+        assert_eq!("-a", expr.format_name(&child_schema));
+    }
+
+    // test when BoundExpr is BinaryOp
+    #[test]
+    fn test_format_name_binary_op() {
+        // forms like a + 1
+        {
+            let left_data_type = DataType::new(DataTypeKind::Int(None), true);
+            let left_expr = BoundExpr::InputRef(BoundInputRef {
+                index: 0,
+                return_type: left_data_type.clone(),
+            });
+            let right_expr = BoundExpr::Constant(DataValue::Int64(1_i64));
+            let child_schema = vec![ColumnDesc::new(left_data_type, "a".to_string(), false)];
+            let expr = BoundExpr::BinaryOp(BoundBinaryOp {
+                op: BinaryOperator::Plus,
+                left_expr: Box::new(left_expr),
+                right_expr: Box::new(right_expr),
+                return_type: Some(DataType::new(DataTypeKind::Int(None), true)),
+            });
+            assert_eq!("a+1", expr.format_name(&child_schema));
+        }
+        // forms like a + b
+        {
+            let data_type = DataType::new(DataTypeKind::Int(None), true);
+            let left_expr = BoundExpr::InputRef(BoundInputRef {
+                index: 0,
+                return_type: data_type.clone(),
+            });
+            let right_expr = BoundExpr::InputRef(BoundInputRef {
+                index: 1,
+                return_type: data_type.clone(),
+            });
+            let child_schema = vec![
+                ColumnDesc::new(data_type.clone(), "a".to_string(), false),
+                ColumnDesc::new(data_type.clone(), "b".to_string(), false),
+            ];
+
+            let expr = BoundExpr::BinaryOp(BoundBinaryOp {
+                op: BinaryOperator::Plus,
+                left_expr: Box::new(left_expr),
+                right_expr: Box::new(right_expr),
+                return_type: Some(data_type),
+            });
+            assert_eq!("a+b", expr.format_name(&child_schema));
         }
     }
 }
