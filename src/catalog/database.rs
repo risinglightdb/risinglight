@@ -104,6 +104,7 @@ impl DatabaseCatalog {
                         .to_column("github_id".into()),
                 )],
                 false,
+                vec![],
             )
             .unwrap();
     }

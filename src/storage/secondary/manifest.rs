@@ -19,7 +19,7 @@ use tracing::warn;
 use super::version_manager::EpochOp;
 use super::{SecondaryStorage, SecondaryTable, StorageResult, TracedStorageError};
 use crate::catalog::{ColumnCatalog, TableRefId};
-use crate::types::{DatabaseId, SchemaId};
+use crate::types::{ColumnId, DatabaseId, SchemaId};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CreateTableEntry {
@@ -27,6 +27,7 @@ pub struct CreateTableEntry {
     pub schema_id: SchemaId,
     pub table_name: String,
     pub column_descs: Vec<ColumnCatalog>,
+    pub ordered_pk_ids: Vec<ColumnId>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -151,6 +152,7 @@ impl SecondaryStorage {
             schema_id,
             table_name,
             column_descs,
+            ordered_pk_ids,
         } = entry.clone();
 
         let db = self
@@ -164,7 +166,12 @@ impl SecondaryStorage {
             return Err(TracedStorageError::duplicated("table", table_name));
         }
         let table_id = schema
-            .add_table(table_name.clone(), column_descs.to_vec(), false)
+            .add_table(
+                table_name.clone(),
+                column_descs.to_vec(),
+                false,
+                ordered_pk_ids,
+            )
             .map_err(|_| TracedStorageError::duplicated("table", table_name))?;
 
         let id = TableRefId {
@@ -192,12 +199,14 @@ impl SecondaryStorage {
         schema_id: SchemaId,
         table_name: &str,
         column_descs: &[ColumnCatalog],
+        ordered_pk_ids: Vec<ColumnId>,
     ) -> StorageResult<()> {
         let entry = CreateTableEntry {
             database_id,
             schema_id,
             table_name: table_name.to_string(),
             column_descs: column_descs.to_vec(),
+            ordered_pk_ids,
         };
 
         // persist to manifest first

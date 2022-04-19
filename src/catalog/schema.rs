@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use super::{CatalogError, ColumnCatalog, TableCatalog};
-use crate::types::{SchemaId, TableId};
+use crate::types::{ColumnId, SchemaId, TableId};
 
 /// The catalog of a schema.
 pub struct SchemaCatalog {
@@ -37,6 +37,7 @@ impl SchemaCatalog {
         name: String,
         columns: Vec<ColumnCatalog>,
         is_materialized_view: bool,
+        ordered_pk_ids: Vec<ColumnId>,
     ) -> Result<TableId, CatalogError> {
         let mut inner = self.inner.lock().unwrap();
         if inner.table_idxs.contains_key(&name) {
@@ -49,6 +50,7 @@ impl SchemaCatalog {
             name.clone(),
             columns,
             is_materialized_view,
+            ordered_pk_ids,
         ));
         inner.table_idxs.insert(name, table_id);
         inner.tables.insert(table_id, table_catalog);

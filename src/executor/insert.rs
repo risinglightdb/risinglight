@@ -135,6 +135,7 @@ mod tests {
                 ColumnCatalog::new(0, DataTypeKind::Int(None).not_null().to_column("v1".into())),
                 ColumnCatalog::new(1, DataTypeKind::Int(None).not_null().to_column("v2".into())),
             ],
+            vec![],
         ));
         let mut executor = CreateTableExecutor {
             plan,

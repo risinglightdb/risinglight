@@ -11,6 +11,7 @@ impl LogicalPlaner {
             stmt.schema_id,
             stmt.table_name,
             stmt.columns,
+            stmt.ordered_pk_ids,
         )))
     }
 }
