@@ -1,5 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use sqlparser::ast::TableConstraint;
+
 use super::*;
 use crate::catalog::{ColumnCatalog, ColumnDesc};
 use crate::parser::{ColumnDef, ColumnOption, Statement};
@@ -17,7 +19,12 @@ pub struct BoundCreateTable {
 impl Binder {
     pub fn bind_create_table(&mut self, stmt: &Statement) -> Result<BoundCreateTable, BindError> {
         match stmt {
-            Statement::CreateTable { name, columns, .. } => {
+            Statement::CreateTable {
+                name,
+                columns,
+                constraints,
+                ..
+            } => {
                 let name = &lower_case_name(name);
                 let (database_name, schema_name, table_name) = split_name(name)?;
                 let db = self
@@ -37,11 +44,33 @@ impl Binder {
                         return Err(BindError::DuplicatedColumn(col.name.value.clone()));
                     }
                 }
+
+                // record primary key names declared by "primary key" keywords
+                // if a sql like " create table t (a int, b int, c int, d int, primary key(a, b)); "
+                // then after the for loop, the extra_pk_name will contain "a" and "b"
+                let mut extra_pk_name: HashSet<String> = HashSet::new();
+                for constraint in constraints {
+                    match constraint {
+                        TableConstraint::Unique {
+                            is_primary,
+                            columns,
+                            ..
+                        } if *is_primary => columns.iter().for_each(|indent| {
+                            extra_pk_name.insert(indent.value.clone());
+                        }),
+
+                        _ => todo!(),
+                    }
+                }
+
                 let columns = columns
                     .iter()
                     .enumerate()
                     .map(|(idx, col)| {
                         let mut col = ColumnCatalog::from(col);
+                        if extra_pk_name.contains(col.name()) && !col.is_primary() {
+                            col.set_primary(true);
+                        }
                         col.set_id(idx as ColumnId);
                         col
                     })
@@ -97,7 +126,8 @@ mod tests {
         let sql = "
             create table t1 (v1 int not null, v2 int); 
             create table t2 (a int not null, a int not null);
-            create table t3 (v1 int not null);";
+            create table t3 (v1 int not null);
+            create table t4 (a int not null, b int not null, c int, primary key(a,b));";
         let stmts = parse(sql).unwrap();
 
         assert_eq!(
@@ -130,6 +160,33 @@ mod tests {
         assert_eq!(
             binder.bind_create_table(&stmts[2]),
             Err(BindError::DuplicatedTable("t3".into()))
+        );
+
+        assert_eq!(
+            binder.bind_create_table(&stmts[3]).unwrap(),
+            BoundCreateTable {
+                database_id: 0,
+                schema_id: 0,
+                table_name: "t4".into(),
+                columns: vec![
+                    ColumnCatalog::new(
+                        0,
+                        DataTypeKind::Int(None)
+                            .not_null()
+                            .to_column_primary_key("a".into()),
+                    ),
+                    ColumnCatalog::new(
+                        1,
+                        DataTypeKind::Int(None)
+                            .not_null()
+                            .to_column_primary_key("b".into()),
+                    ),
+                    ColumnCatalog::new(
+                        2,
+                        DataTypeKind::Int(None).nullable().to_column("c".into(),),
+                    ),
+                ],
+            }
         );
     }
 }
