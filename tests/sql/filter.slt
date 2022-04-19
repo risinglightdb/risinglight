@@ -4,7 +4,7 @@ create table t (v1 int not null, v2 int not null, primary key(v1));
 statement ok
 insert into t values (1, 1), (4, 6), (3, 2), (2, 1)
 
-query I
+query I rowsort
 select v1 from t where v1 > 2
 ----
 4
