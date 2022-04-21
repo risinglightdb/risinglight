@@ -16,6 +16,7 @@ Currently, the RisingLight maintainers are:
 * @skyzh
 * @st1page
 * @wangrunji0408
+* @xxchan
 
 Membership of the maintainers is by invitation only and must be approved by a consensus of the maintainers.
 
