@@ -199,14 +199,14 @@ impl SecondaryStorage {
         schema_id: SchemaId,
         table_name: &str,
         column_descs: &[ColumnCatalog],
-        ordered_pk_ids: Vec<ColumnId>,
+        ordered_pk_ids: &[ColumnId],
     ) -> StorageResult<()> {
         let entry = CreateTableEntry {
             database_id,
             schema_id,
             table_name: table_name.to_string(),
             column_descs: column_descs.to_vec(),
-            ordered_pk_ids,
+            ordered_pk_ids: ordered_pk_ids.to_vec(),
         };
 
         // persist to manifest first

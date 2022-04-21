@@ -57,8 +57,8 @@ impl LogicalCreateTable {
     }
 
     /// Get the logical create table's `ordered_pk_ids`.
-    pub fn ordered_pk_ids(&self) -> Vec<ColumnId> {
-        self.ordered_pk_ids.clone()
+    pub fn ordered_pk_ids(&self) -> &[ColumnId] {
+        self.ordered_pk_ids.as_ref()
     }
 }
 
