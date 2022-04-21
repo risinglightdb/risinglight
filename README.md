@@ -65,7 +65,7 @@ If you want to join our active communication group in messaging apps including D
 The RisingLight scrum meeting is a place where RisingLight project members bring up topics to discuss online. The meeting will be held by default every Wednesday 11am UTC+8 on Zoom if there are topics to discuss.
 
 * The topics should be decided at least 24 hours before the scrum meeting. All topics should be available in one of: (1) GitHub Issue (2) Pull Request for RFC (3) GitHub Discussion.
-* Meeting information will be sent to `#risinglight-chinese` or `#risinglight-english` on Slack, based on the preferred language for this week's meeting, at least 24 hours before the scrum meeting.
+* Meeting information will be sent to `#risinglight` or `#risinglight-cn` on Slack, based on the preferred language for this week's meeting, at least 24 hours before the scrum meeting.
 * The scrum meeting will generally end in 30 minutes.
 * If there are no topics to discuss, the meeting will be canceled.
 
