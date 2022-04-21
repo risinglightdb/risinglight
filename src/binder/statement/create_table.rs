@@ -91,8 +91,8 @@ impl Binder {
         }
     }
 
-    // get primary keys' id in declared order。
-    // we use index in columns vector as column id
+    /// get primary keys' id in declared order。
+    /// we use index in columns vector as column id
     fn ordered_pks_from_columns(columns: &[ColumnDef]) -> Vec<ColumnId> {
         let mut ordered_pks = Vec::new();
 
@@ -111,9 +111,9 @@ impl Binder {
         ordered_pks
     }
 
-    // We have used `pks_name_from_constraints` to get the primary keys' name sorted by declaration
-    // order in "primary key(c1, c2..)" syntax. Now we transfer the name to id to get the sorted
-    // ID
+    /// We have used `pks_name_from_constraints` to get the primary keys' name sorted by declaration
+    /// order in "primary key(c1, c2..)" syntax. Now we transfer the name to id to get the sorted
+    /// ID
     fn ordered_pks_from_constraint(pks_name: &[String], columns: &[ColumnDef]) -> Vec<ColumnId> {
         let mut ordered_pks = vec![0; pks_name.len()];
         let mut pos_in_ordered_pk = HashMap::new(); // used to get pos from column name
@@ -131,7 +131,7 @@ impl Binder {
         });
         ordered_pks
     }
-    // get the primary keys' name sorted by declaration order in "primary key(c1, c2..)" syntax.
+    /// get the primary keys' name sorted by declaration order in "primary key(c1, c2..)" syntax.
     fn pks_name_from_constraints(constraints: &[TableConstraint]) -> Vec<String> {
         let mut pks_name_from_constraints = vec![];
 
