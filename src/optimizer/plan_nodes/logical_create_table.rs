@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use super::*;
 use crate::catalog::ColumnCatalog;
-use crate::types::{DataTypeKind, DatabaseId, SchemaId};
+use crate::types::{ColumnId, DataTypeKind, DatabaseId, SchemaId};
 
 /// The logical plan of `CREATE TABLE`.
 #[derive(Debug, Clone, Serialize)]
@@ -16,6 +16,7 @@ pub struct LogicalCreateTable {
     schema_id: SchemaId,
     table_name: String,
     columns: Vec<ColumnCatalog>,
+    ordered_pk_ids: Vec<ColumnId>,
 }
 
 impl LogicalCreateTable {
@@ -24,12 +25,14 @@ impl LogicalCreateTable {
         schema_id: SchemaId,
         table_name: String,
         columns: Vec<ColumnCatalog>,
+        ordered_pk_ids: Vec<ColumnId>,
     ) -> Self {
         Self {
             database_id,
             schema_id,
             table_name,
             columns,
+            ordered_pk_ids,
         }
     }
 
@@ -52,7 +55,13 @@ impl LogicalCreateTable {
     pub fn columns(&self) -> &[ColumnCatalog] {
         self.columns.as_ref()
     }
+
+    /// Get the logical create table's `ordered_pk_ids`.
+    pub fn ordered_pk_ids(&self) -> &[ColumnId] {
+        self.ordered_pk_ids.as_ref()
+    }
 }
+
 impl PlanTreeNodeLeaf for LogicalCreateTable {}
 
 impl_plan_tree_node_for_leaf!(LogicalCreateTable);

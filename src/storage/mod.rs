@@ -21,7 +21,7 @@ use enum_dispatch::enum_dispatch;
 use crate::array::{ArrayImpl, DataChunk};
 use crate::binder::BoundExpr;
 use crate::catalog::{ColumnCatalog, TableRefId};
-use crate::types::{DatabaseId, SchemaId};
+use crate::types::{ColumnId, DatabaseId, SchemaId};
 
 #[enum_dispatch(StorageDispatch)]
 #[derive(Clone)]
@@ -75,6 +75,7 @@ pub trait Storage: Sync + Send + 'static {
         schema_id: SchemaId,
         table_name: &'a str,
         column_descs: &'a [ColumnCatalog],
+        ordered_pk_ids: &'a [ColumnId],
     ) -> Self::CreateTableResultFuture<'a>;
 
     fn get_table(&self, table_id: TableRefId) -> StorageResult<Self::TableType>;

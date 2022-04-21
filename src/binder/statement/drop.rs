@@ -64,7 +64,9 @@ mod tests {
 
         let database = catalog.get_database_by_id(0).unwrap();
         let schema = database.get_schema_by_id(0).unwrap();
-        schema.add_table("mytable".into(), vec![], false).unwrap();
+        schema
+            .add_table("mytable".into(), vec![], false, vec![])
+            .unwrap();
 
         let stmts = parse("drop table mytable").unwrap();
         assert_eq!(

@@ -232,6 +232,7 @@ mod tests {
                     ColumnCatalog::new(1, DataTypeKind::Int(None).not_null().to_column("b".into())),
                 ],
                 false,
+                vec![],
             )
             .unwrap();
 

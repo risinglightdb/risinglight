@@ -21,7 +21,8 @@ struct Inner {
     #[allow(dead_code)]
     is_materialized_view: bool,
     next_column_id: ColumnId,
-    primary_key_ids: Vec<ColumnId>,
+    #[allow(dead_code)]
+    ordered_pk_ids: Vec<ColumnId>,
 }
 
 impl TableCatalog {
@@ -30,6 +31,7 @@ impl TableCatalog {
         name: String,
         columns: Vec<ColumnCatalog>,
         is_materialized_view: bool,
+        ordered_pk_ids: Vec<ColumnId>,
     ) -> TableCatalog {
         let table_catalog = TableCatalog {
             id,
@@ -39,29 +41,14 @@ impl TableCatalog {
                 columns: BTreeMap::new(),
                 is_materialized_view,
                 next_column_id: 0,
-                primary_key_ids: Vec::new(),
+                ordered_pk_ids,
             }),
         };
-        let mut pk_ids = vec![];
         for col_catalog in columns {
-            if col_catalog.is_primary() {
-                pk_ids.push(col_catalog.id());
-            }
             table_catalog.add_column(col_catalog).unwrap();
         }
 
-        table_catalog.set_primary_key_ids(&pk_ids);
         table_catalog
-    }
-
-    pub fn set_primary_key_ids(&self, pk_ids: &[ColumnId]) {
-        let mut inner = self.inner.lock().unwrap();
-        inner.primary_key_ids = pk_ids.to_owned();
-    }
-
-    pub fn get_primary_key_ids(&self) -> Vec<ColumnId> {
-        let inner = self.inner.lock().unwrap();
-        inner.primary_key_ids.clone()
     }
 
     pub fn add_column(&self, col_catalog: ColumnCatalog) -> Result<ColumnId, CatalogError> {
@@ -118,6 +105,11 @@ impl TableCatalog {
     pub fn id(&self) -> TableId {
         self.id
     }
+
+    pub fn primary_keys(&self) -> Vec<ColumnId> {
+        let inner = self.inner.lock().unwrap();
+        inner.ordered_pk_ids.clone()
+    }
 }
 
 #[cfg(test)]
@@ -130,7 +122,7 @@ mod tests {
         let col1 = ColumnCatalog::new(1, DataTypeKind::Boolean.not_null().to_column("b".into()));
 
         let col_catalogs = vec![col0, col1];
-        let table_catalog = TableCatalog::new(0, "t".into(), col_catalogs, false);
+        let table_catalog = TableCatalog::new(0, "t".into(), col_catalogs, false, vec![]);
 
         assert!(!table_catalog.contains_column("c"));
         assert!(table_catalog.contains_column("a"));
@@ -146,25 +138,5 @@ mod tests {
         let col1_catalog = table_catalog.get_column_by_id(1).unwrap();
         assert_eq!(col1_catalog.name(), "b");
         assert_eq!(col1_catalog.datatype().kind(), DataTypeKind::Boolean);
-
-        // test with two primary key
-        let col0 = ColumnCatalog::new(
-            0,
-            DataTypeKind::Int(None)
-                .not_null()
-                .to_column_primary_key("a".into()),
-        );
-        let col1 = ColumnCatalog::new(
-            1,
-            DataTypeKind::Int(None)
-                .not_null()
-                .to_column_primary_key("b".into()),
-        );
-        let col2 = ColumnCatalog::new(2, DataTypeKind::Int(None).nullable().to_column("c".into()));
-        let col3 = ColumnCatalog::new(3, DataTypeKind::Int(None).nullable().to_column("d".into()));
-
-        let col_catalogs = vec![col0, col1, col2, col3];
-        let table_catalog = TableCatalog::new(0, "t".into(), col_catalogs, false);
-        assert_eq!(table_catalog.get_primary_key_ids(), vec![0, 1]);
     }
 }

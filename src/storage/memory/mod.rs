@@ -23,7 +23,7 @@ use std::sync::{Arc, Mutex};
 
 use super::{Storage, StorageError, StorageResult, TracedStorageError};
 use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};
-use crate::types::{DatabaseId, SchemaId};
+use crate::types::{ColumnId, DatabaseId, SchemaId};
 
 mod table;
 pub use table::InMemoryTable;
@@ -74,6 +74,7 @@ impl Storage for InMemoryStorage {
         schema_id: SchemaId,
         table_name: &'a str,
         column_descs: &'a [ColumnCatalog],
+        ordered_pk_ids: &'a [ColumnId],
     ) -> Self::CreateTableResultFuture<'a> {
         async move {
             let db = self
@@ -87,7 +88,12 @@ impl Storage for InMemoryStorage {
                 return Err(TracedStorageError::duplicated("table", table_name));
             }
             let table_id = schema
-                .add_table(table_name.into(), column_descs.to_vec(), false)
+                .add_table(
+                    table_name.into(),
+                    column_descs.to_vec(),
+                    false,
+                    ordered_pk_ids.to_vec(),
+                )
                 .map_err(|_| StorageError::Duplicated("table", table_name.into()))?;
 
             let id = TableRefId {

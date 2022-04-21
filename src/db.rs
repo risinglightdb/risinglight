@@ -181,6 +181,7 @@ impl Database {
         // TODO: parallelize
         let mut outputs: Vec<Chunk> = vec![];
         for stmt in stmts {
+            debug!("{:#?}", stmt);
             let stmt = binder.bind(&stmt)?;
             debug!("{:#?}", stmt);
             let logical_plan = logical_planner.plan(stmt)?;
