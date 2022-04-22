@@ -322,6 +322,6 @@ There's a background compaction thread in *secondary*. As users continuously ope
 
 Whenever there's an update to the manifest, compaction picker will pick some RowSets to compact. It will read all contents out of the RowSets, and produce zero or one or multiple new RowSets. When the compaction is completed, the compactor will record the operation in manifest.
 
-Compaction cannot be done together with delete transactions, as the delete vector only records `<RowSet id, row offset>`. If the compactor is doing the compaction using the current set of delete vectors, while new delete vectors are being added in, those DVs will be ignore throughout the compaction process. Therefore, *secondary* doesn't allow compaction and deletion to be running together.
+Compaction cannot be done together with delete transactions, as the delete vector only records `<RowSet id, row offset>`. If the compactor is doing the compaction using the current set of delete vectors, while new delete vectors are being added in, those DVs will be ignored throughout the compaction process. Therefore, *secondary* doesn't allow compaction and deletion to be running together.
 
 When a *version* is not used by any executor, the vacuum thread will begin to delete unused files in that version. 
