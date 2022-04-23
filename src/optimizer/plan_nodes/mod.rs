@@ -1,6 +1,17 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 //! Defines all plan nodes and provides tools to visit plan tree.
+//!
+//! This module contains a lot of macros to help generate code. Generally, developers won't need to
+//! care too much about the macros, and will only need to focus on implementing new plan nodes. If
+//! you have no idea it is like to implement a new plan node, just copy and paste `Dummy` plan node
+//! and begin.
+//!
+//! The `for_all_xxx` macros are a technique in Rust to generate a given pattern of code using a
+//! input parameter. There are some articles about it:
+//!
+//! * [Callbacks](https://adventures.michaelfbryan.com/posts/non-trivial-macros/#callbacks)
+//! * [Type Exercise in Rust (Day 4)](https://github.com/skyzh/type-exercise-in-rust/blob/master/archive/day4/src/macros.rs)
 
 use std::fmt::{Debug, Display};
 use std::sync::Arc;
