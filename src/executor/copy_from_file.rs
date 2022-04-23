@@ -4,10 +4,11 @@ use std::fs::File;
 use std::io::BufReader;
 
 use indicatif::{ProgressBar, ProgressStyle};
+use itertools::izip;
 use tokio::sync::mpsc::Sender;
 
 use super::*;
-use crate::array::ArrayBuilderImpl;
+use crate::array::DataChunkBuilder;
 use crate::binder::FileFormat;
 use crate::optimizer::plan_nodes::PhysicalCopyFromFile;
 
@@ -78,14 +79,9 @@ impl CopyFromFileExecutor {
         let mut iter = reader.records();
         let mut finished = false;
         while !finished {
-            // create array builders
-            let mut array_builders = self
-                .plan
-                .logical()
-                .column_types()
-                .iter()
-                .map(|ty| ArrayBuilderImpl::with_capacity(PROCESSING_WINDOW_SIZE, ty))
-                .collect_vec();
+            // create chunk builders
+            let mut chunk_builder =
+                DataChunkBuilder::new(self.plan.logical().column_types(), PROCESSING_WINDOW_SIZE);
 
             // read records and push to array builder
             for _ in 0..PROCESSING_WINDOW_SIZE {
@@ -104,27 +100,33 @@ impl CopyFromFileExecutor {
                         actual: record.len(),
                     });
                 }
-                for ((s, builder), ty) in record
-                    .iter()
-                    .zip(&mut array_builders)
-                    .zip(&self.plan.logical().column_types().to_vec())
-                {
-                    if !ty.is_nullable() && s.is_empty() {
-                        return Err(ExecutorError::NotNullable);
-                    }
-                    builder.push_str(s)?;
+
+                let str_row_data: Result<Vec<&str>, _> =
+                    izip!(record.iter(), self.plan.logical().column_types())
+                        .map(|(v, ty)| {
+                            if !ty.is_nullable() && v.is_empty() {
+                                return Err(ExecutorError::NotNullable);
+                            }
+                            Ok(v)
+                        })
+                        .collect();
+
+                // push a str row and parse
+                if let Some(e) = chunk_builder.push_str_row(str_row_data?).err() {
+                    return Err(ExecutorError::Convert(e));
                 }
             }
+
             // update progress bar
             bar.set_position(iter.reader().position().byte());
 
             // send data chunk
-            let chunk: DataChunk = array_builders.into_iter().collect();
-
             #[allow(clippy::collapsible_if)]
-            if chunk.cardinality() > 0 {
-                if token.is_cancelled() || tx.blocking_send(chunk).is_err() {
-                    return Err(ExecutorError::Abort);
+            if let Some(chunk) = { chunk_builder }.take() {
+                if chunk.cardinality() > 0 {
+                    if token.is_cancelled() || tx.blocking_send(chunk).is_err() {
+                        return Err(ExecutorError::Abort);
+                    }
                 }
             }
         }

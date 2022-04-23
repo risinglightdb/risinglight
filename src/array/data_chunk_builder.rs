@@ -3,7 +3,7 @@ use std::iter::IntoIterator;
 use itertools::Itertools;
 
 use super::{ArrayBuilderImpl, DataChunk};
-use crate::types::{DataType, DataValue};
+use crate::types::{ConvertError, DataType, DataValue};
 
 /// A helper struct to build a [`DataChunk`].
 ///
@@ -54,6 +54,32 @@ impl DataChunkBuilder {
             self.take()
         } else {
             None
+        }
+    }
+
+    /// Push a str_row in the Iterator.
+    ///
+    /// The row is accepted as an iterator of &str, and it's required that the size of row
+    /// should be the same as the number of columns.
+    ///
+    /// A [`DataChunk`] will be returned while `size == capacity`, and it should always be handled
+    /// correctly.
+    #[must_use]
+    pub fn push_str_row<'a>(
+        &mut self,
+        row: impl IntoIterator<Item = &'a str>,
+    ) -> Result<Option<DataChunk>, ConvertError> {
+        for (builder, r) in self.array_builders.iter_mut().zip_eq(row) {
+            if let Some(e) = builder.push_str(&r).err() {
+                return Err(e);
+            }
+        }
+
+        self.size += 1;
+        if self.size == self.capacity {
+            Ok(self.take())
+        } else {
+            Ok(None)
         }
     }
 
