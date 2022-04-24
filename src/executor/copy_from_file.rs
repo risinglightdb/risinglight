@@ -77,7 +77,7 @@ impl CopyFromFileExecutor {
 
         let column_count = self.plan.logical().column_types().len();
 
-        // create chunk builders
+        // create chunk builder
         let mut chunk_builder =
             DataChunkBuilder::new(self.plan.logical().column_types(), PROCESSING_WINDOW_SIZE);
         let mut size_count = 0;
@@ -105,18 +105,12 @@ impl CopyFromFileExecutor {
                     })
                     .collect();
 
-            // push a raw str row
-            let chunk = match chunk_builder.push_str_row(str_row_data?) {
-                Ok(chunk) => chunk,
-                Err(e) => return Err(ExecutorError::Convert(e)),
-            };
-
             // update progress bar
             size_count += record.as_slice().as_bytes().len();
             bar.set_position(size_count as u64);
 
-            // send chunk if necessary
-            if let Some(chunk) = chunk {
+            // push a raw str row and send it if necessary
+            if let Some(chunk) = chunk_builder.push_str_row(str_row_data?)? {
                 if token.is_cancelled() || tx.blocking_send(chunk).is_err() {
                     return Err(ExecutorError::Abort);
                 }
