@@ -104,13 +104,11 @@ impl CopyFromFileExecutor {
                         Ok(v)
                     })
                     .collect();
-
-            // update progress bar
             size_count += record.as_slice().as_bytes().len();
-            bar.set_position(size_count as u64);
 
             // push a raw str row and send it if necessary
             if let Some(chunk) = chunk_builder.push_str_row(str_row_data?)? {
+                bar.set_position(size_count as u64);
                 if token.is_cancelled() || tx.blocking_send(chunk).is_err() {
                     return Err(ExecutorError::Abort);
                 }
