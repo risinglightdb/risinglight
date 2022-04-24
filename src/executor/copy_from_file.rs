@@ -4,10 +4,11 @@ use std::fs::File;
 use std::io::BufReader;
 
 use indicatif::{ProgressBar, ProgressStyle};
+use itertools::izip;
 use tokio::sync::mpsc::Sender;
 
 use super::*;
-use crate::array::ArrayBuilderImpl;
+use crate::array::DataChunkBuilder;
 use crate::binder::FileFormat;
 use crate::optimizer::plan_nodes::PhysicalCopyFromFile;
 
@@ -75,57 +76,48 @@ impl CopyFromFileExecutor {
         };
 
         let column_count = self.plan.logical().column_types().len();
-        let mut iter = reader.records();
-        let mut finished = false;
-        while !finished {
-            // create array builders
-            let mut array_builders = self
-                .plan
-                .logical()
-                .column_types()
-                .iter()
-                .map(|ty| ArrayBuilderImpl::with_capacity(PROCESSING_WINDOW_SIZE, ty))
-                .collect_vec();
 
-            // read records and push to array builder
-            for _ in 0..PROCESSING_WINDOW_SIZE {
-                let record = match iter.next() {
-                    Some(record) => record?,
-                    None => {
-                        finished = true;
-                        break;
-                    }
-                };
-                if !(record.len() == column_count
-                    || record.len() == column_count + 1 && record.get(column_count) == Some(""))
-                {
-                    return Err(ExecutorError::LengthMismatch {
-                        expected: column_count,
-                        actual: record.len(),
-                    });
-                }
-                for ((s, builder), ty) in record
-                    .iter()
-                    .zip(&mut array_builders)
-                    .zip(&self.plan.logical().column_types().to_vec())
-                {
-                    if !ty.is_nullable() && s.is_empty() {
-                        return Err(ExecutorError::NotNullable);
-                    }
-                    builder.push_str(s)?;
-                }
+        // create chunk builder
+        let mut chunk_builder =
+            DataChunkBuilder::new(self.plan.logical().column_types(), PROCESSING_WINDOW_SIZE);
+        let mut size_count = 0;
+
+        for record in reader.records() {
+            // read records and push raw str rows into data chunk builder
+            let record = record?;
+
+            if !(record.len() == column_count
+                || record.len() == column_count + 1 && record.get(column_count) == Some(""))
+            {
+                return Err(ExecutorError::LengthMismatch {
+                    expected: column_count,
+                    actual: record.len(),
+                });
             }
-            // update progress bar
-            bar.set_position(iter.reader().position().byte());
 
-            // send data chunk
-            let chunk: DataChunk = array_builders.into_iter().collect();
+            let str_row_data: Result<Vec<&str>, _> =
+                izip!(record.iter(), self.plan.logical().column_types())
+                    .map(|(v, ty)| {
+                        if !ty.is_nullable() && v.is_empty() {
+                            return Err(ExecutorError::NotNullable);
+                        }
+                        Ok(v)
+                    })
+                    .collect();
+            size_count += record.as_slice().as_bytes().len();
 
-            #[allow(clippy::collapsible_if)]
-            if chunk.cardinality() > 0 {
+            // push a raw str row and send it if necessary
+            if let Some(chunk) = chunk_builder.push_str_row(str_row_data?)? {
+                bar.set_position(size_count as u64);
                 if token.is_cancelled() || tx.blocking_send(chunk).is_err() {
                     return Err(ExecutorError::Abort);
                 }
+            }
+        }
+        // send left chunk
+        if let Some(chunk) = chunk_builder.take() {
+            if token.is_cancelled() || tx.blocking_send(chunk).is_err() {
+                return Err(ExecutorError::Abort);
             }
         }
         bar.finish();
