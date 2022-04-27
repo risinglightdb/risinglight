@@ -13,6 +13,11 @@ select v2 + 1 as a, v1 as b from t group by a
 statement error
 select v2, v2 + 1, sum(v1) from t group by v2 + 1
 
+statement error
+select v2 + 2 + count(*) from t group by v2 + 1
+
+statement error
+select v2 + count(*) from t group by v2 order by v1;
 
 query II rowsort
 select v2 + 1, sum(v1) from t group by v2 + 1
