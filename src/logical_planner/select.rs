@@ -73,7 +73,7 @@ impl LogicalPlaner {
             agg_extractor.visit_group_by_expr(expr, &stmt.select_list);
         }
         if !stmt.group_by.is_empty() {
-            agg_extractor.validate_illegal_column(&stmt.select_list)?;
+            agg_extractor.validate_illegal_column(&stmt.select_list, &stmt.orderby)?;
         }
         if !agg_extractor.agg_calls.is_empty() || !agg_extractor.group_by_exprs.is_empty() {
             plan = Arc::new(LogicalAggregate::new(
@@ -217,13 +217,16 @@ impl AggExtractor {
 
     /// Validate select exprs must appear in the GROUP BY clause or be used in an aggregate
     /// function. Need `visit_group_by_expr` to rewrite the group by alias first.
-    /// TODO: add order by exprs validation
     fn validate_illegal_column(
         &mut self,
         select_exprs: &[BoundExpr],
+        orderby_exprs: &[BoundOrderBy],
     ) -> Result<(), LogicalPlanError> {
         for expr in select_exprs {
             self.validate_illegal_column_inner(expr)?;
+        }
+        for expr in orderby_exprs {
+            self.validate_illegal_column_inner(&expr.expr)?;
         }
         Ok(())
     }
@@ -237,7 +240,6 @@ impl AggExtractor {
         }
         let mut agg_calls = vec![];
         Visitor(&mut agg_calls).visit_expr(expr);
-        // TODO: handle duplicate agg_call
         self.agg_calls.extend_from_slice(&agg_calls);
     }
 
@@ -332,14 +334,16 @@ mod tests {
             return_type: Some(DataTypeKind::Int(None).not_null()),
         });
         assert!(
-            validate_illegal_column(&mut [v2_plus_1.clone()], &mut [v2_plus_1.clone()]).is_ok()
+            validate_illegal_column(&mut [v2_plus_1.clone()], &mut [v2_plus_1.clone()], &[])
+                .is_ok()
         );
 
         // case2 sql: select v2 + 1, v1 from t group by v2 + 1
         let v1 = build_column_ref(0, "v1".to_string());
         assert!(validate_illegal_column(
             &mut [v2_plus_1.clone(), v1.clone()],
-            &mut [v2_plus_1.clone()]
+            &mut [v2_plus_1.clone()],
+            &[],
         )
         .is_err());
 
@@ -349,20 +353,21 @@ mod tests {
             alias: "a".to_string(),
         });
         let v1_alias_b = BoundExpr::ExprWithAlias(BoundExprWithAlias {
-            expr: v1.into(),
+            expr: v1.clone().into(),
             alias: "b".to_string(),
         });
         let alias_a = BoundExpr::Alias(BoundAlias {
             alias: "a".to_string(),
         });
         assert!(
-            validate_illegal_column(&mut [v2_plus_1_alias_a, v1_alias_b], &mut [alias_a]).is_err()
+            validate_illegal_column(&mut [v2_plus_1_alias_a, v1_alias_b], &mut [alias_a], &[])
+                .is_err()
         );
 
         // case4 sql: select v2 + 2 + count(*) from t group by v2 + 1;
         let v2_plus_2 = BoundExpr::BinaryOp(BoundBinaryOp {
             op: BinaryOperator::Plus,
-            left_expr: v2.into(),
+            left_expr: v2.clone().into(),
             right_expr: BoundExpr::Constant(DataValue::Int32(2)).into(),
             return_type: Some(DataTypeKind::Int(None).not_null()),
         });
@@ -374,10 +379,28 @@ mod tests {
         let v2_puls_2_plus_count = BoundExpr::BinaryOp(BoundBinaryOp {
             op: BinaryOperator::Plus,
             left_expr: v2_plus_2.into(),
+            right_expr: count_wildcard.clone().into(),
+            return_type: Some(DataTypeKind::Int(None).not_null()),
+        });
+        assert!(
+            validate_illegal_column(&mut [v2_puls_2_plus_count], &mut [v2_plus_1], &[]).is_err()
+        );
+
+        // case5 sql: select v2 + count(*) from t group by v2 order by v1;
+        let v2_plus_count_wildcard = BoundExpr::BinaryOp(BoundBinaryOp {
+            op: BinaryOperator::Plus,
+            left_expr: v2.clone().into(),
             right_expr: count_wildcard.into(),
             return_type: Some(DataTypeKind::Int(None).not_null()),
         });
-        assert!(validate_illegal_column(&mut [v2_puls_2_plus_count], &mut [v2_plus_1]).is_err());
+        let order_by_v1 = BoundOrderBy {
+            expr: v1,
+            descending: false,
+        };
+        assert!(
+            validate_illegal_column(&mut [v2_plus_count_wildcard], &mut [v2], &[order_by_v1])
+                .is_err()
+        );
     }
 
     fn build_column_ref(column_id: u32, column_name: String) -> BoundExpr {
@@ -391,12 +414,13 @@ mod tests {
     fn validate_illegal_column(
         select_list: &mut [BoundExpr],
         group_by_list: &mut [BoundExpr],
+        order_by_list: &[BoundOrderBy],
     ) -> Result<(), LogicalPlanError> {
         let mut extractor = AggExtractor::new();
         for expr in group_by_list {
             extractor.visit_group_by_expr(expr, select_list);
         }
-        extractor.validate_illegal_column(select_list)?;
+        extractor.validate_illegal_column(select_list, order_by_list)?;
         Ok(())
     }
 }
