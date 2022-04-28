@@ -5,6 +5,7 @@ use std::fmt;
 use std::ops::Deref;
 use std::str::FromStr;
 
+use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 
 /// Binary large object.
@@ -93,13 +94,13 @@ impl fmt::Display for Blob {
 
 /// A slice of a blob.
 #[repr(transparent)]
-#[derive(PartialEq, PartialOrd)]
+#[derive(PartialEq, PartialOrd, RefCast)]
 pub struct BlobRef([u8]);
 
 impl BlobRef {
     pub fn new(bytes: &[u8]) -> &Self {
         // SAFETY: `&BlobRef` and `&[u8]` have the same layout.
-        unsafe { std::mem::transmute(bytes) }
+        BlobRef::ref_cast(bytes)
     }
 }
 
