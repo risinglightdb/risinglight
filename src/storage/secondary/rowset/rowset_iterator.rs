@@ -21,6 +21,7 @@ pub struct RowSetIterator {
     dvs: Vec<Arc<DeleteVector>>,
     column_iterators: Vec<ColumnIteratorImpl>,
     filter_expr: Option<(BoundExpr, BitVec)>,
+    end_sort_key: Option<Vec<u8>>,
 }
 
 impl RowSetIterator {
@@ -30,6 +31,7 @@ impl RowSetIterator {
         dvs: Vec<Arc<DeleteVector>>,
         seek_pos: ColumnSeekPosition,
         expr: Option<BoundExpr>,
+        end_sort_key: Option<&[u8]>,
     ) -> StorageResult<Self> {
         let start_row_id = match seek_pos {
             ColumnSeekPosition::RowId(row_id) => row_id,
@@ -89,12 +91,17 @@ impl RowSetIterator {
         } else {
             None
         };
-
+        let end_sort_key = if end_sort_key.is_none() {
+            None
+        } else {
+            Some(end_sort_key.unwrap().to_vec())
+        };
         Ok(Self {
             column_refs,
             dvs,
             column_iterators,
             filter_expr,
+            end_sort_key,
         })
     }
 
@@ -170,12 +177,26 @@ impl RowSetIterator {
         // filter conditions, we don't do any modification to the `visibility_map`,
         // otherwise we apply the filtered result to it and get a new visibility map
         if let Some((expr, filter_columns)) = filter_context {
+            let mut is_meet_end_key = false;
             for id in 0..filter_columns.len() {
                 if filter_columns[id] {
-                    if let Some((row_id, array)) = self.column_iterators[id]
+                    if let Some((row_id, mut array)) = self.column_iterators[id]
                         .next_batch(Some(fetch_size))
                         .await?
                     {
+                        if self.end_sort_key.is_some() && id == 0 {
+                            let end_sort_key = self.end_sort_key.to_owned().unwrap();
+                            if end_sort_key < array.get_to_string(array.len() - 1).into_bytes() {
+                                is_meet_end_key = true;
+                                for i in 0..array.len() {
+                                    if end_sort_key < array.get_to_string(i).into_bytes() {
+                                        array = array.slice(0..i);
+                                        fetch_size = i;
+                                    }
+                                }
+                            }
+                        }
+
                         if let Some(x) = common_chunk_range {
                             if x != (row_id, array.len()) {
                                 panic!("unmatched rowid from column iterator");
@@ -234,6 +255,15 @@ impl RowSetIterator {
             }
 
             visibility_map = Some(filter_bitmap);
+            if is_meet_end_key {
+                return Ok((
+                    true,
+                    StorageChunk::construct(
+                        visibility_map,
+                        arrays.into_iter().map(Option::unwrap).collect(),
+                    ),
+                ));
+            }
         }
 
         // At this stage, we know that some rows survived from the filter scan if happend, so
@@ -325,6 +355,7 @@ mod tests {
                 vec![],
                 ColumnSeekPosition::RowId(1000),
                 None,
+                None,
             )
             .await
             .unwrap();
@@ -410,6 +441,7 @@ mod tests {
                 vec![],
                 ColumnSeekPosition::RowId(1000),
                 Some(expr),
+                None,
             )
             .await
             .unwrap();

@@ -120,8 +120,9 @@ impl DiskRowset {
         dvs: Vec<Arc<DeleteVector>>,
         seek_pos: ColumnSeekPosition,
         expr: Option<BoundExpr>,
+        end_sort_key: Option<&[u8]>,
     ) -> StorageResult<RowSetIterator> {
-        RowSetIterator::new(self.clone(), column_refs, dvs, seek_pos, expr).await
+        RowSetIterator::new(self.clone(), column_refs, dvs, seek_pos, expr, end_sort_key).await
     }
 
     pub fn on_disk_size(&self) -> u64 {
@@ -130,6 +131,32 @@ impl DiskRowset {
             .map(|x| x.on_disk_size())
             .sum1()
             .unwrap_or(0)
+    }
+
+    /// get the start row id to begin with for later table scanning.
+    /// if `begin_sort_key` is none, we return `ColumnSeekPosition::RowId(0)` to indicate scanning
+    /// from the beginning, otherwise we scan the rowset's first column indexes, find the first
+    /// block who contains data greater than or equal to `begin_sort_key` and return the row id of
+    /// the block's first key. Currently, only the first column of the rowset can be used to get
+    /// the start row id and this column should be primary key.
+    pub async fn start_row_id(&self, begin_sort_key: Option<&[u8]>) -> ColumnSeekPosition {
+        if begin_sort_key.is_none() {
+            return ColumnSeekPosition::RowId(0);
+        }
+        let begin_sort_key = begin_sort_key.unwrap();
+        let column = self.column(0);
+        let column_index = column.index();
+
+        let mut row_id: u32 = 0;
+        for index in column_index.indexes() {
+            if index.first_key.as_slice() > begin_sort_key {
+                // cur block's first key is greater then `begin_sort_key`
+                // which indicate that we should scan from the last block
+                break;
+            }
+            row_id = index.first_rowid;
+        }
+        ColumnSeekPosition::RowId(row_id)
     }
 }
 
