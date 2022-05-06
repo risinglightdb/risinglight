@@ -11,6 +11,7 @@ use crate::array::{Array, ArrayImpl};
 use crate::binder::BoundExpr;
 use crate::storage::secondary::DeleteVector;
 use crate::storage::{PackedVec, StorageChunk, StorageColumnRef, StorageResult};
+use crate::types::DataValue;
 
 /// When `expected_size` is not specified, we should limit the maximum size of the chunk.
 const ROWSET_MAX_OUTPUT: usize = 2048;
@@ -21,9 +22,9 @@ pub struct RowSetIterator {
     dvs: Vec<Arc<DeleteVector>>,
     column_iterators: Vec<ColumnIteratorImpl>,
     filter_expr: Option<(BoundExpr, BitVec)>,
-    end_sort_key: Option<Vec<u8>>,
+    end_keys: Vec<DataValue>,
+    meet_end_key_before: bool, // Indicate whether we have met `end_keys` in pre batch.
 }
-
 impl RowSetIterator {
     pub async fn new(
         rowset: Arc<DiskRowset>,
@@ -31,7 +32,7 @@ impl RowSetIterator {
         dvs: Vec<Arc<DeleteVector>>,
         seek_pos: ColumnSeekPosition,
         expr: Option<BoundExpr>,
-        end_sort_key: Option<&[u8]>,
+        end_keys: &[DataValue],
     ) -> StorageResult<Self> {
         let start_row_id = match seek_pos {
             ColumnSeekPosition::RowId(row_id) => row_id,
@@ -91,17 +92,14 @@ impl RowSetIterator {
         } else {
             None
         };
-        let end_sort_key = if end_sort_key.is_none() {
-            None
-        } else {
-            Some(end_sort_key.unwrap().to_vec())
-        };
+
         Ok(Self {
             column_refs,
             dvs,
             column_iterators,
             filter_expr,
-            end_sort_key,
+            end_keys: end_keys.to_vec(),
+            meet_end_key_before: false,
         })
     }
 
@@ -109,6 +107,11 @@ impl RowSetIterator {
         &mut self,
         expected_size: Option<usize>,
     ) -> StorageResult<(bool, Option<StorageChunk>)> {
+        // We have met end key in pre `StorageChunk`
+        // so we can finish cur scan.
+        if self.meet_end_key_before {
+            return Ok((true, None));
+        }
         let filter_context = self.filter_expr.as_ref();
         // It's guaranteed that `expected_size` <= the number of items left
         // in the current block, if provided
@@ -177,26 +180,12 @@ impl RowSetIterator {
         // filter conditions, we don't do any modification to the `visibility_map`,
         // otherwise we apply the filtered result to it and get a new visibility map
         if let Some((expr, filter_columns)) = filter_context {
-            let mut is_meet_end_key = false;
             for id in 0..filter_columns.len() {
                 if filter_columns[id] {
-                    if let Some((row_id, mut array)) = self.column_iterators[id]
+                    if let Some((row_id, array)) = self.column_iterators[id]
                         .next_batch(Some(fetch_size))
                         .await?
                     {
-                        if self.end_sort_key.is_some() && id == 0 {
-                            let end_sort_key = self.end_sort_key.to_owned().unwrap();
-                            if end_sort_key < array.get_to_string(array.len() - 1).into_bytes() {
-                                is_meet_end_key = true;
-                                for i in 0..array.len() {
-                                    if end_sort_key < array.get_to_string(i).into_bytes() {
-                                        array = array.slice(0..i);
-                                        fetch_size = i;
-                                    }
-                                }
-                            }
-                        }
-
                         if let Some(x) = common_chunk_range {
                             if x != (row_id, array.len()) {
                                 panic!("unmatched rowid from column iterator");
@@ -253,19 +242,10 @@ impl RowSetIterator {
                 }
                 return Ok((false, None));
             }
-
             visibility_map = Some(filter_bitmap);
-            if is_meet_end_key {
-                return Ok((
-                    true,
-                    StorageChunk::construct(
-                        visibility_map,
-                        arrays.into_iter().map(Option::unwrap).collect(),
-                    ),
-                ));
-            }
         }
-
+        // whether we have meet end key in cur scan.
+        let mut meet_end_key = false;
         // At this stage, we know that some rows survived from the filter scan if happend, so
         // just fetch the next batch for every other columns, and we have `visibility_map` to
         // indicate the visibility of its rows
@@ -295,6 +275,38 @@ impl RowSetIterator {
                     arrays[id] = Some(array);
                 }
             }
+            // For now, we only support range-filter scan by first column.
+            if !self.end_keys.is_empty() && id == 0 {
+                let end_key = &self.end_keys[0];
+                let array = arrays[0].as_ref().unwrap();
+                let len = array.len();
+
+                // Todo: only suppor range-filter scan by sort key type of int32, support other type
+                // later.
+                if end_key - &array.get(len - 1) < DataValue::Int32(0) {
+                    // cur block's last key is greater than the `end_key`, so we need to scan cur
+                    // block, mark those rows false in `vasibility_map` whose keys are greater than
+                    // `begin_key`
+                    meet_end_key = true;
+                    let mut filter_bitmap = BitVec::with_capacity(array.len());
+                    for idx in 0..len {
+                        if let Some(visi) = visibility_map.as_ref() {
+                            if !visi[idx] {
+                                // Cur row was previously marked inaccessible,
+                                // so we'll just keep it.
+                                filter_bitmap.push(false);
+                                continue;
+                            }
+                        }
+                        if end_key - &array.get(idx) < DataValue::Int32(0) {
+                            filter_bitmap.push(false);
+                        } else {
+                            filter_bitmap.push(true);
+                        }
+                    }
+                    visibility_map = Some(filter_bitmap);
+                }
+            }
         }
 
         if common_chunk_range.is_none() {
@@ -302,7 +314,7 @@ impl RowSetIterator {
         };
 
         Ok((
-            false,
+            meet_end_key,
             StorageChunk::construct(
                 visibility_map,
                 arrays.into_iter().map(Option::unwrap).collect(),
@@ -317,6 +329,11 @@ impl RowSetIterator {
         loop {
             let (finished, batch) = self.next_batch_inner(expected_size).await?;
             if finished {
+                if batch.is_some() {
+                    // we have met end key in cur batch, so we just return those data in the range.
+                    self.meet_end_key_before = true;
+                    return Ok(batch);
+                }
                 return Ok(None);
             } else if let Some(batch) = batch {
                 return Ok(Some(batch));
@@ -336,7 +353,9 @@ mod tests {
     use super::*;
     use crate::array::{Array, ArrayToVecExt};
     use crate::binder::{BoundBinaryOp, BoundInputRef};
-    use crate::storage::secondary::rowset::tests::helper_build_rowset;
+    use crate::storage::secondary::rowset::tests::{
+        helper_build_rowset, helper_build_rowset_with_first_key_recorded,
+    };
     use crate::storage::secondary::SecondaryRowHandler;
     use crate::types::{DataType, DataValue, PhysicalDataTypeKind};
 
@@ -355,7 +374,7 @@ mod tests {
                 vec![],
                 ColumnSeekPosition::RowId(1000),
                 None,
-                None,
+                &[],
             )
             .await
             .unwrap();
@@ -429,7 +448,6 @@ mod tests {
             right_expr,
             return_type,
         });
-
         let mut it = rowset
             .iter(
                 vec![
@@ -441,7 +459,7 @@ mod tests {
                 vec![],
                 ColumnSeekPosition::RowId(1000),
                 Some(expr),
-                None,
+                &[],
             )
             .await
             .unwrap();
@@ -480,6 +498,67 @@ mod tests {
             assert_eq!(array.get(0), Some(&SecondaryRowHandler(0, 1000).as_i64()))
         } else {
             unreachable!()
+        }
+    }
+
+    #[tokio::test]
+    async fn test_rowset_iterator_with_range_filter() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let rowset = Arc::new(helper_build_rowset_with_first_key_recorded(&tempdir).await);
+        let end_keys = vec![DataValue::Int32(195)];
+        let mut it = rowset
+            .iter(
+                vec![
+                    StorageColumnRef::Idx(0),
+                    StorageColumnRef::Idx(1),
+                    StorageColumnRef::Idx(2),
+                ]
+                .into(),
+                vec![],
+                ColumnSeekPosition::RowId(0),
+                None,
+                &end_keys,
+            )
+            .await
+            .unwrap();
+
+        let mut column0_left = vec![];
+        let mut column1_left = vec![];
+        let mut column2_left = vec![];
+        loop {
+            let chunk = it.next_batch(None).await.unwrap();
+            if chunk.is_none() {
+                break;
+            }
+
+            let storage_chunk = chunk.unwrap();
+            data_from_chunk(&storage_chunk, &mut column0_left, 0).await;
+            data_from_chunk(&storage_chunk, &mut column1_left, 1).await;
+            data_from_chunk(&storage_chunk, &mut column2_left, 2).await;
+        }
+        let column0_right: Vec<i32> = (0..=195).collect();
+        assert_eq!(column0_left, column0_right);
+
+        let column1_right: Vec<i32> = (1..=196).collect();
+        assert_eq!(column1_left, column1_right);
+
+        let column2_right: Vec<i32> = (2..=197).collect();
+        assert_eq!(column2_left, column2_right);
+    }
+
+    async fn data_from_chunk(chunk: &StorageChunk, column: &mut Vec<i32>, index: usize) {
+        if let ArrayImpl::Int32(array) = chunk.array_at(index) {
+            let bit_map = match chunk.visibility() {
+                Some(bitvec) => bitvec.clone(),
+                None => BitVec::new(),
+            };
+            for (idx, val) in array.iter().enumerate() {
+                if !bit_map.is_empty() && !bit_map[idx] {
+                    continue;
+                }
+                let val = val.unwrap();
+                column.push(*val);
+            }
         }
     }
 }

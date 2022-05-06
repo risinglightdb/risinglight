@@ -13,6 +13,7 @@ use crate::array::{ArrayBuilderImpl, ArrayImplBuilderPickExt, ArrayImplSortExt, 
 use crate::binder::BoundExpr;
 use crate::catalog::{find_sort_key_id, ColumnCatalog};
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
+use crate::types::DataValue;
 
 /// A transaction running on `InMemoryStorage`.
 pub struct InMemoryTransaction {
@@ -116,8 +117,8 @@ impl Transaction for InMemoryTransaction {
     // TODO: remove this unused variable
     fn scan<'a>(
         &'a self,
-        begin_sort_key: Option<&'a [u8]>,
-        end_sort_key: Option<&'a [u8]>,
+        begin_sort_key: &'a [DataValue],
+        end_sort_key: &'a [DataValue],
         col_idx: &'a [StorageColumnRef],
         is_sorted: bool,
         reversed: bool,
@@ -125,15 +126,16 @@ impl Transaction for InMemoryTransaction {
     ) -> Self::ScanResultFuture<'a> {
         async move {
             assert!(expr.is_none(), "MemTxn doesn't support filter scan");
-            assert!(
-                begin_sort_key.is_none(),
-                "sort_key is not supported in InMemoryEngine for now"
-            );
-            assert!(
-                end_sort_key.is_none(),
-                "sort_key is not supported in InMemoryEngine for now"
-            );
             assert!(!reversed, "reverse iterator is not supported for now");
+
+            assert!(
+                begin_sort_key.is_empty(),
+                "sort_key is not supported in InMemoryEngine for now"
+            );
+            assert!(
+                end_sort_key.is_empty(),
+                "sort_key is not supported in InMemoryEngine for now"
+            );
 
             let snapshot = if is_sorted {
                 sort_datachunk_by_pk(&self.snapshot, &self.column_infos)

@@ -207,8 +207,8 @@ impl SecondaryTransaction {
 
     async fn scan_inner(
         &self,
-        begin_sort_key: Option<&[u8]>,
-        end_sort_key: Option<&[u8]>,
+        begin_keys: &[DataValue],
+        end_keys: &[DataValue],
         col_idx: &[StorageColumnRef],
         is_sorted: bool,
         reversed: bool,
@@ -233,16 +233,10 @@ impl SecondaryTransaction {
                     })
                     .unwrap_or_default();
 
-                let start_row_id = rowset.start_row_id(begin_sort_key).await;
+                let start_rowid = rowset.start_rowid(begin_keys).await;
                 iters.push(
                     rowset
-                        .iter(
-                            col_idx.into(),
-                            dvs,
-                            start_row_id,
-                            expr.clone(),
-                            end_sort_key,
-                        )
+                        .iter(col_idx.into(), dvs, start_rowid, expr.clone(), end_keys)
                         .await?,
                 )
             }
@@ -349,8 +343,8 @@ impl Transaction for SecondaryTransaction {
 
     fn scan<'a>(
         &'a self,
-        begin_sort_key: Option<&'a [u8]>,
-        end_sort_key: Option<&'a [u8]>,
+        begin_sort_key: &'a [DataValue],
+        end_sort_key: &'a [DataValue],
         col_idx: &'a [StorageColumnRef],
         is_sorted: bool,
         reversed: bool,

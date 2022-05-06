@@ -79,7 +79,7 @@ impl Compactor {
                         dvs,
                         ColumnSeekPosition::start(),
                         None,
-                        None,
+                        &[],
                     )
                     .await?,
             );

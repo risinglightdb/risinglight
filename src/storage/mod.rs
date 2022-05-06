@@ -21,7 +21,7 @@ use enum_dispatch::enum_dispatch;
 use crate::array::{ArrayImpl, DataChunk};
 use crate::binder::BoundExpr;
 use crate::catalog::{ColumnCatalog, TableRefId};
-use crate::types::{ColumnId, DatabaseId, SchemaId};
+use crate::types::{ColumnId, DataValue, DatabaseId, SchemaId};
 
 #[enum_dispatch(StorageDispatch)]
 #[derive(Clone)]
@@ -158,8 +158,8 @@ pub trait Transaction: Sync + Send + 'static {
     /// Scan one or multiple columns.
     fn scan<'a>(
         &'a self,
-        begin_sort_key: Option<&'a [u8]>,
-        end_sort_key: Option<&'a [u8]>,
+        begin_sort_key: &'a [DataValue],
+        end_sort_key: &'a [DataValue],
         col_idx: &'a [StorageColumnRef],
         is_sorted: bool,
         reversed: bool,

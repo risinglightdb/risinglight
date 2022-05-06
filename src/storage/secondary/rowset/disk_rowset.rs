@@ -1,5 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::borrow::Borrow;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -14,8 +15,10 @@ use super::{path_of_data_column, path_of_index_column, RowSetIterator};
 use crate::binder::BoundExpr;
 use crate::catalog::ColumnCatalog;
 use crate::storage::secondary::column::ColumnReadableFile;
+use crate::storage::secondary::encode::PrimitiveFixedWidthEncode;
 use crate::storage::secondary::DeleteVector;
 use crate::storage::{StorageColumnRef, StorageResult};
+use crate::types::DataValue;
 
 /// Represents a column in Secondary.
 ///
@@ -120,7 +123,7 @@ impl DiskRowset {
         dvs: Vec<Arc<DeleteVector>>,
         seek_pos: ColumnSeekPosition,
         expr: Option<BoundExpr>,
-        end_sort_key: Option<&[u8]>,
+        end_sort_key: &[DataValue],
     ) -> StorageResult<RowSetIterator> {
         RowSetIterator::new(self.clone(), column_refs, dvs, seek_pos, expr, end_sort_key).await
     }
@@ -133,35 +136,51 @@ impl DiskRowset {
             .unwrap_or(0)
     }
 
-    /// get the start row id to begin with for later table scanning.
-    /// if `begin_sort_key` is none, we return `ColumnSeekPosition::RowId(0)` to indicate scanning
-    /// from the beginning, otherwise we scan the rowset's first column indexes, find the first
-    /// block who contains data greater than or equal to `begin_sort_key` and return the row id of
-    /// the block's first key. Currently, only the first column of the rowset can be used to get
+    /// Get the start row id to begin with for later table scanning.
+    /// If `begin_keys` is empty, we return `ColumnSeekPosition::RowId(0)` to indicate scanning
+    /// from the beginning, otherwise we scan the rowsets' first column indexes, find the first
+    /// block who contains data greater than or equal to `begin_key` and return the row id of
+    /// the block's first key. Currently, only the first column of the rowsets can be used to get
     /// the start row id and this column should be primary key.
-    pub async fn start_row_id(&self, begin_sort_key: Option<&[u8]>) -> ColumnSeekPosition {
-        if begin_sort_key.is_none() {
+    /// If `begin_key` is greater than all blocks' `first_key`, we return the `first_key` of the
+    /// last block.
+    /// Todo: support multi sort-keys range filter
+    pub async fn start_rowid(&self, begin_keys: &[DataValue]) -> ColumnSeekPosition {
+        if begin_keys.is_empty() {
             return ColumnSeekPosition::RowId(0);
         }
-        let begin_sort_key = begin_sort_key.unwrap();
+
+        // for now, we only use the first column to get the start row id, which means the length
+        // of `begin_keys` can only be 0 or 1.
+        let begin_key = begin_keys[0].borrow();
         let column = self.column(0);
         let column_index = column.index();
 
-        let mut row_id: u32 = 0;
-        for index in column_index.indexes() {
-            if index.first_key.as_slice() > begin_sort_key {
-                // cur block's first key is greater then `begin_sort_key`
-                // which indicate that we should scan from the last block
-                break;
+        let start_row_id = match *begin_key {
+            DataValue::Int32(begin_val) => {
+                let mut pre_block_first_key = 0;
+                for index in column_index.indexes() {
+                    let mut first_key: &[u8] = &index.first_key;
+                    let first_val: i32 = PrimitiveFixedWidthEncode::decode(&mut first_key);
+
+                    if first_val > begin_val {
+                        break;
+                    }
+                    pre_block_first_key = index.first_rowid;
+                }
+                pre_block_first_key
             }
-            row_id = index.first_rowid;
-        }
-        ColumnSeekPosition::RowId(row_id)
+            // Todo: support ohter type
+            _ => panic!("for now support range-filter scan by sort key type of int32"),
+        };
+        ColumnSeekPosition::RowId(start_row_id)
     }
 }
 
 #[cfg(test)]
 pub mod tests {
+    use std::borrow::Borrow;
+
     use tempfile::TempDir;
 
     use super::*;
@@ -297,11 +316,98 @@ pub mod tests {
         .unwrap()
     }
 
+    pub async fn helper_build_rowset_with_first_key_recorded(tempdir: &TempDir) -> DiskRowset {
+        let columns = vec![
+            ColumnCatalog::new(
+                0,
+                DataTypeKind::Int(None)
+                    .not_null()
+                    .to_column_primary_key("v1".to_string()),
+            ),
+            ColumnCatalog::new(
+                1,
+                DataTypeKind::Int(None)
+                    .not_null()
+                    .to_column("v2".to_string()),
+            ),
+            ColumnCatalog::new(
+                2,
+                DataTypeKind::Int(None)
+                    .not_null()
+                    .to_column("v3".to_string()),
+            ),
+        ];
+
+        let mut builder = RowsetBuilder::new(
+            columns.clone().into(),
+            ColumnBuilderOptions::record_first_key_test(),
+        );
+        let mut key = 0;
+        for _ in 0..10 {
+            let mut array0 = vec![];
+            let mut array1 = vec![];
+            let mut array2 = vec![];
+            for _ in 0..28 {
+                array0.push(key);
+                array1.push(key + 1);
+                array2.push(key + 2);
+                key += 1;
+            }
+            builder.append(
+                [
+                    ArrayImpl::new_int32(array0.clone().into_iter().collect()),
+                    ArrayImpl::new_int32(array1.clone().into_iter().collect()),
+                    ArrayImpl::new_int32(array2.clone().into_iter().collect()),
+                ]
+                .into_iter()
+                .collect(),
+            );
+        }
+
+        let backend = IOBackend::in_memory();
+
+        let writer = RowsetWriter::new(tempdir.path(), backend.clone());
+        writer.flush(builder.finish()).await.unwrap();
+
+        DiskRowset::open(
+            tempdir.path().to_path_buf(),
+            columns.into(),
+            Cache::new(2333),
+            0,
+            backend,
+        )
+        .await
+        .unwrap()
+    }
+
     #[tokio::test]
     async fn test_get_block() {
         let tempdir = tempfile::tempdir().unwrap();
         let rowset = helper_build_rowset(&tempdir, true, 1000).await;
         let column = rowset.column(0);
         column.get_block(0).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_get_start_id() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let rowset = helper_build_rowset_with_first_key_recorded(&tempdir).await;
+        let start_keys = vec![DataValue::Int32(222)];
+
+        {
+            let start_rid = match rowset.start_rowid(start_keys.borrow()).await {
+                ColumnSeekPosition::RowId(x) => x,
+                _ => panic!("Unable to reach the branch"),
+            };
+            assert_eq!(start_rid, 196_u32);
+        }
+        {
+            let start_keys = vec![DataValue::Int32(10000)];
+            let start_rid = match rowset.start_rowid(start_keys.borrow()).await {
+                ColumnSeekPosition::RowId(x) => x,
+                _ => panic!("Unable to reach the branch"),
+            };
+            assert_eq!(start_rid, 252_u32);
+        }
     }
 }
