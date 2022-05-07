@@ -354,9 +354,9 @@ impl RowSetIterator {
         }
     }
 
-    /// mark all positions between `start_id` and `end_id` false in a new `BitVec`, the len of this
-    /// `BitVec` is `len`, and if a position is marked false in `bitmap`, we just keep in false
-    /// in the new `Bitvec`
+    /// mark all positions between `start_id`(include) and `end_id`(not include) false in a new
+    /// `BitVec`, the len of this `BitVec` is `len`, and if a position is marked false in
+    /// `bitmap`, we just keep in false in the new `Bitvec`
     pub async fn mark_inaccessible(
         bitmap: Option<&BitVec>,
         start_id: usize,
