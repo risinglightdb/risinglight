@@ -12,9 +12,9 @@ use tracing::{info, warn};
 
 use super::version_manager::{Snapshot, VersionManager};
 use super::{
-    AddDVEntry, AddRowSetEntry, ColumnBuilderOptions, ColumnSeekPosition, ConcatIterator,
-    DeleteVector, DiskRowset, EpochOp, MergeIterator, RowSetIterator, SecondaryMemRowsetImpl,
-    SecondaryRowHandler, SecondaryTable, SecondaryTableTxnIterator,
+    AddDVEntry, AddRowSetEntry, ColumnBuilderOptions, ConcatIterator, DeleteVector, DiskRowset,
+    EpochOp, MergeIterator, RowSetIterator, SecondaryMemRowsetImpl, SecondaryRowHandler,
+    SecondaryTable, SecondaryTableTxnIterator,
 };
 use crate::array::DataChunk;
 use crate::binder::BoundExpr;
@@ -207,21 +207,13 @@ impl SecondaryTransaction {
 
     async fn scan_inner(
         &self,
-        begin_sort_key: Option<&[u8]>,
-        end_sort_key: Option<&[u8]>,
+        begin_keys: &[DataValue],
+        end_keys: &[DataValue],
         col_idx: &[StorageColumnRef],
         is_sorted: bool,
         reversed: bool,
         expr: Option<BoundExpr>,
     ) -> StorageResult<SecondaryTableTxnIterator> {
-        assert!(
-            begin_sort_key.is_none(),
-            "sort_key is not supported in SecondaryEngine for now"
-        );
-        assert!(
-            end_sort_key.is_none(),
-            "sort_key is not supported in SecondaryEngine for now"
-        );
         assert!(!reversed, "reverse iterator is not supported for now");
 
         let mut iters: Vec<RowSetIterator> = vec![];
@@ -241,13 +233,16 @@ impl SecondaryTransaction {
                     })
                     .unwrap_or_default();
 
+                let start_rowid = rowset.start_rowid(begin_keys).await;
                 iters.push(
                     rowset
                         .iter(
                             col_idx.into(),
                             dvs,
-                            ColumnSeekPosition::start(),
+                            start_rowid,
                             expr.clone(),
+                            begin_keys,
+                            end_keys,
                         )
                         .await?,
                 )
@@ -355,8 +350,8 @@ impl Transaction for SecondaryTransaction {
 
     fn scan<'a>(
         &'a self,
-        begin_sort_key: Option<&'a [u8]>,
-        end_sort_key: Option<&'a [u8]>,
+        begin_sort_key: &'a [DataValue],
+        end_sort_key: &'a [DataValue],
         col_idx: &'a [StorageColumnRef],
         is_sorted: bool,
         reversed: bool,
