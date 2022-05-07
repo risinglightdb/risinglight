@@ -236,7 +236,14 @@ impl SecondaryTransaction {
                 let start_rowid = rowset.start_rowid(begin_keys).await;
                 iters.push(
                     rowset
-                        .iter(col_idx.into(), dvs, start_rowid, expr.clone(), end_keys)
+                        .iter(
+                            col_idx.into(),
+                            dvs,
+                            start_rowid,
+                            expr.clone(),
+                            begin_keys,
+                            end_keys,
+                        )
                         .await?,
                 )
             }

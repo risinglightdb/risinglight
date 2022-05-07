@@ -80,6 +80,7 @@ impl Compactor {
                         ColumnSeekPosition::start(),
                         None,
                         &[],
+                        &[],
                     )
                     .await?,
             );

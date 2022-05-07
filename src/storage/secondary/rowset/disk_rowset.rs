@@ -123,9 +123,19 @@ impl DiskRowset {
         dvs: Vec<Arc<DeleteVector>>,
         seek_pos: ColumnSeekPosition,
         expr: Option<BoundExpr>,
-        end_sort_key: &[DataValue],
+        begin_keys: &[DataValue],
+        end_keys: &[DataValue],
     ) -> StorageResult<RowSetIterator> {
-        RowSetIterator::new(self.clone(), column_refs, dvs, seek_pos, expr, end_sort_key).await
+        RowSetIterator::new(
+            self.clone(),
+            column_refs,
+            dvs,
+            seek_pos,
+            expr,
+            begin_keys,
+            end_keys,
+        )
+        .await
     }
 
     pub fn on_disk_size(&self) -> u64 {
