@@ -17,24 +17,50 @@ pub struct InputRefResolver {
     bindings: Vec<Option<BoundExpr>>,
 }
 
-impl ExprRewriter for InputRefResolver {
-    fn rewrite_column_ref(&self, expr: &mut BoundExpr) {
+impl InputRefResolver {
+    fn rewrite_template(&self, expr: &mut BoundExpr) {
         use BoundExpr::*;
+
+        if let Some(idx) = self
+            .bindings
+            .iter()
+            .position(|col| *col == Some(expr.clone()))
+        {
+            *expr = InputRef(BoundInputRef {
+                index: idx,
+                return_type: expr.return_type().unwrap(),
+            });
+            return;
+        }
+
+        // 1. Find binding for y + 1 expression(SELECT y + 1 FROM test GROUP BY y + 1)
+        // 2. If not found: Find binding for y expression(SELECT y + 1 FROM test GROUP BY y)
         match expr {
-            BoundExpr::ColumnRef(_) => {
-                if let Some(idx) = self
-                    .bindings
-                    .iter()
-                    .position(|col| *col == Some(expr.clone()))
-                {
-                    *expr = InputRef(BoundInputRef {
-                        index: idx,
-                        return_type: expr.return_type().unwrap(),
-                    });
-                }
+            BoundExpr::BinaryOp(op) => {
+                self.rewrite_expr(op.left_expr.as_mut());
+                self.rewrite_expr(op.right_expr.as_mut());
             }
+            BoundExpr::UnaryOp(expr) => self.rewrite_expr(expr.expr.as_mut()),
             _ => unreachable!(),
         }
+    }
+}
+
+impl ExprRewriter for InputRefResolver {
+    fn rewrite_column_ref(&self, expr: &mut BoundExpr) {
+        self.rewrite_template(expr);
+    }
+
+    fn rewrite_agg_call(&self, expr: &mut BoundExpr) {
+        self.rewrite_template(expr);
+    }
+
+    fn rewrite_binary_op(&self, expr: &mut BoundExpr) {
+        self.rewrite_template(expr);
+    }
+
+    fn rewrite_unary_op(&self, expr: &mut BoundExpr) {
+        self.rewrite_template(expr);
     }
 }
 
@@ -86,40 +112,32 @@ impl PlanRewriter for InputRefResolver {
             .iter()
             .map(|e| Some(e.clone()))
             .collect();
-
-        let ret = match new_child.node_type() {
-            PlanNodeType::LogicalAggregate => {
-                let group_keys = self
-                    .bindings
-                    .iter()
-                    .map(|it| it.clone().unwrap())
-                    .collect::<Vec<_>>();
-                let mut resolver = AggInputRefResolver::new(group_keys.len());
-                let mut select_list = proj.project_expressions().to_vec();
-                for expr in &mut select_list {
-                    resolver.resolve_select_expr(expr, &group_keys);
-                }
-                let new_proj = LogicalProjection::new(select_list, new_child.clone());
-                Arc::new(new_proj.clone_with_rewrite_expr(new_child, self))
-            }
-            _ => Arc::new(proj.clone_with_rewrite_expr(new_child, self)),
-        };
-
+        let ret = Arc::new(proj.clone_with_rewrite_expr(new_child, self));
         self.bindings = bindings;
         ret
     }
 
     fn rewrite_logical_aggregate(&mut self, agg: &LogicalAggregate) -> PlanRef {
         let new_child = self.rewrite(agg.child());
-        let bindings = agg.group_keys().iter().map(|e| Some(e.clone())).collect();
+        // Push group keys and agg functions to the bindings
+        let mut bindings: Vec<Option<BoundExpr>> =
+            agg.group_keys().iter().map(|e| Some(e.clone())).collect();
+        let agg_calls = agg
+            .agg_calls()
+            .iter()
+            .map(|e| Some(BoundExpr::AggCall(e.clone())));
+
+        bindings.extend(agg_calls);
+
         let ret = Arc::new(agg.clone_with_rewrite_expr(new_child, self));
         self.bindings = bindings;
         ret
     }
     fn rewrite_logical_filter(&mut self, plan: &LogicalFilter) -> PlanRef {
-        let child = self.rewrite(plan.child());
-        Arc::new(plan.clone_with_rewrite_expr(child, self))
+        let new_child = self.rewrite(plan.child());
+        Arc::new(plan.clone_with_rewrite_expr(new_child, self))
     }
+
     fn rewrite_logical_order(&mut self, plan: &LogicalOrder) -> PlanRef {
         let child = self.rewrite(plan.child());
         Arc::new(plan.clone_with_rewrite_expr(child, self))
