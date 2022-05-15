@@ -55,7 +55,7 @@ impl BoundExpr {
             Self::InputRef(expr) => Some(expr.return_type.clone()),
             Self::IsNull(_) => Some(DataTypeKind::Boolean.not_null()),
             Self::ExprWithAlias(expr) => expr.expr.return_type(),
-            Self::Alias(_) => None,
+            Self::Alias(expr) => expr.return_type.clone(),
         }
     }
 

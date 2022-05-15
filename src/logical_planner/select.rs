@@ -14,6 +14,7 @@ use super::*;
 use crate::binder::{
     BoundAggCall, BoundExpr, BoundInputRef, BoundOrderBy, BoundSelect, BoundTableRef, ExprVisitor,
 };
+use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 use crate::optimizer::plan_nodes::{
     Internal, LogicalAggregate, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder,
     LogicalProjection, LogicalTableScan, LogicalValues,
@@ -58,6 +59,10 @@ impl LogicalPlaner {
                     .collect_vec(),
                 vec![stmt.select_list.clone()],
             ));
+            // Support scalar having: SELECT 42 HAVING 42 > 18;
+            if let Some(having) = &stmt.having {
+                plan = Arc::new(LogicalFilter::new(having.clone(), plan));
+            }
             return Ok(plan);
         }
 
@@ -69,12 +74,29 @@ impl LogicalPlaner {
         for expr in &mut stmt.select_list {
             agg_extractor.visit_select_expr(expr);
         }
+
         for expr in &mut stmt.group_by {
             agg_extractor.visit_group_by_expr(expr, &stmt.select_list);
+            if agg_extractor.group_by_has_agg() {
+                // GROUP BY clause cannot have aggregate functions
+                return Err(LogicalPlanError::InvalidSQL);
+            }
         }
-        if !stmt.group_by.is_empty() {
+
+        if let Some(having) = &mut stmt.having {
+            agg_extractor.visit_having_expr(having, &stmt.select_list);
+        }
+
+        if !stmt.group_by.is_empty() || agg_extractor.has_aggregate() || stmt.having.is_some() {
             agg_extractor.validate_illegal_column(&stmt.select_list, &stmt.orderby)?;
+
+            if let Some(having) = &stmt.having {
+                let dummy = vec![];
+                let havings = vec![having.clone()];
+                agg_extractor.validate_illegal_column(&havings, &dummy)?;
+            }
         }
+
         if !agg_extractor.agg_calls.is_empty() || !agg_extractor.group_by_exprs.is_empty() {
             plan = Arc::new(LogicalAggregate::new(
                 agg_extractor.agg_calls,
@@ -83,7 +105,12 @@ impl LogicalPlaner {
             ));
         }
 
+        if stmt.having.is_some() {
+            plan = Arc::new(LogicalFilter::new(stmt.having.unwrap(), plan));
+        }
+
         let mut alias_extractor = AliasExtractor::new(&stmt.select_list);
+
         let comparators = stmt
             .orderby
             .into_iter()
@@ -179,6 +206,7 @@ impl LogicalPlaner {
 struct AggExtractor {
     agg_calls: Vec<BoundAggCall>,
     group_by_exprs: Vec<BoundExpr>,
+    group_by_has_agg: bool,
 }
 
 impl AggExtractor {
@@ -186,6 +214,7 @@ impl AggExtractor {
         AggExtractor {
             agg_calls: vec![],
             group_by_exprs: vec![],
+            group_by_has_agg: false,
         }
     }
 
@@ -243,23 +272,82 @@ impl AggExtractor {
         self.agg_calls.extend_from_slice(&agg_calls);
     }
 
-    fn visit_group_by_expr(&mut self, expr: &mut BoundExpr, select_list: &[BoundExpr]) {
+    fn visit_having_expr(&mut self, expr: &mut BoundExpr, select_list: &[BoundExpr]) {
         use BoundExpr::*;
-        if let Alias(alias) = expr {
-            // rewrite group by alias to corresponding select expr
-            if let Some(expr) = select_list.iter().find_map(|inner_expr| {
-                if let ExprWithAlias(e) = inner_expr {
-                    if e.alias == alias.alias {
-                        return Some(*e.expr.clone());
-                    }
+        struct Visitor<'a> {
+            calls: &'a mut Vec<BoundAggCall>,
+            sl: &'a [BoundExpr],
+        }
+
+        impl<'a> ExprVisitor for Visitor<'a> {
+            fn visit_agg_call(&mut self, agg: &BoundAggCall) {
+                // This aggregate does not exist in the select list
+                // We should insert new aggregate function into aggregate list
+                if !self.calls.iter().any(|call| call == agg) {
+                    self.calls.push(agg.clone());
                 }
-                None
-            }) {
-                self.group_by_exprs.push(expr);
-                return;
             }
         }
-        self.group_by_exprs.push(expr.clone());
+
+        // Support: SELECT count(x) as i FROM test HAVING i = 1;
+        impl<'a> ExprRewriter for Visitor<'a> {
+            fn rewrite_alias(&self, expr: &mut BoundExpr) {
+                match expr {
+                    BoundExpr::Alias(alias) => {
+                        if let Some(e) = self.sl.iter().find_map(|inner_expr| {
+                            if let ExprWithAlias(e) = inner_expr {
+                                if e.alias == alias.alias {
+                                    return Some(*e.expr.clone());
+                                }
+                            }
+                            None
+                        }) {
+                            *expr = e;
+                        }
+                    }
+
+                    _ => unreachable!(),
+                }
+            }
+        }
+
+        let mut vis = Visitor {
+            calls: &mut self.agg_calls,
+            sl: select_list,
+        };
+        vis.visit_expr(expr);
+        vis.rewrite_expr(expr);
+    }
+
+    fn visit_group_by_expr(&mut self, expr: &mut BoundExpr, select_list: &[BoundExpr]) {
+        use BoundExpr::*;
+        match expr {
+            BoundExpr::Alias(alias) => {
+                if let Some(expr) = select_list.iter().find_map(|inner_expr| {
+                    if let ExprWithAlias(e) = inner_expr {
+                        if e.alias == alias.alias {
+                            return Some(*e.expr.clone());
+                        }
+                    }
+                    None
+                }) {
+                    self.group_by_exprs.push(expr);
+                }
+            }
+            BoundExpr::AggCall(_) => {
+                // GROUP BY clause cannot have aggregate functions
+                self.group_by_has_agg = true;
+            }
+            _ => self.group_by_exprs.push(expr.clone()),
+        }
+    }
+
+    fn group_by_has_agg(&self) -> bool {
+        self.group_by_has_agg
+    }
+
+    fn has_aggregate(&self) -> bool {
+        !self.agg_calls.is_empty()
     }
 }
 
@@ -358,6 +446,7 @@ mod tests {
         });
         let alias_a = BoundExpr::Alias(BoundAlias {
             alias: "a".to_string(),
+            return_type: Some(DataTypeKind::Int(None).not_null()),
         });
         assert!(
             validate_illegal_column(&mut [v2_plus_1_alias_a, v1_alias_b], &mut [alias_a], &[])

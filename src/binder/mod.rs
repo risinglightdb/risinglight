@@ -8,7 +8,7 @@ use crate::catalog::{
     ColumnDesc, RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME,
 };
 use crate::parser::{Ident, ObjectName, Statement};
-use crate::types::{ColumnId, DataTypeKind, DataValue};
+use crate::types::{ColumnId, DataType, DataTypeKind, DataValue};
 
 mod expr_visitor;
 mod expression;
@@ -77,6 +77,8 @@ struct BinderContext {
     column_descs: HashMap<String, Vec<ColumnDesc>>,
     // Stores alias information
     aliases: Vec<String>,
+    // Stores alias expr return type
+    aliases_expr_return_type: Vec<Option<DataType>>,
 }
 
 /// The binder resolves all expressions referring to schema objects such as

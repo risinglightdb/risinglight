@@ -27,6 +27,8 @@ impl std::fmt::Display for BoundExprWithAlias {
 #[derive(PartialEq, Clone, Serialize)]
 pub struct BoundAlias {
     pub alias: String,
+    pub return_type: Option<DataType>,
+    // TODO: Store a copy of the original expression ?
 }
 
 impl std::fmt::Debug for BoundAlias {
@@ -40,6 +42,9 @@ impl Binder {
     pub fn bind_alias(&mut self, expr: BoundExpr, ident: Ident) -> BoundExpr {
         let alias = ident.value;
         self.context.aliases.push(alias.clone());
+        self.context
+            .aliases_expr_return_type
+            .push(expr.return_type());
         BoundExpr::ExprWithAlias(BoundExprWithAlias {
             expr: Box::new(expr),
             alias,
