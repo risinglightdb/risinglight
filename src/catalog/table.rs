@@ -1,7 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::collections::{BTreeMap, HashMap};
-use std::sync::Mutex;
 
 use super::*;
 use crate::types::{ColumnId, TableId};
@@ -9,10 +8,6 @@ use crate::types::{ColumnId, TableId};
 /// The catalog of a table.
 pub struct TableCatalog {
     id: TableId,
-    inner: Mutex<Inner>,
-}
-
-struct Inner {
     name: String,
     /// Mapping from column names to column ids
     column_idxs: HashMap<String, ColumnId>,
@@ -33,16 +28,14 @@ impl TableCatalog {
         is_materialized_view: bool,
         ordered_pk_ids: Vec<ColumnId>,
     ) -> TableCatalog {
-        let table_catalog = TableCatalog {
+        let mut table_catalog = TableCatalog {
             id,
-            inner: Mutex::new(Inner {
-                name,
-                column_idxs: HashMap::new(),
-                columns: BTreeMap::new(),
-                is_materialized_view,
-                next_column_id: 0,
-                ordered_pk_ids,
-            }),
+            name,
+            column_idxs: HashMap::new(),
+            columns: BTreeMap::new(),
+            is_materialized_view,
+            next_column_id: 0,
+            ordered_pk_ids,
         };
         for col_catalog in columns {
             table_catalog.add_column(col_catalog).unwrap();
@@ -51,55 +44,49 @@ impl TableCatalog {
         table_catalog
     }
 
-    pub fn add_column(&self, col_catalog: ColumnCatalog) -> Result<ColumnId, CatalogError> {
-        let mut inner = self.inner.lock().unwrap();
-        if inner.column_idxs.contains_key(col_catalog.name()) {
+    pub(in crate::catalog) fn add_column(
+        &mut self,
+        col_catalog: ColumnCatalog,
+    ) -> Result<ColumnId, CatalogError> {
+        if self.column_idxs.contains_key(col_catalog.name()) {
             return Err(CatalogError::Duplicated(
                 "column",
                 col_catalog.name().into(),
             ));
         }
-        inner.next_column_id += 1;
+        self.next_column_id += 1;
         let id = col_catalog.id();
-        inner
-            .column_idxs
+        self.column_idxs
             .insert(col_catalog.name().to_string(), col_catalog.id());
-        inner.columns.insert(id, col_catalog);
+        self.columns.insert(id, col_catalog);
         Ok(id)
     }
 
     pub fn contains_column(&self, name: &str) -> bool {
-        let inner = self.inner.lock().unwrap();
-        inner.column_idxs.contains_key(name)
+        self.column_idxs.contains_key(name)
     }
 
     pub fn all_columns(&self) -> BTreeMap<ColumnId, ColumnCatalog> {
-        let inner = self.inner.lock().unwrap();
-        inner.columns.clone()
+        self.columns.clone()
     }
 
     pub fn get_column_id_by_name(&self, name: &str) -> Option<ColumnId> {
-        let inner = self.inner.lock().unwrap();
-        inner.column_idxs.get(name).cloned()
+        self.column_idxs.get(name).cloned()
     }
 
     pub fn get_column_by_id(&self, id: ColumnId) -> Option<ColumnCatalog> {
-        let inner = self.inner.lock().unwrap();
-        inner.columns.get(&id).cloned()
+        self.columns.get(&id).cloned()
     }
 
     pub fn get_column_by_name(&self, name: &str) -> Option<ColumnCatalog> {
-        let inner = self.inner.lock().unwrap();
-        inner
-            .column_idxs
+        self.column_idxs
             .get(name)
-            .and_then(|id| inner.columns.get(id))
+            .and_then(|id| self.columns.get(id))
             .cloned()
     }
 
     pub fn name(&self) -> String {
-        let inner = self.inner.lock().unwrap();
-        inner.name.clone()
+        self.name.clone()
     }
 
     pub fn id(&self) -> TableId {
@@ -107,8 +94,7 @@ impl TableCatalog {
     }
 
     pub fn primary_keys(&self) -> Vec<ColumnId> {
-        let inner = self.inner.lock().unwrap();
-        inner.ordered_pk_ids.clone()
+        self.ordered_pk_ids.clone()
     }
 }
 
