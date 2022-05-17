@@ -300,7 +300,7 @@ mod tests {
                     ColumnCatalog::new(
                         0,
                         DataTypeKind::Int(None)
-                            .nullable()
+                            .not_null()
                             .to_column_primary_key("a".into()),
                     ),
                     ColumnCatalog::new(1, DataTypeKind::Int(None).nullable().to_column("b".into())),
