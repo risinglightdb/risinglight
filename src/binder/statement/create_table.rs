@@ -77,6 +77,7 @@ impl Binder {
                 // // Remove this line and change `columns` above to immut.
                 for &index in &ordered_pk_ids {
                     columns[index as usize].set_primary(true);
+                    columns[index as usize].set_nullable(false);
                 }
 
                 Ok(BoundCreateTable {
