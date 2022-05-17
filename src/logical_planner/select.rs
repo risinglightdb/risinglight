@@ -14,6 +14,7 @@ use super::*;
 use crate::binder::{
     BoundAggCall, BoundExpr, BoundInputRef, BoundOrderBy, BoundSelect, BoundTableRef, ExprVisitor,
 };
+use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 use crate::optimizer::plan_nodes::{
     Internal, LogicalAggregate, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder,
     LogicalProjection, LogicalTableScan, LogicalValues,
@@ -58,23 +59,67 @@ impl LogicalPlaner {
                     .collect_vec(),
                 vec![stmt.select_list.clone()],
             ));
+            // Support scalar having: SELECT 42 HAVING 42 > 18;
+            if let Some(having) = &stmt.having {
+                plan = Arc::new(LogicalFilter::new(having.clone(), plan));
+            }
             return Ok(plan);
         }
 
+        let alias_rewrite = AliasRewriter;
         if let Some(expr) = stmt.where_clause {
             plan = Arc::new(LogicalFilter::new(expr, plan));
         }
 
         let mut agg_extractor = AggExtractor::new();
+
         for expr in &mut stmt.select_list {
             agg_extractor.visit_select_expr(expr);
         }
+
         for expr in &mut stmt.group_by {
-            agg_extractor.visit_group_by_expr(expr, &stmt.select_list);
+            agg_extractor.visit_group_by_expr(expr);
+            if agg_extractor.group_by_has_agg() {
+                // GROUP BY clause cannot have aggregate functions
+                return Err(LogicalPlanError::InvalidSQL);
+            }
         }
-        if !stmt.group_by.is_empty() {
+
+        if let Some(having) = &mut stmt.having {
+            agg_extractor.visit_having_expr(having);
+            alias_rewrite.rewrite_expr(having);
+        }
+
+        let column_count = stmt.select_list.len();
+        for node in &mut stmt.orderby {
+            agg_extractor.visit_having_expr(&mut node.expr);
+            alias_rewrite.rewrite_expr(&mut node.expr);
+            // If the expression does not exist, add a new expression to select_list
+            // For example,
+            // In SQL: `select a from t order by b;`
+            // A column(b) expression will be created to ensure that the above operators get the
+            // correct binding
+            if !stmt.select_list.iter().any(|expr| {
+                if let BoundExpr::ExprWithAlias(alias) = expr {
+                    (*alias.expr) == node.expr
+                } else {
+                    expr == &node.expr
+                }
+            }) {
+                stmt.select_list.push(node.expr.clone());
+            }
+        }
+
+        if !stmt.group_by.is_empty() || agg_extractor.has_aggregate() || stmt.having.is_some() {
             agg_extractor.validate_illegal_column(&stmt.select_list, &stmt.orderby)?;
+
+            if let Some(having) = &stmt.having {
+                let dummy = vec![];
+                let havings = vec![having.clone()];
+                agg_extractor.validate_illegal_column(&havings, &dummy)?;
+            }
         }
+
         if !agg_extractor.agg_calls.is_empty() || !agg_extractor.group_by_exprs.is_empty() {
             plan = Arc::new(LogicalAggregate::new(
                 agg_extractor.agg_calls,
@@ -83,18 +128,20 @@ impl LogicalPlaner {
             ));
         }
 
-        let mut alias_extractor = AliasExtractor::new(&stmt.select_list);
-        let comparators = stmt
-            .orderby
-            .into_iter()
-            .map(|expr| alias_extractor.visit_expr(expr))
-            .collect_vec();
+        if stmt.having.is_some() {
+            plan = Arc::new(LogicalFilter::new(stmt.having.unwrap(), plan));
+        }
+
+        let comparators = stmt.orderby;
 
         // TODO: support the following clauses
         assert!(!stmt.select_distinct, "TODO: plan distinct");
 
+        let need_addtional_projection = column_count != stmt.select_list.len();
+        let mut project = None;
         if !stmt.select_list.is_empty() {
             plan = Arc::new(LogicalProjection::new(stmt.select_list, plan));
+            project = Some(plan.clone());
         }
         if !comparators.is_empty() && !is_sorted {
             plan = Arc::new(LogicalOrder::new(comparators, plan));
@@ -115,6 +162,22 @@ impl LogicalPlaner {
                 None => 0,
             };
             plan = Arc::new(LogicalLimit::new(offset, limit, plan));
+        }
+
+        // If the project expressions have changed due to order by
+        // For example,
+        // In SQL: `select a from t order by b;`
+        // We need to add a new projection operator above the order by
+        // To ensure that the final output is correct
+        if need_addtional_projection {
+            let project = project.unwrap();
+            let projection = project.as_logical_projection().unwrap();
+            let mut projection_list = Vec::with_capacity(column_count);
+            let project_expressions = projection.project_expressions();
+            for item in project_expressions.iter().take(column_count) {
+                projection_list.push(item.clone());
+            }
+            plan = Arc::new(LogicalProjection::new(projection_list, plan));
         }
         Ok(plan)
     }
@@ -179,6 +242,7 @@ impl LogicalPlaner {
 struct AggExtractor {
     agg_calls: Vec<BoundAggCall>,
     group_by_exprs: Vec<BoundExpr>,
+    group_by_has_agg: bool,
 }
 
 impl AggExtractor {
@@ -186,6 +250,7 @@ impl AggExtractor {
         AggExtractor {
             agg_calls: vec![],
             group_by_exprs: vec![],
+            group_by_has_agg: false,
         }
     }
 
@@ -243,23 +308,65 @@ impl AggExtractor {
         self.agg_calls.extend_from_slice(&agg_calls);
     }
 
-    fn visit_group_by_expr(&mut self, expr: &mut BoundExpr, select_list: &[BoundExpr]) {
-        use BoundExpr::*;
-        if let Alias(alias) = expr {
-            // rewrite group by alias to corresponding select expr
-            if let Some(expr) = select_list.iter().find_map(|inner_expr| {
-                if let ExprWithAlias(e) = inner_expr {
-                    if e.alias == alias.alias {
-                        return Some(*e.expr.clone());
-                    }
+    fn visit_having_expr(&mut self, expr: &mut BoundExpr) {
+        struct Visitor<'a> {
+            calls: &'a mut Vec<BoundAggCall>,
+        }
+
+        impl<'a> ExprVisitor for Visitor<'a> {
+            fn visit_agg_call(&mut self, agg: &BoundAggCall) {
+                // This aggregate does not exist in the select list
+                // We should insert new aggregate function into aggregate list
+                if !self.calls.iter().any(|call| call == agg) {
+                    self.calls.push(agg.clone());
                 }
-                None
-            }) {
-                self.group_by_exprs.push(expr);
-                return;
             }
         }
-        self.group_by_exprs.push(expr.clone());
+
+        let mut vis = Visitor {
+            calls: &mut self.agg_calls,
+        };
+        vis.visit_expr(expr);
+    }
+
+    fn visit_group_by_expr(&mut self, expr: &mut BoundExpr) {
+        match expr {
+            BoundExpr::Alias(alias) => {
+                if let BoundExpr::AggCall(_) = &(*alias.expr) {
+                    self.group_by_has_agg = true;
+                    return;
+                }
+                self.group_by_exprs.push((*alias.expr).clone());
+            }
+            BoundExpr::AggCall(_) => {
+                // GROUP BY clause cannot have aggregate functions
+                self.group_by_has_agg = true;
+            }
+            _ => self.group_by_exprs.push(expr.clone()),
+        }
+    }
+
+    fn group_by_has_agg(&self) -> bool {
+        self.group_by_has_agg
+    }
+
+    fn has_aggregate(&self) -> bool {
+        !self.agg_calls.is_empty()
+    }
+}
+
+/// Alias rewriter rewrites alias expressions into actual expressions
+struct AliasRewriter;
+
+impl ExprRewriter for AliasRewriter {
+    fn rewrite_alias(&self, expr: &mut BoundExpr) {
+        match expr {
+            BoundExpr::Alias(alias) => {
+                *expr = (*alias.expr).clone();
+            }
+
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -271,10 +378,12 @@ impl AggExtractor {
 /// The expression `c` in the order-by clause will be rewritten to `InputRef(1)`, because the
 /// underlying projection plan will output `(a, b)`, where `b` is alias to `c`.
 #[derive(Default)]
+#[allow(dead_code)]
 struct AliasExtractor<'a> {
     select_list: &'a [BoundExpr],
 }
 
+#[allow(dead_code)]
 impl<'a> AliasExtractor<'a> {
     fn new(select_list: &'a [BoundExpr]) -> Self {
         AliasExtractor { select_list }
@@ -358,6 +467,7 @@ mod tests {
         });
         let alias_a = BoundExpr::Alias(BoundAlias {
             alias: "a".to_string(),
+            expr: Box::new(v2_plus_1.clone()),
         });
         assert!(
             validate_illegal_column(&mut [v2_plus_1_alias_a, v1_alias_b], &mut [alias_a], &[])
@@ -418,7 +528,7 @@ mod tests {
     ) -> Result<(), LogicalPlanError> {
         let mut extractor = AggExtractor::new();
         for expr in group_by_list {
-            extractor.visit_group_by_expr(expr, select_list);
+            extractor.visit_group_by_expr(expr);
         }
         extractor.validate_illegal_column(select_list, order_by_list)?;
         Ok(())
