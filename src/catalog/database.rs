@@ -42,15 +42,6 @@ impl DatabaseCatalog {
         Ok(schema_id)
     }
 
-    fn delete_schema(&mut self, name: &str) -> Result<(), CatalogError> {
-        let id = self
-            .schema_idxs
-            .remove(name)
-            .ok_or_else(|| CatalogError::NotFound("schema", name.into()))?;
-        self.schemas.remove(&id);
-        Ok(())
-    }
-
     pub fn all_schemas(&self) -> HashMap<SchemaId, SchemaCatalog> {
         self.schemas.clone()
     }

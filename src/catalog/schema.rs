@@ -51,18 +51,6 @@ impl SchemaCatalog {
         Ok(table_id)
     }
 
-    pub(in crate::catalog) fn delete_table_by_name(
-        &mut self,
-        name: &str,
-    ) -> Result<(), CatalogError> {
-        let id = self
-            .table_idxs
-            .remove(name)
-            .ok_or_else(|| CatalogError::NotFound("table", name.into()))?;
-        self.tables.remove(&id);
-        Ok(())
-    }
-
     pub(in crate::catalog) fn delete_table(&mut self, id: TableId) {
         let catalog = self.tables.remove(&id).unwrap();
         self.table_idxs.remove(&catalog.name()).unwrap();
