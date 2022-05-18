@@ -222,10 +222,10 @@ mod tests {
         let catalog = Arc::new(RootCatalog::new());
         let mut binder = Binder::new(catalog.clone());
 
-        let database = catalog.get_database_by_id(0).unwrap();
-        let schema = database.get_schema_by_id(0).unwrap();
-        schema
+        let ref_id = TableRefId::new(0, 0, 0);
+        catalog
             .add_table(
+                ref_id,
                 "t".into(),
                 vec![
                     ColumnCatalog::new(0, DataTypeKind::Int(None).not_null().to_column("a".into())),

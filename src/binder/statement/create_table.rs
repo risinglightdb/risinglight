@@ -225,10 +225,9 @@ mod tests {
             Err(BindError::DuplicatedColumn("a".into()))
         );
 
-        let database = catalog.get_database_by_id(0).unwrap();
-        let schema = database.get_schema_by_id(0).unwrap();
-        schema
-            .add_table("t3".into(), vec![], false, vec![])
+        let ref_id = TableRefId::new(0, 0, 0);
+        catalog
+            .add_table(ref_id, "t3".into(), vec![], false, vec![])
             .unwrap();
         assert_eq!(
             binder.bind_create_table(&stmts[2]),
