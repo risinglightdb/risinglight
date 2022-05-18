@@ -77,6 +77,7 @@ impl Binder {
                 // // Remove this line and change `columns` above to immut.
                 for &index in &ordered_pk_ids {
                     columns[index as usize].set_primary(true);
+                    columns[index as usize].set_nullable(false);
                 }
 
                 Ok(BoundCreateTable {
@@ -298,7 +299,7 @@ mod tests {
                     ColumnCatalog::new(
                         0,
                         DataTypeKind::Int(None)
-                            .nullable()
+                            .not_null()
                             .to_column_primary_key("a".into()),
                     ),
                     ColumnCatalog::new(1, DataTypeKind::Int(None).nullable().to_column("b".into())),
