@@ -58,7 +58,6 @@ impl SortAggExecutor {
             }
         }
         yield Self::finish_agg(&states);
-
     }
 
     fn finish_agg(states: &SmallVec<[Box<dyn AggregationState>; 16]>) -> DataChunk {
