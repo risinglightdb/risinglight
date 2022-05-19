@@ -57,7 +57,9 @@ impl SortAggExecutor {
                 last_key = Some(group_key);
             }
         }
-        yield Self::finish_agg(&states);
+        if last_key.is_some() {
+            yield Self::finish_agg(&states);
+        }
     }
 
     fn finish_agg(states: &SmallVec<[Box<dyn AggregationState>; 16]>) -> DataChunk {
@@ -85,6 +87,21 @@ mod tests {
     use crate::array::ArrayImpl;
     use crate::binder::{AggKind, BoundInputRef};
     use crate::types::{DataType, DataTypeKind};
+
+    #[tokio::test]
+    async fn test_no_rows() {
+        test_group_agg(
+            vec![0, 1],
+            vec![1, 2],
+            vec![
+                vec![],
+                vec![],
+                vec![],
+            ],
+            vec![],
+        )
+        .await;
+    }
 
     #[tokio::test]
     async fn test_multi_group_agg() {
