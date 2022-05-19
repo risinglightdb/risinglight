@@ -90,17 +90,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_no_rows() {
-        test_group_agg(
-            vec![0, 1],
-            vec![1, 2],
-            vec![
-                vec![],
-                vec![],
-                vec![],
-            ],
-            vec![],
-        )
-        .await;
+        test_group_agg(vec![0, 1], vec![1, 2], vec![vec![], vec![], vec![]], vec![]).await;
     }
 
     #[tokio::test]
