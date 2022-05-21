@@ -41,7 +41,7 @@ impl SortAggExecutor {
                 for col in group_cols.iter() {
                     group_key.push(col.get(row_idx));
                 }
-                // Check group key & lask key
+                // Check group key & last key
                 match last_key {
                     Some(last_key) => {
                         if last_key != group_key {
