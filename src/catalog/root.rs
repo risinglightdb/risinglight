@@ -14,7 +14,7 @@ pub struct RootCatalog {
 #[derive(Default)]
 struct Inner {
     database_idxs: HashMap<String, DatabaseId>,
-    databases: HashMap<DatabaseId, Arc<DatabaseCatalog>>,
+    databases: HashMap<DatabaseId, DatabaseCatalog>,
     next_database_id: DatabaseId,
 }
 
@@ -42,7 +42,7 @@ impl RootCatalog {
         }
         let database_id = inner.next_database_id;
         inner.next_database_id += 1;
-        let database_catalog = Arc::new(DatabaseCatalog::new(database_id, name.clone()));
+        let database_catalog = DatabaseCatalog::new(database_id, name.clone());
         inner.database_idxs.insert(name, database_id);
         inner.databases.insert(database_id, database_catalog);
         Ok(database_id)
@@ -58,7 +58,7 @@ impl RootCatalog {
         Ok(())
     }
 
-    pub fn all_databases(&self) -> HashMap<DatabaseId, Arc<DatabaseCatalog>> {
+    pub fn all_databases(&self) -> HashMap<DatabaseId, DatabaseCatalog> {
         let inner = self.inner.lock().unwrap();
         inner.databases.clone()
     }
@@ -70,22 +70,48 @@ impl RootCatalog {
 
     pub fn get_database_by_id(&self, database_id: DatabaseId) -> Option<Arc<DatabaseCatalog>> {
         let inner = self.inner.lock().unwrap();
-        inner.databases.get(&database_id).cloned()
+        Some(Arc::new(
+            inner.databases.get(&database_id).cloned().unwrap(),
+        ))
     }
 
     pub fn get_database_by_name(&self, name: &str) -> Option<Arc<DatabaseCatalog>> {
         let inner = self.inner.lock().unwrap();
-        inner
-            .database_idxs
-            .get(name)
-            .and_then(|id| inner.databases.get(id))
-            .cloned()
+        Some(Arc::new(
+            inner
+                .database_idxs
+                .get(name)
+                .and_then(|id| inner.databases.get(id))
+                .cloned()
+                .unwrap(),
+        ))
     }
 
     pub fn get_table(&self, table_ref_id: &TableRefId) -> Option<Arc<TableCatalog>> {
         let db = self.get_database_by_id(table_ref_id.database_id)?;
         let schema = db.get_schema_by_id(table_ref_id.schema_id)?;
         schema.get_table_by_id(table_ref_id.table_id)
+    }
+
+    pub fn add_table(
+        &self,
+        table_ref_id: TableRefId,
+        name: String,
+        columns: Vec<ColumnCatalog>,
+        is_materialized_view: bool,
+        ordered_pk_ids: Vec<ColumnId>,
+    ) -> Result<TableId, CatalogError> {
+        let mut inner = self.inner.lock().unwrap();
+        let database = inner.databases.get_mut(&table_ref_id.database_id).unwrap();
+        let schema = database.get_schema_mut(table_ref_id.schema_id).unwrap();
+        schema.add_table(name, columns, is_materialized_view, ordered_pk_ids)
+    }
+
+    pub fn drop_table(&self, table_ref_id: TableRefId) {
+        let mut inner = self.inner.lock().unwrap();
+        let database = inner.databases.get_mut(&table_ref_id.database_id).unwrap();
+        let schema = database.get_schema_mut(table_ref_id.schema_id).unwrap();
+        schema.delete_table(table_ref_id.table_id);
     }
 
     pub fn get_table_id_by_name(

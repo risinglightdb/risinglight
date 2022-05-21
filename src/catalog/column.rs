@@ -29,6 +29,10 @@ impl ColumnDesc {
         self.is_primary
     }
 
+    pub fn set_nullable(&mut self, is_nullable: bool) {
+        self.datatype.nullable = is_nullable;
+    }
+
     pub fn is_nullable(&self) -> bool {
         self.datatype.is_nullable()
     }
@@ -90,6 +94,10 @@ impl ColumnCatalog {
 
     pub fn is_primary(&self) -> bool {
         self.desc.is_primary()
+    }
+
+    pub fn set_nullable(&mut self, is_nullable: bool) {
+        self.desc.set_nullable(is_nullable);
     }
 
     pub fn is_nullable(&self) -> bool {

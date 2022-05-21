@@ -89,8 +89,8 @@ impl<S: Storage> TableScanExecutor<S> {
         let mut it = match unified_select_with_token(
             &token,
             txn.scan(
-                None,
-                None,
+                &[],
+                &[],
                 &col_idx,
                 self.plan.logical().is_sorted(),
                 false,

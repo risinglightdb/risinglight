@@ -77,6 +77,7 @@ impl Binder {
                 // // Remove this line and change `columns` above to immut.
                 for &index in &ordered_pk_ids {
                     columns[index as usize].set_primary(true);
+                    columns[index as usize].set_nullable(false);
                 }
 
                 Ok(BoundCreateTable {
@@ -224,10 +225,9 @@ mod tests {
             Err(BindError::DuplicatedColumn("a".into()))
         );
 
-        let database = catalog.get_database_by_id(0).unwrap();
-        let schema = database.get_schema_by_id(0).unwrap();
-        schema
-            .add_table("t3".into(), vec![], false, vec![])
+        let ref_id = TableRefId::new(0, 0, 0);
+        catalog
+            .add_table(ref_id, "t3".into(), vec![], false, vec![])
             .unwrap();
         assert_eq!(
             binder.bind_create_table(&stmts[2]),
@@ -299,7 +299,7 @@ mod tests {
                     ColumnCatalog::new(
                         0,
                         DataTypeKind::Int(None)
-                            .nullable()
+                            .not_null()
                             .to_column_primary_key("a".into()),
                     ),
                     ColumnCatalog::new(1, DataTypeKind::Int(None).nullable().to_column("b".into())),
