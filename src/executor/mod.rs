@@ -41,6 +41,8 @@ use self::order::*;
 use self::projection::*;
 use self::simple_agg::*;
 #[allow(unused_imports)]
+use self::sort_agg::*;
+#[allow(unused_imports)]
 use self::sort_merge_join::*;
 use self::table_scan::*;
 use self::top_n::TopNExecutor;
@@ -72,6 +74,7 @@ mod nested_loop_join;
 mod order;
 mod projection;
 mod simple_agg;
+mod sort_agg;
 mod sort_merge_join;
 mod table_scan;
 mod top_n;
