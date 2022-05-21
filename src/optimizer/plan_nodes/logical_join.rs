@@ -5,7 +5,7 @@ use std::fmt;
 use serde::Serialize;
 
 use super::*;
-use crate::binder::BoundJoinOperator;
+use crate::binder::{BoundJoinOperator, ExprVisitor};
 use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 
 /// The logical plan of join, it only records join tables and operators.
@@ -97,6 +97,51 @@ impl PlanNode for LogicalJoin {
 
     fn estimated_cardinality(&self) -> usize {
         self.left().estimated_cardinality() * self.right().estimated_cardinality()
+    }
+
+    fn prune_col(&self, required_cols: BitSet) -> PlanRef {
+        let mut on_clause = self.predicate.to_on_clause();
+        let mut visitor = CollectRequiredCols(required_cols.clone());
+        visitor.visit_expr(&on_clause);
+        let input_cols = visitor.0;
+
+        let mapper = Mapper::new_with_bitset(&input_cols);
+        mapper.rewrite_expr(&mut on_clause);
+
+        let left_schema_len = self.left_plan.out_types().len();
+        let left_input_cols = input_cols
+            .iter()
+            .filter(|&col_idx| col_idx < left_schema_len)
+            .collect();
+        let right_input_cols = input_cols
+            .iter()
+            .filter(|&col_idx| col_idx >= left_schema_len)
+            .map(|col_idx| col_idx - left_schema_len)
+            .collect();
+
+        let join_predicate = JoinPredicate::create(left_schema_len, on_clause);
+        let new_join = LogicalJoin::new(
+            self.left_plan.prune_col(left_input_cols),
+            self.right_plan.prune_col(right_input_cols),
+            self.join_op,
+            join_predicate,
+        );
+
+        if required_cols == input_cols {
+            new_join.into_plan_ref()
+        } else {
+            let out_types = self.out_types();
+            let project_expressions = required_cols
+                .iter()
+                .map(|col_idx| {
+                    BoundExpr::InputRef(BoundInputRef {
+                        index: mapper[col_idx],
+                        return_type: out_types[col_idx].clone(),
+                    })
+                })
+                .collect();
+            LogicalProjection::new(project_expressions, new_join.into_plan_ref()).into_plan_ref()
+        }
     }
 }
 

@@ -1,6 +1,5 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::collections::HashMap;
 use std::fmt;
 
 use serde::Serialize;
@@ -56,51 +55,31 @@ impl PlanNode for LogicalFilter {
     }
 
     fn prune_col(&self, required_cols: BitSet) -> PlanRef {
-        struct CollectRequiredCols(BitSet);
-        impl ExprVisitor for CollectRequiredCols {
-            fn visit_input_ref(&mut self, expr: &BoundInputRef) {
-                self.0.insert(expr.index);
-            }
-        }
         let mut visitor = CollectRequiredCols(required_cols.clone());
         visitor.visit_expr(&self.expr);
         let input_cols = visitor.0;
 
-        let mut idx_table = HashMap::new();
-        for (new_idx, old_idx) in input_cols.iter().enumerate() {
-            idx_table.insert(old_idx, new_idx);
-        }
-
-        struct Mapper(HashMap<usize, usize>);
-        impl ExprRewriter for Mapper {
-            fn rewrite_input_ref(&self, expr: &mut BoundExpr) {
-                match expr {
-                    BoundExpr::InputRef(ref mut input_ref) => {
-                        input_ref.index = self.0[&input_ref.index];
-                    }
-                    _ => unreachable!(),
-                }
-            }
-        }
-
         let mut expr = self.expr.clone();
-        Mapper(idx_table.clone()).rewrite_expr(&mut expr);
+        let mapper = Mapper::new_with_bitset(&input_cols);
+        mapper.rewrite_expr(&mut expr);
 
+        let need_prune = required_cols != input_cols;
         let new_filter = Self {
             expr,
-            child: self.child.prune_col(input_cols.clone()),
+            child: self.child.prune_col(input_cols),
         }
         .into_plan_ref();
 
-        if required_cols == input_cols {
+        if !need_prune {
             return new_filter;
         }
+
         let input_types = self.out_types();
         let exprs = required_cols
             .iter()
             .map(|old_idx| {
                 BoundExpr::InputRef(BoundInputRef {
-                    index: idx_table[&old_idx],
+                    index: mapper[old_idx],
                     return_type: input_types[old_idx].clone(),
                 })
             })

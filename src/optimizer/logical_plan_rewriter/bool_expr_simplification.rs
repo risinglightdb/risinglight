@@ -50,7 +50,7 @@ impl PlanRewriter for BoolExprSimplificationRule {
         let child = self.rewrite(plan.child());
         let new_plan = Arc::new(plan.clone_with_rewrite_expr(child, self));
         match &new_plan.expr() {
-            Constant(Bool(false) | Null) => Arc::new(Dummy {}),
+            Constant(Bool(false) | Null) => Arc::new(Dummy::new(new_plan.schema())),
             Constant(Bool(true)) => return plan.child().clone(),
             _ => new_plan,
         }
