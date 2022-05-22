@@ -112,14 +112,15 @@ impl PlanNode for LogicalJoin {
         let left_input_cols = input_cols
             .iter()
             .filter(|&col_idx| col_idx < left_schema_len)
-            .collect();
+            .collect::<BitSet>();
         let right_input_cols = input_cols
             .iter()
             .filter(|&col_idx| col_idx >= left_schema_len)
             .map(|col_idx| col_idx - left_schema_len)
             .collect();
 
-        let join_predicate = JoinPredicate::create(left_schema_len, on_clause);
+        let join_predicate = JoinPredicate::create(left_input_cols.len(), on_clause);
+
         let new_join = LogicalJoin::new(
             self.left_plan.prune_col(left_input_cols),
             self.right_plan.prune_col(right_input_cols),
