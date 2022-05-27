@@ -77,6 +77,8 @@ struct BinderContext {
     column_descs: HashMap<String, Vec<ColumnDesc>>,
     // Stores alias information
     aliases: Vec<String>,
+
+    aliases_expressions: Vec<BoundExpr>,
 }
 
 /// The binder resolves all expressions referring to schema objects such as

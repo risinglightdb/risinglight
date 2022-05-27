@@ -17,6 +17,7 @@ pub struct BoundSelect {
     pub orderby: Vec<BoundOrderBy>,
     pub limit: Option<BoundExpr>,
     pub offset: Option<BoundExpr>,
+    pub having: Option<BoundExpr>,
     // pub return_names: Vec<String>,
 }
 
@@ -103,6 +104,11 @@ impl Binder {
             group_by.push(self.bind_expr(group_key)?);
         }
 
+        let mut having = None;
+        if let Some(expr) = select.having.as_ref() {
+            having = Some(self.bind_expr(expr)?);
+        }
+
         let mut orderby = vec![];
         for e in &query.order_by {
             orderby.push(BoundOrderBy {
@@ -110,6 +116,7 @@ impl Binder {
                 descending: e.asc == Some(false),
             });
         }
+
         // Add referred columns for base table reference
         if let Some(table_ref) = &mut from_table {
             self.bind_column_ids(table_ref);
@@ -124,6 +131,7 @@ impl Binder {
             orderby,
             limit,
             offset,
+            having,
         }))
     }
 
