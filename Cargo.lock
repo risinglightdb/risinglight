@@ -442,11 +442,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ae5588f6b3c3cb05239e90bd110f257254aecd01e4635400391aeae07497845"
 dependencies = [
  "cfg-if 1.0.0",
- "crossbeam-channel",
+ "crossbeam-channel 0.5.4",
  "crossbeam-deque",
  "crossbeam-epoch 0.9.8",
  "crossbeam-queue",
  "crossbeam-utils 0.8.8",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b153fe7cbef478c567df0f972e02e6d736db11affe43dfc9c56a9374d1adfb87"
+dependencies = [
+ "crossbeam-utils 0.7.2",
+ "maybe-uninit",
 ]
 
 [[package]]
@@ -1025,6 +1035,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb691a747a7ab48abc15c5b42066eaafde10dc427e3b6ee2a1cf43db04c763bd"
 
 [[package]]
+name = "libtest-mimic"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b5b3890533e543cb605cadca8060f9439a2032e5e6d088e3414ad32a46362a3"
+dependencies = [
+ "clap 3.1.9",
+ "crossbeam-channel 0.4.4",
+ "rayon",
+ "termcolor",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.0.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1179,7 +1201,7 @@ checksum = "26e1a0803406a47496169480f26cab92e78936c1180ad439ee18d36478c1509c"
 dependencies = [
  "async-io",
  "async-lock",
- "crossbeam-channel",
+ "crossbeam-channel 0.5.4",
  "crossbeam-epoch 0.8.2",
  "crossbeam-utils 0.8.8",
  "futures-util",
@@ -1596,7 +1618,7 @@ version = "1.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f51245e1e62e1f1629cbfec37b5793bbabcaeb90f30e94d2ba03564687353e4"
 dependencies = [
- "crossbeam-channel",
+ "crossbeam-channel 0.5.4",
  "crossbeam-deque",
  "crossbeam-utils 0.8.8",
  "num_cpus",
@@ -1755,10 +1777,10 @@ dependencies = [
  "async-trait",
  "env_logger",
  "glob",
+ "libtest-mimic",
  "risinglight",
  "sqllogictest",
  "tempfile",
- "test-case",
  "tokio",
 ]
 
