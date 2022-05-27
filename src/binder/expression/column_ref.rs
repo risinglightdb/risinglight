@@ -90,9 +90,15 @@ impl Binder {
                 }
             }
             if info == None {
-                if self.context.aliases.contains(column_name) {
+                if let Some(index) = self
+                    .context
+                    .aliases
+                    .iter()
+                    .position(|name| column_name == name)
+                {
                     Ok(BoundExpr::Alias(BoundAlias {
                         alias: column_name.clone(),
+                        expr: Box::new(self.context.aliases_expressions[index].clone()),
                     }))
                 } else {
                     Err(BindError::InvalidColumn(column_name.clone()))
