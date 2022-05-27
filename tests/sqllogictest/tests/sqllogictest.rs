@@ -23,7 +23,7 @@ fn main() {
             tests.push(Test {
                 name: format!(
                     "mem_{}",
-                    subpath.strip_suffix(".slt").unwrap().replace("/", "_")
+                    subpath.strip_suffix(".slt").unwrap().replace('/', "_")
                 ),
                 kind: "".into(),
                 is_ignored: false,
@@ -35,7 +35,7 @@ fn main() {
             tests.push(Test {
                 name: format!(
                     "disk_{}",
-                    subpath.strip_suffix(".slt").unwrap().replace("/", "_")
+                    subpath.strip_suffix(".slt").unwrap().replace('/', "_")
                 ),
                 kind: "".into(),
                 is_ignored: false,
