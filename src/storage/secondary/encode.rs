@@ -13,7 +13,7 @@ use crate::types::{BlobRef, Date, Interval};
 pub trait PrimitiveFixedWidthEncode: Copy + Clone + 'static + Send + Sync + PartialEq {
     /// Width of each element
     const WIDTH: usize;
-    const DEAFULT_VALUE: &'static Self;
+    const DEFAULT_VALUE: &'static Self;
 
     type ArrayType: Array<Item = Self>;
 
@@ -26,7 +26,7 @@ pub trait PrimitiveFixedWidthEncode: Copy + Clone + 'static + Send + Sync + Part
 
 impl PrimitiveFixedWidthEncode for bool {
     const WIDTH: usize = std::mem::size_of::<u8>();
-    const DEAFULT_VALUE: &'static bool = &false;
+    const DEFAULT_VALUE: &'static bool = &false;
     type ArrayType = BoolArray;
 
     fn encode(&self, buffer: &mut impl BufMut) {
@@ -40,7 +40,7 @@ impl PrimitiveFixedWidthEncode for bool {
 
 impl PrimitiveFixedWidthEncode for i32 {
     const WIDTH: usize = std::mem::size_of::<i32>();
-    const DEAFULT_VALUE: &'static i32 = &0;
+    const DEFAULT_VALUE: &'static i32 = &0;
 
     type ArrayType = I32Array;
 
@@ -55,7 +55,7 @@ impl PrimitiveFixedWidthEncode for i32 {
 
 impl PrimitiveFixedWidthEncode for i64 {
     const WIDTH: usize = std::mem::size_of::<i64>();
-    const DEAFULT_VALUE: &'static i64 = &0;
+    const DEFAULT_VALUE: &'static i64 = &0;
 
     type ArrayType = I64Array;
 
@@ -70,7 +70,7 @@ impl PrimitiveFixedWidthEncode for i64 {
 
 impl PrimitiveFixedWidthEncode for f64 {
     const WIDTH: usize = std::mem::size_of::<f64>();
-    const DEAFULT_VALUE: &'static f64 = &0.0;
+    const DEFAULT_VALUE: &'static f64 = &0.0;
 
     type ArrayType = F64Array;
 
@@ -85,7 +85,7 @@ impl PrimitiveFixedWidthEncode for f64 {
 
 impl PrimitiveFixedWidthEncode for Decimal {
     const WIDTH: usize = std::mem::size_of::<Decimal>();
-    const DEAFULT_VALUE: &'static Self = &Decimal::from_parts(0, 0, 0, false, 0);
+    const DEFAULT_VALUE: &'static Self = &Decimal::from_parts(0, 0, 0, false, 0);
 
     type ArrayType = DecimalArray;
 
@@ -100,7 +100,7 @@ impl PrimitiveFixedWidthEncode for Decimal {
 
 impl PrimitiveFixedWidthEncode for Date {
     const WIDTH: usize = std::mem::size_of::<i32>();
-    const DEAFULT_VALUE: &'static Self = &Date::new(0);
+    const DEFAULT_VALUE: &'static Self = &Date::new(0);
 
     type ArrayType = DateArray;
 
@@ -115,7 +115,7 @@ impl PrimitiveFixedWidthEncode for Date {
 
 impl PrimitiveFixedWidthEncode for Interval {
     const WIDTH: usize = std::mem::size_of::<i32>() + std::mem::size_of::<i32>();
-    const DEAFULT_VALUE: &'static Self = &Interval::from_days(0);
+    const DEFAULT_VALUE: &'static Self = &Interval::from_days(0);
 
     type ArrayType = IntervalArray;
 

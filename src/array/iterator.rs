@@ -77,6 +77,6 @@ impl<'a, A: Array> Iterator for NonNullArrayIter<'a, A> {
     }
 }
 
-unsafe impl<'a, A: Array> TrustedLen for ArrayIter<'_, A> {}
+unsafe impl<A: Array> TrustedLen for ArrayIter<'_, A> {}
 
-unsafe impl<'a, A: Array> TrustedLen for NonNullArrayIter<'_, A> {}
+unsafe impl<A: Array> TrustedLen for NonNullArrayIter<'_, A> {}

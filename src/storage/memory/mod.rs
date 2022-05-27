@@ -87,8 +87,11 @@ impl Storage for InMemoryStorage {
             if schema.get_table_by_name(table_name).is_some() {
                 return Err(TracedStorageError::duplicated("table", table_name));
             }
-            let table_id = schema
+            let ref_id = TableRefId::new(database_id, schema_id, 0);
+            let table_id = self
+                .catalog
                 .add_table(
+                    ref_id,
                     table_name.into(),
                     column_descs.to_vec(),
                     false,
@@ -125,12 +128,7 @@ impl Storage for InMemoryStorage {
                 .unwrap()
                 .remove(&table_id)
                 .ok_or_else(|| TracedStorageError::not_found("table", table_id.table_id))?;
-            let db = self
-                .catalog
-                .get_database_by_id(table_id.database_id)
-                .unwrap();
-            let schema = db.get_schema_by_id(table_id.schema_id).unwrap();
-            schema.delete_table(table_id.table_id);
+            self.catalog.drop_table(table_id);
             Ok(())
         }
     }

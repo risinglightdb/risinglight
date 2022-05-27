@@ -41,7 +41,7 @@ impl<T: PrimitiveFixedWidthEncode> BlockBuilder<T::ArrayType>
             item.encode(&mut self.data);
             self.bitmap.push(true);
         } else {
-            T::DEAFULT_VALUE.encode(&mut self.data);
+            T::DEFAULT_VALUE.encode(&mut self.data);
             self.bitmap.push(false);
         }
     }
