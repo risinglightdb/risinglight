@@ -55,6 +55,8 @@ At the same time, developers may also add end-to-end tests with sqllogictest. Yo
 `tests/sql` and write sqllogictest to run SQLs in RisingLight and to verify implementation correctness.
 All the files suffix with `.slt` but not prefix with `_` in `tests/sql` will be automatically included in the end-to-end tests.
 
+You'll need `cargo install cargo-nextest` to run tests.
+
 ## Running Test and Checks
 
 We provide a simple make command to run all the checks:
