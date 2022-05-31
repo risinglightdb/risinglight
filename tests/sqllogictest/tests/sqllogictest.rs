@@ -52,13 +52,20 @@ fn main() {
         );
     }
 
+    fn build_runtime() -> Runtime {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+    }
+
     run_tests(&args, tests, |test| match &test.data {
         ("mem", case) => {
-            Runtime::new().unwrap().block_on(test_mem(case));
+            build_runtime().block_on(test_mem(case));
             Outcome::Passed
         }
         ("disk", case) => {
-            Runtime::new().unwrap().block_on(test_disk(case));
+            build_runtime().block_on(test_disk(case));
             Outcome::Passed
         }
         _ => unreachable!(),
