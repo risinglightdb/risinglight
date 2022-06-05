@@ -114,7 +114,7 @@ impl PlanNode for LogicalProjection {
             .map(|index| self.project_expressions[index].clone())
             .collect();
 
-        let mut visitor = CollectRequiredCols(BitSet::new());
+        let mut visitor = CollectRequiredCols(BitSet::with_capacity(required_cols.len()));
         new_projection_expressions
             .iter()
             .for_each(|expr| visitor.visit_expr(expr));

@@ -68,29 +68,11 @@ impl PlanNode for LogicalOrder {
             mapper.rewrite_expr(&mut node.expr);
         }
 
-        let need_prune = input_cols != required_cols;
-
-        let new_orderby = Self {
+        Self {
             comparators,
             child: self.child.prune_col(input_cols),
         }
-        .into_plan_ref();
-
-        if !need_prune {
-            new_orderby
-        } else {
-            let out_types = self.out_types();
-            let project_expressions = required_cols
-                .iter()
-                .map(|col_idx| {
-                    BoundExpr::InputRef(BoundInputRef {
-                        index: mapper[col_idx],
-                        return_type: out_types[col_idx].clone(),
-                    })
-                })
-                .collect();
-            LogicalProjection::new(project_expressions, new_orderby).into_plan_ref()
-        }
+        .into_plan_ref()
     }
 }
 
@@ -156,8 +138,6 @@ mod tests {
         let mut required_cols = BitSet::new();
         required_cols.insert(2);
         let plan = orderby.prune_col(required_cols);
-        let projection = plan.as_logical_projection().unwrap();
-        let plan = projection.child();
         let orderby = plan.as_logical_order().unwrap();
 
         assert_eq!(
