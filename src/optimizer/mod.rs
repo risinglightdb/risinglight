@@ -48,6 +48,14 @@ impl Optimizer {
         }
         let hep_optimizer = HeuristicOptimizer { rules };
         plan = hep_optimizer.optimize(plan);
+
+        let rules: Vec<Box<(dyn rules::Rule + 'static)>> = vec![
+            Box::new(ProjectEliminateCSE {}),
+            Box::new(AggregateEliminateCSE {}),
+        ];
+        let hep_optimizer = HeuristicOptimizer { rules };
+        plan = hep_optimizer.optimize(plan);
+
         let out_types_num = plan.out_types().len();
         plan = plan.prune_col(BitSet::from_iter(0..out_types_num));
         let mut phy_converter = PhysicalConverter;

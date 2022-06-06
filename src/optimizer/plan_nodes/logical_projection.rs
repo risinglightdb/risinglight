@@ -37,17 +37,6 @@ impl ExprRewriter for Substitute {
 
 impl LogicalProjection {
     pub fn new(project_expressions: Vec<BoundExpr>, child: PlanRef) -> Self {
-        if let Ok(child) = child.as_logical_projection() {
-            let subst = Substitute {
-                mapping: child.project_expressions.clone(),
-            };
-            let mut exprs = project_expressions;
-            exprs.iter_mut().for_each(|expr| subst.rewrite_expr(expr));
-            return LogicalProjection {
-                project_expressions: exprs,
-                child: child.child.clone(),
-            };
-        }
         Self {
             project_expressions,
             child,
