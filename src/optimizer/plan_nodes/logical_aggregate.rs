@@ -95,7 +95,8 @@ impl PlanNode for LogicalAggregate {
         let group_keys_len = self.group_keys.len();
 
         // Collect ref_idx of AggCall args
-        let mut visitor = CollectRequiredCols(BitSet::with_capacity(group_keys_len + self.agg_calls.len()));
+        let mut visitor =
+            CollectRequiredCols(BitSet::with_capacity(group_keys_len + self.agg_calls.len()));
         let mut new_agg_calls: Vec<_> = required_cols
             .iter()
             .filter(|&index| index >= group_keys_len)

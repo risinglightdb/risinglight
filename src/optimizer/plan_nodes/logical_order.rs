@@ -56,7 +56,7 @@ impl PlanNode for LogicalOrder {
     }
 
     fn prune_col(&self, required_cols: BitSet) -> PlanRef {
-        let mut visitor = CollectRequiredCols(required_cols.clone());
+        let mut visitor = CollectRequiredCols(required_cols);
         for node in &self.comparators {
             visitor.visit_expr(&node.expr);
         }
