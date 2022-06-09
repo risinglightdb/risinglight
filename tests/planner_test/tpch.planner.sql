@@ -85,14 +85,7 @@ CREATE TABLE LINEITEM (
 );
 
 /*
-0
-0
-0
-0
-0
-0
-0
-0
+
 */
 
 -- tpch-q1: TPC-H Q1

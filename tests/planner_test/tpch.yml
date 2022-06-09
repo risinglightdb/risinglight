@@ -110,6 +110,8 @@
         l_linestatus;
   desc: TPC-H Q1
   before: ["*prepare"]
+  tasks:
+    - print
 
 - id: tpch-q3
   sql: |
@@ -138,6 +140,8 @@
     limit 10;
   desc: TPC-H Q3
   before: ["*prepare"]
+  tasks:
+    - print
 
 - id: tpch-q5
   sql: |
@@ -167,6 +171,8 @@
         revenue desc;
   desc: TPC-H Q5
   before: ["*prepare"]
+  tasks:
+    - print
 
 - id: tpch-q6
   sql: |
@@ -180,6 +186,8 @@
         and l_discount between 0.08 - 0.01 and 0.08 + 0.01
         and l_quantity < 24;
   before: ["*prepare"]
+  tasks:
+    - print
 
 - id: tpch-q10
   sql: |
@@ -217,3 +225,5 @@
     limit 20;
   desc: TPC-H Q10
   before: ["*prepare"]
+  tasks:
+    - print
