@@ -344,7 +344,9 @@ impl VersionManager {
                 .path
                 .join(format!("{}_{}", table_id, rowset_id));
             info!("vacuum {}_{}", table_id, rowset_id);
-            tokio::fs::remove_dir_all(path).await?;
+            if !self.storage_options.disable_all_disk_operation {
+                tokio::fs::remove_dir_all(path).await?;
+            }
         }
 
         Ok(())

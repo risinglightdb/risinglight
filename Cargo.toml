@@ -84,7 +84,8 @@ lto = 'thin'
 [workspace]
 members = [
   "proto",
-  "tests/sqllogictest"
+  "tests/sqllogictest",
+  "tests/sqlplannertest"
 ]
 
 [patch.crates-io]

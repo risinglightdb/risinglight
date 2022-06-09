@@ -138,13 +138,27 @@ impl SecondaryTransaction {
         let mut dvs = vec![];
         for (rowset_id, deletes) in delete_split_map {
             let dv_id = self.table.generate_dv_id();
-            let mut file = tokio::fs::OpenOptions::default()
-                .write(true)
-                .create_new(true)
-                .open(self.table.get_dv_path(rowset_id, dv_id))
-                .await?;
-            DeleteVector::write_all(&mut file, &deletes).await?;
-            file.sync_data().await?;
+            use bytes::Bytes;
+
+            use super::IOBackend;
+            let path = self.table.get_dv_path(rowset_id, dv_id);
+            match &self.table.storage_options.io_backend {
+                IOBackend::InMemory(map) => {
+                    let mut buf = vec![];
+                    DeleteVector::write_all(&mut buf, &deletes).await?;
+                    let mut guard = map.lock();
+                    guard.insert(path, Bytes::from(buf));
+                }
+                _ => {
+                    let mut file = tokio::fs::OpenOptions::default()
+                        .write(true)
+                        .create_new(true)
+                        .open(path)
+                        .await?;
+                    DeleteVector::write_all(&mut file, &deletes).await?;
+                    file.sync_data().await?;
+                }
+            }
             dvs.push(DeleteVector::new(dv_id, rowset_id, deletes));
         }
 
@@ -310,7 +324,10 @@ impl SecondaryTransaction {
         if self.mem.is_none() {
             let rowset_id = self.table.generate_rowset_id();
             let directory = self.table.get_rowset_path(rowset_id);
-            tokio::fs::create_dir(&directory).await?;
+
+            if !self.table.storage_options.disable_all_disk_operation {
+                tokio::fs::create_dir(&directory).await?;
+            }
 
             self.mem = Some(SecondaryMemRowsetImpl::new(
                 self.table.columns.clone(),
