@@ -44,7 +44,7 @@ The test cases are stored in `tests/planner_test`. Use the following command:
 make apply_planner_test
 ```
 
-to automatically update the test result.
+to generate a sql file containing explain results for each yaml file.
 
 Generally, we will compare the explain result before and after a commit, so as to know how the commit
 affects the optimizer result. We don't really care about the correctness -- we just compare the explain
