@@ -76,7 +76,7 @@ impl From<Arc<TracedStorageError>> for TracedStorageError {
 
 /// [`StorageResult`] with backtrace.
 #[derive(Error)]
-#[error("{source:?}\n{backtrace:#}")]
+#[error("{source:?}\n{backtrace}")]
 pub struct TracedStorageError {
     #[from]
     source: StorageError,

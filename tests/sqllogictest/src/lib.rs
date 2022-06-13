@@ -6,7 +6,6 @@ use std::sync::Arc;
 use risinglight::array::*;
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::{Database, Error};
-use tempfile::tempdir;
 
 pub async fn test_mem(name: &str) {
     init_logger();
@@ -28,12 +27,7 @@ pub async fn test_mem(name: &str) {
 
 pub async fn test_disk(name: &str) {
     init_logger();
-    // still need a temp_dir to write manifest
-    let temp_dir = tempdir().unwrap();
-    let db = Database::new_on_disk(SecondaryStorageOptions::default_for_test(
-        temp_dir.path().to_path_buf(),
-    ))
-    .await;
+    let db = Database::new_on_disk(SecondaryStorageOptions::default_for_test()).await;
     let db = Arc::new(db);
     let mut tester = sqllogictest::Runner::new(DatabaseWrapper { db: db.clone() });
     tester.enable_testdir();

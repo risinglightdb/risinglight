@@ -1,0 +1,16 @@
+[package]
+name = "risinglight_plannertest"
+version = "0.1.0"
+edition = "2021"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { version = "1", features = ["backtrace"] }
+async-trait = "0.1"
+risinglight = { path = "../.." }
+sqlplannertest = { git = "https://github.com/risinglightdb/sqlplannertest-rs" }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "fs"] }
+
+[[test]]
+name = "plannertest"
+harness = false

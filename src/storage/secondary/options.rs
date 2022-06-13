@@ -56,6 +56,9 @@ pub struct StorageOptions {
 
     /// Whether record first_key of each block into block_index
     pub record_first_key: bool,
+
+    /// Whether to disable all disk operations, only for test use
+    pub disable_all_disk_operation: bool,
 }
 
 impl StorageOptions {
@@ -74,12 +77,13 @@ impl StorageOptions {
             checksum_type: ChecksumType::Crc32,
             is_rle: false,
             record_first_key: false,
+            disable_all_disk_operation: false,
         }
     }
 
-    pub fn default_for_test(path: PathBuf) -> Self {
+    pub fn default_for_test() -> Self {
         Self {
-            path,
+            path: PathBuf::from("_inaccessible_directory"),
             cache_size: 1024,
             target_rowset_size: 1 << 20,       // 1MB
             target_block_size: 16 * (1 << 10), // 16KB
@@ -87,6 +91,7 @@ impl StorageOptions {
             checksum_type: ChecksumType::None,
             is_rle: false,
             record_first_key: false,
+            disable_all_disk_operation: true,
         }
     }
 }
