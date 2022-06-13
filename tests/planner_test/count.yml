@@ -5,6 +5,7 @@
     - create table t(v int)
   tasks:
     - print
+
 - sql: |
     explain select count(*) + 1 from t
   desc: count(*) with projection
