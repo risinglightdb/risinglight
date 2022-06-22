@@ -9,7 +9,6 @@ use crate::array::{Array, ArrayBuilder};
 use crate::storage::secondary::block::{decode_u32, decode_u32_slice};
 pub fn decode_rle_block(data: Block) -> (usize, Block, Block) {
     let mut buffer = &data[..];
-    // 重新创建了一个对于data的引用
     let rle_num = buffer.get_u32_le() as usize;
     let rle_length = std::mem::size_of::<u32>() * 2 + buffer.get_u32_le() as usize;
     let rle_data = data.slice(std::mem::size_of::<u32>() * 2..rle_length);

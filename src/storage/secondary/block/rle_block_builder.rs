@@ -9,7 +9,7 @@ use risinglight_proto::rowset::BlockStatistics;
 use super::BlockBuilder;
 use crate::array::Array;
 
-fn encode_32<B>(mut value: u32, buf: &mut B)
+pub fn encode_32<B>(mut value: u32, buf: &mut B)
 where
     B: BufMut,
 {
@@ -24,7 +24,7 @@ where
     }
 }
 
-fn decode_u32<B>(buf: &mut B) -> Result<Vec<u32>, DecodeError>
+pub fn decode_u32<B>(buf: &mut B) -> Result<Vec<u32>, DecodeError>
 where
     B: Buf,
 {
@@ -45,12 +45,11 @@ where
     Ok(ret)
 }
 
-// 使用inline加速, 注意一个mut 引用可以调用一个非mut引用的函数
 #[inline]
-fn decode_u32_slice(bytes: &[u8]) -> Result<(u32, usize), DecodeError> {
+pub fn decode_u32_slice(bytes: &[u8]) -> Result<(u32, usize), DecodeError> {
     assert!(!bytes.is_empty());
     let mut b: u8 = unsafe { *bytes.get_unchecked(0) };
-    // u32 最多是5位
+    // u32 at most 5 byte
     let mut part0: u32 = u32::from(b);
     if b < 0x80 {
         return Ok((u32::from(part0), 1));
@@ -133,15 +132,6 @@ where
             self.cur_count = 1;
             return;
         }
-        // x.to_owned() ==> create owned data from borrowed data, usually by cloning
-        // as_ref() ==> converts from &Option<T> to Option<&T>
-
-        // 我们可以这样理解, rust里面的reference 相当于是一个指针，也是一个类型, 所以其实也可以
-        // 视作有所有权
-        // 注意rust里面有四个概念需要区分一下
-        // map因为调用的参数是self, 所以会消耗自己
-        // 使用as_ref可以在不消耗自己的
-        // u32::MAX
         if item != self.previous_value.as_ref().map(|x| x.borrow()) || self.cur_count == u32::MAX {
             self.previous_value = item.map(|x| x.to_owned());
             self.block_builder.append(item);
@@ -174,21 +164,15 @@ where
             return encoded_data;
         }
         self.rle_counts.push(self.cur_count);
-        let offset = encoded_data.len();
-        // 几个关键点, as 关键字可以实现类型强转
         encoded_data.put_u32_le(self.rle_counts.len() as u32);
-        // 关键在于count这个地方可以改成把每一个count 通过variable encoding
+        let offset = encoded_data.len();
+        encoded_data.put_u32_le(0xffffffff); // placeholder
         for count in self.rle_counts {
             encode_32(count, &mut encoded_data);
         }
-        // offset....offset + 3 ..... len - 1
-        // len - 1 - (offset + 3)
-        // offset + 4
-        // len - 1 - (offset + 4) + 1;
-        // len - offset - 4
         let len = encoded_data.len();
         let mut t = &mut encoded_data[offset..(offset + 4)];
-        t.put_u32_le((len - offset - 4) as u32);
+        t.put_u32_le((len - offset - 4) as u32); // override the placeholder
         let data = self.block_builder.finish();
         encoded_data.extend(data);
         encoded_data
