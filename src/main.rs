@@ -151,6 +151,9 @@ fn read_sql(rl: &mut Editor<()>) -> Result<String, ReadlineError> {
     loop {
         let prompt = if sql.is_empty() { "> " } else { "? " };
         let line = rl.readline(prompt)?;
+        if line.is_empty() {
+            continue;
+        }
         sql.push_str(line.as_str());
         if line.ends_with(';') {
             return Ok(sql);
