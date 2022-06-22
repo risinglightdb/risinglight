@@ -174,14 +174,21 @@ where
             return encoded_data;
         }
         self.rle_counts.push(self.cur_count);
-
+        let offset = encoded_data.len();
         // 几个关键点, as 关键字可以实现类型强转
         encoded_data.put_u32_le(self.rle_counts.len() as u32);
-
         // 关键在于count这个地方可以改成把每一个count 通过variable encoding
         for count in self.rle_counts {
             encode_32(count, &mut encoded_data);
         }
+        // offset....offset + 3 ..... len - 1
+        // len - 1 - (offset + 3)
+        // offset + 4
+        // len - 1 - (offset + 4) + 1;
+        // len - offset - 4
+        let len = encoded_data.len();
+        let mut t = &mut encoded_data[offset..(offset + 4)];
+        t.put_u32_le((len - offset - 4) as u32);
         let data = self.block_builder.finish();
         encoded_data.extend(data);
         encoded_data
@@ -257,7 +264,7 @@ mod tests {
             .iter()
             .cycle()
             .cloned()
-            .take(u16::MAX as usize * 2)
+            .take(u32::MAX as usize + 1)
         {
             rle_builder.append(item);
         }
