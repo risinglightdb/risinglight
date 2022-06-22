@@ -6,12 +6,13 @@ use bytes::Buf;
 
 use super::{Block, BlockIterator};
 use crate::array::{Array, ArrayBuilder};
-
+use crate::storage::secondary::block::{decode_u32, decode_u32_slice};
 pub fn decode_rle_block(data: Block) -> (usize, Block, Block) {
     let mut buffer = &data[..];
+    // 重新创建了一个对于data的引用
     let rle_num = buffer.get_u32_le() as usize;
-    let rle_length = std::mem::size_of::<u32>() + std::mem::size_of::<u16>() * rle_num;
-    let rle_data = data.slice(std::mem::size_of::<u32>()..rle_length);
+    let rle_length = std::mem::size_of::<u32>() * 2 + buffer.get_u32_le() as usize;
+    let rle_data = data.slice(std::mem::size_of::<u32>() * 2..rle_length);
     let block_data = data.slice(rle_length..);
     (rle_num, rle_data, block_data)
 }
@@ -49,6 +50,9 @@ where
 
     /// If never_used is true, get an item from child iter in the beginning of next_batch()
     never_used: bool,
+
+    /// Indicates the current rle_count position in the rle block
+    cur_row_pos: usize,
 }
 
 impl<A, B> RleBlockIterator<A, B>
@@ -57,12 +61,9 @@ where
     B: BlockIterator<A>,
 {
     pub fn new(block_iter: B, rle_block: Block, rle_row_count: usize) -> Self {
-        let mut row_count: usize = 0;
-        for row_id in 0..rle_row_count {
-            let mut rle_buffer = &rle_block[row_id * std::mem::size_of::<u16>()..];
-            let rle_count = rle_buffer.get_u16_le();
-            row_count += rle_count as usize;
-        }
+        let mut slice = &rle_block[..];
+        let row_count: usize = decode_u32(&mut slice).unwrap().len() as usize;
+
         Self {
             block_iter,
             rle_block,
@@ -73,12 +74,15 @@ where
             row_scanned_count: 0,
             row_count,
             never_used: true,
+            cur_row_pos: 0,
         }
     }
 
-    fn get_cur_rle_count(&self) -> u16 {
-        let mut rle_buffer = &self.rle_block[self.cur_row * std::mem::size_of::<u16>()..];
-        rle_buffer.get_u16_le()
+    fn get_cur_rle_count(&mut self) -> u32 {
+        let rle_buffer = &self.rle_block[self.cur_row_pos..];
+        let (cur_rle_count, size) = decode_u32_slice(rle_buffer).unwrap();
+        self.cur_row_pos += size;
+        cur_rle_count
     }
 
     fn get_next_element(&mut self) -> Option<Option<<A::Item as ToOwned>::Owned>> {
