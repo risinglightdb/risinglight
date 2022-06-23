@@ -156,7 +156,7 @@ impl Column {
         // support multiple I/O backend
         let block =
             self.block_cache
-                .get_or_try_insert_with(key, async {
+                .try_get_with(key, async {
                     // block has not been in cache, so we fetch it from disk
                     let file = self.file.clone();
                     let info = self.index.index(block_id).clone();
