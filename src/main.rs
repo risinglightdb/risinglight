@@ -142,6 +142,27 @@ async fn run_query_in_background(
     context.wait().await;
 }
 
+/// Read line by line from STDIN until a line ending with `;`.
+///
+/// Note that `;` in string literals will also be treated as a terminator
+/// as long as it is at the end of a line.
+fn read_sql(rl: &mut Editor<()>) -> Result<String, ReadlineError> {
+    let mut sql = String::new();
+    loop {
+        let prompt = if sql.is_empty() { "> " } else { "? " };
+        let line = rl.readline(prompt)?;
+        if line.is_empty() {
+            continue;
+        }
+        sql.push_str(line.as_str());
+        if line.ends_with(';') {
+            return Ok(sql);
+        } else {
+            sql.push('\n');
+        }
+    }
+}
+
 /// Run RisingLight interactive mode
 async fn interactive(
     db: Database,
@@ -168,18 +189,13 @@ async fn interactive(
     let db = Arc::new(db);
 
     loop {
-        let readline = rl.readline("> ");
-        match readline {
-            Ok(line) => {
-                if !line.trim().is_empty() {
-                    rl.add_history_entry(line.as_str());
-                    run_query_in_background(
-                        db.clone(),
-                        line,
-                        output_format.clone(),
-                        enable_tracing,
-                    )
-                    .await;
+        let read_sql = read_sql(&mut rl);
+        match read_sql {
+            Ok(sql) => {
+                if !sql.trim().is_empty() {
+                    rl.add_history_entry(sql.as_str());
+                    run_query_in_background(db.clone(), sql, output_format.clone(), enable_tracing)
+                        .await;
                 }
             }
             Err(ReadlineError::Interrupted) => {
