@@ -154,6 +154,12 @@ fn read_sql(rl: &mut Editor<()>) -> Result<String, ReadlineError> {
         if line.is_empty() {
             continue;
         }
+
+        // internal commands starts with "\"
+        if line.starts_with('\\') && sql.is_empty() {
+            return Ok(line);
+        }
+
         sql.push_str(line.as_str());
         if line.ends_with(';') {
             return Ok(sql);
