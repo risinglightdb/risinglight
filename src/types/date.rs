@@ -13,7 +13,7 @@ use crate::types::Interval;
 pub const UNIX_EPOCH_DAYS: i32 = 719_163;
 
 /// Date type
-#[derive(PartialOrd, PartialEq, Debug, Copy, Clone, Default, Hash, Serialize)]
+#[derive(PartialOrd, PartialEq, Debug, Copy, Clone, Default, Hash, Eq, Serialize)]
 pub struct Date(i32);
 
 impl Date {

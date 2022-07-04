@@ -5,10 +5,10 @@ use risinglight_proto::rowset::BlockIndex;
 
 use super::super::{Block, BlockIterator};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
-use crate::array::{Utf8Array, Utf8ArrayBuilder};
+use crate::array::{ArrayBuilder, Utf8Array, Utf8ArrayBuilder};
 use crate::storage::secondary::block::{
-    decode_rle_block, FakeBlockIterator, PlainBlobBlockIterator, PlainCharBlockIterator,
-    RleBlockIterator,
+    decode_dict_block, decode_rle_block, DictBlockIterator, FakeBlockIterator,
+    PlainBlobBlockIterator, PlainCharBlockIterator, RleBlockIterator,
 };
 
 /// All supported block iterators for char types.
@@ -17,6 +17,8 @@ pub enum CharBlockIteratorImpl {
     PlainVarchar(PlainBlobBlockIterator<str>),
     RleFixedChar(RleBlockIterator<Utf8Array, PlainCharBlockIterator>),
     RleVarchar(RleBlockIterator<Utf8Array, PlainBlobBlockIterator<str>>),
+    DictFixedChar(DictBlockIterator<Utf8Array, PlainCharBlockIterator>),
+    DictVarchar(DictBlockIterator<Utf8Array, PlainBlobBlockIterator<str>>),
     Fake(FakeBlockIterator<Utf8Array>),
 }
 
@@ -31,6 +33,8 @@ impl BlockIterator<Utf8Array> for CharBlockIteratorImpl {
             Self::PlainVarchar(it) => it.next_batch(expected_size, builder),
             Self::RleFixedChar(it) => it.next_batch(expected_size, builder),
             Self::RleVarchar(it) => it.next_batch(expected_size, builder),
+            Self::DictFixedChar(it) => it.next_batch(expected_size, builder),
+            Self::DictVarchar(it) => it.next_batch(expected_size, builder),
             Self::Fake(it) => it.next_batch(expected_size, builder),
         }
     }
@@ -41,6 +45,8 @@ impl BlockIterator<Utf8Array> for CharBlockIteratorImpl {
             Self::PlainVarchar(it) => it.skip(cnt),
             Self::RleFixedChar(it) => it.skip(cnt),
             Self::RleVarchar(it) => it.skip(cnt),
+            Self::DictFixedChar(it) => it.skip(cnt),
+            Self::DictVarchar(it) => it.skip(cnt),
             Self::Fake(it) => it.skip(cnt),
         }
     }
@@ -51,6 +57,8 @@ impl BlockIterator<Utf8Array> for CharBlockIteratorImpl {
             Self::PlainVarchar(it) => it.remaining_items(),
             Self::RleFixedChar(it) => it.remaining_items(),
             Self::RleVarchar(it) => it.remaining_items(),
+            Self::DictFixedChar(it) => it.remaining_items(),
+            Self::DictVarchar(it) => it.remaining_items(),
             Self::Fake(it) => it.remaining_items(),
         }
     }
@@ -103,6 +111,31 @@ impl BlockIteratorFactory<Utf8Array> for CharBlockIteratorFactory {
                     block_iter, rle_data, rle_num,
                 );
                 CharBlockIteratorImpl::RleVarchar(it)
+            }
+            (BlockType::DictFixedChar, Some(char_width)) => {
+                let mut dict_builder = Utf8ArrayBuilder::new();
+                let (dict_count_sum, dict_block, rle_block) = decode_dict_block(block);
+                let mut dict_iter =
+                    PlainCharBlockIterator::new(dict_block, dict_count_sum, char_width);
+                let it = DictBlockIterator::<Utf8Array, PlainCharBlockIterator>::new(
+                    &mut dict_builder,
+                    &mut dict_iter,
+                    rle_block,
+                    dict_count_sum,
+                );
+                CharBlockIteratorImpl::DictFixedChar(it)
+            }
+            (BlockType::DictVarchar, _) => {
+                let mut dict_builder = Utf8ArrayBuilder::new();
+                let (dict_count_sum, dict_block, rle_block) = decode_dict_block(block);
+                let mut dict_iter = PlainBlobBlockIterator::new(dict_block, dict_count_sum);
+                let it = DictBlockIterator::<Utf8Array, PlainBlobBlockIterator<str>>::new(
+                    &mut dict_builder,
+                    &mut dict_iter,
+                    rle_block,
+                    dict_count_sum,
+                );
+                CharBlockIteratorImpl::DictVarchar(it)
             }
             _ => todo!(),
         };

@@ -38,6 +38,10 @@ message BlockIndex {
     RleNullable = 6;
     RleFixedChar = 7;
     RleVarchar = 8;
+    DictBlock= 9;
+    Dictionary = 10;
+    DictFixedChar = 11;
+    DictVarchar = 12;
   }
 
   // Block offset (in bytes) in the `.col` file.
