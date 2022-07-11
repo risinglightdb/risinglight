@@ -28,7 +28,6 @@ pub fn decode_u32<B>(buf: &mut B) -> Result<Vec<u32>, DecodeError>
 where
     B: Buf,
 {
-    // &mut
     let mut bytes = buf.chunk();
     let len = bytes.len();
     if len == 0 {
@@ -52,7 +51,7 @@ pub fn decode_u32_slice(bytes: &[u8]) -> Result<(u32, usize), DecodeError> {
     // u32 at most 5 byte
     let mut part0: u32 = u32::from(b);
     if b < 0x80 {
-        return Ok((u32::from(part0), 1));
+        return Ok((part0, 1));
     };
     part0 -= 0x80;
     b = unsafe { *bytes.get_unchecked(1) };
@@ -94,7 +93,6 @@ where
     A::Item: PartialEq,
 {
     block_builder: B,
-    // 其实要求的就是把rle_count压缩
     rle_counts: Vec<u32>,
     // rle_counts
     previous_value: Option<<A::Item as ToOwned>::Owned>,
@@ -132,6 +130,8 @@ where
             self.cur_count = 1;
             return;
         }
+        // x.to_owned() ==> borrow -> owned
+        // .as_ref() ===>
         if item != self.previous_value.as_ref().map(|x| x.borrow()) || self.cur_count == u32::MAX {
             self.previous_value = item.map(|x| x.to_owned());
             self.block_builder.append(item);
@@ -172,7 +172,7 @@ where
         }
         let len = encoded_data.len();
         let mut t = &mut encoded_data[offset..(offset + 4)];
-        t.put_u32_le((len - offset - 4) as u32); // override the placeholder
+        t.put_u32_le((len - offset - 4) as u32); // override the placeholder, length of the rle block
         let data = self.block_builder.finish();
         encoded_data.extend(data);
         encoded_data
