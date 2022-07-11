@@ -104,7 +104,7 @@ impl<A, B> RleBlockBuilder<A, B>
 where
     A: Array,
     B: BlockBuilder<A>,
-    A::Item: PartialEq, // 可以实现== 比较
+    A::Item: PartialEq, 
 {
     pub fn new(block_builder: B) -> Self {
         Self {
@@ -130,8 +130,6 @@ where
             self.cur_count = 1;
             return;
         }
-        // x.to_owned() ==> borrow -> owned
-        // .as_ref() ===>
         if item != self.previous_value.as_ref().map(|x| x.borrow()) || self.cur_count == u32::MAX {
             self.previous_value = item.map(|x| x.to_owned());
             self.block_builder.append(item);
