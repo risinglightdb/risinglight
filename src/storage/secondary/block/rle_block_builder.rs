@@ -59,19 +59,19 @@ pub fn decode_u32_slice(bytes: &[u8]) -> Result<(u32, usize), DecodeError> {
     b = unsafe { *bytes.get_unchecked(1) };
     part0 += u32::from(b) << 7;
     if b < 0x80 {
-        return Ok((u32::from(part0), 2));
+        return Ok((part0, 2));
     };
     part0 -= 0x80 << 7;
     b = unsafe { *bytes.get_unchecked(2) };
     part0 += u32::from(b) << 14;
     if b < 0x80 {
-        return Ok((u32::from(part0), 3));
+        return Ok((part0, 3));
     };
     part0 -= 0x80 << 14;
     b = unsafe { *bytes.get_unchecked(3) };
     part0 += u32::from(b) << 21;
     if b < 0x80 {
-        return Ok((u32::from(part0), 4));
+        return Ok((part0, 4));
     };
     part0 -= 0x80 << 21;
     b = unsafe { *bytes.get_unchecked(4) };

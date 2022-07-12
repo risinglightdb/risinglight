@@ -61,7 +61,7 @@ where
         let mut slice = &rle_block[..];
         let rle_block = decode_u32(&mut slice).unwrap();
         let mut row_count: usize = 0;
-        for count in rle_block.iter() {
+        for count in &rle_block {
             row_count += *count as usize;
         }
 
@@ -79,8 +79,7 @@ where
     }
 
     fn get_cur_rle_count(&mut self) -> u32 {
-        let cur_rle_count = self.rle_block[self.cur_row];
-        cur_rle_count
+        self.rle_block[self.cur_row]
     }
 
     fn get_next_element(&mut self) -> Option<Option<<A::Item as ToOwned>::Owned>> {
