@@ -6,12 +6,13 @@ use bytes::Buf;
 
 use super::{Block, BlockIterator};
 use crate::array::{Array, ArrayBuilder};
-use crate::storage::secondary::block::{decode_u32, decode_u32_slice};
+use crate::storage::secondary::block::decode_u32;
 pub fn decode_rle_block(data: Block) -> (usize, Block, Block) {
     let mut buffer = &data[..];
-    let rle_num = buffer.get_u32_le() as usize;
+    let rle_num = buffer.get_u32_le() as usize; // rle_row_count
     let rle_length = std::mem::size_of::<u32>() * 2 + buffer.get_u32_le() as usize;
     let rle_data = data.slice(std::mem::size_of::<u32>() * 2..rle_length);
+
     let block_data = data.slice(rle_length..);
     (rle_num, rle_data, block_data)
 }
@@ -27,7 +28,7 @@ where
     block_iter: B,
 
     /// rle block
-    rle_block: Block,
+    rle_block: Vec<u32>,
 
     /// Indicates current position in the rle block
     cur_row: usize,
@@ -49,9 +50,6 @@ where
 
     /// If never_used is true, get an item from child iter in the beginning of next_batch()
     never_used: bool,
-
-    /// Indicates the current rle_count position in the rle block
-    cur_row_pos: usize,
 }
 
 impl<A, B> RleBlockIterator<A, B>
@@ -61,7 +59,11 @@ where
 {
     pub fn new(block_iter: B, rle_block: Block, rle_row_count: usize) -> Self {
         let mut slice = &rle_block[..];
-        let row_count: usize = decode_u32(&mut slice).unwrap().len() as usize;
+        let rle_block = decode_u32(&mut slice).unwrap();
+        let mut row_count: usize = 0;
+        for count in rle_block.iter() {
+            row_count += *count as usize;
+        }
 
         Self {
             block_iter,
@@ -73,14 +75,11 @@ where
             row_scanned_count: 0,
             row_count,
             never_used: true,
-            cur_row_pos: 0,
         }
     }
 
     fn get_cur_rle_count(&mut self) -> u32 {
-        let rle_buffer = &self.rle_block[self.cur_row_pos..];
-        let (cur_rle_count, size) = decode_u32_slice(rle_buffer).unwrap();
-        self.cur_row_pos += size;
+        let cur_rle_count = self.rle_block[self.cur_row];
         cur_rle_count
     }
 

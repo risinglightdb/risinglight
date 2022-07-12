@@ -9,6 +9,7 @@ use risinglight_proto::rowset::BlockStatistics;
 use super::BlockBuilder;
 use crate::array::Array;
 
+/// encode u32 to multiple u8
 pub fn encode_32<B>(mut value: u32, buf: &mut B)
 where
     B: BufMut,
@@ -24,6 +25,7 @@ where
     }
 }
 
+/// The reverse process of the above function
 pub fn decode_u32<B>(buf: &mut B) -> Result<Vec<u32>, DecodeError>
 where
     B: Buf,
@@ -48,7 +50,7 @@ where
 pub fn decode_u32_slice(bytes: &[u8]) -> Result<(u32, usize), DecodeError> {
     assert!(!bytes.is_empty());
     let mut b: u8 = unsafe { *bytes.get_unchecked(0) };
-    // u32 at most 5 byte
+    // u32 at most 5 bytes
     let mut part0: u32 = u32::from(b);
     if b < 0x80 {
         return Ok((part0, 1));
@@ -85,7 +87,6 @@ pub fn decode_u32_slice(bytes: &[u8]) -> Result<(u32, usize), DecodeError> {
 /// ```plain
 /// | rle_counts_num (u32) | rle_count (u16) | rle_count | data | data | (may be bit) |
 /// ```
-// rle == run-length encoding
 pub struct RleBlockBuilder<A, B>
 where
     A: Array,
@@ -104,7 +105,7 @@ impl<A, B> RleBlockBuilder<A, B>
 where
     A: Array,
     B: BlockBuilder<A>,
-    A::Item: PartialEq, 
+    A::Item: PartialEq,
 {
     pub fn new(block_builder: B) -> Self {
         Self {
@@ -168,6 +169,7 @@ where
         for count in self.rle_counts {
             encode_32(count, &mut encoded_data);
         }
+
         let len = encoded_data.len();
         let mut t = &mut encoded_data[offset..(offset + 4)];
         t.put_u32_le((len - offset - 4) as u32); // override the placeholder, length of the rle block
