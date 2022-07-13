@@ -148,7 +148,7 @@ impl Binder {
                     columns,
                     ..
                 } if *is_primary => columns.iter().for_each(|ident| {
-                    pks_name_from_constraints.push(ident.value.to_lowercase());
+                    pks_name_from_constraints.push(ident.value.clone());
                 }),
                 _ => continue,
             }
