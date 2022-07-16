@@ -13,9 +13,9 @@ use crate::types::BlobRef;
 
 /// All supported block builders for blob types.
 pub(super) enum BlobBlockBuilderImpl {
-    PlainBlob(PlainBlobBlockBuilder<BlobRef>),
-    RleBlob(RleBlockBuilder<BlobArray, PlainBlobBlockBuilder<BlobRef>>),
-    DictBlob(DictBlockBuilder<BlobArray, PlainBlobBlockBuilder<BlobRef>>),
+    Plain(PlainBlobBlockBuilder<BlobRef>),
+    RunLength(RleBlockBuilder<BlobArray, PlainBlobBlockBuilder<BlobRef>>),
+    Dictionary(DictBlockBuilder<BlobArray, PlainBlobBlockBuilder<BlobRef>>),
 }
 
 /// Column builder of blob types.
@@ -50,17 +50,17 @@ impl BlobColumnBuilder {
         }
 
         let (block_type, stats, mut block_data) = match self.current_builder.take().unwrap() {
-            BlobBlockBuilderImpl::PlainBlob(builder) => (
+            BlobBlockBuilderImpl::Plain(builder) => (
                 BlockType::PlainVarchar,
                 builder.get_statistics(),
                 builder.finish(),
             ),
-            BlobBlockBuilderImpl::RleBlob(builder) => (
+            BlobBlockBuilderImpl::RunLength(builder) => (
                 BlockType::RleVarchar,
                 builder.get_statistics(),
                 builder.finish(),
             ),
-            BlobBlockBuilderImpl::DictBlob(builder) => (
+            BlobBlockBuilderImpl::Dictionary(builder) => (
                 BlockType::RleVarchar,
                 builder.get_statistics(),
                 builder.finish(),
@@ -85,7 +85,7 @@ impl ColumnBuilder<BlobArray> for BlobColumnBuilder {
             if self.current_builder.is_none() {
                 match self.options.encode_type {
                     crate::storage::secondary::EncodeType::Plain => {
-                        self.current_builder = Some(BlobBlockBuilderImpl::PlainBlob(
+                        self.current_builder = Some(BlobBlockBuilderImpl::Plain(
                             PlainBlobBlockBuilder::new(self.options.target_block_size - 16),
                         ));
                     }
@@ -93,7 +93,7 @@ impl ColumnBuilder<BlobArray> for BlobColumnBuilder {
                         let builder =
                             PlainBlobBlockBuilder::new(self.options.target_block_size - 16);
                         self.current_builder =
-                            Some(BlobBlockBuilderImpl::RleBlob(RleBlockBuilder::<
+                            Some(BlobBlockBuilderImpl::RunLength(RleBlockBuilder::<
                                 BlobArray,
                                 PlainBlobBlockBuilder<BlobRef>,
                             >::new(
@@ -104,7 +104,7 @@ impl ColumnBuilder<BlobArray> for BlobColumnBuilder {
                         let builder =
                             PlainBlobBlockBuilder::new(self.options.target_block_size - 16);
                         self.current_builder =
-                            Some(BlobBlockBuilderImpl::DictBlob(DictBlockBuilder::<
+                            Some(BlobBlockBuilderImpl::Dictionary(DictBlockBuilder::<
                                 BlobArray,
                                 PlainBlobBlockBuilder<BlobRef>,
                             >::new(
@@ -120,9 +120,9 @@ impl ColumnBuilder<BlobArray> for BlobColumnBuilder {
             }
 
             let (row_count, should_finish) = match self.current_builder.as_mut().unwrap() {
-                BlobBlockBuilderImpl::PlainBlob(builder) => append_one_by_one(&mut iter, builder),
-                BlobBlockBuilderImpl::RleBlob(builder) => append_one_by_one(&mut iter, builder),
-                BlobBlockBuilderImpl::DictBlob(builder) => append_one_by_one(&mut iter, builder),
+                BlobBlockBuilderImpl::Plain(builder) => append_one_by_one(&mut iter, builder),
+                BlobBlockBuilderImpl::RunLength(builder) => append_one_by_one(&mut iter, builder),
+                BlobBlockBuilderImpl::Dictionary(builder) => append_one_by_one(&mut iter, builder),
             };
 
             self.block_index_builder.add_rows(row_count);

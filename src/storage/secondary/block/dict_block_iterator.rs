@@ -4,7 +4,7 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-use bytes::{Buf, Bytes};
+use bytes::Buf;
 
 use super::{Block, BlockIterator, PlainPrimitiveBlockIterator, RleBlockIterator};
 use crate::array::{Array, ArrayBuilder, I32Array, I32ArrayBuilder};
@@ -46,7 +46,7 @@ where
         dict_num: usize,
     ) -> Self {
         let mut dict = HashMap::new();
-        let (rle_num, rle_data, block_data) = super::decode_rle_block(Bytes::from(rle_block));
+        let (rle_num, rle_data, block_data) = super::decode_rle_block(rle_block);
         dict_iter.next_batch(Some(dict_num), dict_builder);
         let items = <A::Builder as ArrayBuilder>::take(dict_builder);
         let mut code = DICT_NULL_VALUE_KEY + 1;
@@ -81,11 +81,8 @@ where
                     if code.eq(&DICT_NULL_VALUE_KEY) {
                         dict_builder.push(None);
                     } else {
-                        match self.dict.get(&code) {
-                            value => {
-                                dict_builder.push(value.map(|x| x.borrow()));
-                            }
-                        }
+                        let value = self.dict.get(code);
+                        dict_builder.push(value.map(|x| x.borrow()));
                     }
                 }
                 None => (panic!("dict block has been damaged")),
