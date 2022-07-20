@@ -5,6 +5,8 @@
 [![crates.io](https://img.shields.io/crates/v/risinglight.svg)](https://crates.io/crates/risinglight)
 [![docs.rs](https://img.shields.io/badge/docs.rs-risinglight-green)](https://docs.rs/risinglight)
 
+![RisingLight Logo](docs/risinglightdb-banner.png)
+
 RisingLight is an OLAP database system for educational purpose. It is still in rapid development, and should not be used in production.
 
 ## Quick Start
