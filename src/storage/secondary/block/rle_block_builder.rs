@@ -250,12 +250,10 @@ mod tests {
             .iter()
             .cycle()
             .cloned()
-            .take(u32::MAX as usize + 1)
+            .take(u16::MAX as usize + 1)
         {
             rle_builder.append(item);
         }
-        assert_eq!(rle_builder.estimated_size(), 11 * 4 + 2 + 11 * 2 + 4);
-        assert!(rle_builder.should_finish(&Some(&5)));
         rle_builder.finish();
     }
 
