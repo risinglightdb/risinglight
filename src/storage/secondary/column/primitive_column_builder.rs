@@ -154,16 +154,7 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                         ));
                     }
                     (true, EncodeType::Dictionary) => {
-                        let builder = PlainPrimitiveNullableBlockBuilder::new(
-                            self.options.target_block_size - 16,
-                        );
-                        self.current_builder =
-                            Some(BlockBuilderImpl::RleNullable(RleBlockBuilder::<
-                                T::ArrayType,
-                                PlainPrimitiveNullableBlockBuilder<T>,
-                            >::new(
-                                builder
-                            )));
+                        todo!("wait change f64 to ordered_float.")
                     }
                     (false, EncodeType::RunLength) => {
                         let builder =
@@ -182,15 +173,7 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                         ));
                     }
                     (false, EncodeType::Dictionary) => {
-                        let builder =
-                            PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16);
-                        self.current_builder =
-                            Some(BlockBuilderImpl::RunLength(RleBlockBuilder::<
-                                T::ArrayType,
-                                PlainPrimitiveBlockBuilder<T>,
-                            >::new(
-                                builder
-                            )));
+                        todo!("wait change f64 to ordered_float.")
                     }
                 }
 

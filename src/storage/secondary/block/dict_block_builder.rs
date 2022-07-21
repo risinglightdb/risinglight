@@ -37,6 +37,8 @@ where
 {
     pub fn new(block_builder: B) -> Self {
         let builder = PlainPrimitiveBlockBuilder::new(block_builder.estimated_size());
+        // create rle_builder to help record dictionary values and compress them using run-length
+        // encoding
         let rle_builder =
             RleBlockBuilder::<I32Array, PlainPrimitiveBlockBuilder<i32>>::new(builder);
         Self {
@@ -64,8 +66,8 @@ where
                 self.cur_index += 1;
                 key = self.cur_index;
                 self.data_builder.append(Some(item));
+                self.dict_map.insert(item.to_owned(), key);
             }
-            self.dict_map.insert(item.to_owned(), key);
         }
         self.rle_builder.append(Some(&key));
     }

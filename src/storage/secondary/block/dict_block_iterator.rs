@@ -45,11 +45,16 @@ where
         rle_block: Block,
         dict_num: usize,
     ) -> Self {
-        let mut dict = HashMap::new();
-        let (rle_num, rle_data, block_data) = super::decode_rle_block(rle_block);
         dict_iter.next_batch(Some(dict_num), dict_builder);
         let items = <A::Builder as ArrayBuilder>::take(dict_builder);
+        assert_eq!(
+            items.len(),
+            dict_num,
+            "Check if dict_builder and dict_num match"
+        );
         let mut code = DICT_NULL_VALUE_KEY + 1;
+        let mut dict = HashMap::new();
+        let (rle_num, rle_data, block_data) = super::decode_rle_block(rle_block);
         for item in items.iter().map(|item| (item.unwrap().to_owned())) {
             dict.insert(code, item);
             code += 1;

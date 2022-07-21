@@ -38,8 +38,8 @@ message BlockIndex {
     RleNullable = 6;
     RleFixedChar = 7;
     RleVarchar = 8;
-    DictBlock= 9;
-    Dictionary = 10;
+    Dictionary = 9;
+    DictNullable = 10;
     DictFixedChar = 11;
     DictVarchar = 12;
   }
