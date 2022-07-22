@@ -1,7 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use itertools::Itertools;
-use sqlparser::ast::Expr;
+use sqlparser::ast::{Expr, Value};
 
 use super::*;
 use crate::catalog::{ColumnCatalog, TableCatalog, TableRefId};
@@ -86,6 +86,12 @@ impl Binder {
                     row.len()
                 )));
             }
+            let row = [
+                row.as_slice(),
+                vec![Expr::Value(Value::Null); column_ids.len() - row.len()].as_slice(),
+            ]
+            .concat();
+
             let mut bound_row = vec![];
             bound_row.reserve(row.len());
             for (idx, expr) in row.iter().enumerate() {
@@ -247,6 +253,9 @@ mod tests {
             binder.bind_insert(&stmts[1]),
             Err(BindError::NotNullableColumn(_))
         ));
-        binder.bind_insert(&stmts[2]).unwrap();
+        assert!(matches!(
+            binder.bind_insert(&stmts[2]),
+            Err(BindError::InvalidExpression(_))
+        ));
     }
 }
