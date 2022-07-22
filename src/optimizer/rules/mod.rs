@@ -2,10 +2,12 @@
 
 use super::plan_nodes::PlanRef;
 
+mod eliminate_cse_rule;
 mod filter_agg_rule;
 mod filter_join_rule;
 mod filter_scan_rule;
 mod limit_order_rule;
+pub use eliminate_cse_rule::*;
 pub use filter_agg_rule::*;
 pub use filter_join_rule::*;
 pub use filter_scan_rule::*;
