@@ -94,7 +94,7 @@ impl fmt::Display for Blob {
 
 /// A slice of a blob.
 #[repr(transparent)]
-#[derive(PartialEq, PartialOrd, RefCast)]
+#[derive(PartialEq, PartialOrd, RefCast, Hash, Eq)]
 pub struct BlobRef([u8]);
 
 impl BlobRef {

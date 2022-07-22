@@ -7,6 +7,8 @@
 mod blob_block_builder;
 mod blob_block_iterator;
 mod char_block_builder;
+mod dict_block_builder;
+mod dict_block_iterator;
 mod fake_block_iterator;
 mod primitive_block_builder;
 mod primitive_block_iterator;
@@ -25,6 +27,8 @@ pub use primitive_nullable_block_builder::*;
 use risinglight_proto::rowset::BlockStatistics;
 mod char_block_iterator;
 pub use char_block_iterator::*;
+pub use dict_block_builder::*;
+pub use dict_block_iterator::*;
 pub use primitive_nullable_block_iterator::*;
 pub use rle_block_builder::*;
 pub use rle_block_iterator::*;

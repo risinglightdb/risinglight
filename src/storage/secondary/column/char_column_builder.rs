@@ -6,8 +6,8 @@ use risinglight_proto::rowset::BlockIndex;
 use super::super::{BlockBuilder, BlockIndexBuilder, PlainCharBlockBuilder};
 use super::{append_one_by_one, ColumnBuilder};
 use crate::array::{Array, Utf8Array};
-use crate::storage::secondary::block::{PlainBlobBlockBuilder, RleBlockBuilder};
-use crate::storage::secondary::ColumnBuilderOptions;
+use crate::storage::secondary::block::{DictBlockBuilder, PlainBlobBlockBuilder, RleBlockBuilder};
+use crate::storage::secondary::{ColumnBuilderOptions, EncodeType};
 
 /// All supported block builders for char types.
 pub(super) enum CharBlockBuilderImpl {
@@ -15,6 +15,8 @@ pub(super) enum CharBlockBuilderImpl {
     PlainVarchar(PlainBlobBlockBuilder<str>),
     RleFixedChar(RleBlockBuilder<Utf8Array, PlainCharBlockBuilder>),
     RleVarchar(RleBlockBuilder<Utf8Array, PlainBlobBlockBuilder<str>>),
+    DictFixedChar(DictBlockBuilder<Utf8Array, PlainCharBlockBuilder>),
+    DictVarchar(DictBlockBuilder<Utf8Array, PlainBlobBlockBuilder<str>>),
 }
 
 /// Column builder of char types.
@@ -77,6 +79,16 @@ impl CharColumnBuilder {
                 builder.get_statistics(),
                 builder.finish(),
             ),
+            CharBlockBuilderImpl::DictFixedChar(builder) => (
+                BlockType::DictFixedChar,
+                builder.get_statistics(),
+                builder.finish(),
+            ),
+            CharBlockBuilderImpl::DictVarchar(builder) => (
+                BlockType::DictVarchar,
+                builder.get_statistics(),
+                builder.finish(),
+            ),
         };
 
         self.block_index_builder.finish_block(
@@ -95,8 +107,8 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
 
         while iter.peek().is_some() {
             if self.current_builder.is_none() {
-                match (self.char_width, self.nullable, self.options.is_rle) {
-                    (Some(char_width), false, true) => {
+                match (self.char_width, self.nullable, self.options.encode_type) {
+                    (Some(char_width), false, EncodeType::RunLength) => {
                         let builder = PlainCharBlockBuilder::new(
                             self.options.target_block_size - 16,
                             char_width,
@@ -109,7 +121,7 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                                 builder
                             )));
                     }
-                    (Some(char_width), false, false) => {
+                    (Some(char_width), false, EncodeType::Plain) => {
                         self.current_builder = Some(CharBlockBuilderImpl::PlainFixedChar(
                             PlainCharBlockBuilder::new(
                                 self.options.target_block_size - 16,
@@ -117,7 +129,20 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                             ),
                         ));
                     }
-                    (None, _, true) => {
+                    (Some(char_width), false, EncodeType::Dictionary) => {
+                        let builder = PlainCharBlockBuilder::new(
+                            self.options.target_block_size - 16,
+                            char_width,
+                        );
+                        self.current_builder =
+                            Some(CharBlockBuilderImpl::DictFixedChar(DictBlockBuilder::<
+                                Utf8Array,
+                                PlainCharBlockBuilder,
+                            >::new(
+                                builder
+                            )));
+                    }
+                    (None, _, EncodeType::RunLength) => {
                         let builder =
                             PlainBlobBlockBuilder::new(self.options.target_block_size - 16);
                         self.current_builder =
@@ -128,10 +153,21 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                                 builder
                             )));
                     }
-                    (None, _, false) => {
+                    (None, _, EncodeType::Plain) => {
                         self.current_builder = Some(CharBlockBuilderImpl::PlainVarchar(
                             PlainBlobBlockBuilder::new(self.options.target_block_size - 16),
                         ));
+                    }
+                    (None, _, EncodeType::Dictionary) => {
+                        let builder =
+                            PlainBlobBlockBuilder::new(self.options.target_block_size - 16);
+                        self.current_builder =
+                            Some(CharBlockBuilderImpl::DictVarchar(DictBlockBuilder::<
+                                Utf8Array,
+                                PlainBlobBlockBuilder<str>,
+                            >::new(
+                                builder
+                            )));
                     }
                     (char_width, nullable, _) => unimplemented!(
                         "width {:?} with nullable {} not implemented",
@@ -158,6 +194,10 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                     append_one_by_one(&mut iter, builder)
                 }
                 CharBlockBuilderImpl::RleVarchar(builder) => append_one_by_one(&mut iter, builder),
+                CharBlockBuilderImpl::DictFixedChar(builder) => {
+                    append_one_by_one(&mut iter, builder)
+                }
+                CharBlockBuilderImpl::DictVarchar(builder) => append_one_by_one(&mut iter, builder),
             };
 
             self.block_index_builder.add_rows(row_count);
