@@ -51,6 +51,11 @@ impl PlanNode for LogicalLimit {
     fn schema(&self) -> Vec<ColumnDesc> {
         self.child.schema()
     }
+
+    fn prune_col(&self, required_cols: BitSet) -> PlanRef {
+        LogicalLimit::new(self.offset, self.limit, self.child.prune_col(required_cols))
+            .into_plan_ref()
+    }
 }
 
 impl fmt::Display for LogicalLimit {

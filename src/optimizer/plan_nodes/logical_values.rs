@@ -47,7 +47,37 @@ impl LogicalValues {
 impl PlanTreeNodeLeaf for LogicalValues {}
 impl_plan_tree_node_for_leaf!(LogicalValues);
 
-impl PlanNode for LogicalValues {}
+impl PlanNode for LogicalValues {
+    fn schema(&self) -> Vec<ColumnDesc> {
+        self.values[0]
+            .iter()
+            .map(|expr| {
+                let name = "?column?".to_string();
+                expr.return_type().unwrap().to_column(name)
+            })
+            .collect()
+    }
+
+    fn prune_col(&self, required_cols: BitSet) -> PlanRef {
+        let types: Vec<_> = required_cols
+            .iter()
+            .map(|index| self.column_types[index].clone())
+            .collect();
+
+        let new_values: Vec<_> = self
+            .values
+            .iter()
+            .map(|row_expr| {
+                required_cols
+                    .iter()
+                    .map(|index| row_expr[index].clone())
+                    .collect()
+            })
+            .collect();
+
+        LogicalValues::new(types, new_values).into_plan_ref()
+    }
+}
 
 impl fmt::Display for LogicalValues {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

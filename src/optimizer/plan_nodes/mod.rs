@@ -13,7 +13,9 @@
 //! * [Callbacks](https://adventures.michaelfbryan.com/posts/non-trivial-macros/#callbacks)
 //! * [Type Exercise in Rust (Day 4)](https://github.com/skyzh/type-exercise-in-rust/blob/master/archive/day4/src/macros.rs)
 
+use std::collections::HashMap;
 use std::fmt::{Debug, Display};
+use std::ops::Index;
 use std::sync::Arc;
 
 use bit_set::BitSet;
@@ -21,7 +23,7 @@ use downcast_rs::{impl_downcast, Downcast};
 use erased_serde::serialize_trait_object;
 use paste::paste;
 
-use crate::binder::{BoundExpr, BoundInputRef};
+use crate::binder::{BoundExpr, BoundInputRef, ExprVisitor};
 use crate::types::DataType;
 
 mod plan_tree_node;
@@ -105,6 +107,7 @@ pub use physical_table_scan::*;
 pub use physical_top_n::*;
 pub use physical_values::*;
 
+use super::logical_plan_rewriter::ExprRewriter;
 use crate::catalog::ColumnDesc;
 
 /// The upcast trait for `PlanNode`.
@@ -299,3 +302,41 @@ macro_rules! impl_into_plan_ref {
     }
 }
 for_all_plan_nodes! {impl_into_plan_ref }
+
+struct CollectRequiredCols(BitSet);
+impl ExprVisitor for CollectRequiredCols {
+    fn visit_input_ref(&mut self, expr: &BoundInputRef) {
+        self.0.insert(expr.index);
+    }
+}
+
+struct Mapper(HashMap<usize, usize>);
+
+impl Mapper {
+    fn new_with_bitset(bitset: &BitSet) -> Self {
+        let mut idx_table = HashMap::with_capacity(bitset.len());
+        for (new_idx, old_idx) in bitset.iter().enumerate() {
+            idx_table.insert(old_idx, new_idx);
+        }
+        Self(idx_table)
+    }
+}
+
+impl ExprRewriter for Mapper {
+    fn rewrite_input_ref(&self, expr: &mut BoundExpr) {
+        match expr {
+            BoundExpr::InputRef(ref mut input_ref) => {
+                input_ref.index = self.0[&input_ref.index];
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl Index<usize> for Mapper {
+    type Output = usize;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[&index]
+    }
+}
