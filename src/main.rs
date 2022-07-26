@@ -175,7 +175,7 @@ async fn interactive(
     output_format: Option<String>,
     enable_tracing: bool,
 ) -> Result<()> {
-    let mut rl = Editor::<()>::new();
+    let mut rl = Editor::<()>::new()?;
     let history_path = dirs::cache_dir().map(|p| {
         let cache_dir = p.join("risinglight");
         std::fs::create_dir_all(cache_dir.as_path()).ok();
