@@ -5,15 +5,17 @@ use risinglight_proto::rowset::BlockIndex;
 
 use super::super::{Block, BlockIterator};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
-use crate::array::{BlobArray, BlobArrayBuilder};
+use crate::array::{ArrayBuilder, BlobArray, BlobArrayBuilder};
 use crate::storage::secondary::block::{
-    decode_rle_block, FakeBlockIterator, PlainBlobBlockIterator, RleBlockIterator,
+    decode_dict_block, decode_rle_block, DictBlockIterator, FakeBlockIterator,
+    PlainBlobBlockIterator, RleBlockIterator,
 };
 use crate::types::BlobRef;
 
 pub enum BlobBlockIteratorImpl {
     PlainBlob(PlainBlobBlockIterator<BlobRef>),
     RleBlob(RleBlockIterator<BlobArray, PlainBlobBlockIterator<BlobRef>>),
+    DictBlob(DictBlockIterator<BlobArray, PlainBlobBlockIterator<BlobRef>>),
     Fake(FakeBlockIterator<BlobArray>),
 }
 
@@ -26,6 +28,7 @@ impl BlockIterator<BlobArray> for BlobBlockIteratorImpl {
         match self {
             Self::PlainBlob(it) => it.next_batch(expected_size, builder),
             Self::RleBlob(it) => it.next_batch(expected_size, builder),
+            Self::DictBlob(it) => it.next_batch(expected_size, builder),
             Self::Fake(it) => it.next_batch(expected_size, builder),
         }
     }
@@ -34,6 +37,7 @@ impl BlockIterator<BlobArray> for BlobBlockIteratorImpl {
         match self {
             Self::PlainBlob(it) => it.skip(cnt),
             Self::RleBlob(it) => it.skip(cnt),
+            Self::DictBlob(it) => it.skip(cnt),
             Self::Fake(it) => it.skip(cnt),
         }
     }
@@ -42,6 +46,7 @@ impl BlockIterator<BlobArray> for BlobBlockIteratorImpl {
         match self {
             Self::PlainBlob(it) => it.remaining_items(),
             Self::RleBlob(it) => it.remaining_items(),
+            Self::DictBlob(it) => it.remaining_items(),
             Self::Fake(it) => it.remaining_items(),
         }
     }
@@ -73,6 +78,18 @@ impl BlockIteratorFactory<BlobArray> for BlobBlockIteratorFactory {
                     block_iter, rle_data, rle_num,
                 );
                 BlobBlockIteratorImpl::RleBlob(it)
+            }
+            BlockType::DictVarchar => {
+                let mut dict_builder = BlobArrayBuilder::new();
+                let (dict_count_sum, dict_block, rle_block) = decode_dict_block(block);
+                let mut dict_iter = PlainBlobBlockIterator::new(dict_block, dict_count_sum);
+                let it = DictBlockIterator::<BlobArray, PlainBlobBlockIterator<BlobRef>>::new(
+                    &mut dict_builder,
+                    &mut dict_iter,
+                    rle_block,
+                    dict_count_sum,
+                );
+                BlobBlockIteratorImpl::DictBlob(it)
             }
             _ => todo!(),
         };

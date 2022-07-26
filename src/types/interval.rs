@@ -6,7 +6,7 @@ use std::ops::Neg;
 use serde::Serialize;
 
 /// Interval type
-#[derive(PartialOrd, PartialEq, Debug, Copy, Clone, Default, Hash, Serialize)]
+#[derive(PartialOrd, PartialEq, Debug, Copy, Clone, Default, Hash, Eq, Serialize)]
 pub struct Interval {
     months: i32,
     days: i32,
