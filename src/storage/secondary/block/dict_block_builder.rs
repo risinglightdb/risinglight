@@ -79,9 +79,8 @@ where
     }
 
     fn get_statistics(&self) -> Vec<BlockStatistics> {
-        let mut res = self.data_builder.get_statistics();
-        res.extend(self.rle_builder.get_statistics());
-        res
+        // Tracking issue: https://github.com/risinglightdb/risinglight/issues/674
+        vec![]
     }
 
     fn should_finish(&self, next_item: &Option<&A::Item>) -> bool {

@@ -154,7 +154,7 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                         ));
                     }
                     (true, EncodeType::Dictionary) => {
-                        todo!("wait change f64 to ordered_float.")
+                        todo!("Dict encoding for f64 is not supported yet. Tracking issue: https://github.com/risinglightdb/risinglight/issues/674")
                     }
                     (false, EncodeType::RunLength) => {
                         let builder =
@@ -173,7 +173,7 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                         ));
                     }
                     (false, EncodeType::Dictionary) => {
-                        todo!("wait change f64 to ordered_float.")
+                        todo!("Dict encoding for f64 is not supported yet. Tracking issue: https://github.com/risinglightdb/risinglight/issues/674")
                     }
                 }
 
