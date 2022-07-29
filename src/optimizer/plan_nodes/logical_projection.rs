@@ -7,7 +7,6 @@ use serde::Serialize;
 use super::*;
 use crate::binder::{BoundExpr, ExprVisitor};
 use crate::optimizer::logical_plan_rewriter::ExprRewriter;
-use crate::types::DataValue;
 
 /// The logical plan of project operation.
 #[derive(Debug, Clone, Serialize)]
@@ -120,10 +119,6 @@ impl PlanNode for LogicalProjection {
             .for_each(|expr| visitor.visit_expr(expr));
 
         let input_cols = visitor.0;
-
-        if new_projection_expressions.is_empty() {
-            new_projection_expressions.push(BoundExpr::Constant(DataValue::Int32(81)));
-        }
 
         let mapper = Mapper::new_with_bitset(&input_cols);
         new_projection_expressions.iter_mut().for_each(|expr| {
