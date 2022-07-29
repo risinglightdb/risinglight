@@ -121,10 +121,10 @@ PhysicalOrder:
       InputRef #3 (alias to sum_base_price)
       InputRef #4 (alias to sum_disc_price)
       InputRef #5 (alias to sum_charge)
-      (InputRef #2 / InputRef #7) (alias to avg_qty)
-      (InputRef #3 / InputRef #9) (alias to avg_price)
-      (InputRef #10 / InputRef #11) (alias to avg_disc)
-      InputRef #12 (alias to count_order)
+      (InputRef #2 / InputRef #6) (alias to avg_qty)
+      (InputRef #3 / InputRef #7) (alias to avg_price)
+      (InputRef #8 / InputRef #9) (alias to avg_disc)
+      InputRef #10 (alias to count_order)
     PhysicalHashAgg:
         InputRef #1
         InputRef #2
@@ -132,9 +132,7 @@ PhysicalOrder:
         sum(InputRef #4) -> NUMERIC(15,2)
         sum((InputRef #4 * (1 - InputRef #5))) -> NUMERIC(15,2) (null)
         sum(((InputRef #4 * (1 - InputRef #5)) * (1 + InputRef #6))) -> NUMERIC(15,2) (null)
-        sum(InputRef #3) -> NUMERIC(15,2)
         count(InputRef #3) -> INT
-        sum(InputRef #4) -> NUMERIC(15,2)
         count(InputRef #4) -> INT
         sum(InputRef #5) -> NUMERIC(15,2)
         count(InputRef #5) -> INT
@@ -180,34 +178,50 @@ PhysicalTopN: offset: 0, limit: 10, order by [InputRef #1 (desc), InputRef #2 (a
       InputRef #1
       InputRef #2
     PhysicalHashAgg:
-        InputRef #6
-        InputRef #4
-        InputRef #5
-        sum((InputRef #8 * (1 - InputRef #9))) -> NUMERIC(15,2) (null)
-      PhysicalHashJoin:
-          op Inner,
-          predicate: Eq(InputRef #3, InputRef #6)
+        InputRef #2
+        InputRef #0
+        InputRef #1
+        sum((InputRef #3 * (1 - InputRef #4))) -> NUMERIC(15,2) (null)
+      PhysicalProjection:
+          InputRef #1
+          InputRef #2
+          InputRef #3
+          InputRef #4
+          InputRef #5
         PhysicalHashJoin:
             op Inner,
-            predicate: Eq(InputRef #1, InputRef #2)
-          PhysicalTableScan:
-              table #5,
-              columns [6, 0],
-              with_row_handler: false,
-              is_sorted: false,
-              expr: Eq(InputRef #0, String("BUILDING") (const))
-          PhysicalTableScan:
-              table #6,
-              columns [1, 0, 4, 7],
-              with_row_handler: false,
-              is_sorted: false,
-              expr: Lt(InputRef #2, Date(Date(9204)) (const))
-        PhysicalTableScan:
-            table #7,
-            columns [0, 10, 5, 6],
-            with_row_handler: false,
-            is_sorted: false,
-            expr: Gt(InputRef #1, Date(Date(9204)) (const))
+            predicate: Eq(InputRef #0, InputRef #3)
+          PhysicalProjection:
+              InputRef #2
+              InputRef #3
+              InputRef #4
+            PhysicalHashJoin:
+                op Inner,
+                predicate: Eq(InputRef #0, InputRef #1)
+              PhysicalProjection:
+                  InputRef #0
+                PhysicalTableScan:
+                    table #5,
+                    columns [0, 6],
+                    with_row_handler: false,
+                    is_sorted: false,
+                    expr: Eq(InputRef #1, String("BUILDING") (const))
+              PhysicalTableScan:
+                  table #6,
+                  columns [1, 0, 4, 7],
+                  with_row_handler: false,
+                  is_sorted: false,
+                  expr: Lt(InputRef #2, Date(Date(9204)) (const))
+          PhysicalProjection:
+              InputRef #0
+              InputRef #1
+              InputRef #2
+            PhysicalTableScan:
+                table #7,
+                columns [0, 5, 6, 10],
+                with_row_handler: false,
+                is_sorted: false,
+                expr: Gt(InputRef #3, Date(Date(9204)) (const))
 */
 
 -- tpch-q5: TPC-H Q5
@@ -243,59 +257,85 @@ PhysicalOrder:
       InputRef #0
       InputRef #1 (alias to revenue)
     PhysicalHashAgg:
-        InputRef #13
-        sum((InputRef #7 * (1 - InputRef #8))) -> NUMERIC(15,2) (null)
-      PhysicalHashJoin:
-          op Inner,
-          predicate: Eq(InputRef #12, InputRef #14)
+        InputRef #2
+        sum((InputRef #0 * (1 - InputRef #1))) -> NUMERIC(15,2) (null)
+      PhysicalProjection:
+          InputRef #0
+          InputRef #1
+          InputRef #3
         PhysicalHashJoin:
             op Inner,
-            predicate: Eq(InputRef #10, InputRef #11)
-          PhysicalHashJoin:
-              op Inner,
-              predicate: And(Eq(InputRef #6, InputRef #9), Eq(InputRef #1, InputRef #10))
+            predicate: Eq(InputRef #2, InputRef #4)
+          PhysicalProjection:
+              InputRef #0
+              InputRef #1
+              InputRef #4
+              InputRef #5
             PhysicalHashJoin:
                 op Inner,
-                predicate: Eq(InputRef #3, InputRef #5)
-              PhysicalHashJoin:
-                  op Inner,
-                  predicate: Eq(InputRef #0, InputRef #2)
-                PhysicalTableScan:
-                    table #5,
-                    columns [0, 3],
-                    with_row_handler: false,
-                    is_sorted: false,
-                    expr: None
-                PhysicalTableScan:
-                    table #6,
-                    columns [1, 0, 4],
-                    with_row_handler: false,
-                    is_sorted: false,
-                    expr: And(GtEq(InputRef #2, Date(Date(8766)) (const)), Lt(InputRef #2, Date(Date(9131)) (const)))
+                predicate: Eq(InputRef #2, InputRef #3)
+              PhysicalProjection:
+                  InputRef #2
+                  InputRef #3
+                  InputRef #5
+                PhysicalHashJoin:
+                    op Inner,
+                    predicate: And(Eq(InputRef #1, InputRef #4), Eq(InputRef #0, InputRef #5))
+                  PhysicalProjection:
+                      InputRef #0
+                      InputRef #3
+                      InputRef #4
+                      InputRef #5
+                    PhysicalHashJoin:
+                        op Inner,
+                        predicate: Eq(InputRef #1, InputRef #2)
+                      PhysicalProjection:
+                          InputRef #1
+                          InputRef #3
+                        PhysicalHashJoin:
+                            op Inner,
+                            predicate: Eq(InputRef #0, InputRef #2)
+                          PhysicalTableScan:
+                              table #5,
+                              columns [0, 3],
+                              with_row_handler: false,
+                              is_sorted: false,
+                              expr: None
+                          PhysicalProjection:
+                              InputRef #0
+                              InputRef #1
+                            PhysicalTableScan:
+                                table #6,
+                                columns [1, 0, 4],
+                                with_row_handler: false,
+                                is_sorted: false,
+                                expr: And(GtEq(InputRef #2, Date(Date(8766)) (const)), Lt(InputRef #2, Date(Date(9131)) (const)))
+                      PhysicalTableScan:
+                          table #7,
+                          columns [0, 2, 5, 6],
+                          with_row_handler: false,
+                          is_sorted: false,
+                          expr: None
+                  PhysicalTableScan:
+                      table #3,
+                      columns [0, 3],
+                      with_row_handler: false,
+                      is_sorted: false,
+                      expr: None
               PhysicalTableScan:
-                  table #7,
-                  columns [0, 2, 5, 6],
+                  table #0,
+                  columns [0, 2, 1],
                   with_row_handler: false,
                   is_sorted: false,
                   expr: None
+          PhysicalProjection:
+              InputRef #0
             PhysicalTableScan:
-                table #3,
-                columns [0, 3],
+                table #1,
+                columns [0, 1],
                 with_row_handler: false,
                 is_sorted: false,
-                expr: None
-          PhysicalTableScan:
-              table #0,
-              columns [0, 2, 1],
-              with_row_handler: false,
-              is_sorted: false,
-              expr: None
-        PhysicalTableScan:
-            table #1,
-            columns [0, 1],
-            with_row_handler: false,
-            is_sorted: false,
-            expr: Eq(InputRef #1, String("AFRICA") (const))
+                expr: Eq(InputRef #1, String("AFRICA") (const))
 */
 
 -- tpch-q6
@@ -313,13 +353,16 @@ where
 PhysicalProjection:
     InputRef #0 (alias to revenue)
   PhysicalSimpleAgg:
-      sum((InputRef #3 * InputRef #1)) -> NUMERIC(15,2) (null)
-    PhysicalTableScan:
-        table #7,
-        columns [10, 6, 4, 5],
-        with_row_handler: false,
-        is_sorted: false,
-        expr: And(And(And(GtEq(InputRef #0, Date(Date(8766)) (const)), Lt(InputRef #0, Date(Date(9131)) (const))), And(GtEq(InputRef #1, Decimal(0.07) (const)), LtEq(InputRef #1, Decimal(0.09) (const)))), Lt(InputRef #2, Decimal(24) (const)))
+      sum((InputRef #1 * InputRef #0)) -> NUMERIC(15,2) (null)
+    PhysicalProjection:
+        InputRef #0
+        InputRef #1
+      PhysicalTableScan:
+          table #7,
+          columns [6, 5, 10, 4],
+          with_row_handler: false,
+          is_sorted: false,
+          expr: And(And(And(GtEq(InputRef #2, Date(Date(8766)) (const)), Lt(InputRef #2, Date(Date(9131)) (const))), And(GtEq(InputRef #0, Decimal(0.07) (const)), LtEq(InputRef #0, Decimal(0.09) (const)))), Lt(InputRef #3, Decimal(24) (const)))
 */
 
 -- tpch-q10: TPC-H Q10
@@ -369,45 +412,81 @@ PhysicalTopN: offset: 0, limit: 20, order by [InputRef #2 (desc)]
       InputRef #6
     PhysicalHashAgg:
         InputRef #0
+        InputRef #1
         InputRef #2
+        InputRef #4
+        InputRef #8
         InputRef #3
         InputRef #5
-        InputRef #15
-        InputRef #4
-        InputRef #6
-        sum((InputRef #12 * (1 - InputRef #13))) -> NUMERIC(15,2) (null)
-      PhysicalHashJoin:
-          op Inner,
-          predicate: Eq(InputRef #1, InputRef #14)
+        sum((InputRef #6 * (1 - InputRef #7))) -> NUMERIC(15,2) (null)
+      PhysicalProjection:
+          InputRef #0
+          InputRef #2
+          InputRef #3
+          InputRef #4
+          InputRef #5
+          InputRef #6
+          InputRef #7
+          InputRef #8
+          InputRef #10
         PhysicalHashJoin:
             op Inner,
-            predicate: Eq(InputRef #8, InputRef #10)
-          PhysicalHashJoin:
-              op Inner,
-              predicate: Eq(InputRef #0, InputRef #7)
-            PhysicalTableScan:
-                table #5,
-                columns [0, 3, 1, 5, 2, 4, 7],
-                with_row_handler: false,
-                is_sorted: false,
-                expr: None
-            PhysicalTableScan:
-                table #6,
-                columns [1, 0, 4],
-                with_row_handler: false,
-                is_sorted: false,
-                expr: And(GtEq(InputRef #2, Date(Date(8674)) (const)), Lt(InputRef #2, Date(Date(8766)) (const)))
+            predicate: Eq(InputRef #1, InputRef #9)
+          PhysicalProjection:
+              InputRef #0
+              InputRef #1
+              InputRef #2
+              InputRef #3
+              InputRef #4
+              InputRef #5
+              InputRef #6
+              InputRef #9
+              InputRef #10
+            PhysicalHashJoin:
+                op Inner,
+                predicate: Eq(InputRef #7, InputRef #8)
+              PhysicalProjection:
+                  InputRef #0
+                  InputRef #1
+                  InputRef #2
+                  InputRef #3
+                  InputRef #4
+                  InputRef #5
+                  InputRef #6
+                  InputRef #8
+                PhysicalHashJoin:
+                    op Inner,
+                    predicate: Eq(InputRef #0, InputRef #7)
+                  PhysicalTableScan:
+                      table #5,
+                      columns [0, 3, 1, 5, 2, 4, 7],
+                      with_row_handler: false,
+                      is_sorted: false,
+                      expr: None
+                  PhysicalProjection:
+                      InputRef #0
+                      InputRef #1
+                    PhysicalTableScan:
+                        table #6,
+                        columns [1, 0, 4],
+                        with_row_handler: false,
+                        is_sorted: false,
+                        expr: And(GtEq(InputRef #2, Date(Date(8674)) (const)), Lt(InputRef #2, Date(Date(8766)) (const)))
+              PhysicalProjection:
+                  InputRef #0
+                  InputRef #1
+                  InputRef #2
+                PhysicalTableScan:
+                    table #7,
+                    columns [0, 5, 6, 8],
+                    with_row_handler: false,
+                    is_sorted: false,
+                    expr: Eq(InputRef #3, String("R") (const))
           PhysicalTableScan:
-              table #7,
-              columns [0, 8, 5, 6],
+              table #0,
+              columns [0, 1],
               with_row_handler: false,
               is_sorted: false,
-              expr: Eq(InputRef #1, String("R") (const))
-        PhysicalTableScan:
-            table #0,
-            columns [0, 1],
-            with_row_handler: false,
-            is_sorted: false,
-            expr: None
+              expr: None
 */
 

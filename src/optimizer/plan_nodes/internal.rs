@@ -60,6 +60,20 @@ impl PlanNode for Internal {
     fn schema(&self) -> Vec<ColumnDesc> {
         self.column_descs.clone()
     }
+
+    fn prune_col(&self, required_cols: BitSet) -> PlanRef {
+        let (column_ids, column_descs) = required_cols
+            .iter()
+            .map(|col_idx| (self.column_ids[col_idx], self.column_descs[col_idx].clone()))
+            .unzip();
+        Internal::new(
+            self.table_name.clone(),
+            self.table_ref_id,
+            column_ids,
+            column_descs,
+        )
+        .into_plan_ref()
+    }
 }
 
 impl fmt::Display for Internal {

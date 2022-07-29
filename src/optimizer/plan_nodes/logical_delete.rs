@@ -46,6 +46,12 @@ impl PlanNode for LogicalDelete {
             false,
         )]
     }
+
+    fn prune_col(&self, _required_cols: BitSet) -> PlanRef {
+        let input_cols = (0..self.child().out_types().len()).into_iter().collect();
+        self.clone_with_child(self.child.prune_col(input_cols))
+            .into_plan_ref()
+    }
 }
 
 impl fmt::Display for LogicalDelete {

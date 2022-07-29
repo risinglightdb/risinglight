@@ -1,12 +1,15 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::collections::HashMap;
 use std::fmt;
 
 use itertools::Itertools;
 use serde::Serialize;
 
 use super::*;
+use crate::binder::ExprVisitor;
 use crate::catalog::{ColumnDesc, TableRefId};
+use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 use crate::types::ColumnId;
 /// The logical plan of sequential scan operation.
 #[derive(Debug, Clone, Serialize)]
@@ -82,24 +85,81 @@ impl PlanNode for LogicalTableScan {
     }
 
     fn prune_col(&self, required_cols: BitSet) -> PlanRef {
-        let (column_ids, column_descs) = required_cols
+        let mut visitor = CollectRequiredCols(BitSet::new());
+        if self.expr.is_some() {
+            visitor.visit_expr(self.expr.as_ref().unwrap());
+        }
+        let filter_cols = visitor.0;
+
+        let mut need_rewrite = false;
+
+        if !filter_cols.is_empty()
+            && filter_cols
+                .iter()
+                .any(|index| !required_cols.contains(index))
+        {
+            need_rewrite = true;
+        }
+
+        let mut idx_table = HashMap::new();
+        let (mut column_ids, mut column_descs): (Vec<_>, Vec<_>) = required_cols
             .iter()
+            .filter(|&id| id < self.column_ids.len())
             .map(|id| {
+                idx_table.insert(id, idx_table.len());
                 (
                     self.column_ids[id as usize],
                     self.column_descs[id as usize].clone(),
                 )
             })
             .unzip();
-        Self {
+
+        let mut offset = column_ids.len();
+        let mut expr = self.expr.clone();
+        if need_rewrite {
+            let (f_column_ids, f_column_descs): (Vec<_>, Vec<_>) = filter_cols
+                .iter()
+                .filter(|&id| id < self.column_ids.len() && !required_cols.contains(id))
+                .map(|id| {
+                    idx_table.insert(id, offset);
+                    offset += 1;
+                    (
+                        self.column_ids[id as usize],
+                        self.column_descs[id as usize].clone(),
+                    )
+                })
+                .unzip();
+
+            column_ids.extend(f_column_ids.into_iter());
+            column_descs.extend(f_column_descs.into_iter());
+
+            Mapper(idx_table).rewrite_expr(expr.as_mut().unwrap());
+        }
+
+        let new_scan = Self {
             table_ref_id: self.table_ref_id,
             column_ids,
-            column_descs,
+            column_descs: column_descs.clone(),
             with_row_handler: self.with_row_handler,
             is_sorted: self.is_sorted,
-            expr: self.expr.clone(),
+            expr,
         }
-        .into_plan_ref()
+        .into_plan_ref();
+
+        if need_rewrite {
+            let project_expressions = (0..required_cols.len())
+                .into_iter()
+                .map(|index| {
+                    BoundExpr::InputRef(BoundInputRef {
+                        index,
+                        return_type: column_descs[index].datatype().clone(),
+                    })
+                })
+                .collect();
+            LogicalProjection::new(project_expressions, new_scan).into_plan_ref()
+        } else {
+            new_scan
+        }
     }
 }
 impl fmt::Display for LogicalTableScan {

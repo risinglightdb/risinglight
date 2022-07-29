@@ -55,6 +55,16 @@ impl PlanNode for LogicalInsert {
             false,
         )]
     }
+
+    fn prune_col(&self, _required_cols: BitSet) -> PlanRef {
+        let input_cols = self
+            .column_ids
+            .iter()
+            .map(|&column_id| column_id as usize)
+            .collect();
+        self.clone_with_child(self.child.prune_col(input_cols))
+            .into_plan_ref()
+    }
 }
 
 impl fmt::Display for LogicalInsert {

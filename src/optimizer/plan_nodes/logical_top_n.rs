@@ -6,6 +6,8 @@ use serde::Serialize;
 
 use super::*;
 use crate::binder::statement::BoundOrderBy;
+use crate::binder::ExprVisitor;
+use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 
 /// The logical plan of top N operation.
 #[derive(Debug, Clone, Serialize)]
@@ -68,6 +70,49 @@ impl PlanNode for LogicalTopN {
 
     fn estimated_cardinality(&self) -> usize {
         self.limit
+    }
+
+    fn prune_col(&self, required_cols: BitSet) -> PlanRef {
+        let mut visitor = CollectRequiredCols(required_cols.clone());
+
+        self.comparators
+            .iter()
+            .for_each(|node| visitor.visit_expr(&node.expr));
+
+        let input_cols = visitor.0;
+
+        let mapper = Mapper::new_with_bitset(&input_cols);
+        let mut comparators = self.comparators.clone();
+
+        comparators
+            .iter_mut()
+            .for_each(|node| mapper.rewrite_expr(&mut node.expr));
+
+        let need_prune = input_cols != required_cols;
+
+        let new_topn = LogicalTopN::new(
+            self.offset,
+            self.limit,
+            comparators,
+            self.child.prune_col(input_cols),
+        )
+        .into_plan_ref();
+
+        if !need_prune {
+            new_topn
+        } else {
+            let out_types = self.out_types();
+            let project_expressions = required_cols
+                .iter()
+                .map(|col_idx| {
+                    BoundExpr::InputRef(BoundInputRef {
+                        index: mapper[col_idx],
+                        return_type: out_types[col_idx].clone(),
+                    })
+                })
+                .collect();
+            LogicalProjection::new(project_expressions, new_topn).into_plan_ref()
+        }
     }
 }
 

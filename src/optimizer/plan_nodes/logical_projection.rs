@@ -5,7 +5,7 @@ use std::fmt;
 use serde::Serialize;
 
 use super::*;
-use crate::binder::BoundExpr;
+use crate::binder::{BoundExpr, ExprVisitor};
 use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 
 /// The logical plan of project operation.
@@ -106,6 +106,28 @@ impl PlanNode for LogicalProjection {
     fn estimated_cardinality(&self) -> usize {
         self.child().estimated_cardinality()
     }
+
+    fn prune_col(&self, required_cols: BitSet) -> PlanRef {
+        let mut new_projection_expressions: Vec<BoundExpr> = required_cols
+            .iter()
+            .map(|index| self.project_expressions[index].clone())
+            .collect();
+
+        let mut visitor = CollectRequiredCols(BitSet::with_capacity(required_cols.len()));
+        new_projection_expressions
+            .iter()
+            .for_each(|expr| visitor.visit_expr(expr));
+
+        let input_cols = visitor.0;
+
+        let mapper = Mapper::new_with_bitset(&input_cols);
+        new_projection_expressions.iter_mut().for_each(|expr| {
+            mapper.rewrite_expr(expr);
+        });
+
+        LogicalProjection::new(new_projection_expressions, self.child.prune_col(input_cols))
+            .into_plan_ref()
+    }
 }
 
 impl fmt::Display for LogicalProjection {
@@ -140,7 +162,7 @@ mod tests {
                 }),
                 BoundExpr::Constant(DataValue::Int32(0)),
             ],
-            Arc::new(Dummy {}),
+            Arc::new(Dummy::new(Vec::new())),
         );
 
         let column_names = plan.out_names();
@@ -169,7 +191,7 @@ mod tests {
                 }),
                 BoundExpr::Constant(DataValue::Int32(0)),
             ],
-            Arc::new(Dummy {}),
+            Arc::new(Dummy::new(Vec::new())),
         );
 
         let outer = LogicalProjection::new(
@@ -198,5 +220,59 @@ mod tests {
 
         assert_eq!(outermost.out_names()[0], "v1");
         assert!(outermost.child.as_dummy().is_ok());
+    }
+
+    #[test]
+    fn test_prune_projection() {
+        let ty = DataTypeKind::Int(None).not_null();
+        let col_descs = vec![
+            ty.clone().to_column("v1".into()),
+            ty.clone().to_column("v2".into()),
+            ty.clone().to_column("v3".into()),
+        ];
+        let table_scan = LogicalTableScan::new(
+            crate::catalog::TableRefId {
+                database_id: 0,
+                schema_id: 0,
+                table_id: 0,
+            },
+            vec![1, 2, 3],
+            col_descs.clone(),
+            false,
+            false,
+            None,
+        );
+        let project_expressions = vec![
+            BoundExpr::InputRef(BoundInputRef {
+                index: 0,
+                return_type: ty.clone(),
+            }),
+            BoundExpr::InputRef(BoundInputRef {
+                index: 1,
+                return_type: ty.clone(),
+            }),
+            BoundExpr::InputRef(BoundInputRef {
+                index: 2,
+                return_type: ty.clone(),
+            }),
+        ];
+        let projection = LogicalProjection::new(project_expressions, table_scan.into_plan_ref());
+
+        let mut required_cols = BitSet::new();
+        required_cols.insert(1);
+
+        let plan = projection.prune_col(required_cols);
+        let plan = plan.as_logical_projection().unwrap();
+        assert_eq!(1, plan.project_expressions().len());
+        assert_eq!(
+            plan.project_expressions()[0],
+            BoundExpr::InputRef(BoundInputRef {
+                index: 0,
+                return_type: ty,
+            })
+        );
+        let child = plan.child.as_logical_table_scan().unwrap();
+        assert_eq!(child.column_descs(), &col_descs[1..2]);
+        assert_eq!(child.column_ids(), &[2]);
     }
 }
