@@ -10,7 +10,7 @@ use crate::types::DataValue::*;
 /// Boolean expression simplification rule will rewrite expression which compares ('>=', '<' and
 /// '=') with null. (You need `a is null`!)
 ///
-/// Moroever, when the filtering condition is always false, we will prune the child logical plan,
+/// Moreover, when the filtering condition is always false, we will prune the child logical plan,
 /// when the filtering condition is always true, we will prune logical filter plan.
 ///
 /// For example:

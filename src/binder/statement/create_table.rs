@@ -59,6 +59,11 @@ impl Binder {
                     // column's option
                     return Err(BindError::NotSupportedTSQL);
                 } else if !has_pk_from_column {
+                    for name in &pks_name_from_constraints {
+                        if !set.contains(name) {
+                            return Err(BindError::InvalidColumn(name.clone()));
+                        }
+                    }
                     ordered_pk_ids =
                         Binder::ordered_pks_from_constraint(&pks_name_from_constraints, columns);
                 }
@@ -196,7 +201,8 @@ mod tests {
             create table t5 (a int not null, b int not null, c int, primary key(b, a));
             create table t6 (a int primary key, b int not null, c int not null, primary key(b, c));
             create table t7 (a int primary key, b int);
-            create table t8 (a int not null, b int, primary key(a));";
+            create table t8 (a int not null, b int, primary key(a));
+            create table t9 (v1 int, primary key(a));";
 
         let stmts = parse(sql).unwrap();
 
@@ -325,6 +331,11 @@ mod tests {
                 ],
                 ordered_pk_ids: vec![0],
             }
+        );
+
+        assert_eq!(
+            binder.bind_create_table(&stmts[8]),
+            Err(BindError::InvalidColumn("a".into()))
         );
     }
 }

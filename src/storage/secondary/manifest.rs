@@ -76,11 +76,19 @@ pub enum ManifestOperation {
 
 /// Handles all reads and writes to a manifest file
 pub struct Manifest {
-    file: tokio::fs::File,
+    file: Option<tokio::fs::File>,
     enable_fsync: bool,
 }
 
 impl Manifest {
+    /// Create a mock manifest
+    pub fn new_mock() -> Self {
+        Self {
+            file: None,
+            enable_fsync: false,
+        }
+    }
+
     pub async fn open(path: impl AsRef<Path>, enable_fsync: bool) -> StorageResult<Self> {
         let file = OpenOptions::default()
             .read(true)
@@ -88,13 +96,22 @@ impl Manifest {
             .create(true)
             .open(path.as_ref())
             .await?;
-        Ok(Self { file, enable_fsync })
+        Ok(Self {
+            file: Some(file),
+            enable_fsync,
+        })
     }
 
     pub async fn replay(&mut self) -> StorageResult<Vec<ManifestOperation>> {
+        let file = if let Some(file) = &mut self.file {
+            file
+        } else {
+            return Ok(vec![]);
+        };
+
         let mut data = String::new();
-        self.file.seek(SeekFrom::Start(0)).await?;
-        let mut reader = BufReader::new(&mut self.file);
+        file.seek(SeekFrom::Start(0)).await?;
+        let mut reader = BufReader::new(file);
 
         // TODO: don't read all to memory
         reader.read_to_string(&mut data).await?;
@@ -131,15 +148,21 @@ impl Manifest {
     }
 
     pub async fn append(&mut self, entries: &[ManifestOperation]) -> StorageResult<()> {
+        let file = if let Some(file) = &mut self.file {
+            file
+        } else {
+            return Ok(());
+        };
+
         let mut json = Vec::new();
         serde_json::to_writer(&mut json, &ManifestOperation::Begin)?;
         for entry in entries {
             serde_json::to_writer(&mut json, entry)?;
         }
         serde_json::to_writer(&mut json, &ManifestOperation::End)?;
-        self.file.write_all(&json).await?;
+        file.write_all(&json).await?;
         if self.enable_fsync {
-            self.file.sync_data().await?;
+            file.sync_data().await?;
         }
         Ok(())
     }

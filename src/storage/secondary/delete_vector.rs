@@ -3,6 +3,7 @@
 use std::path::Path;
 
 use bitvec::prelude::BitVec;
+use futures::pin_mut;
 use itertools::Itertools;
 use prost::Message;
 use risinglight_proto::rowset::DeleteRecord;
@@ -42,9 +43,10 @@ impl DeleteVector {
     }
 
     pub async fn write_all(
-        file: &mut tokio::fs::File,
+        file: impl tokio::io::AsyncWrite,
         deletes: &[DeleteRecord],
     ) -> StorageResult<()> {
+        pin_mut!(file);
         let mut data = Vec::new();
         for delete in deletes {
             delete.encode_length_delimited(&mut data)?;

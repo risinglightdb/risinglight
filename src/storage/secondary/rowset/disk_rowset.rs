@@ -197,7 +197,7 @@ pub mod tests {
     use crate::array::ArrayImpl;
     use crate::storage::secondary::rowset::rowset_builder::RowsetBuilder;
     use crate::storage::secondary::rowset::RowsetWriter;
-    use crate::storage::secondary::ColumnBuilderOptions;
+    use crate::storage::secondary::{ColumnBuilderOptions, EncodeType};
     use crate::types::{DataTypeExt, DataTypeKind};
 
     pub async fn helper_build_rowset(tempdir: &TempDir, nullable: bool, len: usize) -> DiskRowset {
@@ -297,7 +297,7 @@ pub mod tests {
             },
         )];
         let mut column_options = ColumnBuilderOptions::default_for_test();
-        column_options.is_rle = true;
+        column_options.encode_type = EncodeType::RunLength;
         let mut builder = RowsetBuilder::new(columns.clone().into(), column_options);
 
         for _ in 0..100 {

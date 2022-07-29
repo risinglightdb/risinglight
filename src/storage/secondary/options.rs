@@ -30,6 +30,13 @@ impl IOBackend {
     }
 }
 
+#[derive(Copy, Clone)]
+pub enum EncodeType {
+    Plain,
+    RunLength,
+    Dictionary,
+}
+
 /// Options for `SecondaryStorage`
 #[derive(Clone)]
 pub struct StorageOptions {
@@ -51,11 +58,14 @@ pub struct StorageOptions {
     /// Checksum type used by columns
     pub checksum_type: ChecksumType,
 
-    /// Whether using run-length encoding
-    pub is_rle: bool,
+    /// Encode type
+    pub encode_type: EncodeType,
 
     /// Whether record first_key of each block into block_index
     pub record_first_key: bool,
+
+    /// Whether to disable all disk operations, only for test use
+    pub disable_all_disk_operation: bool,
 }
 
 impl StorageOptions {
@@ -72,21 +82,23 @@ impl StorageOptions {
                 IOBackend::PositionedRead
             },
             checksum_type: ChecksumType::Crc32,
-            is_rle: false,
+            encode_type: EncodeType::Plain,
             record_first_key: false,
+            disable_all_disk_operation: false,
         }
     }
 
-    pub fn default_for_test(path: PathBuf) -> Self {
+    pub fn default_for_test() -> Self {
         Self {
-            path,
+            path: PathBuf::from("_inaccessible_directory"),
             cache_size: 1024,
             target_rowset_size: 1 << 20,       // 1MB
             target_block_size: 16 * (1 << 10), // 16KB
             io_backend: IOBackend::in_memory(),
             checksum_type: ChecksumType::None,
-            is_rle: false,
+            encode_type: EncodeType::Plain,
             record_first_key: false,
+            disable_all_disk_operation: true,
         }
     }
 }
@@ -100,8 +112,8 @@ pub struct ColumnBuilderOptions {
     /// Checksum type used by columns
     pub checksum_type: ChecksumType,
 
-    /// Whether using run-length encoding
-    pub is_rle: bool,
+    /// Encode type
+    pub encode_type: EncodeType,
 
     /// Whether record first_key of each block
     pub record_first_key: bool,
@@ -112,7 +124,7 @@ impl ColumnBuilderOptions {
         Self {
             target_block_size: options.target_block_size,
             checksum_type: options.checksum_type,
-            is_rle: options.is_rle,
+            encode_type: EncodeType::Plain,
             record_first_key: options.record_first_key,
         }
     }
@@ -122,7 +134,7 @@ impl ColumnBuilderOptions {
         Self {
             target_block_size: 4096,
             checksum_type: ChecksumType::Crc32,
-            is_rle: false,
+            encode_type: EncodeType::Plain,
             record_first_key: false,
         }
     }
@@ -132,7 +144,7 @@ impl ColumnBuilderOptions {
         Self {
             target_block_size: 128,
             checksum_type: ChecksumType::None,
-            is_rle: false,
+            encode_type: EncodeType::Plain,
             record_first_key: false,
         }
     }
@@ -142,7 +154,7 @@ impl ColumnBuilderOptions {
         Self {
             target_block_size: 128,
             checksum_type: ChecksumType::None,
-            is_rle: true,
+            encode_type: EncodeType::RunLength,
             record_first_key: false,
         }
     }
@@ -152,7 +164,7 @@ impl ColumnBuilderOptions {
         Self {
             target_block_size: 128,
             checksum_type: ChecksumType::None,
-            is_rle: false,
+            encode_type: EncodeType::Plain,
             record_first_key: true,
         }
     }

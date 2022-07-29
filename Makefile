@@ -26,6 +26,9 @@ test:
 
 check: fmt_check clippy_check build test docs_check
 
+apply_planner_test:
+	cargo run -p risinglight_plannertest --bin apply-planner-test
+
 clean:
 	cargo clean
 	rm -rf $(TPCH_DBGEN_PATH)

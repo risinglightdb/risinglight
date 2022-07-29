@@ -6,12 +6,13 @@ use bytes::Buf;
 
 use super::{Block, BlockIterator};
 use crate::array::{Array, ArrayBuilder};
-
+use crate::storage::secondary::block::decode_u32;
 pub fn decode_rle_block(data: Block) -> (usize, Block, Block) {
     let mut buffer = &data[..];
-    let rle_num = buffer.get_u32_le() as usize;
-    let rle_length = std::mem::size_of::<u32>() + std::mem::size_of::<u16>() * rle_num;
-    let rle_data = data.slice(std::mem::size_of::<u32>()..rle_length);
+    let rle_num = buffer.get_u32_le() as usize; // rle_row_count
+    let rle_length = std::mem::size_of::<u32>() * 2 + buffer.get_u32_le() as usize;
+    let rle_data = data.slice(std::mem::size_of::<u32>() * 2..rle_length);
+
     let block_data = data.slice(rle_length..);
     (rle_num, rle_data, block_data)
 }
@@ -27,7 +28,7 @@ where
     block_iter: B,
 
     /// rle block
-    rle_block: Block,
+    rle_block: Vec<u32>,
 
     /// Indicates current position in the rle block
     cur_row: usize,
@@ -57,12 +58,13 @@ where
     B: BlockIterator<A>,
 {
     pub fn new(block_iter: B, rle_block: Block, rle_row_count: usize) -> Self {
+        let mut slice = &rle_block[..];
+        let rle_block = decode_u32(&mut slice).unwrap();
         let mut row_count: usize = 0;
-        for row_id in 0..rle_row_count {
-            let mut rle_buffer = &rle_block[row_id * std::mem::size_of::<u16>()..];
-            let rle_count = rle_buffer.get_u16_le();
-            row_count += rle_count as usize;
+        for count in &rle_block {
+            row_count += *count as usize;
         }
+
         Self {
             block_iter,
             rle_block,
@@ -76,9 +78,8 @@ where
         }
     }
 
-    fn get_cur_rle_count(&self) -> u16 {
-        let mut rle_buffer = &self.rle_block[self.cur_row * std::mem::size_of::<u16>()..];
-        rle_buffer.get_u16_le()
+    fn get_cur_rle_count(&mut self) -> u32 {
+        self.rle_block[self.cur_row]
     }
 
     fn get_next_element(&mut self) -> Option<Option<<A::Item as ToOwned>::Owned>> {

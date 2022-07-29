@@ -1,0 +1,15 @@
+- sql: |
+    explain select count(*) from t
+  desc: count(*) is special
+  before:
+    - create table t(v int)
+  tasks:
+    - print
+
+- sql: |
+    explain select count(*) + 1 from t
+  desc: count(*) with projection
+  before:
+    - create table t(v int)
+  tasks:
+    - print

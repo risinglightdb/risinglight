@@ -22,21 +22,27 @@ impl SecondaryStorage {
         let catalog = RootCatalog::new();
         let tables = HashMap::new();
 
-        // create folder if not exist
-        if fs::metadata(&options.path).await.is_err() {
-            info!("create db directory at {:?}", options.path);
-            fs::create_dir(&options.path).await?;
-        }
+        if !options.disable_all_disk_operation {
+            // create folder if not exist
+            if fs::metadata(&options.path).await.is_err() {
+                info!("create db directory at {:?}", options.path);
+                fs::create_dir(&options.path).await?;
+            }
 
-        // create DV folder if not exist
-        let dv_directory = options.path.join("dv");
-        if fs::metadata(&dv_directory).await.is_err() {
-            fs::create_dir(&dv_directory).await?;
+            // create DV folder if not exist
+            let dv_directory = options.path.join("dv");
+            if fs::metadata(&dv_directory).await.is_err() {
+                fs::create_dir(&dv_directory).await?;
+            }
         }
 
         let enable_fsync = !matches!(options.io_backend, IOBackend::InMemory(_));
 
-        let mut manifest = Manifest::open(options.path.join("manifest.json"), enable_fsync).await?;
+        let mut manifest = if options.disable_all_disk_operation {
+            Manifest::new_mock()
+        } else {
+            Manifest::open(options.path.join("manifest.json"), enable_fsync).await?
+        };
 
         let manifest_ops = manifest.replay().await?;
 
@@ -105,20 +111,22 @@ impl SecondaryStorage {
 
         let mut changeset = vec![];
 
-        // vacuum unused RowSets
-        let mut dir = fs::read_dir(&options.path).await?;
-        while let Some(entry) = dir.next_entry().await? {
-            if entry.path().is_dir() {
-                if let Some((table_id, rowset_id)) =
-                    entry.file_name().to_str().unwrap().split_once('_')
-                {
-                    if let (Ok(table_id), Ok(rowset_id)) =
-                        (table_id.parse::<u32>(), rowset_id.parse::<u32>())
+        if !options.disable_all_disk_operation {
+            // vacuum unused RowSets
+            let mut dir = fs::read_dir(&options.path).await?;
+            while let Some(entry) = dir.next_entry().await? {
+                if entry.path().is_dir() {
+                    if let Some((table_id, rowset_id)) =
+                        entry.file_name().to_str().unwrap().split_once('_')
                     {
-                        if !rowsets_to_open.contains_key(&(table_id, rowset_id)) {
-                            fs::remove_dir_all(entry.path())
-                                .await
-                                .expect("failed to vacuum unused rowsets");
+                        if let (Ok(table_id), Ok(rowset_id)) =
+                            (table_id.parse::<u32>(), rowset_id.parse::<u32>())
+                        {
+                            if !rowsets_to_open.contains_key(&(table_id, rowset_id)) {
+                                fs::remove_dir_all(entry.path())
+                                    .await
+                                    .expect("failed to vacuum unused rowsets");
+                            }
                         }
                     }
                 }

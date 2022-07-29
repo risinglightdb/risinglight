@@ -27,7 +27,7 @@ btreemultimap = "0.1"
 bytes = "1"
 chrono = "0.4"
 clap = { version = "3", features = ["derive"] }
-comfy-table = { version = "5.0", default-features = false }
+comfy-table = { version = "6", default-features = false }
 crc32fast = "1"
 csv = "1"
 dirs = "4"
@@ -36,14 +36,14 @@ enum_dispatch = "0.3"
 erased-serde = "0.3"
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
 futures-async-stream = "0.2"
-humantime = "2.1.0"
+humantime = "2"
 indicatif = { version = "0.16" }
 indoc = "1"
 iter-chunks = "0.1"
 itertools = "0.10"
 manifest-dir-macros = "0.1.11"
 minitrace = "0.4.0"
-moka = { version = "0.7", features = ["future"] }
+moka = { version = "0.9", features = ["future"] }
 num-traits = "0.2"
 parking_lot = "0.12"
 paste = "1"
@@ -51,14 +51,14 @@ prost = "0.10.0"
 ref-cast = "1.0"
 risinglight_proto = "0.1"
 rust_decimal = "1"
-rustyline = "9"
+rustyline = "10"
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 smallvec = { version = "1", features = ["serde"] }
-sqllogictest = "0.3"
-sqlparser = { version = "0.16", features = ["serde"] }
+sqllogictest = "0.5"
+sqlparser = { version = "0.18", features = ["serde"] }
 thiserror = "1"
-tikv-jemallocator = { version = "0.4", optional = true }
+tikv-jemallocator = { version = "0.5", optional = true }
 tokio = { version = "1", features = ["full"] }
 tokio-util = "0.7"
 tracing = "0.1"
@@ -84,7 +84,8 @@ lto = 'thin'
 [workspace]
 members = [
   "proto",
-  "tests/sqllogictest"
+  "tests/sqllogictest",
+  "tests/sqlplannertest"
 ]
 
 [patch.crates-io]

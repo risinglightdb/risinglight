@@ -13,6 +13,7 @@ use super::super::{
 use super::ColumnBuilder;
 use crate::array::Array;
 use crate::storage::secondary::block::RleBlockBuilder;
+use crate::storage::secondary::EncodeType;
 use crate::types::{Date, Interval};
 
 /// All supported block builders for primitive types.
@@ -132,8 +133,8 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
         let mut iter = array.iter().peekable();
         while iter.peek().is_some() {
             if self.current_builder.is_none() {
-                match (self.nullable, self.options.is_rle) {
-                    (true, true) => {
+                match (self.nullable, self.options.encode_type) {
+                    (true, EncodeType::RunLength) => {
                         let builder = PlainPrimitiveNullableBlockBuilder::new(
                             self.options.target_block_size - 16,
                         );
@@ -145,14 +146,17 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                                 builder
                             )));
                     }
-                    (true, false) => {
+                    (true, EncodeType::Plain) => {
                         self.current_builder = Some(BlockBuilderImpl::PlainNullable(
                             PlainPrimitiveNullableBlockBuilder::new(
                                 self.options.target_block_size - 16,
                             ),
                         ));
                     }
-                    (false, true) => {
+                    (true, EncodeType::Dictionary) => {
+                        todo!("Dict encoding for f64 is not supported yet. Tracking issue: https://github.com/risinglightdb/risinglight/issues/674")
+                    }
+                    (false, EncodeType::RunLength) => {
                         let builder =
                             PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16);
                         self.current_builder =
@@ -163,10 +167,13 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                                 builder
                             )));
                     }
-                    (false, false) => {
+                    (false, EncodeType::Plain) => {
                         self.current_builder = Some(BlockBuilderImpl::Plain(
                             PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16),
                         ));
+                    }
+                    (false, EncodeType::Dictionary) => {
+                        todo!("Dict encoding for f64 is not supported yet. Tracking issue: https://github.com/risinglightdb/risinglight/issues/674")
                     }
                 }
 
