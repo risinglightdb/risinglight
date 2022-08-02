@@ -8,7 +8,9 @@ use crate::optimizer::plan_nodes::{
     IntoPlanRef, LogicalAggregate, LogicalProjection, PlanTreeNodeUnary,
 };
 
+/// Eliminate Common Sub-expressions In Projection Operator
 pub struct ProjectEliminateCSE {}
+/// Eliminate Common Sub-expressions In Aggregate Function Arguments
 pub struct AggregateEliminateCSE {}
 
 impl Rule for ProjectEliminateCSE {
@@ -46,6 +48,7 @@ impl Rule for AggregateEliminateCSE {
         let exprs_iter = group_keys
             .iter()
             .chain(agg_calls.iter().flat_map(|calls| calls.args.iter()));
+
         cse_eliminator.search(exprs_iter.clone());
 
         if !cse_eliminator.can_collect() {
@@ -55,10 +58,10 @@ impl Rule for AggregateEliminateCSE {
 
         // Collect Phase
         cse_eliminator.collect(exprs_iter);
-
         let exprs_iter = group_keys
             .iter_mut()
             .chain(agg_calls.iter_mut().flat_map(|calls| calls.args.iter_mut()));
+
         cse_eliminator.replace(exprs_iter);
 
         let child = LogicalProjection::new(cse_eliminator.new_projection_exprs(), agg.child());
@@ -66,6 +69,9 @@ impl Rule for AggregateEliminateCSE {
     }
 }
 
+/// Search: Record the number of occurrences of each expression
+/// Collect: Create new projection expression list
+/// Replace: Replaces the expression binding of the current operator
 #[derive(PartialEq, Debug)]
 enum EliminatorState {
     Search,
@@ -74,9 +80,30 @@ enum EliminatorState {
     End,
 }
 
+/// `count`: the number of occurrences of the expression.
+/// `new_projection_index`: the index of new projection expressions list.
+/// an expressions that can be eliminated must be deterministic and have no side effects.
+/// like randow(), now() function, it's not satisfied.
+struct SubExprNode {
+    count: usize,
+    // for now, just use is_none(), when we have HashMap, some() will be used.
+    new_projection_index: Option<usize>,
+}
+
+impl SubExprNode {
+    fn new() -> Self {
+        SubExprNode {
+            count: 1,
+            new_projection_index: None,
+        }
+    }
+}
+
+/// This is a helper struct for eliminate common sub-expressions
+/// Does not eliminate common aggregate functions
 struct CSEEliminator {
-    exprs_maps: Vec<BoundExpr>, // TODO: HashMap
-    counts: Vec<(usize, bool)>,
+    exprs_maps: Vec<BoundExpr>, // TODO(lokax): HashMap<BoundExpr, SubExprNode>
+    subexprs: Vec<SubExprNode>,
     new_projection_exprs: Vec<BoundExpr>,
     state: EliminatorState,
 }
@@ -85,7 +112,7 @@ impl CSEEliminator {
     fn new() -> Self {
         Self {
             exprs_maps: vec![],
-            counts: vec![],
+            subexprs: vec![],
             new_projection_exprs: vec![],
             state: EliminatorState::Search,
         }
@@ -93,10 +120,10 @@ impl CSEEliminator {
 
     fn find_common_expressions(&mut self, expr: &BoundExpr) {
         if let Some(idx) = self.exprs_maps.iter().position(|e| e == expr) {
-            self.counts[idx].0 += 1;
+            self.subexprs[idx].count += 1;
         } else {
             self.exprs_maps.push(expr.clone());
-            self.counts.push((1, false));
+            self.subexprs.push(SubExprNode::new());
         }
     }
 
@@ -116,12 +143,13 @@ impl CSEEliminator {
             .iter()
             .position(|proj_expr| proj_expr == expr)
         {
-            let (count, occupied) = self.counts[idx];
-            if count > 1 && !occupied {
+            let subexpr = &mut self.subexprs[idx];
+            if subexpr.count > 1 && subexpr.new_projection_index.is_none() {
                 self.new_projection_exprs.push(expr.clone());
-                self.counts[idx].1 = true;
+                subexpr.new_projection_index = Some(self.new_projection_exprs.len() - 1);
+                return true;
             }
-            return count > 1;
+            return subexpr.count > 1;
         }
         false
     }
@@ -146,7 +174,7 @@ impl CSEEliminator {
     fn advance_state(&mut self) {
         match &mut self.state {
             state @ EliminatorState::Search => {
-                if self.counts.iter().any(|(count, _)| count > &1) {
+                if self.subexprs.iter().any(|sub_expr| sub_expr.count > 1) {
                     *state = EliminatorState::Collect;
                 } else {
                     *state = EliminatorState::End;
@@ -158,9 +186,9 @@ impl CSEEliminator {
         }
     }
 
-    fn new_projection_exprs(&mut self) -> Vec<BoundExpr> {
+    fn new_projection_exprs(self) -> Vec<BoundExpr> {
         assert_eq!(self.state, EliminatorState::End);
-        std::mem::take(&mut self.new_projection_exprs)
+        self.new_projection_exprs
     }
 
     fn can_collect(&self) -> bool {
@@ -191,6 +219,7 @@ impl CSEEliminator {
 
 impl ExprVisitor for CSEEliminator {
     fn visit_input_ref(&mut self, expr: &BoundInputRef) {
+        // the input expression are alawys collected
         if let EliminatorState::Collect = self.state {
             self.collect_new_input_ref_exprs(&BoundExpr::InputRef(expr.clone()))
         }
@@ -213,6 +242,9 @@ impl ExprVisitor for CSEEliminator {
                 self.find_common_expressions(&BoundExpr::BinaryOp(expr.clone()))
             }
             EliminatorState::Collect => {
+                // example: SELECT expr1 + expr3, expr3
+                // first try collect expr1 + expr3.
+                // if the return value is false, try collect expr1 and expr3
                 if self.collect_new_proj_exprs(&BoundExpr::BinaryOp(expr.clone())) {
                     return;
                 }

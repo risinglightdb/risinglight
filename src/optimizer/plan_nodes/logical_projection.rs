@@ -162,56 +162,6 @@ mod tests {
     }
 
     #[test]
-    fn test_nested_projection() {
-        let inner = LogicalProjection::new(
-            vec![
-                BoundExpr::ColumnRef(BoundColumnRef {
-                    column_ref_id: ColumnRefId::new(0, 0, 0, 0),
-                    is_primary_key: false,
-                    desc: DataTypeKind::Int(None).not_null().to_column("v1".into()),
-                }),
-                BoundExpr::TypeCast(BoundTypeCast {
-                    expr: Box::new(BoundExpr::Constant(DataValue::Int32(0))),
-                    ty: DataTypeKind::Int(None),
-                }),
-                BoundExpr::ExprWithAlias(BoundExprWithAlias {
-                    expr: Box::new(BoundExpr::Constant(DataValue::Int32(0))),
-                    alias: "alias".to_string(),
-                }),
-                BoundExpr::Constant(DataValue::Int32(0)),
-            ],
-            Arc::new(Dummy::new(Vec::new())),
-        );
-
-        let outer = LogicalProjection::new(
-            vec![
-                BoundExpr::InputRef(BoundInputRef {
-                    index: 0,
-                    return_type: DataTypeKind::Int(None).not_null(),
-                }),
-                BoundExpr::Constant(DataValue::Int32(0)),
-            ],
-            Arc::new(inner),
-        );
-
-        let column_names = outer.out_names();
-        assert_eq!(column_names[0], "v1");
-        assert_eq!(column_names[1], "?column?");
-        assert!(outer.child.as_dummy().is_ok());
-
-        let outermost = LogicalProjection::new(
-            vec![BoundExpr::InputRef(BoundInputRef {
-                index: 0,
-                return_type: DataTypeKind::Int(None).not_null(),
-            })],
-            Arc::new(outer),
-        );
-
-        assert_eq!(outermost.out_names()[0], "v1");
-        assert!(outermost.child.as_dummy().is_ok());
-    }
-
-    #[test]
     fn test_prune_projection() {
         let ty = DataTypeKind::Int(None).not_null();
         let col_descs = vec![

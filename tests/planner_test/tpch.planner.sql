@@ -126,23 +126,32 @@ PhysicalOrder:
       (InputRef #8 / InputRef #9) (alias to avg_disc)
       InputRef #10 (alias to count_order)
     PhysicalHashAgg:
+        InputRef #0
         InputRef #1
-        InputRef #2
+        sum(InputRef #2) -> NUMERIC(15,2)
         sum(InputRef #3) -> NUMERIC(15,2)
-        sum(InputRef #4) -> NUMERIC(15,2)
-        sum((InputRef #4 * (1 - InputRef #5))) -> NUMERIC(15,2) (null)
-        sum(((InputRef #4 * (1 - InputRef #5)) * (1 + InputRef #6))) -> NUMERIC(15,2) (null)
+        sum(InputRef #4) -> NUMERIC(15,2) (null)
+        sum((InputRef #4 * (1 + InputRef #5))) -> NUMERIC(15,2) (null)
+        count(InputRef #2) -> INT
         count(InputRef #3) -> INT
-        count(InputRef #4) -> INT
-        sum(InputRef #5) -> NUMERIC(15,2)
-        count(InputRef #5) -> INT
-        count(InputRef #0) -> INT
-      PhysicalTableScan:
-          table #7,
-          columns [10, 8, 9, 4, 5, 6, 7],
-          with_row_handler: false,
-          is_sorted: false,
-          expr: LtEq(InputRef #0, Date(Date(10490)) (const))
+        sum(InputRef #6) -> NUMERIC(15,2)
+        count(InputRef #6) -> INT
+        count(InputRef #7) -> INT
+      PhysicalProjection:
+          InputRef #1
+          InputRef #2
+          InputRef #3
+          InputRef #4
+          (InputRef #4 * (1 - InputRef #5))
+          InputRef #6
+          InputRef #5
+          InputRef #0
+        PhysicalTableScan:
+            table #7,
+            columns [10, 8, 9, 4, 5, 6, 7],
+            with_row_handler: false,
+            is_sorted: false,
+            expr: LtEq(InputRef #0, Date(Date(10490)) (const))
 */
 
 -- tpch-q3: TPC-H Q3
