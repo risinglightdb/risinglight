@@ -21,7 +21,7 @@ pub struct PlainCharBlockBuilder {
 
 impl PlainCharBlockBuilder {
     pub fn new(target_size: usize, char_width: u64) -> Self {
-        let data = Vec::with_capacity(target_size * char_width as usize);
+        let data = Vec::with_capacity(target_size);
         Self {
             data,
             char_width: char_width as usize,
