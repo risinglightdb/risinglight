@@ -285,19 +285,26 @@ impl From<&Value> for DataValue {
                 value,
                 leading_field,
                 ..
-            } => match leading_field {
-                Some(DateTimeField::Day) => {
-                    // TODO: don't directly call to_string here, sqlparser may already parsed that.
-                    Self::Interval(Interval::from_days(value.to_string().parse().unwrap()))
+            } => {
+                if let Expr::Value(Value::SingleQuotedString(value)) = &**value {
+                    match leading_field {
+                        Some(DateTimeField::Day) => {
+                            // TODO: don't directly call to_string here, sqlparser may already
+                            // parsed that.
+                            Self::Interval(Interval::from_days(value.to_string().parse().unwrap()))
+                        }
+                        Some(DateTimeField::Month) => Self::Interval(Interval::from_months(
+                            value.to_string().parse().unwrap(),
+                        )),
+                        Some(DateTimeField::Year) => {
+                            Self::Interval(Interval::from_years(value.to_string().parse().unwrap()))
+                        }
+                        _ => todo!("Support interval with leading field: {:?}", leading_field),
+                    }
+                } else {
+                    todo!("unsupported value: {}", value)
                 }
-                Some(DateTimeField::Month) => {
-                    Self::Interval(Interval::from_months(value.to_string().parse().unwrap()))
-                }
-                Some(DateTimeField::Year) => {
-                    Self::Interval(Interval::from_years(value.to_string().parse().unwrap()))
-                }
-                _ => todo!("Support interval with leading field: {:?}", leading_field),
-            },
+            }
             _ => todo!("parse value: {:?}", v),
         }
     }

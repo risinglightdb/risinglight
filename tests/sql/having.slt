@@ -10,7 +10,7 @@ select 42 having 42 > 801
 ----
 
 statement ok
-CREATE TABLE test (x INTEGER, y INTEGER);
+CREATE TABLE test (x INT, y INT);
 
 statement ok
 INSERT INTO test VALUES (1, 2), (2, 2), (11, 22)
