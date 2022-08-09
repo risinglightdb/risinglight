@@ -5,7 +5,7 @@ use serde::Serialize;
 use crate::types::DataType;
 
 /// Reference to a column in data chunk
-#[derive(PartialEq, Clone, Serialize)]
+#[derive(PartialEq, Eq, Clone, Serialize)]
 pub struct BoundInputRef {
     pub index: usize,
     pub return_type: DataType,

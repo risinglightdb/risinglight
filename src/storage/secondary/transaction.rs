@@ -331,7 +331,7 @@ impl SecondaryTransaction {
 
             self.mem = Some(SecondaryMemRowsetImpl::new(
                 self.table.columns.clone(),
-                ColumnBuilderOptions::from_storage_options(&*self.table.storage_options),
+                ColumnBuilderOptions::from_storage_options(&self.table.storage_options),
                 rowset_id,
             ));
         }

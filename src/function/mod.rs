@@ -4,7 +4,7 @@ use crate::types::PhysicalDataTypeKind;
 pub mod abs;
 
 pub use self::abs::*;
-#[derive(thiserror::Error, Debug, PartialEq)]
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum FunctionError {
     #[error("invalid parameters {0}")]
     InvalidParameters(String),

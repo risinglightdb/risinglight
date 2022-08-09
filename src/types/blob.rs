@@ -26,13 +26,13 @@ impl From<Vec<u8>> for Blob {
 
 impl Borrow<BlobRef> for Blob {
     fn borrow(&self) -> &BlobRef {
-        &*self
+        self
     }
 }
 
 impl AsRef<BlobRef> for Blob {
     fn as_ref(&self) -> &BlobRef {
-        &*self
+        self
     }
 }
 
@@ -45,7 +45,7 @@ impl Deref for Blob {
 }
 
 /// An error which can be returned when parsing a blob.
-#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
 #[error("parse blob error")]
 pub enum ParseBlobError {
     Int(#[from] std::num::ParseIntError),

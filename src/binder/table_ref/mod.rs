@@ -33,7 +33,7 @@ pub enum BoundTableRef {
     },
 }
 
-#[derive(PartialEq, Clone, Copy, Serialize)]
+#[derive(PartialEq, Eq, Clone, Copy, Serialize)]
 pub enum BoundJoinOperator {
     Inner,
     LeftOuter,

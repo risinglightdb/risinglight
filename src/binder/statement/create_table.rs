@@ -7,7 +7,7 @@ use crate::parser::{ColumnDef, ColumnOption, Statement};
 use crate::types::{DataType, DatabaseId, SchemaId};
 
 /// A bound `create table` statement.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BoundCreateTable {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,

@@ -270,7 +270,7 @@ impl MergeIterator {
             .unwrap()
             .arrays()
             .iter()
-            .map(|array| ArrayBuilderImpl::from_type_of_array(&*array));
+            .map(ArrayBuilderImpl::from_type_of_array);
 
         let arrays = builders
             .enumerate()

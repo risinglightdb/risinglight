@@ -22,7 +22,7 @@ impl ColumnIndex {
     }
 
     pub fn indexes(&self) -> &[BlockIndex] {
-        &*self.indexes
+        &self.indexes
     }
 
     pub fn len(&self) -> usize {
