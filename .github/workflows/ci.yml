@@ -15,7 +15,7 @@ env:
 
 jobs:
   fmt:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
       - uses: arduino/setup-protoc@v1
@@ -38,7 +38,7 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       PROTOC_NO_VENDOR: 1
     steps:
@@ -63,7 +63,7 @@ jobs:
         run: cargo test --doc --workspace --no-fail-fast --all-features --locked
 
   tpch-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
       - uses: arduino/setup-protoc@v1

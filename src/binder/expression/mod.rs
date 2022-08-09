@@ -287,13 +287,14 @@ impl From<&Value> for DataValue {
                 ..
             } => match leading_field {
                 Some(DateTimeField::Day) => {
-                    Self::Interval(Interval::from_days(value.parse().unwrap()))
+                    // TODO: don't directly call to_string here, sqlparser may already parsed that.
+                    Self::Interval(Interval::from_days(value.to_string().parse().unwrap()))
                 }
                 Some(DateTimeField::Month) => {
-                    Self::Interval(Interval::from_months(value.parse().unwrap()))
+                    Self::Interval(Interval::from_months(value.to_string().parse().unwrap()))
                 }
                 Some(DateTimeField::Year) => {
-                    Self::Interval(Interval::from_years(value.parse().unwrap()))
+                    Self::Interval(Interval::from_years(value.to_string().parse().unwrap()))
                 }
                 _ => todo!("Support interval with leading field: {:?}", leading_field),
             },

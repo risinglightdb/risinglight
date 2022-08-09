@@ -1,5 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use sqlparser::ast::TableFactor;
+
 use super::*;
 
 /// A bound `delete` statement.
@@ -24,8 +26,14 @@ impl Binder {
         if let Statement::Delete {
             table_name,
             selection,
+            ..
         } = stmt
         {
+            let table_name = if let TableFactor::Table { name, .. } = table_name {
+                name
+            } else {
+                unimplemented!()
+            };
             let table_name = &lower_case_name(table_name);
             let (database_name, schema_name, table_name) = split_name(table_name)?;
             let mut from_table =

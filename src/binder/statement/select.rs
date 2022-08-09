@@ -30,7 +30,7 @@ impl Binder {
     }
 
     fn bind_select_internal(&mut self, query: &Query) -> Result<Box<BoundSelect>, BindError> {
-        let select = match &query.body {
+        let select = match &*query.body {
             SetExpr::Select(select) => &**select,
             _ => todo!("not select"),
         };
