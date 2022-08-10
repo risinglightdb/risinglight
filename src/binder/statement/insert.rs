@@ -41,7 +41,7 @@ impl Binder {
                     }
                 }
 
-                match &source.body {
+                match &*source.body {
                     SetExpr::Select(_) => self.bind_insert_select_from(
                         table_ref_id,
                         column_ids,

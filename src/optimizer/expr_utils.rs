@@ -87,13 +87,13 @@ pub fn shift_input_col_refs(expr: &mut BoundExpr, delta: i32) {
             }
         }
         BinaryOp(binary_op) => {
-            shift_input_col_refs(&mut *binary_op.left_expr, delta);
-            shift_input_col_refs(&mut *binary_op.right_expr, delta);
+            shift_input_col_refs(&mut binary_op.left_expr, delta);
+            shift_input_col_refs(&mut binary_op.right_expr, delta);
         }
-        UnaryOp(unary_op) => shift_input_col_refs(&mut *unary_op.expr, delta),
-        TypeCast(cast) => shift_input_col_refs(&mut *cast.expr, delta),
-        IsNull(isnull) => shift_input_col_refs(&mut *isnull.expr, delta),
-        ExprWithAlias(inner) => shift_input_col_refs(&mut *inner.expr, delta),
+        UnaryOp(unary_op) => shift_input_col_refs(&mut unary_op.expr, delta),
+        TypeCast(cast) => shift_input_col_refs(&mut cast.expr, delta),
+        IsNull(isnull) => shift_input_col_refs(&mut isnull.expr, delta),
+        ExprWithAlias(inner) => shift_input_col_refs(&mut inner.expr, delta),
         Constant(_) => {}
         Alias(_) => {}
     };

@@ -23,8 +23,8 @@ impl ExprRewriter for BoolExprSimplificationRule {
     fn rewrite_binary_op(&self, expr: &mut BoundExpr) {
         let new = match expr {
             BinaryOp(op) => {
-                self.rewrite_expr(&mut *op.left_expr);
-                self.rewrite_expr(&mut *op.right_expr);
+                self.rewrite_expr(&mut op.left_expr);
+                self.rewrite_expr(&mut op.right_expr);
                 match (&op.op, &*op.left_expr, &*op.right_expr) {
                     (And, Constant(Bool(false)), _) => Constant(Bool(false)),
                     (And, _, Constant(Bool(false))) => Constant(Bool(false)),

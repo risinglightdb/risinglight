@@ -7,7 +7,7 @@ use super::*;
 use crate::catalog::ColumnDesc;
 
 /// A bound column reference expression.
-#[derive(PartialEq, Clone, Serialize)]
+#[derive(PartialEq, Eq, Clone, Serialize)]
 pub struct BoundColumnRef {
     pub column_ref_id: ColumnRefId,
     pub is_primary_key: bool,
