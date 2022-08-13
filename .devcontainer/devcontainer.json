@@ -8,6 +8,6 @@
 	"dockerFile": "Dockerfile",
 	"settings": {
 		"editor.formatOnSave": true,
-		"terminal.integrated.shell.linux": "/usr/bin/zsh"
+		"terminal.integrated.shell.linux": "/usr/bin/bash"
 	}
 }
