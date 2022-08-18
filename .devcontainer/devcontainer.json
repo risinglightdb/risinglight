@@ -1,0 +1,13 @@
+{
+	"name": "Risinglight Codespaces",
+	"extensions": [
+		"rust-lang.rust-analyzer",
+		"serayuzgur.crates",
+		"vadimcn.vscode-lldb"
+	],
+	"dockerFile": "Dockerfile",
+	"settings": {
+		"editor.formatOnSave": true,
+		"terminal.integrated.shell.linux": "/usr/bin/bash"
+	}
+}
