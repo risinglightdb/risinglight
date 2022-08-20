@@ -1,18 +1,15 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::path::Path;
-use std::sync::Arc;
 
 use risinglight::array::*;
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::{Database, Error};
 
-pub async fn test_mem(name: &str) {
-    init_logger();
-    let db = Arc::new(Database::new_in_memory());
-    let mut tester = sqllogictest::Runner::new(DatabaseWrapper { db: db.clone() });
+async fn test(db: Database, name: &str) {
+    let db = DatabaseWrapper(db);
+    let mut tester = sqllogictest::Runner::new(&db);
     tester.enable_testdir();
-
     tester
         .run_file_async(
             Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -22,25 +19,19 @@ pub async fn test_mem(name: &str) {
         )
         .await
         .unwrap();
-    db.shutdown().await.unwrap();
+    db.0.shutdown().await.unwrap();
+}
+
+pub async fn test_mem(name: &str) {
+    init_logger();
+    let db = Database::new_in_memory();
+    test(db, name).await;
 }
 
 pub async fn test_disk(name: &str) {
     init_logger();
     let db = Database::new_on_disk(SecondaryStorageOptions::default_for_test()).await;
-    let db = Arc::new(db);
-    let mut tester = sqllogictest::Runner::new(DatabaseWrapper { db: db.clone() });
-    tester.enable_testdir();
-    tester
-        .run_file_async(
-            Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("..")
-                .join("sql")
-                .join(name),
-        )
-        .await
-        .unwrap();
-    db.shutdown().await.unwrap();
+    test(db, name).await;
 }
 
 fn init_logger() {
@@ -55,15 +46,14 @@ fn init_logger() {
     });
 }
 
-struct DatabaseWrapper {
-    db: Arc<Database>,
-}
+/// New type to implement sqllogictest driver trait for risinglight.
+struct DatabaseWrapper(Database);
 
 #[async_trait::async_trait]
-impl sqllogictest::AsyncDB for DatabaseWrapper {
+impl sqllogictest::AsyncDB for &DatabaseWrapper {
     type Error = Error;
     async fn run(&mut self, sql: &str) -> Result<String, Self::Error> {
-        let chunks = self.db.run(sql).await?;
+        let chunks = self.0.run(sql).await?;
         let output = chunks
             .iter()
             .map(datachunk_to_sqllogictest_string)
