@@ -2,7 +2,7 @@
 
 //! RisingLight sqllogictest
 
-use libtest_mimic::{run_tests, Arguments, Outcome, Test};
+use libtest_mimic::{Arguments, Trial};
 use risinglight_sqllogictest::{test_disk, test_mem};
 use tokio::runtime::Runtime;
 
@@ -20,28 +20,24 @@ fn main() {
         let path = entry.expect("failed to read glob entry");
         let subpath = path.strip_prefix("../sql").unwrap().to_str().unwrap();
         if !MEM_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
-            tests.push(Test {
-                name: format!(
+            let subpath = subpath.to_owned();
+            tests.push(Trial::test(
+                format!(
                     "mem_{}",
                     subpath.strip_suffix(".slt").unwrap().replace('/', "_")
                 ),
-                kind: "".into(),
-                is_ignored: false,
-                is_bench: false,
-                data: ("mem", subpath.to_string()),
-            });
+                move || Ok(build_runtime().block_on(test_mem(&subpath))),
+            ));
         }
         if !DISK_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
-            tests.push(Test {
-                name: format!(
+            let subpath = subpath.to_owned();
+            tests.push(Trial::test(
+                format!(
                     "disk_{}",
                     subpath.strip_suffix(".slt").unwrap().replace('/', "_")
                 ),
-                kind: "".into(),
-                is_ignored: false,
-                is_bench: false,
-                data: ("disk", subpath.to_string()),
-            });
+                move || Ok(build_runtime().block_on(test_disk(&subpath))),
+            ));
         }
     }
 
@@ -59,16 +55,5 @@ fn main() {
             .unwrap()
     }
 
-    run_tests(&args, tests, |test| match &test.data {
-        ("mem", case) => {
-            build_runtime().block_on(test_mem(case));
-            Outcome::Passed
-        }
-        ("disk", case) => {
-            build_runtime().block_on(test_disk(case));
-            Outcome::Passed
-        }
-        _ => unreachable!(),
-    })
-    .exit();
+    libtest_mimic::run(&args, tests).exit();
 }
