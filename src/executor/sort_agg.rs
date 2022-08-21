@@ -42,14 +42,11 @@ impl SortAggExecutor {
                     group_key.push(col.get(row_idx));
                 }
                 // Check group key & last key
-                match last_key {
-                    Some(last_key) => {
-                        if last_key != group_key {
-                            yield Self::finish_agg(&states);
-                            states = create_agg_states(&self.agg_calls);
-                        }
+                if let Some(last_key) = last_key {
+                    if last_key != group_key {
+                        yield Self::finish_agg(&states);
+                        states = create_agg_states(&self.agg_calls);
                     }
-                    None => (),
                 }
                 for (state, expr) in states.iter_mut().zip_eq(&exprs) {
                     state.update_single(&expr.get(row_idx))?;

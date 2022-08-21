@@ -11,7 +11,7 @@ use crate::parser::{BinaryOperator, FunctionArg, FunctionArgExpr};
 use crate::types::{DataType, DataTypeKind};
 
 /// Aggregation kind
-#[derive(Debug, PartialEq, Clone, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 pub enum AggKind {
     Avg,
     RowCount,

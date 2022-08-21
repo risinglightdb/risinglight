@@ -33,7 +33,7 @@ pub enum BoundStatement {
 }
 
 /// The error type of bind operations.
-#[derive(thiserror::Error, Debug, PartialEq)]
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum BindError {
     #[error("invalid database {0}")]
     InvalidDatabase(String),
@@ -121,9 +121,9 @@ impl Binder {
             Statement::Insert { .. } => Ok(BoundStatement::Insert(self.bind_insert(stmt)?)),
             Statement::Delete { .. } => Ok(BoundStatement::Delete(self.bind_delete(stmt)?)),
             Statement::Copy { .. } => Ok(BoundStatement::Copy(self.bind_copy(stmt)?)),
-            Statement::Query(query) => Ok(BoundStatement::Select(self.bind_select(&*query)?)),
+            Statement::Query(query) => Ok(BoundStatement::Select(self.bind_select(query)?)),
             Statement::Explain { statement, .. } => {
-                Ok(BoundStatement::Explain((self.bind(&*statement)?).into()))
+                Ok(BoundStatement::Explain((self.bind(statement)?).into()))
             }
             Statement::ShowVariable { .. }
             | Statement::ShowCreate { .. }

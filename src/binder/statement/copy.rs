@@ -6,7 +6,7 @@ use crate::catalog::ColumnCatalog;
 use crate::parser::{CopyOption, CopyTarget, Statement};
 
 /// A bound `COPY` statement.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BoundCopy {
     pub table_ref_id: TableRefId,
     pub columns: Vec<ColumnCatalog>,
@@ -16,7 +16,7 @@ pub struct BoundCopy {
 }
 
 /// File format.
-#[derive(Debug, PartialEq, Clone, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 pub enum FileFormat {
     Csv {
         /// Delimiter to parse.

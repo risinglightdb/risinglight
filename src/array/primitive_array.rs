@@ -13,7 +13,7 @@ mod simd;
 pub use self::simd::*;
 
 /// A collection of primitive types, such as `i32`, `f32`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrimitiveArray<T: NativeType> {
     valid: BitVec,
     data: Vec<T>,

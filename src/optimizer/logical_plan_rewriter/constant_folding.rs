@@ -19,8 +19,8 @@ impl ExprRewriter for ConstantFoldingRule {
     fn rewrite_binary_op(&self, expr: &mut BoundExpr) {
         match expr {
             BinaryOp(op) => {
-                self.rewrite_expr(&mut *op.left_expr);
-                self.rewrite_expr(&mut *op.right_expr);
+                self.rewrite_expr(&mut op.left_expr);
+                self.rewrite_expr(&mut op.right_expr);
                 if let (Constant(v1), Constant(v2)) = (&*op.left_expr, &*op.right_expr) {
                     let res = ArrayImpl::from(v1)
                         .binary_op(&op.op, &ArrayImpl::from(v2))
@@ -35,7 +35,7 @@ impl ExprRewriter for ConstantFoldingRule {
     fn rewrite_unary_op(&self, expr: &mut BoundExpr) {
         match expr {
             UnaryOp(op) => {
-                self.rewrite_expr(&mut *op.expr);
+                self.rewrite_expr(&mut op.expr);
                 if let Constant(v) = &*op.expr {
                     let res = ArrayImpl::from(v).unary_op(&op.op).get(0);
                     *expr = Constant(res);
@@ -48,7 +48,7 @@ impl ExprRewriter for ConstantFoldingRule {
     fn rewrite_type_cast(&self, expr: &mut BoundExpr) {
         match expr {
             TypeCast(cast) => {
-                self.rewrite_expr(&mut *cast.expr);
+                self.rewrite_expr(&mut cast.expr);
                 if let Constant(v) = &*cast.expr {
                     if let Ok(array) = ArrayImpl::from(v).try_cast(cast.ty.clone()) {
                         let res = array.get(0);
