@@ -15,9 +15,5 @@ tempfile = "3"
 tokio = { version = "1", features = ["rt"] }
 
 [[test]]
-name = "disk"
-harness = false
-
-[[test]]
-name = "mem"
+name = "sqllogictest"
 harness = false

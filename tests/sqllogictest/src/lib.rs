@@ -1,13 +1,12 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::env;
+use std::fmt::Display;
 use std::path::Path;
 
-use libtest_mimic::{Arguments, Trial};
 use risinglight::array::*;
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::{Database, Error};
-use tokio::runtime::Runtime;
 
 type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -17,43 +16,16 @@ pub enum Engine {
     Mem,
 }
 
-pub fn run(blocklist: &[&str], engine: Engine) {
-    const PATTERN: &str = "../sql/**/[!_]*.slt"; // ignore files start with '_'
-    let current_dir = env::current_dir().unwrap();
-
-    let paths = glob::glob(PATTERN).expect("failed to find test files");
-
-    let mut tests = vec![];
-
-    for entry in paths {
-        let path = entry.expect("failed to read glob entry");
-        let subpath = path.strip_prefix("../sql").unwrap().to_str().unwrap();
-        let path = current_dir.join(path.clone());
-        if !blocklist.iter().any(|p| subpath.contains(p)) {
-            tests.push(Trial::test(subpath.to_string(), move || {
-                Ok(build_runtime().block_on(test(&path, engine))?)
-            }));
+impl Display for Engine {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Engine::Disk => f.write_str("disk"),
+            Engine::Mem => f.write_str("mem"),
         }
     }
-
-    if tests.is_empty() {
-        panic!(
-            "no test found for sqllogictest! pwd: {:?}",
-            std::env::current_dir().unwrap()
-        );
-    }
-
-    fn build_runtime() -> Runtime {
-        tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap()
-    }
-
-    libtest_mimic::run(&Arguments::from_args(), tests).exit();
 }
 
-async fn test(filename: impl AsRef<Path>, engine: Engine) -> Result<()> {
+pub async fn test(filename: impl AsRef<Path>, engine: Engine) -> Result<()> {
     init_logger();
 
     let db = match engine {
