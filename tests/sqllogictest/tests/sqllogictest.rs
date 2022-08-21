@@ -2,8 +2,10 @@
 
 //! RisingLight sqllogictest
 
-use libtest_mimic::{run_tests, Arguments, Outcome, Test};
-use risinglight_sqllogictest::{test_disk, test_mem};
+use std::env;
+
+use libtest_mimic::{Arguments, Trial};
+use risinglight_sqllogictest::{test, Engine};
 use tokio::runtime::Runtime;
 
 fn main() {
@@ -11,37 +13,28 @@ fn main() {
     const MEM_BLOCKLIST: &[&str] = &["statistics.slt"];
     const DISK_BLOCKLIST: &[&str] = &[];
 
+    let current_dir = env::current_dir().unwrap();
+
     let paths = glob::glob(PATTERN).expect("failed to find test files");
 
-    let args = Arguments::from_args();
     let mut tests = vec![];
 
     for entry in paths {
         let path = entry.expect("failed to read glob entry");
         let subpath = path.strip_prefix("../sql").unwrap().to_str().unwrap();
+        let path = current_dir.join(path.clone());
         if !MEM_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
-            tests.push(Test {
-                name: format!(
-                    "mem_{}",
-                    subpath.strip_suffix(".slt").unwrap().replace('/', "_")
-                ),
-                kind: "".into(),
-                is_ignored: false,
-                is_bench: false,
-                data: ("mem", subpath.to_string()),
-            });
+            let path = path.clone();
+            let engine = Engine::Mem;
+            tests.push(Trial::test(format!("{}::{}", engine, subpath), move || {
+                Ok(build_runtime().block_on(test(&path, engine))?)
+            }));
         }
         if !DISK_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
-            tests.push(Test {
-                name: format!(
-                    "disk_{}",
-                    subpath.strip_suffix(".slt").unwrap().replace('/', "_")
-                ),
-                kind: "".into(),
-                is_ignored: false,
-                is_bench: false,
-                data: ("disk", subpath.to_string()),
-            });
+            let engine = Engine::Disk;
+            tests.push(Trial::test(format!("{}::{}", engine, subpath), move || {
+                Ok(build_runtime().block_on(test(&path, engine))?)
+            }));
         }
     }
 
@@ -59,16 +52,5 @@ fn main() {
             .unwrap()
     }
 
-    run_tests(&args, tests, |test| match &test.data {
-        ("mem", case) => {
-            build_runtime().block_on(test_mem(case));
-            Outcome::Passed
-        }
-        ("disk", case) => {
-            build_runtime().block_on(test_disk(case));
-            Outcome::Passed
-        }
-        _ => unreachable!(),
-    })
-    .exit();
+    libtest_mimic::run(&Arguments::from_args(), tests).exit();
 }

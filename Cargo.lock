@@ -1067,6 +1067,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "libtest-mimic"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79529479c298f5af41375b0c1a77ef670d450b4c9cd7949d2b43af08121b20ec"
+dependencies = [
+ "clap 3.2.16",
+ "termcolor",
+ "threadpool",
+]
+
+[[package]]
 name = "linked-hash-map"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1793,7 +1804,7 @@ dependencies = [
  "async-trait",
  "env_logger",
  "glob",
- "libtest-mimic",
+ "libtest-mimic 0.5.2",
  "risinglight",
  "sqllogictest",
  "tempfile",
@@ -2056,7 +2067,7 @@ dependencies = [
  "console",
  "futures-util",
  "glob",
- "libtest-mimic",
+ "libtest-mimic 0.4.1",
  "serde",
  "serde_yaml",
  "similar",
@@ -2214,6 +2225,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5516c27b78311c50bf42c071425c560ac799b11c30b31f87e3081965fe5e0180"
 dependencies = [
  "once_cell",
+]
+
+[[package]]
+name = "threadpool"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d050e60b33d41c19108b32cea32164033a9013fe3b46cbd4457559bfbf77afaa"
+dependencies = [
+ "num_cpus",
 ]
 
 [[package]]
