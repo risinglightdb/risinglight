@@ -1072,7 +1072,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79529479c298f5af41375b0c1a77ef670d450b4c9cd7949d2b43af08121b20ec"
 dependencies = [
- "clap 3.2.13",
+ "clap 3.2.16",
  "termcolor",
  "threadpool",
 ]
