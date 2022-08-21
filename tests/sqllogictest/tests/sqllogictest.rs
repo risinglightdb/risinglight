@@ -2,18 +2,18 @@
 
 //! RisingLight sqllogictest
 
-use std::env;
+use std::path::Path;
 
 use libtest_mimic::{Arguments, Trial};
 use risinglight_sqllogictest::{test, Engine};
 use tokio::runtime::Runtime;
 
 fn main() {
-    const PATTERN: &str = "../sql/**/[!_]*.slt"; // ignore files start with '_'
+    init_logger();
+
+    const PATTERN: &str = "tests/sql/**/[!_]*.slt"; // ignore files start with '_'
     const MEM_BLOCKLIST: &[&str] = &["statistics.slt"];
     const DISK_BLOCKLIST: &[&str] = &[];
-
-    let current_dir = env::current_dir().unwrap();
 
     let paths = glob::glob(PATTERN).expect("failed to find test files");
 
@@ -21,8 +21,7 @@ fn main() {
 
     for entry in paths {
         let path = entry.expect("failed to read glob entry");
-        let subpath = path.strip_prefix("../sql").unwrap().to_str().unwrap();
-        let path = current_dir.join(path.clone());
+        let subpath = path.strip_prefix("tests/sql").unwrap().to_str().unwrap();
         if !MEM_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
             let path = path.clone();
             let engine = Engine::Mem;
@@ -53,4 +52,15 @@ fn main() {
     }
 
     libtest_mimic::run(&Arguments::from_args(), tests).exit();
+}
+
+fn init_logger() {
+    use std::sync::Once;
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        env_logger::init();
+        // Force set pwd to the root directory of RisingLight
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..");
+        std::env::set_current_dir(&path).unwrap();
+    });
 }
