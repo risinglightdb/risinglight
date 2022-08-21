@@ -27,14 +27,14 @@ fn main() {
             let path = path.clone();
             let engine = Engine::Mem;
             tests.push(Trial::test(
-                format!("{}::{}", engine, subpath.to_string()),
+                format!("{}::{}", engine, subpath),
                 move || Ok(build_runtime().block_on(test(&path, engine))?),
             ));
         }
         if !DISK_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
             let engine = Engine::Disk;
             tests.push(Trial::test(
-                format!("{}::{}", engine, subpath.to_string()),
+                format!("{}::{}", engine, subpath),
                 move || Ok(build_runtime().block_on(test(&path, engine))?),
             ));
         }
