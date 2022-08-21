@@ -30,7 +30,7 @@ pub fn run(blocklist: &[&str], engine: Engine) {
         let subpath = path.strip_prefix("../sql").unwrap().to_str().unwrap();
         let path = current_dir.join(path.clone());
         if !blocklist.iter().any(|p| subpath.contains(p)) {
-            tests.push(Trial::test(format!("{subpath}"), move || {
+            tests.push(Trial::test(subpath.to_string(), move || {
                 Ok(build_runtime().block_on(test(&path, engine))?)
             }));
         }
