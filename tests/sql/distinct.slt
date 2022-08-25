@@ -11,7 +11,7 @@ SELECT DISTINCT * FROM test ORDER BY x;
 2 2
 3 3
 
-query II
+query I
 SELECT DISTINCT x FROM test ORDER BY y DESC;
 ----
 3
