@@ -16,8 +16,8 @@ use crate::binder::{
 };
 use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 use crate::optimizer::plan_nodes::{
-    Internal, LogicalAggregate, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder,
-    LogicalProjection, LogicalTableScan, LogicalValues,
+    Internal, LogicalAggregate, LogicalDistinct, LogicalFilter, LogicalJoin, LogicalLimit,
+    LogicalOrder, LogicalProjection, LogicalTableScan, LogicalValues,
 };
 
 impl LogicalPlaner {
@@ -135,7 +135,10 @@ impl LogicalPlaner {
         let comparators = stmt.orderby;
 
         // TODO: support the following clauses
-        assert!(!stmt.select_distinct, "TODO: plan distinct");
+        // assert!(!stmt.select_distinct, "TODO: plan distinct");
+        if stmt.select_distinct {
+            plan = Arc::new(LogicalDistinct::new(plan))
+        }
 
         let need_addtional_projection = column_count != stmt.select_list.len();
         let mut project = None;

@@ -135,4 +135,18 @@ impl PlanRewriter for PhysicalConverter {
             Arc::new(PhysicalHashAgg::new(logical))
         }
     }
+
+    fn rewrite_logical_distinct(&mut self, logical: &LogicalDistinct) -> PlanRef {
+        let keys : Vec<BoundExpr> = self.child().output_types().iter().enumerate().map(|(idx, typ)|) {
+            BoundExpr::InputRef(BoundInputRef {
+                index: idx,
+                return_type: typ
+            })
+        }.collect();
+
+        let logical = LogicalAggregate::new(vec![], keys, logical.child());
+        let child = self.rewrite(logical.child());
+        let logical = logical.clone_with_child(child)
+        Arc::new(PhysicalHashAgg::new(logical))
+    }
 }
