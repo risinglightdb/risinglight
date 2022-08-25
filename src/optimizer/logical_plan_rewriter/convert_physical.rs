@@ -4,6 +4,8 @@ use super::super::plan_nodes::*;
 use super::*;
 use crate::binder::BoundJoinOperator;
 use crate::optimizer::expr_utils::merge_conjunctions;
+use crate::optimizer::{BoundExpr, BoundInputRef};
+
 /// Convert all logical plan nodes to physical.
 pub struct PhysicalConverter;
 
@@ -137,16 +139,22 @@ impl PlanRewriter for PhysicalConverter {
     }
 
     fn rewrite_logical_distinct(&mut self, logical: &LogicalDistinct) -> PlanRef {
-        let keys : Vec<BoundExpr> = self.child().output_types().iter().enumerate().map(|(idx, typ)|) {
-            BoundExpr::InputRef(BoundInputRef {
-                index: idx,
-                return_type: typ
+        let keys: Vec<BoundExpr> = logical
+            .child()
+            .out_types()
+            .iter()
+            .enumerate()
+            .map(|(idx, typ)| {
+                BoundExpr::InputRef(BoundInputRef {
+                    index: idx,
+                    return_type: typ.clone(),
+                })
             })
-        }.collect();
+            .collect();
 
         let logical = LogicalAggregate::new(vec![], keys, logical.child());
         let child = self.rewrite(logical.child());
-        let logical = logical.clone_with_child(child)
+        let logical = logical.clone_with_child(child);
         Arc::new(PhysicalHashAgg::new(logical))
     }
 }

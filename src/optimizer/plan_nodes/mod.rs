@@ -35,12 +35,12 @@ pub use join_predicate::*;
 
 mod dummy;
 mod internal;
-mod logical_distinct;
 mod logical_aggregate;
 mod logical_copy_from_file;
 mod logical_copy_to_file;
 mod logical_create_table;
 mod logical_delete;
+mod logical_distinct;
 mod logical_drop;
 mod logical_explain;
 mod logical_filter;
@@ -73,12 +73,12 @@ mod physical_values;
 
 pub use dummy::*;
 pub use internal::*;
-pub use logical_distinct::*;
 pub use logical_aggregate::*;
 pub use logical_copy_from_file::*;
 pub use logical_copy_to_file::*;
 pub use logical_create_table::*;
 pub use logical_delete::*;
+pub use logical_distinct::*;
 pub use logical_drop::*;
 pub use logical_explain::*;
 pub use logical_filter::*;
