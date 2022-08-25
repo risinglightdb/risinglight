@@ -1,0 +1,39 @@
+- sql: |
+    EXPLAIN SELECT count(x + 5), count(x + 5) FROM test;
+  desc: eliminate cse
+  before:
+    - create table test(x int)
+  tasks:
+    - print
+
+- sql: |
+    EXPLAIN SELECT x + y + 5, x + y, x + y + 5 FROM test;
+  desc: eliminate cse
+  before:
+    - create table test(x int, y INT)
+  tasks:
+    - print
+
+- sql: |
+    EXPLAIN SELECT x + 5 < y, x + 5 FROM test;
+  desc: eliminate cse
+  before:
+    - create table test(x int, y INT)
+  tasks:
+    - print
+
+- sql: |
+    EXPLAIN SELECT x + 5 < y AND x + y < 3, x + y FROM test;
+  desc: keep short circuit
+  before:
+    - create table test(x int, y INT)
+  tasks:
+    - print
+
+- sql: |
+    EXPLAIN SELECT x + y < 3 AND x + 5 < y, x + y FROM test;
+  desc: eliminate cse
+  before:
+    - create table test(x int, y INT)
+  tasks:
+    - print
