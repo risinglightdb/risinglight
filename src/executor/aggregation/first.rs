@@ -31,13 +31,10 @@ impl AggregationState for FirstLastAggregationState {
                         if !self.is_first {
                             // try get last value
                             let arr_value = arr.iter().last();
-                            match arr_value {
-                                Some(value) => match value {
+                            if let Some(value) = arr_value {
+                                match value {
                                     Some(value) => self.result = Some(DataValue::Int32(*value)),
                                     None => self.result = Some(DataValue::Null),
-                                },
-                                None => {
-                                    // array len is 0, we should do nothing?
                                 }
                             };
                         }
@@ -45,26 +42,20 @@ impl AggregationState for FirstLastAggregationState {
                     None => {
                         if self.is_first {
                             let arr_value = arr.iter().next();
-                            match arr_value {
-                                Some(value) => match value {
+                            if let Some(value) = arr_value {
+                                match value {
                                     Some(value) => self.result = Some(DataValue::Int32(*value)),
                                     None => self.result = Some(DataValue::Null),
-                                },
-                                None => {
-                                    // array len is 0, we should do nothing?
                                 }
-                            };
+                            }
                         } else {
                             let arr_value = arr.iter().last();
-                            match arr_value {
-                                Some(value) => match value {
+                            if let Some(value) = arr_value {
+                                match value {
                                     Some(value) => self.result = Some(DataValue::Int32(*value)),
                                     None => self.result = Some(DataValue::Null),
-                                },
-                                None => {
-                                    // array len is 0, we should do nothing?
                                 }
-                            };
+                            }
                         }
                     }
                 };
@@ -75,40 +66,31 @@ impl AggregationState for FirstLastAggregationState {
                         if !self.is_first {
                             // try get last value
                             let arr_value = arr.iter().last();
-                            match arr_value {
-                                Some(value) => match value {
+                            if let Some(value) = arr_value {
+                                match value {
                                     Some(value) => self.result = Some(DataValue::Int64(*value)),
                                     None => self.result = Some(DataValue::Null),
-                                },
-                                None => {
-                                    // array len is 0, we should do nothing?
                                 }
-                            };
+                            }
                         }
                     }
                     None => {
                         if self.is_first {
                             let arr_value = arr.iter().next();
-                            match arr_value {
-                                Some(value) => match value {
+                            if let Some(value) = arr_value {
+                                match value {
                                     Some(value) => self.result = Some(DataValue::Int64(*value)),
                                     None => self.result = Some(DataValue::Null),
-                                },
-                                None => {
-                                    // array len is 0, we should do nothing?
                                 }
-                            };
+                            }
                         } else {
                             let arr_value = arr.iter().last();
-                            match arr_value {
-                                Some(value) => match value {
+                            if let Some(value) = arr_value {
+                                match value {
                                     Some(value) => self.result = Some(DataValue::Int64(*value)),
                                     None => self.result = Some(DataValue::Null),
-                                },
-                                None => {
-                                    // array len is 0, we should do nothing?
                                 }
-                            };
+                            }
                         }
                     }
                 };
