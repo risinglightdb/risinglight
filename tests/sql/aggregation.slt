@@ -187,9 +187,12 @@ statement ok
 drop table t
 
 statement ok
-CREATE TABLE t(x INT);
+CREATE TABLE test(x INT);
 
 query I
 SELECT sum(x) FROM test;
 ----
 NULL
+
+statement ok
+DROP TABLE test;
