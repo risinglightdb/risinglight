@@ -179,14 +179,14 @@ impl Compactor {
         loop {
             {
                 let tables = self.storage.tables.read().clone();
-                let (epoch, snapshot) = self.storage.version.pin();
+                let pin_version = self.storage.version.pin();
                 for (_, table) in tables {
                     if let Some(_guard) = self
                         .storage
                         .txn_mgr
                         .try_lock_for_compaction(table.table_id())
                     {
-                        if let Err(err) = self.compact_table(&snapshot, table).await {
+                        if let Err(err) = self.compact_table(&pin_version.snapshot, table).await {
                             warn!("failed to compact: {:?}", err);
                         }
                     }
@@ -196,7 +196,6 @@ impl Compactor {
                     Err(tokio::sync::oneshot::error::TryRecvError::Closed) => break,
                     _ => {}
                 }
-                self.storage.version.unpin(epoch);
             }
             tokio::time::sleep(Duration::from_secs(1)).await;
         }

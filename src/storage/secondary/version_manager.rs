@@ -150,7 +150,7 @@ pub struct VersionManagerInner {
 pub struct VersionManager {
     /// Inner structure of `VersionManager`. This structure is protected by a parking lot Mutex, so
     /// as to support quick lock and unlock.
-    inner: PLMutex<VersionManagerInner>,
+    inner: Arc<PLMutex<VersionManagerInner>>,
 
     /// Manifest file. We only allow one thread to commit changes, and `commit_changes` will hold
     /// this lock until complete. As the commit procedure involves async waiting, we need to use an
@@ -172,7 +172,7 @@ impl VersionManager {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         Self {
             manifest: Mutex::new(manifest),
-            inner: PLMutex::new(VersionManagerInner::default()),
+            inner: Arc::new(PLMutex::new(VersionManagerInner::default())),
             tx,
             rx: PLMutex::new(Some(rx)),
             storage_options,
@@ -268,29 +268,16 @@ impl VersionManager {
     }
 
     /// Pin a snapshot of one epoch, so that all files at this epoch won't be deleted.
-    pub fn pin(&self) -> (u64, Arc<Snapshot>) {
+    pub fn pin(&self) -> Arc<Version> {
         let mut inner = self.inner.lock();
         let epoch = inner.epoch;
         *inner.ref_cnt.entry(epoch).or_default() += 1;
-        (epoch, inner.status.get(&epoch).unwrap().clone())
-    }
-
-    /// Unpin a snapshot of one epoch. When reference counter becomes 0, files might be vacuumed.
-    pub fn unpin(&self, epoch: u64) {
-        let mut inner = self.inner.lock();
-        let ref_cnt = inner
-            .ref_cnt
-            .get_mut(&epoch)
-            .expect("epoch not registered!");
-        *ref_cnt -= 1;
-        if *ref_cnt == 0 {
-            inner.ref_cnt.remove(&epoch).unwrap();
-
-            if epoch != inner.epoch {
-                // TODO: precisely pass the epoch number that can be vacuum.
-                self.tx.send(()).unwrap();
-            }
-        }
+        Arc::new(Version {
+            epoch,
+            snapshot: inner.status.get(&epoch).unwrap().clone(),
+            inner: self.inner.clone(),
+            tx: self.tx.clone(),
+        })
     }
 
     pub fn get_rowset(&self, table_id: u32, rowset_id: u32) -> Arc<DiskRowset> {
@@ -364,5 +351,32 @@ impl VersionManager {
             }
         }
         Ok(())
+    }
+}
+
+pub struct Version {
+    pub epoch: u64,
+    pub snapshot: Arc<Snapshot>,
+    inner: Arc<PLMutex<VersionManagerInner>>,
+    tx: tokio::sync::mpsc::UnboundedSender<()>,
+}
+
+impl Drop for Version {
+    /// Unpin a snapshot of one epoch. When reference counter becomes 0, files might be vacuumed.
+    fn drop(&mut self) {
+        let mut inner = self.inner.lock();
+        let ref_cnt = inner
+            .ref_cnt
+            .get_mut(&self.epoch)
+            .expect("epoch not registered!");
+        *ref_cnt -= 1;
+        if *ref_cnt == 0 {
+            inner.ref_cnt.remove(&self.epoch).unwrap();
+
+            if self.epoch != inner.epoch {
+                // TODO: precisely pass the epoch number that can be vacuum.
+                self.tx.send(()).unwrap();
+            }
+        }
     }
 }
