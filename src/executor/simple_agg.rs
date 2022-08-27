@@ -44,7 +44,12 @@ impl SimpleAggExecutor {
                         builder.push(result);
                         builder.finish()
                     }
-                    None => ArrayBuilderImpl::new(&DataTypeKind::Int(None).nullable()).finish(),
+                    None => {
+                        let mut builder =
+                            ArrayBuilderImpl::new(&DataTypeKind::Int(None).nullable());
+                        builder.push(result);
+                        builder.finish()
+                    }
                 }
             })
             .collect::<DataChunk>()
@@ -84,6 +89,14 @@ fn create_agg_state(agg_call: &BoundAggCall) -> Box<dyn AggregationState> {
             true,
         )),
         AggKind::Sum => Box::new(SumAggregationState::new(agg_call.return_type.kind())),
+        AggKind::First => Box::new(FirstLastAggregationState::new(
+            agg_call.return_type.kind(),
+            true,
+        )),
+        AggKind::Last => Box::new(FirstLastAggregationState::new(
+            agg_call.return_type.kind(),
+            false,
+        )),
         _ => panic!("Unsupported aggregate kind"),
     }
 }
