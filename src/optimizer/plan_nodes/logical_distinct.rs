@@ -9,20 +9,29 @@ use super::*;
 /// The logical plan of filter operation.
 #[derive(Debug, Clone, Serialize)]
 pub struct LogicalDistinct {
+    exprs: Vec<BoundExpr>,
     child: PlanRef,
 }
 
 impl LogicalDistinct {
-    pub fn new(child: PlanRef) -> Self {
-        Self { child }
+    pub fn new(exprs: Vec<BoundExpr>, child: PlanRef) -> Self {
+        Self { exprs, child }
+    }
+
+    pub fn distinct_exprs(&self) -> &[BoundExpr] {
+        &self.exprs
     }
 
     pub fn clone_with_rewrite_expr(
         &self,
         new_child: PlanRef,
-        _rewriter: &impl ExprRewriter,
+        rewriter: &impl ExprRewriter,
     ) -> Self {
-        LogicalDistinct::new(new_child)
+        let mut new_exprs = self.exprs.clone();
+        new_exprs
+            .iter_mut()
+            .for_each(|expr| rewriter.rewrite_expr(expr));
+        LogicalDistinct::new(new_exprs, new_child)
     }
 }
 impl PlanTreeNodeUnary for LogicalDistinct {
@@ -32,7 +41,7 @@ impl PlanTreeNodeUnary for LogicalDistinct {
 
     #[must_use]
     fn clone_with_child(&self, child: PlanRef) -> Self {
-        Self::new(child)
+        Self::new(self.exprs.clone(), child)
     }
 }
 
@@ -48,7 +57,8 @@ impl PlanNode for LogicalDistinct {
     }
 
     fn prune_col(&self, required_cols: BitSet) -> PlanRef {
-        LogicalDistinct::new(self.child.prune_col(required_cols)).into_plan_ref()
+        LogicalDistinct::new(self.exprs.clone(), self.child.prune_col(required_cols))
+            .into_plan_ref()
     }
 }
 

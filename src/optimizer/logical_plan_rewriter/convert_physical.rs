@@ -2,9 +2,9 @@
 
 use super::super::plan_nodes::*;
 use super::*;
-use crate::binder::BoundJoinOperator;
+use crate::binder::{AggKind, BoundAggCall, BoundExpr, BoundJoinOperator};
 use crate::optimizer::expr_utils::merge_conjunctions;
-use crate::optimizer::{BoundExpr, BoundInputRef};
+use crate::optimizer::BoundInputRef;
 
 /// Convert all logical plan nodes to physical.
 pub struct PhysicalConverter;
@@ -139,21 +139,33 @@ impl PlanRewriter for PhysicalConverter {
     }
 
     fn rewrite_logical_distinct(&mut self, logical: &LogicalDistinct) -> PlanRef {
-        let keys: Vec<BoundExpr> = logical
-            .child()
-            .out_types()
-            .iter()
-            .enumerate()
-            .map(|(idx, typ)| {
-                BoundExpr::InputRef(BoundInputRef {
-                    index: idx,
+        let distinct_len = logical.distinct_exprs().len();
+        let child = self.rewrite(logical.child());
+        let child_types = child.out_types();
+
+        let mut agg_calls = Vec::new();
+
+        if distinct_len != child_types.len() {
+            agg_calls = (child_types)
+                .iter()
+                .skip(distinct_len)
+                .enumerate()
+                .map(|(idx, typ)| BoundAggCall {
+                    kind: AggKind::First,
+                    args: vec![BoundExpr::InputRef(BoundInputRef {
+                        index: distinct_len + idx,
+                        return_type: typ.clone(),
+                    })],
                     return_type: typ.clone(),
                 })
-            })
-            .collect();
+                .collect();
+        }
 
-        let logical = LogicalAggregate::new(vec![], keys, logical.child());
-        let child = self.rewrite(logical.child());
+        let logical = LogicalAggregate::new(
+            agg_calls,
+            logical.distinct_exprs().to_vec(),
+            logical.child(),
+        );
         let logical = logical.clone_with_child(child);
         Arc::new(PhysicalHashAgg::new(logical))
     }

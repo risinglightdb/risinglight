@@ -134,18 +134,31 @@ impl LogicalPlaner {
 
         let comparators = stmt.orderby;
 
-        // TODO: support the following clauses
-        // assert!(!stmt.select_distinct, "TODO: plan distinct");
-        if stmt.select_distinct {
-            plan = Arc::new(LogicalDistinct::new(plan))
-        }
-
         let need_addtional_projection = column_count != stmt.select_list.len();
         let mut project = None;
         if !stmt.select_list.is_empty() {
             plan = Arc::new(LogicalProjection::new(stmt.select_list, plan));
             project = Some(plan.clone());
         }
+
+        if stmt.select_distinct {
+            let project = project.clone().unwrap();
+            let projection = project.as_logical_projection().unwrap();
+            let project_expressions = projection.project_expressions();
+            let distinct_exprs: Vec<BoundExpr> = project_expressions
+                .iter()
+                .take(column_count)
+                .enumerate()
+                .map(|(idx, expr)| {
+                    BoundExpr::InputRef(BoundInputRef {
+                        index: idx,
+                        return_type: expr.return_type().unwrap(),
+                    })
+                })
+                .collect();
+            plan = Arc::new(LogicalDistinct::new(distinct_exprs, plan))
+        }
+
         if !comparators.is_empty() && !is_sorted {
             plan = Arc::new(LogicalOrder::new(comparators, plan));
         }
