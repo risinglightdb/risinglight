@@ -189,7 +189,7 @@ drop table t
 statement ok
 CREATE TABLE t(x INT);
 
-SELECT sum(x) FROM test;
 query I
+SELECT sum(x) FROM test;
 ----
 NULL
