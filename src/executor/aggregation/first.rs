@@ -3,7 +3,6 @@
 // use crate::array::ArrayImplValidExt;
 use super::*;
 use crate::array::Array;
-use crate::types::DataTypeKind;
 
 /// State for first/last aggregation
 pub struct FirstLastAggregationState {
