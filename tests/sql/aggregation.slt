@@ -201,7 +201,7 @@ statement ok
 CREATE TABLE test(x INT, y INT);
 
 statement ok
-INSERT INTO test VALUES (1, 1), (2, 2), (3, 3), (3, 5);
+INSERT INTO test VALUES (1, 1), (2, 2), (3, 3), (3, 5), (NULL, NULL);
 
 query I
 SELECT first(x) FROM test;
@@ -210,14 +210,6 @@ SELECT first(x) FROM test;
 
 query I
 SELECT last(y) FROM test;
-----
-5
-
-statement ok
-INSERT INTO test VALUES (NULL, NULL);
-
-query I
-SELECT last(x) FROM test;
 ----
 NULL
 
