@@ -16,8 +16,8 @@ use crate::binder::{
 };
 use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 use crate::optimizer::plan_nodes::{
-    Internal, LogicalAggregate, LogicalDistinct, LogicalFilter, LogicalJoin, LogicalLimit,
-    LogicalOrder, LogicalProjection, LogicalTableScan, LogicalValues,
+    Internal, LogicalAggregate, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder,
+    LogicalProjection, LogicalTableScan, LogicalValues,
 };
 
 impl LogicalPlaner {
@@ -106,6 +106,10 @@ impl LogicalPlaner {
                     expr == &node.expr
                 }
             }) {
+                // ORDER BY items must appear in the select list if SELECT DISTINCT is specified
+                if stmt.select_distinct {
+                    return Err(LogicalPlanError::IllegalDistinctSQL);
+                }
                 stmt.select_list.push(node.expr.clone());
             }
         }
@@ -145,18 +149,8 @@ impl LogicalPlaner {
             let project = project.clone().unwrap();
             let projection = project.as_logical_projection().unwrap();
             let project_expressions = projection.project_expressions();
-            let distinct_exprs: Vec<BoundExpr> = project_expressions
-                .iter()
-                .take(column_count)
-                .enumerate()
-                .map(|(idx, expr)| {
-                    BoundExpr::InputRef(BoundInputRef {
-                        index: idx,
-                        return_type: expr.return_type().unwrap(),
-                    })
-                })
-                .collect();
-            plan = Arc::new(LogicalDistinct::new(distinct_exprs, plan))
+            let distinct_exprs = project_expressions.to_vec();
+            plan = Arc::new(LogicalAggregate::new(vec![], distinct_exprs, plan));
         }
 
         if !comparators.is_empty() && !is_sorted {

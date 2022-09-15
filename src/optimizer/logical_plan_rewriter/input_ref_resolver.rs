@@ -159,11 +159,6 @@ impl PlanRewriter for InputRefResolver {
     fn rewrite_logical_values(&mut self, plan: &LogicalValues) -> PlanRef {
         Arc::new(plan.clone_with_rewrite_expr(self))
     }
-
-    fn rewrite_logical_distinct(&mut self, plan: &LogicalDistinct) -> PlanRef {
-        let child = self.rewrite(plan.child());
-        Arc::new(plan.clone_with_rewrite_expr(child, self))
-    }
 }
 
 /// Resolves select expression into `InputRef` using group by expressions

@@ -40,7 +40,6 @@ mod logical_copy_from_file;
 mod logical_copy_to_file;
 mod logical_create_table;
 mod logical_delete;
-mod logical_distinct;
 mod logical_drop;
 mod logical_explain;
 mod logical_filter;
@@ -78,7 +77,6 @@ pub use logical_copy_from_file::*;
 pub use logical_copy_to_file::*;
 pub use logical_create_table::*;
 pub use logical_delete::*;
-pub use logical_distinct::*;
 pub use logical_drop::*;
 pub use logical_explain::*;
 pub use logical_filter::*;
@@ -232,7 +230,6 @@ macro_rules! for_all_plan_nodes {
             LogicalDelete,
             LogicalCopyFromFile,
             LogicalCopyToFile,
-            LogicalDistinct,
             PhysicalTableScan,
             PhysicalInsert,
             PhysicalValues,
