@@ -31,6 +31,7 @@ use self::drop::*;
 use self::dummy_scan::*;
 use self::explain::*;
 use self::filter::*;
+use self::perfect_hash_agg::*;
 use self::hash_agg::*;
 use self::hash_join::*;
 use self::insert::*;
@@ -56,6 +57,7 @@ use crate::types::{ConvertError, DataValue};
 
 mod aggregation;
 pub mod context;
+mod perfect_hash_agg;
 mod copy_from_file;
 mod copy_to_file;
 mod create;
