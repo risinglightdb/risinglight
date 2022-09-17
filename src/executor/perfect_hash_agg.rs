@@ -12,13 +12,13 @@ use crate::types::{DataValue, PhysicalDataTypeKind};
 /// The executor of perfect hash aggregation.
 /// Used by low range group keys
 pub struct PerfectHashAggExecutor {
-    pub agg_calls: Vec<BoundAggCall>,
-    pub group_keys: Vec<BoundExpr>,
-    pub child: BoxedExecutor,
-    pub bits: Vec<usize>,
-    pub min_values: Vec<DataValue>,
-    pub total_bits_num: usize,
-    pub groups_num: usize,
+    agg_calls: Vec<BoundAggCall>,
+    group_keys: Vec<BoundExpr>,
+    child: BoxedExecutor,
+    bits: Vec<usize>,
+    min_values: Vec<DataValue>,
+    total_bits_num: usize,
+    groups_num: usize,
 }
 
 impl PerfectHashAggExecutor {
@@ -163,6 +163,7 @@ impl PerfectHashAggExecutor {
         (0..agg_calls.len()).for_each(|idx| {
             locations.iter().for_each(|location| {
                 let states = states[*location].as_ref().unwrap();
+                // batch?
                 res_builders[idx].push(&states[idx].output());
             });
         });
