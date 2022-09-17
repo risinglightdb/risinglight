@@ -31,7 +31,6 @@ use self::drop::*;
 use self::dummy_scan::*;
 use self::explain::*;
 use self::filter::*;
-use self::perfect_hash_agg::*;
 use self::hash_agg::*;
 use self::hash_join::*;
 use self::insert::*;
@@ -39,6 +38,8 @@ use self::internal::*;
 use self::limit::*;
 use self::nested_loop_join::*;
 use self::order::*;
+#[allow(unused_imports)]
+use self::perfect_hash_agg::*;
 use self::projection::*;
 use self::simple_agg::*;
 #[allow(unused_imports)]
@@ -57,7 +58,6 @@ use crate::types::{ConvertError, DataValue};
 
 mod aggregation;
 pub mod context;
-mod perfect_hash_agg;
 mod copy_from_file;
 mod copy_to_file;
 mod create;
@@ -74,6 +74,7 @@ mod internal;
 mod limit;
 mod nested_loop_join;
 mod order;
+mod perfect_hash_agg;
 mod projection;
 mod simple_agg;
 mod sort_agg;

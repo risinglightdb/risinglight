@@ -1,5 +1,5 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
-
+#![allow(dead_code)]
 use smallvec::SmallVec;
 
 use super::*;
@@ -9,7 +9,8 @@ use crate::binder::{BoundAggCall, BoundExpr};
 use crate::executor::aggregation::AggregationState;
 use crate::types::{DataValue, PhysicalDataTypeKind};
 
-/// The executor of hash aggregation.
+/// The executor of perfect hash aggregation.
+/// Used by low range group keys
 pub struct PerfectHashAggExecutor {
     pub agg_calls: Vec<BoundAggCall>,
     pub group_keys: Vec<BoundExpr>,
@@ -18,20 +19,23 @@ pub struct PerfectHashAggExecutor {
     pub min_values: Vec<DataValue>,
     pub total_bits_num: usize,
     pub groups_num: usize,
-    // pub states: Vec<Option<SmallVec<[Box<dyn AggregationState>; 16]>>>,
-    // pub marker: Vec<bool>,
 }
 
 impl PerfectHashAggExecutor {
     pub fn new(
-        agg_calls: Vec<BoundAggCall>,
         group_keys: Vec<BoundExpr>,
+        agg_calls: Vec<BoundAggCall>,
         child: BoxedExecutor,
         bits: Vec<usize>,
         min_values: Vec<DataValue>,
     ) -> Self {
         let bits_num = bits.iter().sum();
         let groups_num = 1usize << bits_num;
+
+        // Avoid allocating too much memory
+        // TODO: This should be decided by the planner
+        assert!(bits_num < 12);
+
         Self {
             agg_calls,
             group_keys,
@@ -40,20 +44,20 @@ impl PerfectHashAggExecutor {
             min_values,
             total_bits_num: bits_num,
             groups_num,
-            // states,
-            // marker,
         }
     }
 }
 
+type StateVec = Vec<Option<SmallVec<[Box<dyn AggregationState>; 16]>>>;
+
 impl PerfectHashAggExecutor {
     fn execute_inner(
-        group_keys: &Vec<BoundExpr>,
-        agg_calls: &Vec<BoundAggCall>,
-        bits: &Vec<usize>,
-        min_value: &Vec<DataValue>,
+        group_keys: &[BoundExpr],
+        agg_calls: &[BoundAggCall],
+        bits: &[usize],
+        min_value: &[DataValue],
         total_bits_num: usize,
-        states: &mut Vec<Option<SmallVec<[Box<dyn AggregationState>; 16]>>>,
+        states: &mut StateVec,
         chunk: DataChunk,
     ) -> Result<(), ExecutorError> {
         let group_cols: SmallVec<[ArrayImpl; 16]> =
@@ -61,7 +65,7 @@ impl PerfectHashAggExecutor {
         let locations = Self::compute_location(bits, min_value, total_bits_num, &group_cols);
         locations.iter().for_each(|group| {
             if states[*group].is_none() {
-                states[*group] = Some(create_agg_states(&agg_calls));
+                states[*group] = Some(create_agg_states(agg_calls));
             }
         });
 
@@ -71,12 +75,16 @@ impl PerfectHashAggExecutor {
             .try_collect()?;
 
         // Update states
+
         let num_rows = chunk.cardinality();
-        for row_idx in 0..num_rows {
-            let states = states[locations[row_idx]].as_mut().unwrap();
-            for (array, state) in arrays.iter().zip_eq(states.iter_mut()) {
-                // TODO: support aggregations with multiple arguments
-                state.update_single(&array.get(row_idx))?;
+
+        let col_cnt = arrays.len();
+        for col_idx in 0..col_cnt {
+            let array = &arrays[col_idx];
+            for row_idx in 0..num_rows {
+                let state = &mut states[locations[row_idx]].as_mut().unwrap()[col_idx];
+                // TODO: Update Batch?
+                state.update_single(&array.get(row_idx))?
             }
         }
 
@@ -84,13 +92,13 @@ impl PerfectHashAggExecutor {
     }
 
     fn build_chunk(
-        group_keys: &Vec<BoundExpr>,
-        agg_calls: &Vec<BoundAggCall>,
-        bits: &Vec<usize>,
-        min_values: &Vec<DataValue>,
+        group_keys: &[BoundExpr],
+        agg_calls: &[BoundAggCall],
+        bits: &[usize],
+        min_values: &[DataValue],
         total_bits_num: usize,
-        states: &Vec<Option<SmallVec<[Box<dyn AggregationState>; 16]>>>,
-        locations: &Vec<usize>,
+        states: &StateVec,
+        locations: &[usize],
     ) -> DataChunk {
         let mut key_builders = group_keys
             .iter()
@@ -118,28 +126,36 @@ impl PerfectHashAggExecutor {
                         unreachable!();
                     }
                 }),
-                PhysicalDataTypeKind::Int32 => locations.iter().for_each(|location| {
-                    let value = ((location >> need_shift_bits_num) & mask) as i32;
-                    if value == 0 {
-                        key_builder.push(&DataValue::Null);
-                    }
-                    if let DataValue::Int32(min) = min_values[idx] {
-                        key_builder.push(&DataValue::Int32(value + min - 1));
+                PhysicalDataTypeKind::Int32 => {
+                    let min = if let DataValue::Int32(x) = min_values[idx] {
+                        x
                     } else {
                         unreachable!();
-                    }
-                }),
-                PhysicalDataTypeKind::Int64 => locations.iter().for_each(|location| {
-                    let value = ((location >> need_shift_bits_num) & mask) as i64;
-                    if value == 0 {
-                        key_builder.push(&DataValue::Null);
-                    }
-                    if let DataValue::Int64(min) = min_values[idx] {
-                        key_builder.push(&DataValue::Int64(value + min - 1));
+                    };
+                    locations.iter().for_each(|location| {
+                        let value = ((location >> need_shift_bits_num) & mask) as i32;
+                        if value == 0 {
+                            key_builder.push(&DataValue::Null);
+                        } else {
+                            key_builder.push(&DataValue::Int32(value + min - 1));
+                        }
+                    })
+                }
+                PhysicalDataTypeKind::Int64 => {
+                    let min = if let DataValue::Int64(x) = min_values[idx] {
+                        x
                     } else {
                         unreachable!();
-                    }
-                }),
+                    };
+                    locations.iter().for_each(|location| {
+                        let value = ((location >> need_shift_bits_num) & mask) as i64;
+                        if value == 0 {
+                            key_builder.push(&DataValue::Null);
+                        } else {
+                            key_builder.push(&DataValue::Int64(value + min - 1));
+                        }
+                    })
+                }
                 _ => unreachable!(),
             }
         });
@@ -155,8 +171,6 @@ impl PerfectHashAggExecutor {
         key_builders.into_iter().collect()
     }
 
-    
-
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     async fn finish_agg(
         group_keys: Vec<BoundExpr>,
@@ -164,12 +178,11 @@ impl PerfectHashAggExecutor {
         bits: Vec<usize>,
         min_value: Vec<DataValue>,
         total_bits_num: usize,
-        states:  Vec<Option<SmallVec<[Box<dyn AggregationState>; 16]>>>,
+        states: StateVec,
     ) {
         let mut locations = Vec::with_capacity(PROCESSING_WINDOW_SIZE);
         let mut count = 0usize;
-        
-        
+
         for (idx, state) in states.iter().enumerate() {
             if state.is_some() {
                 locations.push(idx);
@@ -189,7 +202,6 @@ impl PerfectHashAggExecutor {
                 }
             }
         }
-        
 
         if !locations.is_empty() {
             yield Self::build_chunk(
@@ -201,15 +213,15 @@ impl PerfectHashAggExecutor {
                 &states,
                 &locations,
             );
-
         }
     }
-    
 
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         let mut states = Vec::with_capacity(self.groups_num);
-        (0..self.groups_num).into_iter().for_each(|_| states.push(None));
+        (0..self.groups_num)
+            .into_iter()
+            .for_each(|_| states.push(None));
         #[for_await]
         for chunk in self.child {
             let chunk = chunk?;
@@ -239,8 +251,8 @@ impl PerfectHashAggExecutor {
     }
 
     fn compute_location(
-        bits: &Vec<usize>,
-        min_values: &Vec<DataValue>,
+        bits: &[usize],
+        min_values: &[DataValue],
         total_bits_num: usize,
         chunk: &SmallVec<[ArrayImpl; 16]>,
     ) -> Vec<usize> {
@@ -253,15 +265,14 @@ impl PerfectHashAggExecutor {
             match array {
                 Bool(inner) => {
                     // let valid_mask = inner.get_valid_bitmap();
-                    inner.iter().for_each(|x| match x {
-                        Some(x) => {
+                    inner.iter().enumerate().for_each(|(i, x)| {
+                        if let Some(x) = x {
                             if *x {
-                                locations[idx] = 2usize << need_shift_bits_num;
+                                locations[i] += 2usize << need_shift_bits_num;
                             } else {
-                                locations[idx] = 1usize << need_shift_bits_num;
+                                locations[i] += 1usize << need_shift_bits_num;
                             }
                         }
-                        None => {}
                     });
                 }
                 Int32(inner) => {
@@ -271,11 +282,10 @@ impl PerfectHashAggExecutor {
                     } else {
                         unreachable!();
                     }
-                    inner.iter().for_each(|x| match x {
-                        Some(x) => {
-                            locations[idx] = ((*x - min + 1) as usize) << need_shift_bits_num;
+                    inner.iter().enumerate().for_each(|(i, x)| {
+                        if let Some(x) = x {
+                            locations[i] += ((*x - min + 1) as usize) << need_shift_bits_num;
                         }
-                        None => {}
                     });
                 }
                 Int64(inner) => {
@@ -285,16 +295,87 @@ impl PerfectHashAggExecutor {
                     } else {
                         unreachable!();
                     }
-                    inner.iter().for_each(|x| match x {
-                        Some(x) => {
-                            locations[idx] = ((*x - min + 1) as usize) << need_shift_bits_num;
+                    inner.iter().enumerate().for_each(|(i, x)| {
+                        if let Some(x) = x {
+                            locations[i] += ((*x - min + 1) as usize) << need_shift_bits_num;
                         }
-                        None => {}
                     });
                 }
                 _ => unreachable!(),
             }
         });
         locations
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::array::ArrayImpl;
+    use crate::binder::{AggKind, BoundInputRef};
+    use crate::types::{DataType, DataTypeKind};
+
+    #[tokio::test]
+    async fn perfect_hash_aggregate_test() {
+        let col_a = vec![3, 7, 8, 7];
+        let col_b = vec![80, 100, 102, 100];
+        let expected_group_cols_a = vec![3, 7, 8];
+        let expected_group_cols_b = vec![80, 100, 102];
+        let expected_function_res = vec![80, 200, 102];
+
+        let child: BoxedExecutor = async_stream::try_stream! {
+                yield  vec![
+                ArrayImpl::new_int32(col_a.into_iter().collect()),
+                ArrayImpl::new_int32(col_b.into_iter().collect())
+            ]
+            .into_iter()
+            .collect()
+        }
+        .boxed();
+
+        let group_keys = vec![
+            BoundExpr::InputRef(BoundInputRef {
+                index: 0,
+                return_type: DataType::new(DataTypeKind::Int(None), true),
+            }),
+            BoundExpr::InputRef(BoundInputRef {
+                index: 1,
+                return_type: DataType::new(DataTypeKind::Int(None), true),
+            }),
+        ];
+
+        let sum_function = vec![BoundAggCall {
+            kind: AggKind::Sum,
+            args: vec![group_keys[1].clone()],
+            return_type: DataType::new(DataTypeKind::Int(None), true),
+        }];
+
+        // col_a: [min = 3, max = 8, range = 6 + 1(null) -> 0b111, bit_num = 3]
+        // col_b: [min = 80, max = 102, ...]
+        let executor = PerfectHashAggExecutor::new(
+            group_keys,
+            sum_function,
+            child,
+            vec![3, 5],
+            vec![DataValue::Int32(3), DataValue::Int32(80)],
+        );
+
+        let mut executor = executor.execute();
+
+        if let Some(chunk) = executor.next().await {
+            let chunk = chunk.unwrap();
+            assert_eq!(
+                chunk.arrays()[0],
+                ArrayImpl::new_int32(expected_group_cols_a.clone().into_iter().collect())
+            );
+            assert_eq!(
+                chunk.arrays()[1],
+                ArrayImpl::new_int32(expected_group_cols_b.clone().into_iter().collect())
+            );
+            assert_eq!(
+                chunk.arrays()[2],
+                ArrayImpl::new_int32(expected_function_res.clone().into_iter().collect())
+            );
+        }
     }
 }
