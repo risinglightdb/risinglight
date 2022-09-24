@@ -38,6 +38,8 @@ use self::internal::*;
 use self::limit::*;
 use self::nested_loop_join::*;
 use self::order::*;
+#[allow(unused_imports)]
+use self::perfect_hash_agg::*;
 use self::projection::*;
 use self::simple_agg::*;
 #[allow(unused_imports)]
@@ -72,6 +74,7 @@ mod internal;
 mod limit;
 mod nested_loop_join;
 mod order;
+mod perfect_hash_agg;
 mod projection;
 mod simple_agg;
 mod sort_agg;
