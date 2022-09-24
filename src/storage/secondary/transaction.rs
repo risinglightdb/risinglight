@@ -10,7 +10,7 @@ use risinglight_proto::rowset::DeleteRecord;
 use tokio::sync::OwnedMutexGuard;
 use tracing::{info, warn};
 
-use super::version_manager::{Snapshot, VersionManager};
+use super::version_manager::{Snapshot, Version, VersionManager};
 use super::{
     AddDVEntry, AddRowSetEntry, ColumnBuilderOptions, ConcatIterator, DeleteVector, DiskRowset,
     EpochOp, MergeIterator, RowSetIterator, SecondaryMemRowsetImpl, SecondaryRowHandler,
@@ -45,9 +45,6 @@ pub struct SecondaryTransaction {
     /// Snapshot content
     snapshot: Arc<Snapshot>,
 
-    /// Epoch of the snapshot
-    epoch: u64,
-
     /// The rowsets produced in the txn.
     to_be_committed_rowsets: Vec<DiskRowset>,
 
@@ -59,6 +56,9 @@ pub struct SecondaryTransaction {
     ///
     /// TODO: we only calculate batch insert here. Need to estimate delete vector size.
     total_size: usize,
+
+    /// Reference version.
+    _pin_version: Arc<Version>,
 }
 
 impl SecondaryTransaction {
@@ -70,16 +70,14 @@ impl SecondaryTransaction {
         update: bool,
     ) -> StorageResult<Self> {
         // pin a snapshot at version manager
-        let (epoch, snapshot) = table.version.pin();
-
+        let pin_version = table.version.pin();
         Ok(Self {
             finished: false,
             mem: None,
             delete_buffer: vec![],
             table: table.clone(),
             version: table.version.clone(),
-            epoch,
-            snapshot,
+            snapshot: pin_version.snapshot.clone(),
             delete_lock: if update {
                 Some(table.lock_for_deletion().await)
             } else {
@@ -88,6 +86,7 @@ impl SecondaryTransaction {
             to_be_committed_rowsets: vec![],
             read_only,
             total_size: 0,
+            _pin_version: pin_version,
         })
     }
 
@@ -214,7 +213,6 @@ impl SecondaryTransaction {
         self.version.commit_changes(changeset).await?;
 
         self.finished = true;
-        self.version.unpin(self.epoch);
 
         Ok(())
     }
@@ -409,7 +407,6 @@ impl Transaction for SecondaryTransaction {
     fn abort<'a>(mut self) -> Self::AbortResultFuture<'a> {
         async move {
             self.finished = true;
-            self.version.unpin(self.epoch);
             Ok(())
         }
     }
@@ -419,7 +416,6 @@ impl Drop for SecondaryTransaction {
     fn drop(&mut self) {
         if !self.finished {
             warn!("Transaction dropped without committing or aborting");
-            self.version.unpin(self.epoch);
         }
     }
 }

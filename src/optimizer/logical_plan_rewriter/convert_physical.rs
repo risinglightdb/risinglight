@@ -4,6 +4,7 @@ use super::super::plan_nodes::*;
 use super::*;
 use crate::binder::BoundJoinOperator;
 use crate::optimizer::expr_utils::merge_conjunctions;
+
 /// Convert all logical plan nodes to physical.
 pub struct PhysicalConverter;
 

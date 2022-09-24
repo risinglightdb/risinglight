@@ -109,6 +109,10 @@ impl DiskRowset {
         self.columns[storage_column_id].clone()
     }
 
+    pub fn get_columns(&self) -> &[Column] {
+        &self.columns
+    }
+
     pub fn column_info(&self, storage_column_id: usize) -> &ColumnCatalog {
         &self.column_infos[storage_column_id]
     }

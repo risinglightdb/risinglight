@@ -19,6 +19,8 @@ pub enum AggKind {
     Min,
     Sum,
     Count,
+    First,
+    Last,
 }
 
 impl std::fmt::Display for AggKind {
@@ -33,6 +35,8 @@ impl std::fmt::Display for AggKind {
                 Max => "max",
                 Min => "min",
                 Sum => "sum",
+                First => "first",
+                Last => "last",
             }
         )
     }
@@ -111,6 +115,8 @@ impl Binder {
             "max" => (AggKind::Max, args[0].return_type()),
             "min" => (AggKind::Min, args[0].return_type()),
             "sum" => (AggKind::Sum, args[0].return_type()),
+            "first" => (AggKind::First, args[0].return_type()),
+            "last" => (AggKind::Last, args[0].return_type()),
             _ => panic!("Unsupported function: {}", func.name),
         };
 

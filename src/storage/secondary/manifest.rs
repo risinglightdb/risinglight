@@ -278,16 +278,19 @@ impl SecondaryStorage {
 
         changeset.push(EpochOp::DropTable(entry));
 
-        let (epoch, snapshot) = self.version.pin();
+        let pin_version = self.version.pin();
 
-        if let Some(rowsets) = snapshot.get_rowsets_of(table_id.table_id) {
+        if let Some(rowsets) = pin_version.snapshot.get_rowsets_of(table_id.table_id) {
             for rowset_id in rowsets {
                 changeset.push(EpochOp::DeleteRowSet(DeleteRowsetEntry {
                     table_id,
                     rowset_id: *rowset_id,
                 }));
 
-                if let Some(dvs) = snapshot.get_dvs_of(table_id.table_id, *rowset_id) {
+                if let Some(dvs) = pin_version
+                    .snapshot
+                    .get_dvs_of(table_id.table_id, *rowset_id)
+                {
                     for dv_id in dvs {
                         changeset.push(EpochOp::DeleteDV(DeleteDVEntry {
                             table_id,
@@ -298,8 +301,6 @@ impl SecondaryStorage {
                 }
             }
         }
-
-        self.version.unpin(epoch);
 
         // and then persist to manifest
         self.version.commit_changes(changeset).await?;

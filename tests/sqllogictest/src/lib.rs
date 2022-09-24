@@ -1,6 +1,5 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::env;
 use std::fmt::Display;
 use std::path::Path;
 
@@ -26,8 +25,6 @@ impl Display for Engine {
 }
 
 pub async fn test(filename: impl AsRef<Path>, engine: Engine) -> Result<()> {
-    init_logger();
-
     let db = match engine {
         Engine::Disk => Database::new_on_disk(SecondaryStorageOptions::default_for_test()).await,
         Engine::Mem => Database::new_in_memory(),
@@ -39,18 +36,6 @@ pub async fn test(filename: impl AsRef<Path>, engine: Engine) -> Result<()> {
     tester.run_file_async(filename).await?;
     db.0.shutdown().await?;
     Ok(())
-}
-
-fn init_logger() {
-    use std::sync::Once;
-    static INIT: Once = Once::new();
-    INIT.call_once(|| {
-        env_logger::init();
-        // Force set pwd to the root directory of RisingLight
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..");
-        println!("{:?}", path);
-        std::env::set_current_dir(&path).unwrap();
-    });
 }
 
 /// New type to implement sqllogictest driver trait for risinglight.
