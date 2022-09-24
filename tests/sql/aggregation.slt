@@ -185,3 +185,35 @@ insert into t values(-1.0), (-2.0), (1.00), (13.00)
 
 statement ok
 drop table t
+
+statement ok
+CREATE TABLE test(x INT);
+
+query I
+SELECT sum(x) FROM test;
+----
+NULL
+
+statement ok
+DROP TABLE test;
+
+statement ok
+CREATE TABLE test(x INT, y INT);
+
+statement ok
+INSERT INTO test VALUES (1, 1), (2, 2), (3, 3), (3, 5), (NULL, NULL);
+
+query I
+SELECT first(x) FROM test;
+----
+1
+
+query I
+SELECT last(y) FROM test;
+----
+NULL
+
+statement ok
+DROP TABLE test;
+
+
