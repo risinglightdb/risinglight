@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use itertools::Itertools;
+use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use tokio::sync::oneshot::Receiver;
 use tracing::{info, warn};
 
@@ -14,9 +15,11 @@ use crate::storage::secondary::concat_iterator::ConcatIterator;
 use crate::storage::secondary::manifest::{AddRowSetEntry, DeleteRowsetEntry};
 use crate::storage::secondary::merge_iterator::MergeIterator;
 use crate::storage::secondary::rowset::{DiskRowset, RowsetBuilder, RowsetWriter};
+use crate::storage::secondary::statistics::create_statistics_global_aggregator;
 use crate::storage::secondary::version_manager::EpochOp;
-use crate::storage::secondary::{ColumnBuilderOptions, SecondaryIterator};
+use crate::storage::secondary::{ColumnBuilderOptions, EncodeType, SecondaryIterator};
 use crate::storage::{StorageColumnRef, StorageResult};
+use crate::types::DataValue;
 
 /// Manages all compactions happening in the storage engine.
 pub struct Compactor {
@@ -97,10 +100,44 @@ impl Compactor {
             ConcatIterator::new(iters).into()
         };
 
-        let mut builder = RowsetBuilder::new(
-            table.columns.clone(),
-            ColumnBuilderOptions::from_storage_options(&table.storage_options),
-        );
+        let mut distinct_value = 0;
+        let mut row_count = 0;
+
+        {
+            let mut distinct_value_aggregator =
+                create_statistics_global_aggregator(BlockStatisticsType::DistinctValue);
+            let mut row_count_aggregator =
+                create_statistics_global_aggregator(BlockStatisticsType::RowCount);
+
+            for rowset in &selected_rowsets {
+                let columns = rowset.get_columns();
+                let column_indexs = columns.iter().map(|column| column.index()).collect_vec();
+                for column_index in column_indexs {
+                    row_count_aggregator.apply_batch(column_index);
+                    distinct_value_aggregator.apply_batch(column_index);
+                }
+            }
+
+            if let DataValue::Int64(dv) = distinct_value_aggregator.get_output() {
+                distinct_value = dv;
+            }
+
+            if let DataValue::Int64(rc) = row_count_aggregator.get_output() {
+                row_count = rc;
+            }
+        }
+
+        let mut builder = if distinct_value < row_count / 5 {
+            let mut column_options =
+                ColumnBuilderOptions::from_storage_options(&table.storage_options);
+            column_options.encode_type = EncodeType::RunLength;
+            RowsetBuilder::new(table.columns.clone(), column_options)
+        } else {
+            RowsetBuilder::new(
+                table.columns.clone(),
+                ColumnBuilderOptions::from_storage_options(&table.storage_options),
+            )
+        };
 
         while let Some(batch) = iter.next_batch(None).await? {
             builder.append(batch.to_data_chunk());
@@ -179,14 +216,14 @@ impl Compactor {
         loop {
             {
                 let tables = self.storage.tables.read().clone();
-                let (epoch, snapshot) = self.storage.version.pin();
+                let pin_version = self.storage.version.pin();
                 for (_, table) in tables {
                     if let Some(_guard) = self
                         .storage
                         .txn_mgr
                         .try_lock_for_compaction(table.table_id())
                     {
-                        if let Err(err) = self.compact_table(&snapshot, table).await {
+                        if let Err(err) = self.compact_table(&pin_version.snapshot, table).await {
                             warn!("failed to compact: {:?}", err);
                         }
                     }
@@ -196,7 +233,6 @@ impl Compactor {
                     Err(tokio::sync::oneshot::error::TryRecvError::Closed) => break,
                     _ => {}
                 }
-                self.storage.version.unpin(epoch);
             }
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
