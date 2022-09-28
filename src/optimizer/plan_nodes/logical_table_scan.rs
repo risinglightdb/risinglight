@@ -5,6 +5,7 @@ use std::fmt;
 
 use itertools::Itertools;
 use serde::Serialize;
+pub use sqlparser::ast::DataType as DataTypeKind;
 
 use super::*;
 use crate::binder::ExprVisitor;
@@ -76,7 +77,15 @@ impl_plan_tree_node_for_leaf!(LogicalTableScan);
 
 impl PlanNode for LogicalTableScan {
     fn schema(&self) -> Vec<ColumnDesc> {
-        self.column_descs.clone()
+        let mut descs = self.column_descs.clone();
+        if self.with_row_handler {
+            descs.push(ColumnDesc::new(
+                DataType::new(DataTypeKind::Int(None), false),
+                "row_handler".to_string(),
+                false,
+            ));
+        }
+        descs
     }
 
     // TODO: get statistics from storage system
