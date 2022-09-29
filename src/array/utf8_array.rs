@@ -1,5 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::borrow::Borrow;
+use std::iter::TrustedLen;
 use std::marker::PhantomData;
 use std::mem;
 
@@ -7,7 +9,7 @@ use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
 use super::iterator::NonNullArrayIter;
-use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayValidExt};
+use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidExt};
 use crate::types::BlobRef;
 
 /// A collection of variable-length values.
@@ -55,7 +57,7 @@ impl<T: ValueRef + ?Sized> Clone for BytesArray<T> {
 impl<T: ValueRef + ?Sized> Array for BytesArray<T> {
     type Item = T;
     type Builder = BytesArrayBuilder<T>;
-    type NonNullIterator<'a> = NonNullArrayIter<'a, Self>;
+    type RawIter<'a> = NonNullArrayIter<'a, Self>;
 
     fn get(&self, idx: usize) -> Option<&T> {
         if self.valid[idx] {
@@ -66,11 +68,16 @@ impl<T: ValueRef + ?Sized> Array for BytesArray<T> {
         }
     }
 
+    fn get_unchecked(&self, idx: usize) -> &T {
+        let data_slice = &self.data[self.offset[idx]..self.offset[idx + 1]];
+        T::from_bytes(data_slice)
+    }
+
     fn len(&self) -> usize {
         self.valid.len()
     }
 
-    fn non_null_iter(&self) -> Self::NonNullIterator<'_> {
+    fn raw_iter(&self) -> Self::RawIter<'_> {
         NonNullArrayIter::new(self)
     }
 }
@@ -87,6 +94,26 @@ impl<T: ValueRef + ?Sized> ArrayEstimateExt for BytesArray<T> {
     }
 }
 
+impl<T: ValueRef + ?Sized> ArrayFromDataExt for BytesArray<T> {
+    fn from_data(
+        data_iter: impl Iterator<Item = <Self::Item as ToOwned>::Owned> + TrustedLen,
+        valid: BitVec,
+    ) -> Self {
+        let mut data = Vec::with_capacity(valid.len());
+        let mut offset = Vec::with_capacity(valid.len());
+        for raw in data_iter {
+            data.extend_from_slice(raw.borrow().as_ref());
+            offset.push(data.len());
+        }
+        Self {
+            valid,
+            data,
+            offset,
+            _type: PhantomData,
+        }
+    }
+}
+
 /// A builder that uses `&T` to build an [`BytesArray`].
 pub struct BytesArrayBuilder<T: ValueRef + ?Sized> {
     offset: Vec<usize>,
@@ -97,6 +124,22 @@ pub struct BytesArrayBuilder<T: ValueRef + ?Sized> {
 
 impl<T: ValueRef + ?Sized> ArrayBuilder for BytesArrayBuilder<T> {
     type Array = BytesArray<T>;
+
+    fn extend_from_raw_data(&mut self, raws: &[<<Self::Array as Array>::Item as ToOwned>::Owned]) {
+        for raw in raws {
+            self.data.extend_from_slice(raw.borrow().as_ref());
+            self.offset.push(self.data.len());
+        }
+    }
+
+    fn extend_from_nulls(&mut self, count: usize) {
+        let len = self.data.len();
+        self.offset.extend((0..count).map(|_| len));
+    }
+
+    fn replace_bitmap(&mut self, valid: BitVec) {
+        let _ = mem::replace(&mut self.valid, valid);
+    }
 
     fn with_capacity(capacity: usize) -> Self {
         let mut offset = Vec::with_capacity(capacity + 1);

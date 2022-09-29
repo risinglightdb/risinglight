@@ -46,17 +46,21 @@ impl<T: NativeType> FromIterator<T> for PrimitiveArray<T> {
 impl<T: NativeType> Array for PrimitiveArray<T> {
     type Item = T;
     type Builder = PrimitiveArrayBuilder<T>;
-    type NonNullIterator<'a> = std::slice::Iter<'a, T>;
+    type RawIter<'a> = std::slice::Iter<'a, T>;
 
     fn get(&self, idx: usize) -> Option<&T> {
         self.valid[idx].then(|| &self.data[idx])
+    }
+
+    fn get_unchecked(&self, idx: usize) -> &T {
+        &self.data[idx]
     }
 
     fn len(&self) -> usize {
         self.valid.len()
     }
 
-    fn non_null_iter(&self) -> Self::NonNullIterator<'_> {
+    fn raw_iter(&self) -> Self::RawIter<'_> {
         self.data.iter()
     }
 }
@@ -74,7 +78,10 @@ impl<T: NativeType> ArrayEstimateExt for PrimitiveArray<T> {
 }
 
 impl<T: NativeType> ArrayFromDataExt for PrimitiveArray<T> {
-    fn from_data(data_iter: impl Iterator<Item = Self::Item> + TrustedLen, valid: BitVec) -> Self {
+    fn from_data(
+        data_iter: impl Iterator<Item = <Self::Item as ToOwned>::Owned> + TrustedLen,
+        valid: BitVec,
+    ) -> Self {
         let data = data_iter.collect();
         Self { valid, data }
     }
@@ -88,6 +95,18 @@ pub struct PrimitiveArrayBuilder<T: NativeType> {
 
 impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
     type Array = PrimitiveArray<T>;
+
+    fn extend_from_raw_data(&mut self, raw: &[<<Self::Array as Array>::Item as ToOwned>::Owned]) {
+        self.data.extend_from_slice(raw);
+    }
+
+    fn extend_from_nulls(&mut self, count: usize) {
+        self.data.extend((0..count).map(|_| T::default()));
+    }
+
+    fn replace_bitmap(&mut self, valid: BitVec) {
+        let _ = mem::replace(&mut self.valid, valid);
+    }
 
     fn with_capacity(capacity: usize) -> Self {
         Self {

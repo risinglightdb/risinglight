@@ -6,6 +6,7 @@ use std::iter::TrustedLen;
 use std::ops::{Bound, RangeBounds};
 use std::sync::Arc;
 
+use bitvec::vec::BitVec;
 use paste::paste;
 use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
@@ -49,6 +50,12 @@ pub trait ArrayBuilder: Sized + Send + Sync + 'static {
         Self::with_capacity(0)
     }
 
+    fn extend_from_raw_data(&mut self, raw: &[<<Self::Array as Array>::Item as ToOwned>::Owned]);
+
+    fn extend_from_nulls(&mut self, count: usize);
+
+    fn replace_bitmap(&mut self, valid: BitVec);
+
     /// Create a new builder with `capacity`.
     fn with_capacity(capacity: usize) -> Self;
 
@@ -86,10 +93,12 @@ pub trait Array: Sized + Send + Sync + 'static {
     /// Type of element in the array.
     type Item: ToOwned + ?Sized;
 
-    type NonNullIterator<'a>: Iterator<Item = &'a Self::Item> + TrustedLen;
+    type RawIter<'a>: Iterator<Item = &'a Self::Item> + TrustedLen;
 
     /// Retrieve a reference to value.
     fn get(&self, idx: usize) -> Option<&Self::Item>;
+
+    fn get_unchecked(&self, idx: usize) -> &Self::Item;
 
     /// Number of items of array.
     fn len(&self) -> usize;
@@ -104,7 +113,7 @@ pub trait Array: Sized + Send + Sync + 'static {
         self.len() == 0
     }
 
-    fn non_null_iter(&self) -> Self::NonNullIterator<'_>;
+    fn raw_iter(&self) -> Self::RawIter<'_>;
 }
 
 /// An extension trait for [`Array`].

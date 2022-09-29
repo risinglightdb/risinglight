@@ -1,31 +1,195 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use bitvec::vec::BitVec;
 use criterion::*;
-use risinglight::array::I32Array;
+use risinglight::array::{ArrayFromDataExt, ArrayImpl, I32Array};
+
+#[inline(never)]
+fn never_inline_mul(a: &i32, b: &i32) -> i32 {
+    *a * *b
+}
 
 fn array_mul(c: &mut Criterion) {
-    let mut group = c.benchmark_group("array mul");
+    let mut group = c.benchmark_group("array mul binary op");
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
             use risinglight::executor::evaluator;
-            let a1: I32Array = (0..size).collect();
-            let a2: I32Array = (0..size).collect();
+
+            let mut mask_a = BitVec::new();
+            let mut mask_b = BitVec::new();
+            let mut i = 0;
+            (0..size).into_iter().for_each(|_| {
+                if i == 192 {
+                    i = 0;
+                }
+                if i < 128 {
+                    mask_a.push(true);
+                    mask_b.push(true);
+                } else if (128..192).contains(&i) {
+                    mask_a.push(i % 2 == 0);
+                    mask_b.push(i % 2 == 0);
+                } else {
+                    unreachable!();
+                }
+                i += 1;
+            });
+
+            let a1 = I32Array::from_data(0..size, mask_a);
+            let a2 = I32Array::from_data(0..size, mask_b);
+
             b.iter(|| {
-                let _: I32Array = evaluator::binary_op_masks(&a1, &a2, |a, b| a * b);
+                let _: I32Array = evaluator::binary_op(&a1, &a2, |a, b| a * b);
             });
         });
     }
     group.finish();
 
-    let mut group = c.benchmark_group("array mul native");
+    let mut group = c.benchmark_group("array mul function (standard)");
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            let a1: Vec<i32> = (0..size).collect();
-            let a2: Vec<i32> = (0..size).collect();
+            use risinglight::function::BinaryExecutor;
+            let mut mask_a = BitVec::new();
+            let mut mask_b = BitVec::new();
+
+            let mut i = 0;
+            (0..size).into_iter().for_each(|_| {
+                if i == 192 {
+                    i = 0;
+                }
+                if i < 128 {
+                    mask_a.push(true);
+                    mask_b.push(true);
+                } else if (128..192).contains(&i) {
+                    mask_a.push(i % 2 == 0);
+                    mask_b.push(i % 2 == 0);
+                } else {
+                    unreachable!();
+                }
+                i += 1;
+            });
+
+            let array_a: ArrayImpl = I32Array::from_data(0..size, mask_a).into();
+            let array_b: ArrayImpl = I32Array::from_data(0..size, mask_b).into();
+            let f = |x: &i32, y: &i32| (*x) * (*y);
             b.iter(|| {
-                let _: I32Array = a1.iter().zip(a2.iter()).map(|(a, b)| a * b).collect();
+                let _ = BinaryExecutor::eval_batch_standard::<I32Array, I32Array, I32Array, _>(
+                    &array_a, &array_b, f,
+                );
+            });
+        });
+    }
+    group.finish();
+
+    let mut group = c.benchmark_group("array mul function (standard + never inline )");
+    group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    for size in [1, 16, 256, 4096, 65536] {
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+            use risinglight::function::BinaryExecutor;
+            let mut mask_a = BitVec::new();
+            let mut mask_b = BitVec::new();
+
+            let mut i = 0;
+            (0..size).into_iter().for_each(|_| {
+                if i == 192 {
+                    i = 0;
+                }
+                if i < 128 {
+                    mask_a.push(true);
+                    mask_b.push(true);
+                } else if (128..192).contains(&i) {
+                    mask_a.push(i % 2 == 0);
+                    mask_b.push(i % 2 == 0);
+                } else {
+                    unreachable!();
+                }
+                i += 1;
+            });
+
+            let array_a: ArrayImpl = I32Array::from_data(0..size, mask_a).into();
+            let array_b: ArrayImpl = I32Array::from_data(0..size, mask_b).into();
+            b.iter(|| {
+                let _ = BinaryExecutor::eval_batch_standard::<I32Array, I32Array, I32Array, _>(
+                    &array_a,
+                    &array_b,
+                    never_inline_mul,
+                );
+            });
+        });
+    }
+    group.finish();
+
+    let mut group = c.benchmark_group("array mul function (lazy select)");
+    group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    for size in [1, 16, 256, 4096, 65536] {
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+            use risinglight::function::BinaryExecutor;
+            let mut mask_a = BitVec::new();
+            let mut mask_b = BitVec::new();
+
+            let mut i = 0;
+            (0..size).into_iter().for_each(|_| {
+                if i == 192 {
+                    i = 0;
+                }
+                if i < 128 {
+                    mask_a.push(true);
+                    mask_b.push(true);
+                } else if (128..192).contains(&i) {
+                    mask_a.push(i % 2 == 0);
+                    mask_b.push(i % 2 == 0);
+                } else {
+                    unreachable!();
+                }
+                i += 1;
+            });
+
+            let array_a: ArrayImpl = I32Array::from_data(0..size, mask_a).into();
+            let array_b: ArrayImpl = I32Array::from_data(0..size, mask_b).into();
+            let f = |x: &i32, y: &i32| (*x) * (*y);
+            b.iter(|| {
+                let _ = BinaryExecutor::eval_batch_lazy_select::<I32Array, I32Array, I32Array, _>(
+                    &array_a, &array_b, f,
+                );
+            });
+        });
+    }
+    group.finish();
+
+    let mut group = c.benchmark_group("array mul function (lazy select + never inline)");
+    group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    for size in [1, 16, 256, 4096, 65536] {
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+            use risinglight::function::BinaryExecutor;
+            let mut mask_a = BitVec::new();
+            let mut mask_b = BitVec::new();
+
+            let mut i = 0;
+            (0..size).into_iter().for_each(|_| {
+                if i == 192 {
+                    i = 0;
+                }
+                if i < 128 {
+                    mask_a.push(true);
+                    mask_b.push(true);
+                } else if (128..192).contains(&i) {
+                    mask_a.push(i % 2 == 0);
+                    mask_b.push(i % 2 == 0);
+                } else {
+                    unreachable!();
+                }
+                i += 1;
+            });
+
+            let array_a: ArrayImpl = I32Array::from_data(0..size, mask_a).into();
+            let array_b: ArrayImpl = I32Array::from_data(0..size, mask_b).into();
+            b.iter(|| {
+                let _ = BinaryExecutor::eval_batch_lazy_select::<I32Array, I32Array, I32Array, _>(
+                    &array_a,
+                    &array_b,
+                    never_inline_mul,
+                );
             });
         });
     }
@@ -36,8 +200,27 @@ fn array_mul(c: &mut Criterion) {
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
             use risinglight::executor::evaluator;
-            let a1: I32Array = (0..size).collect();
-            let a2: I32Array = (0..size).collect();
+            let mut mask_a = BitVec::new();
+            let mut mask_b = BitVec::new();
+            let mut i = 0;
+            (0..size).into_iter().for_each(|_| {
+                if i == 192 {
+                    i = 0;
+                }
+                if i < 128 {
+                    mask_a.push(true);
+                    mask_b.push(true);
+                } else if (128..192).contains(&i) {
+                    mask_a.push(i % 2 == 0);
+                    mask_b.push(i % 2 == 0);
+                } else {
+                    unreachable!();
+                }
+                i += 1;
+            });
+
+            let a1 = I32Array::from_data(0..size, mask_a);
+            let a2 = I32Array::from_data(0..size, mask_b);
             b.iter(|| {
                 let _: I32Array = evaluator::simd_op::<_, _, _, 32>(&a1, &a2, |a, b| a * b);
             });
@@ -73,5 +256,6 @@ fn array_sum(c: &mut Criterion) {
     }
     group.finish();
 }
+
 criterion_group!(benches, array_mul, array_sum);
 criterion_main!(benches);
