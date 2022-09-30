@@ -133,6 +133,8 @@ pub trait RowHandler: Sync + Send + 'static {
 }
 
 /// Represents a transaction in storage engine.
+///
+/// Dropping a [`Transaction`] implicitly aborts it.
 pub trait Transaction: Sync + Send + 'static {
     /// Type of the table iterator
     type TxnIteratorType: TxnIterator;
