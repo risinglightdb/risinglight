@@ -27,12 +27,7 @@ impl RoundingDuration for std::time::Duration {
 
     fn round_to_seconds(self) -> Self {
         Duration::new(
-            self.as_secs()
-                + if self.subsec_nanos() >= 500_000_000 {
-                    1
-                } else {
-                    0
-                },
+            self.as_secs() + (self.subsec_nanos() >= 500_000_000) as u64,
             0,
         )
     }

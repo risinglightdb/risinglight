@@ -89,7 +89,7 @@ impl Binder {
                     ));
                 }
             }
-            if info == None {
+            if info.is_none() {
                 if let Some(index) = self
                     .context
                     .aliases
