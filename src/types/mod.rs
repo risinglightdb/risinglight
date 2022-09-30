@@ -300,21 +300,22 @@ impl DataValue {
 
 /// The error type of value type convention.
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
+#[allow(named_arguments_used_positionally)]
 pub enum ConvertError {
-    #[error("failed to convert string {0:?} to int: {:?}")]
-    ParseInt(String, std::num::ParseIntError),
-    #[error("failed to convert string {0:?} to float: {:?}")]
-    ParseFloat(String, std::num::ParseFloatError),
-    #[error("failed to convert string {0:?} to bool: {:?}")]
-    ParseBool(String, std::str::ParseBoolError),
-    #[error("failed to convert string {0:?} to decimal: {:?}")]
-    ParseDecimal(String, rust_decimal::Error),
-    #[error("failed to convert string {0:?} to date: {:?}")]
-    ParseDate(String, chrono::ParseError),
+    #[error("failed to convert string {0:?} to int: {1:?}")]
+    ParseInt(String, #[source] std::num::ParseIntError),
+    #[error("failed to convert string {0:?} to float: {1:?}")]
+    ParseFloat(String, #[source] std::num::ParseFloatError),
+    #[error("failed to convert string {0:?} to bool: {1:?}")]
+    ParseBool(String, #[source] std::str::ParseBoolError),
+    #[error("failed to convert string {0:?} to decimal: {1:?}")]
+    ParseDecimal(String, #[source] rust_decimal::Error),
+    #[error("failed to convert string {0:?} to date: {1:?}")]
+    ParseDate(String, #[source] chrono::ParseError),
     #[error("failed to convert string {0:?} to interval")]
     ParseInterval(String),
-    #[error("failed to convert string {0:?} to blob: {:?}")]
-    ParseBlob(String, ParseBlobError),
+    #[error("failed to convert string {0:?} to blob: {1:?}")]
+    ParseBlob(String, #[source] ParseBlobError),
     #[error("failed to convert {0:?} to decimal")]
     ToDecimalError(DataValue),
     #[error("failed to convert {0:?} from decimal {1:?}")]

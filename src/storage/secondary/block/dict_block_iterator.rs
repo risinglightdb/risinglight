@@ -90,7 +90,7 @@ where
                         dict_builder.push(value.map(|x| x.borrow()));
                     }
                 }
-                None => (panic!("dict block has been damaged")),
+                None => panic!("dict block has been damaged"),
             }
         }
         size
