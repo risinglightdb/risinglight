@@ -11,7 +11,7 @@ use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 
 use crate::types::{
-    Blob, ConvertError, DataType, DataValue, Date, Interval, PhysicalDataTypeKind, F64,
+    Blob, ConvertError, DataType, DataValue, Date, Interval, PhysicalDataTypeKind, F32, F64,
 };
 
 mod data_chunk;
@@ -157,6 +157,7 @@ impl<A: Array> ArrayExt for A {
 pub type BoolArray = PrimitiveArray<bool>;
 pub type I32Array = PrimitiveArray<i32>;
 pub type I64Array = PrimitiveArray<i64>;
+pub type F32Array = PrimitiveArray<F32>;
 pub type F64Array = PrimitiveArray<F64>;
 pub type DecimalArray = PrimitiveArray<Decimal>;
 pub type DateArray = PrimitiveArray<Date>;
@@ -181,6 +182,7 @@ pub enum ArrayImpl {
 pub type BoolArrayBuilder = PrimitiveArrayBuilder<bool>;
 pub type I32ArrayBuilder = PrimitiveArrayBuilder<i32>;
 pub type I64ArrayBuilder = PrimitiveArrayBuilder<i64>;
+pub type F32ArrayBuilder = PrimitiveArrayBuilder<F32>;
 pub type F64ArrayBuilder = PrimitiveArrayBuilder<F64>;
 pub type DecimalArrayBuilder = PrimitiveArrayBuilder<Decimal>;
 pub type DateArrayBuilder = PrimitiveArrayBuilder<Date>;

@@ -7,7 +7,7 @@ use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
 use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidExt};
-use crate::types::NativeType;
+use crate::types::{NativeType, F32, F64};
 
 mod simd;
 pub use self::simd::*;
@@ -35,6 +35,28 @@ impl<T: NativeType> FromIterator<Option<T>> for PrimitiveArray<T> {
 impl<T: NativeType> FromIterator<T> for PrimitiveArray<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let data: Vec<T> = iter.into_iter().collect();
+        let size = data.len();
+        Self {
+            data,
+            valid: BitVec::repeat(true, size),
+        }
+    }
+}
+
+impl FromIterator<f32> for PrimitiveArray<F32> {
+    fn from_iter<I: IntoIterator<Item = f32>>(iter: I) -> Self {
+        let data: Vec<F32> = iter.into_iter().map(F32::from).collect();
+        let size = data.len();
+        Self {
+            data,
+            valid: BitVec::repeat(true, size),
+        }
+    }
+}
+
+impl FromIterator<f64> for PrimitiveArray<F64> {
+    fn from_iter<I: IntoIterator<Item = f64>>(iter: I) -> Self {
+        let data: Vec<F64> = iter.into_iter().map(F64::from).collect();
         let size = data.len();
         Self {
             data,

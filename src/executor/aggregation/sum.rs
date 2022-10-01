@@ -93,7 +93,7 @@ impl AggregationState for SumAggregationState {
                     use crate::array::ArrayValidExt;
                     let bitmap = arr.get_valid_bitmap();
                     if bitmap.any() {
-                        temp = Some(arr.batch_iter::<32>().sum());
+                        temp = Some(arr.as_native().batch_iter::<32>().sum::<f64>().into());
                     }
                 }
                 #[cfg(not(feature = "simd"))]
@@ -183,6 +183,6 @@ mod tests {
         let mut state = SumAggregationState::new(DataTypeKind::Double);
         let array = ArrayImpl::new_float64([0.1, 0.2, 0.3, 0.4].into_iter().collect());
         state.update(&array).unwrap();
-        assert_eq!(state.output(), DataValue::Float64(1.));
+        assert_eq!(state.output(), DataValue::Float64(1.0.into()));
     }
 }

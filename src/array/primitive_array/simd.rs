@@ -1,11 +1,12 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::iter::Sum;
-use std::simd::{LaneCount, Simd, SimdElement, SimdInt, SimdUint, SupportedLaneCount};
+use std::simd::{LaneCount, Simd, SimdElement, SimdFloat, SimdInt, SimdUint, SupportedLaneCount};
 
 use bitvec::prelude::{BitSlice, Lsb0};
 
 use super::*;
+use crate::array::{F32Array, F64Array};
 
 impl<T: NativeType> PrimitiveArray<T> {
     /// Returns a batch iterator for SIMD.
@@ -108,7 +109,39 @@ macro_rules! impl_sum {
         }
     )*}
 }
-impl_sum!(i8, i16, i32, i64, isize, u8, u16, u32, u64, usize); // FIXME: add f32, f64
+impl_sum!(i8, i16, i32, i64, isize, u8, u16, u32, u64, usize, f32, f64);
+
+impl F32Array {
+    /// Cast the element type to native `f32`.
+    pub fn as_native(&self) -> &PrimitiveArray<f32> {
+        // safety: `f32` and `F32` have the same memory layout.
+        unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl PrimitiveArray<f32> {
+    /// Cast the element type to ordered `F32`.
+    pub fn into_ordered(self) -> F32Array {
+        // safety: `f32` and `F32` have the same memory layout.
+        unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl F64Array {
+    /// Cast the element type to native `f64`.
+    pub fn as_native(&self) -> &PrimitiveArray<f64> {
+        // safety: `f64` and `F64` have the same memory layout.
+        unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl PrimitiveArray<f64> {
+    /// Cast the element type to ordered `F64`.
+    pub fn into_ordered(self) -> F64Array {
+        // safety: `f64` and `F64` have the same memory layout.
+        unsafe { std::mem::transmute(self) }
+    }
+}
 
 #[cfg(test)]
 mod tests {

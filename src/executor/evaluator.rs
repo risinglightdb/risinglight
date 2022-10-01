@@ -144,7 +144,7 @@ impl ArrayImpl {
                     #[cfg(feature = "simd")]
                     (A::Int64(a), A::Int64(b)) => A::new_int64(simd_op::<_, _, _, 64>(a, b, |a, b| a $op b)),
                     #[cfg(feature = "simd")]
-                    (A::Float64(a), A::Float64(b)) => A::new_float64(simd_op::<_, _, _, 32>(a, b, |a, b| a $op b)),
+                    (A::Float64(a), A::Float64(b)) => A::new_float64(simd_op::<_, _, _, 32>(a.as_native(), b.as_native(), |a, b| a $op b).into_ordered()),
 
                     #[cfg(not(feature = "simd"))]
                     (A::Int32(a), A::Int32(b)) => A::new_int32(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
