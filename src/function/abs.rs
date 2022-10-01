@@ -59,7 +59,7 @@ impl Function for AbsFunction {
                 let mut builder = F64ArrayBuilder::new();
                 for val in f64_arr.iter() {
                     match val {
-                        Some(val) => builder.push(Some(&(*val).abs())),
+                        Some(val) => builder.push(Some(&val.abs().into())),
                         None => builder.push(None),
                     }
                 }

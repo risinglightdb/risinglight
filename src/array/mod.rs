@@ -10,7 +10,9 @@ use paste::paste;
 use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 
-use crate::types::{Blob, ConvertError, DataType, DataValue, Date, Interval, PhysicalDataTypeKind};
+use crate::types::{
+    Blob, ConvertError, DataType, DataValue, Date, Interval, PhysicalDataTypeKind, F32, F64,
+};
 
 mod data_chunk;
 mod data_chunk_builder;
@@ -155,13 +157,14 @@ impl<A: Array> ArrayExt for A {
 pub type BoolArray = PrimitiveArray<bool>;
 pub type I32Array = PrimitiveArray<i32>;
 pub type I64Array = PrimitiveArray<i64>;
-pub type F64Array = PrimitiveArray<f64>;
+pub type F32Array = PrimitiveArray<F32>;
+pub type F64Array = PrimitiveArray<F64>;
 pub type DecimalArray = PrimitiveArray<Decimal>;
 pub type DateArray = PrimitiveArray<Date>;
 pub type IntervalArray = PrimitiveArray<Interval>;
 
 /// Embeds all types of arrays in `array` module.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ArrayImpl {
     Bool(Arc<BoolArray>),
     // Int16(PrimitiveArray<i16>),
@@ -179,7 +182,8 @@ pub enum ArrayImpl {
 pub type BoolArrayBuilder = PrimitiveArrayBuilder<bool>;
 pub type I32ArrayBuilder = PrimitiveArrayBuilder<i32>;
 pub type I64ArrayBuilder = PrimitiveArrayBuilder<i64>;
-pub type F64ArrayBuilder = PrimitiveArrayBuilder<f64>;
+pub type F32ArrayBuilder = PrimitiveArrayBuilder<F32>;
+pub type F64ArrayBuilder = PrimitiveArrayBuilder<F64>;
 pub type DecimalArrayBuilder = PrimitiveArrayBuilder<Decimal>;
 pub type DateArrayBuilder = PrimitiveArrayBuilder<Date>;
 pub type IntervalArrayBuilder = PrimitiveArrayBuilder<Interval>;
@@ -411,7 +415,7 @@ impl ArrayBuilderImpl {
                     .map_err(|e| ConvertError::ParseInt(s.to_string(), e))?,
             )),
             Self::Float64(a) => a.push(Some(
-                &s.parse::<f64>()
+                &s.parse::<F64>()
                     .map_err(|e| ConvertError::ParseFloat(s.to_string(), e))?,
             )),
             Self::Utf8(a) => a.push(Some(s)),

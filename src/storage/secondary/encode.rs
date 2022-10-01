@@ -1,13 +1,14 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use bytes::{Buf, BufMut};
+use ordered_float::OrderedFloat;
 use rust_decimal::Decimal;
 
 use crate::array::{
     Array, BlobArray, BoolArray, DateArray, DecimalArray, F64Array, I32Array, I64Array,
     IntervalArray, Utf8Array,
 };
-use crate::types::{BlobRef, Date, Interval};
+use crate::types::{BlobRef, Date, Interval, F64};
 
 /// Encode a primitive value into fixed-width buffer
 pub trait PrimitiveFixedWidthEncode: Copy + Clone + 'static + Send + Sync + PartialEq {
@@ -68,18 +69,18 @@ impl PrimitiveFixedWidthEncode for i64 {
     }
 }
 
-impl PrimitiveFixedWidthEncode for f64 {
-    const WIDTH: usize = std::mem::size_of::<f64>();
-    const DEFAULT_VALUE: &'static f64 = &0.0;
+impl PrimitiveFixedWidthEncode for F64 {
+    const WIDTH: usize = std::mem::size_of::<F64>();
+    const DEFAULT_VALUE: &'static F64 = &OrderedFloat(0.0);
 
     type ArrayType = F64Array;
 
     fn encode(&self, buffer: &mut impl BufMut) {
-        buffer.put_f64_le(*self);
+        buffer.put_f64_le(self.0);
     }
 
     fn decode(buffer: &mut impl Buf) -> Self {
-        buffer.get_f64_le()
+        buffer.get_f64_le().into()
     }
 }
 
