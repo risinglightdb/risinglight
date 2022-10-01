@@ -14,7 +14,7 @@ use super::ColumnBuilder;
 use crate::array::Array;
 use crate::storage::secondary::block::RleBlockBuilder;
 use crate::storage::secondary::EncodeType;
-use crate::types::{Date, Interval};
+use crate::types::{Date, Interval, F64};
 
 /// All supported block builders for primitive types.
 pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
@@ -26,7 +26,7 @@ pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
 
 pub type I32ColumnBuilder = PrimitiveColumnBuilder<i32>;
 pub type I64ColumnBuilder = PrimitiveColumnBuilder<i64>;
-pub type F64ColumnBuilder = PrimitiveColumnBuilder<f64>;
+pub type F64ColumnBuilder = PrimitiveColumnBuilder<F64>;
 pub type BoolColumnBuilder = PrimitiveColumnBuilder<bool>;
 pub type DecimalColumnBuilder = PrimitiveColumnBuilder<Decimal>;
 pub type DateColumnBuilder = PrimitiveColumnBuilder<Date>;

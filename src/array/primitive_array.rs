@@ -12,8 +12,8 @@ use crate::types::NativeType;
 mod simd;
 pub use self::simd::*;
 
-/// A collection of primitive types, such as `i32`, `f32`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// A collection of primitive types, such as `i32`, `F32`.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct PrimitiveArray<T: NativeType> {
     valid: BitVec,
     data: Vec<T>,
@@ -125,6 +125,7 @@ mod tests {
     use rust_decimal::Decimal;
 
     use super::*;
+    use crate::types::{F32, F64};
 
     fn test_builder<T: FromPrimitive + NativeType>() {
         let iter = (0..1000).map(|x| if x % 2 == 0 { None } else { T::from_usize(x) });
@@ -152,12 +153,12 @@ mod tests {
 
     #[test]
     fn test_builder_f32() {
-        test_builder::<f32>();
+        test_builder::<F32>();
     }
 
     #[test]
     fn test_builder_f64() {
-        test_builder::<f64>();
+        test_builder::<F64>();
     }
 
     #[test]

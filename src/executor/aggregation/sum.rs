@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 
 use super::*;
 use crate::array::Array;
-use crate::types::DataTypeKind;
+use crate::types::{DataTypeKind, F64};
 
 /// State for sum aggregation
 pub struct SumAggregationState {
@@ -35,7 +35,7 @@ macro_rules! sum_func_gen {
 
 sum_func_gen!(sum_i32, i32, i32);
 sum_func_gen!(sum_i64, i64, i64);
-sum_func_gen!(sum_f64, f64, f64);
+sum_func_gen!(sum_f64, F64, F64);
 sum_func_gen!(sum_decimal, Decimal, Decimal);
 
 impl AggregationState for SumAggregationState {
@@ -87,7 +87,7 @@ impl AggregationState for SumAggregationState {
                 }
             }
             (ArrayImpl::Float64(arr), DataTypeKind::Double) => {
-                let mut temp: Option<f64> = None;
+                let mut temp: Option<F64> = None;
                 #[cfg(feature = "simd")]
                 {
                     use crate::array::ArrayValidExt;

@@ -7,7 +7,7 @@ use sqlparser::ast::BinaryOperator;
 use super::*;
 use crate::catalog::ColumnRefId;
 use crate::parser::{DateTimeField, Expr, Function, UnaryOperator, Value};
-use crate::types::{DataType, DataTypeExt, DataTypeKind, DataValue, Interval};
+use crate::types::{DataType, DataTypeExt, DataTypeKind, DataValue, Interval, F64};
 
 mod agg_call;
 mod binary_op;
@@ -271,7 +271,7 @@ impl From<&Value> for DataValue {
                     Self::Int32(int)
                 } else if let Ok(bigint) = n.parse::<i64>() {
                     Self::Int64(bigint)
-                } else if let Ok(float) = n.parse::<f64>() {
+                } else if let Ok(float) = n.parse::<F64>() {
                     Self::Float64(float)
                 } else {
                     panic!("invalid digit: {}", n);
@@ -321,11 +321,11 @@ mod tests {
     // test when BoundExpr is Constant
     #[test]
     fn test_format_name_constant() {
-        let expr = BoundExpr::Constant(DataValue::Int32(1_i32));
+        let expr = BoundExpr::Constant(DataValue::Int32(1));
         assert_eq!("1", expr.format_name(&vec![]));
-        let expr = BoundExpr::Constant(DataValue::Int64(1_i64));
+        let expr = BoundExpr::Constant(DataValue::Int64(1));
         assert_eq!("1", expr.format_name(&vec![]));
-        let expr = BoundExpr::Constant(DataValue::Float64(32.0_f64));
+        let expr = BoundExpr::Constant(DataValue::Float64(32.0.into()));
         assert_eq!("32.000", expr.format_name(&vec![]));
     }
 
@@ -356,7 +356,7 @@ mod tests {
                 index: 0,
                 return_type: left_data_type.clone(),
             });
-            let right_expr = BoundExpr::Constant(DataValue::Int64(1_i64));
+            let right_expr = BoundExpr::Constant(DataValue::Int64(1));
             let child_schema = vec![ColumnDesc::new(left_data_type, "a".to_string(), false)];
             let expr = BoundExpr::BinaryOp(BoundBinaryOp {
                 op: BinaryOperator::Plus,

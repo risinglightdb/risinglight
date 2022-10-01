@@ -10,7 +10,7 @@ use crate::types::DataValue;
 /// A collection of arrays.
 ///
 /// A data chunk is a horizontal subset of a query result.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DataChunk {
     arrays: Arc<[ArrayImpl]>,
 }
@@ -131,7 +131,7 @@ impl fmt::Debug for DataChunk {
 }
 
 /// A chunk is a wrapper sturct for many data chunks.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Chunk {
     data_chunks: Vec<DataChunk>,
     header: Option<Vec<String>>,

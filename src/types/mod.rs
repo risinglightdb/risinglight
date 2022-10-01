@@ -1,14 +1,13 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 use num_traits::ToPrimitive;
+use ordered_float::OrderedFloat;
 use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 pub use sqlparser::ast::DataType as DataTypeKind;
-
-use crate::for_all_variants;
 
 mod blob;
 mod date;
@@ -21,7 +20,7 @@ pub use self::interval::*;
 pub use self::native::*;
 
 /// Physical data type
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum PhysicalDataTypeKind {
     Int32,
     Int64,
@@ -129,7 +128,7 @@ pub(crate) type TableId = u32;
 pub(crate) type ColumnId = u32;
 
 /// Primitive SQL value.
-#[derive(Debug, Clone, PartialOrd, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum DataValue {
     // NOTE: Null comes first.
     // => NULL is less than any non-NULL values
@@ -137,7 +136,7 @@ pub enum DataValue {
     Bool(bool),
     Int32(i32),
     Int64(i64),
-    Float64(f64),
+    Float64(F64),
     String(String),
     Blob(Blob),
     Decimal(Decimal),
@@ -145,42 +144,9 @@ pub enum DataValue {
     Interval(Interval),
 }
 
-/// Implement dispatch functions for `PartialEq`
-macro_rules! impl_partial_eq {
-    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident } ),*) => {
-        impl PartialEq for DataValue {
-            fn eq(&self, other: &Self) -> bool {
-                match (self, other) {
-                    $(
-                        (Self::$Value(left), Self::$Value(right)) => left == right,
-                    )*
-                    (Self::Null, Self::Null) => true,
-                    _ => false,
-                }
-            }
-        }
-    }
-}
-
-for_all_variants! { impl_partial_eq }
-
-impl Eq for DataValue {}
-impl Hash for DataValue {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            Self::Null => 0.hash(state),
-            Self::Bool(b) => b.hash(state),
-            Self::Int32(i) => i.hash(state),
-            Self::Int64(i) => i.hash(state),
-            Self::Float64(_) => panic!("do not support hashing f64"),
-            Self::String(s) => s.hash(state),
-            Self::Blob(v) => v.hash(state),
-            Self::Decimal(v) => v.hash(state),
-            Self::Date(v) => v.hash(state),
-            Self::Interval(v) => v.hash(state),
-        }
-    }
-}
+/// A wrapper around floats providing implementations of `Eq`, `Ord`, and `Hash`.
+pub type F32 = OrderedFloat<f32>;
+pub type F64 = OrderedFloat<f64>;
 
 macro_rules! impl_arith_for_datavalue {
     ($Trait:ident, $name:ident) => {
@@ -274,7 +240,7 @@ impl DataValue {
             &DataValue::Float64(f) if f.is_sign_negative() => {
                 return Err(ConvertError::Cast(f.to_string(), "usize"));
             }
-            &DataValue::Float64(f) => f as usize,
+            &DataValue::Float64(f) => f.0 as usize,
             &DataValue::Decimal(d) if d.is_sign_negative() => {
                 return Err(ConvertError::Cast(d.to_string(), "usize"));
             }
