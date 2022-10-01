@@ -4,6 +4,7 @@ use std::hash::Hash;
 
 use num_traits::ToPrimitive;
 use ordered_float::OrderedFloat;
+use parse_display::{Display, FromStr};
 use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -128,19 +129,29 @@ pub(crate) type TableId = u32;
 pub(crate) type ColumnId = u32;
 
 /// Primitive SQL value.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Debug, Display, FromStr, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum DataValue {
     // NOTE: Null comes first.
     // => NULL is less than any non-NULL values
+    #[display("null")]
     Null,
+    #[display("{0}")]
     Bool(bool),
+    #[display("{0}")]
     Int32(i32),
+    #[display("{0}")]
     Int64(i64),
+    #[display("{0}")]
     Float64(F64),
+    #[display("{0}")]
     String(String),
+    #[display("{0}")]
     Blob(Blob),
+    #[display("{0}")]
     Decimal(Decimal),
+    #[display("{0}")]
     Date(Date),
+    #[display("{0}")]
     Interval(Interval),
 }
 
@@ -300,21 +311,3 @@ pub enum ConvertError {
 
 /// memory table row type
 pub(crate) type Row = Vec<DataValue>;
-
-impl std::fmt::Display for DataValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Null => write!(f, "null")?,
-            Self::Bool(value) => write!(f, "{}", value)?,
-            Self::Int32(value) => write!(f, "{}", value)?,
-            Self::Int64(value) => write!(f, "{}", value)?,
-            Self::Float64(value) => write!(f, "{}", value)?,
-            Self::String(value) => write!(f, "{}", value)?,
-            Self::Blob(value) => write!(f, "{}", value)?,
-            Self::Decimal(value) => write!(f, "{}", value)?,
-            Self::Date(value) => write!(f, "{}", value)?,
-            Self::Interval(value) => write!(f, "{}", value)?,
-        }
-        Ok(())
-    }
-}
