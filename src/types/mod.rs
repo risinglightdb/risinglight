@@ -193,6 +193,11 @@ impl_arith_for_datavalue!(Div, div);
 impl_arith_for_datavalue!(Rem, rem);
 
 impl DataValue {
+    /// Returns `true` if value is null.
+    pub const fn is_null(&self) -> bool {
+        matches!(self, Self::Null)
+    }
+
     /// Whether the value is divisible by another.
     pub fn is_divisible_by(&self, other: &DataValue) -> bool {
         use DataValue::*;

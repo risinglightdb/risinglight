@@ -1,5 +1,7 @@
 use egg::{rewrite as rw, *};
 
+use crate::array::ArrayImpl;
+use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{DataValue, PhysicalDataTypeKind};
 
 define_language! {
@@ -34,6 +36,7 @@ define_language! {
         // aggregate
         "max" = Max(Id),
         "min" = Min(Id),
+        "sum" = Sum(Id),
         "avg" = Avg(Id),
         "count" = Count(Id),
         "rowcount" = RowCount(Id),
@@ -68,11 +71,46 @@ define_language! {
     }
 }
 
+impl Plan {
+    const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {
+        use BinaryOperator as Op;
+        Some(match self {
+            &Plan::Add([a, b]) => (Op::Plus, a, b),
+            &Plan::Sub([a, b]) => (Op::Minus, a, b),
+            &Plan::Mul([a, b]) => (Op::Multiply, a, b),
+            &Plan::Div([a, b]) => (Op::Divide, a, b),
+            &Plan::Mod([a, b]) => (Op::Modulo, a, b),
+            &Plan::StringConcat([a, b]) => (Op::StringConcat, a, b),
+            &Plan::Gt([a, b]) => (Op::Gt, a, b),
+            &Plan::Lt([a, b]) => (Op::Lt, a, b),
+            &Plan::GtEq([a, b]) => (Op::GtEq, a, b),
+            &Plan::LtEq([a, b]) => (Op::LtEq, a, b),
+            &Plan::Eq([a, b]) => (Op::Eq, a, b),
+            &Plan::NotEq([a, b]) => (Op::NotEq, a, b),
+            &Plan::And([a, b]) => (Op::And, a, b),
+            &Plan::Or([a, b]) => (Op::Or, a, b),
+            &Plan::Xor([a, b]) => (Op::Xor, a, b),
+            &Plan::Like([a, b]) => (Op::Like, a, b),
+            _ => return None,
+        })
+    }
+
+    const fn unary_op(&self) -> Option<(UnaryOperator, Id)> {
+        use UnaryOperator as Op;
+        Some(match self {
+            &Plan::Neg(a) => (Op::Minus, a),
+            &Plan::Not(a) => (Op::Not, a),
+            _ => return None,
+        })
+    }
+}
+
 #[derive(Default)]
 pub struct PlanAnalysis;
 
 #[derive(Debug, PartialOrd, Ord, PartialEq, Eq)]
 pub struct Data {
+    // Some if the expression is a constant
     val: Option<DataValue>,
 }
 
@@ -84,14 +122,9 @@ impl Analysis<Plan> for PlanAnalysis {
     }
 
     fn make(egraph: &EGraph, enode: &Plan) -> Self::Data {
-        // let x = |i: &Id| egraph[*i].data.val;
-        // match enode {
-        //     Plan::Constant(n) => Some(*n),
-        //     Plan::Add([a, b]) => Some(x(a)? + x(b)?),
-        //     Plan::Mul([a, b]) => Some(x(a)? * x(b)?),
-        //     _ => None,
-        // }
-        Data { val: None }
+        Data {
+            val: eval(egraph, enode),
+        }
     }
 
     fn modify(egraph: &mut EGraph, id: Id) {
@@ -100,6 +133,31 @@ impl Analysis<Plan> for PlanAnalysis {
             let added = egraph.add(Plan::Constant(val.clone()));
             egraph.union(id, added);
         }
+    }
+}
+
+/// Evaluate constant.
+fn eval(egraph: &EGraph, enode: &Plan) -> Option<DataValue> {
+    use Plan::*;
+    let x = |i: Id| egraph[i].data.val.as_ref();
+    if let Constant(v) = enode {
+        Some(v.clone())
+    } else if let Some((op, a, b)) = enode.binary_op() {
+        let array_a = ArrayImpl::from(x(a)?);
+        let array_b = ArrayImpl::from(x(b)?);
+        Some(array_a.binary_op(&op, &array_b).get(0))
+    } else if let Some((op, a)) = enode.unary_op() {
+        let array_a = ArrayImpl::from(x(a)?);
+        Some(array_a.unary_op(&op).get(0))
+    } else if let &IsNull(a) = enode {
+        Some(DataValue::Bool(x(a)?.is_null()))
+    } else if let &TypeCast(_) = enode {
+        // TODO: evaluate type cast
+        None
+    } else if let &Max(a) | &Min(a) | &Avg(a) | &First(a) | &Last(a) = enode {
+        x(a).cloned()
+    } else {
+        None
     }
 }
 
@@ -141,6 +199,7 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("lt-comm";   "(<  ?a ?b)" => "(>  ?b ?a)"),
     rw!("ge-comm";   "(>= ?a ?b)" => "(<= ?b ?a)"),
     rw!("le-comm";   "(<= ?a ?b)" => "(>= ?b ?a)"),
+    rw!("eq-trans";  "(and (= ?a ?b) (= ?b ?c))" => "(and (= ?a ?b) (= ?a ?c))"),
 
     rw!("not-eq";    "(not (=  ?a ?b))" => "(<> ?a ?b)"),
     rw!("not-ne";    "(not (<> ?a ?b))" => "(=  ?a ?b)"),
@@ -150,6 +209,7 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("not-le";    "(not (<= ?a ?b))" => "(>  ?a ?b)"),
     rw!("not-and";   "(not (and ?a ?b))" => "(or  (not ?a) (not ?b))"),
     rw!("not-or";    "(not (or  ?a ?b))" => "(and (not ?a) (not ?b))"),
+    rw!("not-not";   "(not (not ?a))"    => "?a"),
 
     rw!("and-false"; "(and false ?a)"   => "false"),
     rw!("and-true";  "(and true ?a)"    => "?a"),
@@ -163,6 +223,7 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("or-comm";   "(or ?a ?b)"    => "(or ?b ?a)"),
     rw!("or-assoc";  "(or ?a (or ?b ?c))" => "(or (or ?a ?b) ?c)"),
 
+    rw!("avg";       "(avg ?a)" => "(/ (sum ?a) (count ?a))"),
 
     rw!("predicate-pushdown";
         "(filter (join ?left ?right inner ?on) ?condition)" =>
@@ -182,11 +243,11 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("filter-false"; "(filter ?child false)" => "(values)"),
 ]}
 
-fn is_zero(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+fn value_is(var: &str, f: impl Fn(&DataValue) -> bool) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().expect("invalid var");
     move |egraph, _, subst| {
         if let Some(n) = &egraph[subst[var]].data.val {
-            n.is_zero()
+            f(n)
         } else {
             false
         }
@@ -194,20 +255,23 @@ fn is_zero(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 }
 
 fn is_not_zero(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    let var = var.parse().expect("invalid var");
-    move |egraph, _, subst| {
-        if let Some(n) = &egraph[subst[var]].data.val {
-            !n.is_zero()
-        } else {
-            false
-        }
-    }
+    value_is(var, |v| !v.is_zero())
+}
+
+fn is_const(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    value_is(var, |_| true)
 }
 
 egg::test_fn! {
-    test_0_plus_1,
+    and_eq_const,
     rules(),
-    "(+ 0 1)" => "1",
+    "(and (= a 1) (= a b))" => "(and (= a 1) (= b 1))",
+}
+
+egg::test_fn! {
+    constant_folding,
+    rules(),
+    "(* (- (+ 1 2) 4) (/ 6 2))" => "-3",
 }
 
 egg::test_fn! {
