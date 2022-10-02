@@ -48,6 +48,9 @@ pub mod storage;
 pub mod types;
 /// Utilities.
 pub mod utils;
+
+mod egg;
+
 #[cfg(feature = "jemalloc")]
 use tikv_jemallocator::Jemalloc;
 

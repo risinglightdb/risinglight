@@ -32,6 +32,7 @@ crc32fast = "1"
 csv = "1"
 dirs = "4"
 downcast-rs = "1"
+egg = "0.9"
 enum_dispatch = "0.3"
 erased-serde = "0.3"
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
