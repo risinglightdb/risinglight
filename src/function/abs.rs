@@ -1,7 +1,6 @@
 use super::*;
 use crate::array::ArrayImpl;
 use crate::binder::BindError;
-
 use crate::types::F64;
 
 pub struct AbsFunction {
@@ -42,19 +41,19 @@ impl Function for AbsFunction {
             ArrayImpl::Int32(_) => {
                 let f = |x: &i32| x.abs();
                 let res_arr =
-                    UnaryExecutor::eval_batch_lazy_select::<I32Array, I32Array, _>(arr, f).unwrap();
+                    UnaryExecutor::eval_batch_lazy_select::<I32Array, I32Array, _>(arr, f)?;
                 Ok(res_arr)
             }
             ArrayImpl::Int64(_) => {
                 let f = |x: &i64| x.abs();
                 let res_arr =
-                    UnaryExecutor::eval_batch_lazy_select::<I64Array, I64Array, _>(arr, f).unwrap();
+                    UnaryExecutor::eval_batch_lazy_select::<I64Array, I64Array, _>(arr, f)?;
                 Ok(res_arr)
             }
             ArrayImpl::Float64(_) => {
                 let f = |x: &F64| x.abs().into();
                 let res_arr =
-                    UnaryExecutor::eval_batch_lazy_select::<F64Array, F64Array, _>(arr, f).unwrap();
+                    UnaryExecutor::eval_batch_lazy_select::<F64Array, F64Array, _>(arr, f)?;
                 Ok(res_arr)
             }
             _ => Err(FunctionError::InvalidDataTypes(
