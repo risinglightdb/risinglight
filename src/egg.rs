@@ -116,8 +116,10 @@ pub struct Data {
     /// Some if the expression is a constant.
     val: Option<DataValue>,
     /// All columns involved in the node.
-    columns: HashSet<ColumnRefId>,
+    columns: ColumnSet,
 }
+
+type ColumnSet = HashSet<ColumnRefId>;
 
 impl Analysis<Plan> for PlanAnalysis {
     type Data = Data;
@@ -170,7 +172,7 @@ fn eval(egraph: &EGraph, enode: &Plan) -> Option<DataValue> {
 }
 
 /// Returns all columns involved in the node.
-fn analyze_columns(egraph: &EGraph, enode: &Plan) -> HashSet<ColumnRefId> {
+fn analyze_columns(egraph: &EGraph, enode: &Plan) -> ColumnSet {
     if let Plan::ColumnRef(col) = enode {
         return [*col].into_iter().collect();
     }
@@ -181,7 +183,7 @@ fn analyze_columns(egraph: &EGraph, enode: &Plan) -> HashSet<ColumnRefId> {
 }
 
 /// Merge 2 column set.
-fn merge_columns(to: &mut HashSet<ColumnRefId>, from: HashSet<ColumnRefId>) -> DidMerge {
+fn merge_columns(to: &mut ColumnSet, from: ColumnSet) -> DidMerge {
     let len = to.len();
     if from.is_subset(to) {
         *to = from;
@@ -285,6 +287,11 @@ pub fn rules() -> Vec<Rewrite> { vec![
         "(join inner ?cond2 ?left (filter ?cond1 ?right))"
         if columns_is_subset("?cond1", "?right")
     ),
+    rw!("join-reorder";
+        "(join inner ?cond2 (join inner ?cond1 ?left ?mid) ?right)" =>
+        "(join inner ?cond1 ?left (join inner ?cond2 ?mid ?right))"
+        if columns_is_disjoint("?cond2", "?left")
+    ),
 
     rw!("limit-0"; "(limit ?offset 0 ?child)" => "(values)"),
     rw!("filter-true"; "(filter ?child true)" => "?child"),
@@ -312,12 +319,25 @@ fn is_const(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 
 /// Returns true if the columns in `var1` are a subset of the columns in `var2`.
 fn columns_is_subset(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    columns_is(var1, var2, HashSet::is_subset)
+}
+
+/// Returns true if the columns in `var1` has no elements in common with the columns in `var2`.
+fn columns_is_disjoint(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    columns_is(var1, var2, HashSet::is_disjoint)
+}
+
+fn columns_is(
+    var1: &str,
+    var2: &str,
+    f: impl Fn(&ColumnSet, &ColumnSet) -> bool,
+) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var1 = var1.parse().expect("invalid var");
     let var2 = var2.parse().expect("invalid var");
     move |egraph, _, subst| {
         let var1_set = &egraph[subst[var1]].data.columns;
         let var2_set = &egraph[subst[var2]].data.columns;
-        var1_set.is_subset(var2_set)
+        f(var1_set, var2_set)
     }
 }
 
@@ -346,7 +366,7 @@ egg::test_fn! {
             (and (= $1.1 $2.1) (= $2.3 'A'))
             (join
                 inner
-                (true)
+                true
                 (scan student (list $1.1 $1.2))
                 (scan enrolled (list $2.1 $2.2 $2.3))
             )
@@ -364,4 +384,38 @@ egg::test_fn! {
             )
         )
     )"
+}
+
+egg::test_fn! {
+    join_reorder,
+    rules(),
+    // SELECT * FROM t1, t2, t3
+    // WHERE t1.id = t2.id AND t3.id = t2.id
+    "
+    (filter
+        (and (= $1.1 $2.1) (= $3.1 $2.1))
+        (join
+            inner
+            true
+            (join
+                inner
+                true
+                (scan t1 (list $1.1 $1.2))
+                (scan t2 (list $2.1 $2.2))
+            )
+            (scan t3 (list $3.1 $3.2))
+        )
+    )" => "
+    (join
+        inner
+        (= $1.1 $2.1)
+        (scan t1 (list $1.1 $1.2))
+        (join
+            inner
+            (= $2.1 $3.1)
+            (scan t2 (list $2.1 $2.2))
+            (scan t3 (list $3.1 $3.2))
+        )
+    )
+    "
 }
