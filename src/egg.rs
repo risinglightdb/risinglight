@@ -239,6 +239,12 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("lt-comm";   "(<  ?a ?b)" => "(>  ?b ?a)"),
     rw!("ge-comm";   "(>= ?a ?b)" => "(<= ?b ?a)"),
     rw!("le-comm";   "(<= ?a ?b)" => "(>= ?b ?a)"),
+    rw!("eq-add";    "(=  (+ ?a ?b) ?c)" => "(=  ?a (- ?c ?b))"),
+    rw!("ne-add";    "(<> (+ ?a ?b) ?c)" => "(<> ?a (- ?c ?b))"),
+    rw!("gt-add";    "(>  (+ ?a ?b) ?c)" => "(>  ?a (- ?c ?b))"),
+    rw!("lt-add";    "(<  (+ ?a ?b) ?c)" => "(<  ?a (- ?c ?b))"),
+    rw!("ge-add";    "(>= (+ ?a ?b) ?c)" => "(>= ?a (- ?c ?b))"),
+    rw!("le-add";    "(<= (+ ?a ?b) ?c)" => "(<= ?a (- ?c ?b))"),
     rw!("eq-trans";  "(and (= ?a ?b) (= ?b ?c))" => "(and (= ?a ?b) (= ?a ?c))"),
 
     rw!("not-eq";    "(not (=  ?a ?b))" => "(<> ?a ?b)"),
@@ -351,6 +357,12 @@ egg::test_fn! {
     constant_folding,
     rules(),
     "(* (- (+ 1 2) 4) (/ 6 2))" => "-3",
+}
+
+egg::test_fn! {
+    constant_moving,
+    rules(),
+    "(> (+ 100 a) 300)" => "(> a 200)",
 }
 
 egg::test_fn! {
