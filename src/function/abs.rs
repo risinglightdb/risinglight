@@ -2,6 +2,8 @@ use super::*;
 use crate::array::ArrayImpl;
 use crate::binder::BindError;
 
+use crate::types::F64;
+
 pub struct AbsFunction {
     return_type: DataType,
 }
@@ -50,7 +52,7 @@ impl Function for AbsFunction {
                 Ok(res_arr)
             }
             ArrayImpl::Float64(_) => {
-                let f = |x: &f64| x.abs();
+                let f = |x: &F64| x.abs().into();
                 let res_arr =
                     UnaryExecutor::eval_batch_lazy_select::<F64Array, F64Array, _>(arr, f).unwrap();
                 Ok(res_arr)

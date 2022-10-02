@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 
 use super::*;
 use crate::binder::BindError;
-use crate::types::{DataType, Date, Interval};
+use crate::types::{DataType, Date, Interval, F64};
 
 pub struct AddFunction {
     return_type: DataType,
@@ -62,7 +62,7 @@ impl Function for AddFunction {
                 Ok(res_arr)
             }
             (ArrayImpl::Float64(_), ArrayImpl::Float64(_)) => {
-                let f = |x: &f64, y: &f64| x + y;
+                let f = |x: &F64, y: &F64| *x + *y;
                 let res_arr =
                     BinaryExecutor::eval_batch_lazy_select::<F64Array, F64Array, F64Array, _>(
                         l_arr, r_arr, f,
