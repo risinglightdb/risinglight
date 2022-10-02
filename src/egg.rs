@@ -61,13 +61,14 @@ define_language! {
         "limit" = Limit([Id; 3]),               // (limit offset limit child)
         "topn" = TopN([Id; 4]),                 // (topn offset limit [order_key..] child)
         "join" = Join([Id; 4]),                 // (join join_type expr left right)
+        "hashjoin" = HashJoin([Id; 5]),         // (hashjoin join_type [left_expr..] [right_expr..] left right)
             "inner" = Inner,
             "left_outer" = LeftOuter,
             "right_outer" = RightOuter,
             "full_outer" = FullOuter,
         "agg" = Agg([Id; 3]),                   // (agg aggs=[expr..] group_keys=[expr..] child)
 
-        "tuple" = Tuple(Box<[Id]>),             // (tuple ...)
+        "tuple" = Tuple(Box<[Id]>),             // (tuple expr..)
         "list" = List(Box<[Id]>),               // (list ...)
 
         Symbol(Symbol),
@@ -280,17 +281,17 @@ pub fn rules() -> Vec<Rewrite> { vec![
         "(filter (and ?cond1 ?cond2) ?child)"
     ),
     rw!("predicate-pushdown-filter-join";
-        "(filter ?condition (join inner ?on ?left ?right))" =>
-        "(join inner (and ?on ?condition) ?left ?right)"
+        "(filter ?condition (join ?type ?on ?left ?right))" =>
+        "(join ?type (and ?on ?condition) ?left ?right)"
     ),
     rw!("predicate-pushdown-join-left";
-        "(join inner (and ?cond1 ?cond2) ?left ?right)" =>
-        "(join inner ?cond2 (filter ?cond1 ?left) ?right)"
+        "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
+        "(join ?type ?cond2 (filter ?cond1 ?left) ?right)"
         if columns_is_subset("?cond1", "?left")
     ),
     rw!("predicate-pushdown-join-right";
-        "(join inner (and ?cond1 ?cond2) ?left ?right)" =>
-        "(join inner ?cond2 ?left (filter ?cond1 ?right))"
+        "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
+        "(join ?type ?cond2 ?left (filter ?cond1 ?right))"
         if columns_is_subset("?cond1", "?right")
     ),
     rw!("join-reorder";
@@ -298,16 +299,27 @@ pub fn rules() -> Vec<Rewrite> { vec![
         "(join inner ?cond1 ?left (join inner ?cond2 ?mid ?right))"
         if columns_is_disjoint("?cond2", "?left")
     ),
+    rw!("hash-join-on-one-eq";
+        "(join ?type (= ?el ?er) ?left ?right)" =>
+        "(hashjoin ?type (list ?el) (list ?er) ?left ?right)"
+        if columns_is_subset("?el", "?left")
+        if columns_is_subset("?er", "?right")
+    ),
 
     rw!("limit-0"; "(limit ?offset 0 ?child)" => "(values)"),
     rw!("filter-true"; "(filter ?child true)" => "?child"),
     rw!("filter-false"; "(filter ?child false)" => "(values)"),
+    rw!("join-on-false"; "(join ?type false ?left ?right)" => "(values)"),
 ]}
 
-fn value_is(var: &str, f: impl Fn(&DataValue) -> bool) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    let var = var.parse().expect("invalid var");
+fn var(s: &str) -> Var {
+    s.parse().expect("invalid variable")
+}
+
+fn value_is(v: &str, f: impl Fn(&DataValue) -> bool) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let v = var(v);
     move |egraph, _, subst| {
-        if let Some(n) = &egraph[subst[var]].data.val {
+        if let Some(n) = &egraph[subst[v]].data.val {
             f(n)
         } else {
             false
@@ -338,8 +350,8 @@ fn columns_is(
     var2: &str,
     f: impl Fn(&ColumnSet, &ColumnSet) -> bool,
 ) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    let var1 = var1.parse().expect("invalid var");
-    let var2 = var2.parse().expect("invalid var");
+    let var1 = var(var1);
+    let var2 = var(var2);
     move |egraph, _, subst| {
         let var1_set = &egraph[subst[var1]].data.columns;
         let var2_set = &egraph[subst[var2]].data.columns;
@@ -430,4 +442,31 @@ egg::test_fn! {
         )
     )
     "
+}
+
+egg::test_fn! {
+    hash_join,
+    rules(),
+    // SELECT * FROM t1, t2
+    // WHERE t1.id = t2.id AND t1.age > 2
+    "
+    (filter
+        (and (= $1.1 $2.1) (> $1.2 2))
+        (join
+            inner
+            true
+            (scan t1 (list $1.1 $1.2))
+            (scan t2 (list $2.1 $2.2))
+        )
+    )" => "
+    (hashjoin
+        inner
+        (list $1.1)
+        (list $2.1)
+        (filter
+            (> $1.2 2)
+            (scan t1 (list $1.1 $1.2))
+        )
+        (scan t2 (list $2.1 $2.2))
+    )"
 }
