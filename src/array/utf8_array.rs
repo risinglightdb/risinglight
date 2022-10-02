@@ -13,7 +13,7 @@ use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidE
 use crate::types::BlobRef;
 
 /// A collection of variable-length values.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct BytesArray<T: ValueRef + ?Sized> {
     offset: Vec<usize>,
     valid: BitVec,

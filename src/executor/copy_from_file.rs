@@ -45,7 +45,7 @@ impl CopyFromFileExecutor {
         tx: Sender<DataChunk>,
         token: CancellationToken,
     ) -> Result<(), ExecutorError> {
-        let file = File::open(&self.plan.logical().path())?;
+        let file = File::open(self.plan.logical().path())?;
         let file_size = file.metadata()?.len();
         let mut buf_reader = BufReader::new(file);
         let mut reader = match self.plan.logical().format().clone() {

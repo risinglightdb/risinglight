@@ -7,13 +7,13 @@ use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
 use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidExt};
-use crate::types::NativeType;
+use crate::types::{NativeType, F32, F64};
 
 mod simd;
 pub use self::simd::*;
 
-/// A collection of primitive types, such as `i32`, `f32`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// A collection of primitive types, such as `i32`, `F32`.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct PrimitiveArray<T: NativeType> {
     valid: BitVec,
     data: Vec<T>,
@@ -35,6 +35,28 @@ impl<T: NativeType> FromIterator<Option<T>> for PrimitiveArray<T> {
 impl<T: NativeType> FromIterator<T> for PrimitiveArray<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let data: Vec<T> = iter.into_iter().collect();
+        let size = data.len();
+        Self {
+            data,
+            valid: BitVec::repeat(true, size),
+        }
+    }
+}
+
+impl FromIterator<f32> for PrimitiveArray<F32> {
+    fn from_iter<I: IntoIterator<Item = f32>>(iter: I) -> Self {
+        let data: Vec<F32> = iter.into_iter().map(F32::from).collect();
+        let size = data.len();
+        Self {
+            data,
+            valid: BitVec::repeat(true, size),
+        }
+    }
+}
+
+impl FromIterator<f64> for PrimitiveArray<F64> {
+    fn from_iter<I: IntoIterator<Item = f64>>(iter: I) -> Self {
+        let data: Vec<F64> = iter.into_iter().map(F64::from).collect();
         let size = data.len();
         Self {
             data,
@@ -144,6 +166,7 @@ mod tests {
     use rust_decimal::Decimal;
 
     use super::*;
+    use crate::types::{F32, F64};
 
     fn test_builder<T: FromPrimitive + NativeType>() {
         let iter = (0..1000).map(|x| if x % 2 == 0 { None } else { T::from_usize(x) });
@@ -171,12 +194,12 @@ mod tests {
 
     #[test]
     fn test_builder_f32() {
-        test_builder::<f32>();
+        test_builder::<F32>();
     }
 
     #[test]
     fn test_builder_f64() {
-        test_builder::<f64>();
+        test_builder::<F64>();
     }
 
     #[test]

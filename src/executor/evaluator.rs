@@ -7,7 +7,7 @@ use std::borrow::Borrow;
 use crate::array::*;
 use crate::binder::BoundExpr;
 use crate::parser::{BinaryOperator, UnaryOperator};
-use crate::types::{Blob, ConvertError, DataTypeExt, DataTypeKind, DataValue, Date};
+use crate::types::{Blob, ConvertError, DataTypeExt, DataTypeKind, DataValue, Date, F64};
 
 impl BoundExpr {
     /// Evaluate the given expression as an array.
@@ -144,14 +144,14 @@ impl ArrayImpl {
                     #[cfg(feature = "simd")]
                     (A::Int64(a), A::Int64(b)) => A::new_int64(simd_op::<_, _, _, 64>(a, b, |a, b| a $op b)),
                     #[cfg(feature = "simd")]
-                    (A::Float64(a), A::Float64(b)) => A::new_float64(simd_op::<_, _, _, 32>(a, b, |a, b| a $op b)),
+                    (A::Float64(a), A::Float64(b)) => A::new_float64(simd_op::<_, _, _, 32>(a.as_native(), b.as_native(), |a, b| a $op b).into_ordered()),
 
                     #[cfg(not(feature = "simd"))]
                     (A::Int32(a), A::Int32(b)) => A::new_int32(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     #[cfg(not(feature = "simd"))]
                     (A::Int64(a), A::Int64(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     #[cfg(not(feature = "simd"))]
-                    (A::Float64(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+                    (A::Float64(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
 
                     (A::Decimal(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Date(a), A::Interval(b)) => A::new_date(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
@@ -165,8 +165,7 @@ impl ArrayImpl {
                     (A::Bool(a), A::Bool(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Int32(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Int64(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-                    #[allow(clippy::float_cmp)]
-                    (A::Float64(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+                    (A::Float64(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
                     (A::Utf8(a), A::Utf8(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Date(a), A::Date(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Decimal(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
@@ -223,7 +222,7 @@ impl ArrayImpl {
                 Type::Int(_) => Self::new_int32(unary_op(a.as_ref(), |&b| b as i32)),
                 Type::BigInt(_) => Self::new_int64(unary_op(a.as_ref(), |&b| b as i64)),
                 Type::Float(_) | Type::Double => {
-                    Self::new_float64(unary_op(a.as_ref(), |&b| b as u8 as f64))
+                    Self::new_float64(unary_op(a.as_ref(), |&b| F64::from(b as u8 as f64)))
                 }
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::new_utf8(unary_op(a.as_ref(), |&b| if b { "true" } else { "false" }))
@@ -239,7 +238,7 @@ impl ArrayImpl {
                 Type::Int(_) => Self::Int32(a.clone()),
                 Type::BigInt(_) => Self::new_int64(unary_op(a.as_ref(), |&b| b as i64)),
                 Type::Float(_) | Type::Double => {
-                    Self::new_float64(unary_op(a.as_ref(), |&i| i as f64))
+                    Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64)))
                 }
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::new_utf8(unary_op(a.as_ref(), |&i| i.to_string()))
@@ -258,7 +257,7 @@ impl ArrayImpl {
                 })?),
                 Type::BigInt(_) => Self::Int64(a.clone()),
                 Type::Float(_) | Type::Double => {
-                    Self::new_float64(unary_op(a.as_ref(), |&i| i as f64))
+                    Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64)))
                 }
                 Type::String | Type::Char(_) | Type::Varchar(_) => {
                     Self::new_utf8(unary_op(a.as_ref(), |&i| i.to_string()))
@@ -294,7 +293,7 @@ impl ArrayImpl {
                 Type::Decimal(_, scale) => {
                     Self::new_decimal(try_unary_op(
                         a.as_ref(),
-                        |&f| match Decimal::from_f64_retain(f) {
+                        |&f| match Decimal::from_f64_retain(f.0) {
                             Some(mut d) => {
                                 if let Some(s) = scale {
                                     d.rescale(s as u32);
@@ -323,7 +322,7 @@ impl ArrayImpl {
                 })?),
                 Type::Float(_) | Type::Double => {
                     Self::new_float64(try_unary_op(a.as_ref(), |s| {
-                        s.parse::<f64>()
+                        s.parse::<F64>()
                             .map_err(|e| ConvertError::ParseFloat(s.to_string(), e))
                     })?)
                 }
@@ -358,10 +357,12 @@ impl ArrayImpl {
                 })?),
                 Type::Float(_) | Type::Double => {
                     Self::new_float64(try_unary_op(a.as_ref(), |&d| {
-                        d.to_f64().ok_or(ConvertError::FromDecimalError(
-                            DataTypeKind::Double,
-                            DataValue::Decimal(d),
-                        ))
+                        d.to_f64()
+                            .map(F64::from)
+                            .ok_or(ConvertError::FromDecimalError(
+                                DataTypeKind::Double,
+                                DataValue::Decimal(d),
+                            ))
                     })?)
                 }
                 Type::String | Type::Char(_) | Type::Varchar(_) => {

@@ -192,6 +192,7 @@ impl LogicalPlaner {
         Ok(plan)
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     pub fn plan_table_ref(
         &self,
         table_ref: &BoundTableRef,

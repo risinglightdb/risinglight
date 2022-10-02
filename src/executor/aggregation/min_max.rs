@@ -37,7 +37,6 @@ min_max_func_gen!(min_i32, i32, i32, min);
 min_max_func_gen!(max_i32, i32, i32, max);
 min_max_func_gen!(min_i64, i64, i64, min);
 min_max_func_gen!(max_i64, i64, i64, max);
-// TODO: To support min and max on `f64`, we should implement std::cmp::Ord for `f64`
 
 impl AggregationState for MinMaxAggregationState {
     fn update(&mut self, array: &ArrayImpl) -> Result<(), ExecutorError> {

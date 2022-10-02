@@ -33,8 +33,8 @@ impl ExprRewriter for ArithExprSimplificationRule {
                 // x * 0, 0 * x
                 (Multiply, Constant(Int32(0)), _) => Constant(Int32(0)),
                 (Multiply, _, Constant(Int32(0))) => Constant(Int32(0)),
-                (Multiply, Constant(Float64(f)), _) if *f == 0.0 => Constant(Float64(0.0)),
-                (Multiply, _, Constant(Float64(f))) if *f == 0.0 => Constant(Float64(0.0)),
+                (Multiply, Constant(Float64(f)), _) if *f == 0.0 => Constant(Float64(0.0.into())),
+                (Multiply, _, Constant(Float64(f))) if *f == 0.0 => Constant(Float64(0.0.into())),
                 // x * 1, 1 * x
                 (Multiply, Constant(Int32(1)), other) => other.clone(),
                 (Multiply, other, Constant(Int32(1))) => other.clone(),
