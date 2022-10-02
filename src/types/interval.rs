@@ -83,6 +83,21 @@ impl Interval {
     pub const fn num_months(&self) -> i32 {
         self.months
     }
+
+    pub const fn is_zero(&self) -> bool {
+        matches!(
+            self,
+            Interval {
+                months: 0,
+                days: 0,
+                ms: 0
+            }
+        )
+    }
+
+    pub const fn is_positive(&self) -> bool {
+        self.months >= 0 && self.days >= 0 && self.ms >= 0 && !self.is_zero()
+    }
 }
 
 impl Neg for Interval {

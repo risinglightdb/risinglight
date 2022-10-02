@@ -44,6 +44,12 @@ impl Deref for Blob {
     }
 }
 
+impl Blob {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
 /// An error which can be returned when parsing a blob.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
 #[error("parse blob error")]
