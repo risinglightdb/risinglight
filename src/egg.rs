@@ -1,6 +1,9 @@
+use std::collections::HashSet;
+
 use egg::{rewrite as rw, *};
 
 use crate::array::ArrayImpl;
+use crate::catalog::ColumnRefId;
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{DataValue, PhysicalDataTypeKind};
 
@@ -8,7 +11,7 @@ define_language! {
     pub enum Plan {
         Constant(DataValue),
         Type(PhysicalDataTypeKind),
-        // ColumnRef(BoundColumnRef),
+        ColumnRef(ColumnRefId),
 
         // binary operations
         "+" = Add([Id; 2]),
@@ -108,22 +111,27 @@ impl Plan {
 #[derive(Default)]
 pub struct PlanAnalysis;
 
-#[derive(Debug, PartialOrd, Ord, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct Data {
-    // Some if the expression is a constant
+    /// Some if the expression is a constant.
     val: Option<DataValue>,
+    /// All columns involved in the node.
+    columns: HashSet<ColumnRefId>,
 }
 
 impl Analysis<Plan> for PlanAnalysis {
     type Data = Data;
 
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
-        egg::merge_max(to, from)
+        let merge_val = egg::merge_max(&mut to.val, from.val);
+        let merge_col = merge_columns(&mut to.columns, from.columns);
+        merge_val | merge_col
     }
 
     fn make(egraph: &EGraph, enode: &Plan) -> Self::Data {
         Data {
             val: eval(egraph, enode),
+            columns: analyze_columns(egraph, enode),
         }
     }
 
@@ -161,6 +169,28 @@ fn eval(egraph: &EGraph, enode: &Plan) -> Option<DataValue> {
     }
 }
 
+/// Returns all columns involved in the node.
+fn analyze_columns(egraph: &EGraph, enode: &Plan) -> HashSet<ColumnRefId> {
+    if let Plan::ColumnRef(col) = enode {
+        return [*col].into_iter().collect();
+    }
+    // merge the set from all children
+    (enode.children().iter())
+        .flat_map(|id| egraph[*id].data.columns.iter().cloned())
+        .collect()
+}
+
+/// Merge 2 column set.
+fn merge_columns(to: &mut HashSet<ColumnRefId>, from: HashSet<ColumnRefId>) -> DidMerge {
+    let len = to.len();
+    if from.is_subset(to) {
+        *to = from;
+        DidMerge(to.len() != len, false)
+    } else {
+        DidMerge(false, true)
+    }
+}
+
 pub type EGraph = egg::EGraph<Plan, PlanAnalysis>;
 pub type Rewrite = egg::Rewrite<Plan, PlanAnalysis>;
 
@@ -169,17 +199,25 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("add-zero";  "(+ ?a 0)" => "?a"),
     rw!("add-comm";  "(+ ?a ?b)" => "(+ ?b ?a)"),
     rw!("add-assoc"; "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
+    rw!("add-same";  "(+ ?a ?a)" => "(* ?a 2)"),
+    rw!("add-neg";   "(+ ?a (- ?b))" => "(- ?a ?b)"),
 
     rw!("mul-zero";  "(* ?a 0)" => "0"),
     rw!("mul-one";   "(* ?a 1)" => "?a"),
+    rw!("mul-minus"; "(* ?a -1)" => "(- ?a)"),
     rw!("mul-comm";  "(* ?a ?b)"        => "(* ?b ?a)"),
     rw!("mul-assoc"; "(* ?a (* ?b ?c))" => "(* (* ?a ?b) ?c)"),
 
     // rw!("sub-canon"; "(- ?a ?b)" => "(+ ?a (* -1 ?b))"),
     // rw!("canon-sub"; "(+ ?a (* -1 ?b))" => "(- ?a ?b)"),
 
-    rw!("neg-neg"; "(- (- ?a))" => "?a"),
+    rw!("neg-neg";    "(- (- ?a))" => "?a"),
+    rw!("neg-sub";    "(- (- ?a ?b))" => "(- ?b ?a)"),
+
+    rw!("sub-zero";   "(- ?a 0)" => "?a"),
+    rw!("zero-sub";   "(- 0 ?a)" => "(- ?a)"),
     rw!("sub-cancel"; "(- ?a ?a)" => "0"),
+
     rw!("div-cancel"; "(/ ?a ?a)" => "1" if is_not_zero("?a")),
 
     rw!("mul-add-distri";   "(* ?a (+ ?b ?c))" => "(+ (* ?a ?b) (* ?a ?c))"),
@@ -225,17 +263,27 @@ pub fn rules() -> Vec<Rewrite> { vec![
 
     rw!("avg";       "(avg ?a)" => "(/ (sum ?a) (count ?a))"),
 
-    rw!("predicate-pushdown";
-        "(filter (join ?left ?right inner ?on) ?condition)" =>
-        "(join (filter ?left ?condition) (filter ?right ?condition) inner ?on)"
-    ),
-    rw!("limit-order-to-topn";
+    rw!("limit-order=topn";
         "(limit ?offset ?limit (order ?keys ?child))" =>
         "(topn ?offset ?limit ?keys ?child)"
     ),
     rw!("filter-merge";
         "(filter (filter ?cond1 ?child) ?cond2)" =>
         "(filter (and ?cond1 ?cond2) ?child)"
+    ),
+    rw!("predicate-pushdown-filter-join";
+        "(filter ?condition (join inner ?on ?left ?right))" =>
+        "(join inner (and ?on ?condition) ?left ?right)"
+    ),
+    rw!("predicate-pushdown-join-left";
+        "(join inner (and ?cond1 ?cond2) ?left ?right)" =>
+        "(join inner ?cond2 (filter ?cond1 ?left) ?right)"
+        if columns_is_subset("?cond1", "?left")
+    ),
+    rw!("predicate-pushdown-join-right";
+        "(join inner (and ?cond1 ?cond2) ?left ?right)" =>
+        "(join inner ?cond2 ?left (filter ?cond1 ?right))"
+        if columns_is_subset("?cond1", "?right")
     ),
 
     rw!("limit-0"; "(limit ?offset 0 ?child)" => "(values)"),
@@ -262,6 +310,17 @@ fn is_const(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     value_is(var, |_| true)
 }
 
+/// Returns true if the columns in `var1` are a subset of the columns in `var2`.
+fn columns_is_subset(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let var1 = var1.parse().expect("invalid var");
+    let var2 = var2.parse().expect("invalid var");
+    move |egraph, _, subst| {
+        let var1_set = &egraph[subst[var1]].data.columns;
+        let var2_set = &egraph[subst[var2]].data.columns;
+        var1_set.is_subset(var2_set)
+    }
+}
+
 egg::test_fn! {
     and_eq_const,
     rules(),
@@ -282,26 +341,26 @@ egg::test_fn! {
     // WHERE s.sid = e.sid AND e.grade = 'A'
     "
     (projection
-        (list s.name e.cid)
+        (list $1.2 $2.2)
         (filter
-            (and (= s.sid e.sid) (= e.grade 'A'))
+            (and (= $1.1 $2.1) (= $2.3 'A'))
             (join
                 inner
                 (true)
-                (scan student (list name sid))
-                (scan enrolled (list sid cid grade))
+                (scan student (list $1.1 $1.2))
+                (scan enrolled (list $2.1 $2.2 $2.3))
             )
         )
     )" => "
     (projection
-        (list s.name e.cid)
+        (list $1.2 $2.2)
         (join
             inner
-            (= s.sid e.sid)
-            (scan student (list name sid))
+            (= $1.1 $2.1)
+            (scan student (list $1.1 $1.2))
             (filter
-                (= e.grade 'A')
-                (scan enrolled (list sid cid grade))
+                (= $2.3 'A')
+                (scan enrolled (list $2.1 $2.2 $2.3))
             )
         )
     )"

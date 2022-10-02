@@ -146,7 +146,7 @@ pub enum DataValue {
     Int64(i64),
     #[display("{0}")]
     Float64(F64),
-    #[display("{0}")]
+    #[display("'{0}'")]
     String(String),
     #[display("{0}")]
     Blob(Blob),
