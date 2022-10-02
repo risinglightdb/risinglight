@@ -12,6 +12,7 @@ define_language! {
         Constant(DataValue),
         Type(PhysicalDataTypeKind),
         ColumnRef(ColumnRefId),
+        // "*" = Wildcard,
 
         // binary operations
         "+" = Add([Id; 2]),
@@ -50,9 +51,21 @@ define_language! {
         "as" = Alias([Id; 2]),
         "fn" = Function(Box<[Id]>),
 
+        "select" = Select([Id; 9]),             // (select
+                                                //      distinct=[expr..]
+                                                //      select_list=[expr..]
+                                                //      from=[table..]
+                                                //      where=expr
+                                                //      groupby=[expr..]
+                                                //      having=expr
+                                                //      orderby=[expr..]
+                                                //      limit=expr
+                                                //      offset=expr
+                                                // )
+
         "scan" = Scan([Id; 2]),                 // (scan table [column..])
         "values" = Values(Box<[Id]>),           // (values tuple..)
-        "projection" = Projection([Id; 2]),     // (projection [expr..] child)
+        "proj" = Proj([Id; 2]),                 // (proj [expr..] child)
         "filter" = Filter([Id; 2]),             // (filter expr child)
         "order" = Order([Id; 2]),               // (order [order_key..] child)
             "order_key" = OrderKey([Id; 2]),        // (order_key expr asc/desc)
@@ -66,7 +79,15 @@ define_language! {
             "left_outer" = LeftOuter,
             "right_outer" = RightOuter,
             "full_outer" = FullOuter,
+            "cross" = Cross,
         "agg" = Agg([Id; 3]),                   // (agg aggs=[expr..] group_keys=[expr..] child)
+        "create" = Create([Id; 2]),             // (create table [column_desc..])
+        "drop" = Drop(Id),                      // (drop table)
+        "insert" = Insert([Id; 3]),             // (insert table [column..] child)
+        "delete" = Delete([Id; 2]),             // (delete table child/true)
+        "copy_from" = CopyFrom(Id),             // (copy_from dest)
+        "copy_to" = CopyTo([Id; 2]),            // (copy_to dest child)
+        "explain" = Explain(Id),                // (explain child)
 
         "tuple" = Tuple(Box<[Id]>),             // (tuple expr..)
         "list" = List(Box<[Id]>),               // (list ...)
@@ -118,6 +139,8 @@ pub struct Data {
     val: Option<DataValue>,
     /// All columns involved in the node.
     columns: ColumnSet,
+    /// The schema for plan node: a list of expressions.
+    schema: Option<Vec<Id>>,
 }
 
 type ColumnSet = HashSet<ColumnRefId>;
@@ -128,13 +151,15 @@ impl Analysis<Plan> for PlanAnalysis {
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         let merge_val = egg::merge_max(&mut to.val, from.val);
         let merge_col = merge_columns(&mut to.columns, from.columns);
-        merge_val | merge_col
+        let merge_schema = egg::merge_max(&mut to.schema, from.schema);
+        merge_val | merge_col | merge_schema
     }
 
     fn make(egraph: &EGraph, enode: &Plan) -> Self::Data {
         Data {
             val: eval(egraph, enode),
             columns: analyze_columns(egraph, enode),
+            schema: analyze_schema(egraph, enode),
         }
     }
 
@@ -192,6 +217,32 @@ fn merge_columns(to: &mut ColumnSet, from: ColumnSet) -> DidMerge {
     } else {
         DidMerge(false, true)
     }
+}
+
+/// Returns the output expressions for plan node.
+fn analyze_schema(egraph: &EGraph, enode: &Plan) -> Option<Vec<Id>> {
+    use Plan::*;
+    let x = |i: Id| egraph[i].data.schema.clone().unwrap();
+    let concat = |v1: Vec<Id>, v2: Vec<Id>| v1.into_iter().chain(v2.into_iter()).collect();
+    Some(match enode {
+        // equal to child
+        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(*c),
+
+        // concat 2 children
+        Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) => concat(x(*l), x(*r)),
+
+        // list is the source for the following nodes
+        List(ids) => ids.to_vec(),
+
+        // plans that change schema
+        Scan([_, columns]) => x(*columns),
+        Values(_) => todo!("add schema for values plan"),
+        Proj([exprs, _]) => x(*exprs),
+        Agg([exprs, group_keys, _]) => concat(x(*exprs), x(*group_keys)),
+
+        // not plan node
+        _ => return None,
+    })
 }
 
 pub type EGraph = egg::EGraph<Plan, PlanAnalysis>;
@@ -306,10 +357,24 @@ pub fn rules() -> Vec<Rewrite> { vec![
         if columns_is_subset("?er", "?right")
     ),
 
-    rw!("limit-0"; "(limit ?offset 0 ?child)" => "(values)"),
-    rw!("filter-true"; "(filter ?child true)" => "?child"),
+    rw!("limit-null";   "(limit null null ?child)" => "?child"),
+    rw!("limit-0";      "(limit ?offset 0 ?child)" => "(values)"),
+    rw!("filter-true";  "(filter ?child true)" => "?child"),
     rw!("filter-false"; "(filter ?child false)" => "(values)"),
     rw!("join-on-false"; "(join ?type false ?left ?right)" => "(values)"),
+
+    // rw!("select-to-plan";
+    //     "(select ?distinct ?exprs ?from ?where ?groupby ?having ?orderby ?limit ?offset)" =>
+    //     "
+    //     (limit ?limit ?offset
+    //     (order ?orderby
+    //     (agg ?exprs ?distinct
+    //     (filter ?having
+    //     (agg ?exprs ?groupby
+    //     (filter ?where
+    //     (scan ?from
+    //     )))))))"
+    // ),
 ]}
 
 fn var(s: &str) -> Var {
@@ -384,7 +449,7 @@ egg::test_fn! {
     // FROM student AS s, enrolled AS e
     // WHERE s.sid = e.sid AND e.grade = 'A'
     "
-    (projection
+    (proj
         (list $1.2 $2.2)
         (filter
             (and (= $1.1 $2.1) (= $2.3 'A'))
@@ -396,7 +461,7 @@ egg::test_fn! {
             )
         )
     )" => "
-    (projection
+    (proj
         (list $1.2 $2.2)
         (join
             inner
@@ -469,4 +534,47 @@ egg::test_fn! {
         )
         (scan t2 (list $2.1 $2.2))
     )"
+}
+
+egg::test_fn! {
+    agg,
+    rules(),
+    // SELECT sum(a + b) + count(a) FROM t
+    // GROUP BY a;
+    "
+    (agg
+        (list (+ (sum (+ $1.1 $1.2)) (count $1.1)))
+        (list $1.1)
+        (scan t (list $1.1 $1.2 $1.3))
+    )" => "
+    (proj
+        (list (+ (sum (+ $1.1 $1.2)) (count $1.1)))
+        (agg
+            (list (sum (+ $1.1 $1.2)) (count $1.1))
+            (list $1.1)
+            (scan t (list $1.1 $1.2 $1.3))
+        )
+    )"
+}
+
+#[test]
+fn show_schema() {
+    let start = "
+    (agg
+        (list (+ (sum (+ $1.1 $1.2)) (count $1.1)))
+        (list $1.1)
+        (scan t (list $1.1 $1.2 $1.3))
+    )"
+    .parse()
+    .unwrap();
+    let mut egraph = EGraph::default();
+    let id = egraph.add_expr(&start);
+    let schema = egraph[id].data.schema.clone().unwrap();
+    panic!(
+        "{:#?}",
+        schema
+            .iter()
+            .map(|id| egraph[*id].nodes[0].to_string())
+            .collect::<Vec<_>>()
+    );
 }
