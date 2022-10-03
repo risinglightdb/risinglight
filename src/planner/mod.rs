@@ -14,10 +14,10 @@ type EGraph = egg::EGraph<Plan, PlanAnalysis>;
 type Rewrite = egg::Rewrite<Plan, PlanAnalysis>;
 
 define_language! {
-    enum Plan {
+    pub enum Plan {
         Constant(DataValue),
         Type(PhysicalDataTypeKind),
-        ColumnRef(ColumnRefId),
+        Column(ColumnRefId),
         // "*" = Wildcard,
 
         // binary operations
@@ -49,18 +49,17 @@ define_language! {
         "sum" = Sum(Id),
         "avg" = Avg(Id),
         "count" = Count(Id),
-        "rowcount" = RowCount(Id),
+        "rowcount" = RowCount,
         "first" = First(Id),
         "last" = Last(Id),
 
-        "cast" = TypeCast([Id; 2]),
-        "as" = Alias([Id; 2]),
-        "fn" = Function(Box<[Id]>),
+        "cast" = Cast([Id; 2]),                 // (cast type expr)
+        "as" = Alias([Id; 2]),                  // (as name expr)
+        "fn" = Function(Box<[Id]>),             // (fn name args..)
 
-        "select" = Select([Id; 9]),             // (select
-                                                //      distinct=[expr..]
+        "select" = Select([Id; 8]),             // (select
                                                 //      select_list=[expr..]
-                                                //      from=[table..]
+                                                //      from=join
                                                 //      where=expr
                                                 //      groupby=[expr..]
                                                 //      having=expr
@@ -69,7 +68,7 @@ define_language! {
                                                 //      offset=expr
                                                 // )
 
-        "scan" = Scan([Id; 2]),                 // (scan table [column..])
+        "scan" = Scan(Id),                      // (scan [column..])
         "values" = Values(Box<[Id]>),           // (values tuple..)
         "proj" = Proj([Id; 2]),                 // (proj [expr..] child)
         "filter" = Filter([Id; 2]),             // (filter expr child)
@@ -87,6 +86,11 @@ define_language! {
             "full_outer" = FullOuter,
             "cross" = Cross,
         "agg" = Agg([Id; 3]),                   // (agg aggs=[expr..] group_keys=[expr..] child)
+                                                    // expressions must be agg
+                                                    // output = aggs || group_keys
+        "projagg" = ProjAgg([Id; 3]),           // (projagg [expr..] group_keys=[expr..] child)
+                                                    // expressions may contain agg inside
+                                                    // output = exprs
         "create" = Create([Id; 2]),             // (create table [column_desc..])
         "drop" = Drop(Id),                      // (drop table)
         "insert" = Insert([Id; 3]),             // (insert table [column..] child)
@@ -103,6 +107,10 @@ define_language! {
 }
 
 impl Plan {
+    const fn true_() -> Self {
+        Plan::Constant(DataValue::Bool(true))
+    }
+
     const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {
         use BinaryOperator as Op;
         Some(match self {
@@ -193,7 +201,7 @@ fn eval(egraph: &EGraph, enode: &Plan) -> Option<DataValue> {
         Some(array_a.unary_op(&op).get(0))
     } else if let &IsNull(a) = enode {
         Some(DataValue::Bool(x(a)?.is_null()))
-    } else if let &TypeCast(_) = enode {
+    } else if let &Cast(_) = enode {
         // TODO: evaluate type cast
         None
     } else if let &Max(a) | &Min(a) | &Avg(a) | &First(a) | &Last(a) = enode {
@@ -205,12 +213,21 @@ fn eval(egraph: &EGraph, enode: &Plan) -> Option<DataValue> {
 
 /// Returns all columns involved in the node.
 fn analyze_columns(egraph: &EGraph, enode: &Plan) -> ColumnSet {
-    if let Plan::ColumnRef(col) = enode {
+    let columns = |i: &Id| &egraph[*i].data.columns;
+    if let Plan::Column(col) = enode {
         return [*col].into_iter().collect();
+    }
+    if let Plan::Proj([exprs, _]) | Plan::ProjAgg([exprs, _, _]) = enode {
+        // only from projection lists
+        return columns(exprs).clone();
+    }
+    if let Plan::Agg([exprs, group_keys, _]) = enode {
+        // only from projection lists
+        return columns(exprs).union(columns(group_keys)).cloned().collect();
     }
     // merge the set from all children
     (enode.children().iter())
-        .flat_map(|id| egraph[*id].data.columns.iter().cloned())
+        .flat_map(|id| columns(id).iter().cloned())
         .collect()
 }
 
@@ -241,9 +258,9 @@ fn analyze_schema(egraph: &EGraph, enode: &Plan) -> Option<Vec<Id>> {
         List(ids) => ids.to_vec(),
 
         // plans that change schema
-        Scan([_, columns]) => x(*columns),
+        Scan(columns) => x(*columns),
         Values(_) => todo!("add schema for values plan"),
-        Proj([exprs, _]) => x(*exprs),
+        Proj([exprs, _]) | ProjAgg([exprs, _, _]) => x(*exprs),
         Agg([exprs, group_keys, _]) => concat(x(*exprs), x(*group_keys)),
 
         // not plan node

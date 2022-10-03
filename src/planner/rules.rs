@@ -91,20 +91,41 @@ fn plan_rules() -> Vec<Rewrite> { vec![
         "(filter (filter ?cond1 ?child) ?cond2)" =>
         "(filter (and ?cond1 ?cond2) ?child)"
     ),
-    rw!("predicate-pushdown-filter-join";
-        "(filter ?condition (join ?type ?on ?left ?right))" =>
-        "(join ?type (and ?on ?condition) ?left ?right)"
+    rw!("proj-merge";
+        "(proj ?exprs1 (proj ?exprs2 ?child))" =>
+        "(proj ?exprs1 ?child)"
     ),
-    rw!("predicate-pushdown-join-left";
+    pushdown("proj", "?exprs", "filter", "?cond"),
+    pushdown("proj", "?exprs", "order", "?keys"),
+    pushdown("proj", "?exprs", "limit", "?offset ?limit"),
+    pushdown("proj", "?exprs", "topn", "?offset ?limit ?keys"),
+    pushdown("filter", "?cond", "proj", "?exprs"),
+    pushdown("filter", "?cond", "order", "?keys"),
+    pushdown("filter", "?cond", "limit", "?offset ?limit"),
+    pushdown("filter", "?cond", "topn", "?offset ?limit ?keys"),
+    rw!("pushdown-filter-join";
+        "(filter ?cond (join ?type ?on ?left ?right))" =>
+        "(join ?type (and ?on ?cond) ?left ?right)"
+    ),
+    rw!("pushdown-join-left";
         "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
         "(join ?type ?cond2 (filter ?cond1 ?left) ?right)"
         if columns_is_subset("?cond1", "?left")
     ),
-    rw!("predicate-pushdown-join-right";
+    rw!("pushdown-join-right";
         "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
         "(join ?type ?cond2 ?left (filter ?cond1 ?right))"
         if columns_is_subset("?cond1", "?right")
     ),
+    // rw!("pushdown-proj-join";
+    //     "(proj ?exprs (join ?type ?on ?left ?right))" =>
+    //     "(proj ?exprs (join ?type ?on (proj ?el left) (proj ?er ?right)))"
+    // ),
+    // rw!("pushdown-proj-scan";
+    //     "(proj ?exprs (scan ?columns))" =>
+    //     "(proj ?exprs (scan ?pruned_columns))"
+    //     if columns_is_proper_subset("?exprs", "?columns")
+    // ),
     rw!("join-reorder";
         "(join inner ?cond2 (join inner ?cond1 ?left ?mid) ?right)" =>
         "(join inner ?cond1 ?left (join inner ?cond2 ?mid ?right))"
@@ -123,19 +144,37 @@ fn plan_rules() -> Vec<Rewrite> { vec![
     rw!("filter-false"; "(filter ?child false)" => "(values)"),
     rw!("join-on-false"; "(join ?type false ?left ?right)" => "(values)"),
 
-    // rw!("select-to-plan";
-    //     "(select ?distinct ?exprs ?from ?where ?groupby ?having ?orderby ?limit ?offset)" =>
-    //     "
-    //     (limit ?limit ?offset
-    //     (order ?orderby
-    //     (agg ?exprs ?distinct
-    //     (filter ?having
-    //     (agg ?exprs ?groupby
-    //     (filter ?where
-    //     (scan ?from
-    //     )))))))"
-    // ),
+    rw!("select-to-plan";
+        "(select ?exprs ?from ?where ?groupby ?having ?orderby ?limit ?offset)" =>
+        "
+        (limit ?limit ?offset
+        (order ?orderby
+        (filter ?having
+        (projagg ?exprs ?groupby
+        (filter ?where
+        ?from
+        )))))"
+    ),
 ]}
+
+fn all_rules() -> Vec<Rewrite> {
+    let mut rules = expr_rules();
+    rules.extend(plan_rules());
+    rules
+}
+
+/// Make a rule to pushdown `a` through `b`.
+fn pushdown(a: &str, a_args: &str, b: &str, b_args: &str) -> Rewrite {
+    let name = format!("pushdown-{a}-{b}");
+    let searcher = format!("({a} {a_args} ({b} {b_args} ?child))");
+    let applier = format!("({b} {b_args} ({a} {a_args} ?child))");
+    Rewrite::new(
+        name,
+        searcher.parse::<Pattern<_>>().unwrap(),
+        applier.parse::<Pattern<_>>().unwrap(),
+    )
+    .unwrap()
+}
 
 fn var(s: &str) -> Var {
     s.parse().expect("invalid variable")
@@ -163,6 +202,11 @@ fn is_const(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 /// Returns true if the columns in `var1` are a subset of the columns in `var2`.
 fn columns_is_subset(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     columns_is(var1, var2, HashSet::is_subset)
+}
+
+/// Returns true if the columns in `var1` are a proper subset of the columns in `var2`.
+fn columns_is_proper_subset(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    columns_is(var1, var2, |s1, s2| s1.len() < s2.len() && s1.is_subset(s2))
 }
 
 /// Returns true if the columns in `var1` has no elements in common with the columns in `var2`.
@@ -204,7 +248,7 @@ egg::test_fn! {
 
 egg::test_fn! {
     predicate_pushdown,
-    plan_rules(),
+    all_rules(),
     // SELECT s.name, e.cid
     // FROM student AS s, enrolled AS e
     // WHERE s.sid = e.sid AND e.grade = 'A'
@@ -216,8 +260,8 @@ egg::test_fn! {
             (join
                 inner
                 true
-                (scan student (list $1.1 $1.2))
-                (scan enrolled (list $2.1 $2.2 $2.3))
+                (scan (list $1.1 $1.2))
+                (scan (list $2.1 $2.2 $2.3))
             )
         )
     )" => "
@@ -226,10 +270,10 @@ egg::test_fn! {
         (join
             inner
             (= $1.1 $2.1)
-            (scan student (list $1.1 $1.2))
+            (scan (list $1.1 $1.2))
             (filter
                 (= $2.3 'A')
-                (scan enrolled (list $2.1 $2.2 $2.3))
+                (scan (list $2.1 $2.2 $2.3))
             )
         )
     )"
@@ -237,7 +281,7 @@ egg::test_fn! {
 
 egg::test_fn! {
     join_reorder,
-    plan_rules(),
+    all_rules(),
     // SELECT * FROM t1, t2, t3
     // WHERE t1.id = t2.id AND t3.id = t2.id
     "
@@ -249,21 +293,21 @@ egg::test_fn! {
             (join
                 inner
                 true
-                (scan t1 (list $1.1 $1.2))
-                (scan t2 (list $2.1 $2.2))
+                (scan (list $1.1 $1.2))
+                (scan (list $2.1 $2.2))
             )
-            (scan t3 (list $3.1 $3.2))
+            (scan (list $3.1 $3.2))
         )
     )" => "
     (join
         inner
         (= $1.1 $2.1)
-        (scan t1 (list $1.1 $1.2))
+        (scan (list $1.1 $1.2))
         (join
             inner
             (= $2.1 $3.1)
-            (scan t2 (list $2.1 $2.2))
-            (scan t3 (list $3.1 $3.2))
+            (scan (list $2.1 $2.2))
+            (scan (list $3.1 $3.2))
         )
     )
     "
@@ -271,7 +315,7 @@ egg::test_fn! {
 
 egg::test_fn! {
     hash_join,
-    plan_rules(),
+    all_rules(),
     // SELECT * FROM t1, t2
     // WHERE t1.id = t2.id AND t1.age > 2
     "
@@ -280,8 +324,8 @@ egg::test_fn! {
         (join
             inner
             true
-            (scan t1 (list $1.1 $1.2))
-            (scan t2 (list $2.1 $2.2))
+            (scan (list $1.1 $1.2))
+            (scan (list $2.1 $2.2))
         )
     )" => "
     (hashjoin
@@ -290,29 +334,28 @@ egg::test_fn! {
         (list $2.1)
         (filter
             (> $1.2 2)
-            (scan t1 (list $1.1 $1.2))
+            (scan (list $1.1 $1.2))
         )
-        (scan t2 (list $2.1 $2.2))
+        (scan (list $2.1 $2.2))
     )"
 }
 
 egg::test_fn! {
     agg,
-    plan_rules(),
-    // SELECT sum(a + b) + count(a) FROM t
-    // GROUP BY a;
+    all_rules(),
+    // SELECT sum(a + b) + a FROM t GROUP BY a;
     "
-    (agg
-        (list (+ (sum (+ $1.1 $1.2)) (count $1.1)))
+    (projagg
+        (list (+ (sum (+ $1.1 $1.2)) $1.1))
         (list $1.1)
-        (scan t (list $1.1 $1.2 $1.3))
+        (scan (list $1.1 $1.2 $1.3))
     )" => "
     (proj
-        (list (+ (sum (+ $1.1 $1.2)) (count $1.1)))
+        (list (+ (sum (+ $1.1 $1.2)) $1.1))
         (agg
-            (list (sum (+ $1.1 $1.2)) (count $1.1))
+            (list (sum (+ $1.1 $1.2)))
             (list $1.1)
-            (scan t (list $1.1 $1.2 $1.3))
+            (scan (list $1.1 $1.2 $1.3))
         )
     )"
 }
@@ -321,9 +364,9 @@ egg::test_fn! {
 fn show_schema() {
     let start = "
     (agg
-        (list (+ (sum (+ $1.1 $1.2)) (count $1.1)))
+        (list (+ (sum (+ $1.1 $1.2)) $1.1))
         (list $1.1)
-        (scan t (list $1.1 $1.2 $1.3))
+        (scan (list $1.1 $1.2 $1.3))
     )"
     .parse()
     .unwrap();
