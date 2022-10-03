@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use egg::{rewrite as rw, *};
 
-use super::{ColumnSet, EGraph, Rewrite};
+use super::{ColumnSet, EGraph, Plan, PlanAnalysis, Rewrite};
 use crate::types::DataValue;
 
 #[rustfmt::skip]
@@ -137,6 +137,15 @@ fn plan_rules() -> Vec<Rewrite> { vec![
         if columns_is_subset("?el", "?left")
         if columns_is_subset("?er", "?right")
     ),
+    rw!("split-projagg";
+        "(projagg ?exprs ?groupby ?child)" =>
+        { ExtractAgg {
+            has_agg: "(proj ?exprs (agg ?aggs ?groupby ?child))".parse().unwrap(),
+            no_agg: "(proj ?exprs ?child)".parse().unwrap(),
+            exprs: var("?exprs"),
+            aggs: var("?aggs"),
+        }}
+    ),
 
     rw!("limit-null";   "(limit null null ?child)" => "?child"),
     rw!("limit-0";      "(limit ?offset 0 ?child)" => "(values)"),
@@ -225,6 +234,44 @@ fn columns_is(
         let var1_set = &egraph[subst[var1]].data.columns;
         let var2_set = &egraph[subst[var2]].data.columns;
         f(var1_set, var2_set)
+    }
+}
+
+fn contains_agg(v: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let v = var(v);
+    move |egraph, _, subst| !egraph[subst[v]].data.aggs.is_empty()
+}
+
+struct ExtractAgg {
+    has_agg: Pattern<Plan>,
+    no_agg: Pattern<Plan>,
+    exprs: Var,
+    aggs: Var,
+}
+
+impl Applier<Plan, PlanAnalysis> for ExtractAgg {
+    fn apply_one(
+        &self,
+        egraph: &mut EGraph,
+        eclass: Id,
+        subst: &Subst,
+        searcher_ast: Option<&PatternAst<Plan>>,
+        rule_name: Symbol,
+    ) -> Vec<Id> {
+        let aggs = egraph[subst[self.exprs]].data.aggs.clone();
+        if aggs.is_empty() {
+            // FIXME: what if groupby not empty??
+            return self
+                .no_agg
+                .apply_one(egraph, eclass, &subst, searcher_ast, rule_name);
+        }
+        let mut list: Box<[Id]> = aggs.into_iter().map(|agg| egraph.add(agg)).collect();
+        // make sure the order of the aggs is deterministic
+        list.sort();
+        let mut subst = subst.clone();
+        subst.insert(self.aggs, egraph.add(Plan::List(list)));
+        self.has_agg
+            .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
     }
 }
 
@@ -341,30 +388,46 @@ egg::test_fn! {
 }
 
 egg::test_fn! {
-    agg,
+    split_proj_agg,
     all_rules(),
-    // SELECT sum(a + b) + a FROM t GROUP BY a;
+    // SELECT sum(a + b) + count(a) + a FROM t GROUP BY a;
     "
     (projagg
-        (list (+ (sum (+ $1.1 $1.2)) $1.1))
+        (list (+ (+ (sum (+ $1.1 $1.2)) (count $1.1)) $1.1))
         (list $1.1)
         (scan (list $1.1 $1.2 $1.3))
     )" => "
     (proj
-        (list (+ (sum (+ $1.1 $1.2)) $1.1))
+        (list (+ (+ (sum (+ $1.1 $1.2)) (count $1.1)) $1.1))
         (agg
-            (list (sum (+ $1.1 $1.2)))
+            (list (sum (+ $1.1 $1.2)) (count $1.1))
             (list $1.1)
             (scan (list $1.1 $1.2 $1.3))
         )
     )"
 }
 
+egg::test_fn! {
+    no_agg,
+    all_rules(),
+    // SELECT a FROM t;
+    "
+    (projagg
+        (list $1.1)
+        (list)
+        (scan (list $1.1 $1.2 $1.3))
+    )" => "
+    (proj
+        (list $1.1)
+        (scan (list $1.1 $1.2 $1.3))
+    )"
+}
+
 #[test]
 fn show_schema() {
     let start = "
-    (agg
-        (list (+ (sum (+ $1.1 $1.2)) $1.1))
+    (projagg
+        (list (+ (sum (+ $1.1 $1.2)) (count $1.1)))
         (list $1.1)
         (scan (list $1.1 $1.2 $1.3))
     )"
@@ -372,12 +435,9 @@ fn show_schema() {
     .unwrap();
     let mut egraph = EGraph::default();
     let id = egraph.add_expr(&start);
-    let schema = egraph[id].data.schema.clone().unwrap();
+    let aggs = egraph[id].data.aggs.clone();
     panic!(
         "{:#?}",
-        schema
-            .iter()
-            .map(|id| egraph[*id].nodes[0].to_string())
-            .collect::<Vec<_>>()
+        aggs.iter().map(|plan| plan.to_string()).collect::<Vec<_>>()
     );
 }

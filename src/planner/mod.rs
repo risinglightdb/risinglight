@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::hash::Hash;
 
 use egg::*;
 
@@ -155,18 +156,22 @@ struct Data {
     columns: ColumnSet,
     /// The schema for plan node: a list of expressions.
     schema: Option<Vec<Id>>,
+    /// All aggragations in the tree.
+    aggs: NodeSet,
 }
 
 type ColumnSet = HashSet<ColumnRefId>;
+type NodeSet = HashSet<Plan>;
 
 impl Analysis<Plan> for PlanAnalysis {
     type Data = Data;
 
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         let merge_val = egg::merge_max(&mut to.val, from.val);
-        let merge_col = merge_columns(&mut to.columns, from.columns);
+        let merge_col = merge_small_set(&mut to.columns, from.columns);
         let merge_schema = egg::merge_max(&mut to.schema, from.schema);
-        merge_val | merge_col | merge_schema
+        let merge_agg = merge_small_set(&mut to.aggs, from.aggs);
+        merge_val | merge_col | merge_schema | merge_agg
     }
 
     fn make(egraph: &EGraph, enode: &Plan) -> Self::Data {
@@ -174,6 +179,7 @@ impl Analysis<Plan> for PlanAnalysis {
             val: eval(egraph, enode),
             columns: analyze_columns(egraph, enode),
             schema: analyze_schema(egraph, enode),
+            aggs: analyze_aggs(egraph, enode),
         }
     }
 
@@ -231,12 +237,11 @@ fn analyze_columns(egraph: &EGraph, enode: &Plan) -> ColumnSet {
         .collect()
 }
 
-/// Merge 2 column set.
-fn merge_columns(to: &mut ColumnSet, from: ColumnSet) -> DidMerge {
-    let len = to.len();
-    if from.is_subset(to) {
+/// Merge 2 set.
+fn merge_small_set<T: Eq + Hash>(to: &mut HashSet<T>, from: HashSet<T>) -> DidMerge {
+    if from.len() < to.len() {
         *to = from;
-        DidMerge(to.len() != len, false)
+        DidMerge(true, false)
     } else {
         DidMerge(false, true)
     }
@@ -266,4 +271,22 @@ fn analyze_schema(egraph: &EGraph, enode: &Plan) -> Option<Vec<Id>> {
         // not plan node
         _ => return None,
     })
+}
+
+/// Returns all aggragations in the tree.
+fn analyze_aggs(egraph: &EGraph, enode: &Plan) -> NodeSet {
+    use Plan::*;
+    let x = |i: &Id| &egraph[*i].data.aggs;
+    if let RowCount = enode {
+        return [enode.clone()].into_iter().collect();
+    }
+    if let Max(c) | Min(c) | Sum(c) | Avg(c) | Count(c) | First(c) | Last(c) = enode {
+        assert!(x(c).is_empty(), "agg in agg");
+        return [enode.clone()].into_iter().collect();
+    }
+    // TODO: ignore plan nodes
+    // merge the set from all children
+    (enode.children().iter())
+        .flat_map(|id| x(id).iter().cloned())
+        .collect()
 }
