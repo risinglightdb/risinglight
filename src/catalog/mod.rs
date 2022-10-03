@@ -93,7 +93,7 @@ impl std::fmt::Display for ColumnRefId {
     }
 }
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Clone)]
 #[error("parse column id error: {}")]
 pub enum ParseColumnIdError {
     #[error("no leading '$'")]
