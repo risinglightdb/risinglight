@@ -49,7 +49,8 @@ pub mod types;
 /// Utilities.
 pub mod utils;
 
-mod egg;
+/// Next-generation planner and optimizer based on egg.
+mod planner;
 
 #[cfg(feature = "jemalloc")]
 use tikv_jemallocator::Jemalloc;
