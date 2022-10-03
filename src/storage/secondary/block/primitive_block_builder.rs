@@ -52,6 +52,10 @@ impl<T: PrimitiveFixedWidthEncode> BlockBuilder<T::ArrayType> for PlainPrimitive
     fn finish(self) -> Vec<u8> {
         self.data
     }
+
+    fn get_target_size(&self) -> usize {
+        self.target_size
+    }
 }
 
 #[cfg(test)]

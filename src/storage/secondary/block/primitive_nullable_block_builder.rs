@@ -70,6 +70,10 @@ impl<T: PrimitiveFixedWidthEncode> BlockBuilder<T::ArrayType>
         data.extend(self.bitmap.as_raw_slice().iter());
         data
     }
+
+    fn get_target_size(&self) -> usize {
+        self.target_size
+    }
 }
 
 #[cfg(test)]
