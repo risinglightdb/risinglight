@@ -152,6 +152,7 @@ fn plan_rules() -> Vec<Rewrite> { vec![
     rw!("filter-true";  "(filter ?child true)" => "?child"),
     rw!("filter-false"; "(filter ?child false)" => "(values)"),
     rw!("join-on-false"; "(join ?type false ?left ?right)" => "(values)"),
+    rw!("order-null";   "(order (list) ?child)" => "?child"),
 
     rw!("select-to-plan";
         "(select ?exprs ?from ?where ?groupby ?having ?orderby ?limit ?offset)" =>
@@ -300,30 +301,19 @@ egg::test_fn! {
     // FROM student AS s, enrolled AS e
     // WHERE s.sid = e.sid AND e.grade = 'A'
     "
-    (proj
-        (list $1.2 $2.2)
-        (filter
-            (and (= $1.1 $2.1) (= $2.3 'A'))
-            (join
-                inner
-                true
-                (scan (list $1.1 $1.2))
-                (scan (list $2.1 $2.2 $2.3))
-            )
+    (proj (list $1.2 $2.2)
+    (filter (and (= $1.1 $2.1) (= $2.3 'A'))
+    (join inner true
+        (scan (list $1.1 $1.2))
+        (scan (list $2.1 $2.2 $2.3))
+    )))" => "
+    (proj (list $1.2 $2.2)
+    (join inner (= $1.1 $2.1)
+        (scan (list $1.1 $1.2))
+        (filter (= $2.3 'A')
+            (scan (list $2.1 $2.2 $2.3))
         )
-    )" => "
-    (proj
-        (list $1.2 $2.2)
-        (join
-            inner
-            (= $1.1 $2.1)
-            (scan (list $1.1 $1.2))
-            (filter
-                (= $2.3 'A')
-                (scan (list $2.1 $2.2 $2.3))
-            )
-        )
-    )"
+    ))"
 }
 
 egg::test_fn! {
@@ -332,32 +322,21 @@ egg::test_fn! {
     // SELECT * FROM t1, t2, t3
     // WHERE t1.id = t2.id AND t3.id = t2.id
     "
-    (filter
-        (and (= $1.1 $2.1) (= $3.1 $2.1))
-        (join
-            inner
-            true
-            (join
-                inner
-                true
-                (scan (list $1.1 $1.2))
-                (scan (list $2.1 $2.2))
-            )
-            (scan (list $3.1 $3.2))
+    (filter (and (= $1.1 $2.1) (= $3.1 $2.1))
+    (join inner true
+        (join inner true
+            (scan (list $1.1 $1.2))
+            (scan (list $2.1 $2.2))
         )
-    )" => "
-    (join
-        inner
-        (= $1.1 $2.1)
+        (scan (list $3.1 $3.2))
+    ))" => "
+    (join inner (= $1.1 $2.1)
         (scan (list $1.1 $1.2))
-        (join
-            inner
-            (= $2.1 $3.1)
+        (join inner (= $2.1 $3.1)
             (scan (list $2.1 $2.2))
             (scan (list $3.1 $3.2))
         )
-    )
-    "
+    )"
 }
 
 egg::test_fn! {
@@ -366,21 +345,13 @@ egg::test_fn! {
     // SELECT * FROM t1, t2
     // WHERE t1.id = t2.id AND t1.age > 2
     "
-    (filter
-        (and (= $1.1 $2.1) (> $1.2 2))
-        (join
-            inner
-            true
-            (scan (list $1.1 $1.2))
-            (scan (list $2.1 $2.2))
-        )
-    )" => "
-    (hashjoin
-        inner
-        (list $1.1)
-        (list $2.1)
-        (filter
-            (> $1.2 2)
+    (filter (and (= $1.1 $2.1) (> $1.2 2))
+    (join inner true
+        (scan (list $1.1 $1.2))
+        (scan (list $2.1 $2.2))
+    ))" => "
+    (hashjoin inner (list $1.1) (list $2.1)
+        (filter (> $1.2 2)
             (scan (list $1.1 $1.2))
         )
         (scan (list $2.1 $2.2))
@@ -412,15 +383,43 @@ egg::test_fn! {
     all_rules(),
     // SELECT a FROM t;
     "
-    (projagg
-        (list $1.1)
-        (list)
+    (projagg (list $1.1) (list)
         (scan (list $1.1 $1.2 $1.3))
     )" => "
-    (proj
-        (list $1.1)
+    (proj (list $1.1)
         (scan (list $1.1 $1.2 $1.3))
     )"
+}
+
+egg::test_fn! {
+    plan_select,
+    all_rules(),
+    // SELECT s.name, e.cid
+    // FROM student AS s, enrolled AS e
+    // WHERE s.sid = e.sid AND e.grade = 'A'
+    "
+    (select
+        (list $1.2 $2.2)
+        (join
+            inner
+            true
+            (scan (list $1.1 $1.2))
+            (scan (list $2.1 $2.2 $2.3))
+        )
+        (and (= $1.1 $2.1) (= $2.3 'A'))
+        (list)
+        true
+        (list)
+        null
+        null
+    )" => "
+    (proj (list $1.2 $2.2)
+    (join inner (= $1.1 $2.1)
+        (scan (list $1.1 $1.2))
+        (filter (= $2.3 'A')
+            (scan (list $2.1 $2.2 $2.3))
+        )
+    ))"
 }
 
 #[test]
