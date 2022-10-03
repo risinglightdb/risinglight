@@ -3,12 +3,14 @@ use std::hash::Hash;
 
 use egg::*;
 
+use self::column_set::ColumnSet;
 use crate::array::ArrayImpl;
 use crate::catalog::ColumnRefId;
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{DataValue, PhysicalDataTypeKind};
 
 // mod plan_nodes;
+mod column_set;
 mod rules;
 
 type EGraph = egg::EGraph<Plan, PlanAnalysis>;
@@ -16,9 +18,11 @@ type Rewrite = egg::Rewrite<Plan, PlanAnalysis>;
 
 define_language! {
     pub enum Plan {
+        // values
         Constant(DataValue),
         Type(PhysicalDataTypeKind),
         Column(ColumnRefId),
+        ColumnSet(ColumnSet),
         // "*" = Wildcard,
 
         // binary operations
@@ -44,7 +48,7 @@ define_language! {
         "not" = Not(Id),
         "isnull" = IsNull(Id),
 
-        // aggregate
+        // aggregates
         "max" = Max(Id),
         "min" = Min(Id),
         "sum" = Sum(Id),
@@ -69,8 +73,9 @@ define_language! {
                                                 //      offset=expr
                                                 // )
 
+        // plans
         "scan" = Scan(Id),                      // (scan [column..])
-        "values" = Values(Box<[Id]>),           // (values tuple..)
+        "values" = Values(Box<[Id]>),           // (values [expr..]..)
         "proj" = Proj([Id; 2]),                 // (proj [expr..] child)
         "filter" = Filter([Id; 2]),             // (filter expr child)
         "order" = Order([Id; 2]),               // (order [order_key..] child)
@@ -100,7 +105,7 @@ define_language! {
         "copy_to" = CopyTo([Id; 2]),            // (copy_to dest child)
         "explain" = Explain(Id),                // (explain child)
 
-        "tuple" = Tuple(Box<[Id]>),             // (tuple expr..)
+        // utilities
         "list" = List(Box<[Id]>),               // (list ...)
 
         Symbol(Symbol),
@@ -160,7 +165,6 @@ struct Data {
     aggs: NodeSet,
 }
 
-type ColumnSet = HashSet<ColumnRefId>;
 type NodeSet = HashSet<Plan>;
 
 impl Analysis<Plan> for PlanAnalysis {
@@ -168,7 +172,7 @@ impl Analysis<Plan> for PlanAnalysis {
 
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         let merge_val = egg::merge_max(&mut to.val, from.val);
-        let merge_col = merge_small_set(&mut to.columns, from.columns);
+        let merge_col = merge_column_set(&mut to.columns, from.columns);
         let merge_schema = egg::merge_max(&mut to.schema, from.schema);
         let merge_agg = merge_small_set(&mut to.aggs, from.aggs);
         merge_val | merge_col | merge_schema | merge_agg
@@ -221,7 +225,7 @@ fn eval(egraph: &EGraph, enode: &Plan) -> Option<DataValue> {
 fn analyze_columns(egraph: &EGraph, enode: &Plan) -> ColumnSet {
     let columns = |i: &Id| &egraph[*i].data.columns;
     if let Plan::Column(col) = enode {
-        return [*col].into_iter().collect();
+        return ColumnSet::one(*col);
     }
     if let Plan::Proj([exprs, _]) | Plan::ProjAgg([exprs, _, _]) = enode {
         // only from projection lists
@@ -229,7 +233,7 @@ fn analyze_columns(egraph: &EGraph, enode: &Plan) -> ColumnSet {
     }
     if let Plan::Agg([exprs, group_keys, _]) = enode {
         // only from projection lists
-        return columns(exprs).union(columns(group_keys)).cloned().collect();
+        return columns(exprs).union(columns(group_keys));
     }
     // merge the set from all children
     (enode.children().iter())
@@ -237,8 +241,18 @@ fn analyze_columns(egraph: &EGraph, enode: &Plan) -> ColumnSet {
         .collect()
 }
 
+/// Merge 2 Column set.
+fn merge_column_set(to: &mut ColumnSet, from: ColumnSet) -> DidMerge {
+    if from.len() < to.len() {
+        *to = from;
+        DidMerge(true, false)
+    } else {
+        DidMerge(false, true)
+    }
+}
+
 /// Merge 2 set.
-fn merge_small_set<T: Eq + Hash>(to: &mut HashSet<T>, from: HashSet<T>) -> DidMerge {
+fn merge_small_set(to: &mut NodeSet, from: NodeSet) -> DidMerge {
     if from.len() < to.len() {
         *to = from;
         DidMerge(true, false)

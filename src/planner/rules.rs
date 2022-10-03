@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use egg::{rewrite as rw, *};
 
 use super::{ColumnSet, EGraph, Plan, PlanAnalysis, Rewrite};
@@ -95,11 +93,9 @@ fn plan_rules() -> Vec<Rewrite> { vec![
         "(proj ?exprs1 (proj ?exprs2 ?child))" =>
         "(proj ?exprs1 ?child)"
     ),
-    pushdown("proj", "?exprs", "filter", "?cond"),
     pushdown("proj", "?exprs", "order", "?keys"),
     pushdown("proj", "?exprs", "limit", "?offset ?limit"),
     pushdown("proj", "?exprs", "topn", "?offset ?limit ?keys"),
-    pushdown("filter", "?cond", "proj", "?exprs"),
     pushdown("filter", "?cond", "order", "?keys"),
     pushdown("filter", "?cond", "limit", "?offset ?limit"),
     pushdown("filter", "?cond", "topn", "?offset ?limit ?keys"),
@@ -121,11 +117,16 @@ fn plan_rules() -> Vec<Rewrite> { vec![
     //     "(proj ?exprs (join ?type ?on ?left ?right))" =>
     //     "(proj ?exprs (join ?type ?on (proj ?el left) (proj ?er ?right)))"
     // ),
-    // rw!("pushdown-proj-scan";
-    //     "(proj ?exprs (scan ?columns))" =>
-    //     "(proj ?exprs (scan ?pruned_columns))"
-    //     if columns_is_proper_subset("?exprs", "?columns")
-    // ),
+    rw!("pushdown-proj-scan";
+        "(proj ?exprs (scan ?columns))" =>
+        { ColumnPrune {
+            pattern: pattern("(proj ?exprs (scan ?pruned))"),
+            exprs: var("?exprs"),
+            origin: var("?columns"),
+            output: var("?pruned"),
+        }}
+        if columns_is_proper_subset("?exprs", "?columns")
+    ),
     rw!("join-reorder";
         "(join inner ?cond2 (join inner ?cond1 ?left ?mid) ?right)" =>
         "(join inner ?cond1 ?left (join inner ?cond2 ?mid ?right))"
@@ -140,17 +141,17 @@ fn plan_rules() -> Vec<Rewrite> { vec![
     rw!("split-projagg";
         "(projagg ?exprs ?groupby ?child)" =>
         { ExtractAgg {
-            has_agg: "(proj ?exprs (agg ?aggs ?groupby ?child))".parse().unwrap(),
-            no_agg: "(proj ?exprs ?child)".parse().unwrap(),
-            exprs: var("?exprs"),
-            aggs: var("?aggs"),
+            has_agg: pattern("(proj ?exprs (agg ?aggs ?groupby ?child))"),
+            no_agg: pattern("(proj ?exprs ?child)"),
+            src: var("?exprs"),
+            output: var("?aggs"),
         }}
     ),
 
     rw!("limit-null";   "(limit null null ?child)" => "?child"),
     rw!("limit-0";      "(limit ?offset 0 ?child)" => "(values)"),
-    rw!("filter-true";  "(filter ?child true)" => "?child"),
-    rw!("filter-false"; "(filter ?child false)" => "(values)"),
+    rw!("filter-true";  "(filter true ?child)" => "?child"),
+    rw!("filter-false"; "(filter false ?child)" => "(values)"),
     rw!("join-on-false"; "(join ?type false ?left ?right)" => "(values)"),
     rw!("order-null";   "(order (list) ?child)" => "?child"),
 
@@ -190,6 +191,10 @@ fn var(s: &str) -> Var {
     s.parse().expect("invalid variable")
 }
 
+fn pattern(s: &str) -> Pattern<Plan> {
+    s.parse().expect("invalid pattern")
+}
+
 fn value_is(v: &str, f: impl Fn(&DataValue) -> bool) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let v = var(v);
     move |egraph, _, subst| {
@@ -211,7 +216,7 @@ fn is_const(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 
 /// Returns true if the columns in `var1` are a subset of the columns in `var2`.
 fn columns_is_subset(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    columns_is(var1, var2, HashSet::is_subset)
+    columns_is(var1, var2, ColumnSet::is_subset)
 }
 
 /// Returns true if the columns in `var1` are a proper subset of the columns in `var2`.
@@ -221,7 +226,7 @@ fn columns_is_proper_subset(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, 
 
 /// Returns true if the columns in `var1` has no elements in common with the columns in `var2`.
 fn columns_is_disjoint(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    columns_is(var1, var2, HashSet::is_disjoint)
+    columns_is(var1, var2, ColumnSet::is_disjoint)
 }
 
 fn columns_is(
@@ -243,11 +248,14 @@ fn contains_agg(v: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     move |egraph, _, subst| !egraph[subst[v]].data.aggs.is_empty()
 }
 
+/// Extracts all agg expressions from `src`.
+/// If any, apply `has_agg` and put those aggs to `output`.
+/// Otherwise, apply `no_agg`.
 struct ExtractAgg {
     has_agg: Pattern<Plan>,
     no_agg: Pattern<Plan>,
-    exprs: Var,
-    aggs: Var,
+    src: Var,
+    output: Var,
 }
 
 impl Applier<Plan, PlanAnalysis> for ExtractAgg {
@@ -259,7 +267,7 @@ impl Applier<Plan, PlanAnalysis> for ExtractAgg {
         searcher_ast: Option<&PatternAst<Plan>>,
         rule_name: Symbol,
     ) -> Vec<Id> {
-        let aggs = egraph[subst[self.exprs]].data.aggs.clone();
+        let aggs = egraph[subst[self.src]].data.aggs.clone();
         if aggs.is_empty() {
             // FIXME: what if groupby not empty??
             return self
@@ -270,8 +278,40 @@ impl Applier<Plan, PlanAnalysis> for ExtractAgg {
         // make sure the order of the aggs is deterministic
         list.sort();
         let mut subst = subst.clone();
-        subst.insert(self.aggs, egraph.add(Plan::List(list)));
+        subst.insert(self.output, egraph.add(Plan::List(list)));
         self.has_agg
+            .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+    }
+}
+
+/// Remove unused columns in `exprs` from `output`.
+struct ColumnPrune {
+    pattern: Pattern<Plan>,
+    exprs: Var,
+    origin: Var,
+    output: Var,
+}
+
+impl Applier<Plan, PlanAnalysis> for ColumnPrune {
+    fn apply_one(
+        &self,
+        egraph: &mut EGraph,
+        eclass: Id,
+        subst: &Subst,
+        searcher_ast: Option<&PatternAst<Plan>>,
+        rule_name: Symbol,
+    ) -> Vec<Id> {
+        let all_columns = &egraph[subst[self.origin]].data.columns;
+        let used_columns = egraph[subst[self.exprs]].data.columns.clone();
+        assert!(used_columns.is_subset(all_columns));
+        let mut subst = subst.clone();
+        let mut list: Box<[Id]> = used_columns
+            .into_iter()
+            .map(|c| egraph.add(Plan::Column(c)))
+            .collect();
+        list.sort();
+        subst.insert(self.output, egraph.add(Plan::List(list)));
+        self.pattern
             .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
     }
 }
@@ -392,6 +432,21 @@ egg::test_fn! {
 }
 
 egg::test_fn! {
+    column_prune,
+    all_rules(),
+    // SELECT v1 FROM t WHERE v2 > 1;
+    "
+    (proj (list $1.1)
+    (filter (> $1.2 1)
+    (scan (list $1.1 $1.2 $1.3))
+    )))" => "
+    (proj (list $1.1)
+    (filter (> $1.2 1)
+    (scan (list $1.1 $1.2))
+    )))"
+}
+
+egg::test_fn! {
     plan_select,
     all_rules(),
     // SELECT s.name, e.cid
@@ -400,9 +455,7 @@ egg::test_fn! {
     "
     (select
         (list $1.2 $2.2)
-        (join
-            inner
-            true
+        (join inner true
             (scan (list $1.1 $1.2))
             (scan (list $2.1 $2.2 $2.3))
         )
