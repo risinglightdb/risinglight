@@ -63,6 +63,8 @@ pub enum BindError {
     InvalidSQL,
     #[error("cannot cast {0:?} to {1:?}")]
     CastError(DataValue, DataTypeKind),
+    #[error("{0}")]
+    BindFunctionError(String),
 }
 
 /// The context of binder execution.

@@ -9,7 +9,7 @@ use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 
 /// Binary large object.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize, Default)]
 pub struct Blob(Vec<u8>);
 
 impl From<&[u8]> for Blob {

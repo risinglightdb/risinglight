@@ -92,6 +92,7 @@ impl Binder {
                 _ => todo!("Support aggregate argument: {:?}", arg),
             }
         }
+
         let (kind, return_type) = match func.name.to_string().to_lowercase().as_str() {
             "avg" => (AggKind::Avg, args[0].return_type()),
             "count" => {

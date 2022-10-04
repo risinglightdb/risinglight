@@ -440,13 +440,10 @@ where
     B: ArrayValidExt,
     O: ArrayFromDataExt,
     O::Item: Sized,
-    F: Fn(&A::Item, &B::Item) -> O::Item,
+    F: Fn(&A::Item, &B::Item) -> <O::Item as ToOwned>::Owned,
 {
     assert_eq!(a.len(), b.len());
-    let it = a
-        .non_null_iter()
-        .zip(b.non_null_iter())
-        .map(|(a, b)| f(a, b));
+    let it = a.raw_iter().zip(b.raw_iter()).map(|(a, b)| f(a, b));
     let valid = a.get_valid_bitmap().clone() & b.get_valid_bitmap().clone();
     O::from_data(it, valid)
 }

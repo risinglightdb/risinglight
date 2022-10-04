@@ -51,6 +51,7 @@ use self::top_n::TopNExecutor;
 use self::values::*;
 use crate::array::DataChunk;
 use crate::binder::BoundExpr;
+use crate::function::FunctionError;
 use crate::optimizer::plan_nodes::*;
 use crate::optimizer::PlanVisitor;
 use crate::storage::{StorageImpl, TracedStorageError};
@@ -86,6 +87,13 @@ mod values;
 /// The error type of execution.
 #[derive(thiserror::Error, Debug)]
 pub enum ExecutorError {
+    #[error("function error: {0}")]
+    Function(
+        #[from]
+        #[backtrace]
+        #[source]
+        FunctionError,
+    ),
     #[error("failed to build executors from the physical plan")]
     BuildingPlanError,
     #[error("storage error: {0}")]
