@@ -39,19 +39,19 @@ impl Function for AbsFunction {
         let arr = input[0];
         match &arr {
             ArrayImpl::Int32(_) => {
-                let f = |x: &i32| x.abs();
+                let f = |x: &i32, _: &mut FunctionCtx| x.abs();
                 let res_arr =
                     UnaryExecutor::eval_batch_lazy_select::<I32Array, I32Array, _>(arr, f)?;
                 Ok(res_arr)
             }
             ArrayImpl::Int64(_) => {
-                let f = |x: &i64| x.abs();
+                let f = |x: &i64, _: &mut FunctionCtx| x.abs();
                 let res_arr =
                     UnaryExecutor::eval_batch_lazy_select::<I64Array, I64Array, _>(arr, f)?;
                 Ok(res_arr)
             }
             ArrayImpl::Float64(_) => {
-                let f = |x: &F64| x.abs().into();
+                let f = |x: &F64, _: &mut FunctionCtx| x.abs().into();
                 let res_arr =
                     UnaryExecutor::eval_batch_lazy_select::<F64Array, F64Array, _>(arr, f)?;
                 Ok(res_arr)

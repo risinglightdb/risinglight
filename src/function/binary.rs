@@ -9,7 +9,7 @@ impl BinaryExecutor {
     pub fn eval_batch_standard<I1, I2, O, F>(
         i1: &ArrayImpl,
         i2: &ArrayImpl,
-        f: F,
+        mut f: F,
     ) -> Result<ArrayImpl, FunctionError>
     where
         I1: ArrayValidExt,
@@ -18,11 +18,17 @@ impl BinaryExecutor {
         for<'a> &'a I2: TryFrom<&'a ArrayImpl, Error = TypeMismatch>,
         O: Array + Into<ArrayImpl> + ArrayFromDataExt,
         <O::Item as ToOwned>::Owned: Default + Clone,
-        F: for<'a> Fn(&'a I1::Item, &'a I2::Item) -> <O::Item as ToOwned>::Owned,
+        F: for<'a> FnMut(
+            &'a I1::Item,
+            &'a I2::Item,
+            &'a mut FunctionCtx,
+        ) -> <O::Item as ToOwned>::Owned,
     {
         let i1a: &I1 = i1.try_into().unwrap();
         let i2a: &I2 = i2.try_into().unwrap();
         let masks = i1a.get_valid_bitmap().clone() & i2a.get_valid_bitmap();
+
+        let mut ctx = FunctionCtx { error: None };
 
         let zeros = masks.count_zeros();
         if zeros == 0 {
@@ -30,9 +36,16 @@ impl BinaryExecutor {
             let i1a_raw_iter = i1a.raw_iter();
             let i2a_raw_iter = i2a.raw_iter();
             // auto vectoried
-            let res_iter = i1a_raw_iter.zip(i2a_raw_iter).map(|(x, y)| f(x, y));
+            let res_iter = i1a_raw_iter
+                .zip(i2a_raw_iter)
+                .map(|(x, y)| f(x, y, &mut ctx));
 
-            return Ok(O::from_data(res_iter, masks).into());
+            let res = O::from_data(res_iter, masks).into();
+
+            if let Some(error) = ctx.error {
+                return Err(error);
+            }
+            return Ok(res);
         }
 
         let mut builder: O::Builder = O::Builder::with_capacity(i1.len());
@@ -57,8 +70,13 @@ impl BinaryExecutor {
                     let base = cnt;
                     // auto vectoried
                     buffer.iter_mut().enumerate().for_each(|(i, value)| {
-                        *value = f(i1a.get_unchecked(base + i), i2a.get_unchecked(base + i))
+                        *value = f(
+                            i1a.get_unchecked(base + i),
+                            i2a.get_unchecked(base + i),
+                            &mut ctx,
+                        );
                     });
+
                     builder.extend_from_raw_data(&buffer);
                 } else if zeros == y.len() {
                     // all invalid
@@ -68,7 +86,11 @@ impl BinaryExecutor {
                     let mut res_count = 0;
                     buffer.iter_mut().enumerate().for_each(|(i, value)| unsafe {
                         if *masks.get_unchecked(base + i) {
-                            *value = f(i1a.get_unchecked(base + i), i2a.get_unchecked(base + i));
+                            *value = f(
+                                i1a.get_unchecked(base + i),
+                                i2a.get_unchecked(base + i),
+                                &mut ctx,
+                            );
                             res_count += 1;
                         }
                     });
@@ -85,11 +107,19 @@ impl BinaryExecutor {
                 .enumerate()
                 .for_each(|(i, (value, mask))| {
                     if *mask {
-                        *value = f(i1a.get_unchecked(cnt + i), i2a.get_unchecked(cnt + i));
+                        *value = f(
+                            i1a.get_unchecked(cnt + i),
+                            i2a.get_unchecked(cnt + i),
+                            &mut ctx,
+                        );
                         res_count += 1;
                     }
                 });
             builder.extend_from_raw_data(&buffer[0..res_count]);
+        }
+
+        if let Some(error) = ctx.error {
+            return Err(error);
         }
 
         builder.replace_bitmap(masks);
@@ -100,7 +130,7 @@ impl BinaryExecutor {
     pub fn eval_batch_lazy_select<I1, I2, O, F>(
         l: &ArrayImpl,
         r: &ArrayImpl,
-        f: F,
+        mut f: F,
     ) -> Result<ArrayImpl, FunctionError>
     where
         I1: ArrayValidExt,
@@ -110,21 +140,35 @@ impl BinaryExecutor {
         for<'a> &'a I1: TryFrom<&'a ArrayImpl, Error = TypeMismatch>,
         for<'a> &'a I2: TryFrom<&'a ArrayImpl, Error = TypeMismatch>,
         O: Into<ArrayImpl>,
-        F: for<'a> Fn(&'a I1::Item, &'a I2::Item) -> <O::Item as ToOwned>::Owned,
+        F: for<'a> FnMut(
+            &'a I1::Item,
+            &'a I2::Item,
+            &'a mut FunctionCtx,
+        ) -> <O::Item as ToOwned>::Owned,
     {
         let i1a: &I1 = l.try_into().unwrap();
         let i2a: &I2 = r.try_into().unwrap();
         assert_eq!(l.len(), r.len(), "array length mismatch");
 
+        let mut ctx = FunctionCtx { error: None };
+
         let i1a_raw_iter = i1a.raw_iter();
         let i2a_raw_iter = i2a.raw_iter();
 
-        let res_iter = i1a_raw_iter.zip(i2a_raw_iter).map(|(x, y)| f(x, y));
+        let res_iter = i1a_raw_iter
+            .zip(i2a_raw_iter)
+            .map(|(x, y)| f(x, y, &mut ctx));
 
         let l_mask = i1a.get_valid_bitmap().clone();
         let r_mask = i2a.get_valid_bitmap();
         let res_mask = l_mask & r_mask;
 
-        Ok(O::from_data(res_iter, res_mask).into())
+        let res = O::from_data(res_iter, res_mask).into();
+
+        if let Some(error) = ctx.error {
+            return Err(error);
+        }
+
+        Ok(res)
     }
 }

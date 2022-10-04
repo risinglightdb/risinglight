@@ -3,9 +3,10 @@
 use bitvec::vec::BitVec;
 use criterion::*;
 use risinglight::array::{ArrayFromDataExt, ArrayImpl, I32Array};
+use risinglight::function::FunctionCtx;
 
 #[inline(never)]
-fn never_inline_mul(a: &i32, b: &i32) -> i32 {
+fn never_inline_mul(a: &i32, b: &i32, _: &mut FunctionCtx) -> i32 {
     *a * *b
 }
 
@@ -72,7 +73,7 @@ fn array_mul(c: &mut Criterion) {
 
             let array_a: ArrayImpl = I32Array::from_data(0..size, mask_a).into();
             let array_b: ArrayImpl = I32Array::from_data(0..size, mask_b).into();
-            let f = |x: &i32, y: &i32| (*x) * (*y);
+            let f = |x: &i32, y: &i32, _: &mut FunctionCtx| (*x) * (*y);
             b.iter(|| {
                 let _ = BinaryExecutor::eval_batch_standard::<I32Array, I32Array, I32Array, _>(
                     &array_a, &array_b, f,
@@ -147,7 +148,7 @@ fn array_mul(c: &mut Criterion) {
 
             let array_a: ArrayImpl = I32Array::from_data(0..size, mask_a).into();
             let array_b: ArrayImpl = I32Array::from_data(0..size, mask_b).into();
-            let f = |x: &i32, y: &i32| (*x) * (*y);
+            let f = |x: &i32, y: &i32, _: &mut FunctionCtx| (*x) * (*y);
             b.iter(|| {
                 let _ = BinaryExecutor::eval_batch_lazy_select::<I32Array, I32Array, I32Array, _>(
                     &array_a, &array_b, f,

@@ -46,15 +46,23 @@ impl Function for AddFunction {
         let r_arr = input[1];
         match (&l_arr, &r_arr) {
             (ArrayImpl::Int32(_), ArrayImpl::Int32(_)) => {
-                let f = |x: &i32, y: &i32| *x + *y;
+                let mut check: i64 = 0;
+                let f = |x: &i32, y: &i32, _: &mut FunctionCtx| {
+                    let res = *x as i64 + *y as i64;
+                    check |= res;
+                    res as i32
+                };
                 let res_arr =
                     BinaryExecutor::eval_batch_lazy_select::<I32Array, I32Array, I32Array, _>(
                         l_arr, r_arr, f,
                     )?;
+                if check > i32::MAX as i64 {
+                    return Err(FunctionError::Overflow);
+                }
                 Ok(res_arr)
             }
             (ArrayImpl::Int64(_), ArrayImpl::Int64(_)) => {
-                let f = |x: &i64, y: &i64| *x + *y;
+                let f = |x: &i64, y: &i64, _: &mut FunctionCtx| *x + *y;
                 let res_arr =
                     BinaryExecutor::eval_batch_lazy_select::<I64Array, I64Array, I64Array, _>(
                         l_arr, r_arr, f,
@@ -62,7 +70,7 @@ impl Function for AddFunction {
                 Ok(res_arr)
             }
             (ArrayImpl::Float64(_), ArrayImpl::Float64(_)) => {
-                let f = |x: &F64, y: &F64| *x + *y;
+                let f = |x: &F64, y: &F64, _: &mut FunctionCtx| *x + *y;
                 let res_arr =
                     BinaryExecutor::eval_batch_lazy_select::<F64Array, F64Array, F64Array, _>(
                         l_arr, r_arr, f,
@@ -70,7 +78,7 @@ impl Function for AddFunction {
                 Ok(res_arr)
             }
             (ArrayImpl::Decimal(_), ArrayImpl::Decimal(_)) => {
-                let f = |x: &Decimal, y: &Decimal| *x + *y;
+                let f = |x: &Decimal, y: &Decimal, _: &mut FunctionCtx| *x + *y;
                 let res_arr = BinaryExecutor::eval_batch_lazy_select::<
                     DecimalArray,
                     DecimalArray,
@@ -80,7 +88,7 @@ impl Function for AddFunction {
                 Ok(res_arr)
             }
             (ArrayImpl::Date(_), ArrayImpl::Interval(_)) => {
-                let f = |x: &Date, y: &Interval| *x + *y;
+                let f = |x: &Date, y: &Interval, _: &mut FunctionCtx| *x + *y;
                 let res_arr = BinaryExecutor::eval_batch_lazy_select::<
                     DateArray,
                     IntervalArray,

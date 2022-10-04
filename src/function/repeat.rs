@@ -58,7 +58,7 @@ impl Function for RepeatFunction {
 
         match (&l_arr, &r_arr) {
             (ArrayImpl::Utf8(_), ArrayImpl::Int32(_)) => {
-                let f = |x: &str, t: &i32| {
+                let f = |x: &str, t: &i32, _: &mut FunctionCtx| {
                     let u8s = repeat(x, *t as usize);
                     unsafe { String::from_utf8_unchecked(u8s) }
                 };
@@ -69,7 +69,7 @@ impl Function for RepeatFunction {
                 Ok(res_arr)
             }
             (ArrayImpl::Utf8(_), ArrayImpl::Int64(_)) => {
-                let f = |x: &str, t: &i64| {
+                let f = |x: &str, t: &i64, _: &mut FunctionCtx| {
                     let u8s = repeat(x, *t as usize);
                     unsafe { String::from_utf8_unchecked(u8s) }
                 };

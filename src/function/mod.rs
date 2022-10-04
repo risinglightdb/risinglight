@@ -4,21 +4,25 @@ use crate::types::{DataType, NativeType};
 pub mod abs;
 pub mod add;
 pub mod binary;
+pub mod ctx;
 pub mod repeat;
 pub mod unary;
 
 pub use self::abs::*;
 pub use self::add::*;
 pub use self::binary::*;
+pub use self::ctx::*;
 pub use self::repeat::*;
 pub use self::unary::*;
 
-#[derive(thiserror::Error, Debug, PartialEq, Eq)]
+#[derive(thiserror::Error, Debug, PartialEq, Eq, Clone)]
 pub enum FunctionError {
     #[error("invalid parameters {0}")]
     InvalidParameters(String),
     #[error("invalid datatypes {0}")]
     InvalidDataTypes(String),
+    #[error("overflow")]
+    Overflow,
 }
 // Definition of function.
 pub trait Function: Send + Sync {
