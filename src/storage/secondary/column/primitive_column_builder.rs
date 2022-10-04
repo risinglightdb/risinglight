@@ -12,7 +12,7 @@ use super::super::{
 };
 use super::ColumnBuilder;
 use crate::array::Array;
-use crate::storage::secondary::block::RleBlockBuilder;
+use crate::storage::secondary::block::{DictBlockBuilder, RleBlockBuilder};
 use crate::storage::secondary::EncodeType;
 use crate::types::{Date, Interval, F64};
 
@@ -22,6 +22,8 @@ pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
     PlainNullable(PlainPrimitiveNullableBlockBuilder<T>),
     RunLength(RleBlockBuilder<T::ArrayType, PlainPrimitiveBlockBuilder<T>>),
     RleNullable(RleBlockBuilder<T::ArrayType, PlainPrimitiveNullableBlockBuilder<T>>),
+    Dictionary(DictBlockBuilder<T::ArrayType, PlainPrimitiveBlockBuilder<T>>),
+    DictNullable(DictBlockBuilder<T::ArrayType, PlainPrimitiveNullableBlockBuilder<T>>),
 }
 
 pub type I32ColumnBuilder = PrimitiveColumnBuilder<i32>;
@@ -84,6 +86,16 @@ impl<T: PrimitiveFixedWidthEncode> PrimitiveColumnBuilder<T> {
             ),
             BlockBuilderImpl::RleNullable(builder) => (
                 BlockType::RleNullable,
+                builder.get_statistics(),
+                builder.finish(),
+            ),
+            BlockBuilderImpl::Dictionary(builder) => (
+                BlockType::Dictionary,
+                builder.get_statistics(),
+                builder.finish(),
+            ),
+            BlockBuilderImpl::DictNullable(builder) => (
+                BlockType::DictNullable,
                 builder.get_statistics(),
                 builder.finish(),
             ),
@@ -154,7 +166,16 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                         ));
                     }
                     (true, EncodeType::Dictionary) => {
-                        todo!("Dict encoding for f64 is not supported yet. Tracking issue: https://github.com/risinglightdb/risinglight/issues/674")
+                        let builder = PlainPrimitiveNullableBlockBuilder::new(
+                            self.options.target_block_size - 16,
+                        );
+                        self.current_builder =
+                            Some(BlockBuilderImpl::DictNullable(DictBlockBuilder::<
+                                T::ArrayType,
+                                PlainPrimitiveNullableBlockBuilder<T>,
+                            >::new(
+                                builder
+                            )));
                     }
                     (false, EncodeType::RunLength) => {
                         let builder =
@@ -173,7 +194,15 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                         ));
                     }
                     (false, EncodeType::Dictionary) => {
-                        todo!("Dict encoding for f64 is not supported yet. Tracking issue: https://github.com/risinglightdb/risinglight/issues/674")
+                        let builder =
+                            PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16);
+                        self.current_builder =
+                            Some(BlockBuilderImpl::Dictionary(DictBlockBuilder::<
+                                T::ArrayType,
+                                PlainPrimitiveBlockBuilder<T>,
+                            >::new(
+                                builder
+                            )));
                     }
                 }
 
@@ -193,6 +222,8 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                 BlockBuilderImpl::PlainNullable(builder) => append_one_by_one(&mut iter, builder),
                 BlockBuilderImpl::RunLength(builder) => append_one_by_one(&mut iter, builder),
                 BlockBuilderImpl::RleNullable(builder) => append_one_by_one(&mut iter, builder),
+                BlockBuilderImpl::Dictionary(builder) => append_one_by_one(&mut iter, builder),
+                BlockBuilderImpl::DictNullable(builder) => append_one_by_one(&mut iter, builder),
             };
 
             self.block_index_builder.add_rows(row_count);
