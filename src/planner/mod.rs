@@ -108,6 +108,11 @@ define_language! {
         // utilities
         "list" = List(Box<[Id]>),               // (list ...)
 
+        // internal functions
+        "prune" = Prune([Id; 2]),               // (prune node child)
+                                                    // do column prune on `child`
+                                                    // with the used columns in `node`
+
         Symbol(Symbol),
     }
 }
@@ -160,6 +165,9 @@ struct Data {
     /// All columns involved in the node.
     columns: ColumnSet,
     /// The schema for plan node: a list of expressions.
+    ///
+    /// For non-plan node, it always be None.
+    /// For plan node, it may be None if the schema is unknown due to unresolved `prune`.
     schema: Option<Vec<Id>>,
     /// All aggragations in the tree.
     aggs: NodeSet,
@@ -264,23 +272,27 @@ fn merge_small_set(to: &mut NodeSet, from: NodeSet) -> DidMerge {
 /// Returns the output expressions for plan node.
 fn analyze_schema(egraph: &EGraph, enode: &Plan) -> Option<Vec<Id>> {
     use Plan::*;
-    let x = |i: Id| egraph[i].data.schema.clone().unwrap();
+    let x = |i: Id| egraph[i].data.schema.clone();
     let concat = |v1: Vec<Id>, v2: Vec<Id>| v1.into_iter().chain(v2.into_iter()).collect();
     Some(match enode {
         // equal to child
-        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(*c),
+        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(*c)?,
 
         // concat 2 children
-        Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) => concat(x(*l), x(*r)),
+        Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) => concat(x(*l)?, x(*r)?),
 
         // list is the source for the following nodes
         List(ids) => ids.to_vec(),
 
         // plans that change schema
-        Scan(columns) => x(*columns),
+        Scan(columns) => x(*columns)?,
         Values(_) => todo!("add schema for values plan"),
-        Proj([exprs, _]) | ProjAgg([exprs, _, _]) => x(*exprs),
-        Agg([exprs, group_keys, _]) => concat(x(*exprs), x(*group_keys)),
+        Proj([exprs, _]) | ProjAgg([exprs, _, _]) => x(*exprs)?,
+        Agg([exprs, group_keys, _]) => concat(x(*exprs)?, x(*group_keys)?),
+
+        // prune node may changes the schema, but we don't know the exact result for now
+        // so just return `None` to indicate "unknown"
+        Prune(_) => return None,
 
         // not plan node
         _ => return None,

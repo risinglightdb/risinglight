@@ -113,20 +113,6 @@ fn plan_rules() -> Vec<Rewrite> { vec![
         "(join ?type ?cond2 ?left (filter ?cond1 ?right))"
         if columns_is_subset("?cond1", "?right")
     ),
-    // rw!("pushdown-proj-join";
-    //     "(proj ?exprs (join ?type ?on ?left ?right))" =>
-    //     "(proj ?exprs (join ?type ?on (proj ?el left) (proj ?er ?right)))"
-    // ),
-    rw!("pushdown-proj-scan";
-        "(proj ?exprs (scan ?columns))" =>
-        { ColumnPrune {
-            pattern: pattern("(proj ?exprs (scan ?pruned))"),
-            exprs: var("?exprs"),
-            origin: var("?columns"),
-            output: var("?pruned"),
-        }}
-        if columns_is_proper_subset("?exprs", "?columns")
-    ),
     rw!("join-reorder";
         "(join inner ?cond2 (join inner ?cond1 ?left ?mid) ?right)" =>
         "(join inner ?cond1 ?left (join inner ?cond2 ?mid ?right))"
@@ -168,9 +154,63 @@ fn plan_rules() -> Vec<Rewrite> { vec![
     ),
 ]}
 
+#[rustfmt::skip]
+fn column_prune_rules() -> Vec<Rewrite> { vec![
+    // projection is the source of prune node
+    rw!("prune-gen";
+        "(proj ?exprs ?child)" =>
+        "(proj ?exprs (prune ?exprs ?child))"
+    ),
+    // then it is pushed down through the plan node tree,
+    // merging all used columns along the way
+    rw!("prune-limit";
+        "(prune ?set (limit ?offset ?limit ?child))" =>
+        "(limit ?offset ?limit (prune ?set ?child))"
+    ),
+    // note that we use `+` to represent the union of two column sets.
+    // in fact, it doesn't matter what operator we use,
+    // because the set of a node is calculated by union all its children.
+    // see `analyze_columns()`.
+    rw!("prune-order";
+        "(prune ?set (order ?keys ?child))" =>
+        "(order ?keys (prune (+ ?set ?keys) ?child))"
+    ),
+    rw!("prune-filter";
+        "(prune ?set (filter ?cond ?child))" =>
+        "(filter ?cond (prune (+ ?set ?cond) ?child))"
+    ),
+    rw!("prune-agg";
+        "(prune ?set (agg ?aggs ?groupby ?child))" =>
+        "(agg ?aggs ?groupby (prune (+ (+ ?set ?aggs) ?groupby) ?child))"
+    ),
+    rw!("prune-join";
+        "(prune ?set (join ?type ?on ?left ?right))" =>
+        "(join ?type ?on (prune (+ ?set ?on) ?left) (prune (+ ?set ?on) ?right))"
+    ),
+    // projection and scan is the sink of prune node
+    rw!("prune-proj";
+        "(prune ?set (proj ?exprs ?child))" =>
+        "(proj (prune ?set ?exprs) ?child))"
+    ),
+    rw!("prune-scan";
+        "(prune ?set (scan ?columns))" =>
+        "(scan (prune ?set ?columns))"
+    ),
+    // finally the prune is applied to a list of expressions
+    rw!("prune-list";
+        "(prune ?set ?list)" =>
+        { PruneList {
+            set: var("?set"),
+            list: var("?list"),
+        }}
+        if is_list("?list")
+    ),
+]}
+
 fn all_rules() -> Vec<Rewrite> {
     let mut rules = expr_rules();
     rules.extend(plan_rules());
+    rules.extend(column_prune_rules());
     rules
 }
 
@@ -219,11 +259,6 @@ fn columns_is_subset(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst)
     columns_is(var1, var2, ColumnSet::is_subset)
 }
 
-/// Returns true if the columns in `var1` are a proper subset of the columns in `var2`.
-fn columns_is_proper_subset(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    columns_is(var1, var2, |s1, s2| s1.len() < s2.len() && s1.is_subset(s2))
-}
-
 /// Returns true if the columns in `var1` has no elements in common with the columns in `var2`.
 fn columns_is_disjoint(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     columns_is(var1, var2, ColumnSet::is_disjoint)
@@ -243,9 +278,11 @@ fn columns_is(
     }
 }
 
-fn contains_agg(v: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+fn is_list(v: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let v = var(v);
-    move |egraph, _, subst| !egraph[subst[v]].data.aggs.is_empty()
+    // we have no rule to rewrite a list,
+    // so it should only contains one `Plan::List` in `nodes`.
+    move |egraph, _, subst| matches!(egraph[subst[v]].nodes.first(), Some(Plan::List(_)))
 }
 
 /// Extracts all agg expressions from `src`.
@@ -284,35 +321,37 @@ impl Applier<Plan, PlanAnalysis> for ExtractAgg {
     }
 }
 
-/// Remove unused columns in `exprs` from `output`.
-struct ColumnPrune {
-    pattern: Pattern<Plan>,
-    exprs: Var,
-    origin: Var,
-    output: Var,
+/// Remove unused columns in `set` from `list`.
+struct PruneList {
+    set: Var,
+    list: Var,
 }
 
-impl Applier<Plan, PlanAnalysis> for ColumnPrune {
+impl Applier<Plan, PlanAnalysis> for PruneList {
     fn apply_one(
         &self,
         egraph: &mut EGraph,
         eclass: Id,
         subst: &Subst,
-        searcher_ast: Option<&PatternAst<Plan>>,
-        rule_name: Symbol,
+        _searcher_ast: Option<&PatternAst<Plan>>,
+        _rule_name: Symbol,
     ) -> Vec<Id> {
-        let all_columns = &egraph[subst[self.origin]].data.columns;
-        let used_columns = egraph[subst[self.exprs]].data.columns.clone();
-        assert!(used_columns.is_subset(all_columns));
-        let mut subst = subst.clone();
-        let mut list: Box<[Id]> = used_columns
-            .into_iter()
-            .map(|c| egraph.add(Plan::Column(c)))
+        let used_columns = &egraph[subst[self.set]].data.columns;
+        let list = match &egraph[subst[self.list]].nodes[0] {
+            Plan::List(list) => list.as_slice(),
+            _ => unreachable!("should be a list"),
+        };
+        let pruned = (list.iter().cloned())
+            .filter(|id| !egraph[*id].data.columns.is_disjoint(&used_columns))
             .collect();
-        list.sort();
-        subst.insert(self.output, egraph.add(Plan::List(list)));
-        self.pattern
-            .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+        let id = egraph.add(Plan::List(pruned));
+
+        // copied from `Pattern::apply_one`
+        if egraph.union(eclass, id) {
+            vec![eclass]
+        } else {
+            vec![]
+        }
     }
 }
 
@@ -434,15 +473,19 @@ egg::test_fn! {
 egg::test_fn! {
     column_prune,
     all_rules(),
-    // SELECT v1 FROM t WHERE v2 > 1;
+    // SELECT a FROM t1(id, a) JOIN t2(id, b, c) ON t1.id = t2.id WHERE a + b > 1;
     "
-    (proj (list $1.1)
-    (filter (> $1.2 1)
-    (scan (list $1.1 $1.2 $1.3))
+    (proj (list $1.2)
+    (filter (> (+ $1.2 $2.2) 1)
+    (join inner (= $1.1 $2.1)
+        (scan (list $1.1 $1.2))
+        (scan (list $2.1 $2.2 $2.3))
     )))" => "
-    (proj (list $1.1)
-    (filter (> $1.2 1)
-    (scan (list $1.1 $1.2))
+    (proj (list $1.2)
+    (filter (> (+ $1.2 $2.2) 1)
+    (join inner (= $1.1 $2.1)
+        (scan (list $1.1 $1.2))
+        (scan (list $2.1 $2.2))
     )))"
 }
 
