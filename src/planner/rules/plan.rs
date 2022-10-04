@@ -7,7 +7,6 @@ pub fn rules() -> Vec<Rewrite> {
     rules.extend(merge_rules());
     rules.extend(pushdown_rules());
     rules.extend(join_rules());
-    rules.extend(select_rules());
     rules.extend(column_prune_rules());
     rules
 }
@@ -74,21 +73,6 @@ fn join_rules() -> Vec<Rewrite> { vec![
         "(hashjoin ?type (list ?el) (list ?er) ?left ?right)"
         if columns_is_subset("?el", "?left")
         if columns_is_subset("?er", "?right")
-    ),
-]}
-
-#[rustfmt::skip]
-fn select_rules() -> Vec<Rewrite> { vec![
-    rw!("select-to-plan";
-        "(select ?exprs ?from ?where ?groupby ?having ?orderby ?limit ?offset)" =>
-        "
-        (limit ?limit ?offset
-        (order ?orderby
-        (filter ?having
-        (projagg ?exprs ?groupby
-        (filter ?where
-        ?from
-        )))))"
     ),
 ]}
 
@@ -247,7 +231,13 @@ impl Applier<Expr, ExprAnalysis> for PruneList {
 
 #[cfg(test)]
 mod tests {
-    use super::super::all_rules as rules;
+    use super::*;
+    fn rules() -> Vec<Rewrite> {
+        let mut rules = vec![];
+        rules.append(&mut expr::rules());
+        rules.append(&mut plan::rules());
+        rules
+    }
 
     egg::test_fn! {
         predicate_pushdown,
@@ -330,34 +320,5 @@ mod tests {
             (scan (list $1.1 $1.2))
             (scan (list $2.1 $2.2))
         )))"
-    }
-
-    egg::test_fn! {
-        plan_select,
-        rules(),
-        // SELECT s.name, e.cid
-        // FROM student AS s, enrolled AS e
-        // WHERE s.sid = e.sid AND e.grade = 'A'
-        "
-        (select
-            (list $1.2 $2.2)
-            (join inner true
-                (scan (list $1.1 $1.2))
-                (scan (list $2.1 $2.2 $2.3))
-            )
-            (and (= $1.1 $2.1) (= $2.3 'A'))
-            (list)
-            true
-            (list)
-            null
-            null
-        )" => "
-        (proj (list $1.2 $2.2)
-        (join inner (= $1.1 $2.1)
-            (scan (list $1.1 $1.2))
-            (filter (= $2.3 'A')
-                (scan (list $2.1 $2.2 $2.3))
-            )
-        ))"
     }
 }

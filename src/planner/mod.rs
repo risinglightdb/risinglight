@@ -1,4 +1,4 @@
-use egg::{define_language, Id};
+use egg::{define_language, Id, Symbol};
 
 use crate::catalog::ColumnRefId;
 use crate::parser::{BinaryOperator, UnaryOperator};
@@ -102,7 +102,7 @@ define_language! {
                                                     // do column prune on `child`
                                                     // with the used columns in `node`
 
-        // Symbol(Symbol),
+        Symbol(Symbol),
     }
 }
 

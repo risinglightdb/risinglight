@@ -324,7 +324,9 @@ impl FromStr for DataValue {
     type Err = ParseValueError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Ok(bool) = s.parse::<bool>() {
+        if s == "null" {
+            Ok(DataValue::Null)
+        } else if let Ok(bool) = s.parse::<bool>() {
             Ok(Self::Bool(bool))
         } else if let Ok(int) = s.parse::<i32>() {
             Ok(Self::Int32(int))

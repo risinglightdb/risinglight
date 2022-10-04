@@ -16,9 +16,9 @@ type RecExpr = egg::RecExpr<Expr>;
 
 pub fn all_rules() -> Vec<Rewrite> {
     let mut rules = vec![];
-    rules.extend(expr::rules());
-    rules.extend(plan::rules());
-    rules.extend(agg::rules());
+    rules.append(&mut expr::rules());
+    rules.append(&mut plan::rules());
+    rules.append(&mut agg::rules());
     rules
 }
 
