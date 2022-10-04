@@ -37,6 +37,8 @@ define_language! {
         "not" = Not(Id),
         "isnull" = IsNull(Id),
 
+        "if" = If([Id; 3]),                     // (if cond then else)
+
         // aggregates
         "max" = Max(Id),
         "min" = Min(Id),
@@ -46,6 +48,10 @@ define_language! {
         "rowcount" = RowCount,
         "first" = First(Id),
         "last" = Last(Id),
+
+        // subquery related
+        "exists" = Exists(Id),
+        "in" = In([Id; 2]),
 
         "cast" = Cast([Id; 2]),                 // (cast type expr)
         "as" = Alias([Id; 2]),                  // (as name expr)

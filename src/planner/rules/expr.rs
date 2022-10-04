@@ -65,15 +65,19 @@ pub fn rules() -> Vec<Rewrite> { vec![
 
     rw!("and-false"; "(and false ?a)"   => "false"),
     rw!("and-true";  "(and true ?a)"    => "?a"),
-    rw!("and-null";  "(and null ?a)"    => "?a"),
+    rw!("and-null";  "(and null ?a)"    => "null"),
     rw!("and-comm";  "(and ?a ?b)"      => "(and ?b ?a)"),
     rw!("and-assoc"; "(and ?a (and ?b ?c))" => "(and (and ?a ?b) ?c)"),
 
     rw!("or-false";  "(or false ?a)" => "?a"),
     rw!("or-true";   "(or true ?a)"  => "true"),
-    rw!("or-null";   "(or null ?a)"  => "?a"),
+    rw!("or-null";   "(or null ?a)"  => "null"),
     rw!("or-comm";   "(or ?a ?b)"    => "(or ?b ?a)"),
     rw!("or-assoc";  "(or ?a (or ?b ?c))" => "(or (or ?a ?b) ?c)"),
+
+    rw!("if-false";  "(if false ?then ?else)" => "?else"),
+    rw!("if-true";   "(if true ?then ?else)" => "?then"),
+    rw!("if-not";    "(if (not ?cond) ?then ?else)" => "(if ?cond ?else ?then)"),
 
     rw!("avg";       "(avg ?a)" => "(/ (sum ?a) (count ?a))"),
 ]}
