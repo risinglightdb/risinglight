@@ -3,14 +3,12 @@ use std::hash::Hash;
 
 use egg::*;
 
-use self::column_set::ColumnSet;
 use crate::array::ArrayImpl;
 use crate::catalog::ColumnRefId;
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{DataValue, PhysicalDataTypeKind};
 
 // mod plan_nodes;
-mod column_set;
 mod rules;
 
 type EGraph = egg::EGraph<Plan, PlanAnalysis>;
@@ -22,7 +20,6 @@ define_language! {
         Constant(DataValue),
         Type(PhysicalDataTypeKind),
         Column(ColumnRefId),
-        ColumnSet(ColumnSet),
         // "*" = Wildcard,
 
         // binary operations
@@ -174,13 +171,14 @@ struct Data {
 }
 
 type NodeSet = HashSet<Plan>;
+type ColumnSet = HashSet<ColumnRefId>;
 
 impl Analysis<Plan> for PlanAnalysis {
     type Data = Data;
 
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         let merge_val = egg::merge_max(&mut to.val, from.val);
-        let merge_col = merge_column_set(&mut to.columns, from.columns);
+        let merge_col = merge_small_set(&mut to.columns, from.columns);
         let merge_schema = egg::merge_max(&mut to.schema, from.schema);
         let merge_agg = merge_small_set(&mut to.aggs, from.aggs);
         merge_val | merge_col | merge_schema | merge_agg
@@ -233,7 +231,7 @@ fn eval(egraph: &EGraph, enode: &Plan) -> Option<DataValue> {
 fn analyze_columns(egraph: &EGraph, enode: &Plan) -> ColumnSet {
     let columns = |i: &Id| &egraph[*i].data.columns;
     if let Plan::Column(col) = enode {
-        return ColumnSet::one(*col);
+        return [*col].into_iter().collect();
     }
     if let Plan::Proj([exprs, _]) | Plan::ProjAgg([exprs, _, _]) = enode {
         // only from projection lists
@@ -241,7 +239,7 @@ fn analyze_columns(egraph: &EGraph, enode: &Plan) -> ColumnSet {
     }
     if let Plan::Agg([exprs, group_keys, _]) = enode {
         // only from projection lists
-        return columns(exprs).union(columns(group_keys));
+        return columns(exprs).union(columns(group_keys)).cloned().collect();
     }
     // merge the set from all children
     (enode.children().iter())
@@ -249,18 +247,8 @@ fn analyze_columns(egraph: &EGraph, enode: &Plan) -> ColumnSet {
         .collect()
 }
 
-/// Merge 2 Column set.
-fn merge_column_set(to: &mut ColumnSet, from: ColumnSet) -> DidMerge {
-    if from.len() < to.len() {
-        *to = from;
-        DidMerge(true, false)
-    } else {
-        DidMerge(false, true)
-    }
-}
-
 /// Merge 2 set.
-fn merge_small_set(to: &mut NodeSet, from: NodeSet) -> DidMerge {
+fn merge_small_set<T: Eq + Hash>(to: &mut HashSet<T>, from: HashSet<T>) -> DidMerge {
     if from.len() < to.len() {
         *to = from;
         DidMerge(true, false)
