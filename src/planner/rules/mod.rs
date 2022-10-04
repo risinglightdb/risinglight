@@ -12,6 +12,7 @@ mod schema;
 
 type EGraph = egg::EGraph<Expr, ExprAnalysis>;
 type Rewrite = egg::Rewrite<Expr, ExprAnalysis>;
+type RecExpr = egg::RecExpr<Expr>;
 
 pub fn all_rules() -> Vec<Rewrite> {
     let mut rules = vec![];

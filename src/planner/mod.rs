@@ -1,18 +1,18 @@
-use egg::*;
+use egg::{define_language, Id};
 
 use crate::catalog::ColumnRefId;
 use crate::parser::{BinaryOperator, UnaryOperator};
-use crate::types::{DataValue, PhysicalDataTypeKind};
+use crate::types::{ColumnIndex, DataValue, PhysicalDataTypeKind};
 
 mod rules;
 
 define_language! {
     pub enum Expr {
         // values
-        Constant(DataValue),
-        Type(PhysicalDataTypeKind),
-        Column(ColumnRefId),
-        // "*" = Wildcard,
+        Constant(DataValue),            // null, true, 1, 1.0, "hello", ...
+        Type(PhysicalDataTypeKind),     // bool, int32, float64, ...
+        Column(ColumnRefId),            // $1.2, $2.1, ...
+        ColumnIndex(ColumnIndex),       // #0, #1, ...
 
         // binary operations
         "+" = Add([Id; 2]),
@@ -102,7 +102,7 @@ define_language! {
                                                     // do column prune on `child`
                                                     // with the used columns in `node`
 
-        Symbol(Symbol),
+        // Symbol(Symbol),
     }
 }
 

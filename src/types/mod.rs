@@ -343,3 +343,29 @@ impl FromStr for DataValue {
         }
     }
 }
+
+/// The physical index to the column from child plan.
+///
+/// It is equivalent to `InputRef` in the old planner.
+#[derive(Debug, Display, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
+#[display("#{0}")]
+pub struct ColumnIndex(pub u32);
+
+#[derive(thiserror::Error, Debug, Clone)]
+#[error("parse column index error: {}")]
+pub enum ParseColumnIndexError {
+    #[error("no leading '#'")]
+    NoLeadingSign,
+    #[error("invalid number: {0}")]
+    InvalidNum(#[from] std::num::ParseIntError),
+}
+
+impl FromStr for ColumnIndex {
+    type Err = ParseColumnIndexError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let body = s.strip_prefix('#').ok_or(Self::Err::NoLeadingSign)?;
+        let num = body.parse()?;
+        Ok(Self(num))
+    }
+}
