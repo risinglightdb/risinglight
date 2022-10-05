@@ -1,7 +1,11 @@
+//! Analyze schema and replace all column references with physical indices.
+//!
+//! This is the final step before executing.
+
 use super::*;
 use crate::types::ColumnIndex;
 
-/// Replaces all column references (`ColumnRefId`) to
+/// Replaces all column references (`ColumnRefId`) with
 /// physical indices ([`ColumnIndex`]) to the given schema.
 ///
 /// # Example
@@ -40,6 +44,7 @@ pub fn resolve_column_index(expr: RecExpr, schema: &[RecExpr]) -> RecExpr {
     best
 }
 
+/// The data type of schema analysis.
 pub type Schema = Option<Vec<Id>>;
 
 /// Returns the output expressions for plan node.

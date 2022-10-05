@@ -1,5 +1,6 @@
 use super::*;
 
+/// Returns all rules of aggregation extraction.
 #[rustfmt::skip]
 pub fn rules() -> Vec<Rewrite> { vec![
     rw!("select-to-plan";
@@ -24,6 +25,7 @@ pub fn rules() -> Vec<Rewrite> { vec![
     ),
 ]}
 
+/// The data type of aggragation analysis.
 pub type AggSet = HashSet<Expr>;
 
 /// Returns all aggragations in the tree.

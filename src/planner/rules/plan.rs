@@ -1,6 +1,9 @@
+//! Plan optimization rules.
+
 use super::*;
 use crate::catalog::ColumnRefId;
 
+/// Returns all rules of plan optimization.
 pub fn rules() -> Vec<Rewrite> {
     let mut rules = vec![];
     rules.extend(cancel_rules());
@@ -61,6 +64,19 @@ fn pushdown_rules() -> Vec<Rewrite> { vec![
     ),
 ]}
 
+/// Returns a rule to pushdown plan `a` through `b`.
+fn pushdown(a: &str, a_args: &str, b: &str, b_args: &str) -> Rewrite {
+    let name = format!("pushdown-{a}-{b}");
+    let searcher = format!("({a} {a_args} ({b} {b_args} ?child))");
+    let applier = format!("({b} {b_args} ({a} {a_args} ?child))");
+    Rewrite::new(
+        name,
+        searcher.parse::<Pattern<_>>().unwrap(),
+        applier.parse::<Pattern<_>>().unwrap(),
+    )
+    .unwrap()
+}
+
 #[rustfmt::skip]
 fn join_rules() -> Vec<Rewrite> { vec![
     rw!("join-reorder";
@@ -76,6 +92,10 @@ fn join_rules() -> Vec<Rewrite> { vec![
     ),
 ]}
 
+/// Column pruning rules remove unused columns from a plan.
+/// 
+/// We introduce an internal node [`Expr::Prune`] 
+/// to top-down traverse the plan tree and collect all used columns.
 #[rustfmt::skip]
 fn column_prune_rules() -> Vec<Rewrite> { vec![
     // projection is the source of prune node
@@ -153,6 +173,7 @@ fn columns_is(
     }
 }
 
+/// Returns true if the variable is a list.
 fn is_list(v: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let v = var(v);
     // we have no rule to rewrite a list,
@@ -160,19 +181,7 @@ fn is_list(v: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     move |egraph, _, subst| matches!(egraph[subst[v]].nodes.first(), Some(Expr::List(_)))
 }
 
-/// Make a rule to pushdown `a` through `b`.
-fn pushdown(a: &str, a_args: &str, b: &str, b_args: &str) -> Rewrite {
-    let name = format!("pushdown-{a}-{b}");
-    let searcher = format!("({a} {a_args} ({b} {b_args} ?child))");
-    let applier = format!("({b} {b_args} ({a} {a_args} ?child))");
-    Rewrite::new(
-        name,
-        searcher.parse::<Pattern<_>>().unwrap(),
-        applier.parse::<Pattern<_>>().unwrap(),
-    )
-    .unwrap()
-}
-
+/// The data type of column analysis.
 pub type ColumnSet = HashSet<ColumnRefId>;
 
 /// Returns all columns involved in the node.

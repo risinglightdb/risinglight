@@ -1,7 +1,10 @@
+//! Expression simplification rules and constant folding.
+
 use super::*;
 use crate::array::ArrayImpl;
 use crate::types::DataValue;
 
+/// Returns all rules of expression simplification.
 #[rustfmt::skip]
 pub fn rules() -> Vec<Rewrite> { vec![
     rw!("add-zero";  "(+ ?a 0)" => "?a"),
@@ -82,12 +85,15 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("avg";       "(avg ?a)" => "(/ (sum ?a) (count ?a))"),
 ]}
 
+/// The data type of constant analysis.
+///
+/// `Some` for a known constant, `None` for unknown.
 pub type ConstValue = Option<DataValue>;
 
-/// Evaluate constant.
+/// Evaluate constant for a node.
 pub fn eval_constant(egraph: &EGraph, enode: &Expr) -> ConstValue {
     use Expr::*;
-    let x = |i: Id| egraph[i].data.val.as_ref();
+    let x = |i: Id| egraph[i].data.constant.as_ref();
     if let Constant(v) = enode {
         Some(v.clone())
     } else if let Some((op, a, b)) = enode.binary_op() {
@@ -109,18 +115,20 @@ pub fn eval_constant(egraph: &EGraph, enode: &Expr) -> ConstValue {
     }
 }
 
-pub fn modify(egraph: &mut EGraph, id: Id) {
-    // add a new constant node
-    if let Some(val) = &egraph[id].data.val {
+/// Union `id` with a new constant node if it's constant.
+pub fn union_constant(egraph: &mut EGraph, id: Id) {
+    if let Some(val) = &egraph[id].data.constant {
         let added = egraph.add(Expr::Constant(val.clone()));
         egraph.union(id, added);
     }
 }
 
+/// Returns true if the expression is a non-zero constant.
 fn is_not_zero(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     value_is(var, |v| !v.is_zero())
 }
 
+/// Returns true if the expression is a constant.
 fn is_const(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     value_is(var, |_| true)
 }
@@ -128,7 +136,7 @@ fn is_const(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 fn value_is(v: &str, f: impl Fn(&DataValue) -> bool) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let v = var(v);
     move |egraph, _, subst| {
-        if let Some(n) = &egraph[subst[v]].data.val {
+        if let Some(n) = &egraph[subst[v]].data.constant {
             f(n)
         } else {
             false
