@@ -68,7 +68,7 @@ impl Applier<Expr, ExprAnalysis> for ExtractAgg {
             // FIXME: what if groupby not empty??
             return self
                 .no_agg
-                .apply_one(egraph, eclass, &subst, searcher_ast, rule_name);
+                .apply_one(egraph, eclass, subst, searcher_ast, rule_name);
         }
         let mut list: Box<[Id]> = aggs.into_iter().map(|agg| egraph.add(agg)).collect();
         // make sure the order of the aggs is deterministic

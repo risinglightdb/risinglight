@@ -216,7 +216,7 @@ impl Applier<Expr, ExprAnalysis> for PruneList {
             _ => unreachable!("should be a list"),
         };
         let pruned = (list.iter().cloned())
-            .filter(|id| !egraph[*id].data.columns.is_disjoint(&used_columns))
+            .filter(|id| !egraph[*id].data.columns.is_disjoint(used_columns))
             .collect();
         let id = egraph.add(Expr::List(pruned));
 

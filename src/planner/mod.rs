@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use egg::{define_language, Id, Symbol};
 
 use crate::catalog::ColumnRefId;
@@ -119,6 +121,7 @@ impl Expr {
 
     const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {
         use BinaryOperator as Op;
+        #[allow(clippy::match_ref_pats)]
         Some(match self {
             &Self::Add([a, b]) => (Op::Plus, a, b),
             &Self::Sub([a, b]) => (Op::Minus, a, b),
@@ -142,6 +145,7 @@ impl Expr {
 
     const fn unary_op(&self) -> Option<(UnaryOperator, Id)> {
         use UnaryOperator as Op;
+        #[allow(clippy::match_ref_pats)]
         Some(match self {
             &Self::Neg(a) => (Op::Minus, a),
             &Self::Not(a) => (Op::Not, a),
