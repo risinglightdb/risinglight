@@ -72,6 +72,10 @@ impl<T: BlobEncode + ?Sized> BlockBuilder<T::ArrayType> for PlainBlobBlockBuilde
         encoded_data.extend(self.data);
         encoded_data
     }
+
+    fn get_target_size(&self) -> usize {
+        self.target_size
+    }
 }
 
 #[cfg(test)]

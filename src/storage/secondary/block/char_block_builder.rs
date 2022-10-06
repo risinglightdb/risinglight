@@ -70,6 +70,10 @@ impl BlockBuilder<Utf8Array> for PlainCharBlockBuilder {
     fn finish(self) -> Vec<u8> {
         self.data
     }
+
+    fn get_target_size(&self) -> usize {
+        self.target_size
+    }
 }
 
 #[cfg(test)]

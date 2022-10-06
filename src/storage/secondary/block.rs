@@ -70,6 +70,9 @@ pub trait BlockBuilder<A: Array> {
 
     /// Finish a block and return encoded data.
     fn finish(self) -> Vec<u8>;
+
+    /// Get target size of block.
+    fn get_target_size(&self) -> usize;
 }
 
 /// An iterator on a block. This iterator requires the block being pre-loaded in memory.

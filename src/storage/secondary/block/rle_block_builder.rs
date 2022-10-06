@@ -179,6 +179,10 @@ where
         encoded_data.extend(data);
         encoded_data
     }
+
+    fn get_target_size(&self) -> usize {
+        self.block_builder.get_target_size()
+    }
 }
 
 #[cfg(test)]

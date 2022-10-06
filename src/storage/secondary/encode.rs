@@ -1,5 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::hash::Hash;
+
 use bytes::{Buf, BufMut};
 use ordered_float::OrderedFloat;
 use rust_decimal::Decimal;
@@ -11,7 +13,9 @@ use crate::array::{
 use crate::types::{BlobRef, Date, Interval, F64};
 
 /// Encode a primitive value into fixed-width buffer
-pub trait PrimitiveFixedWidthEncode: Copy + Clone + 'static + Send + Sync + PartialEq {
+pub trait PrimitiveFixedWidthEncode:
+    Copy + Clone + 'static + Send + Sync + PartialEq + Hash + Eq
+{
     /// Width of each element
     const WIDTH: usize;
     const DEFAULT_VALUE: &'static Self;
