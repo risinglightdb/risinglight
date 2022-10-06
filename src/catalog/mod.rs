@@ -1,5 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::str::FromStr;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -82,6 +83,45 @@ impl ColumnRefId {
             table_id,
             column_id,
         }
+    }
+}
+
+impl std::fmt::Display for ColumnRefId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO: now ignore database and schema
+        write!(f, "${}.{}", self.table_id, self.column_id)
+    }
+}
+
+#[derive(thiserror::Error, Debug, Clone)]
+#[error("parse column id error: {}")]
+pub enum ParseColumnIdError {
+    #[error("no leading '$'")]
+    NoLeadingDollar,
+    #[error("invalid column")]
+    InvalidColumn,
+    #[error("invalid table")]
+    InvalidTable,
+    #[error("invalid number: {0}")]
+    InvalidNum(#[from] std::num::ParseIntError),
+}
+
+impl FromStr for ColumnRefId {
+    type Err = ParseColumnIdError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let body = s.strip_prefix('$').ok_or(Self::Err::NoLeadingDollar)?;
+        let mut parts = body.rsplit('.');
+        let column_id = parts.next().ok_or(Self::Err::InvalidColumn)?.parse()?;
+        let table_id = parts.next().ok_or(Self::Err::InvalidTable)?.parse()?;
+        let schema_id = parts.next().map_or(Ok(0), |s| s.parse())?;
+        let database_id = parts.next().map_or(Ok(0), |s| s.parse())?;
+        Ok(ColumnRefId {
+            database_id,
+            schema_id,
+            table_id,
+            column_id,
+        })
     }
 }
 

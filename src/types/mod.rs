@@ -4,6 +4,7 @@ use std::hash::Hash;
 
 use num_traits::ToPrimitive;
 use ordered_float::OrderedFloat;
+use parse_display::{Display, FromStr};
 use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -20,7 +21,10 @@ pub use self::interval::*;
 pub use self::native::*;
 
 /// Physical data type
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Display, FromStr, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+#[display(style = "lowercase")]
 pub enum PhysicalDataTypeKind {
     Int32,
     Int64,
@@ -128,19 +132,29 @@ pub(crate) type TableId = u32;
 pub(crate) type ColumnId = u32;
 
 /// Primitive SQL value.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Debug, Display, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum DataValue {
     // NOTE: Null comes first.
     // => NULL is less than any non-NULL values
+    #[display("null")]
     Null,
+    #[display("{0}")]
     Bool(bool),
+    #[display("{0}")]
     Int32(i32),
+    #[display("{0}")]
     Int64(i64),
+    #[display("{0}")]
     Float64(F64),
+    #[display("'{0}'")]
     String(String),
+    #[display("{0}")]
     Blob(Blob),
+    #[display("{0}")]
     Decimal(Decimal),
+    #[display("{0}")]
     Date(Date),
+    #[display("{0}")]
     Interval(Interval),
 }
 
@@ -179,6 +193,11 @@ impl_arith_for_datavalue!(Div, div);
 impl_arith_for_datavalue!(Rem, rem);
 
 impl DataValue {
+    /// Returns `true` if value is null.
+    pub const fn is_null(&self) -> bool {
+        matches!(self, Self::Null)
+    }
+
     /// Whether the value is divisible by another.
     pub fn is_divisible_by(&self, other: &DataValue) -> bool {
         use DataValue::*;
@@ -186,10 +205,7 @@ impl DataValue {
             (&Int32(x), &Int32(y)) => y != 0 && x % y == 0,
             (&Int64(x), &Int64(y)) => y != 0 && x % y == 0,
             (&Float64(x), &Float64(y)) => y != 0.0 && x % y == 0.0,
-            (&Decimal(x), &Decimal(y)) => {
-                y != rust_decimal::Decimal::from_str("0.0").unwrap()
-                    && x % y == rust_decimal::Decimal::from_str("0.0").unwrap()
-            }
+            (&Decimal(x), &Decimal(y)) => !y.is_zero() && (x % y).is_zero(),
             _ => false,
         }
     }
@@ -197,16 +213,32 @@ impl DataValue {
     /// Returns `true` if value is positive and `false` if the number is zero or negative.
     pub fn is_positive(&self) -> bool {
         match self {
+            Self::Null => false,
             Self::Bool(v) => *v,
             Self::Int32(v) => v.is_positive(),
             Self::Int64(v) => v.is_positive(),
-            Self::Float64(v) => v.is_sign_positive(),
+            Self::Float64(v) => v.0.is_sign_positive(),
             Self::String(_) => false,
             Self::Blob(_) => false,
             Self::Decimal(v) => v.is_sign_positive(),
             Self::Date(_) => false,
-            Self::Interval(_) => false,
+            Self::Interval(v) => v.is_positive(),
+        }
+    }
+
+    /// Returns `true` if value is zero.
+    pub fn is_zero(&self) -> bool {
+        match self {
             Self::Null => false,
+            Self::Bool(v) => !*v,
+            Self::Int32(v) => *v == 0,
+            Self::Int64(v) => *v == 0,
+            Self::Float64(v) => v.0 == 0.0,
+            Self::String(_) => false,
+            Self::Blob(_) => false,
+            Self::Decimal(v) => v.is_zero(),
+            Self::Date(_) => false,
+            Self::Interval(v) => v.is_zero(),
         }
     }
 
@@ -228,38 +260,20 @@ impl DataValue {
 
     /// Convert the value to a usize.
     pub fn as_usize(&self) -> Result<Option<usize>, ConvertError> {
+        let cast_err = || ConvertError::Cast(self.to_string(), "usize");
         Ok(Some(match self {
-            DataValue::Null => return Ok(None),
-            &DataValue::Bool(b) => b as usize,
-            &DataValue::Int32(v) => v
-                .try_into()
-                .map_err(|_| ConvertError::Cast(v.to_string(), "usize"))?,
-            &DataValue::Int64(v) => v
-                .try_into()
-                .map_err(|_| ConvertError::Cast(v.to_string(), "usize"))?,
-            &DataValue::Float64(f) if f.is_sign_negative() => {
-                return Err(ConvertError::Cast(f.to_string(), "usize"));
-            }
-            &DataValue::Float64(f) => f.0 as usize,
-            &DataValue::Decimal(d) if d.is_sign_negative() => {
-                return Err(ConvertError::Cast(d.to_string(), "usize"));
-            }
-            &DataValue::Decimal(d) => d.to_f64().ok_or(ConvertError::FromDecimalError(
-                DataTypeKind::Double,
-                DataValue::Decimal(d),
-            ))? as usize,
-            &DataValue::Date(d) => {
-                return Err(ConvertError::Cast(d.to_string(), "usize"));
-            }
-            &DataValue::Interval(i) => {
-                return Err(ConvertError::Cast(i.to_string(), "usize"));
-            }
-            DataValue::String(s) => s
-                .parse::<usize>()
-                .map_err(|e| ConvertError::ParseInt(s.clone(), e))?,
-            DataValue::Blob(v) => {
-                return Err(ConvertError::Cast(v.to_string(), "usize"));
-            }
+            Self::Null => return Ok(None),
+            &Self::Bool(b) => b as usize,
+            &Self::Int32(v) => v.try_into().map_err(|_| cast_err())?,
+            &Self::Int64(v) => v.try_into().map_err(|_| cast_err())?,
+            &Self::Float64(f) if f.is_sign_negative() => return Err(cast_err()),
+            &Self::Float64(f) => f.0.to_usize().ok_or_else(cast_err)?,
+            &Self::Decimal(d) if d.is_sign_negative() => return Err(cast_err()),
+            &Self::Decimal(d) => d.to_usize().ok_or_else(cast_err)?,
+            &Self::Date(_) => return Err(cast_err()),
+            &Self::Interval(_) => return Err(cast_err()),
+            Self::String(s) => s.parse::<usize>().map_err(|_| cast_err())?,
+            Self::Blob(_) => return Err(cast_err()),
         }))
     }
 }
@@ -301,20 +315,59 @@ pub enum ConvertError {
 /// memory table row type
 pub(crate) type Row = Vec<DataValue>;
 
-impl std::fmt::Display for DataValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Null => write!(f, "null")?,
-            Self::Bool(value) => write!(f, "{}", value)?,
-            Self::Int32(value) => write!(f, "{}", value)?,
-            Self::Int64(value) => write!(f, "{}", value)?,
-            Self::Float64(value) => write!(f, "{}", value)?,
-            Self::String(value) => write!(f, "{}", value)?,
-            Self::Blob(value) => write!(f, "{}", value)?,
-            Self::Decimal(value) => write!(f, "{}", value)?,
-            Self::Date(value) => write!(f, "{}", value)?,
-            Self::Interval(value) => write!(f, "{}", value)?,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseValueError {
+    s: String,
+}
+
+impl FromStr for DataValue {
+    type Err = ParseValueError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "null" {
+            Ok(DataValue::Null)
+        } else if let Ok(bool) = s.parse::<bool>() {
+            Ok(Self::Bool(bool))
+        } else if let Ok(int) = s.parse::<i32>() {
+            Ok(Self::Int32(int))
+        } else if let Ok(bigint) = s.parse::<i64>() {
+            Ok(Self::Int64(bigint))
+        } else if let Ok(float) = s.parse::<F64>() {
+            Ok(Self::Float64(float))
+        } else if s.starts_with('\'') && s.ends_with('\'') {
+            Ok(Self::String(s[1..s.len() - 1].to_string()))
+        } else if let Some(s) = s.strip_prefix("interval") {
+            Ok(Self::Interval(s.trim().trim_matches('\'').parse().unwrap()))
+        } else if let Some(s) = s.strip_prefix("date") {
+            Ok(Self::Date(s.trim().trim_matches('\'').parse().unwrap()))
+        } else {
+            Err(ParseValueError { s: s.into() })
         }
-        Ok(())
+    }
+}
+
+/// The physical index to the column from child plan.
+///
+/// It is equivalent to `InputRef` in the old planner.
+#[derive(Debug, Display, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
+#[display("#{0}")]
+pub struct ColumnIndex(pub u32);
+
+#[derive(thiserror::Error, Debug, Clone)]
+#[error("parse column index error: {}")]
+pub enum ParseColumnIndexError {
+    #[error("no leading '#'")]
+    NoLeadingSign,
+    #[error("invalid number: {0}")]
+    InvalidNum(#[from] std::num::ParseIntError),
+}
+
+impl FromStr for ColumnIndex {
+    type Err = ParseColumnIndexError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let body = s.strip_prefix('#').ok_or(Self::Err::NoLeadingSign)?;
+        let num = body.parse()?;
+        Ok(Self(num))
     }
 }
