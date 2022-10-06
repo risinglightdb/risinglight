@@ -2,19 +2,25 @@
 
 use egg::{define_language, Id, Symbol};
 
-use crate::catalog::ColumnRefId;
+use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataValue, PhysicalDataTypeKind};
 
 mod rules;
+
+pub use rules::optimize;
+
+pub type RecExpr = egg::RecExpr<Expr>;
 
 define_language! {
     pub enum Expr {
         // values
         Constant(DataValue),            // null, true, 1, 1.0, "hello", ...
         Type(PhysicalDataTypeKind),     // bool, int32, float64, ...
+        // Table(TableRefId),              // $1, $2, ...
         Column(ColumnRefId),            // $1.2, $2.1, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
+        "*" = Wildcard,                 // *
 
         // binary operations
         "+" = Add([Id; 2]),
@@ -91,7 +97,7 @@ define_language! {
         "create" = Create([Id; 2]),             // (create table [column_desc..])
         "drop" = Drop(Id),                      // (drop table)
         "insert" = Insert([Id; 3]),             // (insert table [column..] child)
-        "delete" = Delete([Id; 2]),             // (delete table child/true)
+        "delete" = Delete([Id; 2]),             // (delete table condition=expr)
         "copy_from" = CopyFrom(Id),             // (copy_from dest)
         "copy_to" = CopyTo([Id; 2]),            // (copy_to dest child)
         "explain" = Explain(Id),                // (explain child)
@@ -109,8 +115,12 @@ define_language! {
 }
 
 impl Expr {
-    const fn true_() -> Self {
+    pub const fn true_() -> Self {
         Self::Constant(DataValue::Bool(true))
+    }
+
+    pub const fn null() -> Self {
+        Self::Constant(DataValue::Null)
     }
 
     const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {

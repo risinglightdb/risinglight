@@ -23,7 +23,7 @@ use std::hash::Hash;
 
 use egg::{rewrite as rw, *};
 
-use super::Expr;
+use super::{Expr, RecExpr};
 
 mod agg;
 mod expr;
@@ -33,7 +33,6 @@ mod schema;
 // Alias types for our language.
 type EGraph = egg::EGraph<Expr, ExprAnalysis>;
 type Rewrite = egg::Rewrite<Expr, ExprAnalysis>;
-type RecExpr = egg::RecExpr<Expr>;
 
 /// Returns all rules in the optimizer.
 pub fn all_rules() -> Vec<Rewrite> {
@@ -126,4 +125,32 @@ fn var(s: &str) -> Var {
 /// This is a helper function for submodules.
 fn pattern(s: &str) -> Pattern<Expr> {
     s.parse().expect("invalid pattern")
+}
+
+/// Optimize the given expression.
+pub fn optimize(expr: &RecExpr) -> RecExpr {
+    let runner = Runner::default().with_expr(&expr).run(&all_rules());
+    // define cost function
+    struct Trivial;
+    impl egg::CostFunction<Expr> for Trivial {
+        type Cost = u32;
+        fn cost<C>(&mut self, enode: &Expr, mut costs: C) -> Self::Cost
+        where
+            C: FnMut(Id) -> Self::Cost,
+        {
+            let op_cost = match enode {
+                // should no longer exists
+                Expr::Select(_) | Expr::Prune(_) => u32::MAX,
+                _ => 1,
+            };
+            enode.fold(op_cost, |sum, id| {
+                sum.checked_add(costs(id)).unwrap_or(u32::MAX)
+            })
+        }
+    }
+    // extract the best expression
+    let extractor = egg::Extractor::new(&runner.egraph, Trivial);
+    let root = runner.roots[0];
+    let (_, best) = extractor.find_best(root);
+    best
 }

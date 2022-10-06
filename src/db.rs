@@ -1,5 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use futures::TryStreamExt;
@@ -28,6 +29,8 @@ pub struct Database {
     catalog: RootCatalogRef,
     storage: StorageImpl,
 }
+
+static USE_PLANNER_V2: AtomicBool = AtomicBool::new(false);
 
 impl Database {
     /// Create a new in-memory database instance.
@@ -150,6 +153,9 @@ impl Database {
             }
         } else if cmd == "dt" {
             self.run_dt()
+        } else if cmd == "v2" {
+            USE_PLANNER_V2.store(true, Ordering::Relaxed);
+            Ok(vec![])
         } else {
             Err(Error::InternalError("unsupported command".to_string()))
         }
@@ -172,6 +178,17 @@ impl Database {
 
         // parse
         let stmts = parse(sql)?;
+
+        if USE_PLANNER_V2.load(Ordering::Relaxed) {
+            for stmt in stmts {
+                let mut binder = crate::binder_v2::Binder::new(self.catalog.clone());
+                let bound = binder.bind(stmt)?;
+                println!("bind result:\n{}", bound.pretty(60));
+                let optimized = crate::planner::optimize(&bound);
+                println!("optimize result:\n{}", optimized.pretty(60));
+            }
+            return Ok(vec![]);
+        }
 
         let mut binder = Binder::new(self.catalog.clone());
         let logical_planner = LogicalPlaner::default();
@@ -249,6 +266,12 @@ pub enum Error {
         #[source]
         #[from]
         BindError,
+    ),
+    #[error("bind error: {0}")]
+    BindV2(
+        #[source]
+        #[from]
+        crate::binder_v2::BindError,
     ),
     #[error("logical plan error: {0}")]
     Plan(

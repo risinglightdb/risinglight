@@ -26,7 +26,11 @@ fn cancel_rules() -> Vec<Rewrite> { vec![
 
 #[rustfmt::skip]
 fn merge_rules() -> Vec<Rewrite> { vec![
-    rw!("limit-order=topn";
+    rw!("topn-limit-order";
+        "(topn ?offset ?limit ?keys ?child)" =>
+        "(limit ?offset ?limit (order ?keys ?child))"
+    ),
+    rw!("limit-order-topn";
         "(limit ?offset ?limit (order ?keys ?child))" =>
         "(topn ?offset ?limit ?keys ?child)"
     ),
