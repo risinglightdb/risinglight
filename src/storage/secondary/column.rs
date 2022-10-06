@@ -37,6 +37,7 @@ use bytes::Bytes;
 pub use char_column_factory::*;
 use moka::future::Cache;
 
+use super::block::BLOCK_HEADER_CHECKSUM_SIZE;
 use super::{Block, BlockCacheKey, BlockHeader, ColumnIndex, BLOCK_HEADER_SIZE};
 use crate::array::Array;
 use crate::storage::secondary::verify_checksum;
@@ -195,18 +196,17 @@ impl Column {
                 "block is smaller than header size",
             ));
         }
-        let mut header = &block[..BLOCK_HEADER_SIZE];
-        let block_data = &block[BLOCK_HEADER_SIZE..];
+        let mut header = &block[block.len() - BLOCK_HEADER_SIZE..];
         block_header.decode(&mut header)?;
 
         if do_verify_checksum {
             verify_checksum(
                 block_header.checksum_type,
-                block_data,
+                &block[..block.len() - BLOCK_HEADER_CHECKSUM_SIZE],
                 block_header.checksum,
             )?;
         }
 
-        Ok((block_header, block.slice(BLOCK_HEADER_SIZE..)))
+        Ok((block_header, block.slice(..block.len() - BLOCK_HEADER_SIZE)))
     }
 }

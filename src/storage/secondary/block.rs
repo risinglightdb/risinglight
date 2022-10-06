@@ -51,8 +51,8 @@ pub type Block = Bytes;
 /// In RisingLight, the block encoding scheme is as follows:
 ///
 /// ```plain
-/// | block_type | cksum_type | cksum  |    data     |
-/// |    4B      |     4B     |   8B   |  variable   |
+/// |    data     | block_type | cksum_type | cksum  |
+/// |  variable   |    4B      |     4B     |   8B   |
 /// ```
 pub trait BlockBuilder<A: Array> {
     /// Append one data into the block.
@@ -124,11 +124,16 @@ pub struct BlockHeader {
     pub checksum: u64,
 }
 
-pub const BLOCK_HEADER_SIZE: usize = 4 + 4 + 8;
+pub const BLOCK_HEADER_NON_CHECKSUM_SIZE: usize = 4;
+pub const BLOCK_HEADER_CHECKSUM_SIZE: usize = 4 + 8;
+pub const BLOCK_HEADER_SIZE: usize = BLOCK_HEADER_NON_CHECKSUM_SIZE + BLOCK_HEADER_CHECKSUM_SIZE;
 
 impl BlockHeader {
-    pub fn encode(&self, buf: &mut impl BufMut) {
+    pub fn encode_except_checksum(&self, buf: &mut impl BufMut) {
         buf.put_i32(self.block_type.into());
+    }
+
+    pub fn encode_checksum(&self, buf: &mut impl BufMut) {
         buf.put_i32(self.checksum_type.into());
         buf.put_u64(self.checksum);
     }
