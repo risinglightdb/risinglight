@@ -3,22 +3,20 @@ use super::*;
 /// Returns all rules of aggregation extraction.
 #[rustfmt::skip]
 pub fn rules() -> Vec<Rewrite> { vec![
-    rw!("select-to-plan";
-        "(select ?exprs ?from ?where ?groupby ?having ?orderby ?limit ?offset)" =>
-        "
-        (limit ?limit ?offset
-        (order ?orderby
-        (filter ?having
-        (projagg ?exprs ?groupby
-        (filter ?where
-        ?from
-        )))))"
-    ),
-    rw!("split-projagg";
-        "(projagg ?exprs ?groupby ?child)" =>
+    rw!("extract-agg-from-select-list";
+        "(select ?exprs ?from ?where ?groupby ?having)" =>
         { ExtractAgg {
-            has_agg: pattern("(proj ?exprs (agg ?aggs ?groupby ?child))"),
-            no_agg: pattern("(proj ?exprs ?child)"),
+            has_agg: pattern("
+            (proj ?exprs
+                (filter ?having
+                    (agg ?aggs ?groupby
+                        (filter ?where
+                            ?from
+                        )
+                    )
+                )
+            )"),
+            no_agg: pattern("(proj ?exprs (filter ?where ?from))"),
             src: var("?exprs"),
             output: var("?aggs"),
         }}
@@ -94,21 +92,25 @@ mod tests {
     }
 
     egg::test_fn! {
-        split_proj_agg,
+        plan_select,
         rules(),
-        // SELECT sum(a + b) + count(a) + a FROM t GROUP BY a;
+        // SELECT sum(a + b) + count(a) + a FROM t
+        // WHERE b > 1 GROUP BY a HAVING count(a) > 1;
         "
-        (projagg
+        (select
             (list (+ (+ (sum (+ $1.1 $1.2)) (count $1.1)) $1.1))
-            (list $1.1)
             (scan (list $1.1 $1.2 $1.3))
+            (> $1.2 1)
+            (list $1.1)
+            (> (count $1.1) 1)
         )" => "
-        (proj
-            (list (+ (+ (sum (+ $1.1 $1.2)) (count $1.1)) $1.1))
-            (agg
-                (list (sum (+ $1.1 $1.2)) (count $1.1))
-                (list $1.1)
-                (scan (list $1.1 $1.2 $1.3))
+        (proj (list (+ (+ (sum (+ $1.1 $1.2)) (count $1.1)) $1.1))
+            (filter (> (count $1.1) 1)
+                (agg (list (sum (+ $1.1 $1.2)) (count $1.1)) (list $1.1)
+                    (filter (> $1.2 1)
+                        (scan (list $1.1 $1.2 $1.3))
+                    )
+                )
             )
         )"
     }
@@ -118,8 +120,10 @@ mod tests {
         rules(),
         // SELECT a FROM t;
         "
-        (projagg (list $1.1) (list)
+        (select
+            (list $1.1)
             (scan (list $1.1 $1.2 $1.3))
+            true (list) true
         )" => "
         (proj (list $1.1)
             (scan (list $1.1 $1.2 $1.3))
@@ -127,7 +131,7 @@ mod tests {
     }
 
     egg::test_fn! {
-        plan_select,
+        cmu15445_fall2021_lecture13_p17,
         rules(),
         // SELECT s.name, e.cid
         // FROM student AS s, enrolled AS e
@@ -142,9 +146,6 @@ mod tests {
             (and (= $1.1 $2.1) (= $2.3 'A'))
             (list)
             true
-            (list)
-            null
-            null
         )" => "
         (proj (list $1.2 $2.2)
         (join inner (= $1.1 $2.1)

@@ -69,12 +69,7 @@ fn pushdown(a: &str, a_args: &str, b: &str, b_args: &str) -> Rewrite {
     let name = format!("pushdown-{a}-{b}");
     let searcher = format!("({a} {a_args} ({b} {b_args} ?child))");
     let applier = format!("({b} {b_args} ({a} {a_args} ?child))");
-    Rewrite::new(
-        name,
-        searcher.parse::<Pattern<_>>().unwrap(),
-        applier.parse::<Pattern<_>>().unwrap(),
-    )
-    .unwrap()
+    Rewrite::new(name, pattern(&searcher), pattern(&applier)).unwrap()
 }
 
 #[rustfmt::skip]
@@ -190,12 +185,11 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
     if let Expr::Column(col) = enode {
         return [*col].into_iter().collect();
     }
-    if let Expr::Proj([exprs, _]) | Expr::ProjAgg([exprs, _, _]) = enode {
+    if let Expr::Proj([exprs, _]) | Expr::Select([exprs, ..]) = enode {
         // only from projection lists
         return columns(exprs).clone();
     }
     if let Expr::Agg([exprs, group_keys, _]) = enode {
-        // only from projection lists
         return columns(exprs).union(columns(group_keys)).cloned().collect();
     }
     // merge the set from all children

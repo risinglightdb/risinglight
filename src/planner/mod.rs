@@ -59,15 +59,12 @@ define_language! {
         "as" = Alias([Id; 2]),                  // (as name expr)
         "fn" = Function(Box<[Id]>),             // (fn name args..)
 
-        "select" = Select([Id; 8]),             // (select
+        "select" = Select([Id; 5]),             // (select
                                                 //      select_list=[expr..]
                                                 //      from=join
                                                 //      where=expr
                                                 //      groupby=[expr..]
                                                 //      having=expr
-                                                //      orderby=[expr..]
-                                                //      limit=expr
-                                                //      offset=expr
                                                 // )
 
         // plans
@@ -91,9 +88,6 @@ define_language! {
         "agg" = Agg([Id; 3]),                   // (agg aggs=[expr..] group_keys=[expr..] child)
                                                     // expressions must be agg
                                                     // output = aggs || group_keys
-        "projagg" = ProjAgg([Id; 3]),           // (projagg [expr..] group_keys=[expr..] child)
-                                                    // expressions may contain agg inside
-                                                    // output = exprs
         "create" = Create([Id; 2]),             // (create table [column_desc..])
         "drop" = Drop(Id),                      // (drop table)
         "insert" = Insert([Id; 3]),             // (insert table [column..] child)

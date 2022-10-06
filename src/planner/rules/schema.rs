@@ -65,7 +65,7 @@ pub fn analyze_schema(egraph: &EGraph, enode: &Expr) -> Schema {
         // plans that change schema
         Scan(columns) => x(*columns)?,
         Values(_) => todo!("add schema for values plan"),
-        Proj([exprs, _]) | ProjAgg([exprs, _, _]) => x(*exprs)?,
+        Proj([exprs, _]) | Select([exprs, ..]) => x(*exprs)?,
         Agg([exprs, group_keys, _]) => concat(x(*exprs)?, x(*group_keys)?),
 
         // prune node may changes the schema, but we don't know the exact result for now
