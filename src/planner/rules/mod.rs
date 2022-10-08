@@ -53,19 +53,19 @@ pub struct ExprAnalysis;
 #[derive(Debug)]
 pub struct Data {
     /// Some if the expression is a constant.
-    constant: expr::ConstValue,
+    pub constant: expr::ConstValue,
 
     /// All columns involved in the node.
-    columns: plan::ColumnSet,
+    pub columns: plan::ColumnSet,
 
     /// All aggragations in the tree.
-    aggs: agg::AggSet,
+    pub aggs: agg::AggSet,
 
     /// The schema for plan node: a list of expressions.
     ///
     /// For non-plan node, it always be None.
     /// For plan node, it may be None if the schema is unknown due to unresolved `prune`.
-    schema: schema::Schema,
+    pub schema: schema::Schema,
 }
 
 impl Analysis<Expr> for ExprAnalysis {

@@ -8,7 +8,7 @@ use crate::types::{ColumnIndex, DataValue, PhysicalDataTypeKind};
 
 mod rules;
 
-pub use rules::optimize;
+pub use rules::{optimize, ExprAnalysis};
 
 pub type RecExpr = egg::RecExpr<Expr>;
 
@@ -20,7 +20,6 @@ define_language! {
         // Table(TableRefId),              // $1, $2, ...
         Column(ColumnRefId),            // $1.2, $2.1, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
-        "*" = Wildcard,                 // *
 
         // binary operations
         "+" = Add([Id; 2]),

@@ -38,7 +38,7 @@ impl Binder {
             Some(offset) => self.bind_expr(offset.value)?,
             None => self.egraph.add(Node::null()),
         };
-        Ok(self.egraph.add(Node::TopN([orderby, limit, offset, child])))
+        Ok(self.egraph.add(Node::TopN([limit, offset, orderby, child])))
     }
 
     pub fn bind_select(&mut self, select: Select) -> Result {
@@ -46,7 +46,7 @@ impl Binder {
 
         let where_ = self.bind_condition(select.selection)?;
 
-        let projection = self.bind_projection(select.projection)?;
+        let projection = self.bind_projection(select.projection, from)?;
 
         let group_list = (select.group_by.into_iter())
             .map(|key| self.bind_expr(key))
@@ -60,7 +60,7 @@ impl Binder {
             .add(Node::Select([projection, from, where_, groupby, having])))
     }
 
-    fn bind_projection(&mut self, projection: Vec<SelectItem>) -> Result {
+    fn bind_projection(&mut self, projection: Vec<SelectItem>, from: Id) -> Result {
         let mut select_list = vec![];
         for item in projection {
             match item {
@@ -74,7 +74,8 @@ impl Binder {
                     select_list.push(expr);
                 }
                 SelectItem::Wildcard => {
-                    select_list.push(self.egraph.add(Node::Wildcard));
+                    let mut schema = self.egraph[from].data.schema.clone().expect("no schema");
+                    select_list.append(&mut schema);
                 }
                 _ => todo!("bind select list"),
             }

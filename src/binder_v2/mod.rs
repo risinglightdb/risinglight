@@ -9,7 +9,7 @@ use itertools::Itertools;
 
 use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
 use crate::parser::*;
-use crate::planner::{Expr as Node, RecExpr};
+use crate::planner::{Expr as Node, ExprAnalysis, RecExpr};
 use crate::types::{DataTypeKind, DataValue};
 
 mod expr;
@@ -62,7 +62,7 @@ pub enum BindError {
 /// The binder resolves all expressions referring to schema objects such as
 /// tables or views with their column names and types.
 pub struct Binder {
-    egraph: egg::EGraph<Node, ()>,
+    egraph: egg::EGraph<Node, ExprAnalysis>,
     catalog: Arc<RootCatalog>,
     contexts: Vec<Context>,
 }
