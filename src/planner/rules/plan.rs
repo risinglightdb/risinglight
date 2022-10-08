@@ -108,25 +108,27 @@ fn column_prune_rules() -> Vec<Rewrite> { vec![
         "(prune ?set (limit ?offset ?limit ?child))" =>
         "(limit ?offset ?limit (prune ?set ?child))"
     ),
-    // note that we use `+` to represent the union of two column sets.
-    // in fact, it doesn't matter what operator we use,
-    // because the set of a node is calculated by union all its children.
+    // note that we use `list` to represent the union of multiple column sets.
+    // because the column set of `list` is calculated by union all its children.
     // see `analyze_columns()`.
     rw!("prune-order";
         "(prune ?set (order ?keys ?child))" =>
-        "(order ?keys (prune (+ ?set ?keys) ?child))"
+        "(order ?keys (prune (list ?set ?keys) ?child))"
     ),
     rw!("prune-filter";
         "(prune ?set (filter ?cond ?child))" =>
-        "(filter ?cond (prune (+ ?set ?cond) ?child))"
+        "(filter ?cond (prune (list ?set ?cond) ?child))"
     ),
     rw!("prune-agg";
         "(prune ?set (agg ?aggs ?groupby ?child))" =>
-        "(agg ?aggs ?groupby (prune (+ (+ ?set ?aggs) ?groupby) ?child))"
+        "(agg ?aggs ?groupby (prune (list ?set ?aggs ?groupby) ?child))"
     ),
     rw!("prune-join";
         "(prune ?set (join ?type ?on ?left ?right))" =>
-        "(join ?type ?on (prune (+ ?set ?on) ?left) (prune (+ ?set ?on) ?right))"
+        "(join ?type ?on
+            (prune (list ?set ?on) ?left)
+            (prune (list ?set ?on) ?right)
+        )"
     ),
     // projection and scan is the sink of prune node
     rw!("prune-proj";
