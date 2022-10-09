@@ -505,6 +505,15 @@ macro_rules! impl_array {
                     )*
                 }
             }
+
+            /// Return a string describing the type of this array.
+            pub fn type_string(&self) -> &str {
+                match self {
+                    $(
+                        Self::$Abc(_) => stringify!($Abc),
+                    )*
+                }
+            }
         }
     }
 }

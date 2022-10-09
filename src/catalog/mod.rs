@@ -22,10 +22,13 @@ mod root;
 mod schema;
 mod table;
 
+// TODO: move to this mod
+pub(crate) use crate::types::{ColumnId, DatabaseId, SchemaId, TableId};
+
 pub type RootCatalogRef = Arc<RootCatalog>;
 
 /// The reference ID of a table.
-#[derive(PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize, Deserialize)]
 pub struct TableRefId {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,
