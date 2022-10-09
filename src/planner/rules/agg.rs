@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use super::*;
 
 /// Returns all rules of aggregation extraction.
@@ -17,8 +19,9 @@ pub fn rules() -> Vec<Rewrite> { vec![
                 )
             )"),
             no_agg: pattern("(proj ?exprs (filter ?where ?from))"),
-            src: var("?exprs"),
+            select_list: var("?exprs"),
             groupby: var("?groupby"),
+            having: var("?having"),
             output: var("?aggs"),
         }}
     ),
@@ -45,14 +48,15 @@ pub fn analyze_aggs(egraph: &EGraph, enode: &Expr) -> AggSet {
         .collect()
 }
 
-/// Extracts all agg expressions from `src`.
+/// Extracts all agg expressions from `select_list` and `having`.
 /// If any, apply `has_agg` and put those aggs to `output`.
 /// Otherwise, apply `no_agg`.
 struct ExtractAgg {
     has_agg: Pattern<Expr>,
     no_agg: Pattern<Expr>,
-    src: Var,
+    select_list: Var,
     groupby: Var,
+    having: Var,
     output: Var,
 }
 
@@ -65,7 +69,9 @@ impl Applier<Expr, ExprAnalysis> for ExtractAgg {
         searcher_ast: Option<&PatternAst<Expr>>,
         rule_name: Symbol,
     ) -> Vec<Id> {
-        let aggs = egraph[subst[self.src]].data.aggs.clone();
+        let select_aggs = &egraph[subst[self.select_list]].data.aggs;
+        let having_aggs = &egraph[subst[self.having]].data.aggs;
+        let aggs = select_aggs.union(having_aggs).cloned().collect_vec();
         let groupby = match &egraph[subst[self.groupby]].nodes[0] {
             Expr::List(list) => list.as_slice(),
             _ => panic!("groupby is not a list"),
@@ -99,19 +105,21 @@ mod tests {
     egg::test_fn! {
         plan_select,
         rules(),
-        // SELECT sum(a + b) + count(a) + a FROM t
+        // SELECT sum(a + b) + a FROM t
         // WHERE b > 1 GROUP BY a HAVING count(a) > 1;
         "
         (select
-            (list (+ (+ (sum (+ $1.1 $1.2)) (count $1.1)) $1.1))
+            (list (+ (sum (+ $1.1 $1.2)) $1.1))
             (scan (list $1.1 $1.2 $1.3))
             (> $1.2 1)
             (list $1.1)
             (> (count $1.1) 1)
         )" => "
-        (proj (list (+ (+ (sum (+ $1.1 $1.2)) (count $1.1)) $1.1))
+        (proj (list (+ (sum (+ $1.1 $1.2)) $1.1))
             (filter (> (count $1.1) 1)
-                (agg (list (sum (+ $1.1 $1.2)) (count $1.1)) (list $1.1)
+                (agg
+                    (list (sum (+ $1.1 $1.2)) (count $1.1))
+                    (list $1.1)
                     (filter (> $1.2 1)
                         (scan (list $1.1 $1.2 $1.3))
                     )
