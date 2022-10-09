@@ -86,8 +86,8 @@ define_language! {
         "order" = Order([Id; 2]),               // (order [order_key..] child)
             "asc" = Asc(Id),                        // (asc key)
             "desc" = Desc(Id),                      // (desc key)
-        "limit" = Limit([Id; 3]),               // (limit offset limit child)
-        "topn" = TopN([Id; 4]),                 // (topn offset limit [order_key..] child)
+        "limit" = Limit([Id; 3]),               // (limit limit offset child)
+        "topn" = TopN([Id; 4]),                 // (topn limit offset [order_key..] child)
         "join" = Join([Id; 4]),                 // (join join_type expr left right)
         "hashjoin" = HashJoin([Id; 5]),         // (hashjoin join_type [left_expr..] [right_expr..] left right)
             "inner" = Inner,

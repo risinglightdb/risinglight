@@ -17,7 +17,7 @@ pub fn rules() -> Vec<Rewrite> {
 #[rustfmt::skip]
 fn cancel_rules() -> Vec<Rewrite> { vec![
     rw!("limit-null";   "(limit null null ?child)" => "?child"),
-    rw!("limit-0";      "(limit ?offset 0 ?child)" => "(values)"),
+    rw!("limit-0";      "(limit 0 ?offset ?child)" => "(values)"),
     rw!("filter-true";  "(filter true ?child)" => "?child"),
     rw!("filter-false"; "(filter false ?child)" => "(values)"),
     rw!("join-false";   "(join ?type false ?left ?right)" => "(values)"),
@@ -27,12 +27,12 @@ fn cancel_rules() -> Vec<Rewrite> { vec![
 #[rustfmt::skip]
 fn merge_rules() -> Vec<Rewrite> { vec![
     rw!("topn-limit-order";
-        "(topn ?offset ?limit ?keys ?child)" =>
-        "(limit ?offset ?limit (order ?keys ?child))"
+        "(topn ?limit ?offset ?keys ?child)" =>
+        "(limit ?limit ?offset (order ?keys ?child))"
     ),
     rw!("limit-order-topn";
-        "(limit ?offset ?limit (order ?keys ?child))" =>
-        "(topn ?offset ?limit ?keys ?child)"
+        "(limit ?limit ?offset (order ?keys ?child))" =>
+        "(topn ?limit ?offset ?keys ?child)"
     ),
     rw!("filter-merge";
         "(filter ?cond1 (filter ?cond2 ?child))" =>
@@ -47,11 +47,11 @@ fn merge_rules() -> Vec<Rewrite> { vec![
 #[rustfmt::skip]
 fn pushdown_rules() -> Vec<Rewrite> { vec![
     pushdown("proj", "?exprs", "order", "?keys"),
-    pushdown("proj", "?exprs", "limit", "?offset ?limit"),
-    pushdown("proj", "?exprs", "topn", "?offset ?limit ?keys"),
+    pushdown("proj", "?exprs", "limit", "?limit ?offset"),
+    pushdown("proj", "?exprs", "topn", "?limit ?offset ?keys"),
     pushdown("filter", "?cond", "order", "?keys"),
-    pushdown("filter", "?cond", "limit", "?offset ?limit"),
-    pushdown("filter", "?cond", "topn", "?offset ?limit ?keys"),
+    pushdown("filter", "?cond", "limit", "?limit ?offset"),
+    pushdown("filter", "?cond", "topn", "?limit ?offset ?keys"),
     rw!("pushdown-filter-join";
         "(filter ?cond (join ?type ?on ?left ?right))" =>
         "(join ?type (and ?on ?cond) ?left ?right)"
@@ -115,8 +115,8 @@ fn column_prune_rules() -> Vec<Rewrite> { vec![
     // then it is pushed down through the plan node tree,
     // merging all used columns along the way
     rw!("prune-limit";
-        "(prune ?set (limit ?offset ?limit ?child))" =>
-        "(limit ?offset ?limit (prune ?set ?child))"
+        "(prune ?set (limit ?limit ?offset ?child))" =>
+        "(limit ?limit ?offset (prune ?set ?child))"
     ),
     // note that we use `list` to represent the union of multiple column sets.
     // because the column set of `list` is calculated by union all its children.
