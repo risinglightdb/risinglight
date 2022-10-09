@@ -1,7 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use super::*;
-use crate::catalog::ColumnRefId;
 use crate::parser::{Expr, Query, SelectItem, SetExpr};
 
 impl Binder {
@@ -22,11 +21,11 @@ impl Binder {
         let mut orderby = vec![];
         for e in query.order_by {
             let expr = self.bind_expr(e.expr)?;
-            let order = self.egraph.add(match e.asc {
-                Some(true) | None => Node::Asc,
-                Some(false) => Node::Desc,
+            let key = self.egraph.add(match e.asc {
+                Some(true) | None => Node::Asc(expr),
+                Some(false) => Node::Desc(expr),
             });
-            orderby.push(self.egraph.add(Node::OrderKey([expr, order])));
+            orderby.push(key);
         }
         let orderby = self.egraph.add(Node::List(orderby.into()));
 

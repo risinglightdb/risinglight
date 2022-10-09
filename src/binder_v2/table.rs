@@ -11,7 +11,7 @@ impl Binder {
         for table in tables {
             let table_node = self.bind_table_with_joins(table)?;
             node = Some(if let Some(node) = node {
-                let ty = self.egraph.add(Node::Inner);
+                let ty = self.egraph.add(Node::Cross);
                 let expr = self.egraph.add(Node::true_());
                 self.egraph.add(Node::Join([ty, expr, node, table_node]))
             } else {

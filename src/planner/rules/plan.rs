@@ -35,7 +35,7 @@ fn merge_rules() -> Vec<Rewrite> { vec![
         "(topn ?offset ?limit ?keys ?child)"
     ),
     rw!("filter-merge";
-        "(filter (filter ?cond1 ?child) ?cond2)" =>
+        "(filter ?cond1 (filter ?cond2 ?child))" =>
         "(filter (and ?cond1 ?cond2) ?child)"
     ),
     rw!("proj-merge";
@@ -61,9 +61,19 @@ fn pushdown_rules() -> Vec<Rewrite> { vec![
         "(join ?type ?cond2 (filter ?cond1 ?left) ?right)"
         if columns_is_subset("?cond1", "?left")
     ),
+    rw!("pushdown-join-left-1";
+        "(join ?type ?cond1 ?left ?right)" =>
+        "(join ?type true (filter ?cond1 ?left) ?right)"
+        if columns_is_subset("?cond1", "?left")
+    ),
     rw!("pushdown-join-right";
         "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
         "(join ?type ?cond2 ?left (filter ?cond1 ?right))"
+        if columns_is_subset("?cond1", "?right")
+    ),
+    rw!("pushdown-join-right-1";
+        "(join ?type ?cond1 ?left ?right)" =>
+        "(join ?type true ?left (filter ?cond1 ?right))"
         if columns_is_subset("?cond1", "?right")
     ),
 ]}
@@ -197,6 +207,12 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
     }
     if let Expr::Agg([exprs, group_keys, _]) = enode {
         return columns(exprs).union(columns(group_keys)).cloned().collect();
+    }
+    if let Expr::Prune([cols, child]) = enode {
+        return columns(cols)
+            .intersection(columns(child))
+            .cloned()
+            .collect();
     }
     // merge the set from all children
     (enode.children().iter())

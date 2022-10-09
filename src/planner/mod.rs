@@ -1,15 +1,21 @@
 #![allow(unused)]
 
+use std::time::Duration;
+
 use egg::{define_language, Id, Symbol};
 
 use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataValue, PhysicalDataTypeKind};
 
+mod cost;
 mod rules;
 
-pub use rules::{optimize, ExprAnalysis};
+pub use rules::ExprAnalysis;
 
+// Alias types for our language.
+type EGraph = egg::EGraph<Expr, ExprAnalysis>;
+type Rewrite = egg::Rewrite<Expr, ExprAnalysis>;
 pub type RecExpr = egg::RecExpr<Expr>;
 
 define_language! {
@@ -78,9 +84,8 @@ define_language! {
         "proj" = Proj([Id; 2]),                 // (proj [expr..] child)
         "filter" = Filter([Id; 2]),             // (filter expr child)
         "order" = Order([Id; 2]),               // (order [order_key..] child)
-            "order_key" = OrderKey([Id; 2]),        // (order_key expr asc/desc)
-                "asc" = Asc,
-                "desc" = Desc,
+            "asc" = Asc(Id),                        // (asc key)
+            "desc" = Desc(Id),                      // (desc key)
         "limit" = Limit([Id; 3]),               // (limit offset limit child)
         "topn" = TopN([Id; 4]),                 // (topn offset limit [order_key..] child)
         "join" = Join([Id; 4]),                 // (join join_type expr left right)
@@ -155,4 +160,28 @@ impl Expr {
             _ => return None,
         })
     }
+}
+
+/// Optimize the given expression.
+pub fn optimize(expr: &RecExpr) -> RecExpr {
+    let mut runner = egg::Runner::default()
+        // .with_explanations_enabled()
+        .with_expr(&expr)
+        .with_time_limit(Duration::from_secs(1))
+        .run(&rules::all_rules());
+    // extract the best expression
+    let cost_fn = cost::CostFn {
+        egraph: &runner.egraph,
+    };
+    let extractor = egg::Extractor::new(&runner.egraph, cost_fn);
+    let root = runner.roots[0];
+    let (_, best) = extractor.find_best(root);
+    // explain the optimization
+    // println!(
+    //     "{}",
+    //     runner
+    //         .explain_equivalence(&expr, &best)
+    //         .get_string_with_let()
+    // );
+    best
 }
