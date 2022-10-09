@@ -102,7 +102,7 @@ impl Binder {
             Statement::Delete { .. } => todo!(),
             Statement::Copy { .. } => todo!(),
             Statement::Query(query) => self.bind_query(*query),
-            Statement::Explain { statement, .. } => todo!(),
+            Statement::Explain { .. } => todo!(),
             Statement::ShowVariable { .. }
             | Statement::ShowCreate { .. }
             | Statement::ShowColumns { .. } => Err(BindError::NotSupportedTSQL),
@@ -129,21 +129,9 @@ impl Binder {
     /// Add an alias to the current context.
     fn add_alias(&mut self, alias: Ident, expr: Id) -> Result<()> {
         let context = self.contexts.last_mut().unwrap();
-        context.aliases.insert(alias.value.clone(), expr);
+        context.aliases.insert(alias.value, expr);
         // may override the same name
         Ok(())
-    }
-
-    /// Find a table by name.
-    fn find_table(&self, name: &str) -> Option<TableRefId> {
-        self.current_ctx().tables.get(name).cloned()
-        // TODO: support correlated subquery
-        // for context in self.contexts.iter().rev() {
-        //     if let Some(table) = context.tables.get(name) {
-        //         return Some(*table);
-        //     }
-        // }
-        // None
     }
 }
 

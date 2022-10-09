@@ -166,7 +166,7 @@ impl Expr {
 pub fn optimize(expr: &RecExpr) -> RecExpr {
     let mut runner = egg::Runner::default()
         // .with_explanations_enabled()
-        .with_expr(&expr)
+        .with_expr(expr)
         .with_time_limit(Duration::from_secs(1))
         .run(&rules::all_rules());
     // extract the best expression

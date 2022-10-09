@@ -14,7 +14,7 @@ impl Binder {
     fn bind_query_internal(&mut self, query: Query) -> Result {
         let child = match *query.body {
             SetExpr::Select(select) => self.bind_select(*select)?,
-            SetExpr::Values(values) => todo!("bind values"),
+            SetExpr::Values(_values) => todo!("bind values"),
             _ => todo!("handle query ???"),
         };
 
