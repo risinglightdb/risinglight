@@ -18,6 +18,7 @@ pub fn rules() -> Vec<Rewrite> { vec![
             )"),
             no_agg: pattern("(proj ?exprs (filter ?where ?from))"),
             src: var("?exprs"),
+            groupby: var("?groupby"),
             output: var("?aggs"),
         }}
     ),
@@ -51,6 +52,7 @@ struct ExtractAgg {
     has_agg: Pattern<Expr>,
     no_agg: Pattern<Expr>,
     src: Var,
+    groupby: Var,
     output: Var,
 }
 
@@ -64,8 +66,11 @@ impl Applier<Expr, ExprAnalysis> for ExtractAgg {
         rule_name: Symbol,
     ) -> Vec<Id> {
         let aggs = egraph[subst[self.src]].data.aggs.clone();
-        if aggs.is_empty() {
-            // FIXME: what if groupby not empty??
+        let groupby = match &egraph[subst[self.groupby]].nodes[0] {
+            Expr::List(list) => list.as_slice(),
+            _ => panic!("groupby is not a list"),
+        };
+        if aggs.is_empty() && groupby.is_empty() {
             return self
                 .no_agg
                 .apply_one(egraph, eclass, subst, searcher_ast, rule_name);
@@ -111,6 +116,23 @@ mod tests {
                         (scan (list $1.1 $1.2 $1.3))
                     )
                 )
+            )
+        )"
+    }
+
+    egg::test_fn! {
+        select_group,
+        rules(),
+        // SELECT a FROM t GROUP BY a;
+        "
+        (select
+            (list $1.1)
+            (scan (list $1.1 $1.2 $1.3))
+            true (list $1.1) true
+        )" => "
+        (proj (list $1.1)
+            (agg (list) (list $1.1)
+                (scan (list $1.1 $1.2 $1.3))
             )
         )"
     }
