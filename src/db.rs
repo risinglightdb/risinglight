@@ -155,6 +155,7 @@ impl Database {
             self.run_dt()
         } else if cmd == "v2" {
             USE_PLANNER_V2.store(true, Ordering::Relaxed);
+            println!("switched to planner v2");
             Ok(vec![])
         } else {
             Err(Error::InternalError("unsupported command".to_string()))
