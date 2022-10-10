@@ -155,7 +155,7 @@ impl ArrayImpl {
 
                     (A::Decimal(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Date(a), A::Interval(b)) => A::new_date(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
-                    _ => todo!("Support more types for {}", stringify!($op)),
+                    _ => todo!("Support {} {} {}", self.type_string(), stringify!($op), right.type_string()),
                 }
             }
         }
@@ -169,7 +169,7 @@ impl ArrayImpl {
                     (A::Utf8(a), A::Utf8(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Date(a), A::Date(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Decimal(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-                    _ => todo!("Support more types for {}", stringify!($op)),
+                    _ => todo!("Support {} {} {}", self.type_string(), stringify!($op), right.type_string()),
                 }
             }
         }

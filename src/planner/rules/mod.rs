@@ -23,17 +23,12 @@ use std::hash::Hash;
 
 use egg::{rewrite as rw, *};
 
-use super::Expr;
+use super::{EGraph, Expr, RecExpr, Rewrite};
 
 mod agg;
 mod expr;
 mod plan;
 mod schema;
-
-// Alias types for our language.
-type EGraph = egg::EGraph<Expr, ExprAnalysis>;
-type Rewrite = egg::Rewrite<Expr, ExprAnalysis>;
-type RecExpr = egg::RecExpr<Expr>;
 
 /// Returns all rules in the optimizer.
 pub fn all_rules() -> Vec<Rewrite> {
@@ -54,19 +49,19 @@ pub struct ExprAnalysis;
 #[derive(Debug)]
 pub struct Data {
     /// Some if the expression is a constant.
-    constant: expr::ConstValue,
+    pub constant: expr::ConstValue,
 
     /// All columns involved in the node.
-    columns: plan::ColumnSet,
+    pub columns: plan::ColumnSet,
 
     /// All aggragations in the tree.
-    aggs: agg::AggSet,
+    pub aggs: agg::AggSet,
 
     /// The schema for plan node: a list of expressions.
     ///
     /// For non-plan node, it always be None.
     /// For plan node, it may be None if the schema is unknown due to unresolved `prune`.
-    schema: schema::Schema,
+    pub schema: schema::Schema,
 }
 
 impl Analysis<Expr> for ExprAnalysis {

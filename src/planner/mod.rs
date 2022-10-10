@@ -1,18 +1,29 @@
 #![allow(unused)]
 
+use std::time::Duration;
+
 use egg::{define_language, Id, Symbol};
 
-use crate::catalog::ColumnRefId;
+use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataValue, PhysicalDataTypeKind};
 
+mod cost;
 mod rules;
+
+pub use rules::ExprAnalysis;
+
+// Alias types for our language.
+type EGraph = egg::EGraph<Expr, ExprAnalysis>;
+type Rewrite = egg::Rewrite<Expr, ExprAnalysis>;
+pub type RecExpr = egg::RecExpr<Expr>;
 
 define_language! {
     pub enum Expr {
         // values
         Constant(DataValue),            // null, true, 1, 1.0, "hello", ...
         Type(PhysicalDataTypeKind),     // bool, int32, float64, ...
+        // Table(TableRefId),              // $1, $2, ...
         Column(ColumnRefId),            // $1.2, $2.1, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
 
@@ -73,11 +84,10 @@ define_language! {
         "proj" = Proj([Id; 2]),                 // (proj [expr..] child)
         "filter" = Filter([Id; 2]),             // (filter expr child)
         "order" = Order([Id; 2]),               // (order [order_key..] child)
-            "order_key" = OrderKey([Id; 2]),        // (order_key expr asc/desc)
-                "asc" = Asc,
-                "desc" = Desc,
-        "limit" = Limit([Id; 3]),               // (limit offset limit child)
-        "topn" = TopN([Id; 4]),                 // (topn offset limit [order_key..] child)
+            "asc" = Asc(Id),                        // (asc key)
+            "desc" = Desc(Id),                      // (desc key)
+        "limit" = Limit([Id; 3]),               // (limit limit offset child)
+        "topn" = TopN([Id; 4]),                 // (topn limit offset [order_key..] child)
         "join" = Join([Id; 4]),                 // (join join_type expr left right)
         "hashjoin" = HashJoin([Id; 5]),         // (hashjoin join_type [left_expr..] [right_expr..] left right)
             "inner" = Inner,
@@ -91,7 +101,7 @@ define_language! {
         "create" = Create([Id; 2]),             // (create table [column_desc..])
         "drop" = Drop(Id),                      // (drop table)
         "insert" = Insert([Id; 3]),             // (insert table [column..] child)
-        "delete" = Delete([Id; 2]),             // (delete table child/true)
+        "delete" = Delete([Id; 2]),             // (delete table condition=expr)
         "copy_from" = CopyFrom(Id),             // (copy_from dest)
         "copy_to" = CopyTo([Id; 2]),            // (copy_to dest child)
         "explain" = Explain(Id),                // (explain child)
@@ -109,8 +119,12 @@ define_language! {
 }
 
 impl Expr {
-    const fn true_() -> Self {
+    pub const fn true_() -> Self {
         Self::Constant(DataValue::Bool(true))
+    }
+
+    pub const fn null() -> Self {
+        Self::Constant(DataValue::Null)
     }
 
     const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {
@@ -146,4 +160,28 @@ impl Expr {
             _ => return None,
         })
     }
+}
+
+/// Optimize the given expression.
+pub fn optimize(expr: &RecExpr) -> RecExpr {
+    let mut runner = egg::Runner::default()
+        // .with_explanations_enabled()
+        .with_expr(expr)
+        .with_time_limit(Duration::from_secs(1))
+        .run(&rules::all_rules());
+    // extract the best expression
+    let cost_fn = cost::CostFn {
+        egraph: &runner.egraph,
+    };
+    let extractor = egg::Extractor::new(&runner.egraph, cost_fn);
+    let root = runner.roots[0];
+    let (_, best) = extractor.find_best(root);
+    // explain the optimization
+    // println!(
+    //     "{}",
+    //     runner
+    //         .explain_equivalence(&expr, &best)
+    //         .get_string_with_let()
+    // );
+    best
 }

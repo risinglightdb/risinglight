@@ -17,7 +17,7 @@ pub fn rules() -> Vec<Rewrite> {
 #[rustfmt::skip]
 fn cancel_rules() -> Vec<Rewrite> { vec![
     rw!("limit-null";   "(limit null null ?child)" => "?child"),
-    rw!("limit-0";      "(limit ?offset 0 ?child)" => "(values)"),
+    rw!("limit-0";      "(limit 0 ?offset ?child)" => "(values)"),
     rw!("filter-true";  "(filter true ?child)" => "?child"),
     rw!("filter-false"; "(filter false ?child)" => "(values)"),
     rw!("join-false";   "(join ?type false ?left ?right)" => "(values)"),
@@ -26,12 +26,16 @@ fn cancel_rules() -> Vec<Rewrite> { vec![
 
 #[rustfmt::skip]
 fn merge_rules() -> Vec<Rewrite> { vec![
-    rw!("limit-order=topn";
-        "(limit ?offset ?limit (order ?keys ?child))" =>
-        "(topn ?offset ?limit ?keys ?child)"
+    rw!("topn-limit-order";
+        "(topn ?limit ?offset ?keys ?child)" =>
+        "(limit ?limit ?offset (order ?keys ?child))"
+    ),
+    rw!("limit-order-topn";
+        "(limit ?limit ?offset (order ?keys ?child))" =>
+        "(topn ?limit ?offset ?keys ?child)"
     ),
     rw!("filter-merge";
-        "(filter (filter ?cond1 ?child) ?cond2)" =>
+        "(filter ?cond1 (filter ?cond2 ?child))" =>
         "(filter (and ?cond1 ?cond2) ?child)"
     ),
     rw!("proj-merge";
@@ -43,11 +47,11 @@ fn merge_rules() -> Vec<Rewrite> { vec![
 #[rustfmt::skip]
 fn pushdown_rules() -> Vec<Rewrite> { vec![
     pushdown("proj", "?exprs", "order", "?keys"),
-    pushdown("proj", "?exprs", "limit", "?offset ?limit"),
-    pushdown("proj", "?exprs", "topn", "?offset ?limit ?keys"),
+    pushdown("proj", "?exprs", "limit", "?limit ?offset"),
+    pushdown("proj", "?exprs", "topn", "?limit ?offset ?keys"),
     pushdown("filter", "?cond", "order", "?keys"),
-    pushdown("filter", "?cond", "limit", "?offset ?limit"),
-    pushdown("filter", "?cond", "topn", "?offset ?limit ?keys"),
+    pushdown("filter", "?cond", "limit", "?limit ?offset"),
+    pushdown("filter", "?cond", "topn", "?limit ?offset ?keys"),
     rw!("pushdown-filter-join";
         "(filter ?cond (join ?type ?on ?left ?right))" =>
         "(join ?type (and ?on ?cond) ?left ?right)"
@@ -57,9 +61,19 @@ fn pushdown_rules() -> Vec<Rewrite> { vec![
         "(join ?type ?cond2 (filter ?cond1 ?left) ?right)"
         if columns_is_subset("?cond1", "?left")
     ),
+    rw!("pushdown-join-left-1";
+        "(join ?type ?cond1 ?left ?right)" =>
+        "(join ?type true (filter ?cond1 ?left) ?right)"
+        if columns_is_subset("?cond1", "?left")
+    ),
     rw!("pushdown-join-right";
         "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
         "(join ?type ?cond2 ?left (filter ?cond1 ?right))"
+        if columns_is_subset("?cond1", "?right")
+    ),
+    rw!("pushdown-join-right-1";
+        "(join ?type ?cond1 ?left ?right)" =>
+        "(join ?type true ?left (filter ?cond1 ?right))"
         if columns_is_subset("?cond1", "?right")
     ),
 ]}
@@ -101,28 +115,30 @@ fn column_prune_rules() -> Vec<Rewrite> { vec![
     // then it is pushed down through the plan node tree,
     // merging all used columns along the way
     rw!("prune-limit";
-        "(prune ?set (limit ?offset ?limit ?child))" =>
-        "(limit ?offset ?limit (prune ?set ?child))"
+        "(prune ?set (limit ?limit ?offset ?child))" =>
+        "(limit ?limit ?offset (prune ?set ?child))"
     ),
-    // note that we use `+` to represent the union of two column sets.
-    // in fact, it doesn't matter what operator we use,
-    // because the set of a node is calculated by union all its children.
+    // note that we use `list` to represent the union of multiple column sets.
+    // because the column set of `list` is calculated by union all its children.
     // see `analyze_columns()`.
     rw!("prune-order";
         "(prune ?set (order ?keys ?child))" =>
-        "(order ?keys (prune (+ ?set ?keys) ?child))"
+        "(order ?keys (prune (list ?set ?keys) ?child))"
     ),
     rw!("prune-filter";
         "(prune ?set (filter ?cond ?child))" =>
-        "(filter ?cond (prune (+ ?set ?cond) ?child))"
+        "(filter ?cond (prune (list ?set ?cond) ?child))"
     ),
     rw!("prune-agg";
         "(prune ?set (agg ?aggs ?groupby ?child))" =>
-        "(agg ?aggs ?groupby (prune (+ (+ ?set ?aggs) ?groupby) ?child))"
+        "(agg ?aggs ?groupby (prune (list ?set ?aggs ?groupby) ?child))"
     ),
     rw!("prune-join";
         "(prune ?set (join ?type ?on ?left ?right))" =>
-        "(join ?type ?on (prune (+ ?set ?on) ?left) (prune (+ ?set ?on) ?right))"
+        "(join ?type ?on
+            (prune (list ?set ?on) ?left)
+            (prune (list ?set ?on) ?right)
+        )"
     ),
     // projection and scan is the sink of prune node
     rw!("prune-proj";
@@ -191,6 +207,12 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
     }
     if let Expr::Agg([exprs, group_keys, _]) = enode {
         return columns(exprs).union(columns(group_keys)).cloned().collect();
+    }
+    if let Expr::Prune([cols, child]) = enode {
+        return columns(cols)
+            .intersection(columns(child))
+            .cloned()
+            .collect();
     }
     // merge the set from all children
     (enode.children().iter())
