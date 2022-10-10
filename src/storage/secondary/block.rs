@@ -118,17 +118,17 @@ impl BlockCacheKey {
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct BlockHeader {
+pub struct BlockMeta {
     pub block_type: BlockType,
     pub checksum_type: ChecksumType,
     pub checksum: u64,
 }
 
-pub const BLOCK_HEADER_NON_CHECKSUM_SIZE: usize = 4;
-pub const BLOCK_HEADER_CHECKSUM_SIZE: usize = 4 + 8;
-pub const BLOCK_HEADER_SIZE: usize = BLOCK_HEADER_NON_CHECKSUM_SIZE + BLOCK_HEADER_CHECKSUM_SIZE;
+pub const BLOCK_META_NON_CHECKSUM_SIZE: usize = 4;
+pub const BLOCK_META_CHECKSUM_SIZE: usize = 4 + 8;
+pub const BLOCK_META_SIZE: usize = BLOCK_META_NON_CHECKSUM_SIZE + BLOCK_META_CHECKSUM_SIZE;
 
-impl BlockHeader {
+impl BlockMeta {
     pub fn encode_except_checksum(&self, buf: &mut impl BufMut) {
         buf.put_i32(self.block_type.into());
     }

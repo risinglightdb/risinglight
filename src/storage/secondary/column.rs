@@ -37,8 +37,8 @@ use bytes::Bytes;
 pub use char_column_factory::*;
 use moka::future::Cache;
 
-use super::block::BLOCK_HEADER_CHECKSUM_SIZE;
-use super::{Block, BlockCacheKey, BlockHeader, ColumnIndex, BLOCK_HEADER_SIZE};
+use super::block::BLOCK_META_CHECKSUM_SIZE;
+use super::{Block, BlockCacheKey, BlockMeta, ColumnIndex, BLOCK_META_SIZE};
 use crate::array::Array;
 use crate::storage::secondary::verify_checksum;
 use crate::storage::{StorageResult, TracedStorageError};
@@ -144,14 +144,14 @@ impl Column {
         lst_idx.offset + lst_idx.length
     }
 
-    pub async fn get_block(&self, block_id: u32) -> StorageResult<(BlockHeader, Block)> {
+    pub async fn get_block(&self, block_id: u32) -> StorageResult<(BlockMeta, Block)> {
         // It is possible that there will be multiple futures accessing
         // one block not in cache concurrently, which might cause avalanche
         // in cache. For now, we don't handle it.
 
         let key = self.base_block_key.clone().block(block_id);
 
-        let mut block_header = BlockHeader::default();
+        let mut block_header = BlockMeta::default();
         let mut do_verify_checksum = false;
 
         // support multiple I/O backend
@@ -191,22 +191,22 @@ impl Column {
                 })
                 .await?;
 
-        if block.len() < BLOCK_HEADER_SIZE {
+        if block.len() < BLOCK_META_SIZE {
             return Err(TracedStorageError::decode(
                 "block is smaller than header size",
             ));
         }
-        let mut header = &block[block.len() - BLOCK_HEADER_SIZE..];
+        let mut header = &block[block.len() - BLOCK_META_SIZE..];
         block_header.decode(&mut header)?;
 
         if do_verify_checksum {
             verify_checksum(
                 block_header.checksum_type,
-                &block[..block.len() - BLOCK_HEADER_CHECKSUM_SIZE],
+                &block[..block.len() - BLOCK_META_CHECKSUM_SIZE],
                 block_header.checksum,
             )?;
         }
 
-        Ok((block_header, block.slice(..block.len() - BLOCK_HEADER_SIZE)))
+        Ok((block_header, block.slice(..block.len() - BLOCK_META_SIZE)))
     }
 }
