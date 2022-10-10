@@ -3,7 +3,7 @@
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::{BlockIndex, BlockStatistics};
 
-use super::{BlockHeader, BLOCK_HEADER_SIZE};
+use super::{BlockMeta, BLOCK_META_NON_CHECKSUM_SIZE, BLOCK_META_SIZE};
 use crate::storage::secondary::{build_checksum, ColumnBuilderOptions};
 
 /// Builds the block index.
@@ -46,7 +46,7 @@ impl BlockIndexBuilder {
     ) {
         self.indexes.push(BlockIndex {
             offset: column_data.len() as u64,
-            length: block_data.len() as u64 + BLOCK_HEADER_SIZE as u64,
+            length: block_data.len() as u64 + BLOCK_META_SIZE as u64,
             first_rowid: self.last_row_count as u32,
             row_count: (self.row_count - self.last_row_count) as u32,
             /// TODO(chi): support sort key
@@ -58,22 +58,29 @@ impl BlockIndexBuilder {
         // the new block will begin at the current row count
         self.last_row_count = self.row_count;
 
-        self.block_header.resize(BLOCK_HEADER_SIZE, 0);
-        let mut block_header_ref = &mut self.block_header[..];
+        self.block_header.resize(BLOCK_META_SIZE, 0);
+        let mut block_header_nonchecksum = &mut self.block_header[..BLOCK_META_NON_CHECKSUM_SIZE];
 
         let checksum_type = self.options.checksum_type;
 
-        BlockHeader {
+        let mut header = BlockMeta {
             block_type,
             checksum_type,
-            checksum: build_checksum(checksum_type, block_data),
-        }
-        .encode(&mut block_header_ref);
+            checksum: 0,
+        };
+        header.encode_except_checksum(&mut block_header_nonchecksum);
+        debug_assert!(block_header_nonchecksum.is_empty());
+        // add block_type to block_data
+        block_data.extend_from_slice(&self.block_header[..BLOCK_META_NON_CHECKSUM_SIZE]);
 
-        debug_assert!(block_header_ref.is_empty());
+        // calculate checksum and add
+        header.checksum = build_checksum(header.checksum_type, block_data);
+        let mut block_header_checksum = &mut self.block_header[BLOCK_META_NON_CHECKSUM_SIZE..];
+        header.encode_checksum(&mut block_header_checksum);
+        debug_assert!(block_header_checksum.is_empty());
+        block_data.extend_from_slice(&self.block_header[BLOCK_META_NON_CHECKSUM_SIZE..]);
 
         // add data to the column file
-        column_data.append(&mut self.block_header);
         column_data.append(block_data);
     }
 
