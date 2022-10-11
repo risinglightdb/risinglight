@@ -16,6 +16,7 @@ pub use rules::ExprAnalysis;
 // Alias types for our language.
 type EGraph = egg::EGraph<Expr, ExprAnalysis>;
 type Rewrite = egg::Rewrite<Expr, ExprAnalysis>;
+type Pattern = egg::Pattern<Expr>;
 pub type RecExpr = egg::RecExpr<Expr>;
 
 define_language! {
@@ -70,13 +71,15 @@ define_language! {
         "as" = Alias([Id; 2]),                  // (as name expr)
         "fn" = Function(Box<[Id]>),             // (fn name args..)
 
-        "select" = Select([Id; 5]),             // (select
+        "select" = Select([Id; 6]),             // (select
+                                                //      distinct=[expr..]
                                                 //      select_list=[expr..]
                                                 //      from=join
                                                 //      where=expr
                                                 //      groupby=[expr..]
                                                 //      having=expr
                                                 // )
+        "distinct" = Distinct([Id; 2]),         // (distinct [expr..] child)
 
         // plans
         "scan" = Scan(Id),                      // (scan [column..])

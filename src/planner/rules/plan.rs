@@ -197,27 +197,20 @@ pub type ColumnSet = HashSet<ColumnRefId>;
 
 /// Returns all columns involved in the node.
 pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
-    let columns = |i: &Id| &egraph[*i].data.columns;
-    if let Expr::Column(col) = enode {
-        return [*col].into_iter().collect();
+    use Expr::*;
+    let x = |i: &Id| &egraph[*i].data.columns;
+    match enode {
+        Column(col) => [*col].into_iter().collect(),
+        Proj([exprs, _]) | Select([exprs, ..]) => x(exprs).clone(),
+        Agg([exprs, group_keys, _]) => x(exprs).union(x(group_keys)).cloned().collect(),
+        Prune([cols, child]) => x(cols).intersection(x(child)).cloned().collect(),
+        _ => {
+            // merge the columns from all children
+            (enode.children().iter())
+                .flat_map(|id| x(id).iter().cloned())
+                .collect()
+        }
     }
-    if let Expr::Proj([exprs, _]) | Expr::Select([exprs, ..]) = enode {
-        // only from projection lists
-        return columns(exprs).clone();
-    }
-    if let Expr::Agg([exprs, group_keys, _]) = enode {
-        return columns(exprs).union(columns(group_keys)).cloned().collect();
-    }
-    if let Expr::Prune([cols, child]) = enode {
-        return columns(cols)
-            .intersection(columns(child))
-            .cloned()
-            .collect();
-    }
-    // merge the set from all children
-    (enode.children().iter())
-        .flat_map(|id| columns(id).iter().cloned())
-        .collect()
 }
 
 /// Remove unused columns in `set` from `list`.
