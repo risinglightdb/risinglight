@@ -121,7 +121,7 @@ Select(
   BoundSelect {
     select_list: [
       Column #ColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 0 },
-      Sum([Column #ColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 1 }]) -> Int(None) (null) (agg),
+      Sum([Column #ColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 1 }]) -> Int32 (nullable) (agg),
     ],
     from_table: Some(
       JoinTableRef {
@@ -134,12 +134,12 @@ Select(
           ],
           column_descs: [
             ColumnDesc {
-              datatype: Int(None) (null),
+              datatype: Int32 (nullable),
               name: "a",
               is_primary: false,
             },
             ColumnDesc {
-              datatype: Int(None) (null),
+              datatype: Int32 (nullable),
               name: "b",
               is_primary: false,
             },
@@ -185,7 +185,7 @@ LogicalProjection {
   ],
   child: LogicalAggregate {
     agg_calls: [
-      Sum([Column #ColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 1 }]) -> Int(None) (null),
+      Sum([Column #ColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 1 }]) -> Int32 (nullable),
     ],
     group_keys: [
       Column #ColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 0 },
@@ -198,12 +198,12 @@ LogicalProjection {
       ],
       column_descs: [
         ColumnDesc {
-          datatype: Int(None) (null),
+          datatype: Int32 (nullable),
           name: "a",
           is_primary: false,
         },
         ColumnDesc {
-          datatype: Int(None) (null),
+          datatype: Int32 (nullable),
           name: "b",
           is_primary: false,
         },
@@ -261,7 +261,7 @@ PhysicalProjection {
     child: PhysicalHashAgg {
       logical: LogicalAggregate {
         agg_calls: [
-          Sum([InputRef #1]) -> Int(None) (null),
+          Sum([InputRef #1]) -> Int32 (nullable),
         ],
         group_keys: [
           InputRef #0,
@@ -275,12 +275,12 @@ PhysicalProjection {
             ],
             column_descs: [
               ColumnDesc {
-                datatype: Int(None) (null),
+                datatype: Int32 (nullable),
                 name: "a",
                 is_primary: false,
               },
               ColumnDesc {
-                datatype: Int(None) (null),
+                datatype: Int32 (nullable),
                 name: "b",
                 is_primary: false,
               },

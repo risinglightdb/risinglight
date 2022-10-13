@@ -130,8 +130,8 @@ PhysicalOrder:
         InputRef #2
         sum(InputRef #3) -> DECIMAL(15,2)
         sum(InputRef #4) -> DECIMAL(15,2)
-        sum((InputRef #4 * (1 - InputRef #5))) -> DECIMAL(15,2) (null)
-        sum(((InputRef #4 * (1 - InputRef #5)) * (1 + InputRef #6))) -> DECIMAL(15,2) (null)
+        sum((InputRef #4 * (1 - InputRef #5))) -> DECIMAL(15,2) (nullable)
+        sum(((InputRef #4 * (1 - InputRef #5)) * (1 + InputRef #6))) -> DECIMAL(15,2) (nullable)
         count(InputRef #3) -> INT
         count(InputRef #4) -> INT
         sum(InputRef #5) -> DECIMAL(15,2)
@@ -181,7 +181,7 @@ PhysicalTopN: offset: 0, limit: 10, order by [InputRef #1 (desc), InputRef #2 (a
         InputRef #2
         InputRef #0
         InputRef #1
-        sum((InputRef #3 * (1 - InputRef #4))) -> DECIMAL(15,2) (null)
+        sum((InputRef #3 * (1 - InputRef #4))) -> DECIMAL(15,2) (nullable)
       PhysicalProjection:
           InputRef #1
           InputRef #2
@@ -258,7 +258,7 @@ PhysicalOrder:
       InputRef #1 (alias to revenue)
     PhysicalHashAgg:
         InputRef #2
-        sum((InputRef #0 * (1 - InputRef #1))) -> DECIMAL(15,2) (null)
+        sum((InputRef #0 * (1 - InputRef #1))) -> DECIMAL(15,2) (nullable)
       PhysicalProjection:
           InputRef #0
           InputRef #1
@@ -353,7 +353,7 @@ where
 PhysicalProjection:
     InputRef #0 (alias to revenue)
   PhysicalSimpleAgg:
-      sum((InputRef #1 * InputRef #0)) -> DECIMAL(15,2) (null)
+      sum((InputRef #1 * InputRef #0)) -> DECIMAL(15,2) (nullable)
     PhysicalProjection:
         InputRef #0
         InputRef #1
@@ -418,7 +418,7 @@ PhysicalTopN: offset: 0, limit: 20, order by [InputRef #2 (desc)]
         InputRef #8
         InputRef #3
         InputRef #5
-        sum((InputRef #6 * (1 - InputRef #7))) -> DECIMAL(15,2) (null)
+        sum((InputRef #6 * (1 - InputRef #7))) -> DECIMAL(15,2) (nullable)
       PhysicalProjection:
           InputRef #0
           InputRef #2
