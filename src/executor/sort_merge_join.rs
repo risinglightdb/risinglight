@@ -160,7 +160,7 @@ fn full_join(left_chunk: &Vec<Row>, right_chunk: &Vec<Row>) -> Vec<Row> {
 mod tests {
     use super::*;
     use crate::array::ArrayImpl;
-    use crate::types::{DataTypeExt, DataTypeKind};
+    use crate::types::DataTypeKind;
 
     async fn sort_merge_test(left_col: Vec<i32>, right_col: Vec<i32>, expected_col: Vec<i32>) {
         let left_child: BoxedExecutor = async_stream::try_stream! {
@@ -184,8 +184,8 @@ mod tests {
             right_child,
             left_column_index: 0,
             right_column_index: 0,
-            left_types: vec![DataTypeKind::Int(None).nullable(); 2],
-            right_types: vec![DataTypeKind::Int(None).nullable(); 2],
+            left_types: vec![DataTypeKind::Int32.nullable(); 2],
+            right_types: vec![DataTypeKind::Int32.nullable(); 2],
         };
 
         let mut executor = executor.execute();

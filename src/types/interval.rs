@@ -134,9 +134,11 @@ impl Display for Interval {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
 pub enum ParseIntervalError {
+    #[error("invalid number: {0}")]
     InvalidNum(String, ParseIntError),
+    #[error("invalid unit: {0}")]
     InvalidUnit(String),
 }
 

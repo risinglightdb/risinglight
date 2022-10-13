@@ -3,6 +3,7 @@
 use serde::Serialize;
 
 use super::*;
+use crate::parser::DataType;
 use crate::types::DataTypeKind;
 
 /// A bound type cast expression.
@@ -16,18 +17,18 @@ impl Binder {
     pub fn bind_type_cast(
         &mut self,
         expr: &Expr,
-        mut ty: DataTypeKind,
+        mut ty: DataType,
     ) -> Result<BoundExpr, BindError> {
         let bound_expr = self.bind_expr(expr)?;
         // workaround for 'BLOB'
-        if let DataTypeKind::Custom(name) = &ty {
+        if let DataType::Custom(name) = &ty {
             if name.0.len() == 1 && name.0[0].value.to_lowercase() == "blob" {
-                ty = DataTypeKind::Blob(0);
+                ty = DataType::Blob(0);
             }
         }
         Ok(BoundExpr::TypeCast(BoundTypeCast {
             expr: (bound_expr.into()),
-            ty,
+            ty: (&ty).into(),
         }))
     }
 }

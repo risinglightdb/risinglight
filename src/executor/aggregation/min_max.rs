@@ -41,7 +41,7 @@ min_max_func_gen!(max_i64, i64, i64, max);
 impl AggregationState for MinMaxAggregationState {
     fn update(&mut self, array: &ArrayImpl) -> Result<(), ExecutorError> {
         match (array, &self.input_datatype) {
-            (ArrayImpl::Int32(arr), DataTypeKind::Int(_)) => {
+            (ArrayImpl::Int32(arr), DataTypeKind::Int32) => {
                 let temp = arr
                     .iter()
                     .fold(None, if self.is_min { min_i32 } else { max_i32 });
@@ -54,7 +54,7 @@ impl AggregationState for MinMaxAggregationState {
                     };
                 }
             }
-            (ArrayImpl::Int64(arr), DataTypeKind::BigInt(_)) => {
+            (ArrayImpl::Int64(arr), DataTypeKind::Int64) => {
                 let temp = arr
                     .iter()
                     .fold(None, if self.is_min { min_i64 } else { max_i64 });
@@ -74,7 +74,7 @@ impl AggregationState for MinMaxAggregationState {
 
     fn update_single(&mut self, value: &DataValue) -> Result<(), ExecutorError> {
         match (value, &self.input_datatype) {
-            (DataValue::Int32(val), DataTypeKind::Int(_)) => {
+            (DataValue::Int32(val), DataTypeKind::Int32) => {
                 self.result = match self.result {
                     DataValue::Null => DataValue::Int32(*val),
                     DataValue::Int32(res) if self.is_min => DataValue::Int32(res.min(*val)),
@@ -82,7 +82,7 @@ impl AggregationState for MinMaxAggregationState {
                     _ => panic!("Mismatched type"),
                 };
             }
-            (DataValue::Int64(val), DataTypeKind::BigInt(_)) => {
+            (DataValue::Int64(val), DataTypeKind::Int64) => {
                 self.result = match self.result {
                     DataValue::Null => DataValue::Int64(*val),
                     DataValue::Int64(res) if self.is_min => DataValue::Int64(res.min(*val)),

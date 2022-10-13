@@ -5,13 +5,12 @@ use std::fmt;
 
 use itertools::Itertools;
 use serde::Serialize;
-pub use sqlparser::ast::DataType as DataTypeKind;
 
 use super::*;
 use crate::binder::ExprVisitor;
 use crate::catalog::{ColumnDesc, TableRefId};
 use crate::optimizer::logical_plan_rewriter::ExprRewriter;
-use crate::types::ColumnId;
+use crate::types::{ColumnId, DataTypeKind};
 /// The logical plan of sequential scan operation.
 #[derive(Debug, Clone, Serialize)]
 pub struct LogicalTableScan {
@@ -80,7 +79,7 @@ impl PlanNode for LogicalTableScan {
         let mut descs = self.column_descs.clone();
         if self.with_row_handler {
             descs.push(ColumnDesc::new(
-                DataType::new(DataTypeKind::Int(None), false),
+                DataType::new(DataTypeKind::Int32, false),
                 "row_handler".to_string(),
                 false,
             ));

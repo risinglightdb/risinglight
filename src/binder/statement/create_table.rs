@@ -172,7 +172,7 @@ impl From<&ColumnDef> for ColumnCatalog {
         ColumnCatalog::new(
             0,
             ColumnDesc::new(
-                DataType::new(cdef.data_type.clone(), is_nullable),
+                DataType::new((&cdef.data_type).into(), is_nullable),
                 cdef.name.value.to_lowercase(),
                 is_primary_,
             ),
@@ -187,7 +187,7 @@ mod tests {
     use super::*;
     use crate::catalog::RootCatalog;
     use crate::parser::parse;
-    use crate::types::{DataTypeExt, DataTypeKind};
+    use crate::types::DataTypeKind;
 
     #[test]
     fn bind_create_table() {
@@ -213,14 +213,8 @@ mod tests {
                 schema_id: 0,
                 table_name: "t1".into(),
                 columns: vec![
-                    ColumnCatalog::new(
-                        0,
-                        DataTypeKind::Int(None).not_null().to_column("v1".into()),
-                    ),
-                    ColumnCatalog::new(
-                        1,
-                        DataTypeKind::Int(None).nullable().to_column("v2".into()),
-                    ),
+                    ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("v1".into()),),
+                    ColumnCatalog::new(1, DataTypeKind::Int32.nullable().to_column("v2".into()),),
                 ],
                 ordered_pk_ids: vec![],
             }
@@ -249,17 +243,17 @@ mod tests {
                 columns: vec![
                     ColumnCatalog::new(
                         0,
-                        DataTypeKind::Int(None)
+                        DataTypeKind::Int32
                             .not_null()
                             .to_column_primary_key("a".into()),
                     ),
                     ColumnCatalog::new(
                         1,
-                        DataTypeKind::Int(None)
+                        DataTypeKind::Int32
                             .not_null()
                             .to_column_primary_key("b".into()),
                     ),
-                    ColumnCatalog::new(2, DataTypeKind::Int(None).nullable().to_column("c".into())),
+                    ColumnCatalog::new(2, DataTypeKind::Int32.nullable().to_column("c".into())),
                 ],
                 ordered_pk_ids: vec![0, 1],
             }
@@ -274,17 +268,17 @@ mod tests {
                 columns: vec![
                     ColumnCatalog::new(
                         0,
-                        DataTypeKind::Int(None)
+                        DataTypeKind::Int32
                             .not_null()
                             .to_column_primary_key("a".into()),
                     ),
                     ColumnCatalog::new(
                         1,
-                        DataTypeKind::Int(None)
+                        DataTypeKind::Int32
                             .not_null()
                             .to_column_primary_key("b".into()),
                     ),
-                    ColumnCatalog::new(2, DataTypeKind::Int(None).nullable().to_column("c".into())),
+                    ColumnCatalog::new(2, DataTypeKind::Int32.nullable().to_column("c".into())),
                 ],
                 ordered_pk_ids: vec![1, 0],
             }
@@ -304,11 +298,11 @@ mod tests {
                 columns: vec![
                     ColumnCatalog::new(
                         0,
-                        DataTypeKind::Int(None)
+                        DataTypeKind::Int32
                             .not_null()
                             .to_column_primary_key("a".into()),
                     ),
-                    ColumnCatalog::new(1, DataTypeKind::Int(None).nullable().to_column("b".into())),
+                    ColumnCatalog::new(1, DataTypeKind::Int32.nullable().to_column("b".into())),
                 ],
                 ordered_pk_ids: vec![0],
             }
@@ -323,11 +317,11 @@ mod tests {
                 columns: vec![
                     ColumnCatalog::new(
                         0,
-                        DataTypeKind::Int(None)
+                        DataTypeKind::Int32
                             .not_null()
                             .to_column_primary_key("a".into()),
                     ),
-                    ColumnCatalog::new(1, DataTypeKind::Int(None).nullable().to_column("b".into())),
+                    ColumnCatalog::new(1, DataTypeKind::Int32.nullable().to_column("b".into())),
                 ],
                 ordered_pk_ids: vec![0],
             }

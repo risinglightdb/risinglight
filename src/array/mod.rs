@@ -12,7 +12,7 @@ use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 
 use crate::types::{
-    Blob, ConvertError, DataType, DataValue, Date, Interval, PhysicalDataTypeKind, F32, F64,
+    Blob, ConvertError, DataType, DataTypeKind, DataValue, Date, Interval, F32, F64,
 };
 
 mod data_chunk;
@@ -225,15 +225,15 @@ macro_rules! for_all_variants {
     ($macro:tt $(, $x:tt)*) => {
         $macro! {
             [$($x),*],
-            { Int32, int32, I32Array, I32ArrayBuilder, Int32 },
-            { Int64, int64, I64Array, I64ArrayBuilder, Int64 },
-            { Float64, float64, F64Array, F64ArrayBuilder, Float64 },
-            { Utf8, utf8, Utf8Array, Utf8ArrayBuilder, String },
-            { Blob, blob, BlobArray, BlobArrayBuilder, Blob },
-            { Bool, bool, BoolArray, BoolArrayBuilder, Bool },
-            { Decimal, decimal, DecimalArray, DecimalArrayBuilder, Decimal },
-            { Date, date, DateArray, DateArrayBuilder, Date },
-            { Interval, interval, IntervalArray, IntervalArrayBuilder, Interval }
+            { Int32, int32, I32Array, I32ArrayBuilder, Int32, Int32 },
+            { Int64, int64, I64Array, I64ArrayBuilder, Int64, Int64 },
+            { Float64, float64, F64Array, F64ArrayBuilder, Float64, Float64 },
+            { Utf8, utf8, Utf8Array, Utf8ArrayBuilder, String, String },
+            { Blob, blob, BlobArray, BlobArrayBuilder, Blob, Blob },
+            { Bool, bool, BoolArray, BoolArrayBuilder, Bool, Bool },
+            { Decimal, decimal, DecimalArray, DecimalArrayBuilder, Decimal, Decimal(_, _) },
+            { Date, date, DateArray, DateArrayBuilder, Date, Date },
+            { Interval, interval, IntervalArray, IntervalArrayBuilder, Interval, Interval }
         }
     };
 }
@@ -244,7 +244,7 @@ pub struct TypeMismatch;
 
 /// Implement `From` and `TryFrom` between conversions of concrete array types and enum sum type.
 macro_rules! impl_from {
-    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident } ),*) => {
+    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Type:pat } ),*) => {
         $(
             /// Implement `AbcArray -> ArrayImpl`
             impl From<$AbcArray> for ArrayImpl {
@@ -315,7 +315,7 @@ for_all_variants! { impl_from }
 
 /// Implement dispatch functions for `ArrayBuilderImpl`.
 macro_rules! impl_array_builder {
-    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident } ),*) => {
+    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Type:pat } ),*) => {
         impl ArrayBuilderImpl {
             /// Reserve at least `capacity` values.
             pub fn reserve(&mut self, capacity: usize) {
@@ -335,11 +335,12 @@ macro_rules! impl_array_builder {
                 }
             }
 
-            /// Create a new array builder with the physical type
-            pub fn with_capacity_and_physical(capacity: usize, physical_type: PhysicalDataTypeKind) -> Self {
-                match physical_type {
+            /// Create a new array builder with data type
+            pub fn with_capacity(capacity: usize, ty: &DataType) -> Self {
+                use DataTypeKind::*;
+                match ty.kind() {
                     $(
-                        PhysicalDataTypeKind::$Value => Self::$Abc(<$AbcArrayBuilder>::with_capacity(capacity)),
+                        $Type => Self::$Abc(<$AbcArrayBuilder>::with_capacity(capacity)),
                     )*
                 }
             }
@@ -393,11 +394,6 @@ impl ArrayBuilderImpl {
         Self::with_capacity(0, ty)
     }
 
-    /// Create a new array builder from data type with capacity.
-    pub fn with_capacity(capacity: usize, ty: &DataType) -> Self {
-        Self::with_capacity_and_physical(capacity, ty.physical_kind())
-    }
-
     /// Appends an element in string.
     pub fn push_str(&mut self, s: &str) -> Result<(), ConvertError> {
         let null = s.is_empty();
@@ -446,7 +442,7 @@ impl ArrayBuilderImpl {
 
 /// Implement dispatch functions for `ArrayImpl`.
 macro_rules! impl_array {
-    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident } ),*) => {
+    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Type:pat } ),*) => {
         impl ArrayImpl {
             $(
                 paste! {

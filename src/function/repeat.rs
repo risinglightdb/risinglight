@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::binder::BindError;
-use crate::types::{DataType, PhysicalDataTypeKind};
+use crate::types::{DataType, DataTypeKind};
 
 #[inline]
 pub fn repeat(v: impl AsRef<[u8]>, times: usize) -> Vec<u8> {
@@ -23,14 +23,13 @@ impl RepeatFunction {
             ));
         }
 
-        if input_types[0].physical_kind() != PhysicalDataTypeKind::String {
+        if input_types[0].kind != DataTypeKind::String {
             return Err(BindError::BindFunctionError(
                 "Only support VARCHAR".to_string(),
             ));
         }
 
-        if input_types[1].physical_kind() != PhysicalDataTypeKind::Int64
-            || input_types[1].physical_kind() != PhysicalDataTypeKind::Int32
+        if input_types[1].kind != DataTypeKind::Int64 || input_types[1].kind != DataTypeKind::Int32
         {
             return Err(BindError::BindFunctionError(
                 "TODO: Only support [i32, i64], Need support more type".to_string(),

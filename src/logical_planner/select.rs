@@ -440,7 +440,7 @@ mod tests {
     use super::*;
     use crate::binder::{AggKind, BoundAlias, BoundBinaryOp, BoundColumnRef, BoundExprWithAlias};
     use crate::catalog::ColumnRefId;
-    use crate::types::{DataTypeExt, DataTypeKind, DataValue};
+    use crate::types::{DataTypeKind, DataValue};
 
     #[test]
     fn test_agg_extractor_validate_illegal_column() {
@@ -451,7 +451,7 @@ mod tests {
             op: BinaryOperator::Plus,
             left_expr: v2.clone().into(),
             right_expr: BoundExpr::Constant(DataValue::Int32(1)).into(),
-            return_type: Some(DataTypeKind::Int(None).not_null()),
+            return_type: Some(DataTypeKind::Int32.not_null()),
         });
         assert!(
             validate_illegal_column(&mut [v2_plus_1.clone()], &mut [v2_plus_1.clone()], &[])
@@ -490,18 +490,18 @@ mod tests {
             op: BinaryOperator::Plus,
             left_expr: v2.clone().into(),
             right_expr: BoundExpr::Constant(DataValue::Int32(2)).into(),
-            return_type: Some(DataTypeKind::Int(None).not_null()),
+            return_type: Some(DataTypeKind::Int32.not_null()),
         });
         let count_wildcard = BoundExpr::AggCall(BoundAggCall {
             kind: AggKind::Count,
             args: vec![],
-            return_type: DataTypeKind::Int(None).not_null(),
+            return_type: DataTypeKind::Int32.not_null(),
         });
         let v2_puls_2_plus_count = BoundExpr::BinaryOp(BoundBinaryOp {
             op: BinaryOperator::Plus,
             left_expr: v2_plus_2.into(),
             right_expr: count_wildcard.clone().into(),
-            return_type: Some(DataTypeKind::Int(None).not_null()),
+            return_type: Some(DataTypeKind::Int32.not_null()),
         });
         assert!(
             validate_illegal_column(&mut [v2_puls_2_plus_count], &mut [v2_plus_1], &[]).is_err()
@@ -512,7 +512,7 @@ mod tests {
             op: BinaryOperator::Plus,
             left_expr: v2.clone().into(),
             right_expr: count_wildcard.into(),
-            return_type: Some(DataTypeKind::Int(None).not_null()),
+            return_type: Some(DataTypeKind::Int32.not_null()),
         });
         let order_by_v1 = BoundOrderBy {
             expr: v1,
@@ -528,7 +528,7 @@ mod tests {
         BoundExpr::ColumnRef(BoundColumnRef {
             column_ref_id: ColumnRefId::new(0, 0, 0, column_id),
             is_primary_key: false,
-            desc: DataTypeKind::Int(None).not_null().to_column(column_name),
+            desc: DataTypeKind::Int32.not_null().to_column(column_name),
         })
     }
 

@@ -7,7 +7,7 @@ use std::borrow::Borrow;
 use crate::array::*;
 use crate::binder::BoundExpr;
 use crate::parser::{BinaryOperator, UnaryOperator};
-use crate::types::{Blob, ConvertError, DataTypeExt, DataTypeKind, DataValue, Date, F64};
+use crate::types::{Blob, ConvertError, DataTypeKind, DataValue, Date, F64};
 
 impl BoundExpr {
     /// Evaluate the given expression as an array.
@@ -28,7 +28,7 @@ impl BoundExpr {
                     chunk.cardinality(),
                     &self
                         .return_type()
-                        .unwrap_or_else(|| DataTypeKind::Int(None).nullable()),
+                        .unwrap_or_else(|| DataTypeKind::Int32.nullable()),
                 );
                 // TODO: optimize this
                 for _ in 0..chunk.cardinality() {
@@ -218,78 +218,60 @@ impl ArrayImpl {
         type Type = DataTypeKind;
         Ok(match self {
             Self::Bool(a) => match data_type {
-                Type::Boolean => Self::Bool(a.clone()),
-                Type::Int(_) => Self::new_int32(unary_op(a.as_ref(), |&b| b as i32)),
-                Type::BigInt(_) => Self::new_int64(unary_op(a.as_ref(), |&b| b as i64)),
-                Type::Float(_) | Type::Double => {
+                Type::Bool => Self::Bool(a.clone()),
+                Type::Int32 => Self::new_int32(unary_op(a.as_ref(), |&b| b as i32)),
+                Type::Int64 => Self::new_int64(unary_op(a.as_ref(), |&b| b as i64)),
+                Type::Float64 => {
                     Self::new_float64(unary_op(a.as_ref(), |&b| F64::from(b as u8 as f64)))
                 }
-                Type::String | Type::Char(_) | Type::Varchar(_) => {
+                Type::String => {
                     Self::new_utf8(unary_op(a.as_ref(), |&b| if b { "true" } else { "false" }))
                 }
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&b| Decimal::from(b as u8)))
                 }
-                Type::Date => return Err(ConvertError::ToDateError(Type::Boolean)),
+                Type::Date => return Err(ConvertError::ToDateError(Type::Bool)),
                 _ => todo!("cast array"),
             },
             Self::Int32(a) => match data_type {
-                Type::Boolean => Self::new_bool(unary_op(a.as_ref(), |&i| i != 0)),
-                Type::Int(_) => Self::Int32(a.clone()),
-                Type::BigInt(_) => Self::new_int64(unary_op(a.as_ref(), |&b| b as i64)),
-                Type::Float(_) | Type::Double => {
-                    Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64)))
-                }
-                Type::String | Type::Char(_) | Type::Varchar(_) => {
-                    Self::new_utf8(unary_op(a.as_ref(), |&i| i.to_string()))
-                }
+                Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&i| i != 0)),
+                Type::Int32 => Self::Int32(a.clone()),
+                Type::Int64 => Self::new_int64(unary_op(a.as_ref(), |&b| b as i64)),
+                Type::Float64 => Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64))),
+                Type::String => Self::new_utf8(unary_op(a.as_ref(), |&i| i.to_string())),
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
                 }
-                Type::Date => return Err(ConvertError::ToDateError(Type::Int(None))),
+                Type::Date => return Err(ConvertError::ToDateError(Type::Int32)),
                 _ => todo!("cast array"),
             },
             Self::Int64(a) => match data_type {
-                Type::Boolean => Self::new_bool(unary_op(a.as_ref(), |&i| i != 0)),
-                Type::Int(_) => Self::new_int32(try_unary_op(a.as_ref(), |&b| match b.to_i32() {
+                Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&i| i != 0)),
+                Type::Int32 => Self::new_int32(try_unary_op(a.as_ref(), |&b| match b.to_i32() {
                     Some(d) => Ok(d),
-                    None => Err(ConvertError::Overflow(DataValue::Int64(b), Type::Int(None))),
+                    None => Err(ConvertError::Overflow(DataValue::Int64(b), Type::Int32)),
                 })?),
-                Type::BigInt(_) => Self::Int64(a.clone()),
-                Type::Float(_) | Type::Double => {
-                    Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64)))
-                }
-                Type::String | Type::Char(_) | Type::Varchar(_) => {
-                    Self::new_utf8(unary_op(a.as_ref(), |&i| i.to_string()))
-                }
+                Type::Int64 => Self::Int64(a.clone()),
+                Type::Float64 => Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64))),
+                Type::String => Self::new_utf8(unary_op(a.as_ref(), |&i| i.to_string())),
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
                 }
-                Type::Date => return Err(ConvertError::ToDateError(Type::BigInt(None))),
+                Type::Date => return Err(ConvertError::ToDateError(Type::Int64)),
                 _ => todo!("cast array"),
             },
             Self::Float64(a) => match data_type {
-                Type::Boolean => Self::new_bool(unary_op(a.as_ref(), |&f| f != 0.0)),
-                Type::Int(_) => Self::new_int32(try_unary_op(a.as_ref(), |&b| match b.to_i32() {
+                Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&f| f != 0.0)),
+                Type::Int32 => Self::new_int32(try_unary_op(a.as_ref(), |&b| match b.to_i32() {
                     Some(d) => Ok(d),
-                    None => Err(ConvertError::Overflow(
-                        DataValue::Float64(b),
-                        Type::Int(None),
-                    )),
+                    None => Err(ConvertError::Overflow(DataValue::Float64(b), Type::Int32)),
                 })?),
-                Type::BigInt(_) => {
-                    Self::new_int64(try_unary_op(a.as_ref(), |&b| match b.to_i64() {
-                        Some(d) => Ok(d),
-                        None => Err(ConvertError::Overflow(
-                            DataValue::Float64(b),
-                            Type::BigInt(None),
-                        )),
-                    })?)
-                }
-                Type::Float(_) | Type::Double => Self::Float64(a.clone()),
-                Type::String | Type::Char(_) | Type::Varchar(_) => {
-                    Self::new_utf8(unary_op(a.as_ref(), |&f| f.to_string()))
-                }
+                Type::Int64 => Self::new_int64(try_unary_op(a.as_ref(), |&b| match b.to_i64() {
+                    Some(d) => Ok(d),
+                    None => Err(ConvertError::Overflow(DataValue::Float64(b), Type::Int64)),
+                })?),
+                Type::Float64 => Self::Float64(a.clone()),
+                Type::String => Self::new_utf8(unary_op(a.as_ref(), |&f| f.to_string())),
                 Type::Decimal(_, scale) => {
                     Self::new_decimal(try_unary_op(
                         a.as_ref(),
@@ -304,76 +286,68 @@ impl ArrayImpl {
                         },
                     )?)
                 }
-                Type::Date => return Err(ConvertError::ToDateError(Type::Double)),
+                Type::Date => return Err(ConvertError::ToDateError(Type::Float64)),
                 _ => todo!("cast array"),
             },
             Self::Utf8(a) => match data_type {
-                Type::Boolean => Self::new_bool(try_unary_op(a.as_ref(), |s| {
+                Type::Bool => Self::new_bool(try_unary_op(a.as_ref(), |s| {
                     s.parse::<bool>()
                         .map_err(|e| ConvertError::ParseBool(s.to_string(), e))
                 })?),
-                Type::Int(_) => Self::new_int32(try_unary_op(a.as_ref(), |s| {
+                Type::Int32 => Self::new_int32(try_unary_op(a.as_ref(), |s| {
                     s.parse::<i32>()
                         .map_err(|e| ConvertError::ParseInt(s.to_string(), e))
                 })?),
-                Type::BigInt(_) => Self::new_int64(try_unary_op(a.as_ref(), |s| {
+                Type::Int64 => Self::new_int64(try_unary_op(a.as_ref(), |s| {
                     s.parse::<i64>()
                         .map_err(|e| ConvertError::ParseInt(s.to_string(), e))
                 })?),
-                Type::Float(_) | Type::Double => {
-                    Self::new_float64(try_unary_op(a.as_ref(), |s| {
-                        s.parse::<F64>()
-                            .map_err(|e| ConvertError::ParseFloat(s.to_string(), e))
-                    })?)
-                }
-                Type::String | Type::Char(_) | Type::Varchar(_) => Self::Utf8(a.clone()),
+                Type::Float64 => Self::new_float64(try_unary_op(a.as_ref(), |s| {
+                    s.parse::<F64>()
+                        .map_err(|e| ConvertError::ParseFloat(s.to_string(), e))
+                })?),
+                Type::String => Self::Utf8(a.clone()),
                 Type::Decimal(_, _) => Self::new_decimal(try_unary_op(a.as_ref(), |s| {
                     Decimal::from_str(s).map_err(|e| ConvertError::ParseDecimal(s.to_string(), e))
                 })?),
                 Type::Date => Self::new_date(try_unary_op(a.as_ref(), |s| {
                     Date::from_str(s).map_err(|e| ConvertError::ParseDate(s.to_string(), e))
                 })?),
-                Type::Bytea | Type::Blob(_) => Self::new_blob(try_unary_op(a.as_ref(), |s| {
+                Type::Blob => Self::new_blob(try_unary_op(a.as_ref(), |s| {
                     Blob::from_str(s).map_err(|e| ConvertError::ParseBlob(s.to_string(), e))
                 })?),
                 _ => todo!("cast array"),
             },
             Self::Blob(_) => todo!("cast array"),
             Self::Decimal(a) => match data_type {
-                Type::Boolean => Self::new_bool(unary_op(a.as_ref(), |&d| !d.is_zero())),
-                Type::Int(_) => Self::new_int32(try_unary_op(a.as_ref(), |&d| {
+                Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&d| !d.is_zero())),
+                Type::Int32 => Self::new_int32(try_unary_op(a.as_ref(), |&d| {
                     d.to_i32().ok_or(ConvertError::FromDecimalError(
-                        DataTypeKind::Int(None),
+                        DataTypeKind::Int32,
                         DataValue::Decimal(d),
                     ))
                 })?),
-                Type::BigInt(_) => Self::new_int64(try_unary_op(a.as_ref(), |&d| {
+                Type::Int64 => Self::new_int64(try_unary_op(a.as_ref(), |&d| {
                     d.to_i64().ok_or(ConvertError::FromDecimalError(
-                        DataTypeKind::BigInt(None),
+                        DataTypeKind::Int64,
                         DataValue::Decimal(d),
                     ))
                 })?),
-                Type::Float(_) | Type::Double => {
-                    Self::new_float64(try_unary_op(a.as_ref(), |&d| {
-                        d.to_f64()
-                            .map(F64::from)
-                            .ok_or(ConvertError::FromDecimalError(
-                                DataTypeKind::Double,
-                                DataValue::Decimal(d),
-                            ))
-                    })?)
-                }
-                Type::String | Type::Char(_) | Type::Varchar(_) => {
-                    Self::new_utf8(unary_op(a.as_ref(), |d| d.to_string()))
-                }
+                Type::Float64 => Self::new_float64(try_unary_op(a.as_ref(), |&d| {
+                    d.to_f64()
+                        .map(F64::from)
+                        .ok_or(ConvertError::FromDecimalError(
+                            DataTypeKind::Float64,
+                            DataValue::Decimal(d),
+                        ))
+                })?),
+                Type::String => Self::new_utf8(unary_op(a.as_ref(), |d| d.to_string())),
                 Type::Decimal(_, _) => Self::Decimal(a.clone()),
                 Type::Date => return Err(ConvertError::ToDateError(Type::Decimal(None, None))),
                 _ => todo!("cast array"),
             },
             Self::Date(a) => match data_type {
-                Type::String | Type::Char(_) | Type::Varchar(_) => {
-                    Self::new_utf8(unary_op(a.as_ref(), |&d| d.to_string()))
-                }
+                Type::String => Self::new_utf8(unary_op(a.as_ref(), |&d| d.to_string())),
                 ty => return Err(ConvertError::FromDateError(ty)),
             },
             Self::Interval(_) => return Err(ConvertError::FromIntervalError(data_type)),

@@ -2,12 +2,11 @@
 
 use bitvec::prelude::BitVec;
 use serde::Serialize;
-use sqlparser::ast::BinaryOperator;
 
 use super::*;
 use crate::catalog::ColumnRefId;
-use crate::parser::{DateTimeField, Expr, Function, UnaryOperator, Value};
-use crate::types::{DataType, DataTypeExt, DataTypeKind, DataValue, Interval, F64};
+use crate::parser::{BinaryOperator, DateTimeField, Expr, Function, UnaryOperator, Value};
+use crate::types::{DataType, DataTypeKind, DataValue, Interval, F64};
 
 mod agg_call;
 mod binary_op;
@@ -53,7 +52,7 @@ impl BoundExpr {
             Self::TypeCast(expr) => Some(expr.ty.clone().nullable()),
             Self::AggCall(expr) => Some(expr.return_type.clone()),
             Self::InputRef(expr) => Some(expr.return_type.clone()),
-            Self::IsNull(_) => Some(DataTypeKind::Boolean.not_null()),
+            Self::IsNull(_) => Some(DataTypeKind::Bool.not_null()),
             Self::ExprWithAlias(expr) => expr.expr.return_type(),
             Self::Alias(expr) => expr.expr.return_type(),
         }
@@ -208,7 +207,7 @@ impl Binder {
                 Ok(BoundExpr::UnaryOp(BoundUnaryOp {
                     op: UnaryOperator::Not,
                     expr: Box::new(expr),
-                    return_type: Some(DataTypeKind::Boolean.not_null()),
+                    return_type: Some(DataTypeKind::Bool.not_null()),
                 }))
             }
             Expr::TypedString { data_type, value } => self.bind_typed_string(data_type, value),
@@ -224,11 +223,11 @@ impl Binder {
 
     fn bind_typed_string(
         &mut self,
-        data_type: &DataTypeKind,
+        data_type: &crate::parser::DataType,
         value: &str,
     ) -> Result<BoundExpr, BindError> {
         match data_type {
-            DataTypeKind::Date => {
+            crate::parser::DataType::Date => {
                 let date = value.parse().map_err(|_| {
                     BindError::CastError(DataValue::String(value.into()), DataTypeKind::Date)
                 })?;
@@ -258,7 +257,7 @@ impl Binder {
             op: final_op,
             left_expr: Box::new(left_expr),
             right_expr: Box::new(right_expr),
-            return_type: Some(DataType::new(DataTypeKind::Boolean, false)),
+            return_type: Some(DataType::new(DataTypeKind::Bool, false)),
         }))
     }
 }
@@ -332,7 +331,7 @@ mod tests {
     // test when BoundExpr is UnaryOp(form like -a)
     #[test]
     fn test_format_name_unary_op() {
-        let data_type = DataType::new(DataTypeKind::Int(None), true);
+        let data_type = DataType::new(DataTypeKind::Int32, true);
         let expr = BoundExpr::InputRef(BoundInputRef {
             index: 0,
             return_type: data_type.clone(),
@@ -351,7 +350,7 @@ mod tests {
     fn test_format_name_binary_op() {
         // forms like a + 1
         {
-            let left_data_type = DataType::new(DataTypeKind::Int(None), true);
+            let left_data_type = DataType::new(DataTypeKind::Int32, true);
             let left_expr = BoundExpr::InputRef(BoundInputRef {
                 index: 0,
                 return_type: left_data_type.clone(),
@@ -362,13 +361,13 @@ mod tests {
                 op: BinaryOperator::Plus,
                 left_expr: Box::new(left_expr),
                 right_expr: Box::new(right_expr),
-                return_type: Some(DataType::new(DataTypeKind::Int(None), true)),
+                return_type: Some(DataType::new(DataTypeKind::Int32, true)),
             });
             assert_eq!("a+1", expr.format_name(&child_schema));
         }
         // forms like a + b
         {
-            let data_type = DataType::new(DataTypeKind::Int(None), true);
+            let data_type = DataType::new(DataTypeKind::Int32, true);
             let left_expr = BoundExpr::InputRef(BoundInputRef {
                 index: 0,
                 return_type: data_type.clone(),

@@ -126,7 +126,7 @@ mod tests {
     use crate::array::ArrayImpl;
     use crate::storage::secondary::rowset::RowsetBuilder;
     use crate::storage::secondary::ColumnBuilderOptions;
-    use crate::types::{DataTypeExt, DataTypeKind};
+    use crate::types::DataTypeKind;
 
     #[tokio::test]
     async fn test_rowset_flush() {
@@ -135,9 +135,7 @@ mod tests {
         let mut builder = RowsetBuilder::new(
             vec![ColumnCatalog::new(
                 0,
-                DataTypeKind::Int(None)
-                    .nullable()
-                    .to_column("v1".to_string()),
+                DataTypeKind::Int32.nullable().to_column("v1".to_string()),
             )]
             .into(),
             ColumnBuilderOptions::default_for_test(),

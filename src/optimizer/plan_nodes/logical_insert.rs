@@ -50,7 +50,7 @@ impl_plan_tree_node_for_unary!(LogicalInsert);
 impl PlanNode for LogicalInsert {
     fn schema(&self) -> Vec<ColumnDesc> {
         vec![ColumnDesc::new(
-            DataType::new(DataTypeKind::Int(None), false),
+            DataType::new(DataTypeKind::Int32, false),
             "$insert.row_counts".to_string(),
             false,
         )]

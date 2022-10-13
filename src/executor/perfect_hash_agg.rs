@@ -7,7 +7,7 @@ use crate::array::ArrayImpl::*;
 use crate::array::{ArrayBuilderImpl, ArrayImpl, *};
 use crate::binder::{BoundAggCall, BoundExpr};
 use crate::executor::aggregation::AggregationState;
-use crate::types::{DataValue, PhysicalDataTypeKind};
+use crate::types::{DataTypeKind, DataValue};
 
 /// The executor of perfect hash aggregation.
 /// Used by low range group keys
@@ -113,8 +113,8 @@ impl PerfectHashAggExecutor {
             need_shift_bits_num -= bits[idx];
             let mask = (1usize << bits[idx]) - 1;
             let key_builder = &mut key_builders[idx];
-            match group_keys[idx].return_type().unwrap().physical_kind() {
-                PhysicalDataTypeKind::Bool => locations.iter().for_each(|location| {
+            match group_keys[idx].return_type().unwrap().kind {
+                DataTypeKind::Bool => locations.iter().for_each(|location| {
                     let value = (location >> need_shift_bits_num) & mask;
                     if value == 0 {
                         key_builder.push(&DataValue::Null);
@@ -126,7 +126,7 @@ impl PerfectHashAggExecutor {
                         unreachable!();
                     }
                 }),
-                PhysicalDataTypeKind::Int32 => {
+                DataTypeKind::Int32 => {
                     let min = if let DataValue::Int32(x) = min_values[idx] {
                         x
                     } else {
@@ -141,7 +141,7 @@ impl PerfectHashAggExecutor {
                         }
                     })
                 }
-                PhysicalDataTypeKind::Int64 => {
+                DataTypeKind::Int64 => {
                     let min = if let DataValue::Int64(x) = min_values[idx] {
                         x
                     } else {
@@ -337,18 +337,18 @@ mod tests {
         let group_keys = vec![
             BoundExpr::InputRef(BoundInputRef {
                 index: 0,
-                return_type: DataType::new(DataTypeKind::Int(None), true),
+                return_type: DataType::new(DataTypeKind::Int32, true),
             }),
             BoundExpr::InputRef(BoundInputRef {
                 index: 1,
-                return_type: DataType::new(DataTypeKind::Int(None), true),
+                return_type: DataType::new(DataTypeKind::Int32, true),
             }),
         ];
 
         let sum_function = vec![BoundAggCall {
             kind: AggKind::Sum,
             args: vec![group_keys[1].clone()],
-            return_type: DataType::new(DataTypeKind::Int(None), true),
+            return_type: DataType::new(DataTypeKind::Int32, true),
         }];
 
         // col_a: [min = 3, max = 8, range = 6 + 1(null) -> 0b111, bit_num = 3]

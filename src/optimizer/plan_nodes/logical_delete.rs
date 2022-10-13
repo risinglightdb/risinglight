@@ -41,7 +41,7 @@ impl_plan_tree_node_for_unary!(LogicalDelete);
 impl PlanNode for LogicalDelete {
     fn schema(&self) -> Vec<ColumnDesc> {
         vec![ColumnDesc::new(
-            DataType::new(DataTypeKind::Int(None), false),
+            DataType::new(DataTypeKind::Int32, false),
             "$delete.row_counts".to_string(),
             false,
         )]

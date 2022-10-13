@@ -69,7 +69,7 @@ impl_plan_tree_node_for_leaf!(LogicalCreateTable);
 impl PlanNode for LogicalCreateTable {
     fn schema(&self) -> Vec<ColumnDesc> {
         vec![ColumnDesc::new(
-            DataType::new(DataTypeKind::Int(None), false),
+            DataType::new(DataTypeKind::Int32, false),
             "$create".to_string(),
             false,
         )]
