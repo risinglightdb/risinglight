@@ -3,8 +3,8 @@
 use super::*;
 use crate::catalog::ColumnRefId;
 use crate::parser::{
-    BinaryOperator, DateTimeField, Expr, Function, FunctionArg, FunctionArgExpr, UnaryOperator,
-    Value,
+    BinaryOperator, DataType, DateTimeField, Expr, Function, FunctionArg, FunctionArgExpr,
+    UnaryOperator, Value,
 };
 use crate::types::{DataTypeKind, DataValue, Interval, F64};
 
@@ -119,15 +119,15 @@ impl Binder {
         })
     }
 
-    fn bind_cast(&mut self, expr: Expr, mut ty: DataTypeKind) -> Result {
+    fn bind_cast(&mut self, expr: Expr, mut ty: DataType) -> Result {
         let expr = self.bind_expr(expr)?;
         // workaround for 'BLOB'
-        if let DataTypeKind::Custom(name) = &ty {
+        if let DataType::Custom(name) = &ty {
             if name.0.len() == 1 && name.0[0].value.to_lowercase() == "blob" {
-                ty = DataTypeKind::Blob(0);
+                ty = DataType::Blob(0);
             }
         }
-        let ty = self.egraph.add(Node::Type(ty.into()));
+        let ty = self.egraph.add(Node::Type((&ty).into()));
         Ok(self.egraph.add(Node::Cast([ty, expr])))
     }
 
@@ -136,9 +136,9 @@ impl Binder {
         Ok(self.egraph.add(Node::IsNull(expr)))
     }
 
-    fn bind_typed_string(&mut self, data_type: DataTypeKind, value: String) -> Result {
+    fn bind_typed_string(&mut self, data_type: DataType, value: String) -> Result {
         match data_type {
-            DataTypeKind::Date => {
+            DataType::Date => {
                 let date = value.parse().map_err(|_| {
                     BindError::CastError(DataValue::String(value), DataTypeKind::Date)
                 })?;

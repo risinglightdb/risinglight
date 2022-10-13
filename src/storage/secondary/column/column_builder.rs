@@ -28,43 +28,17 @@ pub enum ColumnBuilderImpl {
 
 impl ColumnBuilderImpl {
     pub fn new_from_datatype(datatype: &DataType, options: ColumnBuilderOptions) -> Self {
+        use DataTypeKind::*;
         match datatype.kind() {
-            DataTypeKind::Int(_) => {
-                Self::Int32(I32ColumnBuilder::new(datatype.is_nullable(), options))
-            }
-            DataTypeKind::BigInt(_) => {
-                Self::Int64(I64ColumnBuilder::new(datatype.is_nullable(), options))
-            }
-            DataTypeKind::Boolean => {
-                Self::Bool(BoolColumnBuilder::new(datatype.is_nullable(), options))
-            }
-            DataTypeKind::Float(_) | DataTypeKind::Double => {
-                Self::Float64(F64ColumnBuilder::new(datatype.is_nullable(), options))
-            }
-            DataTypeKind::Char(char_width) => Self::Utf8(CharColumnBuilder::new(
-                datatype.is_nullable(),
-                char_width,
-                options,
-            )),
-            DataTypeKind::Varchar(_) => {
-                // TODO: why varchar have char_width???
-                Self::Utf8(CharColumnBuilder::new(
-                    datatype.is_nullable(),
-                    None,
-                    options,
-                ))
-            }
-            DataTypeKind::Decimal(_, _) => {
-                Self::Decimal(DecimalColumnBuilder::new(datatype.is_nullable(), options))
-            }
-            DataTypeKind::Date => {
-                Self::Date(DateColumnBuilder::new(datatype.is_nullable(), options))
-            }
-            DataTypeKind::Interval => {
-                Self::Interval(IntervalColumnBuilder::new(datatype.is_nullable(), options))
-            }
-            DataTypeKind::Bytea => Self::Blob(BlobColumnBuilder::new(options)),
-            other_datatype => todo!("column builder for {:?} is not implemented", other_datatype),
+            Int32 => Self::Int32(I32ColumnBuilder::new(datatype.nullable, options)),
+            Int64 => Self::Int64(I64ColumnBuilder::new(datatype.nullable, options)),
+            Bool => Self::Bool(BoolColumnBuilder::new(datatype.nullable, options)),
+            Float64 => Self::Float64(F64ColumnBuilder::new(datatype.nullable, options)),
+            String => Self::Utf8(CharColumnBuilder::new(datatype.nullable, None, options)),
+            Decimal => Self::Decimal(DecimalColumnBuilder::new(datatype.nullable, options)),
+            Date => Self::Date(DateColumnBuilder::new(datatype.nullable, options)),
+            Interval => Self::Interval(IntervalColumnBuilder::new(datatype.nullable, options)),
+            Blob => Self::Blob(BlobColumnBuilder::new(options)),
         }
     }
 

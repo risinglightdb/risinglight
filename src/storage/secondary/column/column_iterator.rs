@@ -31,48 +31,37 @@ impl ColumnIteratorImpl {
         column_info: &ColumnCatalog,
         start_pos: u32,
     ) -> StorageResult<Self> {
+        use DataTypeKind::*;
         let iter = match column_info.datatype().kind() {
-            DataTypeKind::Int(_) => Self::Int32(
+            Int32 => Self::Int32(
                 I32ColumnIterator::new(column, start_pos, PrimitiveBlockIteratorFactory::new())
                     .await?,
             ),
-            DataTypeKind::BigInt(_) => Self::Int64(
+            Int64 => Self::Int64(
                 I64ColumnIterator::new(column, start_pos, PrimitiveBlockIteratorFactory::new())
                     .await?,
             ),
-            DataTypeKind::Boolean => Self::Bool(
+            Bool => Self::Bool(
                 BoolColumnIterator::new(column, start_pos, PrimitiveBlockIteratorFactory::new())
                     .await?,
             ),
-            DataTypeKind::Float(_) | DataTypeKind::Double => Self::Float64(
+            Float64 => Self::Float64(
                 F64ColumnIterator::new(column, start_pos, PrimitiveBlockIteratorFactory::new())
                     .await?,
             ),
-            DataTypeKind::Char(width) => Self::Char(
-                CharColumnIterator::new(
-                    column,
-                    start_pos,
-                    CharBlockIteratorFactory::new(width.map(|x| x as usize)),
-                )
-                .await?,
+            String => Self::Char(
+                CharColumnIterator::new(column, start_pos, CharBlockIteratorFactory::new(None))
+                    .await?,
             ),
-            DataTypeKind::Varchar(width) => Self::Char(
-                CharColumnIterator::new(
-                    column,
-                    start_pos,
-                    CharBlockIteratorFactory::new(width.map(|x| x as usize)),
-                )
-                .await?,
-            ),
-            DataTypeKind::Decimal(_, _) => Self::Decimal(
+            Decimal => Self::Decimal(
                 DecimalColumnIterator::new(column, start_pos, PrimitiveBlockIteratorFactory::new())
                     .await?,
             ),
-            DataTypeKind::Date => Self::Date(
+            Date => Self::Date(
                 DateColumnIterator::new(column, start_pos, PrimitiveBlockIteratorFactory::new())
                     .await?,
             ),
-            DataTypeKind::Interval => Self::Interval(
+            Interval => Self::Interval(
                 IntervalColumnIterator::new(
                     column,
                     start_pos,
@@ -80,17 +69,13 @@ impl ColumnIteratorImpl {
                 )
                 .await?,
             ),
-            DataTypeKind::Bytea => Self::Blob(
+            Blob => Self::Blob(
                 BlobColumnIterator::new(
                     column,
                     start_pos,
                     super::blob_column_factory::BlobBlockIteratorFactory(),
                 )
                 .await?,
-            ),
-            other_datatype => todo!(
-                "column iterator for {:?} is not implemented",
-                other_datatype
             ),
         };
         Ok(iter)

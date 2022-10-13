@@ -7,7 +7,7 @@ use crate::binder::BoundBinaryOp;
 use crate::optimizer::BoundExpr;
 use crate::optimizer::BoundExpr::BinaryOp;
 use crate::parser::BinaryOperator::And;
-use crate::types::{DataTypeExt, DataTypeKind, DataValue};
+use crate::types::{DataTypeKind, DataValue};
 pub fn conjunctions_inner(expr: BoundExpr, rets: &mut Vec<BoundExpr>) {
     match expr {
         BinaryOp(bin_expr) if bin_expr.op == And => {
@@ -34,7 +34,7 @@ where
             op: And,
             left_expr: Box::new(ret),
             right_expr: Box::new(expr),
-            return_type: Some(DataTypeKind::Boolean.nullable()),
+            return_type: Some(DataTypeKind::Bool.nullable()),
         })
     }
     let rewriter = BoolExprSimplificationRule {};

@@ -12,7 +12,7 @@ use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 
 use crate::types::{
-    Blob, ConvertError, DataType, DataValue, Date, Interval, PhysicalDataTypeKind, F32, F64,
+    Blob, ConvertError, DataType, DataTypeKind, DataValue, Date, Interval, F32, F64,
 };
 
 mod data_chunk;
@@ -335,11 +335,11 @@ macro_rules! impl_array_builder {
                 }
             }
 
-            /// Create a new array builder with the physical type
-            pub fn with_capacity_and_physical(capacity: usize, physical_type: PhysicalDataTypeKind) -> Self {
-                match physical_type {
+            /// Create a new array builder with data type
+            pub fn with_capacity(capacity: usize, ty: &DataType) -> Self {
+                match ty.kind() {
                     $(
-                        PhysicalDataTypeKind::$Value => Self::$Abc(<$AbcArrayBuilder>::with_capacity(capacity)),
+                        DataTypeKind::$Value => Self::$Abc(<$AbcArrayBuilder>::with_capacity(capacity)),
                     )*
                 }
             }
@@ -391,11 +391,6 @@ impl ArrayBuilderImpl {
     /// Create a new array builder from data type.
     pub fn new(ty: &DataType) -> Self {
         Self::with_capacity(0, ty)
-    }
-
-    /// Create a new array builder from data type with capacity.
-    pub fn with_capacity(capacity: usize, ty: &DataType) -> Self {
-        Self::with_capacity_and_physical(capacity, ty.physical_kind())
     }
 
     /// Appends an element in string.

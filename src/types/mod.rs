@@ -8,7 +8,6 @@ use parse_display::{Display, FromStr};
 use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-pub use sqlparser::ast::DataType as DataTypeKind;
 
 mod blob;
 mod date;
@@ -25,9 +24,10 @@ pub use self::native::*;
     Debug, Display, FromStr, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
 )]
 #[display(style = "lowercase")]
-pub enum PhysicalDataTypeKind {
+pub enum DataTypeKind {
     Int32,
     Int64,
+    // Float32,
     Float64,
     String,
     Blob,
@@ -37,12 +37,13 @@ pub enum PhysicalDataTypeKind {
     Interval,
 }
 
-impl From<DataTypeKind> for PhysicalDataTypeKind {
-    fn from(kind: DataTypeKind) -> Self {
-        use DataTypeKind::*;
+impl From<&crate::parser::DataType> for DataTypeKind {
+    fn from(kind: &crate::parser::DataType) -> Self {
+        use crate::parser::DataType::*;
         match kind {
             Char(_) | Varchar(_) | String => Self::String,
             Bytea | Binary(_) | Varbinary(_) | Blob(_) => Self::Blob,
+            // Real => Self::Float32,
             Float(_) | Double => Self::Float64,
             Int(_) => Self::Int32,
             BigInt(_) => Self::Int64,
@@ -50,7 +51,7 @@ impl From<DataTypeKind> for PhysicalDataTypeKind {
             Decimal(_, _) => Self::Decimal,
             Date => Self::Date,
             Interval => Self::Interval,
-            _ => todo!("physical type for {:?} is not supported", kind),
+            _ => todo!("not supported type: {:?}", kind),
         }
     }
 }
@@ -59,7 +60,6 @@ impl From<DataTypeKind> for PhysicalDataTypeKind {
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DataType {
     pub kind: DataTypeKind,
-    pub physical_kind: PhysicalDataTypeKind,
     pub nullable: bool,
 }
 
@@ -85,12 +85,7 @@ impl std::fmt::Display for DataType {
 
 impl DataType {
     pub fn new(kind: DataTypeKind, nullable: bool) -> DataType {
-        let physical_kind = kind.clone().into();
-        DataType {
-            kind,
-            physical_kind,
-            nullable,
-        }
+        DataType { kind, nullable }
     }
 
     pub fn is_nullable(&self) -> bool {
@@ -100,31 +95,17 @@ impl DataType {
     pub fn kind(&self) -> DataTypeKind {
         self.kind.clone()
     }
-
-    /// Get physical data type
-    pub fn physical_kind(&self) -> PhysicalDataTypeKind {
-        self.physical_kind.clone()
-    }
 }
 
-/// The extension methods for [`DataType`].
-pub trait DataTypeExt {
-    fn nullable(self) -> DataType;
-    fn not_null(self) -> DataType;
-}
-
-impl DataTypeExt for DataTypeKind {
-    fn nullable(self) -> DataType {
+impl DataTypeKind {
+    pub fn nullable(self) -> DataType {
         DataType::new(self, true)
     }
 
-    fn not_null(self) -> DataType {
+    pub fn not_null(self) -> DataType {
         DataType::new(self, false)
     }
 }
-
-// const CHAR_DEFAULT_LEN: u64 = 1;
-const VARCHAR_DEFAULT_LEN: u64 = 256;
 
 pub(crate) type DatabaseId = u32;
 pub(crate) type SchemaId = u32;
@@ -245,13 +226,13 @@ impl DataValue {
     /// Get the type of value. `None` means NULL.
     pub fn data_type(&self) -> Option<DataType> {
         match self {
-            Self::Bool(_) => Some(DataTypeKind::Boolean.not_null()),
-            Self::Int32(_) => Some(DataTypeKind::Int(None).not_null()),
-            Self::Int64(_) => Some(DataTypeKind::BigInt(None).not_null()),
-            Self::Float64(_) => Some(DataTypeKind::Double.not_null()),
-            Self::String(_) => Some(DataTypeKind::Varchar(Some(VARCHAR_DEFAULT_LEN)).not_null()),
-            Self::Blob(_) => Some(DataTypeKind::Blob(0).not_null()),
-            Self::Decimal(_) => Some(DataTypeKind::Decimal(None, None).not_null()),
+            Self::Bool(_) => Some(DataTypeKind::Bool.not_null()),
+            Self::Int32(_) => Some(DataTypeKind::Int32.not_null()),
+            Self::Int64(_) => Some(DataTypeKind::Int64.not_null()),
+            Self::Float64(_) => Some(DataTypeKind::Float64.not_null()),
+            Self::String(_) => Some(DataTypeKind::String.not_null()),
+            Self::Blob(_) => Some(DataTypeKind::Blob.not_null()),
+            Self::Decimal(_) => Some(DataTypeKind::Decimal.not_null()),
             Self::Date(_) => Some(DataTypeKind::Date.not_null()),
             Self::Interval(_) => Some(DataTypeKind::Interval.not_null()),
             Self::Null => None,

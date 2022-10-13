@@ -389,7 +389,6 @@ impl SecondaryIteratorImpl for RowSetIterator {}
 mod tests {
     use itertools::Itertools;
     use sqlparser::ast::BinaryOperator;
-    pub use sqlparser::ast::DataType as DataTypeKind;
 
     use super::*;
     use crate::array::{Array, ArrayToVecExt};
@@ -398,7 +397,7 @@ mod tests {
         helper_build_rowset, helper_build_rowset_with_first_key_recorded,
     };
     use crate::storage::secondary::SecondaryRowHandler;
-    use crate::types::{DataType, DataValue, PhysicalDataTypeKind};
+    use crate::types::{DataType, DataTypeKind, DataValue};
 
     #[tokio::test]
     async fn test_rowset_iterator() {
@@ -471,8 +470,7 @@ mod tests {
         let left_expr = Box::new(BoundExpr::InputRef(BoundInputRef {
             index: 2,
             return_type: DataType {
-                kind: DataTypeKind::Int(None),
-                physical_kind: PhysicalDataTypeKind::Int32,
+                kind: DataTypeKind::Int32,
                 nullable: true,
             },
         }));
@@ -480,8 +478,7 @@ mod tests {
         let right_expr = Box::new(BoundExpr::Constant(DataValue::Int32(2)));
 
         let return_type = Some(DataType {
-            kind: DataTypeKind::Boolean,
-            physical_kind: PhysicalDataTypeKind::Bool,
+            kind: DataTypeKind::Bool,
             nullable: true,
         });
         let expr = BoundExpr::BinaryOp(BoundBinaryOp {

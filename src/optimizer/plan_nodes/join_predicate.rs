@@ -5,7 +5,7 @@ use crate::optimizer::expr_utils::{conjunctions, input_col_refs, merge_conjuncti
 use crate::optimizer::logical_plan_rewriter::ExprRewriter;
 use crate::optimizer::BoundExpr::InputRef;
 use crate::parser::BinaryOperator;
-use crate::types::{DataTypeExt, DataTypeKind, DataValue};
+use crate::types::{DataTypeKind, DataValue};
 
 #[derive(Debug, Clone, Serialize)]
 /// the join predicate used in optimizer
@@ -132,7 +132,7 @@ impl JoinPredicate {
                     op: BinaryOperator::Eq,
                     left_expr: Box::new(InputRef(l)),
                     right_expr: Box::new(InputRef(r)),
-                    return_type: Some(DataTypeKind::Boolean.nullable()),
+                    return_type: Some(DataTypeKind::Bool.nullable()),
                 })
             })
             .collect()

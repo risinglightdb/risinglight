@@ -1,7 +1,5 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use itertools::izip;
-
 use super::*;
 use crate::array::{DataChunk, DataChunkBuilder};
 use crate::binder::BoundExpr;
@@ -22,31 +20,9 @@ impl ValuesExecutor {
         let mut builder = DataChunkBuilder::new(self.column_types.iter(), PROCESSING_WINDOW_SIZE);
         let dummy = DataChunk::single(0);
         for row in self.values {
-            let row_data: Result<Vec<DataValue>, _> = izip!(row, &self.column_types)
-                .map(|(expr, column_type)| {
-                    let value = expr.eval(&dummy)?;
-                    let size = match column_type.kind {
-                        Type::Varchar(size) => size,
-                        Type::Char(size) => size,
-                        _ => None,
-                    };
-                    if let Some(width) = size {
-                        let item_length = if let DataValue::String(x) = &value.get(0) {
-                            x.len() as u64
-                        } else if let DataValue::Null = &value.get(0) {
-                            0
-                        } else {
-                            unreachable!()
-                        };
-                        if item_length > width {
-                            return Err(ExecutorError::ExceedLengthLimit {
-                                length: item_length,
-                                width,
-                            });
-                        }
-                    }
-                    Ok(value.get(0))
-                })
+            let row_data: Result<Vec<DataValue>, ExecutorError> = row
+                .into_iter()
+                .map(|expr| Ok(expr.eval(&dummy)?.get(0)))
                 .collect();
             if let Some(chunk) = builder.push_row(row_data?) {
                 yield chunk;
@@ -63,13 +39,13 @@ mod tests {
     use super::*;
     use crate::array::ArrayImpl;
     use crate::binder::BoundExpr;
-    use crate::types::{DataTypeExt, DataTypeKind, DataValue};
+    use crate::types::{DataTypeKind, DataValue};
 
     #[tokio::test]
     async fn values() {
         let values = [[0, 100], [1, 101], [2, 102], [3, 103]];
         let executor = ValuesExecutor {
-            column_types: vec![DataTypeKind::Int(None).nullable(); 2],
+            column_types: vec![DataTypeKind::Int32.nullable(); 2],
             values: values
                 .iter()
                 .map(|row| {

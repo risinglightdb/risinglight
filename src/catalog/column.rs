@@ -34,7 +34,7 @@ impl ColumnDesc {
     }
 
     pub fn is_nullable(&self) -> bool {
-        self.datatype.is_nullable()
+        self.datatype.nullable
     }
 
     pub fn datatype(&self) -> &DataType {
@@ -122,11 +122,11 @@ pub fn find_sort_key_id(column_infos: &[ColumnCatalog]) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{DataTypeExt, DataTypeKind};
+    use crate::types::DataTypeKind;
 
     #[test]
     fn test_column_catalog() {
-        let col_desc = DataTypeKind::Int(None).not_null().to_column("grade".into());
+        let col_desc = DataTypeKind::Int32.not_null().to_column("grade".into());
         let mut col_catalog = ColumnCatalog::new(0, col_desc);
         assert_eq!(col_catalog.id(), 0);
         assert!(!col_catalog.is_primary());

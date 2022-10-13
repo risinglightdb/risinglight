@@ -29,7 +29,7 @@ impl_plan_tree_node_for_leaf!(LogicalDrop);
 impl PlanNode for LogicalDrop {
     fn schema(&self) -> Vec<ColumnDesc> {
         vec![ColumnDesc::new(
-            DataType::new(DataTypeKind::Int(None), false),
+            DataType::new(DataTypeKind::Int32, false),
             "$drop".to_string(),
             false,
         )]
