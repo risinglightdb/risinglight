@@ -68,7 +68,7 @@ impl std::fmt::Display for DataTypeKind {
             Self::Decimal(p, s) => match (p, s) {
                 (None, None) => write!(f, "DECIMAL"),
                 (Some(p), None) => write!(f, "DECIMAL({p})"),
-                (Some(p), Some(s)) => write!(f, "DECIMAL({p}, {s})"),
+                (Some(p), Some(s)) => write!(f, "DECIMAL({p},{s})"),
                 (None, Some(_)) => panic!("invalid decimal"),
             },
             Self::Date => write!(f, "DATE"),
