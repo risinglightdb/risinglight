@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 
 use bytes::Buf;
 
-use super::{Block, BlockIterator};
+use super::{Block, BlockIterator, NonNullableBlockIterator};
 use crate::array::{Array, ArrayBuilder};
 use crate::storage::secondary::encode::BlobEncode;
 
@@ -33,8 +33,8 @@ impl<T: BlobEncode + ?Sized> PlainBlobBlockIterator<T> {
     }
 }
 
-impl<T: BlobEncode + ?Sized> BlockIterator<T::ArrayType> for PlainBlobBlockIterator<T> {
-    fn next_batch(
+impl<T: BlobEncode + ?Sized> NonNullableBlockIterator<T::ArrayType> for PlainBlobBlockIterator<T> {
+    fn next_batch_non_null(
         &mut self,
         expected_size: Option<usize>,
         builder: &mut <T::ArrayType as Array>::Builder,
@@ -82,6 +82,16 @@ impl<T: BlobEncode + ?Sized> BlockIterator<T::ArrayType> for PlainBlobBlockItera
         }
 
         cnt
+    }
+}
+
+impl<T: BlobEncode + ?Sized> BlockIterator<T::ArrayType> for PlainBlobBlockIterator<T> {
+    fn next_batch(
+        &mut self,
+        expected_size: Option<usize>,
+        builder: &mut <T::ArrayType as Array>::Builder,
+    ) -> usize {
+        self.next_batch_non_null(expected_size, builder)
     }
 
     fn skip(&mut self, cnt: usize) {
