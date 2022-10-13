@@ -1,10 +1,11 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::hash::Hash;
+use std::num::ParseIntError;
 
 use num_traits::ToPrimitive;
 use ordered_float::OrderedFloat;
-use parse_display::{Display, FromStr};
+use parse_display::Display;
 use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -20,10 +21,7 @@ pub use self::interval::*;
 pub use self::native::*;
 
 /// Physical data type
-#[derive(
-    Debug, Display, FromStr, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
-)]
-#[display(style = "lowercase")]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum DataTypeKind {
     Int32,
     Int64,
@@ -32,7 +30,8 @@ pub enum DataTypeKind {
     String,
     Blob,
     Bool,
-    Decimal,
+    // decimal (precision, scale)
+    Decimal(Option<u8>, Option<u8>),
     Date,
     Interval,
 }
@@ -48,11 +47,72 @@ impl From<&crate::parser::DataType> for DataTypeKind {
             Int(_) => Self::Int32,
             BigInt(_) => Self::Int64,
             Boolean => Self::Bool,
-            Decimal(_, _) => Self::Decimal,
+            Decimal(p, s) => Self::Decimal(p.map(|x| x as u8), s.map(|x| x as u8)),
             Date => Self::Date,
             Interval => Self::Interval,
             _ => todo!("not supported type: {:?}", kind),
         }
+    }
+}
+
+impl std::fmt::Display for DataTypeKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Int32 => write!(f, "INT"),
+            Self::Int64 => write!(f, "BIGINT"),
+            // Self::Float32 => write!(f, "REAL"),
+            Self::Float64 => write!(f, "DOUBLE"),
+            Self::String => write!(f, "STRING"),
+            Self::Blob => write!(f, "BLOB"),
+            Self::Bool => write!(f, "BOOLEAN"),
+            Self::Decimal(p, s) => match (p, s) {
+                (None, None) => write!(f, "DECIMAL"),
+                (Some(p), None) => write!(f, "DECIMAL({p})"),
+                (Some(p), Some(s)) => write!(f, "DECIMAL({p}, {s})"),
+                (None, Some(_)) => panic!("invalid decimal"),
+            },
+            Self::Date => write!(f, "DATE"),
+            Self::Interval => write!(f, "INTERVAL"),
+        }
+    }
+}
+
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
+pub enum ParseTypeError {
+    #[error("invalid number: {0}")]
+    ParseIntError(#[from] ParseIntError),
+    #[error("invalid type: {0}")]
+    Invalid(String),
+}
+
+impl FromStr for DataTypeKind {
+    type Err = ParseTypeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use DataTypeKind::*;
+        Ok(match s {
+            "INT" => Int32,
+            "BIGINT" => Int64,
+            // "REAL" => Float32,
+            "DOUBLE" => Float64,
+            "STRING" => String,
+            "BLOB" => Blob,
+            "BOOLEAN" => Bool,
+            "DECIMAL" => Decimal(None, None),
+            _ if s.starts_with("DECIMAL") => {
+                let para = s
+                    .strip_prefix("DECIMAL")
+                    .unwrap()
+                    .trim_matches(|c: char| c == '(' || c == ')' || c.is_ascii_whitespace());
+                match para.split_once(',') {
+                    Some((p, s)) => Decimal(Some(p.parse()?), Some(s.parse()?)),
+                    None => Decimal(Some(para.parse()?), None),
+                }
+            }
+            "DATE" => Date,
+            "INTERVAL" => Interval,
+            _ => return Err(ParseTypeError::Invalid(s.to_owned())),
+        })
     }
 }
 
@@ -232,7 +292,7 @@ impl DataValue {
             Self::Float64(_) => Some(DataTypeKind::Float64.not_null()),
             Self::String(_) => Some(DataTypeKind::String.not_null()),
             Self::Blob(_) => Some(DataTypeKind::Blob.not_null()),
-            Self::Decimal(_) => Some(DataTypeKind::Decimal.not_null()),
+            Self::Decimal(_) => Some(DataTypeKind::Decimal(None, None).not_null()),
             Self::Date(_) => Some(DataTypeKind::Date.not_null()),
             Self::Interval(_) => Some(DataTypeKind::Interval.not_null()),
             Self::Null => None,
@@ -296,9 +356,14 @@ pub enum ConvertError {
 /// memory table row type
 pub(crate) type Row = Vec<DataValue>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ParseValueError {
-    s: String,
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
+pub enum ParseValueError {
+    #[error("invalid interval: {0}")]
+    ParseIntervalError(#[from] ParseIntervalError),
+    #[error("invalid date: {0}")]
+    ParseDateError(#[from] ParseDateError),
+    #[error("invalid value: {0}")]
+    Invalid(String),
 }
 
 impl FromStr for DataValue {
@@ -318,11 +383,11 @@ impl FromStr for DataValue {
         } else if s.starts_with('\'') && s.ends_with('\'') {
             Ok(Self::String(s[1..s.len() - 1].to_string()))
         } else if let Some(s) = s.strip_prefix("interval") {
-            Ok(Self::Interval(s.trim().trim_matches('\'').parse().unwrap()))
+            Ok(Self::Interval(s.trim().trim_matches('\'').parse()?))
         } else if let Some(s) = s.strip_prefix("date") {
-            Ok(Self::Date(s.trim().trim_matches('\'').parse().unwrap()))
+            Ok(Self::Date(s.trim().trim_matches('\'').parse()?))
         } else {
-            Err(ParseValueError { s: s.into() })
+            Err(ParseValueError::Invalid(s.into()))
         }
     }
 }

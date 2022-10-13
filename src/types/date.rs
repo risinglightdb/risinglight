@@ -27,6 +27,8 @@ impl Date {
     }
 }
 
+pub type ParseDateError = chrono::ParseError;
+
 impl FromStr for Date {
     type Err = chrono::ParseError;
 

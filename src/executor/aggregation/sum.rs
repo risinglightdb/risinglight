@@ -108,7 +108,7 @@ impl AggregationState for SumAggregationState {
                     }
                 }
             }
-            (ArrayImpl::Decimal(arr), DataTypeKind::Decimal) => {
+            (ArrayImpl::Decimal(arr), DataTypeKind::Decimal(_, _)) => {
                 let mut temp: Option<Decimal> = None;
                 temp = arr.iter().fold(temp, sum_decimal);
                 if let Some(val) = temp {
@@ -147,7 +147,7 @@ impl AggregationState for SumAggregationState {
                     _ => panic!("Mismatched type"),
                 }
             }
-            (DataValue::Decimal(val), DataTypeKind::Decimal) => {
+            (DataValue::Decimal(val), DataTypeKind::Decimal(_, _)) => {
                 self.result = match self.result {
                     DataValue::Null => DataValue::Decimal(*val),
                     DataValue::Decimal(res) => DataValue::Decimal(res + val),

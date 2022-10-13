@@ -53,7 +53,7 @@ impl ColumnIteratorImpl {
                 CharColumnIterator::new(column, start_pos, CharBlockIteratorFactory::new(None))
                     .await?,
             ),
-            Decimal => Self::Decimal(
+            Decimal(_, _) => Self::Decimal(
                 DecimalColumnIterator::new(column, start_pos, PrimitiveBlockIteratorFactory::new())
                     .await?,
             ),

@@ -222,7 +222,7 @@ mod tests {
             kind: AggKind::Sum,
             args: vec![BoundExpr::InputRef(BoundInputRef {
                 index: value,
-                return_type: DataType::new(DataTypeKind::Decimal, false),
+                return_type: DataType::new(DataTypeKind::Decimal(Some(15), Some(2)), false),
             })],
             return_type: DataType::new(DataTypeKind::Float64, false),
         }

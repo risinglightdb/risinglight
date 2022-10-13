@@ -227,7 +227,7 @@ impl ArrayImpl {
                 Type::String => {
                     Self::new_utf8(unary_op(a.as_ref(), |&b| if b { "true" } else { "false" }))
                 }
-                Type::Decimal => {
+                Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&b| Decimal::from(b as u8)))
                 }
                 Type::Date => return Err(ConvertError::ToDateError(Type::Bool)),
@@ -239,7 +239,9 @@ impl ArrayImpl {
                 Type::Int64 => Self::new_int64(unary_op(a.as_ref(), |&b| b as i64)),
                 Type::Float64 => Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64))),
                 Type::String => Self::new_utf8(unary_op(a.as_ref(), |&i| i.to_string())),
-                Type::Decimal => Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i))),
+                Type::Decimal(_, _) => {
+                    Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
+                }
                 Type::Date => return Err(ConvertError::ToDateError(Type::Int32)),
                 _ => todo!("cast array"),
             },
@@ -252,7 +254,9 @@ impl ArrayImpl {
                 Type::Int64 => Self::Int64(a.clone()),
                 Type::Float64 => Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64))),
                 Type::String => Self::new_utf8(unary_op(a.as_ref(), |&i| i.to_string())),
-                Type::Decimal => Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i))),
+                Type::Decimal(_, _) => {
+                    Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
+                }
                 Type::Date => return Err(ConvertError::ToDateError(Type::Int64)),
                 _ => todo!("cast array"),
             },
@@ -268,10 +272,20 @@ impl ArrayImpl {
                 })?),
                 Type::Float64 => Self::Float64(a.clone()),
                 Type::String => Self::new_utf8(unary_op(a.as_ref(), |&f| f.to_string())),
-                Type::Decimal => Self::new_decimal(try_unary_op(a.as_ref(), |&f| {
-                    Decimal::from_f64_retain(f.0)
-                        .ok_or(ConvertError::ToDecimalError(DataValue::Float64(f)))
-                })?),
+                Type::Decimal(_, scale) => {
+                    Self::new_decimal(try_unary_op(
+                        a.as_ref(),
+                        |&f| match Decimal::from_f64_retain(f.0) {
+                            Some(mut d) => {
+                                if let Some(s) = scale {
+                                    d.rescale(s as u32);
+                                }
+                                Ok(d)
+                            }
+                            None => Err(ConvertError::ToDecimalError(DataValue::Float64(f))),
+                        },
+                    )?)
+                }
                 Type::Date => return Err(ConvertError::ToDateError(Type::Float64)),
                 _ => todo!("cast array"),
             },
@@ -293,7 +307,7 @@ impl ArrayImpl {
                         .map_err(|e| ConvertError::ParseFloat(s.to_string(), e))
                 })?),
                 Type::String => Self::Utf8(a.clone()),
-                Type::Decimal => Self::new_decimal(try_unary_op(a.as_ref(), |s| {
+                Type::Decimal(_, _) => Self::new_decimal(try_unary_op(a.as_ref(), |s| {
                     Decimal::from_str(s).map_err(|e| ConvertError::ParseDecimal(s.to_string(), e))
                 })?),
                 Type::Date => Self::new_date(try_unary_op(a.as_ref(), |s| {
@@ -328,8 +342,8 @@ impl ArrayImpl {
                         ))
                 })?),
                 Type::String => Self::new_utf8(unary_op(a.as_ref(), |d| d.to_string())),
-                Type::Decimal => Self::Decimal(a.clone()),
-                Type::Date => return Err(ConvertError::ToDateError(Type::Decimal)),
+                Type::Decimal(_, _) => Self::Decimal(a.clone()),
+                Type::Date => return Err(ConvertError::ToDateError(Type::Decimal(None, None))),
                 _ => todo!("cast array"),
             },
             Self::Date(a) => match data_type {

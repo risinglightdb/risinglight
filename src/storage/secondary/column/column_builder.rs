@@ -35,7 +35,7 @@ impl ColumnBuilderImpl {
             Bool => Self::Bool(BoolColumnBuilder::new(datatype.nullable, options)),
             Float64 => Self::Float64(F64ColumnBuilder::new(datatype.nullable, options)),
             String => Self::Utf8(CharColumnBuilder::new(datatype.nullable, None, options)),
-            Decimal => Self::Decimal(DecimalColumnBuilder::new(datatype.nullable, options)),
+            Decimal(_, _) => Self::Decimal(DecimalColumnBuilder::new(datatype.nullable, options)),
             Date => Self::Date(DateColumnBuilder::new(datatype.nullable, options)),
             Interval => Self::Interval(IntervalColumnBuilder::new(datatype.nullable, options)),
             Blob => Self::Blob(BlobColumnBuilder::new(options)),
