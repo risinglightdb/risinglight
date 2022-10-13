@@ -54,7 +54,8 @@ pub fn analyze_schema(egraph: &EGraph, enode: &Expr) -> Schema {
     let concat = |v1: Vec<Id>, v2: Vec<Id>| v1.into_iter().chain(v2.into_iter()).collect();
     Some(match enode {
         // equal to child
-        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(*c)?,
+        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c])
+        | Distinct([_, c]) => x(*c)?,
 
         // concat 2 children
         Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) => concat(x(*l)?, x(*r)?),
