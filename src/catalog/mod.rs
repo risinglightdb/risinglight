@@ -45,7 +45,6 @@ impl std::fmt::Display for TableRefId {
     }
 }
 
-
 #[derive(thiserror::Error, Debug, Clone)]
 #[error("parse table id error: {}")]
 pub enum ParseTableIdError {
