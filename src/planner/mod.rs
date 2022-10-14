@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use egg::{define_language, Id, Symbol};
 
+use crate::binder_v2::BindDrop;
 use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
@@ -27,6 +28,7 @@ define_language! {
         // Table(TableRefId),              // $1, $2, ...
         Column(ColumnRefId),            // $1.2, $2.1, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
+        BindDrop(BindDrop),
 
         // binary operations
         "+" = Add([Id; 2]),
