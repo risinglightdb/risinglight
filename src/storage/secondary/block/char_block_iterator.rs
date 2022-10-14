@@ -2,7 +2,7 @@
 
 use itertools::Itertools;
 
-use super::{Block, BlockIterator};
+use super::{Block, BlockIterator, NonNullableBlockIterator};
 use crate::array::{ArrayBuilder, Utf8Array, Utf8ArrayBuilder};
 
 /// Scans one or several arrays from the block content.
@@ -31,11 +31,11 @@ impl PlainCharBlockIterator {
     }
 }
 
-impl BlockIterator<Utf8Array> for PlainCharBlockIterator {
-    fn next_batch(
+impl NonNullableBlockIterator<Utf8Array> for PlainCharBlockIterator {
+    fn next_batch_non_null(
         &mut self,
         expected_size: Option<usize>,
-        builder: &mut Utf8ArrayBuilder,
+        builder: &mut <Utf8Array as crate::array::Array>::Builder,
     ) -> usize {
         if self.next_row >= self.row_count {
             return 0;
@@ -75,6 +75,16 @@ impl BlockIterator<Utf8Array> for PlainCharBlockIterator {
         }
 
         cnt
+    }
+}
+
+impl BlockIterator<Utf8Array> for PlainCharBlockIterator {
+    fn next_batch(
+        &mut self,
+        expected_size: Option<usize>,
+        builder: &mut Utf8ArrayBuilder,
+    ) -> usize {
+        self.next_batch_non_null(expected_size, builder)
     }
 
     fn skip(&mut self, cnt: usize) {
