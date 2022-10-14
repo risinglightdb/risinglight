@@ -22,10 +22,9 @@ impl ExprRewriter for ConstantFoldingRule {
                 self.rewrite_expr(&mut op.left_expr);
                 self.rewrite_expr(&mut op.right_expr);
                 if let (Constant(v1), Constant(v2)) = (&*op.left_expr, &*op.right_expr) {
-                    let res = ArrayImpl::from(v1)
-                        .binary_op(&op.op, &ArrayImpl::from(v2))
-                        .get(0);
-                    *expr = Constant(res);
+                    if let Ok(res) = ArrayImpl::from(v1).binary_op(&op.op, &ArrayImpl::from(v2)) {
+                        *expr = Constant(res.get(0));
+                    }
                 }
             }
             _ => unreachable!(),
@@ -37,8 +36,9 @@ impl ExprRewriter for ConstantFoldingRule {
             UnaryOp(op) => {
                 self.rewrite_expr(&mut op.expr);
                 if let Constant(v) = &*op.expr {
-                    let res = ArrayImpl::from(v).unary_op(&op.op).get(0);
-                    *expr = Constant(res);
+                    if let Ok(res) = ArrayImpl::from(v).unary_op(&op.op) {
+                        *expr = Constant(res.get(0));
+                    }
                 }
             }
             _ => unreachable!(),

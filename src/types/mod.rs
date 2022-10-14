@@ -356,6 +356,10 @@ pub enum ConvertError {
     Cast(String, &'static str),
     #[error("constant {0:?} overflows {1:?}")]
     Overflow(DataValue, DataTypeKind),
+    #[error("no function {0}({1})")]
+    NoUnaryOp(String, &'static str),
+    #[error("no function {0}({1}, {2})")]
+    NoBinaryOp(String, &'static str, &'static str),
 }
 
 /// memory table row type
