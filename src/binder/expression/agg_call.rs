@@ -99,17 +99,17 @@ impl Binder {
                 if args.is_empty() {
                     let first_index_column = BoundExpr::InputRef(BoundInputRef {
                         index: 0,
-                        return_type: DataType::new(DataTypeKind::Int(None), false),
+                        return_type: DataType::new(DataTypeKind::Int32, false),
                     });
                     args.push(first_index_column);
                     (
                         AggKind::RowCount,
-                        Some(DataType::new(DataTypeKind::Int(None), false)),
+                        Some(DataType::new(DataTypeKind::Int32, false)),
                     )
                 } else {
                     (
                         AggKind::Count,
-                        Some(DataType::new(DataTypeKind::Int(None), false)),
+                        Some(DataType::new(DataTypeKind::Int32, false)),
                     )
                 }
             }
@@ -135,7 +135,7 @@ impl Binder {
                     expr: Box::new(BoundExpr::AggCall(BoundAggCall {
                         kind: AggKind::Count,
                         args,
-                        return_type: DataType::new(DataTypeKind::Int(None), false),
+                        return_type: DataType::new(DataTypeKind::Int32, false),
                     })),
                 })),
                 return_type,

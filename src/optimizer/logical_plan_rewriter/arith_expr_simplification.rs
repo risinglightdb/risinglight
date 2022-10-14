@@ -64,10 +64,10 @@ impl ExprRewriter for ArithExprSimplificationRule {
     fn rewrite_type_cast(&self, expr: &mut BoundExpr) {
         let new = match &expr {
             TypeCast(op) => match (&op.ty, &*op.expr) {
-                (Ty::Boolean, k @ Constant(Bool(_))) => k.clone(),
-                (Ty::Int(_), k @ Constant(Int32(_))) => k.clone(),
-                (Ty::BigInt(_), k @ Constant(Int64(_))) => k.clone(),
-                (Ty::Double, k @ Constant(Float64(_))) => k.clone(),
+                (Ty::Bool, k @ Constant(Bool(_))) => k.clone(),
+                (Ty::Int32, k @ Constant(Int32(_))) => k.clone(),
+                (Ty::Int64, k @ Constant(Int64(_))) => k.clone(),
+                (Ty::Float64, k @ Constant(Float64(_))) => k.clone(),
                 (Ty::String, k @ Constant(String(_))) => k.clone(),
                 _ => return,
             },

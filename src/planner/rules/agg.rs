@@ -1,24 +1,39 @@
+use itertools::Itertools;
+
 use super::*;
 
 /// Returns all rules of aggregation extraction.
 #[rustfmt::skip]
 pub fn rules() -> Vec<Rewrite> { vec![
     rw!("extract-agg-from-select-list";
-        "(select ?exprs ?from ?where ?groupby ?having)" =>
+        "(select ?distinct ?exprs ?from ?where ?groupby ?having)" =>
         { ExtractAgg {
             has_agg: pattern("
             (proj ?exprs
-                (filter ?having
-                    (agg ?aggs ?groupby
-                        (filter ?where
-                            ?from
+                (distinct ?distinct
+                    (filter ?having
+                        (agg ?aggs ?groupby
+                            (filter ?where
+                                ?from
+                            )
                         )
                     )
                 )
             )"),
-            no_agg: pattern("(proj ?exprs (filter ?where ?from))"),
-            src: var("?exprs"),
+            no_agg: pattern("(proj ?exprs (distinct ?distinct (filter ?where ?from)))"),
+            sources: vec![var("?distinct"), var("?exprs"), var("?having")],
+            groupby: var("?groupby"),
             output: var("?aggs"),
+        }}
+    ),
+    rw!("proj-distinct-to-agg"; 
+        "(proj ?exprs (distinct ?on ?child))" =>
+        { DistinctToAgg {
+            no_distinct: pattern("(proj ?exprs ?child)"),
+            has_distinct: pattern("(proj ?exprs (agg ?aggs ?on ?child))"),
+            projection: var("?exprs"),
+            distinct_on: var("?on"),
+            aggs: var("?aggs"),
         }}
     ),
 ]}
@@ -34,7 +49,7 @@ pub fn analyze_aggs(egraph: &EGraph, enode: &Expr) -> AggSet {
         return [enode.clone()].into_iter().collect();
     }
     if let Max(c) | Min(c) | Sum(c) | Avg(c) | Count(c) | First(c) | Last(c) = enode {
-        assert!(x(c).is_empty(), "agg in agg");
+        assert!(x(c).is_empty(), "agg in agg"); // FIXME: report error instead of panic
         return [enode.clone()].into_iter().collect();
     }
     // TODO: ignore plan nodes
@@ -44,13 +59,15 @@ pub fn analyze_aggs(egraph: &EGraph, enode: &Expr) -> AggSet {
         .collect()
 }
 
-/// Extracts all agg expressions from `src`.
-/// If any, apply `has_agg` and put those aggs to `output`.
-/// Otherwise, apply `no_agg`.
+/// Extracts all agg expressions from `sources`.
+///
+/// If both agg and `groupby` are empty, apply `no_agg`.
+/// Otherwise, apply `has_agg` and put those aggs to `output`.
 struct ExtractAgg {
-    has_agg: Pattern<Expr>,
-    no_agg: Pattern<Expr>,
-    src: Var,
+    has_agg: Pattern,
+    no_agg: Pattern,
+    sources: Vec<Var>,
+    groupby: Var,
     output: Var,
 }
 
@@ -63,9 +80,14 @@ impl Applier<Expr, ExprAnalysis> for ExtractAgg {
         searcher_ast: Option<&PatternAst<Expr>>,
         rule_name: Symbol,
     ) -> Vec<Id> {
-        let aggs = egraph[subst[self.src]].data.aggs.clone();
-        if aggs.is_empty() {
-            // FIXME: what if groupby not empty??
+        let aggs = (self.sources.iter())
+            .flat_map(|var| egraph[subst[*var]].data.aggs.iter().cloned())
+            .collect::<HashSet<Expr>>();
+        let groupby = match &egraph[subst[self.groupby]].nodes[0] {
+            Expr::List(list) => list.as_slice(),
+            _ => panic!("groupby is not a list"),
+        };
+        if aggs.is_empty() && groupby.is_empty() {
             return self
                 .no_agg
                 .apply_one(egraph, eclass, subst, searcher_ast, rule_name);
@@ -76,6 +98,54 @@ impl Applier<Expr, ExprAnalysis> for ExtractAgg {
         let mut subst = subst.clone();
         subst.insert(self.output, egraph.add(Expr::List(list)));
         self.has_agg
+            .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+    }
+}
+
+/// Convert `distinct` to `agg`.
+///
+/// If `distinct_on` is empty, apply `no_distinct`.
+/// Otherwise, apply `has_distinct`. The expressions in the `projection` who are not in
+/// `distinct_on` will be aggregated by `first` and put to `aggs`.
+struct DistinctToAgg {
+    no_distinct: Pattern,
+    has_distinct: Pattern,
+    projection: Var,  // inout
+    distinct_on: Var, // in
+    aggs: Var,        // out
+}
+
+impl Applier<Expr, ExprAnalysis> for DistinctToAgg {
+    fn apply_one(
+        &self,
+        egraph: &mut EGraph,
+        eclass: Id,
+        subst: &Subst,
+        searcher_ast: Option<&PatternAst<Expr>>,
+        rule_name: Symbol,
+    ) -> Vec<Id> {
+        let get_list = |var: Var| match &egraph[subst[var]].nodes[0] {
+            Expr::List(list) => list.clone(),
+            _ => panic!("not a list"),
+        };
+        let distinct_on = get_list(self.distinct_on);
+        if distinct_on.is_empty() {
+            return self
+                .no_distinct
+                .apply_one(egraph, eclass, subst, searcher_ast, rule_name);
+        }
+        let mut aggs = vec![];
+        let mut projection = get_list(self.projection);
+        for id in projection.iter_mut() {
+            if !distinct_on.contains(id) {
+                *id = egraph.add(Expr::First(*id));
+                aggs.push(*id);
+            }
+        }
+        let mut subst = subst.clone();
+        subst.insert(self.aggs, egraph.add(Expr::List(aggs.into())));
+        subst.insert(self.projection, egraph.add(Expr::List(projection)));
+        self.has_distinct
             .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
     }
 }
@@ -94,23 +164,44 @@ mod tests {
     egg::test_fn! {
         plan_select,
         rules(),
-        // SELECT sum(a + b) + count(a) + a FROM t
+        // SELECT sum(a + b) + a FROM t
         // WHERE b > 1 GROUP BY a HAVING count(a) > 1;
         "
         (select
-            (list (+ (+ (sum (+ $1.1 $1.2)) (count $1.1)) $1.1))
+            (list)
+            (list (+ (sum (+ $1.1 $1.2)) $1.1))
             (scan (list $1.1 $1.2 $1.3))
             (> $1.2 1)
             (list $1.1)
             (> (count $1.1) 1)
         )" => "
-        (proj (list (+ (+ (sum (+ $1.1 $1.2)) (count $1.1)) $1.1))
+        (proj (list (+ (sum (+ $1.1 $1.2)) $1.1))
             (filter (> (count $1.1) 1)
-                (agg (list (sum (+ $1.1 $1.2)) (count $1.1)) (list $1.1)
+                (agg
+                    (list (sum (+ $1.1 $1.2)) (count $1.1))
+                    (list $1.1)
                     (filter (> $1.2 1)
                         (scan (list $1.1 $1.2 $1.3))
                     )
                 )
+            )
+        )"
+    }
+
+    egg::test_fn! {
+        select_group,
+        rules(),
+        // SELECT a FROM t GROUP BY a;
+        "
+        (select
+            (list)
+            (list $1.1)
+            (scan (list $1.1 $1.2 $1.3))
+            true (list $1.1) true
+        )" => "
+        (proj (list $1.1)
+            (agg (list) (list $1.1)
+                (scan (list $1.1 $1.2 $1.3))
             )
         )"
     }
@@ -121,12 +212,32 @@ mod tests {
         // SELECT a FROM t;
         "
         (select
+            (list)
             (list $1.1)
             (scan (list $1.1 $1.2 $1.3))
             true (list) true
         )" => "
         (proj (list $1.1)
             (scan (list $1.1 $1.2 $1.3))
+        )"
+    }
+
+    egg::test_fn! {
+        distinct_on,
+        rules(),
+        // SELECT DISTINCT ON (a, b) a, c FROM t;
+        // => SELECT a, FIRST(c) FROM t GROUP BY a, b;
+        "
+        (select
+            (list $1.1 $1.2)
+            (list $1.1 $1.3)
+            (scan (list $1.1 $1.2 $1.3))
+            true (list) true
+        )" => "
+        (proj (list $1.1 (first $1.3))
+            (agg (list (first $1.3)) (list $1.1 $1.2)
+                (scan (list $1.1 $1.2 $1.3))
+            )
         )"
     }
 
@@ -138,6 +249,7 @@ mod tests {
         // WHERE s.sid = e.sid AND e.grade = 'A'
         "
         (select
+            (list)
             (list $1.2 $2.2)
             (join inner true
                 (scan (list $1.1 $1.2))

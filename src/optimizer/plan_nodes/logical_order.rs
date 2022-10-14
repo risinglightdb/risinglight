@@ -85,11 +85,11 @@ impl fmt::Display for LogicalOrder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{DataTypeExt, DataTypeKind};
+    use crate::types::DataTypeKind;
 
     #[test]
     fn test_prune_order() {
-        let ty = DataTypeKind::Int(None).not_null();
+        let ty = DataTypeKind::Int32.not_null();
         let col_descs = vec![
             ty.clone().to_column("v1".into()),
             ty.clone().to_column("v2".into()),

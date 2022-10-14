@@ -42,7 +42,7 @@ impl PlanNode for LogicalExplain {
     }
     fn schema(&self) -> Vec<ColumnDesc> {
         vec![ColumnDesc::new(
-            DataType::new(DataTypeKind::Int(None), false),
+            DataType::new(DataTypeKind::Int32, false),
             "$explain".to_string(),
             false,
         )]

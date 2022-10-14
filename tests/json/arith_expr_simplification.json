@@ -5,10 +5,7 @@
                 "InputRef": {
                     "index": 0,
                     "return_type": {
-                        "kind": {
-                            "Int": null
-                        },
-                        "physical_kind": "Int32",
+                        "kind": "Int32",
                         "nullable": true
                     }
                 }
@@ -27,10 +24,7 @@
                 "column_descs": [
                     {
                         "datatype": {
-                            "kind": {
-                                "Int": null
-                            },
-                            "physical_kind": "Int32",
+                            "kind": "Int32",
                             "nullable": true
                         },
                         "name": "a",

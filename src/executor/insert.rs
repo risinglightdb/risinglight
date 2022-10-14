@@ -102,7 +102,7 @@ mod tests {
     use crate::executor::CreateTableExecutor;
     use crate::optimizer::plan_nodes::PhysicalCreateTable;
     use crate::storage::InMemoryStorage;
-    use crate::types::{DataTypeExt, DataTypeKind};
+    use crate::types::DataTypeKind;
 
     #[tokio::test]
     async fn simple() {
@@ -132,8 +132,8 @@ mod tests {
             0,
             "t".into(),
             vec![
-                ColumnCatalog::new(0, DataTypeKind::Int(None).not_null().to_column("v1".into())),
-                ColumnCatalog::new(1, DataTypeKind::Int(None).not_null().to_column("v2".into())),
+                ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("v1".into())),
+                ColumnCatalog::new(1, DataTypeKind::Int32.not_null().to_column("v2".into())),
             ],
             vec![],
         ));

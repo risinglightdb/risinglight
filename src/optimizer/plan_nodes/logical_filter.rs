@@ -100,7 +100,7 @@ mod tests {
 
     use super::*;
     use crate::binder::BoundBinaryOp;
-    use crate::types::{DataTypeExt, DataTypeKind, DataValue};
+    use crate::types::{DataTypeKind, DataValue};
 
     #[test]
     /// Pruning
@@ -114,7 +114,7 @@ mod tests {
     ///   TableScan(v2)
     /// ```
     fn test_prune_filter() {
-        let ty = DataTypeKind::Int(None).not_null();
+        let ty = DataTypeKind::Int32.not_null();
         let col_descs = vec![
             ty.clone().to_column("v1".into()),
             ty.clone().to_column("v2".into()),
@@ -179,7 +179,7 @@ mod tests {
     ///     TableScan(v2, v4)
     /// ```
     fn test_prune_filter_with_project() {
-        let ty = DataTypeKind::Int(None).not_null();
+        let ty = DataTypeKind::Int32.not_null();
         let col_descs = vec![
             ty.clone().to_column("v1".into()),
             ty.clone().to_column("v2".into()),

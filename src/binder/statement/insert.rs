@@ -102,8 +102,8 @@ impl Binder {
                     // table t1(a float, b float)
                     // for example: insert into values (1, 1);
                     // 1 should be casted to float.
-                    let left_kind = data_type.physical_kind();
-                    let right_kind = column_types[idx].physical_kind();
+                    let left_kind = data_type.kind();
+                    let right_kind = column_types[idx].kind();
                     if left_kind != right_kind {
                         expr = BoundExpr::TypeCast(BoundTypeCast {
                             expr: Box::new(expr),
@@ -112,7 +112,7 @@ impl Binder {
                     }
                 } else {
                     // If the data value is null, the column must be nullable.
-                    if !column_types[idx].is_nullable() {
+                    if !column_types[idx].nullable {
                         return Err(BindError::InvalidExpression(
                             "Can not insert null to non null column".into(),
                         ));
@@ -147,8 +147,8 @@ impl Binder {
                 // table t1(a float, b float)
                 // for example: insert into values (1, 1);
                 // 1 should be casted to float.
-                let left_kind = data_type.physical_kind();
-                let right_kind = column_types[idx].physical_kind();
+                let left_kind = data_type.kind();
+                let right_kind = column_types[idx].kind();
                 if left_kind != right_kind {
                     *expr = BoundExpr::TypeCast(BoundTypeCast {
                         expr: Box::new(expr.clone()),
@@ -157,7 +157,7 @@ impl Binder {
                 }
             } else {
                 // If the data value is null, the column must be nullable.
-                if !column_types[idx].is_nullable() {
+                if !column_types[idx].nullable {
                     return Err(BindError::InvalidExpression(
                         "Can not insert null to non null column".into(),
                     ));
@@ -221,7 +221,7 @@ mod tests {
     use super::*;
     use crate::catalog::{ColumnCatalog, RootCatalog};
     use crate::parser::parse;
-    use crate::types::{DataTypeExt, DataTypeKind};
+    use crate::types::DataTypeKind;
 
     #[test]
     fn bind_insert() {
@@ -234,8 +234,8 @@ mod tests {
                 ref_id,
                 "t".into(),
                 vec![
-                    ColumnCatalog::new(0, DataTypeKind::Int(None).not_null().to_column("a".into())),
-                    ColumnCatalog::new(1, DataTypeKind::Int(None).not_null().to_column("b".into())),
+                    ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("a".into())),
+                    ColumnCatalog::new(1, DataTypeKind::Int32.not_null().to_column("b".into())),
                 ],
                 false,
                 vec![],

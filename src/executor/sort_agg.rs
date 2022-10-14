@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 use super::*;
 use crate::array::{ArrayBuilderImpl, ArrayImpl};
 use crate::binder::BoundAggCall;
-use crate::types::{DataTypeExt, DataTypeKind};
+use crate::types::DataTypeKind;
 
 pub struct SortAggExecutor {
     pub agg_calls: Vec<BoundAggCall>,
@@ -70,7 +70,7 @@ impl SortAggExecutor {
                         builder.push(result);
                         builder.finish()
                     }
-                    None => ArrayBuilderImpl::new(&DataTypeKind::Int(None).nullable()).finish(),
+                    None => ArrayBuilderImpl::new(&DataTypeKind::Int32.nullable()).finish(),
                 }
             })
             .collect::<DataChunk>();
@@ -222,19 +222,16 @@ mod tests {
             kind: AggKind::Sum,
             args: vec![BoundExpr::InputRef(BoundInputRef {
                 index: value,
-                return_type: DataType::new(
-                    DataTypeKind::Decimal(Option::Some(15), Option::Some(2)),
-                    false,
-                ),
+                return_type: DataType::new(DataTypeKind::Decimal(Some(15), Some(2)), false),
             })],
-            return_type: DataType::new(DataTypeKind::Double, false),
+            return_type: DataType::new(DataTypeKind::Float64, false),
         }
     }
 
     fn create_input_ref(value: usize) -> BoundExpr {
         BoundExpr::InputRef(BoundInputRef {
             index: value,
-            return_type: DataType::new(DataTypeKind::Int(Option::None), false),
+            return_type: DataType::new(DataTypeKind::Int32, false),
         })
     }
 

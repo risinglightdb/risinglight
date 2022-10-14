@@ -10,7 +10,7 @@ use crate::optimizer::plan_nodes::{
 };
 use crate::optimizer::BoundBinaryOp;
 use crate::parser::BinaryOperator::And;
-use crate::types::{DataTypeExt, DataTypeKind};
+use crate::types::DataTypeKind;
 
 pub struct FilterJoinRule {}
 
@@ -28,7 +28,7 @@ impl Rule for FilterJoinRule {
             op: And,
             left_expr: Box::new(filter_cond),
             right_expr: Box::new(join_on_clause),
-            return_type: Some(DataTypeKind::Boolean.nullable()),
+            return_type: Some(DataTypeKind::Bool.nullable()),
         });
         let left_col_num = join.left().out_types().len();
         let inner_join_predicate = JoinPredicate::create(left_col_num, new_inner_join_cond);

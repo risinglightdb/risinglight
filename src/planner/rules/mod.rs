@@ -23,7 +23,7 @@ use std::hash::Hash;
 
 use egg::{rewrite as rw, *};
 
-use super::{EGraph, Expr, RecExpr, Rewrite};
+use super::{EGraph, Expr, Pattern, RecExpr, Rewrite};
 
 mod agg;
 mod expr;
@@ -119,6 +119,6 @@ fn var(s: &str) -> Var {
 /// Create a [`Pattern`] from string.
 ///
 /// This is a helper function for submodules.
-fn pattern(s: &str) -> Pattern<Expr> {
+fn pattern(s: &str) -> Pattern {
     s.parse().expect("invalid pattern")
 }

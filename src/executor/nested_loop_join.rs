@@ -7,7 +7,7 @@ use futures::TryStreamExt;
 use super::*;
 use crate::array::{Array, ArrayBuilderImpl, ArrayImpl, DataChunk, DataChunkBuilder};
 use crate::binder::{BoundExpr, BoundJoinOperator};
-use crate::types::{DataType, DataValue, PhysicalDataTypeKind};
+use crate::types::{DataType, DataTypeKind, DataValue};
 
 /// The executor for nested loop join.
 pub struct NestedLoopJoinExecutor {
@@ -35,10 +35,8 @@ impl NestedLoopJoinExecutor {
 
         let data_types = self.left_types.iter().chain(self.right_types.iter());
         let mut builder = DataChunkBuilder::new(data_types, PROCESSING_WINDOW_SIZE);
-        let mut filter_builder = ArrayBuilderImpl::with_capacity_and_physical(
-            PROCESSING_WINDOW_SIZE,
-            PhysicalDataTypeKind::Bool,
-        );
+        let mut filter_builder =
+            ArrayBuilderImpl::with_capacity(PROCESSING_WINDOW_SIZE, &DataTypeKind::Bool.not_null());
 
         let mut right_row_num = 0;
         // cross join: left x right

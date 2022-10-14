@@ -47,6 +47,12 @@ impl Binder {
 
         let projection = self.bind_projection(select.projection, from)?;
 
+        let distinct = match select.distinct {
+            // TODO: distinct on
+            true => projection,
+            false => self.egraph.add(Node::List([].into())),
+        };
+
         let group_list = (select.group_by.into_iter())
             .map(|key| self.bind_expr(key))
             .try_collect()?;
@@ -54,9 +60,9 @@ impl Binder {
 
         let having = self.bind_condition(select.having)?;
 
-        Ok(self
-            .egraph
-            .add(Node::Select([projection, from, where_, groupby, having])))
+        Ok(self.egraph.add(Node::Select([
+            distinct, projection, from, where_, groupby, having,
+        ])))
     }
 
     fn bind_projection(&mut self, projection: Vec<SelectItem>, from: Id) -> Result {

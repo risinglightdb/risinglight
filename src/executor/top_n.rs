@@ -73,7 +73,7 @@ mod tests {
     use crate::array::ArrayImpl;
     use crate::binder::{BoundExpr, BoundInputRef};
     use crate::catalog::ColumnCatalog;
-    use crate::types::{DataTypeExt, DataTypeKind};
+    use crate::types::DataTypeKind;
 
     #[test_case(&[(0..6)], 1, 4, false, &[(1..5)])]
     #[test_case(&[(0..6)], 0, 10, false, &[(0..6)])]
@@ -97,10 +97,10 @@ mod tests {
             inputs,
             offset,
             limit,
-            vec![DataType::new(DataTypeKind::Int(None), false)],
+            vec![DataType::new(DataTypeKind::Int32, false)],
             vec![ColumnCatalog::new(
                 0,
-                DataTypeKind::Int(None).not_null().to_column("v1".into()),
+                DataTypeKind::Int32.not_null().to_column("v1".into()),
             )],
             vec![(0, desc)],
         );

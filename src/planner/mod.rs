@@ -6,7 +6,7 @@ use egg::{define_language, Id, Symbol};
 
 use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
-use crate::types::{ColumnIndex, DataValue, PhysicalDataTypeKind};
+use crate::types::{ColumnIndex, DataTypeKind, DataValue};
 
 mod cost;
 mod rules;
@@ -16,13 +16,14 @@ pub use rules::ExprAnalysis;
 // Alias types for our language.
 type EGraph = egg::EGraph<Expr, ExprAnalysis>;
 type Rewrite = egg::Rewrite<Expr, ExprAnalysis>;
+type Pattern = egg::Pattern<Expr>;
 pub type RecExpr = egg::RecExpr<Expr>;
 
 define_language! {
     pub enum Expr {
         // values
         Constant(DataValue),            // null, true, 1, 1.0, "hello", ...
-        Type(PhysicalDataTypeKind),     // bool, int32, float64, ...
+        Type(DataTypeKind),             // BOOLEAN, INT, DECIMAL(5), ...
         // Table(TableRefId),              // $1, $2, ...
         Column(ColumnRefId),            // $1.2, $2.1, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
@@ -70,13 +71,15 @@ define_language! {
         "as" = Alias([Id; 2]),                  // (as name expr)
         "fn" = Function(Box<[Id]>),             // (fn name args..)
 
-        "select" = Select([Id; 5]),             // (select
+        "select" = Select([Id; 6]),             // (select
+                                                //      distinct=[expr..]
                                                 //      select_list=[expr..]
                                                 //      from=join
                                                 //      where=expr
                                                 //      groupby=[expr..]
                                                 //      having=expr
                                                 // )
+        "distinct" = Distinct([Id; 2]),         // (distinct [expr..] child)
 
         // plans
         "scan" = Scan(Id),                      // (scan [column..])

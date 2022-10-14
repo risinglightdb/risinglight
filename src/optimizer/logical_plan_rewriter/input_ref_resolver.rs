@@ -224,7 +224,7 @@ mod tests {
 
     use super::*;
     use crate::binder::AggKind;
-    use crate::types::{DataTypeExt, DataTypeKind, DataValue};
+    use crate::types::{DataTypeKind, DataValue};
 
     #[test]
     /// To be resolved SQL:
@@ -238,20 +238,20 @@ mod tests {
             args: vec![BoundExpr::ColumnRef(BoundColumnRef {
                 column_ref_id: ColumnRefId::new(0, 0, 0, 0),
                 is_primary_key: false,
-                desc: DataTypeKind::Int(None).not_null().to_column("v1".into()),
+                desc: DataTypeKind::Int32.not_null().to_column("v1".into()),
             })],
-            return_type: DataTypeKind::Int(None).not_null(),
+            return_type: DataTypeKind::Int32.not_null(),
         });
         let v2_plus_1_expr = BoundExpr::BinaryOp(BoundBinaryOp {
             op: BinaryOperator::Plus,
             left_expr: BoundExpr::ColumnRef(BoundColumnRef {
                 column_ref_id: ColumnRefId::new(0, 0, 0, 1),
                 is_primary_key: false,
-                desc: DataTypeKind::Int(None).not_null().to_column("v2".into()),
+                desc: DataTypeKind::Int32.not_null().to_column("v2".into()),
             })
             .into(),
             right_expr: BoundExpr::Constant(DataValue::Int32(1)).into(),
-            return_type: Some(DataTypeKind::Int(None).not_null()),
+            return_type: Some(DataTypeKind::Int32.not_null()),
         });
         let group_keys = vec![v2_plus_1_expr.clone()];
         let mut select_list = vec![v2_plus_1_expr, sum_v1_call];
@@ -265,14 +265,14 @@ mod tests {
             select_list[0],
             BoundExpr::InputRef(BoundInputRef {
                 index: 0,
-                return_type: DataTypeKind::Int(None).not_null(),
+                return_type: DataTypeKind::Int32.not_null(),
             })
         );
         assert_eq!(
             select_list[1],
             BoundExpr::InputRef(BoundInputRef {
                 index: 1,
-                return_type: DataTypeKind::Int(None).not_null(),
+                return_type: DataTypeKind::Int32.not_null(),
             })
         );
     }
@@ -289,26 +289,26 @@ mod tests {
             args: vec![BoundExpr::ColumnRef(BoundColumnRef {
                 column_ref_id: ColumnRefId::new(0, 0, 0, 0),
                 is_primary_key: false,
-                desc: DataTypeKind::Int(None).not_null().to_column("v1".into()),
+                desc: DataTypeKind::Int32.not_null().to_column("v1".into()),
             })],
-            return_type: DataTypeKind::Int(None).not_null(),
+            return_type: DataTypeKind::Int32.not_null(),
         });
         let v2_expr = BoundExpr::ColumnRef(BoundColumnRef {
             column_ref_id: ColumnRefId::new(0, 0, 0, 1),
             is_primary_key: false,
-            desc: DataTypeKind::Int(None).not_null().to_column("v2".into()),
+            desc: DataTypeKind::Int32.not_null().to_column("v2".into()),
         });
         let v2_plus_1_expr = BoundExpr::BinaryOp(BoundBinaryOp {
             op: BinaryOperator::Plus,
             left_expr: v2_expr.into(),
             right_expr: BoundExpr::Constant(DataValue::Int32(1)).into(),
-            return_type: Some(DataTypeKind::Int(None).not_null()),
+            return_type: Some(DataTypeKind::Int32.not_null()),
         });
         let v2_plus_1_plus_sum_expr = BoundExpr::BinaryOp(BoundBinaryOp {
             op: BinaryOperator::Plus,
             left_expr: v2_plus_1_expr.clone().into(),
             right_expr: sum_v1_call.into(),
-            return_type: Some(DataTypeKind::Int(None).not_null()),
+            return_type: Some(DataTypeKind::Int32.not_null()),
         });
         let group_keys = vec![v2_plus_1_expr];
         let mut select_list = vec![v2_plus_1_plus_sum_expr];
@@ -324,15 +324,15 @@ mod tests {
                 op: BinaryOperator::Plus,
                 left_expr: BoundExpr::InputRef(BoundInputRef {
                     index: 0,
-                    return_type: DataTypeKind::Int(None).not_null(),
+                    return_type: DataTypeKind::Int32.not_null(),
                 })
                 .into(),
                 right_expr: BoundExpr::InputRef(BoundInputRef {
                     index: 1,
-                    return_type: DataTypeKind::Int(None).not_null(),
+                    return_type: DataTypeKind::Int32.not_null(),
                 })
                 .into(),
-                return_type: Some(DataTypeKind::Int(None).not_null()),
+                return_type: Some(DataTypeKind::Int32.not_null()),
             })
         );
     }

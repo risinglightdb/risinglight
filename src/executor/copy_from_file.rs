@@ -98,7 +98,7 @@ impl CopyFromFileExecutor {
             let str_row_data: Result<Vec<&str>, _> =
                 izip!(record.iter(), self.plan.logical().column_types())
                     .map(|(v, ty)| {
-                        if !ty.is_nullable() && v.is_empty() {
+                        if !ty.nullable && v.is_empty() {
                             return Err(ExecutorError::NotNullable);
                         }
                         Ok(v)
@@ -131,7 +131,7 @@ mod tests {
 
     use super::*;
     use crate::array::ArrayImpl;
-    use crate::types::{DataTypeExt, DataTypeKind};
+    use crate::types::DataTypeKind;
 
     #[tokio::test]
     async fn read_csv() {
@@ -151,13 +151,13 @@ mod tests {
                     header: false,
                 },
                 vec![
-                    DataTypeKind::Int(None).not_null(),
-                    DataTypeKind::Double.not_null(),
+                    DataTypeKind::Int32.not_null(),
+                    DataTypeKind::Float64.not_null(),
                     DataTypeKind::String.not_null(),
                 ],
                 vec![
-                    DataTypeKind::Int(None).not_null().to_column("v1".into()),
-                    DataTypeKind::Double.not_null().to_column("v2".into()),
+                    DataTypeKind::Int32.not_null().to_column("v1".into()),
+                    DataTypeKind::Float64.not_null().to_column("v2".into()),
                     DataTypeKind::String.not_null().to_column("v3".into()),
                 ],
             )),

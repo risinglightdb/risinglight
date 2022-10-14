@@ -202,44 +202,32 @@ pub mod tests {
     use crate::storage::secondary::rowset::rowset_builder::RowsetBuilder;
     use crate::storage::secondary::rowset::RowsetWriter;
     use crate::storage::secondary::{ColumnBuilderOptions, EncodeType};
-    use crate::types::{DataTypeExt, DataTypeKind};
+    use crate::types::DataTypeKind;
 
     pub async fn helper_build_rowset(tempdir: &TempDir, nullable: bool, len: usize) -> DiskRowset {
         let columns = vec![
             ColumnCatalog::new(
                 0,
                 if nullable {
-                    DataTypeKind::Int(None)
-                        .nullable()
-                        .to_column("v1".to_string())
+                    DataTypeKind::Int32.nullable().to_column("v1".to_string())
                 } else {
-                    DataTypeKind::Int(None)
-                        .not_null()
-                        .to_column("v1".to_string())
+                    DataTypeKind::Int32.not_null().to_column("v1".to_string())
                 },
             ),
             ColumnCatalog::new(
                 1,
                 if nullable {
-                    DataTypeKind::Int(None)
-                        .nullable()
-                        .to_column("v2".to_string())
+                    DataTypeKind::Int32.nullable().to_column("v2".to_string())
                 } else {
-                    DataTypeKind::Int(None)
-                        .not_null()
-                        .to_column("v2".to_string())
+                    DataTypeKind::Int32.not_null().to_column("v2".to_string())
                 },
             ),
             ColumnCatalog::new(
                 2,
                 if nullable {
-                    DataTypeKind::Int(None)
-                        .nullable()
-                        .to_column("v3".to_string())
+                    DataTypeKind::Int32.nullable().to_column("v3".to_string())
                 } else {
-                    DataTypeKind::Int(None)
-                        .not_null()
-                        .to_column("v3".to_string())
+                    DataTypeKind::Int32.not_null().to_column("v3".to_string())
                 },
             ),
         ];
@@ -291,13 +279,9 @@ pub mod tests {
         let columns = vec![ColumnCatalog::new(
             0,
             if nullable {
-                DataTypeKind::Int(None)
-                    .nullable()
-                    .to_column("v1".to_string())
+                DataTypeKind::Int32.nullable().to_column("v1".to_string())
             } else {
-                DataTypeKind::Int(None)
-                    .not_null()
-                    .to_column("v1".to_string())
+                DataTypeKind::Int32.not_null().to_column("v1".to_string())
             },
         )];
         let mut column_options = ColumnBuilderOptions::default_for_test();
@@ -334,21 +318,17 @@ pub mod tests {
         let columns = vec![
             ColumnCatalog::new(
                 0,
-                DataTypeKind::Int(None)
+                DataTypeKind::Int32
                     .not_null()
                     .to_column_primary_key("v1".to_string()),
             ),
             ColumnCatalog::new(
                 1,
-                DataTypeKind::Int(None)
-                    .not_null()
-                    .to_column("v2".to_string()),
+                DataTypeKind::Int32.not_null().to_column("v2".to_string()),
             ),
             ColumnCatalog::new(
                 2,
-                DataTypeKind::Int(None)
-                    .not_null()
-                    .to_column("v3".to_string()),
+                DataTypeKind::Int32.not_null().to_column("v3".to_string()),
             ),
         ];
 

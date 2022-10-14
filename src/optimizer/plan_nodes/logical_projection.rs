@@ -141,7 +141,7 @@ mod tests {
     use super::*;
     use crate::binder::{BoundColumnRef, BoundExprWithAlias, BoundTypeCast};
     use crate::catalog::ColumnRefId;
-    use crate::types::{DataTypeExt, DataTypeKind, DataValue};
+    use crate::types::{DataTypeKind, DataValue};
 
     #[test]
     fn test_projection_out_names() {
@@ -150,11 +150,11 @@ mod tests {
                 BoundExpr::ColumnRef(BoundColumnRef {
                     column_ref_id: ColumnRefId::new(0, 0, 0, 0),
                     is_primary_key: false,
-                    desc: DataTypeKind::Int(None).not_null().to_column("v1".into()),
+                    desc: DataTypeKind::Int32.not_null().to_column("v1".into()),
                 }),
                 BoundExpr::TypeCast(BoundTypeCast {
                     expr: Box::new(BoundExpr::Constant(DataValue::Int32(0))),
-                    ty: DataTypeKind::Int(None),
+                    ty: DataTypeKind::Int32,
                 }),
                 BoundExpr::ExprWithAlias(BoundExprWithAlias {
                     expr: Box::new(BoundExpr::Constant(DataValue::Int32(0))),
@@ -167,7 +167,7 @@ mod tests {
 
         let column_names = plan.out_names();
         assert_eq!(column_names[0], "v1");
-        assert_eq!(column_names[1], DataTypeKind::Int(None).to_string());
+        assert_eq!(column_names[1], DataTypeKind::Int32.to_string());
         assert_eq!(column_names[2], "alias");
         assert_eq!(column_names[3], "?column?");
     }
@@ -179,11 +179,11 @@ mod tests {
                 BoundExpr::ColumnRef(BoundColumnRef {
                     column_ref_id: ColumnRefId::new(0, 0, 0, 0),
                     is_primary_key: false,
-                    desc: DataTypeKind::Int(None).not_null().to_column("v1".into()),
+                    desc: DataTypeKind::Int32.not_null().to_column("v1".into()),
                 }),
                 BoundExpr::TypeCast(BoundTypeCast {
                     expr: Box::new(BoundExpr::Constant(DataValue::Int32(0))),
-                    ty: DataTypeKind::Int(None),
+                    ty: DataTypeKind::Int32,
                 }),
                 BoundExpr::ExprWithAlias(BoundExprWithAlias {
                     expr: Box::new(BoundExpr::Constant(DataValue::Int32(0))),
@@ -198,7 +198,7 @@ mod tests {
             vec![
                 BoundExpr::InputRef(BoundInputRef {
                     index: 0,
-                    return_type: DataTypeKind::Int(None).not_null(),
+                    return_type: DataTypeKind::Int32.not_null(),
                 }),
                 BoundExpr::Constant(DataValue::Int32(0)),
             ],
@@ -213,7 +213,7 @@ mod tests {
         let outermost = LogicalProjection::new(
             vec![BoundExpr::InputRef(BoundInputRef {
                 index: 0,
-                return_type: DataTypeKind::Int(None).not_null(),
+                return_type: DataTypeKind::Int32.not_null(),
             })],
             Arc::new(outer),
         );
@@ -224,7 +224,7 @@ mod tests {
 
     #[test]
     fn test_prune_projection() {
-        let ty = DataTypeKind::Int(None).not_null();
+        let ty = DataTypeKind::Int32.not_null();
         let col_descs = vec![
             ty.clone().to_column("v1".into()),
             ty.clone().to_column("v2".into()),

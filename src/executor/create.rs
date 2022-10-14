@@ -38,7 +38,7 @@ mod tests {
     use crate::catalog::{ColumnCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
     use crate::optimizer::plan_nodes::PhysicalCreateTable;
     use crate::storage::InMemoryStorage;
-    use crate::types::{DataTypeExt, DataTypeKind};
+    use crate::types::DataTypeKind;
 
     #[tokio::test]
     async fn test_create() {
@@ -50,14 +50,8 @@ mod tests {
                 0,
                 "t".into(),
                 vec![
-                    ColumnCatalog::new(
-                        0,
-                        DataTypeKind::Int(None).not_null().to_column("v1".into()),
-                    ),
-                    ColumnCatalog::new(
-                        1,
-                        DataTypeKind::Int(None).not_null().to_column("v2".into()),
-                    ),
+                    ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("v1".into())),
+                    ColumnCatalog::new(1, DataTypeKind::Int32.not_null().to_column("v2".into())),
                 ],
                 vec![],
             ));
@@ -77,11 +71,11 @@ mod tests {
             let table_ref = catalog.get_table(&id).unwrap();
             assert_eq!(
                 table_ref.get_column_by_id(0).unwrap(),
-                ColumnCatalog::new(0, DataTypeKind::Int(None).not_null().to_column("v1".into()))
+                ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("v1".into()))
             );
             assert_eq!(
                 table_ref.get_column_by_id(1).unwrap(),
-                ColumnCatalog::new(1, DataTypeKind::Int(None).not_null().to_column("v2".into()))
+                ColumnCatalog::new(1, DataTypeKind::Int32.not_null().to_column("v2".into()))
             );
         }
         {
@@ -92,18 +86,9 @@ mod tests {
                 0,
                 "t".into(),
                 vec![
-                    ColumnCatalog::new(
-                        0,
-                        DataTypeKind::Int(None).not_null().to_column("v1".into()),
-                    ),
-                    ColumnCatalog::new(
-                        1,
-                        DataTypeKind::Int(None).not_null().to_column("v2".into()),
-                    ),
-                    ColumnCatalog::new(
-                        2,
-                        DataTypeKind::Int(None).nullable().to_column("v3".into()),
-                    ),
+                    ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("v1".into())),
+                    ColumnCatalog::new(1, DataTypeKind::Int32.not_null().to_column("v2".into())),
+                    ColumnCatalog::new(2, DataTypeKind::Int32.nullable().to_column("v3".into())),
                 ],
                 vec![0, 1],
             ));
@@ -125,18 +110,9 @@ mod tests {
                 0,
                 "t".into(),
                 vec![
-                    ColumnCatalog::new(
-                        0,
-                        DataTypeKind::Int(None).not_null().to_column("v1".into()),
-                    ),
-                    ColumnCatalog::new(
-                        1,
-                        DataTypeKind::Int(None).not_null().to_column("v2".into()),
-                    ),
-                    ColumnCatalog::new(
-                        2,
-                        DataTypeKind::Int(None).nullable().to_column("v3".into()),
-                    ),
+                    ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("v1".into())),
+                    ColumnCatalog::new(1, DataTypeKind::Int32.not_null().to_column("v2".into())),
+                    ColumnCatalog::new(2, DataTypeKind::Int32.nullable().to_column("v3".into())),
                 ],
                 vec![1, 0],
             ));

@@ -105,9 +105,14 @@ pub fn eval_constant(egraph: &EGraph, enode: &Expr) -> ConstValue {
         Some(array_a.unary_op(&op).get(0))
     } else if let &IsNull(a) = enode {
         Some(DataValue::Bool(x(a)?.is_null()))
-    } else if let &Cast(_) = enode {
-        // TODO: evaluate type cast
-        None
+    } else if let &Cast([ty, a]) = enode {
+        let array_a = ArrayImpl::from(x(a)?);
+        let ty = match &egraph[ty].nodes[0] {
+            Expr::Type(ty) => ty.clone(),
+            _ => panic!("expect data type"),
+        };
+        // TODO: handle cast error
+        Some(array_a.try_cast(ty).ok()?.get(0))
     } else if let &Max(a) | &Min(a) | &Avg(a) | &First(a) | &Last(a) = enode {
         x(a).cloned()
     } else {
@@ -165,5 +170,11 @@ mod tests {
         constant_moving,
         rules(),
         "(> (+ 100 a) 300)" => "(> a 200)",
+    }
+
+    egg::test_fn! {
+        constant_type_cast,
+        rules(),
+        "(cast BOOLEAN 1)" => "true",
     }
 }

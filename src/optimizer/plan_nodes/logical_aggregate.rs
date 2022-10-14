@@ -171,7 +171,7 @@ impl fmt::Display for LogicalAggregate {
 mod tests {
     use super::*;
     use crate::binder::AggKind;
-    use crate::types::{DataTypeExt, DataTypeKind};
+    use crate::types::DataTypeKind;
 
     #[test]
     fn test_aggregate_out_names() {
@@ -180,22 +180,22 @@ mod tests {
                 BoundAggCall {
                     kind: AggKind::Sum,
                     args: vec![],
-                    return_type: DataTypeKind::Double.not_null(),
+                    return_type: DataTypeKind::Float64.not_null(),
                 },
                 BoundAggCall {
                     kind: AggKind::Avg,
                     args: vec![],
-                    return_type: DataTypeKind::Double.not_null(),
+                    return_type: DataTypeKind::Float64.not_null(),
                 },
                 BoundAggCall {
                     kind: AggKind::Count,
                     args: vec![],
-                    return_type: DataTypeKind::Double.not_null(),
+                    return_type: DataTypeKind::Float64.not_null(),
                 },
                 BoundAggCall {
                     kind: AggKind::RowCount,
                     args: vec![],
-                    return_type: DataTypeKind::Double.not_null(),
+                    return_type: DataTypeKind::Float64.not_null(),
                 },
             ],
             vec![],
@@ -222,7 +222,7 @@ mod tests {
     ///     TableScan(v1, v3)
     /// ```
     fn test_prune_aggregate() {
-        let ty = DataTypeKind::Int(None).not_null();
+        let ty = DataTypeKind::Int32.not_null();
         let col_descs = vec![
             ty.clone().to_column("v1".into()),
             ty.clone().to_column("v2".into()),
@@ -262,12 +262,12 @@ mod tests {
                 BoundAggCall {
                     kind: AggKind::Sum,
                     args: vec![input_refs[0].clone()],
-                    return_type: DataTypeKind::Int(None).not_null(),
+                    return_type: DataTypeKind::Int32.not_null(),
                 },
                 BoundAggCall {
                     kind: AggKind::Avg,
                     args: vec![input_refs[1].clone()],
-                    return_type: DataTypeKind::Int(None).not_null(),
+                    return_type: DataTypeKind::Int32.not_null(),
                 },
             ],
             vec![input_refs[2].clone()],
@@ -288,7 +288,7 @@ mod tests {
             vec![BoundAggCall {
                 kind: AggKind::Avg,
                 args: vec![input_refs[0].clone()],
-                return_type: DataTypeKind::Int(None).not_null(),
+                return_type: DataTypeKind::Int32.not_null(),
             }]
         );
     }
