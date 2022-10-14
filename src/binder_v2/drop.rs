@@ -104,7 +104,7 @@ impl Binder {
                 let drop = self.egraph.add(Node::BindDrop(BindDrop {
                     object: Object::Table(table_ref_id),
                     if_exists,
-                    cascade: cascade,
+                    cascade,
                 }));
 
                 Ok(self.egraph.add(Node::Drop(drop)))
