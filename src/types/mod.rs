@@ -21,7 +21,7 @@ pub use self::interval::*;
 pub use self::native::*;
 
 /// Physical data type
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum DataTypeKind {
     Int32,
     Int64,
@@ -34,6 +34,15 @@ pub enum DataTypeKind {
     Decimal(Option<u8>, Option<u8>),
     Date,
     Interval,
+}
+
+impl DataTypeKind {
+    pub const fn is_number(&self) -> bool {
+        matches!(
+            self,
+            Self::Int32 | Self::Int64 | Self::Float64 | Self::Decimal(_, _)
+        )
+    }
 }
 
 impl From<&crate::parser::DataType> for DataTypeKind {
@@ -117,7 +126,7 @@ impl FromStr for DataTypeKind {
 }
 
 /// Data type with nullable.
-#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DataType {
     pub kind: DataTypeKind,
     pub nullable: bool,
@@ -125,7 +134,7 @@ pub struct DataType {
 
 impl std::fmt::Debug for DataType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.kind)?;
+        write!(f, "{}", self.kind)?;
         if self.nullable {
             write!(f, " (nullable)")?;
         }
@@ -135,11 +144,7 @@ impl std::fmt::Debug for DataType {
 
 impl std::fmt::Display for DataType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.kind)?;
-        if self.nullable {
-            write!(f, " (nullable)")?;
-        }
-        Ok(())
+        write!(f, "{:?}", self)
     }
 }
 
@@ -153,7 +158,7 @@ impl DataType {
     }
 
     pub fn kind(&self) -> DataTypeKind {
-        self.kind.clone()
+        self.kind
     }
 }
 
