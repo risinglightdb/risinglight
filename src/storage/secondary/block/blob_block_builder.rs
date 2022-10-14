@@ -42,7 +42,7 @@ impl<T: BlobEncode + ?Sized> NonNullableBlockBuilder<T::ArrayType> for PlainBlob
     }
 
     fn append_default(&mut self) {
-        self.data.extend("".to_byte_slice());
+        // don't extend `self.data` since empty value is default
         self.offsets.push(self.data.len() as u32);
     }
 
