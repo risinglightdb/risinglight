@@ -118,10 +118,10 @@ mod tests {
         decode_dict_block, DictBlockIterator,
     };
     use crate::storage::secondary::block::{
-        BlockBuilder, BlockIterator, PlainBlobBlockBuilder, PlainBlobBlockIterator,
+        decode_nullable_block, BlockBuilder, BlockIterator, NullableBlockBuilder,
+        NullableBlockIterator, PlainBlobBlockBuilder, PlainBlobBlockIterator,
         PlainCharBlockBuilder, PlainCharBlockIterator, PlainPrimitiveBlockBuilder,
-        PlainPrimitiveBlockIterator, PlainPrimitiveNullableBlockBuilder,
-        PlainPrimitiveNullableBlockIterator,
+        PlainPrimitiveBlockIterator,
     };
     use crate::types::{Blob, BlobRef};
 
@@ -178,9 +178,9 @@ mod tests {
 
     #[test]
     fn test_scan_dict_nullable_i32() {
-        let builder = PlainPrimitiveNullableBlockBuilder::new(50);
-        let mut dict_builder =
-            DictBlockBuilder::<I32Array, PlainPrimitiveNullableBlockBuilder<i32>>::new(builder);
+        let inner_builder = PlainPrimitiveBlockBuilder::<i32>::new(50);
+        let builder = NullableBlockBuilder::new(inner_builder, 50);
+        let mut dict_builder = DictBlockBuilder::new(builder);
         for item in [None].iter().cycle().cloned().take(3) {
             dict_builder.append(item);
         }
@@ -202,10 +202,11 @@ mod tests {
         let data = dict_builder.finish();
 
         let (dict_num, block_data, rle_data) = decode_dict_block(Bytes::from(data));
-        let mut dict_builder = I32ArrayBuilder::new();
-        let mut dict_iter = PlainPrimitiveBlockIterator::new(block_data, dict_num);
-        let mut scanner = DictBlockIterator::<I32Array, PlainPrimitiveBlockIterator<i32>>::new(
-            &mut dict_builder,
+        let (inner_block, bitmap_block) = decode_nullable_block(block_data);
+        let inner_iter = PlainPrimitiveBlockIterator::<i32>::new(inner_block, dict_num);
+        let mut dict_iter = NullableBlockIterator::new(inner_iter, bitmap_block);
+        let mut scanner = DictBlockIterator::new(
+            &mut I32ArrayBuilder::new(),
             &mut dict_iter,
             rle_data,
             dict_num,
@@ -422,9 +423,9 @@ mod tests {
 
     #[test]
     fn test_scan_dict_skip() {
-        let builder = PlainPrimitiveNullableBlockBuilder::new(50);
-        let mut dict_builder =
-            DictBlockBuilder::<I32Array, PlainPrimitiveNullableBlockBuilder<i32>>::new(builder);
+        let inner_builder = PlainPrimitiveBlockBuilder::<i32>::new(50);
+        let builder = NullableBlockBuilder::new(inner_builder, 50);
+        let mut dict_builder = DictBlockBuilder::new(builder);
         for item in [None].iter().cycle().cloned().take(3) {
             dict_builder.append(item);
         }
@@ -446,15 +447,15 @@ mod tests {
         let data = dict_builder.finish();
 
         let (dict_num, block_data, rle_data) = decode_dict_block(Bytes::from(data));
-        let mut dict_builder = I32ArrayBuilder::new();
-        let mut dict_iter = PlainPrimitiveNullableBlockIterator::new(block_data, dict_num);
-        let mut scanner =
-            DictBlockIterator::<I32Array, PlainPrimitiveNullableBlockIterator<i32>>::new(
-                &mut dict_builder,
-                &mut dict_iter,
-                rle_data,
-                dict_num,
-            );
+        let (inner_block, bitmap_block) = decode_nullable_block(block_data);
+        let inner_iter = PlainPrimitiveBlockIterator::<i32>::new(inner_block, dict_num);
+        let mut dict_iter = NullableBlockIterator::new(inner_iter, bitmap_block);
+        let mut scanner = DictBlockIterator::new(
+            &mut I32ArrayBuilder::new(),
+            &mut dict_iter,
+            rle_data,
+            dict_num,
+        );
 
         let mut builder = I32ArrayBuilder::new();
 

@@ -196,9 +196,9 @@ mod tests {
         Utf8Array, Utf8ArrayBuilder,
     };
     use crate::storage::secondary::block::{
-        decode_rle_block, BlockBuilder, PlainBlobBlockBuilder, PlainBlobBlockIterator,
+        decode_nullable_block, decode_rle_block, BlockBuilder, NullableBlockBuilder,
+        NullableBlockIterator, PlainBlobBlockBuilder, PlainBlobBlockIterator,
         PlainCharBlockIterator, PlainPrimitiveBlockBuilder, PlainPrimitiveBlockIterator,
-        PlainPrimitiveNullableBlockBuilder, PlainPrimitiveNullableBlockIterator,
     };
     use crate::storage::secondary::BlockIterator;
     use crate::types::{Blob, BlobRef};
@@ -255,9 +255,9 @@ mod tests {
     #[test]
     fn test_scan_rle_nullable_i32() {
         // Test primitive nullable rle block iterator for i32
-        let builder = PlainPrimitiveNullableBlockBuilder::new(50);
-        let mut rle_builder =
-            RleBlockBuilder::<I32Array, PlainPrimitiveNullableBlockBuilder<i32>>::new(builder);
+        let inner_builder = PlainPrimitiveBlockBuilder::<i32>::new(50);
+        let builder = NullableBlockBuilder::new(inner_builder, 50);
+        let mut rle_builder = RleBlockBuilder::new(builder);
         for item in [None].iter().cycle().cloned().take(3) {
             rle_builder.append(item);
         }
@@ -279,11 +279,10 @@ mod tests {
         let data = rle_builder.finish();
 
         let (rle_num, rle_data, block_data) = decode_rle_block(Bytes::from(data));
-        let block_iter = PlainPrimitiveNullableBlockIterator::new(block_data, rle_num);
-        let mut scanner =
-            RleBlockIterator::<I32Array, PlainPrimitiveNullableBlockIterator<i32>>::new(
-                block_iter, rle_data, rle_num,
-            );
+        let (inner_block, bitmap_block) = decode_nullable_block(block_data);
+        let inner_iter = PlainPrimitiveBlockIterator::<i32>::new(inner_block, rle_num);
+        let block_iter = NullableBlockIterator::new(inner_iter, bitmap_block);
+        let mut scanner = RleBlockIterator::new(block_iter, rle_data, rle_num);
 
         let mut builder = I32ArrayBuilder::new();
 
@@ -489,9 +488,9 @@ mod tests {
     #[test]
     fn test_scan_rle_skip() {
         // Test primitive nullable rle block iterator for i32
-        let builder = PlainPrimitiveNullableBlockBuilder::new(50);
-        let mut rle_builder =
-            RleBlockBuilder::<I32Array, PlainPrimitiveNullableBlockBuilder<i32>>::new(builder);
+        let inner_builder = PlainPrimitiveBlockBuilder::<i32>::new(50);
+        let builder = NullableBlockBuilder::new(inner_builder, 50);
+        let mut rle_builder = RleBlockBuilder::new(builder);
         for item in [None].iter().cycle().cloned().take(3) {
             rle_builder.append(item);
         }
@@ -513,11 +512,10 @@ mod tests {
         let data = rle_builder.finish();
 
         let (rle_num, rle_data, block_data) = decode_rle_block(Bytes::from(data));
-        let block_iter = PlainPrimitiveNullableBlockIterator::new(block_data, rle_num);
-        let mut scanner =
-            RleBlockIterator::<I32Array, PlainPrimitiveNullableBlockIterator<i32>>::new(
-                block_iter, rle_data, rle_num,
-            );
+        let (inner_block, bitmap_block) = decode_nullable_block(block_data);
+        let inner_iter = PlainPrimitiveBlockIterator::<i32>::new(inner_block, rle_num);
+        let block_iter = NullableBlockIterator::new(inner_iter, bitmap_block);
+        let mut scanner = RleBlockIterator::new(block_iter, rle_data, rle_num);
 
         let mut builder = I32ArrayBuilder::new();
 
