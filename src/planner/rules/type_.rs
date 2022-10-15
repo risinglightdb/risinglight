@@ -23,8 +23,11 @@ pub fn analyze_type(egraph: &EGraph, enode: &Expr) -> Type {
     match enode {
         // values
         Constant(v) => Ok(v.data_type().ok_or(TypeError::Null)?),
-        Type(t) => Ok(t.clone().nullable()),
+        Type(t) => Ok(t.clone().not_null()),
         Column(_) | ColumnIndex(_) => Err(TypeError::Uninit), // binder should set the type
+
+        // cast
+        Cast([ty, a]) => merge(enode, [x(ty)?, x(a)?], |_| true, |[ty, _]| ty),
 
         // number ops
         Neg(a) => x(a),
@@ -42,8 +45,10 @@ pub fn analyze_type(egraph: &EGraph, enode: &Expr) -> Type {
 
         // bool ops
         Not(a) => check(enode, x(a)?, |a| a == Kind::Bool),
-        Gt([a, b]) | Lt([a, b]) | GtEq([a, b]) | LtEq([a, b]) | Eq([a, b]) | NotEq([a, b])
-        | And([a, b]) | Or([a, b]) | Xor([a, b]) => merge(
+        Gt([a, b]) | Lt([a, b]) | GtEq([a, b]) | LtEq([a, b]) | Eq([a, b]) | NotEq([a, b]) => {
+            merge(enode, [x(a)?, x(b)?], |[a, b]| a == b, |_| Kind::Bool)
+        }
+        And([a, b]) | Or([a, b]) | Xor([a, b]) => merge(
             enode,
             [x(a)?, x(b)?],
             |[a, b]| a == Kind::Bool && b == Kind::Bool,
@@ -82,10 +87,7 @@ pub fn merge_types(to: &mut Type, from: Type) -> DidMerge {
             DidMerge(true, false)
         }
         (Ok(_), Err(_)) => DidMerge(false, true),
-        (Ok(a), Ok(b)) => {
-            assert_eq!(*a, b);
-            DidMerge(false, true)
-        }
+        (Ok(a), Ok(b)) => DidMerge(false, true),
     }
 }
 
@@ -117,5 +119,98 @@ fn merge<const N: usize>(
             op: enode.to_string(),
             operands: kinds.into(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn value() {
+        assert_type_eq("null", Err(TypeError::Null));
+        assert_type_eq("false", Ok(Kind::Bool.not_null()));
+        assert_type_eq("true", Ok(Kind::Bool.not_null()));
+        assert_type_eq("1", Ok(Kind::Int32.not_null()));
+        assert_type_eq("1.0", Ok(Kind::Float64.not_null()));
+        assert_type_eq("'hello'", Ok(Kind::String.not_null()));
+        assert_type_eq("b'\\xAA'", Ok(Kind::Blob.not_null()));
+        assert_type_eq("date'2022-10-14'", Ok(Kind::Date.not_null()));
+        assert_type_eq("interval'1_day'", Ok(Kind::Interval.not_null()));
+    }
+
+    #[test]
+    fn cast() {
+        assert_type_eq("(cast INT 1)", Ok(Kind::Int32.not_null()));
+        assert_type_eq("(cast INT 1.0)", Ok(Kind::Int32.not_null()));
+        // FIXME: cast null
+        // assert_type_eq("(cast INT null)", Ok(Kind::Int32.nullable()));
+    }
+
+    #[test]
+    fn add() {
+        assert_type_eq("(+ 1 2)", Ok(Kind::Int32.not_null()));
+        assert_type_eq("(+ 1.0 2.0)", Ok(Kind::Float64.not_null()));
+        assert_type_eq("(+ null null)", Err(TypeError::Null));
+        assert_type_eq(
+            "(+ date'2022-10-14' interval'1_day')",
+            Ok(Kind::Date.not_null()),
+        );
+        // FIXME: int + null => int
+        // assert_type_eq("(+ 1 null)", Ok(Kind::Int32.nullable()));
+
+        // FIXME: interval + date => date
+        // assert_type_eq(
+        //     "(+ interval'1_day' date'2022-10-14')",
+        //     Ok(Kind::Date.not_null()),
+        // );
+
+        // FIXME: bool + bool => error
+        // assert_type_eq(
+        //     "(+ true false)",
+        //     Err(TypeError::NoFunction {
+        //         op: "+".into(),
+        //         operands: vec![Kind::Bool, Kind::Bool],
+        //     }),
+        // );
+
+        assert_type_eq(
+            "(+ 1 false)",
+            Err(TypeError::NoFunction {
+                op: "+".into(),
+                operands: vec![Kind::Int32, Kind::Bool],
+            }),
+        );
+    }
+
+    #[test]
+    fn cmp() {
+        assert_type_eq("(= 1 1)", Ok(Kind::Bool.not_null()));
+        // FIXME: compare compatible types
+        // assert_type_eq("(= 1 1.0)", Ok(Kind::Bool.not_null()));
+        // assert_type_eq("(= 1 '1')", Ok(Kind::Bool.not_null()));
+        // assert_type_eq("(= 1 null)", Ok(Kind::Bool.nullable()));
+        // assert_type_eq(
+        //     "(= '2022-10-14' date'2022-10-14')",
+        //     Ok(Kind::Bool.not_null()),
+        // );
+        assert_type_eq(
+            "(= date'2022-10-14' 1)",
+            Err(TypeError::NoFunction {
+                op: "=".into(),
+                operands: vec![Kind::Date, Kind::Int32],
+            }),
+        );
+    }
+
+    #[track_caller]
+    fn assert_type_eq(expr: &str, expected: Type) {
+        assert_eq!(type_of(expr), expected);
+    }
+
+    fn type_of(expr: &str) -> Type {
+        let mut egraph = EGraph::default();
+        let id = egraph.add_expr(&expr.parse().unwrap());
+        egraph[id].data.type_.clone()
     }
 }
