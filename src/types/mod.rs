@@ -371,6 +371,8 @@ pub enum ParseValueError {
     ParseIntervalError(#[from] ParseIntervalError),
     #[error("invalid date: {0}")]
     ParseDateError(#[from] ParseDateError),
+    #[error("invalid blob: {0}")]
+    ParseBlobError(#[from] ParseBlobError),
     #[error("invalid value: {0}")]
     Invalid(String),
 }
@@ -391,6 +393,8 @@ impl FromStr for DataValue {
             Ok(Self::Float64(float))
         } else if s.starts_with('\'') && s.ends_with('\'') {
             Ok(Self::String(s[1..s.len() - 1].to_string()))
+        } else if s.starts_with("b\'") && s.ends_with('\'') {
+            Ok(Self::Blob(s[2..s.len() - 1].parse()?))
         } else if let Some(s) = s.strip_prefix("interval") {
             Ok(Self::Interval(s.trim().trim_matches('\'').parse()?))
         } else if let Some(s) = s.strip_prefix("date") {
