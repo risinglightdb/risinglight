@@ -10,6 +10,8 @@ mod char_block_builder;
 mod dict_block_builder;
 mod dict_block_iterator;
 mod fake_block_iterator;
+mod nullable_block_builder;
+mod nullable_block_iterator;
 mod primitive_block_builder;
 mod primitive_block_iterator;
 mod primitive_nullable_block_builder;
@@ -17,10 +19,12 @@ mod primitive_nullable_block_iterator;
 mod rle_block_builder;
 mod rle_block_iterator;
 
+use bitvec::prelude::{BitVec, Lsb0};
 pub use blob_block_builder::*;
 pub use blob_block_iterator::*;
 pub use char_block_builder::*;
 pub use fake_block_iterator::*;
+pub use nullable_block_builder::*;
 pub use primitive_block_builder::*;
 pub use primitive_block_iterator::*;
 pub use primitive_nullable_block_builder::*;
@@ -29,6 +33,7 @@ mod char_block_iterator;
 pub use char_block_iterator::*;
 pub use dict_block_builder::*;
 pub use dict_block_iterator::*;
+pub use nullable_block_iterator::*;
 pub use primitive_nullable_block_iterator::*;
 pub use rle_block_builder::*;
 pub use rle_block_iterator::*;
@@ -55,7 +60,7 @@ pub type Block = Bytes;
 /// |  variable   |    4B      |     4B     |   8B   |
 /// ```
 pub trait BlockBuilder<A: Array> {
-    /// Append one data into the block.
+    /// Append one data into the block, or default/null value if item is None
     fn append(&mut self, item: Option<&A::Item>);
 
     /// Get estimated size of block. Will be useful on runlength or compression encoding.
@@ -75,6 +80,15 @@ pub trait BlockBuilder<A: Array> {
     fn get_target_size(&self) -> usize;
 }
 
+pub trait NonNullableBlockBuilder<A: Array> {
+    fn append_value(&mut self, item: &A::Item);
+
+    fn append_default(&mut self);
+    /// Get statistics with selection bit vector. Select all values
+    /// if `selection` is empty
+    fn get_statistics_with_bitmap(&self, selection: &BitVec<u8, Lsb0>) -> Vec<BlockStatistics>;
+}
+
 /// An iterator on a block. This iterator requires the block being pre-loaded in memory.
 pub trait BlockIterator<A: Array> {
     /// Get a batch from the block. A `0` return value means that this batch contains no
@@ -87,6 +101,17 @@ pub trait BlockIterator<A: Array> {
 
     /// Number of items remaining in this block
     fn remaining_items(&self) -> usize;
+}
+
+pub trait NonNullableBlockIterator<A: Array> {
+    /// Get a batch from the block. A `0` return value means that this batch contains no
+    /// element. Some iterators might support exact size output. By using `expected_size`,
+    /// developers can get an array of NO MORE THAN the `expected_size`.
+    fn next_batch_non_null(
+        &mut self,
+        expected_size: Option<usize>,
+        builder: &mut A::Builder,
+    ) -> usize;
 }
 
 /// A key in block cache contains `rowset_id`, `column_id` and `block_id`.

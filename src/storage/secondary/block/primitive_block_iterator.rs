@@ -3,7 +3,7 @@
 use std::marker::PhantomData;
 
 use super::super::PrimitiveFixedWidthEncode;
-use super::{Block, BlockIterator};
+use super::{Block, BlockIterator, NonNullableBlockIterator};
 use crate::array::{Array, ArrayBuilder};
 
 /// Scans one or several arrays from the block content.
@@ -31,8 +31,10 @@ impl<T: PrimitiveFixedWidthEncode> PlainPrimitiveBlockIterator<T> {
     }
 }
 
-impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PlainPrimitiveBlockIterator<T> {
-    fn next_batch(
+impl<T: PrimitiveFixedWidthEncode> NonNullableBlockIterator<T::ArrayType>
+    for PlainPrimitiveBlockIterator<T>
+{
+    fn next_batch_non_null(
         &mut self,
         expected_size: Option<usize>,
         builder: &mut <T::ArrayType as Array>::Builder,
@@ -64,6 +66,16 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PlainPrimitiv
         }
 
         cnt
+    }
+}
+
+impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PlainPrimitiveBlockIterator<T> {
+    fn next_batch(
+        &mut self,
+        expected_size: Option<usize>,
+        builder: &mut <T::ArrayType as Array>::Builder,
+    ) -> usize {
+        self.next_batch_non_null(expected_size, builder)
     }
 
     fn skip(&mut self, cnt: usize) {
