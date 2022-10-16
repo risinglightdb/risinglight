@@ -19,6 +19,7 @@ use crate::optimizer::logical_plan_rewriter::{InputRefResolver, PlanRewriter};
 use crate::optimizer::plan_nodes::PlanRef;
 use crate::optimizer::Optimizer;
 use crate::parser::{parse, ParserError};
+use crate::planner::explain;
 use crate::storage::{
     InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
     StorageImpl, Table,
@@ -186,7 +187,7 @@ impl Database {
                 let bound = binder.bind(stmt)?;
                 println!("bind result:\n{}", bound.pretty(60));
                 let optimized = crate::planner::optimize(&bound);
-                println!("optimize result:\n{}", optimized.pretty(60));
+                println!("optimize result:\n{}", explain(&optimized, 60));
             }
             return Ok(vec![]);
         }

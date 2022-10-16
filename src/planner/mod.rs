@@ -10,8 +10,10 @@ use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
 
 mod cost;
+mod explain;
 mod rules;
 
+pub use explain::explain;
 pub use rules::ExprAnalysis;
 
 // Alias types for our language.
