@@ -130,7 +130,7 @@ impl Compactor {
         let mut builder = if distinct_value < row_count / 5 {
             let mut column_options =
                 ColumnBuilderOptions::from_storage_options(&table.storage_options);
-            column_options.encode_type = EncodeType::RunLength;
+            column_options.encode_type = EncodeType::Dictionary;
             RowsetBuilder::new(table.columns.clone(), column_options)
         } else {
             RowsetBuilder::new(
