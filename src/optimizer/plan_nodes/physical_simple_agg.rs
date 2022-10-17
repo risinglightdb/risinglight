@@ -38,11 +38,7 @@ impl PlanNode for PhysicalSimpleAgg {
     fn schema(&self) -> Vec<ColumnDesc> {
         self.agg_calls
             .iter()
-            .map(|agg_call| {
-                agg_call
-                    .return_type
-                    .to_column(format!("{}", agg_call.kind))
-            })
+            .map(|agg_call| agg_call.return_type.to_column(format!("{}", agg_call.kind)))
             .collect()
     }
 

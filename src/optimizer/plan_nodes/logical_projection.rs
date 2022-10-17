@@ -24,10 +24,7 @@ impl ExprRewriter for Substitute {
     fn rewrite_input_ref(&self, input_ref: &mut BoundExpr) {
         match input_ref {
             BoundExpr::InputRef(i) => {
-                assert_eq!(
-                    self.mapping[i.index].return_type(),
-                    Some(i.return_type)
-                );
+                assert_eq!(self.mapping[i.index].return_type(), Some(i.return_type));
                 *input_ref = self.mapping[i.index].clone();
             }
             _ => unreachable!(),

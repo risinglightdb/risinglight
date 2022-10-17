@@ -78,11 +78,11 @@ impl PlanNode for LogicalAggregate {
                     false,
                 )
             })
-            .chain(self.agg_calls.iter().map(|agg_call| {
-                agg_call
-                    .return_type
-                    .to_column(format!("{}", agg_call.kind))
-            }))
+            .chain(
+                self.agg_calls
+                    .iter()
+                    .map(|agg_call| agg_call.return_type.to_column(format!("{}", agg_call.kind))),
+            )
             .collect()
     }
 
