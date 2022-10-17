@@ -97,18 +97,30 @@ pub fn eval_constant(egraph: &EGraph, enode: &Expr) -> ConstValue {
     if let Constant(v) = enode {
         Some(v.clone())
     } else if let Some((op, a, b)) = enode.binary_op() {
-        let array_a = ArrayImpl::from(x(a)?);
-        let array_b = ArrayImpl::from(x(b)?);
-        Some(array_a.binary_op(&op, &array_b).get(0))
+        let (a, b) = (x(a)?, x(b)?);
+        if a.is_null() || b.is_null() {
+            return Some(DataValue::Null);
+        }
+        let array_a = ArrayImpl::from(a);
+        let array_b = ArrayImpl::from(b);
+        Some(array_a.binary_op(&op, &array_b).ok()?.get(0))
     } else if let Some((op, a)) = enode.unary_op() {
-        let array_a = ArrayImpl::from(x(a)?);
-        Some(array_a.unary_op(&op).get(0))
+        let a = x(a)?;
+        if a.is_null() {
+            return Some(DataValue::Null);
+        }
+        let array_a = ArrayImpl::from(a);
+        Some(array_a.unary_op(&op).ok()?.get(0))
     } else if let &IsNull(a) = enode {
         Some(DataValue::Bool(x(a)?.is_null()))
     } else if let &Cast([ty, a]) = enode {
-        let array_a = ArrayImpl::from(x(a)?);
+        let a = x(a)?;
+        if a.is_null() {
+            return Some(DataValue::Null);
+        }
+        let array_a = ArrayImpl::from(a);
         let ty = match &egraph[ty].nodes[0] {
-            Expr::Type(ty) => ty.clone(),
+            Expr::Type(ty) => *ty,
             _ => panic!("expect data type"),
         };
         // TODO: handle cast error

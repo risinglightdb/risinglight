@@ -107,7 +107,7 @@ impl PlanNode for LogicalTopN {
                 .map(|col_idx| {
                     BoundExpr::InputRef(BoundInputRef {
                         index: mapper[col_idx],
-                        return_type: out_types[col_idx].clone(),
+                        return_type: out_types[col_idx],
                     })
                 })
                 .collect();

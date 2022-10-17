@@ -12,7 +12,7 @@ use crate::types::{ColumnIndex, DataTypeKind, DataValue};
 mod cost;
 mod rules;
 
-pub use rules::ExprAnalysis;
+pub use rules::{ExprAnalysis, TypeError};
 
 // Alias types for our language.
 type EGraph = egg::EGraph<Expr, ExprAnalysis>;

@@ -93,6 +93,11 @@ impl RootCatalog {
         schema.get_table_by_id(table_ref_id.table_id)
     }
 
+    pub fn get_column(&self, column_ref_id: &ColumnRefId) -> Option<ColumnCatalog> {
+        self.get_table(&column_ref_id.table())?
+            .get_column_by_id(column_ref_id.column_id)
+    }
+
     pub fn add_table(
         &self,
         table_ref_id: TableRefId,

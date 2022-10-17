@@ -78,12 +78,11 @@ impl PlanNode for LogicalAggregate {
                     false,
                 )
             })
-            .chain(self.agg_calls.iter().map(|agg_call| {
-                agg_call
-                    .return_type
-                    .clone()
-                    .to_column(format!("{}", agg_call.kind))
-            }))
+            .chain(
+                self.agg_calls
+                    .iter()
+                    .map(|agg_call| agg_call.return_type.to_column(format!("{}", agg_call.kind))),
+            )
             .collect()
     }
 
@@ -154,7 +153,7 @@ impl PlanNode for LogicalAggregate {
             for (index, item) in new_agg_calls.iter().enumerate() {
                 new_projection.push(BoundExpr::InputRef(BoundInputRef {
                     index: group_keys_len + index,
-                    return_type: item.return_type.clone(),
+                    return_type: item.return_type,
                 }))
             }
             LogicalProjection::new(new_projection, new_agg.into_plan_ref()).into_plan_ref()
@@ -224,9 +223,9 @@ mod tests {
     fn test_prune_aggregate() {
         let ty = DataTypeKind::Int32.not_null();
         let col_descs = vec![
-            ty.clone().to_column("v1".into()),
-            ty.clone().to_column("v2".into()),
-            ty.clone().to_column("v3".into()),
+            ty.to_column("v1".into()),
+            ty.to_column("v2".into()),
+            ty.to_column("v3".into()),
         ];
 
         let table_scan = LogicalTableScan::new(
@@ -245,11 +244,11 @@ mod tests {
         let input_refs = vec![
             BoundExpr::InputRef(BoundInputRef {
                 index: 0,
-                return_type: ty.clone(),
+                return_type: ty,
             }),
             BoundExpr::InputRef(BoundInputRef {
                 index: 1,
-                return_type: ty.clone(),
+                return_type: ty,
             }),
             BoundExpr::InputRef(BoundInputRef {
                 index: 2,
