@@ -123,11 +123,11 @@ impl RowSetIterator {
         let mut fetch_size = {
             // We find the minimum fetch hints from the column iterators first
             let mut min = None;
-            let mut is_finish = false;
+            let mut is_finished = true;
             for it in &self.column_iterators {
                 let (hint, finished) = it.fetch_hint();
-                if finished {
-                    is_finish = true
+                if !finished {
+                    is_finished = false
                 }
                 if hint != 0 {
                     if min.is_none() {
@@ -144,7 +144,7 @@ impl RowSetIterator {
                 // Fast return: when all columns size is `0`, only has tow case:
                 // 1. index of current block is no data can fetch (use `ROWSET_MAX_OUTPUT`).
                 // 2. all columns is finished (return directly).
-                if is_finish {
+                if is_finished {
                     return Ok((true, None));
                 }
                 ROWSET_MAX_OUTPUT
