@@ -2,11 +2,13 @@
 
 use std::marker::PhantomData;
 
+use bitvec::prelude::{BitVec, Lsb0};
 use bytes::BufMut;
 use risinglight_proto::rowset::BlockStatistics;
 
 use super::super::statistics::StatisticsBuilder;
-use super::BlockBuilder;
+use super::{BlockBuilder, NonNullableBlockBuilder};
+use crate::array::Array;
 use crate::storage::secondary::encode::BlobEncode;
 
 /// Encodes offset and data into a block. The data layout is
@@ -33,11 +35,43 @@ impl<T: BlobEncode + ?Sized> PlainBlobBlockBuilder<T> {
     }
 }
 
-impl<T: BlobEncode + ?Sized> BlockBuilder<T::ArrayType> for PlainBlobBlockBuilder<T> {
-    fn append(&mut self, item: Option<&T>) {
-        let item = item.expect("nullable item found in non-nullable block builder");
+impl<T: BlobEncode + ?Sized> NonNullableBlockBuilder<T::ArrayType> for PlainBlobBlockBuilder<T> {
+    fn append_value(&mut self, item: &<T::ArrayType as Array>::Item) {
         self.data.extend(item.to_byte_slice());
         self.offsets.push(self.data.len() as u32);
+    }
+
+    fn append_default(&mut self) {
+        // don't extend `self.data` since empty value is default
+        self.offsets.push(self.data.len() as u32);
+    }
+
+    fn get_statistics_with_bitmap(&self, selection: &BitVec<u8, Lsb0>) -> Vec<BlockStatistics> {
+        let selection_empty = selection.is_empty();
+        let mut stats_builder = StatisticsBuilder::new();
+        let mut last_pos: usize = 0;
+        let mut cur_pos;
+        for (idx, pos) in self.offsets.iter().enumerate() {
+            cur_pos = *pos as usize;
+            if selection_empty || selection[idx] {
+                stats_builder.add_item(Some(&self.data[last_pos..cur_pos]));
+            }
+            last_pos = cur_pos;
+        }
+        stats_builder.get_statistics()
+    }
+}
+
+impl<T: BlobEncode + ?Sized> BlockBuilder<T::ArrayType> for PlainBlobBlockBuilder<T> {
+    fn append(&mut self, item: Option<&T>) {
+        match item {
+            Some(item) => {
+                self.append_value(item);
+            }
+            None => {
+                self.append_default();
+            }
+        }
     }
 
     fn estimated_size(&self) -> usize {
@@ -53,15 +87,7 @@ impl<T: BlobEncode + ?Sized> BlockBuilder<T::ArrayType> for PlainBlobBlockBuilde
     }
 
     fn get_statistics(&self) -> Vec<BlockStatistics> {
-        let mut stats_builder = StatisticsBuilder::new();
-        let mut last_pos: usize = 0;
-        let mut cur_pos;
-        for pos in &self.offsets {
-            cur_pos = *pos as usize;
-            stats_builder.add_item(Some(&self.data[last_pos..cur_pos]));
-            last_pos = cur_pos;
-        }
-        stats_builder.get_statistics()
+        self.get_statistics_with_bitmap(&BitVec::new())
     }
 
     fn finish(self) -> Vec<u8> {
@@ -87,8 +113,9 @@ mod tests {
         let mut builder = PlainBlobBlockBuilder::<str>::new(128);
         builder.append(Some("233"));
         builder.append(Some("23333"));
-        builder.append(Some("2333333"));
-        assert_eq!(builder.estimated_size(), 15 + 4 * 3);
+        builder.append_value("2333333");
+        builder.append_default();
+        assert_eq!(builder.estimated_size(), 15 + 4 * 4);
         assert!(!builder.should_finish(&Some("23333333")));
         builder.finish();
     }
