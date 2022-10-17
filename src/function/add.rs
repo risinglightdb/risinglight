@@ -27,7 +27,7 @@ impl AddFunction {
         }
 
         Ok(Box::new(AddFunction {
-            return_type: input_types[0].clone(),
+            return_type: input_types[0],
         }))
     }
 }
@@ -38,7 +38,7 @@ impl Function for AddFunction {
     }
 
     fn return_types(&self) -> DataType {
-        self.return_type.clone()
+        self.return_type
     }
 
     fn execute(&self, input: &[&ArrayImpl]) -> Result<ArrayImpl, FunctionError> {

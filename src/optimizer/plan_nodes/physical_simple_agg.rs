@@ -41,7 +41,6 @@ impl PlanNode for PhysicalSimpleAgg {
             .map(|agg_call| {
                 agg_call
                     .return_type
-                    .clone()
                     .to_column(format!("{}", agg_call.kind))
             })
             .collect()

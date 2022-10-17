@@ -23,7 +23,7 @@ pub fn analyze_type(egraph: &EGraph, enode: &Expr) -> Type {
     match enode {
         // values
         Constant(v) => Ok(v.data_type().ok_or(TypeError::Null)?),
-        Type(t) => Ok(t.clone().not_null()),
+        Type(t) => Ok((*t).not_null()),
         Column(_) | ColumnIndex(_) => Err(TypeError::Uninit), // binder should set the type
 
         // cast

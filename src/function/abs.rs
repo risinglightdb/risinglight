@@ -18,7 +18,7 @@ impl AbsFunction {
         }
 
         Ok(Box::new(AbsFunction {
-            return_type: input_types[0].clone(),
+            return_type: input_types[0],
         }))
     }
 }
@@ -32,7 +32,7 @@ impl Function for AbsFunction {
         // TODO: When unsigned types are supported,
         // we can convert signed type to unsigned type
         // this makes abs(i32::MIN) can represent by u32
-        self.return_type.clone()
+        self.return_type
     }
 
     fn execute(&self, input: &[&ArrayImpl]) -> Result<ArrayImpl, FunctionError> {

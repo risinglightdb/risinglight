@@ -120,7 +120,7 @@ pub fn eval_constant(egraph: &EGraph, enode: &Expr) -> ConstValue {
         }
         let array_a = ArrayImpl::from(a);
         let ty = match &egraph[ty].nodes[0] {
-            Expr::Type(ty) => ty.clone(),
+            Expr::Type(ty) => *ty,
             _ => panic!("expect data type"),
         };
         // TODO: handle cast error

@@ -50,7 +50,7 @@ impl ExprRewriter for ConstantFoldingRule {
             TypeCast(cast) => {
                 self.rewrite_expr(&mut cast.expr);
                 if let Constant(v) = &*cast.expr {
-                    if let Ok(array) = ArrayImpl::from(v).try_cast(cast.ty.clone()) {
+                    if let Ok(array) = ArrayImpl::from(v).try_cast(cast.ty) {
                         let res = array.get(0);
                         *expr = Constant(res);
                     }

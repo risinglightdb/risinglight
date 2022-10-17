@@ -136,7 +136,7 @@ pub trait PlanNode:
     fn out_types(&self) -> Vec<DataType> {
         self.schema()
             .iter()
-            .map(|desc| desc.datatype().clone())
+            .map(|desc| *desc.datatype())
             .collect()
     }
 
@@ -170,7 +170,7 @@ pub trait PlanNode:
             .map(|index| {
                 BoundExpr::InputRef(BoundInputRef {
                     index,
-                    return_type: input_types[index].clone(),
+                    return_type: input_types[index],
                 })
             })
             .collect();
