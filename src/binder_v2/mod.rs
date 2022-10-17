@@ -9,7 +9,7 @@ use itertools::Itertools;
 
 use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
 use crate::parser::*;
-use crate::planner::{Expr as Node, ExprAnalysis, RecExpr};
+use crate::planner::{Expr as Node, ExprAnalysis, RecExpr, TypeError};
 use crate::types::{DataTypeKind, DataValue};
 
 mod expr;
@@ -57,6 +57,8 @@ pub enum BindError {
     CastError(DataValue, DataTypeKind),
     #[error("{0}")]
     BindFunctionError(String),
+    #[error("type error: {0}")]
+    TypeError(#[from] TypeError),
 }
 
 /// The binder resolves all expressions referring to schema objects such as

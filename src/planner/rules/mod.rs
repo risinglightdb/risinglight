@@ -33,6 +33,8 @@ mod plan;
 mod schema;
 mod type_;
 
+pub use self::type_::TypeError;
+
 /// Returns all rules in the optimizer.
 pub fn all_rules() -> Vec<Rewrite> {
     let mut rules = vec![];

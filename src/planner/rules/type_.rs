@@ -4,15 +4,15 @@ use crate::types::{DataType, DataTypeKind as Kind};
 /// The data type of type analysis.
 pub type Type = Result<DataType, TypeError>;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeError {
-    /// NULL expression can be any type.
+    #[error("unknown type from null")]
     Null,
-    /// The type should be set manually.
+    #[error("the type should be set manually")]
     Uninit,
-    /// Type is not available for node.
+    #[error("type is not available for node")]
     Unavailable,
-    /// Invalid type for function.
+    #[error("no function for {op}{operands:?}")]
     NoFunction { op: String, operands: Vec<Kind> },
 }
 
