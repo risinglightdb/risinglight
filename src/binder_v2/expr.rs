@@ -77,7 +77,10 @@ impl Binder {
             if column_ids.next().is_some() {
                 return Err(BindError::AmbiguousColumn(column_name.into()));
             }
-            return Ok(self.egraph.add(Node::Column(column_ref_id)));
+            let id = self.egraph.add(Node::Column(column_ref_id));
+            self.egraph[id].data.type_ =
+                Ok(self.catalog.get_column(&column_ref_id).unwrap().datatype());
+            return Ok(id);
         }
         if let Some(id) = self.current_ctx().aliases.get(column_name) {
             return Ok(*id);

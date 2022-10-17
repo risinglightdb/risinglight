@@ -87,6 +87,14 @@ impl ColumnRefId {
             column_id,
         }
     }
+
+    pub const fn table(&self) -> TableRefId {
+        TableRefId {
+            database_id: self.database_id,
+            schema_id: self.schema_id,
+            table_id: self.table_id,
+        }
+    }
 }
 
 impl std::fmt::Display for ColumnRefId {
