@@ -223,7 +223,7 @@ impl Compactor {
                         .txn_mgr
                         .try_lock_for_compaction(table.table_id())
                     {
-                        if let Err(err) = self.compact_table(&pin_version.snapshot, table).await {
+                        if let Err(err) = self.compact_table(&pin_version.snapshot, table).await { 
                             warn!("failed to compact: {:?}", err);
                         }
                     }
