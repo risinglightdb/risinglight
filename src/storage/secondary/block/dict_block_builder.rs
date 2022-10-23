@@ -110,19 +110,19 @@ mod tests {
     use itertools::Itertools;
     use ordered_float::OrderedFloat;
 
-    use crate::array::{F64Array, I64Array, Utf8Array};
+    use crate::array::{I64Array, Utf8Array};
     use crate::storage::secondary::block::dict_block_builder::DictBlockBuilder;
     use crate::storage::secondary::block::{
-        BlockBuilder, PlainBlobBlockBuilder, PlainCharBlockBuilder, PlainPrimitiveBlockBuilder,
-        PlainPrimitiveNullableBlockBuilder,
+        BlockBuilder, NullableBlockBuilder, PlainBlobBlockBuilder, PlainCharBlockBuilder,
+        PlainPrimitiveBlockBuilder,
     };
     use crate::types::F64;
 
     #[test]
     fn test_build_dict_primitive_f64() {
-        let builder = PlainPrimitiveBlockBuilder::<F64>::new(13);
-        let mut dict_builder =
-            DictBlockBuilder::<F64Array, PlainPrimitiveBlockBuilder<F64>>::new(builder);
+        let inner_builder = PlainPrimitiveBlockBuilder::<F64>::new(13);
+        let builder = NullableBlockBuilder::new(inner_builder, 13);
+        let mut dict_builder = DictBlockBuilder::new(builder);
         for num in 1..4 {
             for item in [Some(&(OrderedFloat::from(f64::from(num))))]
                 .iter()
@@ -136,7 +136,7 @@ mod tests {
         // rle_counts_num (u32) | rle_count (u16) | rle_count | data
         assert_eq!(
             dict_builder.estimated_size(),
-            4 * 2 + (4 + 2 * 3 + 4 * 3) + 8 * 3
+            4 * 2 + (4 + 2 * 3 + 4 * 3) + 8 * 3 + 1
         );
         assert!(dict_builder.should_finish(&Some(&OrderedFloat::from(3.0))));
         assert!(dict_builder.should_finish(&Some(&OrderedFloat::from(4.0))));
@@ -169,9 +169,9 @@ mod tests {
 
     #[test]
     fn test_build_dict_primitive_nullable_i64() {
-        let builder = PlainPrimitiveNullableBlockBuilder::new(48);
-        let mut dict_builder =
-            DictBlockBuilder::<I64Array, PlainPrimitiveNullableBlockBuilder<i64>>::new(builder);
+        let inner_builder = PlainPrimitiveBlockBuilder::<i64>::new(48);
+        let builder = NullableBlockBuilder::new(inner_builder, 48);
+        let mut dict_builder = DictBlockBuilder::new(builder);
         for item in [None].iter().cycle().cloned().take(30) {
             dict_builder.append(item);
         }

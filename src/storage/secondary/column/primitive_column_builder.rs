@@ -8,22 +8,32 @@ use rust_decimal::Decimal;
 
 use super::super::{
     BlockBuilder, BlockIndexBuilder, ColumnBuilderOptions, PlainPrimitiveBlockBuilder,
-    PlainPrimitiveNullableBlockBuilder, PrimitiveFixedWidthEncode,
+    PrimitiveFixedWidthEncode,
 };
 use super::ColumnBuilder;
 use crate::array::Array;
-use crate::storage::secondary::block::{DictBlockBuilder, RleBlockBuilder};
+use crate::storage::secondary::block::{DictBlockBuilder, NullableBlockBuilder, RleBlockBuilder};
 use crate::storage::secondary::EncodeType;
 use crate::types::{Date, Interval, F64};
 
 /// All supported block builders for primitive types.
 pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
     Plain(PlainPrimitiveBlockBuilder<T>),
-    PlainNullable(PlainPrimitiveNullableBlockBuilder<T>),
+    PlainNullable(NullableBlockBuilder<T::ArrayType, PlainPrimitiveBlockBuilder<T>>),
     RunLength(RleBlockBuilder<T::ArrayType, PlainPrimitiveBlockBuilder<T>>),
-    RleNullable(RleBlockBuilder<T::ArrayType, PlainPrimitiveNullableBlockBuilder<T>>),
+    RleNullable(
+        RleBlockBuilder<
+            T::ArrayType,
+            NullableBlockBuilder<T::ArrayType, PlainPrimitiveBlockBuilder<T>>,
+        >,
+    ),
     Dictionary(DictBlockBuilder<T::ArrayType, PlainPrimitiveBlockBuilder<T>>),
-    DictNullable(DictBlockBuilder<T::ArrayType, PlainPrimitiveNullableBlockBuilder<T>>),
+    DictNullable(
+        DictBlockBuilder<
+            T::ArrayType,
+            NullableBlockBuilder<T::ArrayType, PlainPrimitiveBlockBuilder<T>>,
+        >,
+    ),
 }
 
 pub type I32ColumnBuilder = PrimitiveColumnBuilder<i32>;
@@ -147,32 +157,36 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
             if self.current_builder.is_none() {
                 match (self.nullable, self.options.encode_type) {
                     (true, EncodeType::RunLength) => {
-                        let builder = PlainPrimitiveNullableBlockBuilder::new(
+                        let builder = NullableBlockBuilder::new(
+                            PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16),
                             self.options.target_block_size - 16,
                         );
                         self.current_builder =
                             Some(BlockBuilderImpl::RleNullable(RleBlockBuilder::<
                                 T::ArrayType,
-                                PlainPrimitiveNullableBlockBuilder<T>,
+                                NullableBlockBuilder<T::ArrayType, PlainPrimitiveBlockBuilder<T>>,
                             >::new(
                                 builder
                             )));
                     }
                     (true, EncodeType::Plain) => {
-                        self.current_builder = Some(BlockBuilderImpl::PlainNullable(
-                            PlainPrimitiveNullableBlockBuilder::new(
+                        self.current_builder =
+                            Some(BlockBuilderImpl::PlainNullable(NullableBlockBuilder::new(
+                                PlainPrimitiveBlockBuilder::new(
+                                    self.options.target_block_size - 16,
+                                ),
                                 self.options.target_block_size - 16,
-                            ),
-                        ));
+                            )));
                     }
                     (true, EncodeType::Dictionary) => {
-                        let builder = PlainPrimitiveNullableBlockBuilder::new(
+                        let builder = NullableBlockBuilder::new(
+                            PlainPrimitiveBlockBuilder::new(self.options.target_block_size - 16),
                             self.options.target_block_size - 16,
                         );
                         self.current_builder =
                             Some(BlockBuilderImpl::DictNullable(DictBlockBuilder::<
                                 T::ArrayType,
-                                PlainPrimitiveNullableBlockBuilder<T>,
+                                NullableBlockBuilder<T::ArrayType, PlainPrimitiveBlockBuilder<T>>,
                             >::new(
                                 builder
                             )));

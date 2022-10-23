@@ -6,21 +6,26 @@ use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 use rust_decimal::Decimal;
 
-use super::super::{
-    Block, BlockIterator, PlainPrimitiveBlockIterator, PlainPrimitiveNullableBlockIterator,
-    PrimitiveFixedWidthEncode,
-};
+use super::super::{Block, BlockIterator, PlainPrimitiveBlockIterator, PrimitiveFixedWidthEncode};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::Array;
-use crate::storage::secondary::block::{decode_rle_block, FakeBlockIterator, RleBlockIterator};
+use crate::storage::secondary::block::{
+    decode_nullable_block, decode_rle_block, FakeBlockIterator, NullableBlockIterator,
+    RleBlockIterator,
+};
 use crate::types::{Date, Interval, F64};
 
 /// All supported block iterators for primitive types.
 pub enum PrimitiveBlockIteratorImpl<T: PrimitiveFixedWidthEncode> {
     Plain(PlainPrimitiveBlockIterator<T>),
-    PlainNullable(PlainPrimitiveNullableBlockIterator<T>),
+    PlainNullable(NullableBlockIterator<T::ArrayType, PlainPrimitiveBlockIterator<T>>),
     RunLength(RleBlockIterator<T::ArrayType, PlainPrimitiveBlockIterator<T>>),
-    RleNullable(RleBlockIterator<T::ArrayType, PlainPrimitiveNullableBlockIterator<T>>),
+    RleNullable(
+        RleBlockIterator<
+            T::ArrayType,
+            NullableBlockIterator<T::ArrayType, PlainPrimitiveBlockIterator<T>>,
+        >,
+    ),
     Fake(FakeBlockIterator<T::ArrayType>),
 }
 
@@ -104,7 +109,10 @@ impl<T: PrimitiveFixedWidthEncode> BlockIteratorFactory<T::ArrayType>
                 PrimitiveBlockIteratorImpl::Plain(it)
             }
             BlockType::PlainNullable => {
-                let it = PlainPrimitiveNullableBlockIterator::new(block, index.row_count as usize);
+                let (inner_block, bitmap_block) = decode_nullable_block(block);
+                let inner_it =
+                    PlainPrimitiveBlockIterator::new(inner_block, index.row_count as usize);
+                let it = NullableBlockIterator::new(inner_it, bitmap_block);
                 PrimitiveBlockIteratorImpl::PlainNullable(it)
             }
             BlockType::RunLength => {
@@ -117,11 +125,14 @@ impl<T: PrimitiveFixedWidthEncode> BlockIteratorFactory<T::ArrayType>
             }
             BlockType::RleNullable => {
                 let (rle_num, rle_data, block_data) = decode_rle_block(block);
-                let block_iter = PlainPrimitiveNullableBlockIterator::<T>::new(block_data, rle_num);
-                let it =
-                    RleBlockIterator::<T::ArrayType, PlainPrimitiveNullableBlockIterator<T>>::new(
-                        block_iter, rle_data, rle_num,
-                    );
+                let (inner_block, bitmap_block) = decode_nullable_block(block_data);
+                let inner_it =
+                    PlainPrimitiveBlockIterator::<T>::new(inner_block, index.row_count as usize);
+                let block_iter = NullableBlockIterator::new(inner_it, bitmap_block);
+                let it = RleBlockIterator::<
+                    T::ArrayType,
+                    NullableBlockIterator<T::ArrayType, PlainPrimitiveBlockIterator<T>>,
+                >::new(block_iter, rle_data, rle_num);
                 PrimitiveBlockIteratorImpl::RleNullable(it)
             }
             _ => todo!(),
