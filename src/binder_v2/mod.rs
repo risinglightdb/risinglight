@@ -9,13 +9,15 @@ use itertools::Itertools;
 
 use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
 use crate::parser::*;
-use crate::planner::{Expr as Node, ExprAnalysis, RecExpr};
+use crate::planner::{Expr as Node, ExprAnalysis, RecExpr, TypeError};
 use crate::types::{DataTypeKind, DataValue};
 
+mod drop;
 mod expr;
 mod select;
 mod table;
 
+pub use self::drop::*;
 pub use self::expr::*;
 pub use self::select::*;
 pub use self::table::*;
@@ -57,6 +59,8 @@ pub enum BindError {
     CastError(DataValue, DataTypeKind),
     #[error("{0}")]
     BindFunctionError(String),
+    #[error("type error: {0}")]
+    TypeError(#[from] TypeError),
 }
 
 /// The binder resolves all expressions referring to schema objects such as
@@ -97,7 +101,13 @@ impl Binder {
     fn bind_stmt(&mut self, stmt: Statement) -> Result {
         match stmt {
             Statement::CreateTable { .. } => todo!(),
-            Statement::Drop { .. } => todo!(),
+            Statement::Drop {
+                object_type,
+                if_exists,
+                names,
+                cascade,
+                ..
+            } => self.bind_drop(object_type, if_exists, names, cascade),
             Statement::Insert { .. } => todo!(),
             Statement::Delete { .. } => todo!(),
             Statement::Copy { .. } => todo!(),

@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use egg::{define_language, Id, Symbol};
 
+use crate::binder_v2::BoundDrop;
 use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
@@ -11,7 +12,7 @@ use crate::types::{ColumnIndex, DataTypeKind, DataValue};
 mod cost;
 mod rules;
 
-pub use rules::ExprAnalysis;
+pub use rules::{ExprAnalysis, TypeError};
 
 // Alias types for our language.
 type EGraph = egg::EGraph<Expr, ExprAnalysis>;
@@ -27,6 +28,7 @@ define_language! {
         // Table(TableRefId),              // $1, $2, ...
         Column(ColumnRefId),            // $1.2, $2.1, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
+        BoundDrop(BoundDrop),
 
         // binary operations
         "+" = Add([Id; 2]),
@@ -102,7 +104,7 @@ define_language! {
                                                     // expressions must be agg
                                                     // output = aggs || group_keys
         "create" = Create([Id; 2]),             // (create table [column_desc..])
-        "drop" = Drop(Id),                      // (drop table)
+        // "drop" = Drop(Id),                      // (drop table)
         "insert" = Insert([Id; 3]),             // (insert table [column..] child)
         "delete" = Delete([Id; 2]),             // (delete table condition=expr)
         "copy_from" = CopyFrom(Id),             // (copy_from dest)

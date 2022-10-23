@@ -21,7 +21,7 @@ pub use self::interval::*;
 pub use self::native::*;
 
 /// Physical data type
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum DataTypeKind {
     Int32,
     Int64,
@@ -34,6 +34,15 @@ pub enum DataTypeKind {
     Decimal(Option<u8>, Option<u8>),
     Date,
     Interval,
+}
+
+impl DataTypeKind {
+    pub const fn is_number(&self) -> bool {
+        matches!(
+            self,
+            Self::Int32 | Self::Int64 | Self::Float64 | Self::Decimal(_, _)
+        )
+    }
 }
 
 impl From<&crate::parser::DataType> for DataTypeKind {
@@ -117,7 +126,7 @@ impl FromStr for DataTypeKind {
 }
 
 /// Data type with nullable.
-#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DataType {
     pub kind: DataTypeKind,
     pub nullable: bool,
@@ -125,7 +134,7 @@ pub struct DataType {
 
 impl std::fmt::Debug for DataType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.kind)?;
+        write!(f, "{}", self.kind)?;
         if self.nullable {
             write!(f, " (nullable)")?;
         }
@@ -135,11 +144,7 @@ impl std::fmt::Debug for DataType {
 
 impl std::fmt::Display for DataType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.kind)?;
-        if self.nullable {
-            write!(f, " (nullable)")?;
-        }
-        Ok(())
+        write!(f, "{:?}", self)
     }
 }
 
@@ -153,7 +158,7 @@ impl DataType {
     }
 
     pub fn kind(&self) -> DataTypeKind {
-        self.kind.clone()
+        self.kind
     }
 }
 
@@ -351,6 +356,10 @@ pub enum ConvertError {
     Cast(String, &'static str),
     #[error("constant {0:?} overflows {1:?}")]
     Overflow(DataValue, DataTypeKind),
+    #[error("no function {0}({1})")]
+    NoUnaryOp(String, &'static str),
+    #[error("no function {0}({1}, {2})")]
+    NoBinaryOp(String, &'static str, &'static str),
 }
 
 /// memory table row type
@@ -362,6 +371,8 @@ pub enum ParseValueError {
     ParseIntervalError(#[from] ParseIntervalError),
     #[error("invalid date: {0}")]
     ParseDateError(#[from] ParseDateError),
+    #[error("invalid blob: {0}")]
+    ParseBlobError(#[from] ParseBlobError),
     #[error("invalid value: {0}")]
     Invalid(String),
 }
@@ -382,6 +393,8 @@ impl FromStr for DataValue {
             Ok(Self::Float64(float))
         } else if s.starts_with('\'') && s.ends_with('\'') {
             Ok(Self::String(s[1..s.len() - 1].to_string()))
+        } else if s.starts_with("b\'") && s.ends_with('\'') {
+            Ok(Self::Blob(s[2..s.len() - 1].parse()?))
         } else if let Some(s) = s.strip_prefix("interval") {
             Ok(Self::Interval(s.trim().trim_matches('\'').parse()?))
         } else if let Some(s) = s.strip_prefix("date") {

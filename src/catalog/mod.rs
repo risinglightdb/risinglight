@@ -28,20 +28,48 @@ pub(crate) use crate::types::{ColumnId, DatabaseId, SchemaId, TableId};
 pub type RootCatalogRef = Arc<RootCatalog>;
 
 /// The reference ID of a table.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize, Deserialize)]
 pub struct TableRefId {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_id: TableId,
 }
 
-impl std::fmt::Debug for TableRefId {
+impl std::fmt::Display for TableRefId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{}.{}.{}",
             self.database_id, self.schema_id, self.table_id
         )
+    }
+}
+
+#[derive(thiserror::Error, Debug, Clone)]
+#[error("parse table id error: {}")]
+pub enum ParseTableIdError {
+    #[error("no leading '$'")]
+    NoLeadingDollar,
+    #[error("invalid table")]
+    InvalidTable,
+    #[error("invalid number: {0}")]
+    InvalidNum(#[from] std::num::ParseIntError),
+}
+
+impl FromStr for TableRefId {
+    type Err = ParseColumnIdError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let body = s.strip_prefix('$').ok_or(Self::Err::NoLeadingDollar)?;
+        let mut parts = body.rsplit('.');
+        let table_id = parts.next().ok_or(Self::Err::InvalidTable)?.parse()?;
+        let schema_id = parts.next().map_or(Ok(0), |s| s.parse())?;
+        let database_id = parts.next().map_or(Ok(0), |s| s.parse())?;
+        Ok(TableRefId {
+            database_id,
+            schema_id,
+            table_id,
+        })
     }
 }
 
@@ -85,6 +113,14 @@ impl ColumnRefId {
             schema_id,
             table_id,
             column_id,
+        }
+    }
+
+    pub const fn table(&self) -> TableRefId {
+        TableRefId {
+            database_id: self.database_id,
+            schema_id: self.schema_id,
+            table_id: self.table_id,
         }
     }
 }

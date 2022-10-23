@@ -9,6 +9,7 @@
 //! | [`plan`]   | plan optimization     | use and defination of columns | [`ColumnSet`]  |
 //! | [`agg`]    | agg extraction        | aggregations in an expr       | [`AggSet`]     |
 //! | [`schema`] | column id to index    | output schema of a plan       | [`Schema`]     |
+//! | [`type_`]  |                       | data type                     | [`Type`]       |
 //!
 //! It would be best if you have a background in program analysis.
 //! Here is a recommended course: <https://pascal-group.bitbucket.io/teaching.html>.
@@ -17,6 +18,7 @@
 //! [`ColumnSet`]: plan::ColumnSet
 //! [`AggSet`]: agg::AggSet
 //! [`Schema`]: schema::Schema
+//! [`Type`]: type_::Type
 
 use std::collections::HashSet;
 use std::hash::Hash;
@@ -29,6 +31,9 @@ mod agg;
 mod expr;
 mod plan;
 mod schema;
+mod type_;
+
+pub use self::type_::TypeError;
 
 /// Returns all rules in the optimizer.
 pub fn all_rules() -> Vec<Rewrite> {
@@ -62,6 +67,9 @@ pub struct Data {
     /// For non-plan node, it always be None.
     /// For plan node, it may be None if the schema is unknown due to unresolved `prune`.
     pub schema: schema::Schema,
+
+    /// Data type of the expression.
+    pub type_: type_::Type,
 }
 
 impl Analysis<Expr> for ExprAnalysis {
@@ -74,6 +82,7 @@ impl Analysis<Expr> for ExprAnalysis {
             columns: plan::analyze_columns(egraph, enode),
             aggs: agg::analyze_aggs(egraph, enode),
             schema: schema::analyze_schema(egraph, enode),
+            type_: type_::analyze_type(egraph, enode),
         }
     }
 
@@ -90,7 +99,8 @@ impl Analysis<Expr> for ExprAnalysis {
         let merge_columns = merge_small_set(&mut to.columns, from.columns);
         let merge_aggs = merge_small_set(&mut to.aggs, from.aggs);
         let merge_schema = egg::merge_max(&mut to.schema, from.schema);
-        merge_const | merge_columns | merge_aggs | merge_schema
+        let merge_type = type_::merge_types(&mut to.type_, from.type_);
+        merge_const | merge_columns | merge_aggs | merge_schema | merge_type
     }
 
     /// Modify the graph after analyzing a node.

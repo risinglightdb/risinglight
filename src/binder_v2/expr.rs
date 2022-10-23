@@ -11,7 +11,7 @@ use crate::types::{DataTypeKind, DataValue, Interval, F64};
 impl Binder {
     /// Bind an expression.
     pub fn bind_expr(&mut self, expr: Expr) -> Result {
-        match expr {
+        let id = match expr {
             Expr::Value(v) => Ok(self.egraph.add(Node::Constant(v.into()))),
             Expr::Identifier(ident) => self.bind_ident([ident]),
             Expr::CompoundIdentifier(idents) => self.bind_ident(idents),
@@ -33,7 +33,11 @@ impl Binder {
                 high,
             } => self.bind_between(*expr, negated, *low, *high),
             _ => todo!("bind expression: {:?}", expr),
+        }?;
+        if let Err(e) = &self.egraph[id].data.type_ {
+            return Err(e.clone().into());
         }
+        Ok(id)
     }
 
     fn bind_ident(&mut self, idents: impl IntoIterator<Item = Ident>) -> Result {
@@ -73,7 +77,10 @@ impl Binder {
             if column_ids.next().is_some() {
                 return Err(BindError::AmbiguousColumn(column_name.into()));
             }
-            return Ok(self.egraph.add(Node::Column(column_ref_id)));
+            let id = self.egraph.add(Node::Column(column_ref_id));
+            self.egraph[id].data.type_ =
+                Ok(self.catalog.get_column(&column_ref_id).unwrap().datatype());
+            return Ok(id);
         }
         if let Some(id) = self.current_ctx().aliases.get(column_name) {
             return Ok(*id);
