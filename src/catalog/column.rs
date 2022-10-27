@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::types::{ColumnId, DataType};
 
 /// A descriptor of a column.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ColumnDesc {
     datatype: DataType,
     name: String,

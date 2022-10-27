@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use egg::{define_language, Id, Symbol};
 
-use crate::binder_v2::BoundDrop;
+use crate::binder_v2::{BoundDrop, BoundExtSource, BoundTable};
 use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
@@ -29,6 +29,8 @@ define_language! {
         Column(ColumnRefId),            // $1.2, $2.1, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
         BoundDrop(BoundDrop),
+        BoundExtSource(BoundExtSource),
+        BoundTable(BoundTable),
 
         // binary operations
         "+" = Add([Id; 2]),
@@ -103,7 +105,7 @@ define_language! {
         "agg" = Agg([Id; 3]),                   // (agg aggs=[expr..] group_keys=[expr..] child)
                                                     // expressions must be agg
                                                     // output = aggs || group_keys
-        "create" = Create([Id; 2]),             // (create table [column_desc..])
+        "create" = Create(Id),             // (create table [column_desc..])
         // "drop" = Drop(Id),                      // (drop table)
         "insert" = Insert([Id; 3]),             // (insert table [column..] child)
         "delete" = Delete([Id; 2]),             // (delete table condition=expr)
