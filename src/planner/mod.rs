@@ -105,9 +105,9 @@ define_language! {
         "agg" = Agg([Id; 3]),                   // (agg aggs=[expr..] group_keys=[expr..] child)
                                                     // expressions must be agg
                                                     // output = aggs || group_keys
-        "create" = Create(Id),             // (create table [column_desc..])
+        "create" = Create(Id),                  // (create table [column_desc..])
         // "drop" = Drop(Id),                      // (drop table)
-        "insert" = Insert([Id; 3]),             // (insert table [column..] child)
+        "insert" = Insert([Id; 2]),             // (insert [column..] child)
         "delete" = Delete([Id; 2]),             // (delete table condition=expr)
         "copy_from" = CopyFrom(Id),             // (copy_from dest)
         "copy_to" = CopyTo([Id; 2]),            // (copy_to dest child)

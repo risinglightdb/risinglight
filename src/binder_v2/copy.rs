@@ -78,7 +78,7 @@ impl Binder {
             t => todo!("unsupported copy target: {:?}", t),
         };
 
-        let (table_ref, _, columns) = self.bind_table_columns(&table_name, columns)?;
+        let (_, _, columns) = self.bind_table_columns(&table_name, columns)?;
 
         let ext_source = self.egraph.add(Node::BoundExtSource(BoundExtSource {
             path,
@@ -92,27 +92,19 @@ impl Binder {
 
         let copy = if to {
             // COPY <source_table> TO <[dest_file]>
-            self.egraph.add(Node::CopyTo([ext_source, table_scan]))
+            self.egraph.add(Node::CopyTo([table_scan, ext_source]))
         } else {
-            // COPY FROM <source_file> <dest_table>
+            // COPY <dest_table> FROM <source_file>
             let column_ids = columns
                 .iter()
                 .map(|col| self.egraph.add(Node::ColumnIndex(ColumnIndex(col.id()))))
                 .collect();
 
-            let table = self.egraph.add(Node::BoundTable(BoundTable {
-                database_id: table_ref.database_id,
-                schema_id: table_ref.schema_id,
-                table_id: table_ref.table_id,
-                table_name: None,
-                columns_desc: vec![],
-                ordered_pk_ids: vec![],
-            }));
             let cols_id = self.egraph.add(Node::List(column_ids));
 
-            let insert = self.egraph.add(Node::Insert([table, cols_id, ext_source]));
+            let copy = self.egraph.add(Node::CopyFrom(ext_source));
 
-            self.egraph.add(Node::CopyFrom(insert))
+            self.egraph.add(Node::Insert([cols_id, copy]))
         };
 
         Ok(copy)
