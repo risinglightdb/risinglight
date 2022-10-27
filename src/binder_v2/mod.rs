@@ -12,11 +12,17 @@ use crate::parser::*;
 use crate::planner::{Expr as Node, ExprAnalysis, RecExpr, TypeError};
 use crate::types::{DataTypeKind, DataValue};
 
+mod copy;
+mod create_table;
+mod delete;
 mod drop;
 mod expr;
 mod select;
 mod table;
 
+pub use self::copy::*;
+pub use self::create_table::*;
+pub use self::delete::*;
 pub use self::drop::*;
 pub use self::expr::*;
 pub use self::select::*;
@@ -100,7 +106,12 @@ impl Binder {
 
     fn bind_stmt(&mut self, stmt: Statement) -> Result {
         match stmt {
-            Statement::CreateTable { .. } => todo!(),
+            Statement::CreateTable {
+                name,
+                columns,
+                constraints,
+                ..
+            } => self.bind_create_table(name, &columns, &constraints),
             Statement::Drop {
                 object_type,
                 if_exists,
@@ -109,8 +120,19 @@ impl Binder {
                 ..
             } => self.bind_drop(object_type, if_exists, names, cascade),
             Statement::Insert { .. } => todo!(),
-            Statement::Delete { .. } => todo!(),
-            Statement::Copy { .. } => todo!(),
+            Statement::Delete {
+                table_name,
+                selection,
+                ..
+            } => self.bind_delete(table_name, selection),
+            Statement::Copy {
+                table_name,
+                columns,
+                to,
+                target,
+                options,
+                ..
+            } => self.bind_copy(table_name, &columns, to, target, &options),
             Statement::Query(query) => self.bind_query(*query),
             Statement::Explain { .. } => todo!(),
             Statement::ShowVariable { .. }
