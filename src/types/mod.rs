@@ -389,8 +389,8 @@ impl FromStr for DataValue {
             Ok(Self::Int32(int))
         } else if let Ok(bigint) = s.parse::<i64>() {
             Ok(Self::Int64(bigint))
-        } else if let Ok(float) = s.parse::<F64>() {
-            Ok(Self::Float64(float))
+        } else if let Ok(d) = s.parse::<Decimal>() {
+            Ok(Self::Decimal(d))
         } else if s.starts_with('\'') && s.ends_with('\'') {
             Ok(Self::String(s[1..s.len() - 1].to_string()))
         } else if s.starts_with("b\'") && s.ends_with('\'') {
