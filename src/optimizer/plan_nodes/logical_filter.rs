@@ -140,7 +140,7 @@ mod tests {
                     return_type: ty,
                 })),
                 right_expr: Box::new(BoundExpr::Constant(DataValue::Int32(5))),
-                return_type: Some(ty),
+                return_type: ty,
             }),
             table_scan.into_plan_ref(),
         );
@@ -158,7 +158,7 @@ mod tests {
                     return_type: ty,
                 })),
                 right_expr: Box::new(BoundExpr::Constant(DataValue::Int32(5))),
-                return_type: Some(ty),
+                return_type: ty,
             })
         );
         let child = plan.child.as_logical_table_scan().unwrap();
@@ -206,7 +206,7 @@ mod tests {
                     return_type: ty,
                 })),
                 right_expr: Box::new(BoundExpr::Constant(DataValue::Int32(5))),
-                return_type: Some(ty),
+                return_type: ty,
             }),
             table_scan.into_plan_ref(),
         );

@@ -98,11 +98,11 @@ impl Binder {
                 // Bind expression
                 let mut expr = self.bind_expr(expr)?;
 
-                if let Some(data_type) = &expr.return_type() {
+                if !expr.return_type().kind().is_null() {
                     // table t1(a float, b float)
                     // for example: insert into values (1, 1);
                     // 1 should be casted to float.
-                    let left_kind = data_type.kind();
+                    let left_kind = expr.return_type().kind();
                     let right_kind = column_types[idx].kind();
                     if left_kind != right_kind {
                         expr = BoundExpr::TypeCast(BoundTypeCast {
@@ -143,11 +143,11 @@ impl Binder {
     ) -> Result<BoundInsert, BindError> {
         let mut bound_select_stmt = self.bind_select(select_stmt)?;
         for (idx, expr) in bound_select_stmt.select_list.iter_mut().enumerate() {
-            if let Some(data_type) = &expr.return_type() {
+            if !expr.return_type().kind().is_null() {
                 // table t1(a float, b float)
                 // for example: insert into values (1, 1);
                 // 1 should be casted to float.
-                let left_kind = data_type.kind();
+                let left_kind = expr.return_type().kind();
                 let right_kind = column_types[idx].kind();
                 if left_kind != right_kind {
                     *expr = BoundExpr::TypeCast(BoundTypeCast {

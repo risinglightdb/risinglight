@@ -99,7 +99,7 @@ impl Analysis<Expr> for ExprAnalysis {
         let merge_columns = merge_small_set(&mut to.columns, from.columns);
         let merge_aggs = merge_small_set(&mut to.aggs, from.aggs);
         let merge_schema = egg::merge_max(&mut to.schema, from.schema);
-        let merge_type = type_::merge_types(&mut to.type_, from.type_);
+        let merge_type = egg::merge_max(&mut to.type_, from.type_);
         merge_const | merge_columns | merge_aggs | merge_schema | merge_type
     }
 
