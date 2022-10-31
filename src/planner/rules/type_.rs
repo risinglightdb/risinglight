@@ -4,10 +4,8 @@ use crate::types::{DataType, DataTypeKind as Kind};
 /// The data type of type analysis.
 pub type Type = Result<DataType, TypeError>;
 
-#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TypeError {
-    #[error("unknown type from null")]
-    Null,
     #[error("the type should be set manually")]
     Uninit,
     #[error("type is not available for node")]
@@ -22,7 +20,7 @@ pub fn analyze_type(egraph: &EGraph, enode: &Expr) -> Type {
     let x = |i: &Id| egraph[*i].data.type_.clone();
     match enode {
         // values
-        Constant(v) => Ok(v.data_type().ok_or(TypeError::Null)?),
+        Constant(v) => Ok(v.data_type()),
         Type(t) => Ok((*t).not_null()),
         Column(_) | ColumnIndex(_) => Err(TypeError::Uninit), // binder should set the type
 
@@ -33,6 +31,7 @@ pub fn analyze_type(egraph: &EGraph, enode: &Expr) -> Type {
         Neg(a) => x(a),
         Add([a, b]) | Sub([a, b]) | Mul([a, b]) | Div([a, b]) | Mod([a, b]) => {
             merge(enode, [x(a)?, x(b)?], |[a, b]| match (a.min(b), a.max(b)) {
+                (Kind::Null, _) => Some(Kind::Null),
                 _ if a == b && a.is_number() => Some(a),
                 (Kind::Int32 | Kind::Int64, b @ Kind::Decimal(_, _) | b @ Kind::Float64) => Some(b),
                 (Kind::Date, Kind::Interval) => Some(Kind::Date),
@@ -49,7 +48,10 @@ pub fn analyze_type(egraph: &EGraph, enode: &Expr) -> Type {
         Not(a) => check(enode, x(a)?, |a| a == Kind::Bool),
         Gt([a, b]) | Lt([a, b]) | GtEq([a, b]) | LtEq([a, b]) | Eq([a, b]) | NotEq([a, b]) => {
             merge(enode, [x(a)?, x(b)?], |[a, b]| {
-                (a.is_number() && b.is_number() || a == b || a == Kind::String || b == Kind::String)
+                (a.is_number() && b.is_number()
+                    || a == b
+                    || (a == Kind::String || b == Kind::String)
+                    || (a == Kind::Null || b == Kind::Null))
                     .then_some(Kind::Bool)
             })
         }
@@ -76,19 +78,6 @@ pub fn analyze_type(egraph: &EGraph, enode: &Expr) -> Type {
 
         // other plan nodes
         _ => Err(TypeError::Unavailable),
-    }
-}
-
-/// Merge two type analysis results.
-pub fn merge_types(to: &mut Type, from: Type) -> DidMerge {
-    match (to, from) {
-        (Err(_), Err(_)) => DidMerge(false, true),
-        (to @ Err(_), from @ Ok(_)) => {
-            *to = from;
-            DidMerge(true, false)
-        }
-        (Ok(_), Err(_)) => DidMerge(false, true),
-        (Ok(a), Ok(b)) => DidMerge(false, true),
     }
 }
 
@@ -128,7 +117,7 @@ mod tests {
 
     #[test]
     fn value() {
-        assert_type_eq("null", Err(TypeError::Null));
+        assert_type_eq("null", Ok(Kind::Null.nullable()));
         assert_type_eq("false", Ok(Kind::Bool.not_null()));
         assert_type_eq("true", Ok(Kind::Bool.not_null()));
         assert_type_eq("1", Ok(Kind::Int32.not_null()));
@@ -152,7 +141,7 @@ mod tests {
         assert_type_eq("(+ 1 2)", Ok(Kind::Int32.not_null()));
         assert_type_eq("(+ 1 1.0)", Ok(Kind::Decimal(None, None).not_null()));
         assert_type_eq("(+ 1.0 2.0)", Ok(Kind::Decimal(None, None).not_null()));
-        assert_type_eq("(+ null null)", Err(TypeError::Null));
+        assert_type_eq("(+ null null)", Ok(Kind::Null.nullable()));
         assert_type_eq(
             "(+ date'2022-10-14' interval'1_day')",
             Ok(Kind::Date.not_null()),
@@ -161,8 +150,7 @@ mod tests {
             "(+ interval'1_day' date'2022-10-14')",
             Ok(Kind::Date.not_null()),
         );
-        // FIXME: int + null => int
-        // assert_type_eq("(+ 1 null)", Ok(Kind::Int32.nullable()));
+        assert_type_eq("(+ 1 null)", Ok(Kind::Null.nullable()));
 
         assert_type_eq(
             "(+ true false)",
@@ -186,7 +174,7 @@ mod tests {
         assert_type_eq("(= 1 1)", Ok(Kind::Bool.not_null()));
         assert_type_eq("(= 1 1.0)", Ok(Kind::Bool.not_null()));
         assert_type_eq("(= 1 '1')", Ok(Kind::Bool.not_null()));
-        // assert_type_eq("(= 1 null)", Ok(Kind::Bool.nullable()));
+        assert_type_eq("(= 1 null)", Ok(Kind::Bool.nullable()));
         assert_type_eq(
             "(= '2022-10-14' date'2022-10-14')",
             Ok(Kind::Bool.not_null()),

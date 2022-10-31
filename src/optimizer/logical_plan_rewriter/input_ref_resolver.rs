@@ -30,7 +30,7 @@ impl InputRefResolver {
         {
             *expr = InputRef(BoundInputRef {
                 index: idx,
-                return_type: expr.return_type().unwrap(),
+                return_type: expr.return_type(),
             });
             return;
         }
@@ -188,7 +188,7 @@ impl AggInputRefResolver {
         if let Some(i) = group_keys.iter().position(|e| e == expr) {
             *expr = InputRef(BoundInputRef {
                 index: i,
-                return_type: expr.return_type().unwrap(),
+                return_type: expr.return_type(),
             });
             return;
         }
@@ -251,7 +251,7 @@ mod tests {
             })
             .into(),
             right_expr: BoundExpr::Constant(DataValue::Int32(1)).into(),
-            return_type: Some(DataTypeKind::Int32.not_null()),
+            return_type: DataTypeKind::Int32.not_null(),
         });
         let group_keys = vec![v2_plus_1_expr.clone()];
         let mut select_list = vec![v2_plus_1_expr, sum_v1_call];
@@ -302,13 +302,13 @@ mod tests {
             op: BinaryOperator::Plus,
             left_expr: v2_expr.into(),
             right_expr: BoundExpr::Constant(DataValue::Int32(1)).into(),
-            return_type: Some(DataTypeKind::Int32.not_null()),
+            return_type: DataTypeKind::Int32.not_null(),
         });
         let v2_plus_1_plus_sum_expr = BoundExpr::BinaryOp(BoundBinaryOp {
             op: BinaryOperator::Plus,
             left_expr: v2_plus_1_expr.clone().into(),
             right_expr: sum_v1_call.into(),
-            return_type: Some(DataTypeKind::Int32.not_null()),
+            return_type: DataTypeKind::Int32.not_null(),
         });
         let group_keys = vec![v2_plus_1_expr];
         let mut select_list = vec![v2_plus_1_plus_sum_expr];
@@ -332,7 +332,7 @@ mod tests {
                     return_type: DataTypeKind::Int32.not_null(),
                 })
                 .into(),
-                return_type: Some(DataTypeKind::Int32.not_null()),
+                return_type: DataTypeKind::Int32.not_null(),
             })
         );
     }

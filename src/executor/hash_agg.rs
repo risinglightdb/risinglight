@@ -71,7 +71,7 @@ impl HashAggExecutor {
         while let Some(batch) = batches.next() {
             let mut key_builders = group_keys
                 .iter()
-                .map(|e| ArrayBuilderImpl::new(&e.return_type().unwrap()))
+                .map(|e| ArrayBuilderImpl::new(&e.return_type()))
                 .collect::<Vec<ArrayBuilderImpl>>();
             let mut res_builders = agg_calls
                 .iter()

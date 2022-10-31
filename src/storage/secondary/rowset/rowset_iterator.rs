@@ -397,7 +397,7 @@ mod tests {
         helper_build_rowset, helper_build_rowset_with_first_key_recorded,
     };
     use crate::storage::secondary::SecondaryRowHandler;
-    use crate::types::{DataType, DataTypeKind, DataValue};
+    use crate::types::{DataTypeKind, DataValue};
 
     #[tokio::test]
     async fn test_rowset_iterator() {
@@ -469,23 +469,16 @@ mod tests {
 
         let left_expr = Box::new(BoundExpr::InputRef(BoundInputRef {
             index: 2,
-            return_type: DataType {
-                kind: DataTypeKind::Int32,
-                nullable: true,
-            },
+            return_type: DataTypeKind::Int32.nullable(),
         }));
 
         let right_expr = Box::new(BoundExpr::Constant(DataValue::Int32(2)));
 
-        let return_type = Some(DataType {
-            kind: DataTypeKind::Bool,
-            nullable: true,
-        });
         let expr = BoundExpr::BinaryOp(BoundBinaryOp {
             op,
             left_expr,
             right_expr,
-            return_type,
+            return_type: DataTypeKind::Bool.nullable(),
         });
         let mut it = rowset
             .iter(
