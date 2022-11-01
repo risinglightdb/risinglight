@@ -184,9 +184,9 @@ impl Database {
             for stmt in stmts {
                 let mut binder = crate::binder_v2::Binder::new(self.catalog.clone());
                 let bound = binder.bind(stmt)?;
-                println!("bind result:\n{}", bound.pretty(60));
+                println!("bind:\n{}", crate::planner::Explain::of(&bound));
                 let optimized = crate::planner::optimize(&bound);
-                println!("optimize result:\n{}", optimized.pretty(60));
+                println!("optimized:\n{}", crate::planner::Explain::of(&optimized));
             }
             return Ok(vec![]);
         }
