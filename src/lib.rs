@@ -53,7 +53,7 @@ pub mod utils;
 /// The new binder converting sqlparser AST to egg AST.
 mod binder_v2;
 /// Next-generation planner and optimizer based on egg.
-mod planner;
+pub mod planner;
 
 #[cfg(feature = "jemalloc")]
 use tikv_jemallocator::Jemalloc;
