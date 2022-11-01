@@ -17,6 +17,7 @@
 #![feature(proc_macro_hygiene)]
 #![feature(core_intrinsics)]
 #![feature(trusted_len)]
+#![feature(int_log)]
 
 /// Top-level structure of the database.
 pub mod db;

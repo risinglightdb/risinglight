@@ -269,6 +269,25 @@ mod tests {
     }
 
     egg::test_fn! {
+        tpch_q1,
+        rules(),
+        "(topn null null (list (asc $7.8) (asc $7.9))
+            (select
+                list
+                (list $7.8 $7.9 (sum $7.4) (sum $7.5) (sum (* $7.5 (- 1 $7.6))) (sum (* (* $7.5 (- 1 $7.6)) (+ 1 $7.7))) (avg $7.4) (avg $7.5) (avg $7.6) rowcount)
+                (scan (list $7.4 $7.5 $7.6 $7.7 $7.8 $7.9 $7.10))
+                (<= $7.10 1998-09-21)
+                (list $7.8 $7.9)
+                true))" => "
+        (order (list (asc $7.8) (asc $7.9))
+            (proj (list $7.8 $7.9 (sum $7.4) (sum $7.5) (sum (* $7.5 (- 1 $7.6))) (sum (* $7.5 (* (+ $7.7 1) (- 1 $7.6)))) (avg $7.4) (avg $7.5) (avg $7.6) rowcount)
+                (agg (list rowcount (avg $7.6) (avg $7.5) (avg $7.4) (sum (* $7.5 (* (+ $7.7 1) (- 1 $7.6)))) (sum (* $7.5 (- 1 $7.6))) (sum $7.5) (sum $7.4))
+                    (list $7.8 $7.9)
+                    (filter (>= 1998-09-21 $7.10)
+                        (scan (list $7.4 $7.5 $7.6 $7.7 $7.8 $7.9 $7.10))))))"
+    }
+
+    egg::test_fn! {
         // TODO: optimize the plan before column pruning
         //       it can not be done in a reasonable time
         tpch_q3,
