@@ -14,6 +14,7 @@ use super::{EGraph, Expr, RecExpr};
 /// ```
 pub struct Explain<'a> {
     expr: &'a RecExpr,
+    costs: Option<&'a [u32]>,
     id: Id,
     depth: u8,
 }
@@ -23,29 +24,45 @@ impl<'a> Explain<'a> {
     pub fn of(expr: &'a RecExpr) -> Self {
         Self {
             expr,
+            costs: None,
             id: Id::from(expr.as_ref().len() - 1),
             depth: 0,
         }
     }
 
+    /// Create a [`Explain`] with costs.
+    pub fn with_costs(expr: &'a RecExpr, costs: &'a [u32]) -> Self {
+        Self {
+            expr,
+            costs: Some(costs),
+            id: Id::from(expr.as_ref().len() - 1),
+            depth: 0,
+        }
+    }
+
+    /// Returns a explain for the sub expression.
     #[inline]
     const fn expr(&self, id: &Id) -> Self {
         Explain {
             expr: self.expr,
+            costs: self.costs,
             id: *id,
             depth: self.depth,
         }
     }
 
+    /// Returns a explain for the child plan.
     #[inline]
     const fn child(&self, id: &Id) -> Self {
         Explain {
             expr: self.expr,
+            costs: self.costs,
             id: *id,
             depth: self.depth + 1,
         }
     }
 
+    /// Returns a struct displaying the tabs.
     #[inline]
     const fn tab(&self) -> impl Display {
         struct Tab(u8);
@@ -60,6 +77,22 @@ impl<'a> Explain<'a> {
         Tab(self.depth)
     }
 
+    /// Returns a struct displaying the cost.
+    #[inline]
+    fn cost(&self) -> impl Display {
+        struct Cost(Option<u32>);
+        impl Display for Cost {
+            fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+                match self.0 {
+                    Some(c) => write!(f, " (cost={c})"),
+                    None => Ok(()),
+                }
+            }
+        }
+        Cost(self.costs.map(|cs| cs[usize::from(self.id)]))
+    }
+
+    /// Returns whether the expression is `true`.
     #[inline]
     fn is_true(&self, id: &Id) -> bool {
         self.expr[*id] == Expr::true_()
@@ -71,6 +104,7 @@ impl Display for Explain<'_> {
         use Expr::*;
         let enode = &self.expr[self.id];
         let tab = self.tab();
+        let cost = self.cost();
         match enode {
             Constant(v) => write!(f, "{v}"),
             Type(t) => write!(f, "{t}"),
@@ -120,7 +154,7 @@ impl Display for Explain<'_> {
 
             Select([distinct, projection, from, where_, groupby, having]) => write!(
                 f,
-                "{tab}Select:\n  {tab}distinct={}\n  {tab}projection={}\n  {tab}where={}\n  {tab}groupby={}\n  {tab}having={}\n{}",
+                "{tab}Select:{cost}\n  {tab}distinct={}\n  {tab}projection={}\n  {tab}where={}\n  {tab}groupby={}\n  {tab}having={}\n{}",
                 self.expr(distinct),
                 self.expr(projection),
                 self.expr(where_),
@@ -130,9 +164,9 @@ impl Display for Explain<'_> {
             ),
             Distinct(_) => todo!(),
 
-            Scan(list) => write!(f, "{tab}Scan: {}\n", self.expr(list)),
+            Scan(list) => write!(f, "{tab}Scan: {}{cost}\n", self.expr(list)),
             Values(values) => {
-                write!(f, "{tab}Values:\n")?;
+                write!(f, "{tab}Values:{cost}\n")?;
                 for v in values.iter() {
                     write!(f, "  {tab}{}\n", self.expr(v))?;
                 }
@@ -140,17 +174,17 @@ impl Display for Explain<'_> {
             }
             Proj([exprs, child]) => write!(
                 f,
-                "{tab}Projection: {}\n{}",
+                "{tab}Projection: {}{cost}\n{}",
                 self.expr(exprs),
                 self.child(child)
             ),
             Filter([cond, child]) => {
-                write!(f, "{tab}Filter: {}\n{}", self.expr(cond), self.child(child))
+                write!(f, "{tab}Filter: {}{cost}\n{}", self.expr(cond), self.child(child))
             }
             Order([orderby, child]) => {
                 write!(
                     f,
-                    "{tab}Order: {}\n{}",
+                    "{tab}Order: {}{cost}\n{}",
                     self.expr(orderby),
                     self.child(child)
                 )
@@ -158,14 +192,14 @@ impl Display for Explain<'_> {
             Asc(a) | Desc(a) => write!(f, "{} {}", self.expr(a), enode),
             Limit([limit, offset, child]) => write!(
                 f,
-                "{tab}Limit: limit={}, offset={}\n{}",
+                "{tab}Limit: limit={}, offset={}{cost}\n{}",
                 self.expr(limit),
                 self.expr(offset),
                 self.child(child)
             ),
             TopN([limit, offset, orderby, child]) => write!(
                 f,
-                "{tab}TopN: limit={}, offset={}, orderby={}\n{}",
+                "{tab}TopN: limit={}, offset={}, orderby={}{cost}\n{}",
                 self.expr(limit),
                 self.expr(offset),
                 self.expr(orderby),
@@ -176,11 +210,11 @@ impl Display for Explain<'_> {
                 if !self.is_true(cond) {
                     write!(f, ", on={}", self.expr(cond))?;
                 }
-                write!(f, "\n{}{}", self.child(left), self.child(right))
+                write!(f, "{cost}\n{}{}", self.child(left), self.child(right))
             }
             HashJoin([ty, lkeys, rkeys, left, right]) => write!(
                 f,
-                "{tab}HashJoin: {}, lkey={}, rkey={}\n{}{}",
+                "{tab}HashJoin: {}, lkey={}, rkey={}{cost}\n{}{}",
                 self.expr(ty),
                 self.expr(lkeys),
                 self.expr(rkeys),
@@ -190,7 +224,7 @@ impl Display for Explain<'_> {
             Inner | LeftOuter | RightOuter | FullOuter | Cross => write!(f, "{}", enode),
             Agg([aggs, group_keys, child]) => write!(
                 f,
-                "{tab}Aggregate: {}, groupby={}\n{}",
+                "{tab}Aggregate: {}, groupby={}{cost}\n{}",
                 self.expr(aggs),
                 self.expr(group_keys),
                 self.child(child)
@@ -200,7 +234,7 @@ impl Display for Explain<'_> {
             Delete(_) => todo!(),
             CopyFrom(_) => todo!(),
             CopyTo(_) => todo!(),
-            Explain(child) => write!(f, "{tab}Explain:\n{}", self.child(child)),
+            Explain(child) => write!(f, "{tab}Explain:{cost}\n{}", self.child(child)),
             Prune(_) => todo!(),
             Symbol(s) => write!(f, "{s}"),
         }

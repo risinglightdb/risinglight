@@ -186,7 +186,11 @@ impl Database {
                 let bound = binder.bind(stmt)?;
                 println!("bind:\n{}", crate::planner::Explain::of(&bound));
                 let optimized = crate::planner::optimize(&bound);
-                println!("optimized:\n{}", crate::planner::Explain::of(&optimized));
+                let costs = crate::planner::costs(&optimized);
+                println!(
+                    "optimized:\n{}",
+                    crate::planner::Explain::with_costs(&optimized, &costs)
+                );
             }
             return Ok(vec![]);
         }

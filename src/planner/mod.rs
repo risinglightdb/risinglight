@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use egg::{define_language, Id, Symbol};
+use egg::{define_language, CostFunction, Id, Symbol};
 
 use crate::binder_v2::{BoundDrop, BoundExtSource, BoundTable};
 use crate::catalog::{ColumnRefId, TableRefId};
@@ -191,4 +191,18 @@ pub fn optimize(expr: &RecExpr) -> RecExpr {
     //         .get_string_with_let()
     // );
     best
+}
+
+/// Returns the cost for each node in the expression.
+pub fn costs(expr: &RecExpr) -> Vec<u32> {
+    let mut egraph = EGraph::default();
+    // NOTE: we assume Expr node has the same Id in both EGraph and RecExpr.
+    egraph.add_expr(expr);
+    let mut cost_fn = cost::CostFn { egraph: &egraph };
+    let mut costs = vec![0; expr.as_ref().len()];
+    for (i, node) in expr.as_ref().iter().enumerate() {
+        let cost = cost_fn.cost(node, |i| costs[usize::from(i)]);
+        costs[i] = cost;
+    }
+    costs
 }
