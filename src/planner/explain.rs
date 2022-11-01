@@ -164,11 +164,11 @@ impl Display for Explain<'_> {
             ),
             Distinct(_) => todo!(),
 
-            Scan(list) => write!(f, "{tab}Scan: {}{cost}\n", self.expr(list)),
+            Scan(list) => writeln!(f, "{tab}Scan: {}{cost}", self.expr(list)),
             Values(values) => {
-                write!(f, "{tab}Values:{cost}\n")?;
+                writeln!(f, "{tab}Values:{cost}")?;
                 for v in values.iter() {
-                    write!(f, "  {tab}{}\n", self.expr(v))?;
+                    writeln!(f, "  {tab}{}", self.expr(v))?;
                 }
                 Ok(())
             }
