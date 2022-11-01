@@ -84,7 +84,7 @@ impl TableRefId {
 }
 
 /// The reference ID of a column.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize)]
 pub struct ColumnRefId {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,
@@ -125,10 +125,16 @@ impl ColumnRefId {
     }
 }
 
-impl std::fmt::Display for ColumnRefId {
+impl std::fmt::Debug for ColumnRefId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // TODO: now ignore database and schema
         write!(f, "${}.{}", self.table_id, self.column_id)
+    }
+}
+
+impl std::fmt::Display for ColumnRefId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
     }
 }
 
