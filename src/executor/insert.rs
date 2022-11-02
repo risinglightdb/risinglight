@@ -10,7 +10,6 @@ use crate::types::{ColumnId, DataType, DataValue};
 
 /// The executor of `insert` statement.
 pub struct InsertExecutor<S: Storage> {
-    pub context: Arc<Context>,
     pub table_ref_id: TableRefId,
     pub column_ids: Vec<ColumnId>,
     pub storage: Arc<S>,
@@ -18,7 +17,8 @@ pub struct InsertExecutor<S: Storage> {
 }
 
 impl<S: Storage> InsertExecutor<S> {
-    async fn execute_inner(self, token: CancellationToken) -> Result<i32, ExecutorError> {
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
         let table = self.storage.get_table(self.table_ref_id)?;
         let columns = table.columns()?;
 
@@ -45,27 +45,11 @@ impl<S: Storage> InsertExecutor<S> {
         for chunk in self.child {
             let chunk = transform_chunk(chunk?, &output_columns);
             cnt += chunk.cardinality();
-            if let Err(err) = unified_select_with_token(&token, txn.append(chunk)).await {
-                txn.abort().await?;
-                return Err(err);
-            }
+            txn.append(chunk).await?;
         }
         txn.commit().await?;
 
-        Ok(cnt as i32)
-    }
-
-    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
-    pub async fn execute(self) {
-        let context = self.context.clone();
-        match context.spawn(|token| async move { self.execute_inner(token).await }) {
-            Some(handler) => {
-                let cnt = handler.await.expect("failed to join insert thread")?;
-                let chunk = DataChunk::single(cnt as i32);
-                yield chunk;
-            }
-            None => return Err(ExecutorError::Abort),
-        }
+        yield DataChunk::single(cnt as i32);
     }
 }
 
@@ -108,7 +92,6 @@ mod tests {
     async fn simple() {
         let storage = create_table().await;
         let executor = InsertExecutor {
-            context: Default::default(),
             table_ref_id: TableRefId::new(0, 0, 0),
             column_ids: vec![0, 1],
             storage: storage.as_in_memory_storage(),

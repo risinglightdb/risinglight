@@ -6,20 +6,10 @@ use super::{ArrayBuilderImpl, DataChunk};
 use crate::types::{ConvertError, DataType, DataValue};
 
 /// A helper struct to build a [`DataChunk`].
-///
-/// ## Panic
-///
-/// Panic if there were remaining rows in the builder.
 pub struct DataChunkBuilder {
     array_builders: Vec<ArrayBuilderImpl>,
     size: usize,
     capacity: usize,
-}
-
-impl Drop for DataChunkBuilder {
-    fn drop(&mut self) {
-        assert_eq!(self.size, 0, "dropping non-empty data chunk builder");
-    }
 }
 
 impl DataChunkBuilder {

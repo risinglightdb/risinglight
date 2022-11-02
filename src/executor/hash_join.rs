@@ -47,6 +47,7 @@ impl HashJoinExecutor {
                 .entry(hash_value)
                 .or_insert_with(Vec::new)
                 .push(left_row);
+            tokio::task::consume_budget().await;
         }
 
         let data_types = self.left_types.iter().chain(self.right_types.iter());
@@ -61,6 +62,7 @@ impl HashJoinExecutor {
                     yield chunk;
                 }
             }
+            tokio::task::consume_budget().await;
         }
 
         // append rows for left outer join
@@ -82,6 +84,7 @@ impl HashJoinExecutor {
                 if let Some(chunk) = builder.push_row(values) {
                     yield chunk;
                 }
+                tokio::task::consume_budget().await;
             }
         }
 
@@ -101,10 +104,11 @@ impl HashJoinExecutor {
                 if let Some(chunk) = builder.push_row(values) {
                     yield chunk;
                 }
+                tokio::task::consume_budget().await;
             }
         }
 
-        if let Some(chunk) = { builder }.take() {
+        if let Some(chunk) = builder.take() {
             yield chunk;
         }
     }

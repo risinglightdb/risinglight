@@ -12,7 +12,6 @@ use crate::array::{
 };
 use crate::binder::{BindError, Binder};
 use crate::catalog::RootCatalogRef;
-use crate::executor::context::Context;
 use crate::executor::{ExecutorBuilder, ExecutorError};
 use crate::logical_planner::{LogicalPlanError, LogicalPlaner};
 use crate::optimizer::logical_plan_rewriter::{InputRefResolver, PlanRewriter};
@@ -165,14 +164,6 @@ impl Database {
     /// Run SQL queries and return the outputs.
 
     pub async fn run(&self, sql: &str) -> Result<Vec<Chunk>, Error> {
-        self.run_with_context(Default::default(), sql).await
-    }
-
-    pub async fn run_with_context(
-        &self,
-        context: Arc<Context>,
-        sql: &str,
-    ) -> Result<Vec<Chunk>, Error> {
         if let Some(cmdline) = sql.trim().strip_prefix('\\') {
             return self.run_internal(cmdline).await;
         }
@@ -216,7 +207,7 @@ impl Database {
             let optimized_plan = optimizer.optimize(logical_plan);
             debug!("{:#?}", optimized_plan);
 
-            let mut executor_builder = ExecutorBuilder::new(context.clone(), self.storage.clone());
+            let mut executor_builder = ExecutorBuilder::new(self.storage.clone());
             let executor = executor_builder.build(optimized_plan);
 
             let output = executor.try_collect().await?;

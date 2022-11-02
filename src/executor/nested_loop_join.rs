@@ -57,6 +57,7 @@ impl NestedLoopJoinExecutor {
                             _ => panic!("unsupported value from join condition"),
                         }
                     }
+                    tokio::task::consume_budget().await;
                 }
             }
             right_row_num += right_chunk.cardinality();
@@ -100,6 +101,7 @@ impl NestedLoopJoinExecutor {
                 if let Some(chunk) = builder.push_row(values) {
                     yield chunk;
                 }
+                tokio::task::consume_budget().await;
             }
         }
 
