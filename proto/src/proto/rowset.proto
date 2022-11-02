@@ -42,6 +42,12 @@ message BlockIndex {
     DictNullable = 10;
     DictFixedChar = 11;
     DictVarchar = 12;
+    PlainNullableFixedChar = 13;
+    PlainNullableVarchar = 14;
+    RleNullableFixedChar = 15;
+    RleNullableVarchar = 16;
+    DictNullableFixedChar = 17;
+    DictNullableVarchar = 18;
   }
 
   // Block offset (in bytes) in the `.col` file.
