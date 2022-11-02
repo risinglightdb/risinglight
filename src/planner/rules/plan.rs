@@ -10,7 +10,7 @@ pub fn rules() -> Vec<Rewrite> {
     rules.extend(merge_rules());
     rules.extend(pushdown_rules());
     rules.extend(join_rules());
-    rules.extend(column_prune_rules());
+    // rules.extend(column_prune_rules());
     rules
 }
 

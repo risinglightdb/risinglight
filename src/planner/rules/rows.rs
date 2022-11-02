@@ -21,7 +21,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         Filter([_, c]) => x(c), // TODO: estimate predicate
         Limit([_, limit, c]) | TopN([_, limit, _, c]) => x(c).min(get_limit_num(limit)),
         Join([_, _, l, r]) => x(l).checked_mul(x(r)).unwrap_or(u32::MAX),
-        HashJoin([_, _, _, l, r]) => x(l) + x(r),
+        HashJoin([_, _, _, l, r]) => x(l).checked_add(x(r)).unwrap_or(u32::MAX),
         Prune([_, c]) => x(c),
         _ => 1,
     }
