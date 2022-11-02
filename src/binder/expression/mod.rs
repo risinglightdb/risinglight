@@ -43,16 +43,16 @@ pub enum BoundExpr {
 }
 
 impl BoundExpr {
-    pub fn return_type(&self) -> Option<DataType> {
+    pub fn return_type(&self) -> DataType {
         match self {
             Self::Constant(v) => v.data_type(),
-            Self::ColumnRef(expr) => Some(*expr.desc.datatype()),
+            Self::ColumnRef(expr) => *expr.desc.datatype(),
             Self::BinaryOp(expr) => expr.return_type,
             Self::UnaryOp(expr) => expr.return_type,
-            Self::TypeCast(expr) => Some(expr.ty.nullable()),
-            Self::AggCall(expr) => Some(expr.return_type),
-            Self::InputRef(expr) => Some(expr.return_type),
-            Self::IsNull(_) => Some(DataTypeKind::Bool.not_null()),
+            Self::TypeCast(expr) => expr.ty.nullable(),
+            Self::AggCall(expr) => expr.return_type,
+            Self::InputRef(expr) => expr.return_type,
+            Self::IsNull(_) => DataTypeKind::Bool.not_null(),
             Self::ExprWithAlias(expr) => expr.expr.return_type(),
             Self::Alias(expr) => expr.expr.return_type(),
         }
@@ -207,7 +207,7 @@ impl Binder {
                 Ok(BoundExpr::UnaryOp(BoundUnaryOp {
                     op: UnaryOperator::Not,
                     expr: Box::new(expr),
-                    return_type: Some(DataTypeKind::Bool.not_null()),
+                    return_type: DataTypeKind::Bool.not_null(),
                 }))
             }
             Expr::TypedString { data_type, value } => self.bind_typed_string(data_type, value),
@@ -257,7 +257,7 @@ impl Binder {
             op: final_op,
             left_expr: Box::new(left_expr),
             right_expr: Box::new(right_expr),
-            return_type: Some(DataType::new(DataTypeKind::Bool, false)),
+            return_type: DataTypeKind::Bool.not_null(),
         }))
     }
 }
@@ -340,7 +340,7 @@ mod tests {
         let expr = BoundExpr::UnaryOp(BoundUnaryOp {
             op: UnaryOperator::Minus,
             expr: Box::new(expr),
-            return_type: Some(data_type),
+            return_type: data_type,
         });
         assert_eq!("-a", expr.format_name(&child_schema));
     }
@@ -361,7 +361,7 @@ mod tests {
                 op: BinaryOperator::Plus,
                 left_expr: Box::new(left_expr),
                 right_expr: Box::new(right_expr),
-                return_type: Some(DataType::new(DataTypeKind::Int32, true)),
+                return_type: DataTypeKind::Int32.nullable(),
             });
             assert_eq!("a+1", expr.format_name(&child_schema));
         }
@@ -385,7 +385,7 @@ mod tests {
                 op: BinaryOperator::Plus,
                 left_expr: Box::new(left_expr),
                 right_expr: Box::new(right_expr),
-                return_type: Some(data_type),
+                return_type: data_type,
             });
             assert_eq!("a+b", expr.format_name(&child_schema));
         }

@@ -14,7 +14,6 @@ use clap::Parser;
 use humantime::format_duration;
 use minitrace::prelude::*;
 use risinglight::array::{datachunk_to_sqllogictest_string, Chunk};
-use risinglight::executor::context::Context;
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::utils::time::RoundingDuration;
 use risinglight::Database;
@@ -100,46 +99,36 @@ async fn run_query_in_background(
     output_format: Option<String>,
     enable_tracing: bool,
 ) {
-    let context: Arc<Context> = Default::default();
     let start_time = Instant::now();
-    let handle = tokio::spawn({
-        let context = context.clone();
-        async move {
-            if enable_tracing {
-                let (root, collector) = Span::root("root");
-                let result = db.run_with_context(context, &sql).in_span(root).await;
-                let records: Vec<SpanRecord> = collector.collect().await;
-                println!("{records:#?}");
-                result
-            } else {
-                db.run_with_context(context, &sql).await
-            }
+    let task = async move {
+        if enable_tracing {
+            let (root, collector) = Span::root("root");
+            let result = db.run(&sql).in_span(root).await;
+            let records: Vec<SpanRecord> = collector.collect().await;
+            println!("{records:#?}");
+            result
+        } else {
+            db.run(&sql).await
         }
-    });
+    };
 
     select! {
         _ = signal::ctrl_c() => {
-            context.cancel();
+            // we simply drop the future `task` to cancel the query.
             println!("Interrupted");
         }
-        ret = handle => {
-            match ret.expect("failed to join query thread") {
+        ret = task => {
+            match ret {
                 Ok(chunks) => {
                     for chunk in chunks {
-                        print_chunk(&chunk, &output_format)
+                        print_chunk(&chunk, &output_format);
                     }
-
-                    print_execution_time(start_time)
+                    print_execution_time(start_time);
                 }
                 Err(err) => println!("{}", err),
             }
         }
     }
-
-    // Wait detached tasks if cancelled, or do nothing if query ends.
-    // Leak is guaranteed not to happen as long as all handles are joined
-    // and errors in detached tasks are properly handled.
-    context.wait().await;
 }
 
 /// Read line by line from STDIN until a line ending with `;`.

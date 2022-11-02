@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 use super::*;
 use crate::array::{ArrayBuilderImpl, ArrayImpl};
 use crate::binder::{AggKind, BoundAggCall};
-use crate::types::{DataTypeKind, DataValue};
+use crate::types::DataValue;
 
 /// The executor of simple aggregation.
 pub struct SimpleAggExecutor {
@@ -38,18 +38,9 @@ impl SimpleAggExecutor {
             .iter()
             .map(|s| {
                 let result = &s.output();
-                match &result.data_type() {
-                    Some(r) => {
-                        let mut builder = ArrayBuilderImpl::with_capacity(1, r);
-                        builder.push(result);
-                        builder.finish()
-                    }
-                    None => {
-                        let mut builder = ArrayBuilderImpl::new(&DataTypeKind::Int32.nullable());
-                        builder.push(result);
-                        builder.finish()
-                    }
-                }
+                let mut builder = ArrayBuilderImpl::with_capacity(1, &result.data_type());
+                builder.push(result);
+                builder.finish()
             })
             .collect::<DataChunk>()
     }

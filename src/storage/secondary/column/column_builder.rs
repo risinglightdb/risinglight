@@ -30,6 +30,7 @@ impl ColumnBuilderImpl {
     pub fn new_from_datatype(datatype: &DataType, options: ColumnBuilderOptions) -> Self {
         use DataTypeKind::*;
         match datatype.kind() {
+            Null => panic!("column type should not be null"),
             Int32 => Self::Int32(I32ColumnBuilder::new(datatype.nullable, options)),
             Int64 => Self::Int64(I64ColumnBuilder::new(datatype.nullable, options)),
             Bool => Self::Bool(BoolColumnBuilder::new(datatype.nullable, options)),

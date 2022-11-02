@@ -99,18 +99,12 @@ impl Binder {
                 if args.is_empty() {
                     let first_index_column = BoundExpr::InputRef(BoundInputRef {
                         index: 0,
-                        return_type: DataType::new(DataTypeKind::Int32, false),
+                        return_type: DataTypeKind::Int32.not_null(),
                     });
                     args.push(first_index_column);
-                    (
-                        AggKind::RowCount,
-                        Some(DataType::new(DataTypeKind::Int32, false)),
-                    )
+                    (AggKind::RowCount, DataTypeKind::Int32.not_null())
                 } else {
-                    (
-                        AggKind::Count,
-                        Some(DataType::new(DataTypeKind::Int32, false)),
-                    )
+                    (AggKind::Count, DataTypeKind::Int32.not_null())
                 }
             }
             "max" => (AggKind::Max, args[0].return_type()),
@@ -128,14 +122,14 @@ impl Binder {
                 left_expr: Box::new(BoundExpr::AggCall(BoundAggCall {
                     kind: AggKind::Sum,
                     args: args.clone(),
-                    return_type: args[0].return_type().unwrap(),
+                    return_type: args[0].return_type(),
                 })),
                 right_expr: Box::new(BoundExpr::TypeCast(BoundTypeCast {
-                    ty: args[0].return_type().unwrap().kind(),
+                    ty: args[0].return_type().kind(),
                     expr: Box::new(BoundExpr::AggCall(BoundAggCall {
                         kind: AggKind::Count,
                         args,
-                        return_type: DataType::new(DataTypeKind::Int32, false),
+                        return_type: DataTypeKind::Int32.not_null(),
                     })),
                 })),
                 return_type,
@@ -143,7 +137,7 @@ impl Binder {
             _ => Ok(BoundExpr::AggCall(BoundAggCall {
                 kind,
                 args,
-                return_type: return_type.unwrap(),
+                return_type,
             })),
         }
     }

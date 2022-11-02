@@ -4,10 +4,8 @@ use crate::types::{DataType, DataTypeKind as Kind};
 /// The data type of type analysis.
 pub type Type = Result<DataType, TypeError>;
 
-#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TypeError {
-    #[error("unknown type from null")]
-    Null,
     #[error("the type should be set manually")]
     Uninit,
     #[error("type is not available for node")]
@@ -22,43 +20,48 @@ pub fn analyze_type(egraph: &EGraph, enode: &Expr) -> Type {
     let x = |i: &Id| egraph[*i].data.type_.clone();
     match enode {
         // values
-        Constant(v) => Ok(v.data_type().ok_or(TypeError::Null)?),
+        Constant(v) => Ok(v.data_type()),
         Type(t) => Ok((*t).not_null()),
         Column(_) | ColumnIndex(_) => Err(TypeError::Uninit), // binder should set the type
 
         // cast
-        Cast([ty, a]) => merge(enode, [x(ty)?, x(a)?], |_| true, |[ty, _]| ty),
+        Cast([ty, a]) => merge(enode, [x(ty)?, x(a)?], |[ty, _]| Some(ty)),
 
         // number ops
         Neg(a) => x(a),
         Add([a, b]) | Sub([a, b]) | Mul([a, b]) | Div([a, b]) | Mod([a, b]) => {
-            merge(enode, [x(a)?, x(b)?], |[a, b]| a == b, |[a, _]| a)
+            merge(enode, [x(a)?, x(b)?], |[a, b]| match (a.min(b), a.max(b)) {
+                (Kind::Null, _) => Some(Kind::Null),
+                _ if a == b && a.is_number() => Some(a),
+                (Kind::Int32 | Kind::Int64, b @ Kind::Decimal(_, _) | b @ Kind::Float64) => Some(b),
+                (Kind::Date, Kind::Interval) => Some(Kind::Date),
+                _ => None,
+            })
         }
 
         // string ops
-        StringConcat([a, b]) | Like([a, b]) => merge(
-            enode,
-            [x(a)?, x(b)?],
-            |[a, b]| a == Kind::String && b == Kind::String,
-            |_| Kind::String,
-        ),
+        StringConcat([a, b]) | Like([a, b]) => merge(enode, [x(a)?, x(b)?], |[a, b]| {
+            (a == Kind::String && b == Kind::String).then_some(Kind::String)
+        }),
 
         // bool ops
         Not(a) => check(enode, x(a)?, |a| a == Kind::Bool),
         Gt([a, b]) | Lt([a, b]) | GtEq([a, b]) | LtEq([a, b]) | Eq([a, b]) | NotEq([a, b]) => {
-            merge(enode, [x(a)?, x(b)?], |[a, b]| a == b, |_| Kind::Bool)
+            merge(enode, [x(a)?, x(b)?], |[a, b]| {
+                (a.is_number() && b.is_number()
+                    || a == b
+                    || (a == Kind::String || b == Kind::String)
+                    || (a == Kind::Null || b == Kind::Null))
+                    .then_some(Kind::Bool)
+            })
         }
-        And([a, b]) | Or([a, b]) | Xor([a, b]) => merge(
-            enode,
-            [x(a)?, x(b)?],
-            |[a, b]| a == Kind::Bool && b == Kind::Bool,
-            |_| Kind::Bool,
-        ),
+        And([a, b]) | Or([a, b]) | Xor([a, b]) => merge(enode, [x(a)?, x(b)?], |[a, b]| {
+            (a == Kind::Bool && b == Kind::Bool).then_some(Kind::Bool)
+        }),
         If([cond, then, else_]) => merge(
             enode,
             [x(cond)?, x(then)?, x(else_)?],
-            |[cond, then, else_]| cond == Kind::Bool && then == else_,
-            |[_, then, _]| then,
+            |[cond, then, else_]| (cond == Kind::Bool && then == else_).then_some(then),
         ),
 
         // null ops
@@ -78,19 +81,6 @@ pub fn analyze_type(egraph: &EGraph, enode: &Expr) -> Type {
     }
 }
 
-/// Merge two type analysis results.
-pub fn merge_types(to: &mut Type, from: Type) -> DidMerge {
-    match (to, from) {
-        (Err(_), Err(_)) => DidMerge(false, true),
-        (to @ Err(_), from @ Ok(_)) => {
-            *to = from;
-            DidMerge(true, false)
-        }
-        (Ok(_), Err(_)) => DidMerge(false, true),
-        (Ok(a), Ok(b)) => DidMerge(false, true),
-    }
-}
-
 fn check(enode: &Expr, a: DataType, check: impl FnOnce(Kind) -> bool) -> Type {
     if check(a.kind()) {
         Ok(a)
@@ -105,13 +95,12 @@ fn check(enode: &Expr, a: DataType, check: impl FnOnce(Kind) -> bool) -> Type {
 fn merge<const N: usize>(
     enode: &Expr,
     types: [DataType; N],
-    can_merge: impl FnOnce([Kind; N]) -> bool,
-    merge: impl FnOnce([Kind; N]) -> Kind,
+    merge: impl FnOnce([Kind; N]) -> Option<Kind>,
 ) -> Type {
     let kinds = types.map(|t| t.kind());
-    if can_merge(kinds) {
+    if let Some(kind) = merge(kinds) {
         Ok(DataType {
-            kind: merge(kinds),
+            kind,
             nullable: types.map(|t| t.nullable).iter().any(|b| *b),
         })
     } else {
@@ -128,11 +117,11 @@ mod tests {
 
     #[test]
     fn value() {
-        assert_type_eq("null", Err(TypeError::Null));
+        assert_type_eq("null", Ok(Kind::Null.nullable()));
         assert_type_eq("false", Ok(Kind::Bool.not_null()));
         assert_type_eq("true", Ok(Kind::Bool.not_null()));
         assert_type_eq("1", Ok(Kind::Int32.not_null()));
-        assert_type_eq("1.0", Ok(Kind::Float64.not_null()));
+        assert_type_eq("1.0", Ok(Kind::Decimal(None, None).not_null()));
         assert_type_eq("'hello'", Ok(Kind::String.not_null()));
         assert_type_eq("b'\\xAA'", Ok(Kind::Blob.not_null()));
         assert_type_eq("date'2022-10-14'", Ok(Kind::Date.not_null()));
@@ -150,29 +139,26 @@ mod tests {
     #[test]
     fn add() {
         assert_type_eq("(+ 1 2)", Ok(Kind::Int32.not_null()));
-        assert_type_eq("(+ 1.0 2.0)", Ok(Kind::Float64.not_null()));
-        assert_type_eq("(+ null null)", Err(TypeError::Null));
+        assert_type_eq("(+ 1 1.0)", Ok(Kind::Decimal(None, None).not_null()));
+        assert_type_eq("(+ 1.0 2.0)", Ok(Kind::Decimal(None, None).not_null()));
+        assert_type_eq("(+ null null)", Ok(Kind::Null.nullable()));
         assert_type_eq(
             "(+ date'2022-10-14' interval'1_day')",
             Ok(Kind::Date.not_null()),
         );
-        // FIXME: int + null => int
-        // assert_type_eq("(+ 1 null)", Ok(Kind::Int32.nullable()));
+        assert_type_eq(
+            "(+ interval'1_day' date'2022-10-14')",
+            Ok(Kind::Date.not_null()),
+        );
+        assert_type_eq("(+ 1 null)", Ok(Kind::Null.nullable()));
 
-        // FIXME: interval + date => date
-        // assert_type_eq(
-        //     "(+ interval'1_day' date'2022-10-14')",
-        //     Ok(Kind::Date.not_null()),
-        // );
-
-        // FIXME: bool + bool => error
-        // assert_type_eq(
-        //     "(+ true false)",
-        //     Err(TypeError::NoFunction {
-        //         op: "+".into(),
-        //         operands: vec![Kind::Bool, Kind::Bool],
-        //     }),
-        // );
+        assert_type_eq(
+            "(+ true false)",
+            Err(TypeError::NoFunction {
+                op: "+".into(),
+                operands: vec![Kind::Bool, Kind::Bool],
+            }),
+        );
 
         assert_type_eq(
             "(+ 1 false)",
@@ -186,14 +172,13 @@ mod tests {
     #[test]
     fn cmp() {
         assert_type_eq("(= 1 1)", Ok(Kind::Bool.not_null()));
-        // FIXME: compare compatible types
-        // assert_type_eq("(= 1 1.0)", Ok(Kind::Bool.not_null()));
-        // assert_type_eq("(= 1 '1')", Ok(Kind::Bool.not_null()));
-        // assert_type_eq("(= 1 null)", Ok(Kind::Bool.nullable()));
-        // assert_type_eq(
-        //     "(= '2022-10-14' date'2022-10-14')",
-        //     Ok(Kind::Bool.not_null()),
-        // );
+        assert_type_eq("(= 1 1.0)", Ok(Kind::Bool.not_null()));
+        assert_type_eq("(= 1 '1')", Ok(Kind::Bool.not_null()));
+        assert_type_eq("(= 1 null)", Ok(Kind::Bool.nullable()));
+        assert_type_eq(
+            "(= '2022-10-14' date'2022-10-14')",
+            Ok(Kind::Bool.not_null()),
+        );
         assert_type_eq(
             "(= date'2022-10-14' 1)",
             Err(TypeError::NoFunction {

@@ -10,7 +10,7 @@ use crate::parser::UnaryOperator;
 pub struct BoundUnaryOp {
     pub op: UnaryOperator,
     pub expr: Box<BoundExpr>,
-    pub return_type: Option<DataType>,
+    pub return_type: DataType,
 }
 
 impl Binder {

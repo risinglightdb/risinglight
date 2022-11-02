@@ -24,12 +24,8 @@ impl BoundExpr {
                 array.unary_op(&op.op)
             }
             BoundExpr::Constant(v) => {
-                let mut builder = ArrayBuilderImpl::with_capacity(
-                    chunk.cardinality(),
-                    &self
-                        .return_type()
-                        .unwrap_or_else(|| DataTypeKind::Int32.nullable()),
-                );
+                let mut builder =
+                    ArrayBuilderImpl::with_capacity(chunk.cardinality(), &self.return_type());
                 // TODO: optimize this
                 for _ in 0..chunk.cardinality() {
                     builder.push(v);
@@ -78,8 +74,7 @@ impl BoundExpr {
                 array.unary_op(&op.op)
             }
             BoundExpr::Constant(v) => {
-                let mut builder =
-                    ArrayBuilderImpl::with_capacity(cardinality, &self.return_type().unwrap());
+                let mut builder = ArrayBuilderImpl::with_capacity(cardinality, &self.return_type());
                 // TODO: optimize this
                 for _ in 0..cardinality {
                     builder.push(v);

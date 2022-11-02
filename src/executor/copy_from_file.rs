@@ -14,7 +14,6 @@ use crate::optimizer::plan_nodes::PhysicalCopyFromFile;
 
 /// The executor of loading file data.
 pub struct CopyFromFileExecutor {
-    pub context: Arc<Context>,
     pub plan: PhysicalCopyFromFile,
 }
 
@@ -25,26 +24,20 @@ impl CopyFromFileExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         let (tx, mut rx) = tokio::sync::mpsc::channel(1);
-        let context = self.context.clone();
-        match context.spawn_blocking(|token| self.read_file_blocking(tx, token)) {
-            Some(handle) => {
-                while let Some(chunk) = rx.recv().await {
-                    yield chunk;
-                }
-                handle.await.unwrap()?;
-            }
-            None => return Err(ExecutorError::Abort),
+        // # Cancellation
+        // When this stream is dropped, the `rx` is dropped, the spawned task will fail to send to
+        // `tx`, then the task will finish.
+        let handle = tokio::task::spawn_blocking(|| self.read_file_blocking(tx));
+        while let Some(chunk) = rx.recv().await {
+            yield chunk;
         }
+        handle.await.unwrap()?;
     }
 
     /// Read records from file using blocking IO.
     ///
     /// The read data chunks will be sent through `tx`.
-    fn read_file_blocking(
-        self,
-        tx: Sender<DataChunk>,
-        token: CancellationToken,
-    ) -> Result<(), ExecutorError> {
+    fn read_file_blocking(self, tx: Sender<DataChunk>) -> Result<(), ExecutorError> {
         let file = File::open(self.plan.logical().path())?;
         let file_size = file.metadata()?.len();
         let mut buf_reader = BufReader::new(file);
@@ -109,16 +102,12 @@ impl CopyFromFileExecutor {
             // push a raw str row and send it if necessary
             if let Some(chunk) = chunk_builder.push_str_row(str_row_data?)? {
                 bar.set_position(size_count as u64);
-                if token.is_cancelled() || tx.blocking_send(chunk).is_err() {
-                    return Err(ExecutorError::Abort);
-                }
+                tx.blocking_send(chunk).map_err(|_| ExecutorError::Abort)?;
             }
         }
         // send left chunk
         if let Some(chunk) = chunk_builder.take() {
-            if token.is_cancelled() || tx.blocking_send(chunk).is_err() {
-                return Err(ExecutorError::Abort);
-            }
+            tx.blocking_send(chunk).map_err(|_| ExecutorError::Abort)?;
         }
         bar.finish();
         Ok(())
@@ -141,7 +130,6 @@ mod tests {
         write!(file, "{}", csv).expect("failed to write file");
 
         let executor = CopyFromFileExecutor {
-            context: Default::default(),
             plan: PhysicalCopyFromFile::new(LogicalCopyFromFile::new(
                 file.path().into(),
                 FileFormat::Csv {

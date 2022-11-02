@@ -23,6 +23,7 @@ pub use self::native::*;
 /// Physical data type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum DataTypeKind {
+    Null,
     Int32,
     Int64,
     // Float32,
@@ -37,6 +38,10 @@ pub enum DataTypeKind {
 }
 
 impl DataTypeKind {
+    pub const fn is_null(&self) -> bool {
+        matches!(self, Self::Null)
+    }
+
     pub const fn is_number(&self) -> bool {
         matches!(
             self,
@@ -67,6 +72,7 @@ impl From<&crate::parser::DataType> for DataTypeKind {
 impl std::fmt::Display for DataTypeKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Null => write!(f, "NULL"),
             Self::Int32 => write!(f, "INT"),
             Self::Int64 => write!(f, "BIGINT"),
             // Self::Float32 => write!(f, "REAL"),
@@ -288,19 +294,19 @@ impl DataValue {
         }
     }
 
-    /// Get the type of value. `None` means NULL.
-    pub fn data_type(&self) -> Option<DataType> {
+    /// Get the type of value.
+    pub fn data_type(&self) -> DataType {
         match self {
-            Self::Bool(_) => Some(DataTypeKind::Bool.not_null()),
-            Self::Int32(_) => Some(DataTypeKind::Int32.not_null()),
-            Self::Int64(_) => Some(DataTypeKind::Int64.not_null()),
-            Self::Float64(_) => Some(DataTypeKind::Float64.not_null()),
-            Self::String(_) => Some(DataTypeKind::String.not_null()),
-            Self::Blob(_) => Some(DataTypeKind::Blob.not_null()),
-            Self::Decimal(_) => Some(DataTypeKind::Decimal(None, None).not_null()),
-            Self::Date(_) => Some(DataTypeKind::Date.not_null()),
-            Self::Interval(_) => Some(DataTypeKind::Interval.not_null()),
-            Self::Null => None,
+            Self::Null => DataTypeKind::Null.nullable(),
+            Self::Bool(_) => DataTypeKind::Bool.not_null(),
+            Self::Int32(_) => DataTypeKind::Int32.not_null(),
+            Self::Int64(_) => DataTypeKind::Int64.not_null(),
+            Self::Float64(_) => DataTypeKind::Float64.not_null(),
+            Self::String(_) => DataTypeKind::String.not_null(),
+            Self::Blob(_) => DataTypeKind::Blob.not_null(),
+            Self::Decimal(_) => DataTypeKind::Decimal(None, None).not_null(),
+            Self::Date(_) => DataTypeKind::Date.not_null(),
+            Self::Interval(_) => DataTypeKind::Interval.not_null(),
         }
     }
 
@@ -389,8 +395,8 @@ impl FromStr for DataValue {
             Ok(Self::Int32(int))
         } else if let Ok(bigint) = s.parse::<i64>() {
             Ok(Self::Int64(bigint))
-        } else if let Ok(float) = s.parse::<F64>() {
-            Ok(Self::Float64(float))
+        } else if let Ok(d) = s.parse::<Decimal>() {
+            Ok(Self::Decimal(d))
         } else if s.starts_with('\'') && s.ends_with('\'') {
             Ok(Self::String(s[1..s.len() - 1].to_string()))
         } else if s.starts_with("b\'") && s.ends_with('\'') {
