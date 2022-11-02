@@ -10,7 +10,6 @@ pub fn rules() -> Vec<Rewrite> {
     rules.extend(merge_rules());
     rules.extend(pushdown_rules());
     rules.extend(join_rules());
-    // rules.extend(column_prune_rules());
     rules
 }
 
@@ -106,8 +105,10 @@ fn join_rules() -> Vec<Rewrite> { vec![
 /// We introduce an internal node [`Expr::Prune`] 
 /// to top-down traverse the plan tree and collect all used columns.
 #[rustfmt::skip]
-fn column_prune_rules() -> Vec<Rewrite> { vec![
+pub fn column_prune_rules() -> Vec<Rewrite> { vec![
     // projection is the source of prune node
+    //   note that this rule may be applied for a lot of times,
+    //   so it's not recommand to apply column pruning with other rules together.
     rw!("prune-gen";
         "(proj ?exprs ?child)" =>
         "(proj ?exprs (prune ?exprs ?child))"
@@ -323,7 +324,7 @@ mod tests {
 
     egg::test_fn! {
         column_prune,
-        rules(),
+        column_prune_rules(),
         // SELECT a FROM t1(id, a) JOIN t2(id, b, c) ON t1.id = t2.id WHERE a + b > 1;
         "
         (proj (list $1.2)

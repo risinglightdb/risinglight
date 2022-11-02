@@ -42,7 +42,14 @@ pub fn all_rules() -> Vec<Rewrite> {
     let mut rules = vec![];
     rules.append(&mut expr::rules());
     rules.append(&mut plan::rules());
+    rules
+}
+
+/// Returns stage1 rules in the optimizer.
+pub fn stage1_rules() -> Vec<Rewrite> {
+    let mut rules = vec![];
     rules.append(&mut agg::rules());
+    rules.append(&mut plan::column_prune_rules());
     rules
 }
 

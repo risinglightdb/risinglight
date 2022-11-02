@@ -4,6 +4,21 @@ use tracing::debug;
 use super::*;
 use crate::planner::rules::analyze_rows;
 
+pub struct NoPrune;
+
+impl egg::CostFunction<Expr> for NoPrune {
+    type Cost = u32;
+    fn cost<C>(&mut self, enode: &Expr, mut costs: C) -> Self::Cost
+    where
+        C: FnMut(Id) -> Self::Cost,
+    {
+        match enode {
+            Expr::Prune(_) | Expr::Select(_) | Expr::Distinct(_) => u32::MAX,
+            _ => enode.fold(1, |sum, id| sum.checked_add(costs(id)).unwrap_or(u32::MAX)),
+        }
+    }
+}
+
 pub struct CostFn<'a> {
     pub egraph: &'a EGraph,
 }

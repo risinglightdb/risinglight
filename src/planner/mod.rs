@@ -171,9 +171,18 @@ impl Expr {
 
 /// Optimize the given expression.
 pub fn optimize(expr: &RecExpr) -> RecExpr {
+    // 1. column pruning
+    // TODO: remove unused analysis
+    let mut runner = egg::Runner::default()
+        .with_expr(expr)
+        .run(&rules::stage1_rules());
+    let extractor = egg::Extractor::new(&runner.egraph, cost::NoPrune);
+    let (_, expr) = extractor.find_best(runner.roots[0]);
+
+    // 2. other rules
     let mut runner = egg::Runner::default()
         // .with_explanations_enabled()
-        .with_expr(expr)
+        .with_expr(&expr)
         .with_time_limit(Duration::from_secs(1))
         .run(&rules::all_rules());
     // extract the best expression
@@ -181,8 +190,7 @@ pub fn optimize(expr: &RecExpr) -> RecExpr {
         egraph: &runner.egraph,
     };
     let extractor = egg::Extractor::new(&runner.egraph, cost_fn);
-    let root = runner.roots[0];
-    let (_, best) = extractor.find_best(root);
+    let (_, best) = extractor.find_best(runner.roots[0]);
     // explain the optimization
     // println!(
     //     "{}",

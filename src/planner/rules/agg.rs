@@ -288,8 +288,6 @@ mod tests {
     }
 
     egg::test_fn! {
-        // TODO: optimize the plan before column pruning
-        //       it can not be done in a reasonable time
         tpch_q3,
         rules(),
         "(topn 10 null (list (desc (sum (* $7.5 (- 1 $7.6)))) (asc $6.4))
