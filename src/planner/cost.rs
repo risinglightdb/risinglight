@@ -38,20 +38,23 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             None => f32::INFINITY,
         };
         let nlogn = |x: f32| x * (x + 1.0).log2();
+        let out = || rows(id) * cols(id);
 
         let c = match enode {
             Select(_) | Prune(_) => f32::INFINITY, // should no longer exists
-            Scan(_) => cols(id) * rows(id) * 10.0,
-            Order([_, c]) => nlogn(rows(c)) + costs(c),
-            Proj([exprs, c]) | Filter([exprs, c]) => costs(exprs) * rows(c) + costs(c),
-            Agg([exprs, groupby, c]) => (costs(exprs) + costs(groupby)) * rows(c) + costs(c),
-            Limit([_, _, c]) => rows(id) + costs(c),
-            TopN([_, limit, _, c]) => (rows(id) + 1.0).log2() * rows(c) + costs(c),
-            Join([_, _, l, r]) => rows(l) * rows(r) * (cols(l) + cols(r)) + costs(l) + costs(r),
-            HashJoin([_, _, _, l, r]) => {
-                (rows(l) + rows(r)) * (cols(l) + cols(r)) + costs(l) + costs(r)
+            Scan(_) => out(),
+            Order([_, c]) => nlogn(rows(c)) + out() + costs(c),
+            Proj([exprs, c]) | Filter([exprs, c]) => costs(exprs) * rows(c) + out() + costs(c),
+            Agg([exprs, groupby, c]) => {
+                (costs(exprs) + costs(groupby)) * rows(c) + out() + costs(c)
             }
-            Values(_) | _ => enode.fold(1.0, |sum, id| sum + costs(&id)),
+            Limit([_, _, c]) => out() + costs(c),
+            TopN([_, _, _, c]) => (rows(id) + 1.0).log2() * rows(c) + out() + costs(c),
+            Join([_, on, l, r]) => costs(on) * rows(l) * rows(r) + out() + costs(l) + costs(r),
+            HashJoin([_, _, _, l, r]) => {
+                (rows(l) + 1.0).log2() * (rows(l) + rows(r)) + out() + costs(l) + costs(r)
+            }
+            Values(_) | _ => enode.fold(0.1, |sum, id| sum + costs(&id)),
         };
         println!(
             "{id}\t{enode:?}\tcost={c}, rows={}, cols={}",

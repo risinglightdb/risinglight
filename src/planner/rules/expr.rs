@@ -137,6 +137,8 @@ pub fn union_constant(egraph: &mut EGraph, id: Id) {
     if let Some(val) = &egraph[id].data.constant {
         let added = egraph.add(Expr::Constant(val.clone()));
         egraph.union(id, added);
+        // prune other nodes
+        egraph[id].nodes.retain(|n| n.is_leaf());
     }
 }
 
