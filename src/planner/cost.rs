@@ -41,7 +41,7 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
 
         let c = match enode {
             Select(_) | Prune(_) => f32::INFINITY, // should no longer exists
-            Scan(_) => cols(id) * rows(id),
+            Scan(_) => cols(id) * rows(id) * 10.0,
             Order([_, c]) => nlogn(rows(c)) + costs(c),
             Proj([exprs, c]) | Filter([exprs, c]) => costs(exprs) * rows(c) + costs(c),
             Agg([exprs, groupby, c]) => (costs(exprs) + costs(groupby)) * rows(c) + costs(c),

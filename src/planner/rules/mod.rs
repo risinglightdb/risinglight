@@ -26,6 +26,7 @@ use std::hash::Hash;
 use egg::{rewrite as rw, *};
 
 use super::{EGraph, Expr, Pattern, RecExpr, Rewrite};
+use crate::types::F32;
 
 mod agg;
 mod expr;
@@ -113,7 +114,10 @@ impl Analysis<Expr> for ExprAnalysis {
         let merge_aggs = merge_small_set(&mut to.aggs, from.aggs);
         let merge_schema = egg::merge_max(&mut to.schema, from.schema);
         let merge_type = egg::merge_max(&mut to.type_, from.type_);
-        let merge_rows = egg::merge_min(&mut to.rows, from.rows);
+        let merge_rows = egg::merge_min(
+            unsafe { std::mem::transmute(&mut to.rows) },
+            F32::from(from.rows),
+        );
         merge_const | merge_columns | merge_aggs | merge_schema | merge_type | merge_rows
     }
 
