@@ -34,7 +34,7 @@ where
             op: And,
             left_expr: Box::new(ret),
             right_expr: Box::new(expr),
-            return_type: Some(DataTypeKind::Bool.nullable()),
+            return_type: DataTypeKind::Bool.nullable(),
         })
     }
     let rewriter = BoolExprSimplificationRule {};

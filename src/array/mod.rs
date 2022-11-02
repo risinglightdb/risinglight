@@ -339,6 +339,7 @@ macro_rules! impl_array_builder {
             pub fn with_capacity(capacity: usize, ty: &DataType) -> Self {
                 use DataTypeKind::*;
                 match ty.kind() {
+                    Null => Self::Int32(I32ArrayBuilder::with_capacity(capacity)),
                     $(
                         $Type => Self::$Abc(<$AbcArrayBuilder>::with_capacity(capacity)),
                     )*

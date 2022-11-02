@@ -132,7 +132,7 @@ impl JoinPredicate {
                     op: BinaryOperator::Eq,
                     left_expr: Box::new(InputRef(l)),
                     right_expr: Box::new(InputRef(r)),
-                    return_type: Some(DataTypeKind::Bool.nullable()),
+                    return_type: DataTypeKind::Bool.nullable(),
                 })
             })
             .collect()

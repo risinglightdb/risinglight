@@ -55,7 +55,7 @@ impl LogicalPlaner {
             plan = Arc::new(LogicalValues::new(
                 stmt.select_list
                     .iter()
-                    .map(|expr| expr.return_type().unwrap())
+                    .map(|expr| expr.return_type())
                     .collect_vec(),
                 vec![stmt.select_list.clone()],
             ));
@@ -420,7 +420,7 @@ impl<'a> AliasExtractor<'a> {
                 let select_item = &self.select_list[index];
                 let input_ref = InputRef(BoundInputRef {
                     index,
-                    return_type: select_item.return_type().unwrap(),
+                    return_type: select_item.return_type(),
                 });
                 BoundOrderBy {
                     expr: input_ref,
@@ -451,7 +451,7 @@ mod tests {
             op: BinaryOperator::Plus,
             left_expr: v2.clone().into(),
             right_expr: BoundExpr::Constant(DataValue::Int32(1)).into(),
-            return_type: Some(DataTypeKind::Int32.not_null()),
+            return_type: DataTypeKind::Int32.not_null(),
         });
         assert!(
             validate_illegal_column(&mut [v2_plus_1.clone()], &mut [v2_plus_1.clone()], &[])
@@ -490,7 +490,7 @@ mod tests {
             op: BinaryOperator::Plus,
             left_expr: v2.clone().into(),
             right_expr: BoundExpr::Constant(DataValue::Int32(2)).into(),
-            return_type: Some(DataTypeKind::Int32.not_null()),
+            return_type: DataTypeKind::Int32.not_null(),
         });
         let count_wildcard = BoundExpr::AggCall(BoundAggCall {
             kind: AggKind::Count,
@@ -501,7 +501,7 @@ mod tests {
             op: BinaryOperator::Plus,
             left_expr: v2_plus_2.into(),
             right_expr: count_wildcard.clone().into(),
-            return_type: Some(DataTypeKind::Int32.not_null()),
+            return_type: DataTypeKind::Int32.not_null(),
         });
         assert!(
             validate_illegal_column(&mut [v2_puls_2_plus_count], &mut [v2_plus_1], &[]).is_err()
@@ -512,7 +512,7 @@ mod tests {
             op: BinaryOperator::Plus,
             left_expr: v2.clone().into(),
             right_expr: count_wildcard.into(),
-            return_type: Some(DataTypeKind::Int32.not_null()),
+            return_type: DataTypeKind::Int32.not_null(),
         });
         let order_by_v1 = BoundOrderBy {
             expr: v1,

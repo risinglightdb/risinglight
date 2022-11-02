@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use egg::{define_language, Id, Symbol};
+use egg::{define_language, CostFunction, Id, Symbol};
 
 use crate::binder_v2::{BoundDrop, BoundExtSource, BoundTable};
 use crate::catalog::{ColumnRefId, TableRefId};
@@ -10,8 +10,10 @@ use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
 
 mod cost;
+mod explain;
 mod rules;
 
+pub use explain::Explain;
 pub use rules::{ExprAnalysis, TypeError};
 
 // Alias types for our language.
@@ -31,6 +33,9 @@ define_language! {
         BoundDrop(BoundDrop),
         BoundExtSource(BoundExtSource),
         BoundTable(BoundTable),
+
+        // utilities
+        "list" = List(Box<[Id]>),       // (list ...)
 
         // binary operations
         "+" = Add([Id; 2]),
@@ -72,8 +77,6 @@ define_language! {
         "in" = In([Id; 2]),
 
         "cast" = Cast([Id; 2]),                 // (cast type expr)
-        "as" = Alias([Id; 2]),                  // (as name expr)
-        "fn" = Function(Box<[Id]>),             // (fn name args..)
 
         "select" = Select([Id; 6]),             // (select
                                                 //      distinct=[expr..]
@@ -112,9 +115,6 @@ define_language! {
         "copy_from" = CopyFrom(Id),             // (copy_from dest)
         "copy_to" = CopyTo([Id; 2]),            // (copy_to dest child)
         "explain" = Explain(Id),                // (explain child)
-
-        // utilities
-        "list" = List(Box<[Id]>),               // (list ...)
 
         // internal functions
         "prune" = Prune([Id; 2]),               // (prune node child)
@@ -191,4 +191,18 @@ pub fn optimize(expr: &RecExpr) -> RecExpr {
     //         .get_string_with_let()
     // );
     best
+}
+
+/// Returns the cost for each node in the expression.
+pub fn costs(expr: &RecExpr) -> Vec<u32> {
+    let mut egraph = EGraph::default();
+    // NOTE: we assume Expr node has the same Id in both EGraph and RecExpr.
+    egraph.add_expr(expr);
+    let mut cost_fn = cost::CostFn { egraph: &egraph };
+    let mut costs = vec![0; expr.as_ref().len()];
+    for (i, node) in expr.as_ref().iter().enumerate() {
+        let cost = cost_fn.cost(node, |i| costs[usize::from(i)]);
+        costs[i] = cost;
+    }
+    costs
 }

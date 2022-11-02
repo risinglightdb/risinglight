@@ -134,7 +134,7 @@ impl Binder {
                 ..
             } => self.bind_copy(table_name, &columns, to, target, &options),
             Statement::Query(query) => self.bind_query(*query),
-            Statement::Explain { .. } => todo!(),
+            Statement::Explain { statement, .. } => self.bind_explain(*statement),
             Statement::ShowVariable { .. }
             | Statement::ShowCreate { .. }
             | Statement::ShowColumns { .. } => Err(BindError::NotSupportedTSQL),
@@ -164,6 +164,12 @@ impl Binder {
         context.aliases.insert(alias.value, expr);
         // may override the same name
         Ok(())
+    }
+
+    fn bind_explain(&mut self, query: Statement) -> Result {
+        let id = self.bind_stmt(query)?;
+        let id = self.egraph.add(Node::Explain(id));
+        Ok(id)
     }
 }
 
