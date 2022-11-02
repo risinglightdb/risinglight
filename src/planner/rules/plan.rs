@@ -88,8 +88,8 @@ fn pushdown(a: &str, a_args: &str, b: &str, b_args: &str) -> Rewrite {
 #[rustfmt::skip]
 fn join_rules() -> Vec<Rewrite> { vec![
     rw!("join-reorder";
-        "(join inner ?cond2 (join inner ?cond1 ?left ?mid) ?right)" =>
-        "(join inner ?cond1 ?left (join inner ?cond2 ?mid ?right))"
+        "(join ?type ?cond2 (join ?type ?cond1 ?left ?mid) ?right)" =>
+        "(join ?type ?cond1 ?left (join ?type ?cond2 ?mid ?right))"
         if columns_is_disjoint("?cond2", "?left")
     ),
     rw!("hash-join-on-one-eq";

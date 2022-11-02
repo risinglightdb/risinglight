@@ -47,8 +47,10 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             Agg([exprs, groupby, c]) => (costs(exprs) + costs(groupby)) * rows(c) + costs(c),
             Limit([_, _, c]) => rows(id) + costs(c),
             TopN([_, limit, _, c]) => (rows(id) + 1.0).log2() * rows(c) + costs(c),
-            Join([_, _, l, r]) => rows(l) * rows(r) + costs(l) + costs(r),
-            HashJoin([_, _, _, l, r]) => rows(l) + rows(r) + costs(l) + costs(r),
+            Join([_, _, l, r]) => rows(l) * rows(r) * (cols(l) + cols(r)) + costs(l) + costs(r),
+            HashJoin([_, _, _, l, r]) => {
+                (rows(l) + rows(r)) * (cols(l) + cols(r)) + costs(l) + costs(r)
+            }
             Values(_) | _ => enode.fold(1.0, |sum, id| sum + costs(&id)),
         };
         println!(

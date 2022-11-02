@@ -33,7 +33,8 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         And([a, b]) => x(a) * x(b), // TODO: consider dependency
         Or([a, b]) => x(a) + x(b) - x(a) * x(b), // TODO: consider dependency
         Not(a) => 1.0 - x(a),
-        Gt(_) | Lt(_) | GtEq(_) | LtEq(_) | Eq(_) | NotEq(_) => 0.8,
+        Gt(_) | Lt(_) | GtEq(_) | LtEq(_) | NotEq(_) => 0.8,
+        Eq(_) => 0.2,
 
         _ => 1.0,
     }
