@@ -12,17 +12,14 @@
 //!
 //! [`try_stream`]: async_stream::try_stream
 
-use std::future::Future;
 use std::sync::Arc;
 
 use futures::stream::{BoxStream, StreamExt};
-use futures_async_stream::{for_await, try_stream};
+use futures_async_stream::try_stream;
 use itertools::Itertools;
 use minitrace::prelude::*;
-use tokio_util::sync::CancellationToken;
 
 pub use self::aggregation::*;
-use self::context::*;
 use self::copy_from_file::*;
 use self::copy_to_file::*;
 use self::create::*;
@@ -58,7 +55,6 @@ use crate::storage::{StorageImpl, TracedStorageError};
 use crate::types::{ConvertError, DataValue};
 
 mod aggregation;
-pub mod context;
 mod copy_from_file;
 mod copy_to_file;
 mod create;
@@ -141,14 +137,13 @@ pub type BoxedExecutor = BoxStream<'static, Result<DataChunk, ExecutorError>>;
 /// The builder of executor.
 #[derive(Clone)]
 pub struct ExecutorBuilder {
-    context: Arc<Context>,
     storage: StorageImpl,
 }
 
 impl ExecutorBuilder {
     /// Create a new executor builder.
-    pub fn new(context: Arc<Context>, storage: StorageImpl) -> ExecutorBuilder {
-        ExecutorBuilder { context, storage }
+    pub fn new(storage: StorageImpl) -> ExecutorBuilder {
+        ExecutorBuilder { storage }
     }
 
     pub fn build(&mut self, plan: PlanRef) -> BoxedExecutor {
@@ -164,76 +159,6 @@ impl ExecutorBuilder {
         {
             yield item?
         }
-    }
-}
-
-/// Helper function to select the given future along with cancellation token.
-/// If cancellation is signaled, returns `Err(ExecutorError::Abort)`.
-/// Otherwise, the result of the future is returned.
-async fn select_with_token<O>(
-    token: &CancellationToken,
-    f: impl Future<Output = O>,
-) -> Result<O, ExecutorError> {
-    tokio::select! {
-        _ = token.cancelled() => {
-            Err(ExecutorError::Abort)
-        }
-        ret = f => {
-            Ok(ret)
-        }
-    }
-}
-
-/// Similar to `select_with_token` but only applies to futures that returns
-/// `Result<T, E> where ExecutorError: From<E>` and unifies output to
-/// `Result<T, ExecutorError>`.
-async fn unified_select_with_token<T, E>(
-    token: &CancellationToken,
-    f: impl Future<Output = Result<T, E>>,
-) -> Result<T, ExecutorError>
-where
-    ExecutorError: From<E>,
-{
-    tokio::select! {
-        _ = token.cancelled() => {
-            Err(ExecutorError::Abort)
-        }
-        ret = f => {
-            Ok(ret?)
-        }
-    }
-}
-
-/// Cancellable executor that is aware of cancellation from cancellation token and
-/// short circuit the stream if that happens.
-pub struct CancellableExecutor {
-    token: CancellationToken,
-    child: BoxedExecutor,
-}
-
-impl CancellableExecutor {
-    pub fn new(token: CancellationToken, child: BoxedExecutor) -> Self {
-        Self { token, child }
-    }
-
-    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
-    pub async fn execute(self) {
-        let mut child = self.child;
-        // Short circuit the execution if cancelled.
-        while let Some(chunk) = select_with_token(&self.token, child.next()).await? {
-            yield chunk?;
-        }
-    }
-}
-
-/// Extension of executors to provide the `cancellable` modifier.
-trait ExecutorExt {
-    fn cancellable(self, token: CancellationToken) -> BoxedExecutor;
-}
-
-impl ExecutorExt for BoxedExecutor {
-    fn cancellable(self, token: CancellationToken) -> BoxedExecutor {
-        CancellableExecutor::new(token, self).execute()
     }
 }
 
@@ -295,23 +220,19 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
         Some(ExecutorBuilder::trace_execute(
             match &self.storage {
                 StorageImpl::InMemoryStorage(storage) => InsertExecutor {
-                    context: self.context.clone(),
                     table_ref_id: plan.logical().table_ref_id(),
                     column_ids: plan.logical().column_ids().to_vec(),
                     storage: storage.clone(),
                     child: self.visit(plan.child()).unwrap(),
                 }
-                .execute()
-                .cancellable(self.context.token().child_token()),
+                .execute(),
                 StorageImpl::SecondaryStorage(storage) => InsertExecutor {
-                    context: self.context.clone(),
                     table_ref_id: plan.logical().table_ref_id(),
                     column_ids: plan.logical().column_ids().to_vec(),
                     storage: storage.clone(),
                     child: self.visit(plan.child()).unwrap(),
                 }
-                .execute()
-                .cancellable(self.context.token().child_token()),
+                .execute(),
             },
             "InsertExecutor",
         ))
@@ -341,21 +262,17 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
         Some(ExecutorBuilder::trace_execute(
             match &self.storage {
                 StorageImpl::InMemoryStorage(storage) => TableScanExecutor {
-                    context: self.context.clone(),
                     plan: plan.clone(),
                     expr: None,
                     storage: storage.clone(),
                 }
-                .execute()
-                .cancellable(self.context.token().child_token()),
+                .execute(),
                 StorageImpl::SecondaryStorage(storage) => TableScanExecutor {
-                    context: self.context.clone(),
                     plan: plan.clone(),
                     expr: plan.logical().expr().cloned(),
                     storage: storage.clone(),
                 }
-                .execute()
-                .cancellable(self.context.token().child_token()),
+                .execute(),
             },
             "TableScanExecutor",
         ))
@@ -484,21 +401,17 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
         Some(ExecutorBuilder::trace_execute(
             match &self.storage {
                 StorageImpl::InMemoryStorage(storage) => DeleteExecutor {
-                    context: self.context.clone(),
                     child,
                     table_ref_id: plan.logical().table_ref_id(),
                     storage: storage.clone(),
                 }
-                .execute()
-                .cancellable(self.context.token().child_token()),
+                .execute(),
                 StorageImpl::SecondaryStorage(storage) => DeleteExecutor {
-                    context: self.context.clone(),
                     child,
                     table_ref_id: plan.logical().table_ref_id(),
                     storage: storage.clone(),
                 }
-                .execute()
-                .cancellable(self.context.token().child_token()),
+                .execute(),
             },
             "DeleteExecutor",
         ))
@@ -520,12 +433,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
         plan: &PhysicalCopyFromFile,
     ) -> Option<BoxedExecutor> {
         Some(ExecutorBuilder::trace_execute(
-            CopyFromFileExecutor {
-                context: self.context.clone(),
-                plan: plan.clone(),
-            }
-            .execute()
-            .cancellable(self.context.token().child_token()),
+            CopyFromFileExecutor { plan: plan.clone() }.execute(),
             "CopyFromFileExecutor",
         ))
     }
@@ -533,13 +441,11 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
     fn visit_physical_copy_to_file(&mut self, plan: &PhysicalCopyToFile) -> Option<BoxedExecutor> {
         Some(ExecutorBuilder::trace_execute(
             CopyToFileExecutor {
-                context: self.context.clone(),
                 child: self.visit(plan.child()).unwrap(),
                 path: plan.logical().path().clone(),
                 format: plan.logical().format().clone(),
             }
-            .execute()
-            .cancellable(self.context.token().child_token()),
+            .execute(),
             "CopyToFileExecutor",
         ))
     }

@@ -411,11 +411,3 @@ impl Transaction for SecondaryTransaction {
         }
     }
 }
-
-impl Drop for SecondaryTransaction {
-    fn drop(&mut self) {
-        if !self.finished {
-            warn!("Transaction dropped without committing or aborting");
-        }
-    }
-}

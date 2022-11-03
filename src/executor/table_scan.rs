@@ -2,10 +2,6 @@
 
 use std::sync::Arc;
 
-use tokio::sync::mpsc;
-use tokio_util::sync::CancellationToken;
-use tracing::warn;
-
 use super::*;
 use crate::array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I64ArrayBuilder};
 use crate::binder::BoundExpr;
@@ -14,7 +10,6 @@ use crate::storage::{Storage, StorageColumnRef, Table, Transaction, TxnIterator}
 
 /// The executor of table scan operation.
 pub struct TableScanExecutor<S: Storage> {
-    pub context: Arc<Context>,
     pub plan: PhysicalTableScan,
     pub expr: Option<BoundExpr>,
     pub storage: Arc<S>,
@@ -57,16 +52,12 @@ impl<S: Storage> TableScanExecutor<S> {
         Ok(chunk)
     }
 
-    pub async fn execute_inner(
-        self,
-        tx: mpsc::Sender<DataChunk>,
-        token: CancellationToken,
-    ) -> Result<(), ExecutorError> {
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute_inner(self) {
         let table = self.storage.get_table(self.plan.logical().table_ref_id())?;
 
         // TODO: remove this when we have schema
         let empty_chunk = self.build_empty_chunk(&table)?;
-        let mut have_chunk = false;
 
         let mut col_idx = self
             .plan
@@ -81,89 +72,49 @@ impl<S: Storage> TableScanExecutor<S> {
             col_idx.push(StorageColumnRef::RowHandler);
         }
 
-        if token.is_cancelled() {
-            return Err(ExecutorError::Abort);
-        }
         let txn = table.read().await?;
 
-        let mut it = match unified_select_with_token(
-            &token,
-            txn.scan(
+        let mut it = txn
+            .scan(
                 &[],
                 &[],
                 &col_idx,
                 self.plan.logical().is_sorted(),
                 false,
                 self.expr,
-            ),
-        )
-        .await
-        {
-            Ok(it) => it,
-            Err(err) => {
-                txn.abort().await?;
-                return Err(err);
-            }
-        };
+            )
+            .await?;
 
-        loop {
-            let chunk = match select_with_token(&token, it.next_batch(None)).await {
-                Ok(chunk) => chunk,
-                Err(err) => {
-                    txn.abort().await?;
-                    return Err(err);
-                }
-            };
-            match chunk {
-                Ok(x) => {
-                    if let Some(x) = x {
-                        if tx.send(x).await.is_err() {
-                            txn.abort().await?;
-                            return Err(ExecutorError::Abort);
-                        }
-                        have_chunk = true;
-                    } else {
-                        break;
-                    }
-                }
-                Err(err) => {
-                    txn.abort().await?;
-                    return Err(err.into());
-                }
-            }
+        let mut have_chunk = false;
+        while let Some(x) = it.next_batch(None).await? {
+            yield x;
+            have_chunk = true;
         }
-
-        txn.abort().await?;
-
-        if !have_chunk && tx.send(empty_chunk).await.is_err() {
-            return Err(ExecutorError::Abort);
+        if !have_chunk {
+            yield empty_chunk;
         }
-
-        Ok(())
     }
 
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         // Buffer at most 128 chunks in memory
         let (tx, mut rx) = tokio::sync::mpsc::channel(128);
-
-        let context = self.context.clone();
-        match context.spawn(|token| async {
-            let result = self.execute_inner(tx, token).await;
-            if let Err(ExecutorError::Abort) = result {
-                warn!("Abort!")
-            }
-            result
-        }) {
-            Some(handler) => {
-                while let Some(item) = rx.recv().await {
-                    yield item;
+        // # Cancellation
+        // When this stream is dropped, the `rx` is dropped, the spawned task will fail to send to
+        // `tx`, then the task will finish.
+        let handler = tokio::spawn(async move {
+            let mut stream = self.execute_inner();
+            while let Some(result) = stream.next().await {
+                if tx.send(result).await.is_err() {
+                    // the receiver is dropped due to the task is cancelled
+                    return;
                 }
-                handler.await.expect("failed to join scan thread")?;
             }
-            None => {
-                return Err(ExecutorError::Abort);
-            }
+        });
+
+        while let Some(item) = rx.recv().await {
+            yield item?;
         }
+        handler.await.expect("failed to join scan thread");
     }
 }
