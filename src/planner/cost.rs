@@ -1,9 +1,14 @@
+//! Cost functions to extract the best plan.
+
 use egg::Language;
 use tracing::debug;
 
 use super::*;
 use crate::planner::rules::analyze_rows;
 
+/// Avoid `Prune` and `Select` nodes.
+///
+/// This is used in stage1 optimization.
 pub struct NoPrune;
 
 impl egg::CostFunction<Expr> for NoPrune {
@@ -19,6 +24,7 @@ impl egg::CostFunction<Expr> for NoPrune {
     }
 }
 
+/// The main cost function.
 pub struct CostFn<'a> {
     pub egraph: &'a EGraph,
 }
@@ -38,6 +44,7 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             None => f32::INFINITY,
         };
         let nlogn = |x: f32| x * (x + 1.0).log2();
+        // The cost of output chunks of a plan.
         let out = || rows(id) * cols(id);
 
         let c = match enode {

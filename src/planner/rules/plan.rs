@@ -86,15 +86,13 @@ fn pushdown(a: &str, a_args: &str, b: &str, b_args: &str) -> Rewrite {
 
 #[rustfmt::skip]
 pub fn join_rules() -> Vec<Rewrite> { vec![
-    rw!("join-reorder-1";
+    // we only have right rotation rule,
+    // because the initial state is always a left-deep tree
+    // thus left rotation is not needed.
+    rw!("join-reorder";
         "(join ?type ?cond2 (join ?type ?cond1 ?left ?mid) ?right)" =>
         "(join ?type ?cond1 ?left (join ?type ?cond2 ?mid ?right))"
         if columns_is_disjoint("?cond2", "?left")
-    ),
-    rw!("join-reorder-2";
-        "(join ?type ?cond1 ?left (join ?type ?cond2 ?mid ?right))" =>
-        "(join ?type ?cond2 (join ?type ?cond1 ?left ?mid) ?right)"
-        if columns_is_disjoint("?cond1", "?right")
     ),
     rw!("hash-join-on-one-eq";
         "(join ?type (= ?el ?er) ?left ?right)" =>
@@ -110,6 +108,7 @@ pub fn join_rules() -> Vec<Rewrite> { vec![
         if columns_is_subset("?r1", "?right")
         if columns_is_subset("?r2", "?right")
     ),
+    // TODO: support more than two equals
 ]}
 
 /// Column pruning rules remove unused columns from a plan.

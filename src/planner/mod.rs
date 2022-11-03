@@ -203,7 +203,7 @@ pub fn optimize(expr: &RecExpr) -> RecExpr {
         // );
     }
 
-    // 3. join -> hashjoin
+    // 3. join reorder and hashjoin
     let mut runner = egg::Runner::default()
         .with_expr(&expr)
         .run(&*rules::STAGE3_RULES);
