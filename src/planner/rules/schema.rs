@@ -12,14 +12,13 @@ use crate::types::ColumnIndex;
 /// - given schema:           `sum(v1), v2`
 /// - the expressions:        `v2 + 1, sum(v1) + v2`
 /// - should be rewritten to: `#1 + 1, #0 + #1`
-#[allow(unused)]
-pub fn resolve_column_index(expr: RecExpr, schema: &[RecExpr]) -> RecExpr {
+pub fn resolve_column_index(expr: &RecExpr, schema: &[RecExpr]) -> RecExpr {
     let mut egraph = egg::EGraph::<Expr, ()>::default();
     // add expressions from schema and union them with index
     for (i, expr) in schema.iter().enumerate() {
         let id1 = egraph.add_expr(expr);
         let id2 = egraph.add(Expr::ColumnIndex(ColumnIndex(i as u32)));
-        egraph.union(id1, id2);
+        egraph.union(id2, id1);
     }
     // define cost function
     struct PreferColumnIndex;
@@ -39,7 +38,7 @@ pub fn resolve_column_index(expr: RecExpr, schema: &[RecExpr]) -> RecExpr {
         }
     }
     // extract the best expression
-    let id = egraph.add_expr(&expr);
+    let id = egraph.add_expr(expr);
     let extractor = egg::Extractor::new(&egraph, PreferColumnIndex);
     let (_, best) = extractor.find_best(id);
     best
@@ -49,26 +48,25 @@ pub fn resolve_column_index(expr: RecExpr, schema: &[RecExpr]) -> RecExpr {
 pub type Schema = Option<Vec<Id>>;
 
 /// Returns the output expressions for plan node.
-pub fn analyze_schema(egraph: &EGraph, enode: &Expr) -> Schema {
+pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
     use Expr::*;
-    let x = |i: Id| egraph[i].data.schema.clone();
     let concat = |v1: Vec<Id>, v2: Vec<Id>| v1.into_iter().chain(v2.into_iter()).collect();
     Some(match enode {
         // equal to child
         Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c])
-        | Distinct([_, c]) => x(*c)?,
+        | Distinct([_, c]) => x(c)?,
 
         // concat 2 children
-        Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) => concat(x(*l)?, x(*r)?),
+        Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) => concat(x(l)?, x(r)?),
 
         // list is the source for the following nodes
         List(ids) => ids.to_vec(),
 
         // plans that change schema
-        Scan(columns) => x(*columns)?,
+        Scan(columns) => x(columns)?,
         Values(_) => todo!("add schema for values plan"),
-        Proj([exprs, _]) | Select([exprs, ..]) => x(*exprs)?,
-        Agg([exprs, group_keys, _]) => concat(x(*exprs)?, x(*group_keys)?),
+        Proj([exprs, _]) | Select([exprs, ..]) => x(exprs)?,
+        Agg([exprs, group_keys, _]) => concat(x(exprs)?, x(group_keys)?),
 
         // prune node may changes the schema, but we don't know the exact result for now
         // so just return `None` to indicate "unknown"
@@ -91,7 +89,7 @@ mod tests {
             fn $name() {
                 let input = $input.parse().unwrap();
                 let schema = $schema.iter().map(|s| s.parse().unwrap()).collect_vec();
-                let actual = resolve_column_index(input, &schema);
+                let actual = resolve_column_index(&input, &schema);
                 assert_eq!(actual.to_string(), $expected);
             }
         };

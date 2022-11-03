@@ -10,7 +10,7 @@ mod explain;
 mod rules;
 
 pub use explain::Explain;
-pub use rules::{ExprAnalysis, TypeError};
+pub use rules::{resolve_column_index, ExprAnalysis, TypeError, TypeSchemaAnalysis};
 
 // Alias types for our language.
 type EGraph = egg::EGraph<Expr, ExprAnalysis>;
