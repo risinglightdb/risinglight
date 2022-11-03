@@ -1,11 +1,7 @@
-#![allow(unused)]
-
-use std::time::Duration;
-
 use egg::{define_language, CostFunction, Id, Symbol};
 
 use crate::binder_v2::{BoundDrop, BoundExtSource, BoundTable};
-use crate::catalog::{ColumnRefId, TableRefId};
+use crate::catalog::ColumnRefId;
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
 
@@ -171,35 +167,58 @@ impl Expr {
 
 /// Optimize the given expression.
 pub fn optimize(expr: &RecExpr) -> RecExpr {
-    let mut runner = egg::Runner::default()
-        // .with_explanations_enabled()
+    // 1. column pruning
+    // TODO: remove unused analysis
+    let runner = egg::Runner::default()
         .with_expr(expr)
-        .with_time_limit(Duration::from_secs(1))
-        .run(&rules::all_rules());
-    // extract the best expression
+        .run(&*rules::STAGE1_RULES);
+    let extractor = egg::Extractor::new(&runner.egraph, cost::NoPrune);
+    let (_, mut expr) = extractor.find_best(runner.roots[0]);
+
+    // 2. pushdown
+    let mut best_cost = f32::MAX;
+    // to prune costy nodes, we iterate multiple times and only keep the best one for each run.
+    for _ in 0..3 {
+        let runner = egg::Runner::default()
+            .with_expr(&expr)
+            .with_iter_limit(6)
+            .run(&*rules::STAGE2_RULES);
+        let cost_fn = cost::CostFn {
+            egraph: &runner.egraph,
+        };
+        let extractor = egg::Extractor::new(&runner.egraph, cost_fn);
+        let cost;
+        (cost, expr) = extractor.find_best(runner.roots[0]);
+        if cost >= best_cost {
+            break;
+        }
+        best_cost = cost;
+        // println!(
+        //     "{i}:\n{}",
+        //     crate::planner::Explain::with_costs(&expr, &costs(&expr))
+        // );
+    }
+
+    // 3. join reorder and hashjoin
+    let runner = egg::Runner::default()
+        .with_expr(&expr)
+        .run(&*rules::STAGE3_RULES);
     let cost_fn = cost::CostFn {
         egraph: &runner.egraph,
     };
     let extractor = egg::Extractor::new(&runner.egraph, cost_fn);
-    let root = runner.roots[0];
-    let (_, best) = extractor.find_best(root);
-    // explain the optimization
-    // println!(
-    //     "{}",
-    //     runner
-    //         .explain_equivalence(&expr, &best)
-    //         .get_string_with_let()
-    // );
-    best
+    (_, expr) = extractor.find_best(runner.roots[0]);
+
+    expr
 }
 
 /// Returns the cost for each node in the expression.
-pub fn costs(expr: &RecExpr) -> Vec<u32> {
+pub fn costs(expr: &RecExpr) -> Vec<f32> {
     let mut egraph = EGraph::default();
     // NOTE: we assume Expr node has the same Id in both EGraph and RecExpr.
     egraph.add_expr(expr);
     let mut cost_fn = cost::CostFn { egraph: &egraph };
-    let mut costs = vec![0; expr.as_ref().len()];
+    let mut costs = vec![0.0; expr.as_ref().len()];
     for (i, node) in expr.as_ref().iter().enumerate() {
         let cost = cost_fn.cost(node, |i| costs[usize::from(i)]);
         costs[i] = cost;

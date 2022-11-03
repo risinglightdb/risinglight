@@ -22,27 +22,46 @@
 
 use std::collections::HashSet;
 use std::hash::Hash;
+use std::sync::LazyLock;
 
 use egg::{rewrite as rw, *};
 
 use super::{EGraph, Expr, Pattern, RecExpr, Rewrite};
+use crate::types::F32;
 
 mod agg;
 mod expr;
 mod plan;
+mod rows;
 mod schema;
 mod type_;
 
+pub use self::rows::analyze_rows;
 pub use self::type_::TypeError;
 
-/// Returns all rules in the optimizer.
-pub fn all_rules() -> Vec<Rewrite> {
+/// Stage1 rules in the optimizer.
+pub static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
+    let mut rules = vec![];
+    rules.append(&mut agg::rules());
+    rules.append(&mut plan::column_prune_rules());
+    rules
+});
+
+/// Stage2 rules in the optimizer.
+pub static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     let mut rules = vec![];
     rules.append(&mut expr::rules());
-    rules.append(&mut plan::rules());
-    rules.append(&mut agg::rules());
+    rules.append(&mut plan::always_better_rules());
     rules
-}
+});
+
+/// Stage3 rules in the optimizer.
+pub static STAGE3_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
+    let mut rules = vec![];
+    rules.append(&mut expr::rules());
+    rules.append(&mut plan::join_rules());
+    rules
+});
 
 /// The unified analysis for all rules.
 #[derive(Default)]
@@ -70,6 +89,9 @@ pub struct Data {
 
     /// Data type of the expression.
     pub type_: type_::Type,
+
+    /// Estimate rows.
+    pub rows: rows::Rows,
 }
 
 impl Analysis<Expr> for ExprAnalysis {
@@ -83,6 +105,7 @@ impl Analysis<Expr> for ExprAnalysis {
             aggs: agg::analyze_aggs(egraph, enode),
             schema: schema::analyze_schema(egraph, enode),
             type_: type_::analyze_type(egraph, enode),
+            rows: rows::analyze_rows(egraph, enode),
         }
     }
 
@@ -100,7 +123,11 @@ impl Analysis<Expr> for ExprAnalysis {
         let merge_aggs = merge_small_set(&mut to.aggs, from.aggs);
         let merge_schema = egg::merge_max(&mut to.schema, from.schema);
         let merge_type = egg::merge_max(&mut to.type_, from.type_);
-        merge_const | merge_columns | merge_aggs | merge_schema | merge_type
+        let merge_rows = egg::merge_min(
+            unsafe { std::mem::transmute(&mut to.rows) },
+            F32::from(from.rows),
+        );
+        merge_const | merge_columns | merge_aggs | merge_schema | merge_type | merge_rows
     }
 
     /// Modify the graph after analyzing a node.
