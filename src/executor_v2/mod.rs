@@ -53,7 +53,7 @@ use self::table_scan::*;
 use crate::array::DataChunk;
 use crate::binder::BoundExpr;
 use crate::function::FunctionError;
-use crate::planner::{resolve_column_index, Expr, RecExpr, TypeSchemaAnalysis};
+use crate::planner::{ColumnIndexResolver, Expr, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, StorageImpl, TracedStorageError};
 use crate::types::{ConvertError, DataValue};
 
@@ -175,7 +175,7 @@ impl<S: Storage> Builder<S> {
             .iter()
             .map(|id| self.recexpr(*id))
             .collect_vec();
-        resolve_column_index(&self.recexpr(expr), &schema)
+        ColumnIndexResolver::new(&schema).resolve(&self.recexpr(expr))
     }
 
     fn build(self) -> BoxedExecutor {

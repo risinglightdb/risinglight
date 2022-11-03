@@ -36,7 +36,7 @@ mod rows;
 mod schema;
 mod type_;
 
-pub use self::schema::resolve_column_index;
+pub use self::schema::ColumnIndexResolver;
 pub use self::type_::TypeError;
 
 /// Stage1 rules in the optimizer.
