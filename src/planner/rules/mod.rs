@@ -22,6 +22,7 @@
 
 use std::collections::HashSet;
 use std::hash::Hash;
+use std::sync::LazyLock;
 
 use egg::{rewrite as rw, *};
 
@@ -43,16 +44,33 @@ pub fn all_rules() -> Vec<Rewrite> {
     let mut rules = vec![];
     rules.append(&mut expr::rules());
     rules.append(&mut plan::rules());
+    rules.append(&mut agg::rules());
     rules
 }
 
-/// Returns stage1 rules in the optimizer.
-pub fn stage1_rules() -> Vec<Rewrite> {
+/// Stage1 rules in the optimizer.
+pub static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     let mut rules = vec![];
     rules.append(&mut agg::rules());
     rules.append(&mut plan::column_prune_rules());
     rules
-}
+});
+
+/// Stage2 rules in the optimizer.
+pub static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
+    let mut rules = vec![];
+    rules.append(&mut expr::rules());
+    rules.append(&mut plan::rules());
+    rules
+});
+
+/// Stage3 rules in the optimizer.
+pub static STAGE3_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
+    let mut rules = vec![];
+    rules.append(&mut expr::rules());
+    rules.append(&mut plan::join_rules());
+    rules
+});
 
 /// The unified analysis for all rules.
 #[derive(Default)]

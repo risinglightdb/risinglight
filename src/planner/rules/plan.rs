@@ -9,7 +9,6 @@ pub fn rules() -> Vec<Rewrite> {
     rules.extend(cancel_rules());
     rules.extend(merge_rules());
     rules.extend(pushdown_rules());
-    rules.extend(join_rules());
     rules
 }
 
@@ -86,7 +85,7 @@ fn pushdown(a: &str, a_args: &str, b: &str, b_args: &str) -> Rewrite {
 }
 
 #[rustfmt::skip]
-fn join_rules() -> Vec<Rewrite> { vec![
+pub fn join_rules() -> Vec<Rewrite> { vec![
     rw!("join-reorder-1";
         "(join ?type ?cond2 (join ?type ?cond1 ?left ?mid) ?right)" =>
         "(join ?type ?cond1 ?left (join ?type ?cond2 ?mid ?right))"
@@ -102,6 +101,14 @@ fn join_rules() -> Vec<Rewrite> { vec![
         "(hashjoin ?type (list ?el) (list ?er) ?left ?right)"
         if columns_is_subset("?el", "?left")
         if columns_is_subset("?er", "?right")
+    ),
+    rw!("hash-join-on-two-eq";
+        "(join ?type (and (= ?l1 ?r1) (= ?l2 ?r2)) ?left ?right)" =>
+        "(hashjoin ?type (list ?l1 ?l2) (list ?r1 ?r2) ?left ?right)"
+        if columns_is_subset("?l1", "?left")
+        if columns_is_subset("?l2", "?left")
+        if columns_is_subset("?r1", "?right")
+        if columns_is_subset("?r2", "?right")
     ),
 ]}
 

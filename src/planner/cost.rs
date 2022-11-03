@@ -56,7 +56,7 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             }
             Values(_) | _ => enode.fold(0.1, |sum, id| sum + costs(&id)),
         };
-        println!(
+        debug!(
             "{id}\t{enode:?}\tcost={c}, rows={}, cols={}",
             rows(id),
             cols(id)

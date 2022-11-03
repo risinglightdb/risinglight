@@ -175,30 +175,45 @@ pub fn optimize(expr: &RecExpr) -> RecExpr {
     // TODO: remove unused analysis
     let mut runner = egg::Runner::default()
         .with_expr(expr)
-        .run(&rules::stage1_rules());
+        .run(&*rules::STAGE1_RULES);
     let extractor = egg::Extractor::new(&runner.egraph, cost::NoPrune);
-    let (_, expr) = extractor.find_best(runner.roots[0]);
+    let (_, mut expr) = extractor.find_best(runner.roots[0]);
 
-    // 2. other rules
+    // 2. pushdown
+    let mut best_cost = f32::MAX;
+    // to prune costy nodes, we iterate multiple times and only keep the best one for each run.
+    for i in 0..3 {
+        let mut runner = egg::Runner::default()
+            .with_expr(&expr)
+            .with_iter_limit(6)
+            .run(&*rules::STAGE2_RULES);
+        let cost_fn = cost::CostFn {
+            egraph: &runner.egraph,
+        };
+        let extractor = egg::Extractor::new(&runner.egraph, cost_fn);
+        let cost;
+        (cost, expr) = extractor.find_best(runner.roots[0]);
+        if cost >= best_cost {
+            break;
+        }
+        best_cost = cost;
+        // println!(
+        //     "{i}:\n{}",
+        //     crate::planner::Explain::with_costs(&expr, &costs(&expr))
+        // );
+    }
+
+    // 3. join -> hashjoin
     let mut runner = egg::Runner::default()
-        // .with_explanations_enabled()
         .with_expr(&expr)
-        .with_time_limit(Duration::from_secs(1))
-        .run(&rules::all_rules());
-    // extract the best expression
+        .run(&*rules::STAGE3_RULES);
     let cost_fn = cost::CostFn {
         egraph: &runner.egraph,
     };
     let extractor = egg::Extractor::new(&runner.egraph, cost_fn);
-    let (_, best) = extractor.find_best(runner.roots[0]);
-    // explain the optimization
-    // println!(
-    //     "{}",
-    //     runner
-    //         .explain_equivalence(&expr, &best)
-    //         .get_string_with_let()
-    // );
-    best
+    (_, expr) = extractor.find_best(runner.roots[0]);
+
+    expr
 }
 
 /// Returns the cost for each node in the expression.
