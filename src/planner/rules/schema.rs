@@ -12,6 +12,7 @@ use crate::types::ColumnIndex;
 /// - given schema:           `sum(v1), v2`
 /// - the expressions:        `v2 + 1, sum(v1) + v2`
 /// - should be rewritten to: `#1 + 1, #0 + #1`
+#[allow(unused)]
 pub fn resolve_column_index(expr: RecExpr, schema: &[RecExpr]) -> RecExpr {
     let mut egraph = egg::EGraph::<Expr, ()>::default();
     // add expressions from schema and union them with index

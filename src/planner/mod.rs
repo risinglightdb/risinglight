@@ -1,11 +1,7 @@
-#![allow(unused)]
-
-use std::time::Duration;
-
 use egg::{define_language, CostFunction, Id, Symbol};
 
 use crate::binder_v2::{BoundDrop, BoundExtSource, BoundTable};
-use crate::catalog::{ColumnRefId, TableRefId};
+use crate::catalog::ColumnRefId;
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
 
@@ -173,7 +169,7 @@ impl Expr {
 pub fn optimize(expr: &RecExpr) -> RecExpr {
     // 1. column pruning
     // TODO: remove unused analysis
-    let mut runner = egg::Runner::default()
+    let runner = egg::Runner::default()
         .with_expr(expr)
         .run(&*rules::STAGE1_RULES);
     let extractor = egg::Extractor::new(&runner.egraph, cost::NoPrune);
@@ -182,8 +178,8 @@ pub fn optimize(expr: &RecExpr) -> RecExpr {
     // 2. pushdown
     let mut best_cost = f32::MAX;
     // to prune costy nodes, we iterate multiple times and only keep the best one for each run.
-    for i in 0..3 {
-        let mut runner = egg::Runner::default()
+    for _ in 0..3 {
+        let runner = egg::Runner::default()
             .with_expr(&expr)
             .with_iter_limit(6)
             .run(&*rules::STAGE2_RULES);
@@ -204,7 +200,7 @@ pub fn optimize(expr: &RecExpr) -> RecExpr {
     }
 
     // 3. join reorder and hashjoin
-    let mut runner = egg::Runner::default()
+    let runner = egg::Runner::default()
         .with_expr(&expr)
         .run(&*rules::STAGE3_RULES);
     let cost_fn = cost::CostFn {

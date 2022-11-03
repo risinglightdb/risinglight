@@ -4,7 +4,6 @@ use egg::Language;
 use tracing::debug;
 
 use super::*;
-use crate::planner::rules::analyze_rows;
 
 /// Avoid `Prune` and `Select` nodes.
 ///

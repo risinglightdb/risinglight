@@ -20,7 +20,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         Values(v) => v.len() as f32,
         Scan(_) => 1000.0, // TODO: get from table
         Proj([_, c]) | Order([_, c]) => x(c),
-        Agg([_, _, c]) => 1.0, // TODO: group by cardinality
+        Agg([_, _, _c]) => 1.0, // TODO: group by cardinality
         Filter([cond, c]) => x(c) * x(cond),
         Limit([_, limit, c]) | TopN([_, limit, _, c]) => x(c).min(get_limit_num(limit)),
         Join([_, on, l, r]) => x(l) * x(r) * x(on),

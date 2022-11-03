@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 use super::*;
 
 /// Returns all rules of aggregation extraction.

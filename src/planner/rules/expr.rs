@@ -147,11 +147,6 @@ fn is_not_zero(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     value_is(var, |v| !v.is_zero())
 }
 
-/// Returns true if the expression is a constant.
-fn is_const(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    value_is(var, |_| true)
-}
-
 fn value_is(v: &str, f: impl Fn(&DataValue) -> bool) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let v = var(v);
     move |egraph, _, subst| {

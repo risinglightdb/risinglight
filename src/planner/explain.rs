@@ -1,8 +1,8 @@
 use std::fmt::{Display, Formatter, Result};
 
-use egg::{Id, PatternAst};
+use egg::Id;
 
-use super::{EGraph, Expr, RecExpr};
+use super::{Expr, RecExpr};
 
 /// A wrapper over [`RecExpr`] to explain it in [`Display`].
 ///
