@@ -130,7 +130,28 @@ impl Expr {
         Self::Constant(DataValue::Null)
     }
 
-    const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {
+    pub fn as_list(&self) -> &[Id] {
+        match self {
+            Self::List(list) => list,
+            _ => panic!("not a list"),
+        }
+    }
+
+    pub fn as_column(&self) -> ColumnRefId {
+        match self {
+            Self::Column(c) => *c,
+            _ => panic!("not a column"),
+        }
+    }
+
+    pub fn as_type(&self) -> DataTypeKind {
+        match self {
+            Self::Type(t) => *t,
+            _ => panic!("not a type"),
+        }
+    }
+
+    pub const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {
         use BinaryOperator as Op;
         #[allow(clippy::match_ref_pats)]
         Some(match self {
@@ -154,7 +175,7 @@ impl Expr {
         })
     }
 
-    const fn unary_op(&self) -> Option<(UnaryOperator, Id)> {
+    pub const fn unary_op(&self) -> Option<(UnaryOperator, Id)> {
         use UnaryOperator as Op;
         #[allow(clippy::match_ref_pats)]
         Some(match self {

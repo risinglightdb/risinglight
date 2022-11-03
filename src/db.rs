@@ -172,18 +172,21 @@ impl Database {
         let stmts = parse(sql)?;
 
         if USE_PLANNER_V2.load(Ordering::Relaxed) {
+            let mut outputs: Vec<Chunk> = vec![];
             for stmt in stmts {
                 let mut binder = crate::binder_v2::Binder::new(self.catalog.clone());
                 let bound = binder.bind(stmt)?;
-                println!("bind:\n{}", crate::planner::Explain::of(&bound));
                 let optimized = crate::planner::optimize(&bound);
-                let costs = crate::planner::costs(&optimized);
-                println!(
-                    "optimized:\n{}",
-                    crate::planner::Explain::with_costs(&optimized, &costs)
-                );
+                let executor = match self.storage.clone() {
+                    StorageImpl::InMemoryStorage(s) => crate::executor_v2::build(s, &optimized),
+                    StorageImpl::SecondaryStorage(s) => crate::executor_v2::build(s, &optimized),
+                };
+                let output = executor.try_collect().await?;
+                let chunk = Chunk::new(output);
+                // TODO: set name
+                outputs.push(chunk);
             }
-            return Ok(vec![]);
+            return Ok(outputs);
         }
 
         let mut binder = Binder::new(self.catalog.clone());
@@ -280,6 +283,12 @@ pub enum Error {
         #[source]
         #[from]
         ExecutorError,
+    ),
+    #[error("execute error: {0}")]
+    ExecuteV2(
+        #[source]
+        #[from]
+        crate::executor_v2::ExecutorError,
     ),
     #[error("Storage error: {0}")]
     StorageError(
