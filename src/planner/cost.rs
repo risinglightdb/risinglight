@@ -42,7 +42,7 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
 
         let c = match enode {
             Select(_) | Prune(_) => f32::INFINITY, // should no longer exists
-            Scan(_) => out(),
+            Scan(_) | Values(_) => out(),
             Order([_, c]) => nlogn(rows(c)) + out() + costs(c),
             Proj([exprs, c]) | Filter([exprs, c]) => costs(exprs) * rows(c) + out() + costs(c),
             Agg([exprs, groupby, c]) => {
@@ -54,7 +54,8 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             HashJoin([_, _, _, l, r]) => {
                 (rows(l) + 1.0).log2() * (rows(l) + rows(r)) + out() + costs(l) + costs(r)
             }
-            Values(_) | _ => enode.fold(0.1, |sum, id| sum + costs(&id)),
+            // for expressions, the cost is 0.1x AST size
+            _ => enode.fold(0.1, |sum, id| sum + costs(&id)),
         };
         debug!(
             "{id}\t{enode:?}\tcost={c}, rows={}, cols={}",

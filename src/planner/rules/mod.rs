@@ -39,15 +39,6 @@ mod type_;
 pub use self::rows::analyze_rows;
 pub use self::type_::TypeError;
 
-/// Returns all rules in the optimizer.
-pub fn all_rules() -> Vec<Rewrite> {
-    let mut rules = vec![];
-    rules.append(&mut expr::rules());
-    rules.append(&mut plan::rules());
-    rules.append(&mut agg::rules());
-    rules
-}
-
 /// Stage1 rules in the optimizer.
 pub static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     let mut rules = vec![];
@@ -60,7 +51,7 @@ pub static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
 pub static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     let mut rules = vec![];
     rules.append(&mut expr::rules());
-    rules.append(&mut plan::rules());
+    rules.append(&mut plan::always_better_rules());
     rules
 });
 

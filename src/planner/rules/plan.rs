@@ -3,8 +3,8 @@
 use super::*;
 use crate::catalog::ColumnRefId;
 
-/// Returns all rules of plan optimization.
-pub fn rules() -> Vec<Rewrite> {
+/// Returns the rules that always improve the plan.
+pub fn always_better_rules() -> Vec<Rewrite> {
     let mut rules = vec![];
     rules.extend(cancel_rules());
     rules.extend(merge_rules());
@@ -266,7 +266,8 @@ mod tests {
     fn rules() -> Vec<Rewrite> {
         let mut rules = vec![];
         rules.append(&mut expr::rules());
-        rules.append(&mut plan::rules());
+        rules.append(&mut plan::always_better_rules());
+        rules.append(&mut plan::join_rules());
         rules
     }
 
