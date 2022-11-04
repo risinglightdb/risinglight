@@ -17,6 +17,7 @@ mod create_table;
 mod delete;
 mod drop;
 mod expr;
+mod insert;
 mod select;
 mod table;
 
@@ -25,6 +26,7 @@ pub use self::create_table::*;
 pub use self::delete::*;
 pub use self::drop::*;
 pub use self::expr::*;
+pub use self::insert::*;
 pub use self::select::*;
 pub use self::table::*;
 
@@ -119,7 +121,12 @@ impl Binder {
                 cascade,
                 ..
             } => self.bind_drop(object_type, if_exists, names, cascade),
-            Statement::Insert { .. } => todo!(),
+            Statement::Insert {
+                table_name,
+                columns,
+                source,
+                ..
+            } => self.bind_insert(table_name, columns, source),
             Statement::Delete {
                 table_name,
                 selection,
