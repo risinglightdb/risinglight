@@ -123,7 +123,7 @@ impl Display for Explain<'_> {
             }
 
             BoundDrop(_) => todo!(),
-            BoundExtSource(_) => todo!(),
+            BoundExtSource(src) => write!(f, "path={:?}, format={}", src.path, src.format),
             BoundTable(_) => todo!(),
 
             // binary operations
@@ -230,10 +230,10 @@ impl Display for Explain<'_> {
                 self.child(child)
             ),
             Create(_) => todo!(),
-            Insert(_) => todo!(),
+            Insert([cols, child]) => write!(f, "{tab}Insert: {}{cost}\n{}", self.expr(cols), self.child(child)),
             Delete(_) => todo!(),
-            CopyFrom(_) => todo!(),
-            CopyTo(_) => todo!(),
+            CopyFrom(src) => writeln!(f, "{tab}CopyFrom: {}{cost}", self.expr(src)),
+            CopyTo([dst, child]) => write!(f, "{tab}CopyTo: {}{cost}\n{}", self.expr(dst), self.child(child)),
             Explain(child) => write!(f, "{tab}Explain:{cost}\n{}", self.child(child)),
             Prune(_) => todo!(),
             Symbol(s) => write!(f, "{s}"),

@@ -85,7 +85,7 @@ impl Binder {
         }
     }
 
-    pub(super) fn bind_table_name(
+    fn bind_table_name(
         &mut self,
         database_name: &str,
         schema_name: &str,

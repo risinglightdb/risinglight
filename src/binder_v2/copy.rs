@@ -4,14 +4,12 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 use super::*;
-use crate::catalog::{ColumnCatalog, ColumnDesc, TableCatalog};
-use crate::types::ColumnIndex;
+use crate::catalog::{ColumnCatalog, ColumnRefId, TableCatalog};
 
 #[derive(Debug, PartialEq, PartialOrd, Ord, Hash, Eq, Clone, Serialize, Deserialize)]
 pub struct BoundExtSource {
     pub path: String,
     pub format: FileFormat,
-    pub colums_desc: Vec<ColumnDesc>,
 }
 
 /// File format.
@@ -31,28 +29,13 @@ pub enum FileFormat {
 
 impl std::fmt::Display for BoundExtSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "path: {}, format: {}, desc: {:?}",
-            self.path, self.format, self.colums_desc
-        )
+        write!(f, "{self:?}")
     }
 }
 
 impl std::fmt::Display for FileFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FileFormat::Csv {
-                delimiter,
-                quote,
-                header,
-                ..
-            } => write!(
-                f,
-                "CSV: delimiter: {}, quote:{}, header:{}",
-                delimiter, quote, header
-            ),
-        }
+        write!(f, "{self:?}")
     }
 }
 
@@ -78,39 +61,35 @@ impl Binder {
             t => todo!("unsupported copy target: {:?}", t),
         };
 
-        let (_, _, columns) = self.bind_table_columns(&table_name, columns)?;
+        let (table_id, _, columns) = self.bind_table_columns(&table_name, columns)?;
+        let column_ids = columns
+            .iter()
+            .map(|col| {
+                let column_ref_id = ColumnRefId::from_table(table_id, col.id());
+                self.egraph.add(Node::Column(column_ref_id))
+            })
+            .collect();
+        let cols_id = self.egraph.add(Node::List(column_ids));
 
         let ext_source = self.egraph.add(Node::BoundExtSource(BoundExtSource {
             path,
             format: FileFormat::from_options(options),
-            colums_desc: columns.iter().map(|col| col.desc().clone()).collect(),
         }));
 
-        let name = lower_case_name(table_name);
-        let (database_name, schema_name, table_name) = split_name(&name)?;
-        let table_scan = self.bind_table_name(database_name, schema_name, table_name)?;
-
         let copy = if to {
-            // COPY <source_table> TO <[dest_file]>
-            self.egraph.add(Node::CopyTo([table_scan, ext_source]))
+            // COPY <source_table> TO <dest_file>
+            let scan = self.egraph.add(Node::Scan(cols_id));
+            self.egraph.add(Node::CopyTo([ext_source, scan]))
         } else {
             // COPY <dest_table> FROM <source_file>
-            let column_ids = columns
-                .iter()
-                .map(|col| self.egraph.add(Node::ColumnIndex(ColumnIndex(col.id()))))
-                .collect();
-
-            let cols_id = self.egraph.add(Node::List(column_ids));
-
             let copy = self.egraph.add(Node::CopyFrom(ext_source));
-
             self.egraph.add(Node::Insert([cols_id, copy]))
         };
 
         Ok(copy)
     }
 
-    fn bind_table_columns(
+    pub(super) fn bind_table_columns(
         &mut self,
         table_name: &ObjectName,
         columns: &[Ident],
