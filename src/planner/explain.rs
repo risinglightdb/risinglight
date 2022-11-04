@@ -108,9 +108,11 @@ impl Display for Explain<'_> {
         match enode {
             Constant(v) => write!(f, "{v}"),
             Type(t) => write!(f, "{t}"),
+            Table(i) => write!(f, "{i}"),
             Column(i) => write!(f, "{i}"),
             ColumnIndex(i) => write!(f, "{i}"),
             ExtSource(src) => write!(f, "path={:?}, format={}", src.path, src.format),
+            Symbol(s) => write!(f, "{s}"),
 
             List(list) => {
                 write!(f, "[")?;
@@ -229,12 +231,11 @@ impl Display for Explain<'_> {
             CreateTable(t) => writeln!(f, "{tab}CreateTable: name={:?}, ...{cost}", t.table_name),
             Drop(t) => writeln!(f, "{tab}Drop: {}, ...{cost}", t.object),
             Insert([cols, child]) => write!(f, "{tab}Insert: {}{cost}\n{}", self.expr(cols), self.child(child)),
-            Delete(_) => todo!(),
+            Delete([table, child]) => write!(f, "{tab}Delete: from={}{cost}\n{}", self.expr(table), self.child(child)),
             CopyFrom(src) => writeln!(f, "{tab}CopyFrom: {}{cost}", self.expr(src)),
             CopyTo([dst, child]) => write!(f, "{tab}CopyTo: {}{cost}\n{}", self.expr(dst), self.child(child)),
             Explain(child) => write!(f, "{tab}Explain:{cost}\n{}", self.child(child)),
-            Prune(_) => todo!(),
-            Symbol(s) => write!(f, "{s}"),
+            Prune(_) => panic!("cannot explain Prune"),
         }
     }
 }

@@ -6,8 +6,10 @@ impl Binder {
         table_name: TableFactor,
         selection: Option<Expr>,
     ) -> Result {
-        let table = self.bind_table(table_name)?;
+        let table_id = self.bind_table_id(table_name.clone())?;
+        let scan = self.bind_table(table_name)?;
         let cond = self.bind_condition(selection)?;
-        Ok(self.egraph.add(Node::Delete([table, cond])))
+        let filter = self.egraph.add(Node::Filter([cond, scan]));
+        Ok(self.egraph.add(Node::Delete([table_id, filter])))
     }
 }

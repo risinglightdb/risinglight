@@ -1,7 +1,7 @@
 use egg::{define_language, CostFunction, Id, Symbol};
 
 use crate::binder_v2::{BoundDrop, CreateTable, ExtSource};
-use crate::catalog::ColumnRefId;
+use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
 
@@ -23,7 +23,7 @@ define_language! {
         // values
         Constant(DataValue),            // null, true, 1, 1.0, "hello", ...
         Type(DataTypeKind),             // BOOLEAN, INT, DECIMAL(5), ...
-        // Table(TableRefId),              // $1, $2, ...
+        Table(TableRefId),              // $1, $2, ...
         Column(ColumnRefId),            // $1.2, $2.1, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
         ExtSource(ExtSource),
@@ -105,7 +105,7 @@ define_language! {
         CreateTable(CreateTable),
         Drop(BoundDrop),
         "insert" = Insert([Id; 2]),             // (insert [column..] child)
-        "delete" = Delete([Id; 2]),             // (delete table condition=expr)
+        "delete" = Delete([Id; 2]),             // (delete table child)
         "copy_from" = CopyFrom(Id),             // (copy_from dest)
         "copy_to" = CopyTo([Id; 2]),            // (copy_to dest child)
         "explain" = Explain(Id),                // (explain child)

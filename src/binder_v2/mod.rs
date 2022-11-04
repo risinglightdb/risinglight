@@ -92,7 +92,7 @@ impl Binder {
         Binder {
             egraph: egg::EGraph::default(),
             catalog,
-            contexts: vec![],
+            contexts: vec![Context::default()],
         }
     }
 
