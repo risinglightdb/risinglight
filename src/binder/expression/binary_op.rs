@@ -48,11 +48,11 @@ impl Binder {
         let left_data_type_kind = {
             let left_kind = left_bound_expr.return_type().kind();
             let right_kind = right_bound_expr.return_type().kind();
-            let mut return_type_tmp = left_kind;
+            let mut return_type_tmp = left_kind.clone();
             // Check if implicit type conversion is needed
             if left_kind != right_kind {
                 // Insert type cast expr
-                match (left_kind, right_kind) {
+                match (&left_kind, &right_kind) {
                     (Float64 | Decimal(_, _), Int32 | Int64)
                     | (Int64, Int32)
                     | (Date, String)
@@ -68,12 +68,12 @@ impl Binder {
                     | (Float64, Decimal(_, _)) => {
                         left_bound_expr = BoundExpr::TypeCast(BoundTypeCast {
                             expr: Box::new(left_bound_expr),
-                            ty: right_kind,
+                            ty: right_kind.clone(),
                         });
                         return_type_tmp = right_kind;
                     }
                     (Date, Interval) => {}
-                    _ => todo!(
+                    (left_kind, right_kind) => todo!(
                         "Support implicit conversion of {:?} and {:?}",
                         left_kind,
                         right_kind

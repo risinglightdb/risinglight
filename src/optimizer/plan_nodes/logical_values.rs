@@ -61,7 +61,7 @@ impl PlanNode for LogicalValues {
     fn prune_col(&self, required_cols: BitSet) -> PlanRef {
         let types: Vec<_> = required_cols
             .iter()
-            .map(|index| self.column_types[index])
+            .map(|index| self.column_types[index].clone())
             .collect();
 
         let new_values: Vec<_> = self

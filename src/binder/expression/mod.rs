@@ -46,12 +46,12 @@ impl BoundExpr {
     pub fn return_type(&self) -> DataType {
         match self {
             Self::Constant(v) => v.data_type(),
-            Self::ColumnRef(expr) => *expr.desc.datatype(),
-            Self::BinaryOp(expr) => expr.return_type,
-            Self::UnaryOp(expr) => expr.return_type,
-            Self::TypeCast(expr) => expr.ty.nullable(),
-            Self::AggCall(expr) => expr.return_type,
-            Self::InputRef(expr) => expr.return_type,
+            Self::ColumnRef(expr) => expr.desc.datatype().clone(),
+            Self::BinaryOp(expr) => expr.return_type.clone(),
+            Self::UnaryOp(expr) => expr.return_type.clone(),
+            Self::TypeCast(expr) => expr.ty.clone().nullable(),
+            Self::AggCall(expr) => expr.return_type.clone(),
+            Self::InputRef(expr) => expr.return_type.clone(),
             Self::IsNull(_) => DataTypeKind::Bool.not_null(),
             Self::ExprWithAlias(expr) => expr.expr.return_type(),
             Self::Alias(expr) => expr.expr.return_type(),
@@ -334,9 +334,9 @@ mod tests {
         let data_type = DataType::new(DataTypeKind::Int32, true);
         let expr = BoundExpr::InputRef(BoundInputRef {
             index: 0,
-            return_type: data_type,
+            return_type: data_type.clone(),
         });
-        let child_schema = vec![ColumnDesc::new(data_type, "a".to_string(), false)];
+        let child_schema = vec![ColumnDesc::new(data_type.clone(), "a".to_string(), false)];
         let expr = BoundExpr::UnaryOp(BoundUnaryOp {
             op: UnaryOperator::Minus,
             expr: Box::new(expr),
@@ -353,7 +353,7 @@ mod tests {
             let left_data_type = DataType::new(DataTypeKind::Int32, true);
             let left_expr = BoundExpr::InputRef(BoundInputRef {
                 index: 0,
-                return_type: left_data_type,
+                return_type: left_data_type.clone(),
             });
             let right_expr = BoundExpr::Constant(DataValue::Int64(1));
             let child_schema = vec![ColumnDesc::new(left_data_type, "a".to_string(), false)];
@@ -370,15 +370,15 @@ mod tests {
             let data_type = DataType::new(DataTypeKind::Int32, true);
             let left_expr = BoundExpr::InputRef(BoundInputRef {
                 index: 0,
-                return_type: data_type,
+                return_type: data_type.clone(),
             });
             let right_expr = BoundExpr::InputRef(BoundInputRef {
                 index: 1,
-                return_type: data_type,
+                return_type: data_type.clone(),
             });
             let child_schema = vec![
-                ColumnDesc::new(data_type, "a".to_string(), false),
-                ColumnDesc::new(data_type, "b".to_string(), false),
+                ColumnDesc::new(data_type.clone(), "a".to_string(), false),
+                ColumnDesc::new(data_type.clone(), "b".to_string(), false),
             ];
 
             let expr = BoundExpr::BinaryOp(BoundBinaryOp {

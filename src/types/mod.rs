@@ -21,7 +21,7 @@ pub use self::interval::*;
 pub use self::native::*;
 
 /// Data type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum DataTypeKind {
     // NOTE: order matters
     Null,
@@ -59,16 +59,16 @@ impl DataTypeKind {
             (other, self)
         };
         match (a, b) {
-            (Null, _) => Some(*b),
-            (Bool, Bool | Int32 | Int64 | Float64 | Decimal(_, _) | String) => Some(*b),
-            (Int32, Int32 | Int64 | Float64 | Decimal(_, _) | String) => Some(*b),
-            (Int64, Int64 | Float64 | Decimal(_, _) | String) => Some(*b),
-            (Float64, Float64 | Decimal(_, _) | String) => Some(*b),
-            (Decimal(_, _), Decimal(_, _) | String) => Some(*b),
-            (Date, Date | String) => Some(*b),
-            (Interval, Interval | String) => Some(*b),
-            (String, String | Blob) => Some(*b),
-            (Blob, Blob) => Some(*b),
+            (Null, _) => Some(b.clone()),
+            (Bool, Bool | Int32 | Int64 | Float64 | Decimal(_, _) | String) => Some(b.clone()),
+            (Int32, Int32 | Int64 | Float64 | Decimal(_, _) | String) => Some(b.clone()),
+            (Int64, Int64 | Float64 | Decimal(_, _) | String) => Some(b.clone()),
+            (Float64, Float64 | Decimal(_, _) | String) => Some(b.clone()),
+            (Decimal(_, _), Decimal(_, _) | String) => Some(b.clone()),
+            (Date, Date | String) => Some(b.clone()),
+            (Interval, Interval | String) => Some(b.clone()),
+            (String, String | Blob) => Some(b.clone()),
+            (Blob, Blob) => Some(b.clone()),
             _ => None,
         }
     }
@@ -156,7 +156,7 @@ impl FromStr for DataTypeKind {
 }
 
 /// Data type with nullable.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DataType {
     pub kind: DataTypeKind,
     pub nullable: bool,
@@ -188,7 +188,7 @@ impl DataType {
     }
 
     pub fn kind(&self) -> DataTypeKind {
-        self.kind
+        self.kind.clone()
     }
 }
 

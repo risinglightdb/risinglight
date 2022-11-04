@@ -80,7 +80,7 @@ impl PlanNode for LogicalFilter {
             .map(|old_idx| {
                 BoundExpr::InputRef(BoundInputRef {
                     index: mapper[old_idx],
-                    return_type: input_types[old_idx],
+                    return_type: input_types[old_idx].clone(),
                 })
             })
             .collect();
@@ -116,9 +116,9 @@ mod tests {
     fn test_prune_filter() {
         let ty = DataTypeKind::Int32.not_null();
         let col_descs = vec![
-            ty.to_column("v1".into()),
-            ty.to_column("v2".into()),
-            ty.to_column("v3".into()),
+            ty.clone().to_column("v1".into()),
+            ty.clone().to_column("v2".into()),
+            ty.clone().to_column("v3".into()),
         ];
         let table_scan = LogicalTableScan::new(
             crate::catalog::TableRefId {
@@ -137,10 +137,10 @@ mod tests {
                 op: BinaryOperator::Lt,
                 left_expr: Box::new(BoundExpr::InputRef(BoundInputRef {
                     index: 1,
-                    return_type: ty,
+                    return_type: ty.clone(),
                 })),
                 right_expr: Box::new(BoundExpr::Constant(DataValue::Int32(5))),
-                return_type: ty,
+                return_type: ty.clone(),
             }),
             table_scan.into_plan_ref(),
         );
@@ -155,7 +155,7 @@ mod tests {
                 op: BinaryOperator::Lt,
                 left_expr: Box::new(BoundExpr::InputRef(BoundInputRef {
                     index: 0,
-                    return_type: ty,
+                    return_type: ty.clone(),
                 })),
                 right_expr: Box::new(BoundExpr::Constant(DataValue::Int32(5))),
                 return_type: ty,
@@ -181,10 +181,10 @@ mod tests {
     fn test_prune_filter_with_project() {
         let ty = DataTypeKind::Int32.not_null();
         let col_descs = vec![
-            ty.to_column("v1".into()),
-            ty.to_column("v2".into()),
-            ty.to_column("v3".into()),
-            ty.to_column("v4".into()),
+            ty.clone().to_column("v1".into()),
+            ty.clone().to_column("v2".into()),
+            ty.clone().to_column("v3".into()),
+            ty.clone().to_column("v4".into()),
         ];
         let table_scan = LogicalTableScan::new(
             crate::catalog::TableRefId {
@@ -203,7 +203,7 @@ mod tests {
                 op: BinaryOperator::Lt,
                 left_expr: Box::new(BoundExpr::InputRef(BoundInputRef {
                     index: 1,
-                    return_type: ty,
+                    return_type: ty.clone(),
                 })),
                 right_expr: Box::new(BoundExpr::Constant(DataValue::Int32(5))),
                 return_type: ty,
@@ -223,7 +223,7 @@ mod tests {
             plan.project_expressions()[0],
             BoundExpr::InputRef(BoundInputRef {
                 index: 1,
-                return_type: input_types[1],
+                return_type: input_types[1].clone(),
             })
         );
         let table_scan = child.child.as_logical_table_scan().unwrap();

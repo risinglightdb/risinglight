@@ -19,6 +19,7 @@
 #![feature(trusted_len)]
 #![feature(int_log)]
 #![feature(once_cell)]
+#![feature(array_methods)]
 
 /// Top-level structure of the database.
 pub mod db;

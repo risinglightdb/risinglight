@@ -22,7 +22,7 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type) -> Type {
     match enode {
         // values
         Constant(v) => Ok(v.data_type()),
-        Type(t) => Ok((*t).not_null()),
+        Type(t) => Ok(t.clone().not_null()),
         Column(_) | ColumnIndex(_) => Err(TypeError::Uninit), // binder should set the type
 
         // cast
@@ -31,12 +31,16 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type) -> Type {
         // number ops
         Neg(a) => x(a),
         Add([a, b]) | Sub([a, b]) | Mul([a, b]) | Div([a, b]) | Mod([a, b]) => {
-            merge(enode, [x(a)?, x(b)?], |[a, b]| match (a.min(b), a.max(b)) {
-                (Kind::Null, _) => Some(Kind::Null),
-                _ if a == b && a.is_number() => Some(a),
-                (Kind::Int32 | Kind::Int64, b @ Kind::Decimal(_, _) | b @ Kind::Float64) => Some(b),
-                (Kind::Date, Kind::Interval) => Some(Kind::Date),
-                _ => None,
+            merge(enode, [x(a)?, x(b)?], |[a, b]| {
+                match if a > b { (a, b) } else { (b, a) } {
+                    (Kind::Null, _) => Some(Kind::Null),
+                    (a, b) if a == b && a.is_number() => Some(a),
+                    (Kind::Int32 | Kind::Int64, b @ Kind::Decimal(_, _) | b @ Kind::Float64) => {
+                        Some(b)
+                    }
+                    (Kind::Date, Kind::Interval) => Some(Kind::Date),
+                    _ => None,
+                }
             })
         }
 
@@ -98,8 +102,8 @@ fn merge<const N: usize>(
     types: [DataType; N],
     merge: impl FnOnce([Kind; N]) -> Option<Kind>,
 ) -> Type {
-    let kinds = types.map(|t| t.kind());
-    if let Some(kind) = merge(kinds) {
+    let kinds = types.each_ref().map(|t| t.kind());
+    if let Some(kind) = merge(kinds.clone()) {
         Ok(DataType {
             kind,
             nullable: types.map(|t| t.nullable).iter().any(|b| *b),

@@ -149,9 +149,9 @@ impl Expr {
         }
     }
 
-    pub fn as_type(&self) -> DataTypeKind {
+    pub fn as_type(&self) -> &DataTypeKind {
         match self {
-            Self::Type(t) => *t,
+            Self::Type(t) => t,
             _ => panic!("not a type"),
         }
     }

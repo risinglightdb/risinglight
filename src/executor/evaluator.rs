@@ -37,7 +37,7 @@ impl BoundExpr {
                 if self.return_type() == cast.expr.return_type() {
                     return Ok(array);
                 }
-                array.try_cast(cast.ty)
+                array.try_cast(&cast.ty)
             }
             BoundExpr::IsNull(expr) => {
                 let array = expr.expr.eval(chunk)?;
@@ -86,7 +86,7 @@ impl BoundExpr {
                 if self.return_type() == cast.expr.return_type() {
                     return Ok(array);
                 }
-                array.try_cast(cast.ty)
+                array.try_cast(&cast.ty)
             }
             BoundExpr::IsNull(expr) => {
                 let array = expr.expr.eval_array_in_storage(chunk, cardinality)?;
@@ -217,7 +217,7 @@ impl ArrayImpl {
     }
 
     /// Cast the array to another type.
-    pub fn try_cast(&self, data_type: DataTypeKind) -> Result<Self, ConvertError> {
+    pub fn try_cast(&self, data_type: &DataTypeKind) -> Result<Self, ConvertError> {
         type Type = DataTypeKind;
         Ok(match self {
             Self::Bool(a) => match data_type {
@@ -281,7 +281,7 @@ impl ArrayImpl {
                         |&f| match Decimal::from_f64_retain(f.0) {
                             Some(mut d) => {
                                 if let Some(s) = scale {
-                                    d.rescale(s as u32);
+                                    d.rescale(*s as u32);
                                 }
                                 Ok(d)
                             }
@@ -351,9 +351,9 @@ impl ArrayImpl {
             },
             Self::Date(a) => match data_type {
                 Type::String => Self::new_utf8(unary_op(a.as_ref(), |&d| d.to_string())),
-                ty => return Err(ConvertError::FromDateError(ty)),
+                ty => return Err(ConvertError::FromDateError(ty.clone())),
             },
-            Self::Interval(_) => return Err(ConvertError::FromIntervalError(data_type)),
+            Self::Interval(_) => return Err(ConvertError::FromIntervalError(data_type.clone())),
         })
     }
 }

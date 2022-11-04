@@ -70,11 +70,11 @@ mod tests {
 
             let table_ref = catalog.get_table(&id).unwrap();
             assert_eq!(
-                table_ref.get_column_by_id(0).unwrap(),
+                table_ref.get_column_by_id(0).unwrap().clone(),
                 ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("v1".into()))
             );
             assert_eq!(
-                table_ref.get_column_by_id(1).unwrap(),
+                table_ref.get_column_by_id(1).unwrap().clone(),
                 ColumnCatalog::new(1, DataTypeKind::Int32.not_null().to_column("v2".into()))
             );
         }

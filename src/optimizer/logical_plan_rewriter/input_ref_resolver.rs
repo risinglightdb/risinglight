@@ -199,7 +199,7 @@ impl AggInputRefResolver {
             AggCall(agg) => {
                 *expr = InputRef(BoundInputRef {
                     index: self.agg_start_index,
-                    return_type: agg.return_type,
+                    return_type: agg.return_type.clone(),
                 });
                 self.agg_start_index += 1;
             }
