@@ -123,7 +123,7 @@ impl Display for Explain<'_> {
             }
 
             BoundDrop(_) => todo!(),
-            BoundExtSource(src) => write!(f, "path={:?}, format={}", src.path, src.format),
+            ExtSource(src) => write!(f, "path={:?}, format={}", src.path, src.format),
             BoundTable(_) => todo!(),
 
             // binary operations

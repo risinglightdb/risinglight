@@ -88,7 +88,7 @@ pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
 
         // plans that change schema
         Scan(columns) => x(columns)?,
-        Values(_) => return None, // TODO: set manually?
+        Values(vs) => vs.first().and_then(x)?,
         Proj([exprs, _]) | Select([exprs, ..]) => x(exprs)?,
         Agg([exprs, group_keys, _]) => concat(x(exprs)?, x(group_keys)?),
 

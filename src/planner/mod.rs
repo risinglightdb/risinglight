@@ -1,6 +1,6 @@
 use egg::{define_language, CostFunction, Id, Symbol};
 
-use crate::binder_v2::{BoundDrop, BoundExtSource, BoundTable};
+use crate::binder_v2::{BoundDrop, BoundTable, ExtSource};
 use crate::catalog::ColumnRefId;
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
@@ -27,7 +27,7 @@ define_language! {
         Column(ColumnRefId),            // $1.2, $2.1, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
         BoundDrop(BoundDrop),
-        BoundExtSource(BoundExtSource),
+        ExtSource(ExtSource),
         BoundTable(BoundTable),
 
         // utilities
