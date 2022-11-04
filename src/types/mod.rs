@@ -36,6 +36,7 @@ pub enum DataTypeKind {
     Interval,
     String,
     Blob,
+    Struct(Vec<DataType>),
 }
 
 impl DataTypeKind {
@@ -50,14 +51,22 @@ impl DataTypeKind {
         )
     }
 
+    /// Returns the inner types of the struct.
+    pub fn as_struct(&self) -> &[DataType] {
+        match self {
+            Self::Struct(types) => types,
+            _ => panic!("not a struct type"),
+        }
+    }
+
     /// Returns the minimum compatible type of 2 types.
-    pub fn merge(&self, other: &Self) -> Option<Self> {
+    pub fn union(&self, other: &Self) -> Option<Self> {
         use DataTypeKind::*;
         let (a, b) = if self <= other {
             (self, other)
         } else {
             (other, self)
-        };
+        }; // a <= b
         match (a, b) {
             (Null, _) => Some(b.clone()),
             (Bool, Bool | Int32 | Int64 | Float64 | Decimal(_, _) | String) => Some(b.clone()),
@@ -69,6 +78,15 @@ impl DataTypeKind {
             (Interval, Interval | String) => Some(b.clone()),
             (String, String | Blob) => Some(b.clone()),
             (Blob, Blob) => Some(b.clone()),
+            (Struct(a), Struct(b)) => {
+                if a.len() != b.len() {
+                    return None;
+                }
+                let c = (a.iter().zip(b.iter()))
+                    .map(|(a, b)| a.union(b))
+                    .try_collect()?;
+                Some(Struct(c))
+            }
             _ => None,
         }
     }
@@ -112,6 +130,16 @@ impl std::fmt::Display for DataTypeKind {
             },
             Self::Date => write!(f, "DATE"),
             Self::Interval => write!(f, "INTERVAL"),
+            Self::Struct(types) => {
+                write!(f, "STRUCT(")?;
+                for t in types.iter().take(1) {
+                    write!(f, "{}", t.kind())?;
+                }
+                for t in types.iter().skip(1) {
+                    write!(f, ", {}", t.kind())?;
+                }
+                write!(f, ")")
+            }
         }
     }
 }
@@ -189,6 +217,14 @@ impl DataType {
 
     pub fn kind(&self) -> DataTypeKind {
         self.kind.clone()
+    }
+
+    /// Returns the minimum compatible type of 2 types.
+    pub fn union(&self, other: &Self) -> Option<Self> {
+        Some(DataType {
+            kind: self.kind.union(&other.kind)?,
+            nullable: self.nullable || other.nullable,
+        })
     }
 }
 

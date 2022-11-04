@@ -20,6 +20,7 @@
 #![feature(int_log)]
 #![feature(once_cell)]
 #![feature(array_methods)]
+#![feature(iterator_try_collect)]
 
 /// Top-level structure of the database.
 pub mod db;

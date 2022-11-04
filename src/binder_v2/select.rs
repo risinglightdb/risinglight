@@ -114,6 +114,8 @@ impl Binder {
             }
             bound_values.push(self.egraph.add(Node::List(bound_row.into())));
         }
-        Ok(self.egraph.add(Node::Values(bound_values.into())))
+        let id = self.egraph.add(Node::Values(bound_values.into()));
+        self.check_type(id)?;
+        Ok(id)
     }
 }

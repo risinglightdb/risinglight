@@ -55,7 +55,7 @@ use crate::binder::BoundExpr;
 use crate::function::FunctionError;
 use crate::planner::{ColumnIndexResolver, Expr, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, StorageImpl, TracedStorageError};
-use crate::types::{ConvertError, DataValue};
+use crate::types::{ConvertError, DataType, DataValue};
 
 // mod aggregation;
 // mod copy_from_file;
@@ -169,6 +169,12 @@ impl<S: Storage> Builder<S> {
         self.node(id).build_recexpr(|id| self.node(id).clone())
     }
 
+    /// Returns the output types of a plan node.
+    fn plan_types(&self, id: Id) -> &[DataType] {
+        let ty = self.egraph[id].data.type_.as_ref().unwrap();
+        ty.kind.as_struct()
+    }
+
     /// Resolve the column index of `expr` in `plan`.
     fn resolve_column_index(&self, expr: Id, plan: Id) -> RecExpr {
         let schema = (self.egraph[plan].data.schema.as_ref().expect("no schema"))
@@ -194,7 +200,7 @@ impl<S: Storage> Builder<S> {
             .execute(),
 
             Values(rows) => ValuesExecutor {
-                column_types: todo!(),
+                column_types: self.plan_types(id).to_vec(),
                 values: {
                     rows.iter()
                         .map(|row| {

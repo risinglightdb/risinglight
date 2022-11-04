@@ -173,6 +173,11 @@ impl Binder {
         Ok(())
     }
 
+    fn check_type(&self, id: Id) -> Result<()> {
+        self.egraph[id].data.type_.clone()?;
+        Ok(())
+    }
+
     fn bind_explain(&mut self, query: Statement) -> Result {
         let id = self.bind_stmt(query)?;
         let id = self.egraph.add(Node::Explain(id));

@@ -19,11 +19,19 @@ pub enum TypeError {
 /// Returns data type of the expression.
 pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type) -> Type {
     use Expr::*;
+    let concat_struct = |t1: DataType, t2: DataType| match (t1.kind, t2.kind) {
+        (Kind::Struct(l), Kind::Struct(r)) => {
+            Ok(Kind::Struct(l.into_iter().chain(r).collect()).not_null())
+        }
+        _ => panic!("not struct type"),
+    };
     match enode {
         // values
         Constant(v) => Ok(v.data_type()),
         Type(t) => Ok(t.clone().not_null()),
         Column(_) | ColumnIndex(_) => Err(TypeError::Uninit), // binder should set the type
+
+        List(list) => Ok(Kind::Struct(list.iter().map(x).try_collect()?).not_null()),
 
         // cast
         Cast([ty, a]) => merge(enode, [x(ty)?, x(a)?], |[ty, _]| Some(ty)),
@@ -80,6 +88,32 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type) -> Type {
         // agg
         RowCount | Count(_) => Ok(Kind::Int32.not_null()),
         First(a) | Last(a) => x(a),
+
+        // equal to child
+        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c])
+        | Distinct([_, c]) => x(c),
+
+        // concat 2 children
+        Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) => concat_struct(x(l)?, x(r)?),
+
+        // plans that change schema
+        Scan(columns) => x(columns),
+        Values(rows) => {
+            if rows.is_empty() {
+                return Ok(Kind::Null.not_null());
+            }
+            let mut type_ = x(&rows[0])?;
+            for row in rows.iter().skip(1) {
+                let ty = x(row)?;
+                type_ = type_.union(&ty).ok_or_else(|| TypeError::NoCast {
+                    from: ty.kind,
+                    to: type_.kind,
+                })?;
+            }
+            Ok(type_)
+        }
+        Proj([exprs, _]) | Select([exprs, ..]) => x(exprs),
+        Agg([exprs, group_keys, _]) => concat_struct(x(exprs)?, x(group_keys)?),
 
         // other plan nodes
         _ => Err(TypeError::Unavailable),
