@@ -20,21 +20,22 @@ pub use self::date::*;
 pub use self::interval::*;
 pub use self::native::*;
 
-/// Physical data type
+/// Data type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum DataTypeKind {
+    // NOTE: order matters
     Null,
+    Bool,
     Int32,
     Int64,
     // Float32,
     Float64,
-    String,
-    Blob,
-    Bool,
     // decimal (precision, scale)
     Decimal(Option<u8>, Option<u8>),
     Date,
     Interval,
+    String,
+    Blob,
 }
 
 impl DataTypeKind {
@@ -47,6 +48,29 @@ impl DataTypeKind {
             self,
             Self::Int32 | Self::Int64 | Self::Float64 | Self::Decimal(_, _)
         )
+    }
+
+    /// Returns the minimum compatible type of 2 types.
+    pub fn merge(&self, other: &Self) -> Option<Self> {
+        use DataTypeKind::*;
+        let (a, b) = if self <= other {
+            (self, other)
+        } else {
+            (other, self)
+        };
+        match (a, b) {
+            (Null, _) => Some(*b),
+            (Bool, Bool | Int32 | Int64 | Float64 | Decimal(_, _) | String) => Some(*b),
+            (Int32, Int32 | Int64 | Float64 | Decimal(_, _) | String) => Some(*b),
+            (Int64, Int64 | Float64 | Decimal(_, _) | String) => Some(*b),
+            (Float64, Float64 | Decimal(_, _) | String) => Some(*b),
+            (Decimal(_, _), Decimal(_, _) | String) => Some(*b),
+            (Date, Date | String) => Some(*b),
+            (Interval, Interval | String) => Some(*b),
+            (String, String | Blob) => Some(*b),
+            (Blob, Blob) => Some(*b),
+            _ => None,
+        }
     }
 }
 

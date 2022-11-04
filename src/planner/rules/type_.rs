@@ -12,6 +12,8 @@ pub enum TypeError {
     Unavailable,
     #[error("no function for {op}{operands:?}")]
     NoFunction { op: String, operands: Vec<Kind> },
+    #[error("no cast {from} -> {to}")]
+    NoCast { from: Kind, to: Kind },
 }
 
 /// Returns data type of the expression.

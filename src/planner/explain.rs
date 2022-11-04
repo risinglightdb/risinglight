@@ -164,13 +164,7 @@ impl Display for Explain<'_> {
             Distinct(_) => todo!(),
 
             Scan(list) => writeln!(f, "{tab}Scan: {}{cost}", self.expr(list)),
-            Values(values) => {
-                writeln!(f, "{tab}Values:{cost}")?;
-                for v in values.iter() {
-                    writeln!(f, "  {tab}{}", self.expr(v))?;
-                }
-                Ok(())
-            }
+            Values(rows) => writeln!(f, "{tab}Values: {} rows{cost}", rows.len()),
             Proj([exprs, child]) => write!(
                 f,
                 "{tab}Projection: {}{cost}\n{}",

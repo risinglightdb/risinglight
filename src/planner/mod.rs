@@ -128,6 +128,13 @@ impl Expr {
         Self::Constant(DataValue::Null)
     }
 
+    pub fn as_const(&self) -> DataValue {
+        match self {
+            Self::Constant(v) => v.clone(),
+            _ => panic!("not a constant"),
+        }
+    }
+
     pub fn as_list(&self) -> &[Id] {
         match self {
             Self::List(list) => list,

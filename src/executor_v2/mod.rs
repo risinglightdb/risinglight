@@ -49,7 +49,7 @@ use self::projection::*;
 // use self::sort_merge_join::*;
 use self::table_scan::*;
 // use self::top_n::TopNExecutor;
-// use self::values::*;
+use self::values::*;
 use crate::array::DataChunk;
 use crate::binder::BoundExpr;
 use crate::function::FunctionError;
@@ -81,7 +81,7 @@ mod projection;
 // mod sort_merge_join;
 mod table_scan;
 // mod top_n;
-// mod values;
+mod values;
 
 /// The error type of execution.
 #[derive(thiserror::Error, Debug)]
@@ -193,7 +193,19 @@ impl<S: Storage> Builder<S> {
             }
             .execute(),
 
-            Values(_) => todo!(),
+            Values(rows) => ValuesExecutor {
+                column_types: todo!(),
+                values: {
+                    rows.iter()
+                        .map(|row| {
+                            (self.node(*row).as_list().iter())
+                                .map(|id| self.recexpr(*id))
+                                .collect()
+                        })
+                        .collect()
+                },
+            }
+            .execute(),
 
             Proj([projs, child]) => ProjectionExecutor {
                 projs: {
@@ -217,7 +229,8 @@ impl<S: Storage> Builder<S> {
             Join(_) => todo!(),
             HashJoin(_) => todo!(),
             Agg(_) => todo!(),
-            Create(_) => todo!(),
+            CreateTable(_) => todo!(),
+            Drop(_) => todo!(),
             Insert(_) => todo!(),
             Delete(_) => todo!(),
             CopyFrom(_) => todo!(),
