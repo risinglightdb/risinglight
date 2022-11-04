@@ -53,6 +53,7 @@ pub mod utils;
 
 /// The new binder converting sqlparser AST to egg AST.
 mod binder_v2;
+mod executor_v2;
 /// Next-generation planner and optimizer based on egg.
 pub mod planner;
 
