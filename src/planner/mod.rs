@@ -1,6 +1,6 @@
 use egg::{define_language, CostFunction, Id, Symbol};
 
-use crate::binder_v2::{BoundDrop, BoundTable, ExtSource};
+use crate::binder_v2::{BoundDrop, CreateTable, ExtSource};
 use crate::catalog::ColumnRefId;
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
@@ -26,9 +26,7 @@ define_language! {
         // Table(TableRefId),              // $1, $2, ...
         Column(ColumnRefId),            // $1.2, $2.1, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
-        BoundDrop(BoundDrop),
         ExtSource(ExtSource),
-        BoundTable(BoundTable),
 
         // utilities
         "list" = List(Box<[Id]>),       // (list ...)
@@ -104,8 +102,8 @@ define_language! {
         "agg" = Agg([Id; 3]),                   // (agg aggs=[expr..] group_keys=[expr..] child)
                                                     // expressions must be agg
                                                     // output = aggs || group_keys
-        "create" = Create(Id),                  // (create table [column_desc..])
-        // "drop" = Drop(Id),                      // (drop table)
+        CreateTable(CreateTable),
+        Drop(BoundDrop),
         "insert" = Insert([Id; 2]),             // (insert [column..] child)
         "delete" = Delete([Id; 2]),             // (delete table condition=expr)
         "copy_from" = CopyFrom(Id),             // (copy_from dest)

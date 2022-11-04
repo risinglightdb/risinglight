@@ -110,6 +110,7 @@ impl Display for Explain<'_> {
             Type(t) => write!(f, "{t}"),
             Column(i) => write!(f, "{i}"),
             ColumnIndex(i) => write!(f, "{i}"),
+            ExtSource(src) => write!(f, "path={:?}, format={}", src.path, src.format),
 
             List(list) => {
                 write!(f, "[")?;
@@ -121,10 +122,6 @@ impl Display for Explain<'_> {
                 }
                 write!(f, "]")
             }
-
-            BoundDrop(_) => todo!(),
-            ExtSource(src) => write!(f, "path={:?}, format={}", src.path, src.format),
-            BoundTable(_) => todo!(),
 
             // binary operations
             Add([a, b]) | Sub([a, b]) | Mul([a, b]) | Div([a, b]) | Mod([a, b])
@@ -229,7 +226,8 @@ impl Display for Explain<'_> {
                 self.expr(group_keys),
                 self.child(child)
             ),
-            Create(_) => todo!(),
+            CreateTable(t) => writeln!(f, "{tab}CreateTable: name={:?}, ...{cost}", t.table_name),
+            Drop(t) => writeln!(f, "{tab}Drop: {}, ...{cost}", t.object),
             Insert([cols, child]) => write!(f, "{tab}Insert: {}{cost}\n{}", self.expr(cols), self.child(child)),
             Delete(_) => todo!(),
             CopyFrom(src) => writeln!(f, "{tab}CopyFrom: {}{cost}", self.expr(src)),
