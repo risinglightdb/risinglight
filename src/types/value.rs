@@ -202,7 +202,7 @@ macro_rules! impl_min_max {
                 match (self, other) {
                     (Self::Null, a) | (a, Self::Null) => a.clone(),
                     $(
-                        (Self::$Value(a), Self::$Value(b)) => Self::$Value(a.min(b)),
+                        (Self::$Value(a), Self::$Value(b)) => Self::$Value(a.max(b)),
                     )*
                     (a, b) => panic!("invalid operation: max({a:?}, {b:?})"),
                 }

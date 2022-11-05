@@ -42,7 +42,6 @@ impl HashAggExecutor {
         let mut batches = IterChunks::chunks(states.into_iter(), PROCESSING_WINDOW_SIZE);
         while let Some(batch) = batches.next() {
             let mut builder = DataChunkBuilder::new(&self.types, PROCESSING_WINDOW_SIZE);
-            println!("{:?}", self.types);
             for (key, aggs) in batch {
                 builder.push_row(aggs.into_iter().chain(key.into_iter()));
             }
