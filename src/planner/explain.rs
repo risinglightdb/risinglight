@@ -214,7 +214,7 @@ impl Display for Explain<'_> {
                 self.child(left),
                 self.child(right)
             ),
-            Inner | LeftOuter | RightOuter | FullOuter | Cross => write!(f, "{}", enode),
+            Inner | LeftOuter | RightOuter | FullOuter => write!(f, "{}", enode),
             Agg([aggs, group_keys, child]) => write!(
                 f,
                 "{tab}Aggregate: {}, groupby={}{cost}\n{}",
