@@ -25,9 +25,9 @@ use minitrace::prelude::*;
 // use self::copy_from_file::*;
 // use self::copy_to_file::*;
 use self::create::*;
-use self::evaluator::*;
 // use self::delete::*;
-// use self::drop::*;
+use self::drop::*;
+use self::evaluator::*;
 // use self::dummy_scan::*;
 use self::explain::*;
 use self::filter::*;
@@ -61,7 +61,7 @@ use crate::types::{ConvertError, DataType, DataValue};
 // mod copy_to_file;
 mod create;
 // mod delete;
-// mod drop;
+mod drop;
 // mod dummy_scan;
 mod evaluator;
 mod explain;
@@ -257,7 +257,11 @@ impl<S: Storage> Builder<S> {
             }
             .execute(),
 
-            Drop(_) => todo!(),
+            Drop(plan) => DropExecutor {
+                plan,
+                storage: self.storage.clone(),
+            }
+            .execute(),
 
             Insert([table, cols, child]) => InsertExecutor {
                 table_id: self.node(table).as_table(),
