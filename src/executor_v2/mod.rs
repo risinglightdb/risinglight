@@ -22,11 +22,11 @@ use futures_async_stream::try_stream;
 use itertools::Itertools;
 use minitrace::prelude::*;
 
-use self::evaluator::*;
 // pub use self::aggregation::*;
 // use self::copy_from_file::*;
 // use self::copy_to_file::*;
-// use self::create::*;
+use self::create::*;
+use self::evaluator::*;
 // use self::delete::*;
 // use self::drop::*;
 // use self::dummy_scan::*;
@@ -60,7 +60,7 @@ use crate::types::{ConvertError, DataType, DataValue};
 // mod aggregation;
 // mod copy_from_file;
 // mod copy_to_file;
-// mod create;
+mod create;
 // mod delete;
 // mod drop;
 // mod dummy_scan;
@@ -235,7 +235,13 @@ impl<S: Storage> Builder<S> {
             Join(_) => todo!(),
             HashJoin(_) => todo!(),
             Agg(_) => todo!(),
-            CreateTable(_) => todo!(),
+
+            CreateTable(plan) => CreateTableExecutor {
+                plan,
+                storage: self.storage.clone(),
+            }
+            .execute(),
+
             Drop(_) => todo!(),
 
             Insert([table, cols, child]) => InsertExecutor {

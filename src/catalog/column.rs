@@ -57,7 +57,7 @@ impl DataType {
 }
 
 /// The catalog of a column.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ColumnCatalog {
     id: ColumnId,
     desc: ColumnDesc,
