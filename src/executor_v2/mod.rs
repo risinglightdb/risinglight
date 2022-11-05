@@ -31,7 +31,7 @@ use self::evaluator::*;
 // use self::dummy_scan::*;
 use self::explain::*;
 use self::filter::*;
-// use self::hash_agg::*;
+use self::hash_agg::*;
 // use self::hash_join::*;
 use self::insert::*;
 // use self::internal::*;
@@ -51,6 +51,7 @@ use self::table_scan::*;
 use self::values::*;
 use crate::array::DataChunk;
 use crate::binder::BoundExpr;
+use crate::catalog::RootCatalogRef;
 use crate::function::FunctionError;
 use crate::planner::{ColumnIndexResolver, Expr, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, StorageImpl, TracedStorageError};
@@ -65,7 +66,7 @@ mod create;
 mod evaluator;
 mod explain;
 mod filter;
-// mod hash_agg;
+mod hash_agg;
 // mod hash_join;
 mod insert;
 // mod internal;
@@ -135,8 +136,8 @@ const PROCESSING_WINDOW_SIZE: usize = 1024;
 /// and produces a stream to its parent.
 pub type BoxedExecutor = BoxStream<'static, Result<DataChunk, ExecutorError>>;
 
-pub fn build(storage: Arc<impl Storage>, plan: &RecExpr) -> BoxedExecutor {
-    Builder::new(storage, plan).build()
+pub fn build(catalog: RootCatalogRef, storage: Arc<impl Storage>, plan: &RecExpr) -> BoxedExecutor {
+    Builder::new(catalog, storage, plan).build()
 }
 
 /// The builder of executor.
@@ -148,8 +149,8 @@ struct Builder<S: Storage> {
 
 impl<S: Storage> Builder<S> {
     /// Create a new executor builder.
-    fn new(storage: Arc<S>, plan: &RecExpr) -> Self {
-        let mut egraph = egg::EGraph::default();
+    fn new(catalog: RootCatalogRef, storage: Arc<S>, plan: &RecExpr) -> Self {
+        let mut egraph = egg::EGraph::new(TypeSchemaAnalysis { catalog });
         let root = egraph.add_expr(plan);
         Builder {
             storage,
@@ -232,7 +233,12 @@ impl<S: Storage> Builder<S> {
                 if group_keys.as_ref().last().unwrap().as_list().is_empty() {
                     SimpleAggExecutor { aggs }.execute(self.build_id(child))
                 } else {
-                    todo!("hash agg");
+                    HashAggExecutor {
+                        aggs,
+                        group_keys,
+                        types: self.plan_types(id).to_vec(),
+                    }
+                    .execute(self.build_id(child))
                 }
             }
 

@@ -361,11 +361,11 @@ impl ArrayImpl {
     /// Returns the sum of values.
     pub fn sum(&self) -> DataValue {
         match self {
-            Self::Int32(a) => DataValue::Int64(a.iter().filter_map(|x| x).map(|x| *x as i64).sum()),
-            Self::Int64(a) => DataValue::Int64(a.iter().filter_map(|x| x).sum()),
-            Self::Float64(a) => DataValue::Float64(a.iter().filter_map(|x| x).sum()),
-            Self::Decimal(a) => DataValue::Decimal(a.iter().filter_map(|x| x).sum()),
-            Self::Interval(a) => DataValue::Interval(a.iter().filter_map(|x| x).sum()),
+            Self::Int32(a) => DataValue::Int32(a.iter().flatten().sum()),
+            Self::Int64(a) => DataValue::Int64(a.iter().flatten().sum()),
+            Self::Float64(a) => DataValue::Float64(a.iter().flatten().sum()),
+            Self::Decimal(a) => DataValue::Decimal(a.iter().flatten().sum()),
+            Self::Interval(a) => DataValue::Interval(a.iter().flatten().sum()),
             _ => panic!("can not sum array"),
         }
     }
@@ -378,28 +378,28 @@ macro_rules! impl_agg {
             /// Returns the minimum of values.
             pub fn min_(&self) -> DataValue {
                 match self {
-                    $(Self::$Abc(a) => a.iter().filter_map(|x| x).min().into(),)*
+                    $(Self::$Abc(a) => a.iter().flatten().min().into(),)*
                 }
             }
 
             /// Returns the maximum of values.
             pub fn max_(&self) -> DataValue {
                 match self {
-                    $(Self::$Abc(a) => a.iter().filter_map(|x| x).max().into(),)*
+                    $(Self::$Abc(a) => a.iter().flatten().max().into(),)*
                 }
             }
 
             /// Returns the first non-null value.
             pub fn first(&self) -> DataValue {
                 match self {
-                    $(Self::$Abc(a) => a.iter().filter_map(|x| x).next().into(),)*
+                    $(Self::$Abc(a) => a.iter().flatten().next().into(),)*
                 }
             }
 
             /// Returns the last non-null value.
             pub fn last(&self) -> DataValue {
                 match self {
-                    $(Self::$Abc(a) => a.iter().rev().filter_map(|x| x).next().into(),)*
+                    $(Self::$Abc(a) => a.iter().rev().flatten().next().into(),)*
                 }
             }
         }

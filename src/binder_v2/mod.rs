@@ -92,8 +92,8 @@ impl Binder {
     /// Create a new binder.
     pub fn new(catalog: Arc<RootCatalog>) -> Self {
         Binder {
-            egraph: egg::EGraph::default(),
-            catalog,
+            catalog: catalog.clone(),
+            egraph: egg::EGraph::new(TypeSchemaAnalysis { catalog }),
             contexts: vec![Context::default()],
         }
     }

@@ -6,8 +6,6 @@ pub type Type = Result<DataType, TypeError>;
 
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TypeError {
-    #[error("the type should be set manually")]
-    Uninit,
     #[error("type is not available for node")]
     Unavailable,
     #[error("no function for {op}{operands:?}")]
@@ -17,7 +15,7 @@ pub enum TypeError {
 }
 
 /// Returns data type of the expression.
-pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type) -> Type {
+pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalogRef) -> Type {
     use Expr::*;
     let concat_struct = |t1: DataType, t2: DataType| match (t1.kind, t2.kind) {
         (Kind::Struct(l), Kind::Struct(r)) => {
@@ -29,7 +27,10 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type) -> Type {
         // values
         Constant(v) => Ok(v.data_type()),
         Type(t) => Ok(t.clone().not_null()),
-        Column(_) | ColumnIndex(_) => Err(TypeError::Uninit), // binder should set the type
+        Column(col) => Ok(catalog
+            .get_column(col)
+            .ok_or(TypeError::Unavailable)?
+            .datatype()),
 
         List(list) => Ok(Kind::Struct(list.iter().map(x).try_collect()?).not_null()),
 
