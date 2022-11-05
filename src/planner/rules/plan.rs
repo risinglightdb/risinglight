@@ -51,27 +51,27 @@ fn pushdown_rules() -> Vec<Rewrite> { vec![
     pushdown("filter", "?cond", "limit", "?limit ?offset"),
     pushdown("filter", "?cond", "topn", "?limit ?offset ?keys"),
     rw!("pushdown-filter-join";
-        "(filter ?cond (join ?type ?on ?left ?right))" =>
-        "(join ?type (and ?on ?cond) ?left ?right)"
+        "(filter ?cond (join inner ?on ?left ?right))" =>
+        "(join inner (and ?on ?cond) ?left ?right)"
     ),
     rw!("pushdown-join-left";
-        "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
-        "(join ?type ?cond2 (filter ?cond1 ?left) ?right)"
+        "(join inner (and ?cond1 ?cond2) ?left ?right)" =>
+        "(join inner ?cond2 (filter ?cond1 ?left) ?right)"
         if columns_is_subset("?cond1", "?left")
     ),
     rw!("pushdown-join-left-1";
-        "(join ?type ?cond1 ?left ?right)" =>
-        "(join ?type true (filter ?cond1 ?left) ?right)"
+        "(join inner ?cond1 ?left ?right)" =>
+        "(join inner true (filter ?cond1 ?left) ?right)"
         if columns_is_subset("?cond1", "?left")
     ),
     rw!("pushdown-join-right";
-        "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
-        "(join ?type ?cond2 ?left (filter ?cond1 ?right))"
+        "(join inner (and ?cond1 ?cond2) ?left ?right)" =>
+        "(join inner ?cond2 ?left (filter ?cond1 ?right))"
         if columns_is_subset("?cond1", "?right")
     ),
     rw!("pushdown-join-right-1";
-        "(join ?type ?cond1 ?left ?right)" =>
-        "(join ?type true ?left (filter ?cond1 ?right))"
+        "(join inner ?cond1 ?left ?right)" =>
+        "(join inner true ?left (filter ?cond1 ?right))"
         if columns_is_subset("?cond1", "?right")
     ),
 ]}
