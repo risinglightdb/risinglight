@@ -196,7 +196,7 @@ fn split_name(name: &ObjectName) -> Result<(&str, &str, &str)> {
 }
 
 /// Convert an object name into lower case
-fn lower_case_name(name: ObjectName) -> ObjectName {
+fn lower_case_name(name: &ObjectName) -> ObjectName {
     ObjectName(
         name.0
             .iter()

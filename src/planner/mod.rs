@@ -104,7 +104,7 @@ define_language! {
                                                     // output = aggs || group_keys
         CreateTable(CreateTable),
         Drop(BoundDrop),
-        "insert" = Insert([Id; 2]),             // (insert [column..] child)
+        "insert" = Insert([Id; 3]),             // (insert table [column..] child)
         "delete" = Delete([Id; 2]),             // (delete table child)
         "copy_from" = CopyFrom(Id),             // (copy_from dest)
         "copy_to" = CopyTo([Id; 2]),            // (copy_to dest child)
@@ -129,31 +129,28 @@ impl Expr {
     }
 
     pub fn as_const(&self) -> DataValue {
-        match self {
-            Self::Constant(v) => v.clone(),
-            _ => panic!("not a constant"),
-        }
+        let Self::Constant(v) = self else { panic!("not a constant") };
+        v.clone()
     }
 
     pub fn as_list(&self) -> &[Id] {
-        match self {
-            Self::List(list) => list,
-            _ => panic!("not a list"),
-        }
+        let Self::List(l) = self else { panic!("not a list") };
+        l
     }
 
     pub fn as_column(&self) -> ColumnRefId {
-        match self {
-            Self::Column(c) => *c,
-            _ => panic!("not a column"),
-        }
+        let Self::Column(c) = self else { panic!("not a columnn") };
+        *c
+    }
+
+    pub fn as_table(&self) -> TableRefId {
+        let Self::Table(t) = self else { panic!("not a table") };
+        *t
     }
 
     pub fn as_type(&self) -> &DataTypeKind {
-        match self {
-            Self::Type(t) => t,
-            _ => panic!("not a type"),
-        }
+        let Self::Type(t) = self else { panic!("not a type") };
+        t
     }
 
     pub const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {

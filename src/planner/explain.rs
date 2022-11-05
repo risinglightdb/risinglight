@@ -224,7 +224,7 @@ impl Display for Explain<'_> {
             ),
             CreateTable(t) => writeln!(f, "{tab}CreateTable: name={:?}, ...{cost}", t.table_name),
             Drop(t) => writeln!(f, "{tab}Drop: {}, ...{cost}", t.object),
-            Insert([cols, child]) => write!(f, "{tab}Insert: {}{cost}\n{}", self.expr(cols), self.child(child)),
+            Insert([table, cols, child]) => write!(f, "{tab}Insert: {}{}{cost}\n{}", self.expr(table), self.expr(cols), self.child(child)),
             Delete([table, child]) => write!(f, "{tab}Delete: from={}{cost}\n{}", self.expr(table), self.child(child)),
             CopyFrom(src) => writeln!(f, "{tab}CopyFrom: {}{cost}", self.expr(src)),
             CopyTo([dst, child]) => write!(f, "{tab}CopyTo: {}{cost}\n{}", self.expr(dst), self.child(child)),

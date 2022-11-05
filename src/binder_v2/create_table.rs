@@ -46,7 +46,7 @@ impl Binder {
         columns: &[ColumnDef],
         constraints: &[TableConstraint],
     ) -> Result {
-        let name = lower_case_name(name);
+        let name = lower_case_name(&name);
         let (database_name, schema_name, table_name) = split_name(&name)?;
         let db = self
             .catalog

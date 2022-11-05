@@ -10,9 +10,10 @@ impl Binder {
         columns: Vec<Ident>,
         source: Box<Query>,
     ) -> Result {
-        let cols = self.bind_table_columns(table_name, &columns)?;
+        let table = self.bind_table_id(&table_name)?;
+        let cols = self.bind_table_columns(&table_name, &columns)?;
         let source = self.bind_query(*source)?;
-        let id = self.egraph.add(Node::Insert([cols, source]));
+        let id = self.egraph.add(Node::Insert([table, cols, source]));
         Ok(id)
     }
 }

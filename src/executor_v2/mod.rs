@@ -34,7 +34,7 @@ use self::explain::*;
 use self::filter::*;
 // use self::hash_agg::*;
 // use self::hash_join::*;
-// use self::insert::*;
+use self::insert::*;
 // use self::internal::*;
 // use self::limit::*;
 // use self::nested_loop_join::*;
@@ -69,7 +69,7 @@ mod explain;
 mod filter;
 // mod hash_agg;
 // mod hash_join;
-// mod insert;
+mod insert;
 // mod internal;
 // mod limit;
 // mod nested_loop_join;
@@ -237,7 +237,16 @@ impl<S: Storage> Builder<S> {
             Agg(_) => todo!(),
             CreateTable(_) => todo!(),
             Drop(_) => todo!(),
-            Insert(_) => todo!(),
+
+            Insert([table, cols, child]) => InsertExecutor {
+                table_id: self.node(table).as_table(),
+                column_ids: (self.node(cols).as_list().iter())
+                    .map(|id| self.node(*id).as_column().column_id)
+                    .collect(),
+                storage: self.storage.clone(),
+            }
+            .execute(self.build_id(child)),
+
             Delete(_) => todo!(),
             CopyFrom(_) => todo!(),
             CopyTo(_) => todo!(),

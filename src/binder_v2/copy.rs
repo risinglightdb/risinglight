@@ -55,7 +55,7 @@ impl Binder {
         target: CopyTarget,
         options: &[CopyOption],
     ) -> Result {
-        let cols = self.bind_table_columns(table_name, columns)?;
+        let cols = self.bind_table_columns(&table_name, columns)?;
 
         let ext_source = self.egraph.add(Node::ExtSource(ExtSource {
             path: match target {
@@ -71,8 +71,9 @@ impl Binder {
             self.egraph.add(Node::CopyTo([ext_source, scan]))
         } else {
             // COPY <dest_table> FROM <source_file>
+            let table = self.bind_table_id(&table_name)?;
             let copy = self.egraph.add(Node::CopyFrom(ext_source));
-            self.egraph.add(Node::Insert([cols, copy]))
+            self.egraph.add(Node::Insert([table, cols, copy]))
         };
 
         Ok(copy)
