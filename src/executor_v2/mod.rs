@@ -32,7 +32,7 @@ use self::evaluator::*;
 use self::explain::*;
 use self::filter::*;
 use self::hash_agg::*;
-// use self::hash_join::*;
+use self::hash_join::*;
 use self::insert::*;
 // use self::internal::*;
 // use self::limit::*;
@@ -67,7 +67,7 @@ mod evaluator;
 mod explain;
 mod filter;
 mod hash_agg;
-// mod hash_join;
+mod hash_join;
 mod insert;
 // mod internal;
 // mod limit;
@@ -226,7 +226,16 @@ impl<S: Storage> Builder<S> {
             Limit(_) => todo!(),
             TopN(_) => todo!(),
             Join(_) => todo!(),
-            HashJoin(_) => todo!(),
+
+            HashJoin([op, lkeys, rkeys, left, right]) => HashJoinExecutor {
+                op: self.node(op).clone(),
+                left_keys: self.resolve_column_index(lkeys, left),
+                right_keys: self.resolve_column_index(rkeys, right),
+                left_types: self.plan_types(left).to_vec(),
+                right_types: self.plan_types(right).to_vec(),
+            }
+            .execute(self.build_id(left), self.build_id(right)),
+
             Agg([aggs, group_keys, child]) => {
                 let aggs = self.resolve_column_index(aggs, child);
                 let group_keys = self.resolve_column_index(group_keys, child);
