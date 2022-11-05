@@ -36,7 +36,7 @@ pub trait ArrayFromDataExt: Array {
 
 /// Implement dispatch functions for `ArrayImplValidExt` and `ArrayImplEstimateExt`
 macro_rules! impl_array_impl_internal_ext {
-    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Type:pat } ),*) => {
+    ([], $( { $Abc:ident, $Type:ty, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Pattern:pat } ),*) => {
         impl ArrayImplValidExt for ArrayImpl {
             fn get_valid_bitmap(&self) -> &BitVec {
                 match self {

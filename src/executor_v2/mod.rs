@@ -22,7 +22,6 @@ use futures_async_stream::try_stream;
 use itertools::Itertools;
 use minitrace::prelude::*;
 
-// pub use self::aggregation::*;
 // use self::copy_from_file::*;
 // use self::copy_to_file::*;
 use self::create::*;
@@ -42,7 +41,7 @@ use self::insert::*;
 // #[allow(unused_imports)]
 // use self::perfect_hash_agg::*;
 use self::projection::*;
-// use self::simple_agg::*;
+use self::simple_agg::*;
 // #[allow(unused_imports)]
 // use self::sort_agg::*;
 // #[allow(unused_imports)]
@@ -57,7 +56,6 @@ use crate::planner::{ColumnIndexResolver, Expr, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, StorageImpl, TracedStorageError};
 use crate::types::{ConvertError, DataType, DataValue};
 
-// mod aggregation;
 // mod copy_from_file;
 // mod copy_to_file;
 mod create;
@@ -76,7 +74,7 @@ mod insert;
 // mod order;
 // mod perfect_hash_agg;
 mod projection;
-// mod simple_agg;
+mod simple_agg;
 // mod sort_agg;
 // mod sort_merge_join;
 mod table_scan;
@@ -214,13 +212,7 @@ impl<S: Storage> Builder<S> {
             .execute(),
 
             Proj([projs, child]) => ProjectionExecutor {
-                projs: {
-                    let expr = self.resolve_column_index(projs, child);
-                    (expr.as_ref().last().unwrap().as_list())
-                        .iter()
-                        .map(|id| expr[*id].build_recexpr(|id| expr[id].clone()))
-                        .collect()
-                },
+                projs: self.resolve_column_index(projs, child),
             }
             .execute(self.build_id(child)),
 
@@ -234,7 +226,15 @@ impl<S: Storage> Builder<S> {
             TopN(_) => todo!(),
             Join(_) => todo!(),
             HashJoin(_) => todo!(),
-            Agg(_) => todo!(),
+            Agg([aggs, group_keys, child]) => {
+                let aggs = self.resolve_column_index(aggs, child);
+                let group_keys = self.resolve_column_index(group_keys, child);
+                if group_keys.as_ref().last().unwrap().as_list().is_empty() {
+                    SimpleAggExecutor { aggs }.execute(self.build_id(child))
+                } else {
+                    todo!("hash agg");
+                }
+            }
 
             CreateTable(plan) => CreateTableExecutor {
                 plan,

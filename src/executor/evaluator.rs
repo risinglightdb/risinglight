@@ -6,6 +6,7 @@ use std::borrow::Borrow;
 
 use crate::array::*;
 use crate::binder::BoundExpr;
+use crate::for_all_variants;
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{Blob, ConvertError, DataTypeKind, DataValue, Date, F64};
 
@@ -356,7 +357,56 @@ impl ArrayImpl {
             Self::Interval(_) => return Err(ConvertError::FromIntervalError(data_type.clone())),
         })
     }
+
+    /// Returns the sum of values.
+    pub fn sum(&self) -> DataValue {
+        match self {
+            Self::Int32(a) => DataValue::Int64(a.iter().filter_map(|x| x).map(|x| *x as i64).sum()),
+            Self::Int64(a) => DataValue::Int64(a.iter().filter_map(|x| x).sum()),
+            Self::Float64(a) => DataValue::Float64(a.iter().filter_map(|x| x).sum()),
+            Self::Decimal(a) => DataValue::Decimal(a.iter().filter_map(|x| x).sum()),
+            Self::Interval(a) => DataValue::Interval(a.iter().filter_map(|x| x).sum()),
+            _ => panic!("can not sum array"),
+        }
+    }
 }
+
+/// Implement aggregation functions.
+macro_rules! impl_agg {
+    ([], $( { $Abc:ident, $Type:ty, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Pattern:pat } ),*) => {
+        impl ArrayImpl {
+            /// Returns the minimum of values.
+            pub fn min_(&self) -> DataValue {
+                match self {
+                    $(Self::$Abc(a) => a.iter().filter_map(|x| x).min().into(),)*
+                }
+            }
+
+            /// Returns the maximum of values.
+            pub fn max_(&self) -> DataValue {
+                match self {
+                    $(Self::$Abc(a) => a.iter().filter_map(|x| x).max().into(),)*
+                }
+            }
+
+            /// Returns the first non-null value.
+            pub fn first(&self) -> DataValue {
+                match self {
+                    $(Self::$Abc(a) => a.iter().filter_map(|x| x).next().into(),)*
+                }
+            }
+
+            /// Returns the last non-null value.
+            pub fn last(&self) -> DataValue {
+                match self {
+                    $(Self::$Abc(a) => a.iter().rev().filter_map(|x| x).next().into(),)*
+                }
+            }
+        }
+    }
+}
+
+for_all_variants! { impl_agg }
 
 use std::simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
 

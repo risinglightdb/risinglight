@@ -1,8 +1,9 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt::{Display, Formatter};
+use std::iter::Sum;
 use std::num::ParseIntError;
-use std::ops::Neg;
+use std::ops::{Add, Neg, Sub};
 use std::str::FromStr;
 
 use serde::Serialize;
@@ -100,6 +101,35 @@ impl Interval {
     }
 }
 
+impl Add for Interval {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let months = self.months + rhs.months;
+        let mut days = self.days + rhs.days;
+        let mut ms = self.ms + rhs.ms;
+        days += ms / (1000 * 60 * 60 * 24);
+        ms %= 1000 * 60 * 60 * 24;
+        Interval { months, days, ms }
+    }
+}
+
+impl Add for &Interval {
+    type Output = Interval;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        (*self).add(*rhs)
+    }
+}
+
+impl Sub for Interval {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        self + -rhs
+    }
+}
+
 impl Neg for Interval {
     type Output = Interval;
 
@@ -109,6 +139,18 @@ impl Neg for Interval {
             days: -self.days,
             ms: -self.ms,
         }
+    }
+}
+
+impl Sum for Interval {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Interval::default(), |a, b| a + b)
+    }
+}
+
+impl<'a> Sum<&'a Interval> for Interval {
+    fn sum<I: Iterator<Item = &'a Interval>>(iter: I) -> Self {
+        iter.fold(Interval::default(), |a, b| a + *b)
     }
 }
 

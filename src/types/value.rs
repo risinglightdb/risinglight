@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use super::*;
 use crate::array::ArrayImpl;
+use crate::for_all_variants;
 
 /// Primitive SQL value.
 #[derive(Debug, Display, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -49,6 +50,7 @@ macro_rules! impl_arith_for_datavalue {
             fn $name(self, rhs: Self) -> Self::Output {
                 use DataValue::*;
                 match (self, rhs) {
+                    (&Null, _) | (_, &Null) => Null,
                     (&Int32(x), &Int32(y)) => Int32(x.$name(y)),
                     (&Int64(x), &Int64(y)) => Int64(x.$name(y)),
                     (&Float64(x), &Float64(y)) => Float64(x.$name(y)),
@@ -61,6 +63,13 @@ macro_rules! impl_arith_for_datavalue {
                         rhs
                     ),
                 }
+            }
+        }
+
+        impl std::ops::$Trait for DataValue {
+            type Output = DataValue;
+            fn $name(self, rhs: Self) -> Self::Output {
+                (&self).$name(&rhs)
             }
         }
     };
@@ -161,6 +170,48 @@ impl DataValue {
         Ok(ArrayImpl::from(self).try_cast(ty)?.get(0))
     }
 }
+
+/// Implement aggregation functions.
+macro_rules! impl_min_max {
+    ([], $( { $Abc:ident, $Type:ty, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Pattern:pat } ),*) => {
+    $(
+        impl From<Option<&$Type>> for DataValue {
+            fn from(v: Option<&$Type>) -> Self {
+                match v {
+                    Some(v) => Self::$Value(v.to_owned()),
+                    None => Self::Null,
+                }
+            }
+        }
+    )*
+
+        impl DataValue {
+            /// Compares and returns the minimum of two values.
+            pub fn min(self, other: Self) -> Self {
+                match (self, other) {
+                    (Self::Null, a) | (a, Self::Null) => a.clone(),
+                    $(
+                        (Self::$Value(a), Self::$Value(b)) => Self::$Value(a.min(b)),
+                    )*
+                    (a, b) => panic!("invalid operation: min({a:?}, {b:?})"),
+                }
+            }
+
+            /// Compares and returns the minimum of two values.
+            pub fn max(self, other: Self) -> Self {
+                match (self, other) {
+                    (Self::Null, a) | (a, Self::Null) => a.clone(),
+                    $(
+                        (Self::$Value(a), Self::$Value(b)) => Self::$Value(a.min(b)),
+                    )*
+                    (a, b) => panic!("invalid operation: max({a:?}, {b:?})"),
+                }
+            }
+        }
+    }
+}
+
+for_all_variants! { impl_min_max }
 
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
 pub enum ParseValueError {

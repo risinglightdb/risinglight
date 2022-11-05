@@ -5,7 +5,10 @@ use crate::array::DataChunk;
 
 /// The executor of project operation.
 pub struct ProjectionExecutor {
-    pub projs: Vec<RecExpr>,
+    /// A list of expressions.
+    ///
+    /// e.g. `(list (+ #0 #1) #0)`
+    pub projs: RecExpr,
 }
 
 impl ProjectionExecutor {
@@ -13,13 +16,7 @@ impl ProjectionExecutor {
     pub async fn execute(self, child: BoxedExecutor) {
         #[for_await]
         for batch in child {
-            let batch = batch?;
-            let chunk: Vec<_> = self
-                .projs
-                .iter()
-                .map(|expr| ExprRef::new(expr).eval(&batch))
-                .try_collect()?;
-            yield chunk.into_iter().collect();
+            yield ExprRef::new(&self.projs).eval_list(&batch?)?;
         }
     }
 }
