@@ -1,14 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::collections::HashSet;
-
-use itertools::Itertools;
-use sqlparser::ast::{Expr, Value};
-
 use super::*;
-use crate::catalog::{ColumnCatalog, TableRefId};
-use crate::parser::{Query, SetExpr};
-use crate::types::{ColumnId, DataType};
+use crate::parser::Query;
 
 impl Binder {
     pub fn bind_insert(

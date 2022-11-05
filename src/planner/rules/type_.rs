@@ -40,7 +40,7 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type) -> Type {
         Neg(a) => x(a),
         Add([a, b]) | Sub([a, b]) | Mul([a, b]) | Div([a, b]) | Mod([a, b]) => {
             merge(enode, [x(a)?, x(b)?], |[a, b]| {
-                match if a > b { (a, b) } else { (b, a) } {
+                match if a > b { (b, a) } else { (a, b) } {
                     (Kind::Null, _) => Some(Kind::Null),
                     (a, b) if a == b && a.is_number() => Some(a),
                     (Kind::Int32 | Kind::Int64, b @ Kind::Decimal(_, _) | b @ Kind::Float64) => {
@@ -105,7 +105,7 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type) -> Type {
             let mut type_ = x(&rows[0])?;
             for row in rows.iter().skip(1) {
                 let ty = x(row)?;
-                type_ = type_.union(&ty).ok_or_else(|| TypeError::NoCast {
+                type_ = type_.union(&ty).ok_or(TypeError::NoCast {
                     from: ty.kind,
                     to: type_.kind,
                 })?;
@@ -171,8 +171,7 @@ mod tests {
     fn cast() {
         assert_type_eq("(cast INT 1)", Ok(Kind::Int32.not_null()));
         assert_type_eq("(cast INT 1.0)", Ok(Kind::Int32.not_null()));
-        // FIXME: cast null
-        // assert_type_eq("(cast INT null)", Ok(Kind::Int32.nullable()));
+        assert_type_eq("(cast INT null)", Ok(Kind::Int32.nullable()));
     }
 
     #[test]
