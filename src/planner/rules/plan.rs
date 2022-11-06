@@ -44,9 +44,7 @@ fn merge_rules() -> Vec<Rewrite> { vec![
 
 #[rustfmt::skip]
 fn pushdown_rules() -> Vec<Rewrite> { vec![
-    pushdown("proj", "?exprs", "order", "?keys"),
     pushdown("proj", "?exprs", "limit", "?limit ?offset"),
-    pushdown("proj", "?exprs", "topn", "?limit ?offset ?keys"),
     pushdown("filter", "?cond", "order", "?keys"),
     pushdown("filter", "?cond", "limit", "?limit ?offset"),
     pushdown("filter", "?cond", "topn", "?limit ?offset ?keys"),

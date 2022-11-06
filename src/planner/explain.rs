@@ -151,14 +151,15 @@ impl Display for Explain<'_> {
             In([a, b]) => write!(f, "({} in {})", self.expr(a), self.expr(b)),
             Cast([a, b]) => write!(f, "({} :: {})", self.expr(a), self.expr(b)),
 
-            Select([distinct, projection, from, where_, groupby, having]) => write!(
+            Select([distinct, projection, from, where_, groupby, having, orderby]) => write!(
                 f,
-                "{tab}Select:{cost}\n  {tab}distinct={}\n  {tab}projection={}\n  {tab}where={}\n  {tab}groupby={}\n  {tab}having={}\n{}",
+                "{tab}Select:{cost}\n  {tab}distinct={}\n  {tab}projection={}\n  {tab}where={}\n  {tab}groupby={}\n  {tab}having={}\n  {tab}orderby={}\n{}",
                 self.expr(distinct),
                 self.expr(projection),
                 self.expr(where_),
                 self.expr(groupby),
                 self.expr(having),
+                self.expr(orderby),
                 self.child(from),
             ),
             Distinct(_) => todo!(),

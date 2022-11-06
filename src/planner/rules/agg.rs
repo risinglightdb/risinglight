@@ -4,21 +4,23 @@ use super::*;
 #[rustfmt::skip]
 pub fn rules() -> Vec<Rewrite> { vec![
     rw!("extract-agg-from-select-list";
-        "(select ?distinct ?exprs ?from ?where ?groupby ?having)" =>
+        "(select ?distinct ?exprs ?from ?where ?groupby ?having ?orderby)" =>
         { ExtractAgg {
             has_agg: pattern("
             (proj ?exprs
                 (distinct ?distinct
-                    (filter ?having
-                        (agg ?aggs ?groupby
-                            (filter ?where
-                                ?from
+                    (order ?orderby
+                        (filter ?having
+                            (agg ?aggs ?groupby
+                                (filter ?where
+                                    ?from
+                                )
                             )
                         )
                     )
                 )
             )"),
-            no_agg: pattern("(proj ?exprs (distinct ?distinct (filter ?where ?from)))"),
+            no_agg: pattern("(proj ?exprs (distinct ?distinct (order ?orderby (filter ?where ?from))))"),
             sources: vec![var("?distinct"), var("?exprs"), var("?having")],
             groupby: var("?groupby"),
             output: var("?aggs"),
@@ -173,6 +175,7 @@ mod tests {
             (> $1.2 1)
             (list $1.1)
             (> (count $1.1) 1)
+            (list)
         )" => "
         (proj (list (+ (sum (+ $1.1 $1.2)) $1.1))
             (filter (> (count $1.1) 1)
@@ -196,7 +199,7 @@ mod tests {
             (list)
             (list $1.1)
             (scan (list $1.1 $1.2 $1.3))
-            true (list $1.1) true
+            true (list $1.1) true (list)
         )" => "
         (proj (list $1.1)
             (agg (list) (list $1.1)
@@ -214,7 +217,7 @@ mod tests {
             (list)
             (list $1.1)
             (scan (list $1.1 $1.2 $1.3))
-            true (list) true
+            true (list) true (list)
         )" => "
         (proj (list $1.1)
             (scan (list $1.1 $1.2 $1.3))
@@ -231,7 +234,7 @@ mod tests {
             (list $1.1 $1.2)
             (list $1.1 $1.3)
             (scan (list $1.1 $1.2 $1.3))
-            true (list) true
+            true (list) true (list)
         )" => "
         (proj (list $1.1 (first $1.3))
             (agg (list (first $1.3)) (list $1.1 $1.2)
@@ -255,8 +258,7 @@ mod tests {
                 (scan (list $2.1 $2.2 $2.3))
             )
             (and (= $1.1 $2.1) (= $2.3 'A'))
-            (list)
-            true
+            (list) true (list)
         )" => "
         (proj (list $1.2 $2.2)
         (join inner (= $1.1 $2.1)
@@ -270,7 +272,7 @@ mod tests {
     egg::test_fn! {
         tpch_q3,
         rules(),
-        "(topn 10 null (list (desc (sum (* $7.5 (- 1 $7.6)))) (asc $6.4))
+        "(limit 10 null
             (select list (list $7.0 (sum (* $7.5 (- 1 $7.6))) $6.4 $6.7)
                 (join inner true
                     (join inner true
@@ -279,7 +281,9 @@ mod tests {
                     (scan (list $7.0 $7.5 $7.6 $7.10)))
                 (and (and (and (and (= $5.6 'BUILDING') (= $5.0 $6.1)) (= $7.0 $6.0)) (< $6.4 1995-03-15)) (> $7.10 1995-03-15))
                 (list $7.0 $6.4 $6.7)
-                true))" => "
+                true
+                (list (desc (sum (* $7.5 (- 1 $7.6)))) (asc $6.4))
+            ))" => "
         (topn 10 null (list (desc (sum (* $7.5 (- 1 $7.6)))) (asc $6.4))
             (proj (list $7.0 (sum (* $7.5 (- 1 $7.6))) $6.4 $6.7)
                 (agg

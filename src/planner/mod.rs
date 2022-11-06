@@ -72,13 +72,14 @@ define_language! {
 
         "cast" = Cast([Id; 2]),                 // (cast type expr)
 
-        "select" = Select([Id; 6]),             // (select
+        "select" = Select([Id; 7]),             // (select
                                                 //      distinct=[expr..]
                                                 //      select_list=[expr..]
                                                 //      from=join
                                                 //      where=expr
                                                 //      groupby=[expr..]
                                                 //      having=expr
+                                                //      orderby=[order_key..]
                                                 // )
         "distinct" = Distinct([Id; 2]),         // (distinct [expr..] child)
 

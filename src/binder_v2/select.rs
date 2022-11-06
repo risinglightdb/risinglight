@@ -13,22 +13,10 @@ impl Binder {
 
     fn bind_query_internal(&mut self, query: Query) -> Result {
         let child = match *query.body {
-            SetExpr::Select(select) => self.bind_select(*select)?,
+            SetExpr::Select(select) => self.bind_select(*select, query.order_by)?,
             SetExpr::Values(values) => self.bind_values(values)?,
             _ => todo!("handle query ???"),
         };
-
-        let mut orderby = vec![];
-        for e in query.order_by {
-            let expr = self.bind_expr(e.expr)?;
-            let key = self.egraph.add(match e.asc {
-                Some(true) | None => Node::Asc(expr),
-                Some(false) => Node::Desc(expr),
-            });
-            orderby.push(key);
-        }
-        let orderby = self.egraph.add(Node::List(orderby.into()));
-
         let limit = match query.limit {
             Some(expr) => self.bind_expr(expr)?,
             None => self.egraph.add(Node::null()),
@@ -37,10 +25,10 @@ impl Binder {
             Some(offset) => self.bind_expr(offset.value)?,
             None => self.egraph.add(Node::null()),
         };
-        Ok(self.egraph.add(Node::TopN([limit, offset, orderby, child])))
+        Ok(self.egraph.add(Node::Limit([limit, offset, child])))
     }
 
-    fn bind_select(&mut self, select: Select) -> Result {
+    fn bind_select(&mut self, select: Select, order_by: Vec<OrderByExpr>) -> Result {
         let from = self.bind_from(select.from)?;
 
         let where_ = self.bind_condition(select.selection)?;
@@ -60,8 +48,19 @@ impl Binder {
 
         let having = self.bind_condition(select.having)?;
 
+        let mut orderby = vec![];
+        for e in order_by {
+            let expr = self.bind_expr(e.expr)?;
+            let key = self.egraph.add(match e.asc {
+                Some(true) | None => Node::Asc(expr),
+                Some(false) => Node::Desc(expr),
+            });
+            orderby.push(key);
+        }
+        let orderby = self.egraph.add(Node::List(orderby.into()));
+
         Ok(self.egraph.add(Node::Select([
-            distinct, projection, from, where_, groupby, having,
+            distinct, projection, from, where_, groupby, having, orderby,
         ])))
     }
 
