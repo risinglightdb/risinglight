@@ -108,6 +108,16 @@ impl DataChunk {
         }
         arrays.into_iter().collect()
     }
+
+    /// Concatenate two chunks in rows.
+    pub fn row_concat(self, other: Self) -> Self {
+        assert_eq!(self.cardinality(), other.cardinality());
+        self.arrays
+            .iter()
+            .chain(other.arrays.iter())
+            .cloned()
+            .collect()
+    }
 }
 
 /// Print the data chunk as a pretty table.

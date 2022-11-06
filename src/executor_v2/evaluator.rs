@@ -76,6 +76,7 @@ impl<'a> ExprRef<'a> {
                         .collect(),
                 ))
             }
+            Asc(a) | Desc(a) => self.next(*a).eval(chunk),
             e => {
                 if let Some((op, a, b)) = e.binary_op() {
                     let left = self.next(a).eval(chunk)?;
@@ -135,5 +136,18 @@ impl<'a> ExprRef<'a> {
             Last(a) => Ok(self.next(*a).eval(chunk)?.last().or(state)),
             t => panic!("not aggregation: {t}"),
         }
+    }
+
+    /// Returns a list of bools for order keys.
+    ///
+    /// The bool is false if the order is ascending, true if the order is descending.
+    pub fn orders(&self) -> Vec<bool> {
+        (self.node().as_list().iter())
+            .map(|id| match self.next(*id).node() {
+                Expr::Asc(_) => false,
+                Expr::Desc(_) => true,
+                _ => panic!("not order"),
+            })
+            .collect()
     }
 }

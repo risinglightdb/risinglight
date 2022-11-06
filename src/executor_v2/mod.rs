@@ -37,7 +37,7 @@ use self::insert::*;
 // use self::internal::*;
 // use self::limit::*;
 // use self::nested_loop_join::*;
-// use self::order::*;
+use self::order::*;
 // #[allow(unused_imports)]
 // use self::perfect_hash_agg::*;
 use self::projection::*;
@@ -72,7 +72,7 @@ mod insert;
 // mod internal;
 // mod limit;
 // mod nested_loop_join;
-// mod order;
+mod order;
 // mod perfect_hash_agg;
 mod projection;
 mod simple_agg;
@@ -222,7 +222,12 @@ impl<S: Storage> Builder<S> {
             }
             .execute(self.build_id(child)),
 
-            Order(_) => todo!(),
+            Order([order_keys, child]) => OrderExecutor {
+                order_keys: self.resolve_column_index(order_keys, child),
+                types: self.plan_types(id).to_vec(),
+            }
+            .execute(self.build_id(child)),
+
             Limit(_) => todo!(),
             TopN(_) => todo!(),
             Join(_) => todo!(),
