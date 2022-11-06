@@ -52,7 +52,7 @@ impl OrderExecutor {
 /// Compare two rows by orders.
 ///
 /// The order is `false` for ascending and `true` for descending.
-pub(super) fn cmp(row1: &RowRef, row2: &RowRef, orders: &[bool]) -> Ordering {
+fn cmp(row1: &RowRef, row2: &RowRef, orders: &[bool]) -> Ordering {
     for ((v1, v2), desc) in row1.values().zip_eq(row2.values()).zip(orders) {
         match v1.cmp(&v2) {
             Ordering::Equal => continue,

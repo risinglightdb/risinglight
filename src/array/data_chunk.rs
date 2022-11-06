@@ -5,7 +5,7 @@ use std::ops::RangeBounds;
 use std::sync::Arc;
 
 use super::*;
-use crate::types::DataValue;
+use crate::types::{DataValue, Row};
 
 /// A collection of arrays.
 ///
@@ -260,5 +260,9 @@ impl RowRef<'_> {
     /// Get an iterator over the values of the row.
     pub fn values(&self) -> impl Iterator<Item = DataValue> + '_ {
         self.chunk.arrays().iter().map(|a| a.get(self.row_idx))
+    }
+
+    pub fn to_owned(&self) -> Row {
+        self.values().collect()
     }
 }

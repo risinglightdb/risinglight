@@ -47,7 +47,7 @@ use self::simple_agg::*;
 // #[allow(unused_imports)]
 // use self::sort_merge_join::*;
 use self::table_scan::*;
-// use self::top_n::TopNExecutor;
+use self::top_n::TopNExecutor;
 use self::values::*;
 use crate::array::DataChunk;
 use crate::binder::BoundExpr;
@@ -79,7 +79,7 @@ mod simple_agg;
 // mod sort_agg;
 // mod sort_merge_join;
 mod table_scan;
-// mod top_n;
+mod top_n;
 mod values;
 
 /// The error type of execution.
@@ -234,7 +234,14 @@ impl<S: Storage> Builder<S> {
             }
             .execute(self.build_id(child)),
 
-            TopN(_) => todo!(),
+            TopN([limit, offset, order_keys, child]) => TopNExecutor {
+                limit: (self.node(limit).as_const().as_usize().unwrap()).unwrap_or(usize::MAX / 2),
+                offset: self.node(offset).as_const().as_usize().unwrap().unwrap(),
+                order_keys: self.resolve_column_index(order_keys, child),
+                types: self.plan_types(id).to_vec(),
+            }
+            .execute(self.build_id(child)),
+
             Join(_) => todo!(),
 
             HashJoin([op, lkeys, rkeys, left, right]) => HashJoinExecutor {
