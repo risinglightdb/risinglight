@@ -23,7 +23,7 @@ impl Binder {
         };
         let offset = match query.offset {
             Some(offset) => self.bind_expr(offset.value)?,
-            None => self.egraph.add(Node::null()),
+            None => self.egraph.add(Node::zero()),
         };
         Ok(self.egraph.add(Node::Limit([limit, offset, child])))
     }

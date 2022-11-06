@@ -128,6 +128,10 @@ impl Expr {
         Self::Constant(DataValue::Null)
     }
 
+    pub const fn zero() -> Self {
+        Self::Constant(DataValue::Int32(0))
+    }
+
     pub fn as_const(&self) -> DataValue {
         let Self::Constant(v) = self else { panic!("not a constant") };
         v.clone()

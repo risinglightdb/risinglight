@@ -14,7 +14,7 @@ pub fn always_better_rules() -> Vec<Rewrite> {
 
 #[rustfmt::skip]
 fn cancel_rules() -> Vec<Rewrite> { vec![
-    rw!("limit-null";   "(limit null null ?child)" => "?child"),
+    rw!("limit-null";   "(limit null 0 ?child)" => "?child"),
     rw!("limit-0";      "(limit 0 ?offset ?child)" => "(values)"),
     rw!("filter-true";  "(filter true ?child)" => "?child"),
     rw!("filter-false"; "(filter false ?child)" => "(values)"),

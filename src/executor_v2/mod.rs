@@ -35,7 +35,7 @@ use self::hash_agg::*;
 use self::hash_join::*;
 use self::insert::*;
 // use self::internal::*;
-// use self::limit::*;
+use self::limit::*;
 // use self::nested_loop_join::*;
 use self::order::*;
 // #[allow(unused_imports)]
@@ -70,7 +70,7 @@ mod hash_agg;
 mod hash_join;
 mod insert;
 // mod internal;
-// mod limit;
+mod limit;
 // mod nested_loop_join;
 mod order;
 // mod perfect_hash_agg;
@@ -228,7 +228,12 @@ impl<S: Storage> Builder<S> {
             }
             .execute(self.build_id(child)),
 
-            Limit(_) => todo!(),
+            Limit([limit, offset, child]) => LimitExecutor {
+                limit: (self.node(limit).as_const().as_usize().unwrap()).unwrap_or(usize::MAX / 2),
+                offset: self.node(offset).as_const().as_usize().unwrap().unwrap(),
+            }
+            .execute(self.build_id(child)),
+
             TopN(_) => todo!(),
             Join(_) => todo!(),
 

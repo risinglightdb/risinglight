@@ -272,7 +272,7 @@ mod tests {
     egg::test_fn! {
         tpch_q3,
         rules(),
-        "(limit 10 null
+        "(limit 10 0
             (select list (list $7.0 (sum (* $7.5 (- 1 $7.6))) $6.4 $6.7)
                 (join inner true
                     (join inner true
@@ -284,7 +284,7 @@ mod tests {
                 true
                 (list (desc (sum (* $7.5 (- 1 $7.6)))) (asc $6.4))
             ))" => "
-        (topn 10 null (list (desc (sum (* $7.5 (- 1 $7.6)))) (asc $6.4))
+        (topn 10 0 (list (desc (sum (* $7.5 (- 1 $7.6)))) (asc $6.4))
             (proj (list $7.0 (sum (* $7.5 (- 1 $7.6))) $6.4 $6.7)
                 (agg
                     (list (sum (* $7.5 (- 1 $7.6))))
