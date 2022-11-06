@@ -1,8 +1,8 @@
 use std::fmt::{Display, Formatter, Result};
 
-use egg::{Id, PatternAst};
+use egg::Id;
 
-use super::{EGraph, Expr, RecExpr};
+use super::{Expr, RecExpr};
 
 /// A wrapper over [`RecExpr`] to explain it in [`Display`].
 ///
@@ -14,7 +14,7 @@ use super::{EGraph, Expr, RecExpr};
 /// ```
 pub struct Explain<'a> {
     expr: &'a RecExpr,
-    costs: Option<&'a [u32]>,
+    costs: Option<&'a [f32]>,
     id: Id,
     depth: u8,
 }
@@ -31,7 +31,7 @@ impl<'a> Explain<'a> {
     }
 
     /// Create a [`Explain`] with costs.
-    pub fn with_costs(expr: &'a RecExpr, costs: &'a [u32]) -> Self {
+    pub fn with_costs(expr: &'a RecExpr, costs: &'a [f32]) -> Self {
         Self {
             expr,
             costs: Some(costs),
@@ -80,7 +80,7 @@ impl<'a> Explain<'a> {
     /// Returns a struct displaying the cost.
     #[inline]
     fn cost(&self) -> impl Display {
-        struct Cost(Option<u32>);
+        struct Cost(Option<f32>);
         impl Display for Cost {
             fn fmt(&self, f: &mut Formatter<'_>) -> Result {
                 match self.0 {

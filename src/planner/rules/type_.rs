@@ -15,9 +15,8 @@ pub enum TypeError {
 }
 
 /// Returns data type of the expression.
-pub fn analyze_type(egraph: &EGraph, enode: &Expr) -> Type {
+pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type) -> Type {
     use Expr::*;
-    let x = |i: &Id| egraph[*i].data.type_.clone();
     match enode {
         // values
         Constant(v) => Ok(v.data_type()),
@@ -194,7 +193,7 @@ mod tests {
     }
 
     fn type_of(expr: &str) -> Type {
-        let mut egraph = EGraph::default();
+        let mut egraph = egg::EGraph::<Expr, TypeSchemaAnalysis>::default();
         let id = egraph.add_expr(&expr.parse().unwrap());
         egraph[id].data.type_.clone()
     }

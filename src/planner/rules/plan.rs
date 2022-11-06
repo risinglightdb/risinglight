@@ -3,14 +3,12 @@
 use super::*;
 use crate::catalog::ColumnRefId;
 
-/// Returns all rules of plan optimization.
-pub fn rules() -> Vec<Rewrite> {
+/// Returns the rules that always improve the plan.
+pub fn always_better_rules() -> Vec<Rewrite> {
     let mut rules = vec![];
     rules.extend(cancel_rules());
     rules.extend(merge_rules());
     rules.extend(pushdown_rules());
-    rules.extend(join_rules());
-    rules.extend(column_prune_rules());
     rules
 }
 
@@ -87,10 +85,13 @@ fn pushdown(a: &str, a_args: &str, b: &str, b_args: &str) -> Rewrite {
 }
 
 #[rustfmt::skip]
-fn join_rules() -> Vec<Rewrite> { vec![
+pub fn join_rules() -> Vec<Rewrite> { vec![
+    // we only have right rotation rule,
+    // because the initial state is always a left-deep tree
+    // thus left rotation is not needed.
     rw!("join-reorder";
-        "(join inner ?cond2 (join inner ?cond1 ?left ?mid) ?right)" =>
-        "(join inner ?cond1 ?left (join inner ?cond2 ?mid ?right))"
+        "(join ?type ?cond2 (join ?type ?cond1 ?left ?mid) ?right)" =>
+        "(join ?type ?cond1 ?left (join ?type ?cond2 ?mid ?right))"
         if columns_is_disjoint("?cond2", "?left")
     ),
     rw!("hash-join-on-one-eq";
@@ -99,6 +100,15 @@ fn join_rules() -> Vec<Rewrite> { vec![
         if columns_is_subset("?el", "?left")
         if columns_is_subset("?er", "?right")
     ),
+    rw!("hash-join-on-two-eq";
+        "(join ?type (and (= ?l1 ?r1) (= ?l2 ?r2)) ?left ?right)" =>
+        "(hashjoin ?type (list ?l1 ?l2) (list ?r1 ?r2) ?left ?right)"
+        if columns_is_subset("?l1", "?left")
+        if columns_is_subset("?l2", "?left")
+        if columns_is_subset("?r1", "?right")
+        if columns_is_subset("?r2", "?right")
+    ),
+    // TODO: support more than two equals
 ]}
 
 /// Column pruning rules remove unused columns from a plan.
@@ -106,8 +116,10 @@ fn join_rules() -> Vec<Rewrite> { vec![
 /// We introduce an internal node [`Expr::Prune`] 
 /// to top-down traverse the plan tree and collect all used columns.
 #[rustfmt::skip]
-fn column_prune_rules() -> Vec<Rewrite> { vec![
+pub fn column_prune_rules() -> Vec<Rewrite> { vec![
     // projection is the source of prune node
+    //   note that this rule may be applied for a lot of times,
+    //   so it's not recommand to apply column pruning with other rules together.
     rw!("prune-gen";
         "(proj ?exprs ?child)" =>
         "(proj ?exprs (prune ?exprs ?child))"
@@ -253,7 +265,8 @@ mod tests {
     fn rules() -> Vec<Rewrite> {
         let mut rules = vec![];
         rules.append(&mut expr::rules());
-        rules.append(&mut plan::rules());
+        rules.append(&mut plan::always_better_rules());
+        rules.append(&mut plan::join_rules());
         rules
     }
 
@@ -323,7 +336,7 @@ mod tests {
 
     egg::test_fn! {
         column_prune,
-        rules(),
+        column_prune_rules(),
         // SELECT a FROM t1(id, a) JOIN t2(id, b, c) ON t1.id = t2.id WHERE a + b > 1;
         "
         (proj (list $1.2)

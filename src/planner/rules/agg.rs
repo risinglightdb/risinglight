@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 use super::*;
 
 /// Returns all rules of aggregation extraction.
@@ -156,7 +154,8 @@ mod tests {
     fn rules() -> Vec<Rewrite> {
         let mut rules = vec![];
         rules.append(&mut expr::rules());
-        rules.append(&mut plan::rules());
+        rules.append(&mut plan::always_better_rules());
+        rules.append(&mut plan::join_rules());
         rules.append(&mut agg::rules());
         rules
     }
@@ -266,5 +265,33 @@ mod tests {
                 (scan (list $2.1 $2.2 $2.3))
             )
         ))"
+    }
+
+    egg::test_fn! {
+        tpch_q3,
+        rules(),
+        "(topn 10 null (list (desc (sum (* $7.5 (- 1 $7.6)))) (asc $6.4))
+            (select list (list $7.0 (sum (* $7.5 (- 1 $7.6))) $6.4 $6.7)
+                (join cross true
+                    (join cross true
+                        (scan (list $5.0 $5.6))
+                        (scan (list $6.0 $6.1 $6.4 $6.7)))
+                    (scan (list $7.0 $7.5 $7.6 $7.10)))
+                (and (and (and (and (= $5.6 'BUILDING') (= $5.0 $6.1)) (= $7.0 $6.0)) (< $6.4 1995-03-15)) (> $7.10 1995-03-15))
+                (list $7.0 $6.4 $6.7)
+                true))" => "
+        (topn 10 null (list (desc (sum (* $7.5 (- 1 $7.6)))) (asc $6.4))
+            (proj (list $7.0 (sum (* $7.5 (- 1 $7.6))) $6.4 $6.7)
+                (agg
+                    (list (sum (* $7.5 (- 1 $7.6))))
+                    (list $7.0 $6.4 $6.7)
+                    (hashjoin cross (list $6.0) (list $7.0)
+                        (hashjoin cross (list $5.0) (list $6.1)
+                            (filter (= $5.6 'BUILDING')
+                                (scan (list $5.0 $5.6)))
+                            (filter (< $6.4 1995-03-15)
+                                (scan (list $6.0 $6.1 $6.4 $6.7))))
+                        (filter (> $7.10 1995-03-15)
+                            (scan (list $7.0 $7.5 $7.6 $7.10)))))))"
     }
 }

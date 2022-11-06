@@ -22,27 +22,46 @@
 
 use std::collections::HashSet;
 use std::hash::Hash;
+use std::sync::LazyLock;
 
 use egg::{rewrite as rw, *};
 
 use super::{EGraph, Expr, Pattern, RecExpr, Rewrite};
+use crate::types::F32;
 
 mod agg;
 mod expr;
 mod plan;
+mod rows;
 mod schema;
 mod type_;
 
+pub use self::schema::ColumnIndexResolver;
 pub use self::type_::TypeError;
 
-/// Returns all rules in the optimizer.
-pub fn all_rules() -> Vec<Rewrite> {
+/// Stage1 rules in the optimizer.
+pub static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
+    let mut rules = vec![];
+    rules.append(&mut agg::rules());
+    rules.append(&mut plan::column_prune_rules());
+    rules
+});
+
+/// Stage2 rules in the optimizer.
+pub static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     let mut rules = vec![];
     rules.append(&mut expr::rules());
-    rules.append(&mut plan::rules());
-    rules.append(&mut agg::rules());
+    rules.append(&mut plan::always_better_rules());
     rules
-}
+});
+
+/// Stage3 rules in the optimizer.
+pub static STAGE3_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
+    let mut rules = vec![];
+    rules.append(&mut expr::rules());
+    rules.append(&mut plan::join_rules());
+    rules
+});
 
 /// The unified analysis for all rules.
 #[derive(Default)]
@@ -67,9 +86,8 @@ pub struct Data {
     /// For non-plan node, it always be None.
     /// For plan node, it may be None if the schema is unknown due to unresolved `prune`.
     pub schema: schema::Schema,
-
-    /// Data type of the expression.
-    pub type_: type_::Type,
+    /// Estimate rows.
+    pub rows: rows::Rows,
 }
 
 impl Analysis<Expr> for ExprAnalysis {
@@ -81,8 +99,8 @@ impl Analysis<Expr> for ExprAnalysis {
             constant: expr::eval_constant(egraph, enode),
             columns: plan::analyze_columns(egraph, enode),
             aggs: agg::analyze_aggs(egraph, enode),
-            schema: schema::analyze_schema(egraph, enode),
-            type_: type_::analyze_type(egraph, enode),
+            schema: schema::analyze_schema(enode, |i| egraph[*i].data.schema.clone()),
+            rows: rows::analyze_rows(egraph, enode),
         }
     }
 
@@ -99,13 +117,49 @@ impl Analysis<Expr> for ExprAnalysis {
         let merge_columns = merge_small_set(&mut to.columns, from.columns);
         let merge_aggs = merge_small_set(&mut to.aggs, from.aggs);
         let merge_schema = egg::merge_max(&mut to.schema, from.schema);
-        let merge_type = egg::merge_max(&mut to.type_, from.type_);
-        merge_const | merge_columns | merge_aggs | merge_schema | merge_type
+        let merge_rows = egg::merge_min(
+            unsafe { std::mem::transmute(&mut to.rows) },
+            F32::from(from.rows),
+        );
+        merge_const | merge_columns | merge_aggs | merge_schema | merge_rows
     }
 
     /// Modify the graph after analyzing a node.
     fn modify(egraph: &mut EGraph, id: Id) {
         expr::union_constant(egraph, id);
+    }
+}
+
+/// Analysis used in binding and building executor.
+#[derive(Default)]
+pub struct TypeSchemaAnalysis;
+
+#[derive(Debug)]
+pub struct TypeSchema {
+    /// Data type of the expression.
+    pub type_: type_::Type,
+
+    /// The schema for plan node: a list of expressions.
+    ///
+    /// For non-plan node, it always be None.
+    /// For plan node, it may be None if the schema is unknown due to unresolved `prune`.
+    pub schema: schema::Schema,
+}
+
+impl Analysis<Expr> for TypeSchemaAnalysis {
+    type Data = TypeSchema;
+
+    fn make(egraph: &egg::EGraph<Expr, Self>, enode: &Expr) -> Self::Data {
+        TypeSchema {
+            type_: type_::analyze_type(enode, |i| egraph[*i].data.type_.clone()),
+            schema: schema::analyze_schema(enode, |i| egraph[*i].data.schema.clone()),
+        }
+    }
+
+    fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
+        let merge_type = egg::merge_max(&mut to.type_, from.type_);
+        let merge_schema = egg::merge_max(&mut to.schema, from.schema);
+        merge_type | merge_schema
     }
 }
 

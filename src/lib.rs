@@ -17,6 +17,8 @@
 #![feature(proc_macro_hygiene)]
 #![feature(core_intrinsics)]
 #![feature(trusted_len)]
+#![feature(int_log)]
+#![feature(once_cell)]
 
 /// Top-level structure of the database.
 pub mod db;
@@ -51,6 +53,7 @@ pub mod utils;
 
 /// The new binder converting sqlparser AST to egg AST.
 mod binder_v2;
+mod executor_v2;
 /// Next-generation planner and optimizer based on egg.
 pub mod planner;
 
