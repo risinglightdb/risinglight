@@ -143,6 +143,7 @@ pub fn build(catalog: RootCatalogRef, storage: Arc<impl Storage>, plan: &RecExpr
 /// The builder of executor.
 struct Builder<S: Storage> {
     storage: Arc<S>,
+    catalog: RootCatalogRef,
     egraph: egg::EGraph<Expr, TypeSchemaAnalysis>,
     root: Id,
 }
@@ -150,10 +151,13 @@ struct Builder<S: Storage> {
 impl<S: Storage> Builder<S> {
     /// Create a new executor builder.
     fn new(catalog: RootCatalogRef, storage: Arc<S>, plan: &RecExpr) -> Self {
-        let mut egraph = egg::EGraph::new(TypeSchemaAnalysis { catalog });
+        let mut egraph = egg::EGraph::new(TypeSchemaAnalysis {
+            catalog: catalog.clone(),
+        });
         let root = egraph.add_expr(plan);
         Builder {
             storage,
+            catalog,
             egraph,
             root,
         }
@@ -295,6 +299,7 @@ impl<S: Storage> Builder<S> {
 
             Explain(plan) => ExplainExecutor {
                 plan: self.recexpr(plan),
+                catalog: self.catalog.clone(),
             }
             .execute(),
 
