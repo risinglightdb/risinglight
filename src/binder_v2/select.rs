@@ -44,6 +44,7 @@ impl Binder {
 
         let mut plan = self.egraph.add(Node::Filter([where_, from]));
         plan = self.plan_agg(plan, &[projection, distinct, having, orderby], groupby)?;
+        plan = self.egraph.add(Node::Filter([having, plan]));
         plan = self.plan_distinct(plan, distinct, orderby, &mut projection)?;
         plan = self.egraph.add(Node::Order([orderby, plan]));
         plan = self.egraph.add(Node::Proj([projection, plan]));

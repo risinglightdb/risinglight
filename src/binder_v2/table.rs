@@ -18,7 +18,13 @@ impl Binder {
                 table_node
             });
         }
-        Ok(node.expect("no table"))
+        if let Some(node) = node {
+            Ok(node)
+        } else {
+            let zero = self.egraph.add(Node::zero());
+            let row = self.egraph.add(Node::List([zero].into()));
+            Ok(self.egraph.add(Node::Values([row].into())))
+        }
     }
 
     fn bind_table_with_joins(&mut self, tables: TableWithJoins) -> Result {
