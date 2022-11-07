@@ -19,11 +19,10 @@ impl ValuesExecutor {
         let mut builder = DataChunkBuilder::new(self.column_types.iter(), PROCESSING_WINDOW_SIZE);
         let dummy = DataChunk::single(0);
         for row in self.values {
-            let row_data: Result<Vec<DataValue>, ExecutorError> = row
-                .into_iter()
-                .map(|expr| Ok(ExprRef::new(&expr).eval(&dummy)?.get(0)))
-                .collect();
-            if let Some(chunk) = builder.push_row(row_data?) {
+            let row_data: Vec<_> = (row.into_iter().zip_eq(&self.column_types))
+                .map(|(expr, ty)| ExprRef::new(&expr).eval(&dummy)?.get(0).cast(&ty.kind))
+                .try_collect()?;
+            if let Some(chunk) = builder.push_row(row_data) {
                 yield chunk;
             }
         }

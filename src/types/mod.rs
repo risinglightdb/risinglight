@@ -19,6 +19,7 @@ pub use self::blob::*;
 pub use self::date::*;
 pub use self::interval::*;
 pub use self::native::*;
+use crate::array::ArrayImpl;
 
 /// Data type.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -387,6 +388,11 @@ impl DataValue {
             Self::String(s) => s.parse::<usize>().map_err(|_| cast_err())?,
             Self::Blob(_) => return Err(cast_err()),
         }))
+    }
+
+    /// Cast the value to another type.
+    pub fn cast(&self, ty: &DataTypeKind) -> Result<Self, ConvertError> {
+        Ok(ArrayImpl::from(self).try_cast(ty)?.get(0))
     }
 }
 

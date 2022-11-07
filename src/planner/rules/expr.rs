@@ -118,10 +118,9 @@ pub fn eval_constant(egraph: &EGraph, enode: &Expr) -> ConstValue {
         if a.is_null() {
             return Some(DataValue::Null);
         }
-        let array_a = ArrayImpl::from(a);
         let ty = egraph[ty].nodes[0].as_type();
         // TODO: handle cast error
-        Some(array_a.try_cast(ty).ok()?.get(0))
+        a.cast(ty).ok()
     } else if let &Max(a) | &Min(a) | &Avg(a) | &First(a) | &Last(a) = enode {
         x(a).cloned()
     } else {
