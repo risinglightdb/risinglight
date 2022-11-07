@@ -8,8 +8,8 @@ pub fn rules() -> Vec<Rewrite> { vec![
         { ExtractAgg {
             has_agg: pattern("
             (proj ?exprs
-                (distinct ?distinct
-                    (order ?orderby
+                (order ?orderby
+                    (distinct ?distinct
                         (filter ?having
                             (agg ?aggs ?groupby
                                 (filter ?where
@@ -20,17 +20,17 @@ pub fn rules() -> Vec<Rewrite> { vec![
                     )
                 )
             )"),
-            no_agg: pattern("(proj ?exprs (distinct ?distinct (order ?orderby (filter ?where ?from))))"),
+            no_agg: pattern("(proj ?exprs (order ?orderby (distinct ?distinct (filter ?where ?from))))"),
             sources: vec![var("?distinct"), var("?exprs"), var("?having")],
             groupby: var("?groupby"),
             output: var("?aggs"),
         }}
     ),
     rw!("proj-distinct-to-agg"; 
-        "(proj ?exprs (distinct ?on ?child))" =>
+        "(proj ?exprs (order ?orderby (distinct ?on ?child)))" =>
         { DistinctToAgg {
-            no_distinct: pattern("(proj ?exprs ?child)"),
-            has_distinct: pattern("(proj ?exprs (agg ?aggs ?on ?child))"),
+            no_distinct: pattern("(proj ?exprs (order ?orderby ?child))"),
+            has_distinct: pattern("(proj ?exprs (order ?orderby (agg ?aggs ?on ?child)))"),
             projection: var("?exprs"),
             distinct_on: var("?on"),
             aggs: var("?aggs"),
