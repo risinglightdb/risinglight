@@ -92,6 +92,23 @@ impl<'a> ExprRef<'a> {
         }
     }
 
+    /// Returns the initial aggregation states.
+    pub fn init_agg_states(&self) -> Vec<DataValue> {
+        (self.node().as_list().iter())
+            .map(|id| self.next(*id).init_agg_state())
+            .collect()
+    }
+
+    /// Returns the initial aggregation state.
+    fn init_agg_state(&self) -> DataValue {
+        use Expr::*;
+        match self.node() {
+            RowCount | Count(_) => DataValue::Int32(0),
+            Sum(a) | Min(a) | Max(a) | First(a) | Last(a) => DataValue::Null,
+            t => panic!("not aggregation: {t}"),
+        }
+    }
+
     /// Evaluate a list of aggregations.
     pub fn eval_agg_list(
         &self,
@@ -106,7 +123,7 @@ impl<'a> ExprRef<'a> {
     }
 
     /// Evaluate the aggregation.
-    pub fn eval_agg(&self, state: DataValue, chunk: &DataChunk) -> Result<DataValue, ConvertError> {
+    fn eval_agg(&self, state: DataValue, chunk: &DataChunk) -> Result<DataValue, ConvertError> {
         impl DataValue {
             fn add(self, other: Self) -> Self {
                 if self.is_null() {

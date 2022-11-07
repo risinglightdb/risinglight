@@ -529,6 +529,7 @@ impl ArrayImpl {
 impl From<&DataValue> for ArrayImpl {
     fn from(val: &DataValue) -> Self {
         match val {
+            DataValue::Null => Self::new_int32([None].into_iter().collect()),
             &DataValue::Bool(v) => Self::new_bool([v].into_iter().collect()),
             &DataValue::Int32(v) => Self::new_int32([v].into_iter().collect()),
             &DataValue::Int64(v) => Self::new_int64([v].into_iter().collect()),
@@ -538,7 +539,6 @@ impl From<&DataValue> for ArrayImpl {
             &DataValue::Decimal(v) => Self::new_decimal([v].into_iter().collect()),
             &DataValue::Date(v) => Self::new_date([v].into_iter().collect()),
             &DataValue::Interval(v) => Self::new_interval([v].into_iter().collect()),
-            DataValue::Null => panic!("can not build array from NULL"),
         }
     }
 }
