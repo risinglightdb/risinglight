@@ -36,7 +36,7 @@ use self::hash_join::*;
 use self::insert::*;
 // use self::internal::*;
 use self::limit::*;
-// use self::nested_loop_join::*;
+use self::nested_loop_join::*;
 use self::order::*;
 // #[allow(unused_imports)]
 // use self::perfect_hash_agg::*;
@@ -71,7 +71,7 @@ mod hash_join;
 mod insert;
 // mod internal;
 mod limit;
-// mod nested_loop_join;
+mod nested_loop_join;
 mod order;
 // mod perfect_hash_agg;
 mod projection;
@@ -246,7 +246,13 @@ impl<S: Storage> Builder<S> {
             }
             .execute(self.build_id(child)),
 
-            Join(_) => todo!(),
+            Join([op, on, left, right]) => NestedLoopJoinExecutor {
+                op: self.node(op).clone(),
+                condition: self.recexpr(on),
+                left_types: self.plan_types(left).to_vec(),
+                right_types: self.plan_types(right).to_vec(),
+            }
+            .execute(self.build_id(left), self.build_id(right)),
 
             HashJoin([op, lkeys, rkeys, left, right]) => HashJoinExecutor {
                 op: self.node(op).clone(),
