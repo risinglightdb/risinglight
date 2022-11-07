@@ -12,7 +12,7 @@ use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
 use crate::types::{DataTypeKind, DataValue};
 
-mod copy;
+pub mod copy;
 mod create_table;
 mod delete;
 mod drop;
@@ -21,7 +21,6 @@ mod insert;
 mod select;
 mod table;
 
-pub use self::copy::*;
 pub use self::create_table::*;
 pub use self::delete::*;
 pub use self::drop::*;
@@ -173,9 +172,8 @@ impl Binder {
         Ok(())
     }
 
-    fn check_type(&self, id: Id) -> Result<()> {
-        self.egraph[id].data.type_.clone()?;
-        Ok(())
+    fn check_type(&self, id: Id) -> Result<crate::types::DataType> {
+        Ok(self.egraph[id].data.type_.clone()?)
     }
 
     fn bind_explain(&mut self, query: Statement) -> Result {

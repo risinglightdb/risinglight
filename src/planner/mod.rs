@@ -1,6 +1,7 @@
 use egg::{define_language, CostFunction, Id, Symbol};
 
-use crate::binder_v2::{BoundDrop, CreateTable, ExtSource};
+use crate::binder_v2::copy::ExtSource;
+use crate::binder_v2::{BoundDrop, CreateTable};
 use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
@@ -106,7 +107,7 @@ define_language! {
         Drop(BoundDrop),
         "insert" = Insert([Id; 3]),             // (insert table [column..] child)
         "delete" = Delete([Id; 2]),             // (delete table child)
-        "copy_from" = CopyFrom(Id),             // (copy_from dest)
+        "copy_from" = CopyFrom([Id; 2]),        // (copy_from dest types)
         "copy_to" = CopyTo([Id; 2]),            // (copy_to dest child)
         "explain" = Explain(Id),                // (explain child)
 
@@ -155,6 +156,11 @@ impl Expr {
     pub fn as_type(&self) -> &DataTypeKind {
         let Self::Type(t) = self else { panic!("not a type") };
         t
+    }
+
+    pub fn as_ext_source(&self) -> ExtSource {
+        let Self::ExtSource(v) = self else { panic!("not an external source") };
+        v.clone()
     }
 
     pub const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {

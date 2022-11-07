@@ -236,7 +236,7 @@ impl Display for Explain<'_> {
             Drop(t) => writeln!(f, "{tab}Drop: {}, ...{cost}", t.object),
             Insert([table, cols, child]) => write!(f, "{tab}Insert: {}{}{cost}\n{}", self.expr(table), self.expr(cols), self.child(child)),
             Delete([table, child]) => write!(f, "{tab}Delete: from={}{cost}\n{}", self.expr(table), self.child(child)),
-            CopyFrom(src) => writeln!(f, "{tab}CopyFrom: {}{cost}", self.expr(src)),
+            CopyFrom([src, _]) => writeln!(f, "{tab}CopyFrom: {}{cost}", self.expr(src)),
             CopyTo([dst, child]) => write!(f, "{tab}CopyTo: {}{cost}\n{}", self.expr(dst), self.child(child)),
             Explain(child) => write!(f, "{tab}Explain:{cost}\n{}", self.child(child)),
             Prune(_) => panic!("cannot explain Prune"),

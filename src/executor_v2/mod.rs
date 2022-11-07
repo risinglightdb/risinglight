@@ -22,8 +22,8 @@ use futures_async_stream::try_stream;
 use itertools::Itertools;
 use minitrace::prelude::*;
 
-// use self::copy_from_file::*;
-// use self::copy_to_file::*;
+use self::copy_from_file::*;
+use self::copy_to_file::*;
 use self::create::*;
 // use self::delete::*;
 use self::drop::*;
@@ -57,8 +57,8 @@ use crate::planner::{ColumnIndexResolver, Expr, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, StorageImpl, TracedStorageError};
 use crate::types::{ConvertError, DataType, DataValue};
 
-// mod copy_from_file;
-// mod copy_to_file;
+mod copy_from_file;
+mod copy_to_file;
 mod create;
 // mod delete;
 mod drop;
@@ -294,8 +294,17 @@ impl<S: Storage> Builder<S> {
             .execute(self.build_id(child)),
 
             Delete(_) => todo!(),
-            CopyFrom(_) => todo!(),
-            CopyTo(_) => todo!(),
+
+            CopyFrom([src, types]) => CopyFromFileExecutor {
+                source: self.node(src).as_ext_source(),
+                types: self.node(types).as_type().as_struct().to_vec(),
+            }
+            .execute(),
+
+            CopyTo([src, child]) => CopyToFileExecutor {
+                source: self.node(src).as_ext_source(),
+            }
+            .execute(self.build_id(child)),
 
             Explain(plan) => ExplainExecutor {
                 plan: self.recexpr(plan),
