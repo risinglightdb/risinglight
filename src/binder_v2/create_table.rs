@@ -9,7 +9,7 @@ use crate::catalog::{ColumnCatalog, ColumnDesc};
 use crate::types::{ColumnId, DatabaseId, SchemaId};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
-pub struct BoundTable {
+pub struct CreateTable {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_name: String,
@@ -17,7 +17,7 @@ pub struct BoundTable {
     pub ordered_pk_ids: Vec<ColumnId>,
 }
 
-impl std::fmt::Display for BoundTable {
+impl std::fmt::Display for CreateTable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -31,7 +31,7 @@ impl std::fmt::Display for BoundTable {
     }
 }
 
-impl FromStr for BoundTable {
+impl FromStr for CreateTable {
     type Err = ();
 
     fn from_str(_s: &str) -> RawResult<Self, Self::Err> {
@@ -105,7 +105,7 @@ impl Binder {
             columns[index as usize].set_nullable(false);
         }
 
-        let table = self.egraph.add(Node::BoundTable(BoundTable {
+        let create = self.egraph.add(Node::CreateTable(CreateTable {
             database_id: db.id(),
             schema_id: schema.id(),
             table_name: table_name.into(),
@@ -116,8 +116,7 @@ impl Binder {
                 .collect::<Vec<ColumnDesc>>(),
             ordered_pk_ids,
         }));
-
-        Ok(self.egraph.add(Node::Create(table)))
+        Ok(create)
     }
 
     /// get primary keys' id in declared order。

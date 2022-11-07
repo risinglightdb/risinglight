@@ -49,13 +49,13 @@ use self::projection::*;
 // use self::sort_merge_join::*;
 use self::table_scan::*;
 // use self::top_n::TopNExecutor;
-// use self::values::*;
+use self::values::*;
 use crate::array::DataChunk;
 use crate::binder::BoundExpr;
 use crate::function::FunctionError;
 use crate::planner::{ColumnIndexResolver, Expr, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, StorageImpl, TracedStorageError};
-use crate::types::{ConvertError, DataValue};
+use crate::types::{ConvertError, DataType, DataValue};
 
 // mod aggregation;
 // mod copy_from_file;
@@ -81,7 +81,7 @@ mod projection;
 // mod sort_merge_join;
 mod table_scan;
 // mod top_n;
-// mod values;
+mod values;
 
 /// The error type of execution.
 #[derive(thiserror::Error, Debug)]
@@ -169,6 +169,12 @@ impl<S: Storage> Builder<S> {
         self.node(id).build_recexpr(|id| self.node(id).clone())
     }
 
+    /// Returns the output types of a plan node.
+    fn plan_types(&self, id: Id) -> &[DataType] {
+        let ty = self.egraph[id].data.type_.as_ref().unwrap();
+        ty.kind.as_struct()
+    }
+
     /// Resolve the column index of `expr` in `plan`.
     fn resolve_column_index(&self, expr: Id, plan: Id) -> RecExpr {
         let schema = (self.egraph[plan].data.schema.as_ref().expect("no schema"))
@@ -193,7 +199,19 @@ impl<S: Storage> Builder<S> {
             }
             .execute(),
 
-            Values(_) => todo!(),
+            Values(rows) => ValuesExecutor {
+                column_types: self.plan_types(id).to_vec(),
+                values: {
+                    rows.iter()
+                        .map(|row| {
+                            (self.node(*row).as_list().iter())
+                                .map(|id| self.recexpr(*id))
+                                .collect()
+                        })
+                        .collect()
+                },
+            }
+            .execute(),
 
             Proj([projs, child]) => ProjectionExecutor {
                 projs: {
@@ -217,7 +235,8 @@ impl<S: Storage> Builder<S> {
             Join(_) => todo!(),
             HashJoin(_) => todo!(),
             Agg(_) => todo!(),
-            Create(_) => todo!(),
+            CreateTable(_) => todo!(),
+            Drop(_) => todo!(),
             Insert(_) => todo!(),
             Delete(_) => todo!(),
             CopyFrom(_) => todo!(),

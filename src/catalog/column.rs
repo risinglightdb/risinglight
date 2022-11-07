@@ -85,7 +85,7 @@ impl ColumnCatalog {
     }
 
     pub fn datatype(&self) -> DataType {
-        self.desc.datatype
+        self.desc.datatype.clone()
     }
 
     pub fn set_primary(&mut self, is_primary: bool) {

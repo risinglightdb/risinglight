@@ -37,7 +37,7 @@ impl RepeatFunction {
         }
 
         Ok(Box::new(RepeatFunction {
-            return_type: input_types[0],
+            return_type: input_types[0].clone(),
         }))
     }
 }
@@ -48,7 +48,7 @@ impl Function for RepeatFunction {
     }
 
     fn return_types(&self) -> DataType {
-        self.return_type
+        self.return_type.clone()
     }
 
     fn execute(&self, input: &[&ArrayImpl]) -> Result<ArrayImpl, FunctionError> {

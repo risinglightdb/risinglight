@@ -27,20 +27,20 @@ impl ExprRewriter for ConstantMovingRule {
                                 op: op.op.clone(),
                                 left_expr: Box::new(other.clone()),
                                 right_expr: Box::new(Constant(rval - lval)),
-                                return_type: op.return_type,
+                                return_type: op.return_type.clone(),
                             })
                         }
                         (Minus, other, Constant(lval)) => BinaryOp(BoundBinaryOp {
                             op: op.op.clone(),
                             left_expr: Box::new(other.clone()),
                             right_expr: Box::new(Constant(rval + lval)),
-                            return_type: op.return_type,
+                            return_type: op.return_type.clone(),
                         }),
                         (Minus, Constant(lval), other) => BinaryOp(BoundBinaryOp {
                             op: op.op.clone(),
                             left_expr: Box::new(Constant(lval - rval)),
                             right_expr: Box::new(other.clone()),
-                            return_type: op.return_type,
+                            return_type: op.return_type.clone(),
                         }),
                         (Multiply, other, Constant(lval)) | (Multiply, Constant(lval), other)
                             if lval.is_positive() && rval.is_divisible_by(lval) =>
@@ -49,7 +49,7 @@ impl ExprRewriter for ConstantMovingRule {
                                 op: op.op.clone(),
                                 left_expr: Box::new(other.clone()),
                                 right_expr: Box::new(Constant(rval / lval)),
-                                return_type: op.return_type,
+                                return_type: op.return_type.clone(),
                             })
                         }
                         // TODO: support negative number moving

@@ -340,6 +340,7 @@ macro_rules! impl_array_builder {
                 use DataTypeKind::*;
                 match ty.kind() {
                     Null => Self::Int32(I32ArrayBuilder::with_capacity(capacity)),
+                    Struct(_) => todo!("array of Struct type"),
                     $(
                         $Type => Self::$Abc(<$AbcArrayBuilder>::with_capacity(capacity)),
                     )*

@@ -91,9 +91,9 @@ mod tests {
     fn test_prune_order() {
         let ty = DataTypeKind::Int32.not_null();
         let col_descs = vec![
-            ty.to_column("v1".into()),
-            ty.to_column("v2".into()),
-            ty.to_column("v3".into()),
+            ty.clone().to_column("v1".into()),
+            ty.clone().to_column("v2".into()),
+            ty.clone().to_column("v3".into()),
         ];
         let table_scan = LogicalTableScan::new(
             crate::catalog::TableRefId {
@@ -111,15 +111,15 @@ mod tests {
         let project_expressions = vec![
             BoundExpr::InputRef(BoundInputRef {
                 index: 0,
-                return_type: ty,
+                return_type: ty.clone(),
             }),
             BoundExpr::InputRef(BoundInputRef {
                 index: 1,
-                return_type: ty,
+                return_type: ty.clone(),
             }),
             BoundExpr::InputRef(BoundInputRef {
                 index: 2,
-                return_type: ty,
+                return_type: ty.clone(),
             }),
         ];
 
@@ -128,7 +128,7 @@ mod tests {
         let node = vec![BoundOrderBy {
             expr: BoundExpr::InputRef(BoundInputRef {
                 index: 1,
-                return_type: ty,
+                return_type: ty.clone(),
             }),
             descending: false,
         }];

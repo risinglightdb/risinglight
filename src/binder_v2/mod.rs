@@ -17,6 +17,7 @@ mod create_table;
 mod delete;
 mod drop;
 mod expr;
+mod insert;
 mod select;
 mod table;
 
@@ -25,6 +26,7 @@ pub use self::create_table::*;
 pub use self::delete::*;
 pub use self::drop::*;
 pub use self::expr::*;
+pub use self::insert::*;
 pub use self::select::*;
 pub use self::table::*;
 
@@ -92,7 +94,7 @@ impl Binder {
         Binder {
             egraph: egg::EGraph::default(),
             catalog,
-            contexts: vec![],
+            contexts: vec![Context::default()],
         }
     }
 
@@ -119,7 +121,12 @@ impl Binder {
                 cascade,
                 ..
             } => self.bind_drop(object_type, if_exists, names, cascade),
-            Statement::Insert { .. } => todo!(),
+            Statement::Insert {
+                table_name,
+                columns,
+                source,
+                ..
+            } => self.bind_insert(table_name, columns, source),
             Statement::Delete {
                 table_name,
                 selection,
@@ -163,6 +170,11 @@ impl Binder {
         let context = self.contexts.last_mut().unwrap();
         context.aliases.insert(alias.value, expr);
         // may override the same name
+        Ok(())
+    }
+
+    fn check_type(&self, id: Id) -> Result<()> {
+        self.egraph[id].data.type_.clone()?;
         Ok(())
     }
 

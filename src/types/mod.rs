@@ -19,22 +19,25 @@ pub use self::blob::*;
 pub use self::date::*;
 pub use self::interval::*;
 pub use self::native::*;
+use crate::array::ArrayImpl;
 
-/// Physical data type
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+/// Data type.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum DataTypeKind {
+    // NOTE: order matters
     Null,
+    Bool,
     Int32,
     Int64,
     // Float32,
     Float64,
-    String,
-    Blob,
-    Bool,
     // decimal (precision, scale)
     Decimal(Option<u8>, Option<u8>),
     Date,
     Interval,
+    String,
+    Blob,
+    Struct(Vec<DataType>),
 }
 
 impl DataTypeKind {
@@ -47,6 +50,46 @@ impl DataTypeKind {
             self,
             Self::Int32 | Self::Int64 | Self::Float64 | Self::Decimal(_, _)
         )
+    }
+
+    /// Returns the inner types of the struct.
+    pub fn as_struct(&self) -> &[DataType] {
+        match self {
+            Self::Struct(types) => types,
+            _ => panic!("not a struct type"),
+        }
+    }
+
+    /// Returns the minimum compatible type of 2 types.
+    pub fn union(&self, other: &Self) -> Option<Self> {
+        use DataTypeKind::*;
+        let (a, b) = if self <= other {
+            (self, other)
+        } else {
+            (other, self)
+        }; // a <= b
+        match (a, b) {
+            (Null, _) => Some(b.clone()),
+            (Bool, Bool | Int32 | Int64 | Float64 | Decimal(_, _) | String) => Some(b.clone()),
+            (Int32, Int32 | Int64 | Float64 | Decimal(_, _) | String) => Some(b.clone()),
+            (Int64, Int64 | Float64 | Decimal(_, _) | String) => Some(b.clone()),
+            (Float64, Float64 | Decimal(_, _) | String) => Some(b.clone()),
+            (Decimal(_, _), Decimal(_, _) | String) => Some(b.clone()),
+            (Date, Date | String) => Some(b.clone()),
+            (Interval, Interval | String) => Some(b.clone()),
+            (String, String | Blob) => Some(b.clone()),
+            (Blob, Blob) => Some(b.clone()),
+            (Struct(a), Struct(b)) => {
+                if a.len() != b.len() {
+                    return None;
+                }
+                let c = (a.iter().zip(b.iter()))
+                    .map(|(a, b)| a.union(b))
+                    .try_collect()?;
+                Some(Struct(c))
+            }
+            _ => None,
+        }
     }
 }
 
@@ -88,6 +131,16 @@ impl std::fmt::Display for DataTypeKind {
             },
             Self::Date => write!(f, "DATE"),
             Self::Interval => write!(f, "INTERVAL"),
+            Self::Struct(types) => {
+                write!(f, "STRUCT(")?;
+                for t in types.iter().take(1) {
+                    write!(f, "{}", t.kind())?;
+                }
+                for t in types.iter().skip(1) {
+                    write!(f, ", {}", t.kind())?;
+                }
+                write!(f, ")")
+            }
         }
     }
 }
@@ -132,7 +185,7 @@ impl FromStr for DataTypeKind {
 }
 
 /// Data type with nullable.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DataType {
     pub kind: DataTypeKind,
     pub nullable: bool,
@@ -164,7 +217,15 @@ impl DataType {
     }
 
     pub fn kind(&self) -> DataTypeKind {
-        self.kind
+        self.kind.clone()
+    }
+
+    /// Returns the minimum compatible type of 2 types.
+    pub fn union(&self, other: &Self) -> Option<Self> {
+        Some(DataType {
+            kind: self.kind.union(&other.kind)?,
+            nullable: self.nullable || other.nullable,
+        })
     }
 }
 
@@ -327,6 +388,11 @@ impl DataValue {
             Self::String(s) => s.parse::<usize>().map_err(|_| cast_err())?,
             Self::Blob(_) => return Err(cast_err()),
         }))
+    }
+
+    /// Cast the value to another type.
+    pub fn cast(&self, ty: &DataTypeKind) -> Result<Self, ConvertError> {
+        Ok(ArrayImpl::from(self).try_cast(ty)?.get(0))
     }
 }
 
