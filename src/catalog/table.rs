@@ -37,6 +37,12 @@ impl TableCatalog {
             next_column_id: 0,
             ordered_pk_ids,
         };
+        table_catalog
+            .add_column(ColumnCatalog::new(
+                u32::MAX,
+                DataTypeKind::Int64.not_null().to_column("_rowid_".into()),
+            ))
+            .unwrap();
         for col_catalog in columns {
             table_catalog.add_column(col_catalog).unwrap();
         }
@@ -67,6 +73,12 @@ impl TableCatalog {
     }
 
     pub fn all_columns(&self) -> BTreeMap<ColumnId, ColumnCatalog> {
+        let mut columns = self.columns.clone();
+        columns.remove(&u32::MAX); // remove rowid
+        columns
+    }
+
+    pub fn all_columns_with_rowid(&self) -> BTreeMap<ColumnId, ColumnCatalog> {
         self.columns.clone()
     }
 

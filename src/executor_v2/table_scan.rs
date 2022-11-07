@@ -22,7 +22,10 @@ impl<S: Storage> TableScanExecutor<S> {
         let mut col_idx = self
             .columns
             .iter()
-            .map(|x| StorageColumnRef::Idx(x.column_id)) // FIXME: use index, not id
+            .map(|x| match x.column_id {
+                u32::MAX => StorageColumnRef::RowHandler,
+                id => StorageColumnRef::Idx(id), // convert column id -> storage column idx
+            })
             .collect_vec();
 
         // TODO: append row handler?

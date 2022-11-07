@@ -61,7 +61,7 @@ impl Binder {
         match table {
             TableFactor::Table { name, alias, .. } => {
                 let table_id = self.bind_table_id(&name)?;
-                let cols = self.bind_table_name(&name)?;
+                let cols = self.bind_table_name(&name, false)?;
                 let id = self.egraph.add(Node::Scan([table_id, cols]));
                 if let Some(alias) = alias {
                     self.add_alias(alias.name, id)?;
@@ -126,7 +126,7 @@ impl Binder {
     ///
     /// # Example
     /// - `bind_table_name(t)` => `(list $1.1 $1.2)`
-    pub(super) fn bind_table_name(&mut self, name: &ObjectName) -> Result {
+    pub(super) fn bind_table_name(&mut self, name: &ObjectName, with_rowid: bool) -> Result {
         let name = lower_case_name(name);
         let (database_name, schema_name, table_name) = split_name(&name)?;
         if self.current_ctx().tables.contains_key(table_name) {
@@ -142,7 +142,13 @@ impl Binder {
 
         let table = self.catalog.get_table(&ref_id).unwrap();
         let mut ids = vec![];
-        for cid in table.all_columns().keys() {
+        for cid in if with_rowid {
+            table.all_columns_with_rowid()
+        } else {
+            table.all_columns()
+        }
+        .keys()
+        {
             let column_ref_id = ColumnRefId::from_table(ref_id, *cid);
             ids.push(self.egraph.add(Node::Column(column_ref_id)));
         }
