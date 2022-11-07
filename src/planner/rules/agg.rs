@@ -1,42 +1,19 @@
 use super::*;
 
 /// The data type of aggragation analysis.
-pub type AggSet = Result<Vec<Expr>, AggError>;
-
-/// The error type of aggregation.
-#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum AggError {
-    #[error("aggregate function calls cannot be nested")]
-    Nested(Expr),
-    #[error("WHERE clause cannot contain aggregates")]
-    AggInWhere,
-    #[error("GROUP BY clause cannot contain aggregates")]
-    AggInGroupBy,
-    #[error("column {0} must appear in the GROUP BY clause or be used in an aggregate function")]
-    ColumnNotInAgg(String),
-    #[error("ORDER BY items must appear in the select list if DISTINCT is specified")]
-    OrderKeyNotInDistinct,
-}
+pub type AggSet = Vec<Expr>;
 
 /// Returns all aggragations in the tree.
+///
+/// Note: if there is an agg over agg, e.g. `sum(count(a))`, only the upper one will be returned.
 pub fn analyze_aggs(enode: &Expr, x: impl Fn(&Id) -> AggSet) -> AggSet {
     use Expr::*;
-    if let RowCount = enode {
-        return Ok(vec![enode.clone()]);
-    }
-    if let Max(c) | Min(c) | Sum(c) | Avg(c) | Count(c) | First(c) | Last(c) = enode {
-        if !x(c)?.is_empty() {
-            return Err(AggError::Nested(enode.clone()));
-        }
-        return Ok(vec![enode.clone()]);
+    if let RowCount | Max(_) | Min(_) | Sum(_) | Avg(_) | Count(_) | First(_) | Last(_) = enode {
+        return vec![enode.clone()];
     }
     // merge the set from all children
     // TODO: ignore plan nodes
-    let mut aggs = vec![];
-    for child in enode.children() {
-        aggs.extend(x(child)?);
-    }
-    Ok(aggs)
+    enode.children().iter().map(x).flatten().collect()
 }
 
 #[cfg(test)]

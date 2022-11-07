@@ -11,7 +11,7 @@ mod explain;
 mod rules;
 
 pub use explain::Explain;
-pub use rules::{AggError, ColumnIndexResolver, ExprAnalysis, TypeError, TypeSchemaAnalysis};
+pub use rules::{ColumnIndexResolver, ExprAnalysis, TypeError, TypeSchemaAnalysis};
 
 // Alias types for our language.
 type EGraph = egg::EGraph<Expr, ExprAnalysis>;

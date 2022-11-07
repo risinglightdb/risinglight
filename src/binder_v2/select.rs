@@ -43,9 +43,9 @@ impl Binder {
         };
 
         let mut plan = self.egraph.add(Node::Filter([where_, from]));
-        plan = self.plan_agg(plan, &[projection, distinct, having, orderby], groupby)?;
+        plan = self.plan_agg(&[projection, distinct, having, orderby], groupby, plan)?;
         plan = self.egraph.add(Node::Filter([having, plan]));
-        plan = self.plan_distinct(plan, distinct, orderby, &mut projection)?;
+        plan = self.plan_distinct(distinct, orderby, &mut projection, plan)?;
         plan = self.egraph.add(Node::Order([orderby, plan]));
         plan = self.egraph.add(Node::Proj([projection, plan]));
         Ok(plan)
@@ -75,8 +75,8 @@ impl Binder {
 
     pub(super) fn bind_where(&mut self, selection: Option<Expr>) -> Result {
         let id = self.bind_having(selection)?;
-        if !self.aggs(id)?.is_empty() {
-            return Err(BindError::AggError(AggError::AggInWhere));
+        if !self.aggs(id).is_empty() {
+            return Err(BindError::AggInWhere);
         }
         Ok(id)
     }
@@ -93,8 +93,8 @@ impl Binder {
             .map(|key| self.bind_expr(key))
             .try_collect()?;
         let id = self.egraph.add(Node::List(list));
-        if !self.aggs(id)?.is_empty() {
-            return Err(BindError::AggError(AggError::AggInGroupBy));
+        if !self.aggs(id).is_empty() {
+            return Err(BindError::AggInGroupBy);
         }
         Ok(id)
     }
@@ -137,11 +137,17 @@ impl Binder {
     }
 
     /// Extract all aggregations from `exprs` and generate an Agg plan.
-    fn plan_agg(&mut self, plan: Id, exprs: &[Id], groupby: Id) -> Result {
+    fn plan_agg(&mut self, exprs: &[Id], groupby: Id, plan: Id) -> Result {
         let exprs = self.egraph.add(Node::List(exprs.into()));
-        let aggs = self.aggs(exprs)?;
+        let aggs = self.aggs(exprs).to_vec();
         if aggs.is_empty() && self.node(groupby).as_list().is_empty() {
             return Ok(plan);
+        }
+        // check nested agg
+        for child in aggs.iter().flat_map(|agg| agg.children()) {
+            if !self.aggs(*child).is_empty() {
+                return Err(BindError::NestedAgg);
+            }
         }
         let mut list: Vec<_> = aggs.into_iter().map(|agg| self.egraph.add(agg)).collect();
         // make sure the order of the aggs is deterministic
@@ -157,7 +163,7 @@ impl Binder {
         for expr in resolved.as_ref() {
             if let Node::Column(cid) = expr {
                 let name = self.catalog.get_column(cid).unwrap().name().to_string();
-                return Err(BindError::AggError(AggError::ColumnNotInAgg(name)));
+                return Err(BindError::ColumnNotInAgg(name));
             }
         }
         Ok(plan)
@@ -166,10 +172,10 @@ impl Binder {
     /// Generate an Agg plan for distinct.
     fn plan_distinct(
         &mut self,
-        plan: Id,
         distinct: Id,
         orderby: Id,
         projection: &mut Id,
+        plan: Id,
     ) -> Result {
         let distinct_on = self.node(distinct).as_list().to_vec();
         if distinct_on.is_empty() {
@@ -180,7 +186,7 @@ impl Binder {
             // id = (asc key) or (desc key)
             let key = self.node(*id).children()[0];
             if !distinct_on.contains(&key) {
-                return Err(BindError::AggError(AggError::OrderKeyNotInDistinct));
+                return Err(BindError::OrderKeyNotInDistinct);
             }
         }
         // for all projection items that are not in DISTINCT list,

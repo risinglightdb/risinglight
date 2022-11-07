@@ -9,7 +9,7 @@ use itertools::Itertools;
 
 use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
 use crate::parser::*;
-use crate::planner::{AggError, Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
+use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
 use crate::types::{DataTypeKind, DataValue};
 
 pub mod copy;
@@ -68,8 +68,16 @@ pub enum BindError {
     BindFunctionError(String),
     #[error("type error: {0}")]
     TypeError(#[from] TypeError),
-    #[error("{0}")]
-    AggError(#[from] AggError),
+    #[error("aggregate function calls cannot be nested")]
+    NestedAgg,
+    #[error("WHERE clause cannot contain aggregates")]
+    AggInWhere,
+    #[error("GROUP BY clause cannot contain aggregates")]
+    AggInGroupBy,
+    #[error("column {0} must appear in the GROUP BY clause or be used in an aggregate function")]
+    ColumnNotInAgg(String),
+    #[error("ORDER BY items must appear in the select list if DISTINCT is specified")]
+    OrderKeyNotInDistinct,
 }
 
 /// The binder resolves all expressions referring to schema objects such as
@@ -182,8 +190,8 @@ impl Binder {
         self.egraph[id].data.schema.clone().expect("no schema")
     }
 
-    fn aggs(&self, id: Id) -> Result<Vec<Node>> {
-        Ok(self.egraph[id].data.aggs.clone()?)
+    fn aggs(&self, id: Id) -> &[Node] {
+        &self.egraph[id].data.aggs
     }
 
     fn node(&self, id: Id) -> &Node {

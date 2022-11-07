@@ -39,7 +39,6 @@ mod rows;
 mod schema;
 mod type_;
 
-pub use self::agg::AggError;
 pub use self::schema::ColumnIndexResolver;
 pub use self::type_::TypeError;
 
