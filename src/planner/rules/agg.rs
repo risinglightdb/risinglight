@@ -3,29 +3,6 @@ use super::*;
 /// Returns all rules of aggregation extraction.
 #[rustfmt::skip]
 pub fn rules() -> Vec<Rewrite> { vec![
-    rw!("extract-agg-from-select-list";
-        "(select ?distinct ?exprs ?from ?where ?groupby ?having ?orderby)" =>
-        { ExtractAgg {
-            has_agg: pattern("
-            (proj ?exprs
-                (order ?orderby
-                    (distinct ?distinct
-                        (filter ?having
-                            (agg ?aggs ?groupby
-                                (filter ?where
-                                    ?from
-                                )
-                            )
-                        )
-                    )
-                )
-            )"),
-            no_agg: pattern("(proj ?exprs (order ?orderby (distinct ?distinct (filter ?where ?from))))"),
-            sources: vec![var("?distinct"), var("?exprs"), var("?having")],
-            groupby: var("?groupby"),
-            output: var("?aggs"),
-        }}
-    ),
     rw!("proj-distinct-to-agg"; 
         "(proj ?exprs (order ?orderby (distinct ?on ?child)))" =>
         { DistinctToAgg {
@@ -39,67 +16,36 @@ pub fn rules() -> Vec<Rewrite> { vec![
 ]}
 
 /// The data type of aggragation analysis.
-pub type AggSet = HashSet<Expr>;
+pub type AggSet = Result<Vec<Expr>, AggError>;
+
+/// The error type of aggregation.
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum AggError {
+    #[error("aggregate function calls cannot be nested")]
+    Nested(Expr),
+    #[error("column {0} must appear in the GROUP BY clause or be used in an aggregate function")]
+    ColumnNotInAgg(String),
+}
 
 /// Returns all aggragations in the tree.
-pub fn analyze_aggs(egraph: &EGraph, enode: &Expr) -> AggSet {
+pub fn analyze_aggs(enode: &Expr, x: impl Fn(&Id) -> AggSet) -> AggSet {
     use Expr::*;
-    let x = |i: &Id| &egraph[*i].data.aggs;
     if let RowCount = enode {
-        return [enode.clone()].into_iter().collect();
+        return Ok(vec![enode.clone()]);
     }
     if let Max(c) | Min(c) | Sum(c) | Avg(c) | Count(c) | First(c) | Last(c) = enode {
-        assert!(x(c).is_empty(), "agg in agg"); // FIXME: report error instead of panic
-        return [enode.clone()].into_iter().collect();
-    }
-    // TODO: ignore plan nodes
-    // merge the set from all children
-    (enode.children().iter())
-        .flat_map(|id| x(id).iter().cloned())
-        .collect()
-}
-
-/// Extracts all agg expressions from `sources`.
-///
-/// If both agg and `groupby` are empty, apply `no_agg`.
-/// Otherwise, apply `has_agg` and put those aggs to `output`.
-struct ExtractAgg {
-    has_agg: Pattern,
-    no_agg: Pattern,
-    sources: Vec<Var>,
-    groupby: Var,
-    output: Var,
-}
-
-impl Applier<Expr, ExprAnalysis> for ExtractAgg {
-    fn apply_one(
-        &self,
-        egraph: &mut EGraph,
-        eclass: Id,
-        subst: &Subst,
-        searcher_ast: Option<&PatternAst<Expr>>,
-        rule_name: Symbol,
-    ) -> Vec<Id> {
-        let aggs = (self.sources.iter())
-            .flat_map(|var| egraph[subst[*var]].data.aggs.iter().cloned())
-            .collect::<HashSet<Expr>>();
-        let groupby = match &egraph[subst[self.groupby]].nodes[0] {
-            Expr::List(list) => list.as_slice(),
-            _ => panic!("groupby is not a list"),
-        };
-        if aggs.is_empty() && groupby.is_empty() {
-            return self
-                .no_agg
-                .apply_one(egraph, eclass, subst, searcher_ast, rule_name);
+        if !x(c)?.is_empty() {
+            return Err(AggError::Nested(enode.clone()));
         }
-        let mut list: Box<[Id]> = aggs.into_iter().map(|agg| egraph.add(agg)).collect();
-        // make sure the order of the aggs is deterministic
-        list.sort();
-        let mut subst = subst.clone();
-        subst.insert(self.output, egraph.add(Expr::List(list)));
-        self.has_agg
-            .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+        return Ok(vec![enode.clone()]);
     }
+    // merge the set from all children
+    // TODO: ignore plan nodes
+    let mut aggs = vec![];
+    for child in enode.children() {
+        aggs.extend(x(child)?);
+    }
+    Ok(aggs)
 }
 
 /// Convert `distinct` to `agg`.

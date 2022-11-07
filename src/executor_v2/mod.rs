@@ -179,19 +179,17 @@ impl<S: Storage> Builder<S> {
     }
 
     /// Resolve the column index of `expr` in `plan`.
-    fn resolve_column_index(&self, expr: Id, plan: Id) -> RecExpr {
-        let schema = (self.egraph[plan].data.schema.as_ref().expect("no schema"))
-            .iter()
-            .map(|id| self.recexpr(*id))
-            .collect_vec();
-        ColumnIndexResolver::new(&schema).resolve(&self.recexpr(expr))
+    fn resolve_column_index(&mut self, expr: Id, plan: Id) -> RecExpr {
+        let list = self.egraph[plan].data.schema.clone().expect("no schema");
+        let schema = self.egraph.add(Expr::List(list.into()));
+        ColumnIndexResolver::new(&self.recexpr(schema)).resolve(&self.recexpr(expr))
     }
 
-    fn build(self) -> BoxedExecutor {
+    fn build(mut self) -> BoxedExecutor {
         self.build_id(self.root)
     }
 
-    fn build_id(&self, id: Id) -> BoxedExecutor {
+    fn build_id(&mut self, id: Id) -> BoxedExecutor {
         use Expr::*;
         match self.node(id).clone() {
             Scan(list) => TableScanExecutor {

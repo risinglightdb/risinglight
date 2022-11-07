@@ -15,12 +15,10 @@ use crate::types::ColumnIndex;
 ///
 /// ```
 /// # use risinglight::planner::{RecExpr, ColumnIndexResolver};
-/// let s0 = "(sum v1)".parse().unwrap();
-/// let s1 = "v2".parse().unwrap();
-/// let mut resolver = ColumnIndexResolver::new(&[s0, s1]);
+/// let schema = "(list (sum v1) v2)".parse().unwrap();
 /// let expr = "(list (+ v2 1) (+ (sum v1) v2))".parse().unwrap();
 /// assert_eq!(
-///     resolver.resolve(&expr).to_string(),
+///     ColumnIndexResolver::new(&schema).resolve(&expr).to_string(),
 ///     "(list (+ #1 1) (+ #0 #1))"
 /// );
 /// ```
@@ -29,13 +27,14 @@ pub struct ColumnIndexResolver {
 }
 
 impl ColumnIndexResolver {
-    pub fn new(schema: &[RecExpr]) -> Self {
+    pub fn new(schema: &RecExpr) -> Self {
         let mut egraph = egg::EGraph::<Expr, ()>::default();
+        let root = egraph.add_expr(schema);
+        let list = egraph[root].nodes[0].as_list().to_vec();
         // add expressions from schema and union them with index
-        for (i, expr) in schema.iter().enumerate() {
-            let id1 = egraph.add_expr(expr);
-            let id2 = egraph.add(Expr::ColumnIndex(ColumnIndex(i as u32)));
-            egraph.union(id2, id1);
+        for (i, expr) in list.into_iter().enumerate() {
+            let idx = egraph.add(Expr::ColumnIndex(ColumnIndex(i as u32)));
+            egraph.union(idx, expr);
         }
         egraph.rebuild();
         ColumnIndexResolver { egraph }
@@ -103,8 +102,6 @@ pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
 
 #[cfg(test)]
 mod tests {
-    use itertools::Itertools;
-
     use super::ColumnIndexResolver;
 
     macro_rules! test_resolve_column_index {
@@ -112,7 +109,7 @@ mod tests {
             #[test]
             fn $name() {
                 let input = $input.parse().unwrap();
-                let schema = $schema.iter().map(|s| s.parse().unwrap()).collect_vec();
+                let schema = $schema.parse().unwrap();
                 let actual = ColumnIndexResolver::new(&schema).resolve(&input);
                 assert_eq!(actual.to_string(), $expected);
             }
@@ -122,7 +119,7 @@ mod tests {
     test_resolve_column_index!(
         resolve_column_index1,
         rewrite: "(list (+ (+ $1.2 1) (sum $1.1)))",
-        schema: ["(+ $1.2 1)", "(sum $1.1)", "$1.2"],
+        schema: "(list (+ $1.2 1) (sum $1.1) $1.2)",
         expect: "(list (+ #0 #1))",
     );
 }

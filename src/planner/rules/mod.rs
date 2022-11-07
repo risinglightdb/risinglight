@@ -10,6 +10,7 @@
 //! | [`agg`]    | agg extraction        | aggregations in an expr       | [`AggSet`]     |
 //! | [`schema`] | column id to index    | output schema of a plan       | [`Schema`]     |
 //! | [`type_`]  |                       | data type                     | [`Type`]       |
+//! | [`rows`]   |                       | estimated rows                | [`Rows`]       |
 //!
 //! It would be best if you have a background in program analysis.
 //! Here is a recommended course: <https://pascal-group.bitbucket.io/teaching.html>.
@@ -19,6 +20,7 @@
 //! [`AggSet`]: agg::AggSet
 //! [`Schema`]: schema::Schema
 //! [`Type`]: type_::Type
+//! [`Rows`]: rows::Rows
 
 use std::collections::HashSet;
 use std::hash::Hash;
@@ -37,6 +39,7 @@ mod rows;
 mod schema;
 mod type_;
 
+pub use self::agg::AggError;
 pub use self::schema::ColumnIndexResolver;
 pub use self::type_::TypeError;
 
@@ -79,9 +82,6 @@ pub struct Data {
     /// All columns involved in the node.
     pub columns: plan::ColumnSet,
 
-    /// All aggragations in the tree.
-    pub aggs: agg::AggSet,
-
     /// The schema for plan node: a list of expressions.
     ///
     /// For non-plan node, it always be None.
@@ -99,7 +99,6 @@ impl Analysis<Expr> for ExprAnalysis {
         Data {
             constant: expr::eval_constant(egraph, enode),
             columns: plan::analyze_columns(egraph, enode),
-            aggs: agg::analyze_aggs(egraph, enode),
             schema: schema::analyze_schema(enode, |i| egraph[*i].data.schema.clone()),
             rows: rows::analyze_rows(egraph, enode),
         }
@@ -116,13 +115,12 @@ impl Analysis<Expr> for ExprAnalysis {
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         let merge_const = egg::merge_max(&mut to.constant, from.constant);
         let merge_columns = merge_small_set(&mut to.columns, from.columns);
-        let merge_aggs = merge_small_set(&mut to.aggs, from.aggs);
         let merge_schema = egg::merge_max(&mut to.schema, from.schema);
         let merge_rows = egg::merge_min(
             unsafe { std::mem::transmute(&mut to.rows) },
             F32::from(from.rows),
         );
-        merge_const | merge_columns | merge_aggs | merge_schema | merge_rows
+        merge_const | merge_columns | merge_schema | merge_rows
     }
 
     /// Modify the graph after analyzing a node.
@@ -147,6 +145,9 @@ pub struct TypeSchema {
     /// For non-plan node, it always be None.
     /// For plan node, it may be None if the schema is unknown due to unresolved `prune`.
     pub schema: schema::Schema,
+
+    /// All aggragations in the tree.
+    pub aggs: agg::AggSet,
 }
 
 impl Analysis<Expr> for TypeSchemaAnalysis {
@@ -160,13 +161,15 @@ impl Analysis<Expr> for TypeSchemaAnalysis {
                 &egraph.analysis.catalog,
             ),
             schema: schema::analyze_schema(enode, |i| egraph[*i].data.schema.clone()),
+            aggs: agg::analyze_aggs(enode, |i| egraph[*i].data.aggs.clone()),
         }
     }
 
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         let merge_type = egg::merge_max(&mut to.type_, from.type_);
         let merge_schema = egg::merge_max(&mut to.schema, from.schema);
-        merge_type | merge_schema
+        let merge_aggs = egg::merge_max(&mut to.aggs, from.aggs);
+        merge_type | merge_schema | merge_aggs
     }
 }
 

@@ -4,12 +4,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::vec::Vec;
 
-use egg::Id;
+use egg::{Id, Language};
 use itertools::Itertools;
 
 use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
 use crate::parser::*;
-use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
+use crate::planner::{AggError, Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
 use crate::types::{DataTypeKind, DataValue};
 
 pub mod copy;
@@ -68,6 +68,8 @@ pub enum BindError {
     BindFunctionError(String),
     #[error("type error: {0}")]
     TypeError(#[from] TypeError),
+    #[error("{0}")]
+    AggError(#[from] AggError),
 }
 
 /// The binder resolves all expressions referring to schema objects such as
@@ -174,6 +176,19 @@ impl Binder {
 
     fn check_type(&self, id: Id) -> Result<crate::types::DataType> {
         Ok(self.egraph[id].data.type_.clone()?)
+    }
+
+    fn schema(&self, id: Id) -> Vec<Id> {
+        self.egraph[id].data.schema.clone().expect("no schema")
+    }
+
+    fn node(&self, id: Id) -> &Node {
+        &self.egraph[id].nodes[0]
+    }
+
+    /// Extract a `RecExpr` from id.
+    fn recexpr(&self, id: Id) -> RecExpr {
+        self.node(id).build_recexpr(|id| self.node(id).clone())
     }
 
     fn bind_explain(&mut self, query: Statement) -> Result {
