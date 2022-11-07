@@ -41,6 +41,15 @@ impl Binder {
                 }
                 Ok(id)
             }
+            TableFactor::Derived {
+                subquery, alias, ..
+            } => {
+                let id = self.bind_query(*subquery)?;
+                if let Some(alias) = alias {
+                    self.add_alias(alias.name, id)?;
+                }
+                Ok(id)
+            }
             _ => panic!("bind table ref"),
         }
     }
