@@ -31,55 +31,20 @@ impl Binder {
 
     fn bind_select(&mut self, select: Select, order_by: Vec<OrderByExpr>) -> Result {
         let from = self.bind_from(select.from)?;
-
-        let where_ = self.bind_condition(select.selection)?;
-
-        let projection = self.bind_projection(select.projection, from)?;
-
+        let mut projection = self.bind_projection(select.projection, from)?;
+        let where_ = self.bind_where(select.selection)?;
+        let groupby = self.bind_groupby(select.group_by)?;
+        let having = self.bind_having(select.having)?;
+        let orderby = self.bind_orderby(order_by)?;
         let distinct = match select.distinct {
             // TODO: distinct on
             true => projection,
             false => self.egraph.add(Node::List([].into())),
         };
 
-        let group_list: Box<[Id]> = (select.group_by.into_iter())
-            .map(|key| self.bind_expr(key))
-            .try_collect()?;
-        let has_groupby = !group_list.is_empty();
-        let groupby = self.egraph.add(Node::List(group_list));
-
-        let having = self.bind_condition(select.having)?;
-
-        let orderby = self.bind_orderby(order_by)?;
-
-        // extract aggregations from expressions
-        let to_extract = self
-            .egraph
-            .add(Node::List([projection, distinct, having, orderby].into()));
-        let aggs = self.egraph[to_extract].data.aggs.clone()?;
-
         let mut plan = self.egraph.add(Node::Filter([where_, from]));
-        // insert agg node
-        if !aggs.is_empty() || has_groupby {
-            let mut list: Vec<_> = aggs.into_iter().map(|agg| self.egraph.add(agg)).collect();
-            // make sure the order of the aggs is deterministic
-            list.sort();
-            list.dedup();
-            let aggs = self.egraph.add(Node::List(list.into()));
-            plan = self.egraph.add(Node::Agg([aggs, groupby, plan]));
-
-            // check whether expressions can be composed by aggregations.
-            let schema = self.egraph.add(Node::List(self.schema(plan).into()));
-            let mut resolver = ColumnIndexResolver::new(&self.recexpr(schema));
-            let resolved = resolver.resolve(&self.recexpr(to_extract));
-            for expr in resolved.as_ref() {
-                if let Node::Column(cid) = expr {
-                    let name = self.catalog.get_column(cid).unwrap().name().to_string();
-                    return Err(BindError::AggError(AggError::ColumnNotInAgg(name)));
-                }
-            }
-        }
-        plan = self.egraph.add(Node::Distinct([distinct, plan]));
+        plan = self.plan_agg(plan, &[projection, distinct, having, orderby], groupby)?;
+        plan = self.plan_distinct(plan, distinct, orderby, &mut projection)?;
         plan = self.egraph.add(Node::Order([orderby, plan]));
         plan = self.egraph.add(Node::Proj([projection, plan]));
         Ok(plan)
@@ -107,11 +72,30 @@ impl Binder {
         Ok(self.egraph.add(Node::List(select_list.into())))
     }
 
-    pub(super) fn bind_condition(&mut self, selection: Option<Expr>) -> Result {
+    pub(super) fn bind_where(&mut self, selection: Option<Expr>) -> Result {
+        let id = self.bind_having(selection)?;
+        if !self.aggs(id)?.is_empty() {
+            return Err(BindError::AggError(AggError::AggInWhere));
+        }
+        Ok(id)
+    }
+
+    fn bind_having(&mut self, selection: Option<Expr>) -> Result {
         Ok(match selection {
             Some(expr) => self.bind_expr(expr)?,
             None => self.egraph.add(Node::true_()),
         })
+    }
+
+    fn bind_groupby(&mut self, group_by: Vec<Expr>) -> Result {
+        let list = (group_by.into_iter())
+            .map(|key| self.bind_expr(key))
+            .try_collect()?;
+        let id = self.egraph.add(Node::List(list));
+        if !self.aggs(id)?.is_empty() {
+            return Err(BindError::AggError(AggError::AggInGroupBy));
+        }
+        Ok(id)
     }
 
     fn bind_orderby(&mut self, order_by: Vec<OrderByExpr>) -> Result {
@@ -149,5 +133,67 @@ impl Binder {
         let id = self.egraph.add(Node::Values(bound_values.into()));
         self.check_type(id)?;
         Ok(id)
+    }
+
+    /// Extract all aggregations from `exprs` and generate an Agg plan.
+    fn plan_agg(&mut self, plan: Id, exprs: &[Id], groupby: Id) -> Result {
+        let exprs = self.egraph.add(Node::List(exprs.into()));
+        let aggs = self.aggs(exprs)?;
+        if aggs.is_empty() && self.node(groupby).as_list().is_empty() {
+            return Ok(plan);
+        }
+        let mut list: Vec<_> = aggs.into_iter().map(|agg| self.egraph.add(agg)).collect();
+        // make sure the order of the aggs is deterministic
+        list.sort();
+        list.dedup();
+        let aggs = self.egraph.add(Node::List(list.into()));
+        let plan = self.egraph.add(Node::Agg([aggs, groupby, plan]));
+
+        // check whether the expressions can be composed by aggregations.
+        let schema = self.egraph.add(Node::List(self.schema(plan).into()));
+        let mut resolver = ColumnIndexResolver::new(&self.recexpr(schema));
+        let resolved = resolver.resolve(&self.recexpr(exprs));
+        for expr in resolved.as_ref() {
+            if let Node::Column(cid) = expr {
+                let name = self.catalog.get_column(cid).unwrap().name().to_string();
+                return Err(BindError::AggError(AggError::ColumnNotInAgg(name)));
+            }
+        }
+        Ok(plan)
+    }
+
+    /// Generate an Agg plan for distinct.
+    fn plan_distinct(
+        &mut self,
+        plan: Id,
+        distinct: Id,
+        orderby: Id,
+        projection: &mut Id,
+    ) -> Result {
+        let distinct_on = self.node(distinct).as_list().to_vec();
+        if distinct_on.is_empty() {
+            return Ok(plan);
+        }
+        // make sure all ORDER BY items are in DISTINCT list.
+        for id in self.node(orderby).as_list() {
+            // id = (asc key) or (desc key)
+            let key = self.node(*id).children()[0];
+            if !distinct_on.contains(&key) {
+                return Err(BindError::AggError(AggError::OrderKeyNotInDistinct));
+            }
+        }
+        // for all projection items that are not in DISTINCT list,
+        // wrap them with first() aggregation.
+        let mut aggs = vec![];
+        let mut projs = self.node(*projection).as_list().to_vec();
+        for id in projs.iter_mut() {
+            if !distinct_on.contains(id) {
+                *id = self.egraph.add(Node::First(*id));
+                aggs.push(*id);
+            }
+        }
+        let aggs = self.egraph.add(Node::List(aggs.into()));
+        *projection = self.egraph.add(Node::List(projs.into()));
+        Ok(self.egraph.add(Node::Agg([aggs, distinct, plan])))
     }
 }

@@ -46,7 +46,6 @@ pub use self::type_::TypeError;
 /// Stage1 rules in the optimizer.
 pub static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     let mut rules = vec![];
-    rules.append(&mut agg::rules());
     rules.append(&mut plan::column_prune_rules());
     rules
 });

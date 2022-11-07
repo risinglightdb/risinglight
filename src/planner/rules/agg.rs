@@ -1,20 +1,5 @@
 use super::*;
 
-/// Returns all rules of aggregation extraction.
-#[rustfmt::skip]
-pub fn rules() -> Vec<Rewrite> { vec![
-    rw!("proj-distinct-to-agg"; 
-        "(proj ?exprs (order ?orderby (distinct ?on ?child)))" =>
-        { DistinctToAgg {
-            no_distinct: pattern("(proj ?exprs (order ?orderby ?child))"),
-            has_distinct: pattern("(proj ?exprs (order ?orderby (agg ?aggs ?on ?child)))"),
-            projection: var("?exprs"),
-            distinct_on: var("?on"),
-            aggs: var("?aggs"),
-        }}
-    ),
-]}
-
 /// The data type of aggragation analysis.
 pub type AggSet = Result<Vec<Expr>, AggError>;
 
@@ -23,8 +8,14 @@ pub type AggSet = Result<Vec<Expr>, AggError>;
 pub enum AggError {
     #[error("aggregate function calls cannot be nested")]
     Nested(Expr),
+    #[error("WHERE clause cannot contain aggregates")]
+    AggInWhere,
+    #[error("GROUP BY clause cannot contain aggregates")]
+    AggInGroupBy,
     #[error("column {0} must appear in the GROUP BY clause or be used in an aggregate function")]
     ColumnNotInAgg(String),
+    #[error("ORDER BY items must appear in the select list if DISTINCT is specified")]
+    OrderKeyNotInDistinct,
 }
 
 /// Returns all aggragations in the tree.
@@ -48,54 +39,6 @@ pub fn analyze_aggs(enode: &Expr, x: impl Fn(&Id) -> AggSet) -> AggSet {
     Ok(aggs)
 }
 
-/// Convert `distinct` to `agg`.
-///
-/// If `distinct_on` is empty, apply `no_distinct`.
-/// Otherwise, apply `has_distinct`. The expressions in the `projection` who are not in
-/// `distinct_on` will be aggregated by `first` and put to `aggs`.
-struct DistinctToAgg {
-    no_distinct: Pattern,
-    has_distinct: Pattern,
-    projection: Var,  // inout
-    distinct_on: Var, // in
-    aggs: Var,        // out
-}
-
-impl Applier<Expr, ExprAnalysis> for DistinctToAgg {
-    fn apply_one(
-        &self,
-        egraph: &mut EGraph,
-        eclass: Id,
-        subst: &Subst,
-        searcher_ast: Option<&PatternAst<Expr>>,
-        rule_name: Symbol,
-    ) -> Vec<Id> {
-        let get_list = |var: Var| match &egraph[subst[var]].nodes[0] {
-            Expr::List(list) => list.clone(),
-            _ => panic!("not a list"),
-        };
-        let distinct_on = get_list(self.distinct_on);
-        if distinct_on.is_empty() {
-            return self
-                .no_distinct
-                .apply_one(egraph, eclass, subst, searcher_ast, rule_name);
-        }
-        let mut aggs = vec![];
-        let mut projection = get_list(self.projection);
-        for id in projection.iter_mut() {
-            if !distinct_on.contains(id) {
-                *id = egraph.add(Expr::First(*id));
-                aggs.push(*id);
-            }
-        }
-        let mut subst = subst.clone();
-        subst.insert(self.aggs, egraph.add(Expr::List(aggs.into())));
-        subst.insert(self.projection, egraph.add(Expr::List(projection)));
-        self.has_distinct
-            .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -104,7 +47,6 @@ mod tests {
         rules.append(&mut expr::rules());
         rules.append(&mut plan::always_better_rules());
         rules.append(&mut plan::join_rules());
-        rules.append(&mut agg::rules());
         rules
     }
 

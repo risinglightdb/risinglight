@@ -34,7 +34,7 @@ impl Binder {
     pub(super) fn bind_table(&mut self, table: TableFactor) -> Result {
         match table {
             TableFactor::Table { name, alias, .. } => {
-                let cols = self.bind_table_name(name)?;
+                let cols = self.bind_table_name(&name)?;
                 let id = self.egraph.add(Node::Scan(cols));
                 if let Some(alias) = alias {
                     self.add_alias(alias.name, id)?;
@@ -93,8 +93,8 @@ impl Binder {
         }
     }
 
-    fn bind_table_name(&mut self, name: ObjectName) -> Result {
-        let name = lower_case_name(&name);
+    pub(super) fn bind_table_name(&mut self, name: &ObjectName) -> Result {
+        let name = lower_case_name(name);
         let (database_name, schema_name, table_name) = split_name(&name)?;
         if self.current_ctx().tables.contains_key(table_name) {
             return Err(BindError::DuplicatedTable(table_name.into()));
