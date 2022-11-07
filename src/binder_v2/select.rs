@@ -51,6 +51,7 @@ impl Binder {
         Ok(plan)
     }
 
+    /// Binds the select list. Returns a list of expressions.
     fn bind_projection(&mut self, projection: Vec<SelectItem>, from: Id) -> Result {
         let mut select_list = vec![];
         for item in projection {
@@ -73,6 +74,9 @@ impl Binder {
         Ok(self.egraph.add(Node::List(select_list.into())))
     }
 
+    /// Binds the WHERE clause. Returns an expression for condition.
+    ///
+    /// There should be no aggregation in the expression, otherwise an error will be returned.
     pub(super) fn bind_where(&mut self, selection: Option<Expr>) -> Result {
         let id = self.bind_having(selection)?;
         if !self.aggs(id).is_empty() {
@@ -81,6 +85,7 @@ impl Binder {
         Ok(id)
     }
 
+    /// Binds the HAVING clause. Returns an expression for condition.
     fn bind_having(&mut self, selection: Option<Expr>) -> Result {
         Ok(match selection {
             Some(expr) => self.bind_expr(expr)?,
@@ -88,6 +93,9 @@ impl Binder {
         })
     }
 
+    /// Binds the GROUP BY clause. Returns a list of expressions.
+    ///
+    /// There should be no aggregation in the expressions, otherwise an error will be returned.
     fn bind_groupby(&mut self, group_by: Vec<Expr>) -> Result {
         let list = (group_by.into_iter())
             .map(|key| self.bind_expr(key))
@@ -99,6 +107,7 @@ impl Binder {
         Ok(id)
     }
 
+    /// Binds the ORDER BY clause. Returns a list of expressions.
     fn bind_orderby(&mut self, order_by: Vec<OrderByExpr>) -> Result {
         let mut orderby = Vec::with_capacity(order_by.len());
         for e in order_by {
@@ -112,6 +121,7 @@ impl Binder {
         Ok(self.egraph.add(Node::List(orderby.into())))
     }
 
+    /// Binds the VALUES clause. Returns a [`Values`](Node::Values) plan.
     fn bind_values(&mut self, Values(values): Values) -> Result {
         let mut bound_values = Vec::with_capacity(values.len());
         if values.is_empty() {
@@ -136,7 +146,8 @@ impl Binder {
         Ok(id)
     }
 
-    /// Extract all aggregations from `exprs` and generate an Agg plan.
+    /// Extracts all aggregations from `exprs` and generates an [`Agg`](Node::Agg) plan.
+    /// If no aggregation is found and no `groupby` keys, returns the original `plan`.
     fn plan_agg(&mut self, exprs: &[Id], groupby: Id, plan: Id) -> Result {
         let exprs = self.egraph.add(Node::List(exprs.into()));
         let aggs = self.aggs(exprs).to_vec();
@@ -169,7 +180,20 @@ impl Binder {
         Ok(plan)
     }
 
-    /// Generate an Agg plan for distinct.
+    /// Generate an [`Agg`](Node::Agg) plan for DISTINCT.
+    ///
+    /// The `distinct` list will become the group by keys of the new aggregation.
+    /// All items in `projection` that are not in `distinct` list
+    /// will be wrapped with a [`first`](Node::First) aggregation.
+    ///
+    /// If `distinct` is an empty list, returns the original `plan`.
+    ///
+    /// # Example
+    /// ```ignore
+    /// distinct=(list a b)
+    /// projection=(list b c)
+    /// output=(agg (list b (first c)) (list a b) plan)
+    /// ```
     fn plan_distinct(
         &mut self,
         distinct: Id,
