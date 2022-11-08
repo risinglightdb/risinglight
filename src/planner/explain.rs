@@ -125,6 +125,7 @@ impl Display for Explain<'_> {
             ExtSource(src) => write!(f, "path={:?}, format={}", src.path, src.format),
             Symbol(s) => write!(f, "{s}"),
 
+            Nested(e) => write!(f, "{}", self.expr(e)),
             List(list) => {
                 write!(f, "[")?;
                 for (i, v) in list.iter().enumerate() {

@@ -32,13 +32,14 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
             .ok_or(TypeError::Unavailable)?
             .datatype()),
 
+        Nested(a) => x(a),
         List(list) => Ok(Kind::Struct(list.iter().map(x).try_collect()?).not_null()),
 
         // cast
         Cast([ty, a]) => merge(enode, [x(ty)?, x(a)?], |[ty, _]| Some(ty)),
 
         // number ops
-        Neg(a) => x(a),
+        Neg(a) => check(enode, x(a)?, |a| a.is_number()),
         Add([a, b]) | Sub([a, b]) | Mul([a, b]) | Div([a, b]) | Mod([a, b]) => {
             merge(enode, [x(a)?, x(b)?], |[a, b]| {
                 match if a > b { (b, a) } else { (a, b) } {

@@ -76,7 +76,7 @@ impl<'a> ExprRef<'a> {
                         .collect(),
                 ))
             }
-            Asc(a) | Desc(a) => self.next(*a).eval(chunk),
+            Asc(a) | Desc(a) | Nested(a) => self.next(*a).eval(chunk),
             e => {
                 if let Some((op, a, b)) = e.binary_op() {
                     let left = self.next(a).eval(chunk)?;

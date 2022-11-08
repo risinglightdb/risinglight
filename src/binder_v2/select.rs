@@ -2,7 +2,6 @@
 
 use super::*;
 use crate::parser::{Expr, Query, SelectItem, SetExpr};
-use crate::planner::ColumnIndexResolver;
 
 impl Binder {
     pub(super) fn bind_query(&mut self, query: Query) -> Result {
@@ -31,7 +30,7 @@ impl Binder {
 
     fn bind_select(&mut self, select: Select, order_by: Vec<OrderByExpr>) -> Result {
         let from = self.bind_from(select.from)?;
-        let mut projection = self.bind_projection(select.projection, from)?;
+        let projection = self.bind_projection(select.projection, from)?;
         let where_ = self.bind_where(select.selection)?;
         let groupby = self.bind_groupby(select.group_by)?;
         let having = self.bind_having(select.having)?;
@@ -43,7 +42,9 @@ impl Binder {
         };
 
         let mut plan = self.egraph.add(Node::Filter([where_, from]));
-        plan = self.plan_agg(&[projection, distinct, having, orderby], groupby, plan)?;
+        let mut to_rewrite = [projection, distinct, having, orderby];
+        plan = self.plan_agg(&mut to_rewrite, groupby, plan)?;
+        let [mut projection, distinct, having, orderby] = to_rewrite;
         plan = self.egraph.add(Node::Filter([having, plan]));
         plan = self.plan_distinct(distinct, orderby, &mut projection, plan)?;
         plan = self.egraph.add(Node::Order([orderby, plan]));
@@ -148,9 +149,9 @@ impl Binder {
 
     /// Extracts all aggregations from `exprs` and generates an [`Agg`](Node::Agg) plan.
     /// If no aggregation is found and no `groupby` keys, returns the original `plan`.
-    fn plan_agg(&mut self, exprs: &[Id], groupby: Id, plan: Id) -> Result {
-        let exprs = self.egraph.add(Node::List(exprs.into()));
-        let aggs = self.aggs(exprs).to_vec();
+    fn plan_agg(&mut self, exprs: &mut [Id], groupby: Id, plan: Id) -> Result {
+        let expr_list = self.egraph.add(Node::List(exprs.to_vec().into()));
+        let aggs = self.aggs(expr_list).to_vec();
         if aggs.is_empty() && self.node(groupby).as_list().is_empty() {
             return Ok(plan);
         }
@@ -166,18 +167,42 @@ impl Binder {
         list.dedup();
         let aggs = self.egraph.add(Node::List(list.into()));
         let plan = self.egraph.add(Node::Agg([aggs, groupby, plan]));
-
-        // check whether the expressions can be composed by aggregations.
-        let schema = self.egraph.add(Node::List(self.schema(plan).into()));
-        let mut resolver = ColumnIndexResolver::new(&self.recexpr(schema));
-        let resolved = resolver.resolve(&self.recexpr(exprs));
-        for expr in resolved.as_ref() {
-            if let Node::Column(cid) = expr {
-                let name = self.catalog.get_column(cid).unwrap().name().to_string();
-                return Err(BindError::ColumnNotInAgg(name));
-            }
+        // check for not aggregated columns
+        // rewrite the expressions with a wrapper over agg or group keys
+        let schema = self.schema(plan);
+        for id in exprs {
+            *id = self.rewrite_agg_in_expr(*id, &schema)?;
         }
         Ok(plan)
+    }
+
+    /// Rewrites the expression `id` with aggs wrapped in a [`Nested`](Node::Nested) node.
+    /// Returns the new expression.
+    ///
+    /// # Example
+    /// ```ignore
+    /// id:         (+ (sum a) (+ b 1))
+    /// schema:     (sum a), (+ b 1)
+    /// output:     (+ (`(sum a)) (`(+ b 1)))
+    ///
+    /// so that `id` won't be optimized to:
+    ///             (+ b (+ (sum a) 1))
+    /// which can not be composed by `schema`
+    /// ```
+    fn rewrite_agg_in_expr(&mut self, id: Id, schema: &[Id]) -> Result {
+        let mut expr = self.node(id).clone();
+        if schema.contains(&id) {
+            // found agg, wrap it with Nested
+            return Ok(self.egraph.add(Node::Nested(id)));
+        }
+        if let Node::Column(cid) = &expr {
+            let name = self.catalog.get_column(cid).unwrap().name().to_string();
+            return Err(BindError::ColumnNotInAgg(name));
+        }
+        for child in expr.children_mut() {
+            *child = self.rewrite_agg_in_expr(*child, schema)?;
+        }
+        Ok(self.egraph.add(expr))
     }
 
     /// Generate an [`Agg`](Node::Agg) plan for DISTINCT.
@@ -217,7 +242,7 @@ impl Binder {
         // wrap them with first() aggregation.
         let mut aggs = vec![];
         let mut projs = self.node(*projection).as_list().to_vec();
-        for id in projs.iter_mut() {
+        for id in &mut projs {
             if !distinct_on.contains(id) {
                 *id = self.egraph.add(Node::First(*id));
                 aggs.push(*id);

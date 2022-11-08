@@ -96,6 +96,8 @@ pub fn eval_constant(egraph: &EGraph, enode: &Expr) -> ConstValue {
     let x = |i: Id| egraph[i].data.constant.as_ref();
     if let Constant(v) = enode {
         Some(v.clone())
+    } else if let Nested(e) = enode {
+        Some(x(*e)?.clone())
     } else if let Some((op, a, b)) = enode.binary_op() {
         let (a, b) = (x(a)?, x(b)?);
         if a.is_null() || b.is_null() {

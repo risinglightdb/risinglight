@@ -30,6 +30,7 @@ define_language! {
         ExtSource(ExtSource),
 
         // utilities
+        "`" = Nested(Id),               // (` expr) a wrapper over expr to prevent optimization
         "list" = List(Box<[Id]>),       // (list ...)
 
         // binary operations

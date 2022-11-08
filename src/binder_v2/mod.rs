@@ -198,11 +198,6 @@ impl Binder {
         &self.egraph[id].nodes[0]
     }
 
-    /// Extract a `RecExpr` from id.
-    fn recexpr(&self, id: Id) -> RecExpr {
-        self.node(id).build_recexpr(|id| self.node(id).clone())
-    }
-
     fn bind_explain(&mut self, query: Statement) -> Result {
         let id = self.bind_stmt(query)?;
         let id = self.egraph.add(Node::Explain(id));

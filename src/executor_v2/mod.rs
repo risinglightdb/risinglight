@@ -55,7 +55,7 @@ use crate::catalog::RootCatalogRef;
 use crate::function::FunctionError;
 use crate::planner::{ColumnIndexResolver, Expr, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, StorageImpl, TracedStorageError};
-use crate::types::{ConvertError, DataType, DataValue};
+use crate::types::{ColumnIndex, ConvertError, DataType, DataValue};
 
 mod copy_from_file;
 mod copy_to_file;
@@ -179,17 +179,24 @@ impl<S: Storage> Builder<S> {
     }
 
     /// Resolve the column index of `expr` in `plan`.
-    fn resolve_column_index(&mut self, expr: Id, plan: Id) -> RecExpr {
-        let list = self.egraph[plan].data.schema.clone().expect("no schema");
-        let schema = self.egraph.add(Expr::List(list.into()));
-        ColumnIndexResolver::new(&self.recexpr(schema)).resolve(&self.recexpr(expr))
+    fn resolve_column_index(&self, expr: Id, plan: Id) -> RecExpr {
+        let schema = self.egraph[plan].data.schema.as_ref().expect("no schema");
+        self.node(expr).build_recexpr(|id| {
+            if let Some(idx) = schema.iter().position(|x| *x == id) {
+                return Expr::ColumnIndex(ColumnIndex(idx as _));
+            }
+            match self.node(id) {
+                Expr::Column(c) => panic!("column {c} not found from input"),
+                e => e.clone(),
+            }
+        })
     }
 
-    fn build(mut self) -> BoxedExecutor {
+    fn build(self) -> BoxedExecutor {
         self.build_id(self.root)
     }
 
-    fn build_id(&mut self, id: Id) -> BoxedExecutor {
+    fn build_id(&self, id: Id) -> BoxedExecutor {
         use Expr::*;
         match self.node(id).clone() {
             Scan([table, list]) => TableScanExecutor {
