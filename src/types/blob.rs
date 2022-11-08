@@ -52,10 +52,12 @@ impl Blob {
 
 /// An error which can be returned when parsing a blob.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
-#[error("parse blob error")]
 pub enum ParseBlobError {
+    #[error("invalid hex: {0}")]
     Int(#[from] std::num::ParseIntError),
-    Length,
+    #[error("unexpected end of string")]
+    UnexpectedEof,
+    #[error("invalid character")]
     InvalidChar,
 }
 
@@ -67,7 +69,7 @@ impl FromStr for Blob {
         while !s.is_empty() {
             if let Some(ss) = s.strip_prefix("\\x") {
                 if ss.len() < 2 {
-                    return Err(ParseBlobError::Length);
+                    return Err(ParseBlobError::UnexpectedEof);
                 }
                 if !s.is_char_boundary(2) {
                     return Err(ParseBlobError::InvalidChar);

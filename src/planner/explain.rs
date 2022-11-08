@@ -115,7 +115,9 @@ impl Display for Explain<'_> {
         match enode {
             Constant(v) => write!(f, "{v}"),
             Type(t) => write!(f, "{t}"),
-            Table(i) => write!(f, "{i}"),
+            Table(i) => if let Some(catalog) = self.catalog {
+                write!(f, "{}", catalog.get_table(i).expect("no table").name())
+            } else { write!(f, "{i}") },
             Column(i) => if let Some(catalog) = self.catalog {
                 write!(f, "{}", catalog.get_column(i).expect("no column").name())
             } else { write!(f, "{i}") },

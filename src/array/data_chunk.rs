@@ -21,7 +21,7 @@ pub struct DataChunk {
 impl FromIterator<ArrayImpl> for DataChunk {
     fn from_iter<I: IntoIterator<Item = ArrayImpl>>(iter: I) -> Self {
         let arrays: Arc<[ArrayImpl]> = iter.into_iter().collect();
-        let cardinality = arrays.get(0).expect("no column").len();
+        let cardinality = arrays.first().map(ArrayImpl::len).unwrap_or(0);
         assert!(
             arrays.iter().map(|a| a.len()).all(|l| l == cardinality),
             "all arrays must have the same length"
