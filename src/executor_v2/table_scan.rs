@@ -26,6 +26,9 @@ impl<S: Storage> TableScanExecutor<S> {
             .collect_vec();
 
         // TODO: append row handler?
+        if self.columns.is_empty() {
+            col_idx.push(StorageColumnRef::RowHandler);
+        }
 
         let txn = table.read().await?;
 
@@ -40,7 +43,10 @@ impl<S: Storage> TableScanExecutor<S> {
             )
             .await?;
 
-        while let Some(x) = it.next_batch(None).await? {
+        while let Some(mut x) = it.next_batch(None).await? {
+            if self.columns.is_empty() {
+                x = DataChunk::no_column(x.cardinality());
+            }
             yield x;
         }
     }

@@ -79,17 +79,16 @@ impl StorageChunk {
     }
 
     pub fn to_data_chunk(self) -> DataChunk {
+        if self.arrays.is_empty() {
+            return DataChunk::no_column(self.cardinality);
+        }
         match self.visibility {
             Some(visibility) => DataChunk::from_iter(
                 self.arrays
                     .iter()
                     .map(|a| a.filter(visibility.iter().map(|x| *x))),
             ),
-            None => DataChunk::from_iter(
-                self.arrays
-                    .iter()
-                    .map(|a| a.filter([true].iter().cycle().cloned())),
-            ),
+            None => DataChunk::from_iter(self.arrays),
         }
     }
 }

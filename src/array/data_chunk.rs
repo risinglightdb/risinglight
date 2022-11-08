@@ -21,7 +21,7 @@ pub struct DataChunk {
 impl FromIterator<ArrayImpl> for DataChunk {
     fn from_iter<I: IntoIterator<Item = ArrayImpl>>(iter: I) -> Self {
         let arrays: Arc<[ArrayImpl]> = iter.into_iter().collect();
-        let cardinality = arrays.first().map(ArrayImpl::len).unwrap_or(0);
+        let cardinality = arrays.get(0).expect("no column").len();
         assert!(
             arrays.iter().map(|a| a.len()).all(|l| l == cardinality),
             "all arrays must have the same length"
@@ -47,6 +47,14 @@ impl DataChunk {
                 .into_iter()
                 .collect(),
             cardinality: 1,
+        }
+    }
+
+    /// Return a no column [`DataChunk`] with `cardinality`.
+    pub fn no_column(cardinality: usize) -> Self {
+        DataChunk {
+            arrays: Arc::new([]),
+            cardinality,
         }
     }
 
