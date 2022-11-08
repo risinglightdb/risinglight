@@ -20,38 +20,29 @@ impl<S: Storage> InsertExecutor<S> {
     pub async fn execute(self, child: BoxedExecutor) {
         let table = self.storage.get_table(self.table_id)?;
         let columns = table.columns()?;
-        let projs = columns
+
+        // construct an expression
+        let mut expr = RecExpr::default();
+        let list = columns
             .iter()
-            .map(
-                |col| match self.column_ids.iter().position(|&id| id == col.id()) {
-                    Some(index) => Expr::ColumnIndex(ColumnIndex(index as _)),
-                    None => Expr::Type(col.datatype().kind()),
-                },
-            )
-            .collect_vec();
+            .map(|col| {
+                let val = expr.add(
+                    match self.column_ids.iter().position(|&id| id == col.id()) {
+                        Some(index) => Expr::ColumnIndex(ColumnIndex(index as _)),
+                        None => Expr::null(),
+                    },
+                );
+                let ty = expr.add(Expr::Type(col.datatype().kind()));
+                expr.add(Expr::Cast([ty, val]))
+            })
+            .collect();
+        expr.add(Expr::List(list));
 
         let mut txn = table.write().await?;
         let mut cnt = 0;
         #[for_await]
         for chunk in child {
-            let chunk = chunk?;
-            let chunk: DataChunk = projs
-                .iter()
-                .map(|col| match col {
-                    Expr::ColumnIndex(idx) => chunk.array_at(idx.0 as _).clone(),
-                    Expr::Type(ty) => {
-                        let mut builder = ArrayBuilderImpl::with_capacity(
-                            chunk.cardinality(),
-                            &ty.clone().nullable(),
-                        );
-                        for _ in 0..chunk.cardinality() {
-                            builder.push(&DataValue::Null);
-                        }
-                        builder.finish()
-                    }
-                    _ => unreachable!(),
-                })
-                .collect();
+            let chunk = ExprRef::new(&expr).eval_list(&chunk?)?;
             cnt += chunk.cardinality();
             txn.append(chunk).await?;
         }
