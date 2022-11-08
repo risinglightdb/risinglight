@@ -5,7 +5,6 @@ use std::future::Future;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use tracing::warn;
 
 use super::table::InMemoryTableInnerRef;
 use super::{InMemoryRowHandler, InMemoryTable, InMemoryTxnIterator};
@@ -184,14 +183,6 @@ impl Transaction for InMemoryTransaction {
         async move {
             self.finished = true;
             Ok(())
-        }
-    }
-}
-
-impl Drop for InMemoryTransaction {
-    fn drop(&mut self) {
-        if !self.finished {
-            warn!("Transaction dropped without committing or aborting");
         }
     }
 }

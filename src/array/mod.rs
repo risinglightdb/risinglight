@@ -339,6 +339,8 @@ macro_rules! impl_array_builder {
             pub fn with_capacity(capacity: usize, ty: &DataType) -> Self {
                 use DataTypeKind::*;
                 match ty.kind() {
+                    Null => Self::Int32(I32ArrayBuilder::with_capacity(capacity)),
+                    Struct(_) => todo!("array of Struct type"),
                     $(
                         $Type => Self::$Abc(<$AbcArrayBuilder>::with_capacity(capacity)),
                     )*
@@ -503,7 +505,7 @@ macro_rules! impl_array {
             }
 
             /// Return a string describing the type of this array.
-            pub fn type_string(&self) -> &str {
+            pub fn type_string(&self) -> &'static str {
                 match self {
                     $(
                         Self::$Abc(_) => stringify!($Abc),

@@ -71,13 +71,7 @@ impl PlanNode for LogicalAggregate {
         let child_schema = self.child.schema();
         self.group_keys
             .iter()
-            .map(|expr| {
-                ColumnDesc::new(
-                    expr.return_type().unwrap(),
-                    expr.format_name(&child_schema),
-                    false,
-                )
-            })
+            .map(|expr| ColumnDesc::new(expr.return_type(), expr.format_name(&child_schema), false))
             .chain(self.agg_calls.iter().map(|agg_call| {
                 agg_call
                     .return_type
@@ -146,7 +140,7 @@ impl PlanNode for LogicalAggregate {
                 .map(|index| {
                     BoundExpr::InputRef(BoundInputRef {
                         index,
-                        return_type: self.group_keys[index].return_type().unwrap(),
+                        return_type: self.group_keys[index].return_type(),
                     })
                 })
                 .collect();

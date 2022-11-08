@@ -14,7 +14,7 @@ impl Binder {
     fn bind_query_internal(&mut self, query: Query) -> Result {
         let child = match *query.body {
             SetExpr::Select(select) => self.bind_select(*select)?,
-            SetExpr::Values(_values) => todo!("bind values"),
+            SetExpr::Values(values) => self.bind_values(values)?,
             _ => todo!("handle query ???"),
         };
 
@@ -40,7 +40,7 @@ impl Binder {
         Ok(self.egraph.add(Node::TopN([limit, offset, orderby, child])))
     }
 
-    pub fn bind_select(&mut self, select: Select) -> Result {
+    fn bind_select(&mut self, select: Select) -> Result {
         let from = self.bind_from(select.from)?;
 
         let where_ = self.bind_condition(select.selection)?;
@@ -93,5 +93,29 @@ impl Binder {
             Some(expr) => self.bind_expr(expr)?,
             None => self.egraph.add(Node::true_()),
         })
+    }
+
+    fn bind_values(&mut self, Values(values): Values) -> Result {
+        let mut bound_values = Vec::with_capacity(values.len());
+        if values.is_empty() {
+            return Ok(self.egraph.add(Node::Values([].into())));
+        }
+
+        let column_len = values[0].len();
+        for row in values {
+            if row.len() != column_len {
+                return Err(BindError::InvalidExpression(
+                    "VALUES lists must all be the same length".into(),
+                ));
+            }
+            let mut bound_row = Vec::with_capacity(column_len);
+            for expr in row {
+                bound_row.push(self.bind_expr(expr)?);
+            }
+            bound_values.push(self.egraph.add(Node::List(bound_row.into())));
+        }
+        let id = self.egraph.add(Node::Values(bound_values.into()));
+        self.check_type(id)?;
+        Ok(id)
     }
 }

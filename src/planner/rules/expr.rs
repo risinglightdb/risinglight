@@ -97,22 +97,30 @@ pub fn eval_constant(egraph: &EGraph, enode: &Expr) -> ConstValue {
     if let Constant(v) = enode {
         Some(v.clone())
     } else if let Some((op, a, b)) = enode.binary_op() {
-        let array_a = ArrayImpl::from(x(a)?);
-        let array_b = ArrayImpl::from(x(b)?);
-        Some(array_a.binary_op(&op, &array_b).get(0))
+        let (a, b) = (x(a)?, x(b)?);
+        if a.is_null() || b.is_null() {
+            return Some(DataValue::Null);
+        }
+        let array_a = ArrayImpl::from(a);
+        let array_b = ArrayImpl::from(b);
+        Some(array_a.binary_op(&op, &array_b).ok()?.get(0))
     } else if let Some((op, a)) = enode.unary_op() {
-        let array_a = ArrayImpl::from(x(a)?);
-        Some(array_a.unary_op(&op).get(0))
+        let a = x(a)?;
+        if a.is_null() {
+            return Some(DataValue::Null);
+        }
+        let array_a = ArrayImpl::from(a);
+        Some(array_a.unary_op(&op).ok()?.get(0))
     } else if let &IsNull(a) = enode {
         Some(DataValue::Bool(x(a)?.is_null()))
     } else if let &Cast([ty, a]) = enode {
-        let array_a = ArrayImpl::from(x(a)?);
-        let ty = match &egraph[ty].nodes[0] {
-            Expr::Type(ty) => ty.clone(),
-            _ => panic!("expect data type"),
-        };
+        let a = x(a)?;
+        if a.is_null() {
+            return Some(DataValue::Null);
+        }
+        let ty = egraph[ty].nodes[0].as_type();
         // TODO: handle cast error
-        Some(array_a.try_cast(ty).ok()?.get(0))
+        a.cast(ty).ok()
     } else if let &Max(a) | &Min(a) | &Avg(a) | &First(a) | &Last(a) = enode {
         x(a).cloned()
     } else {
@@ -125,17 +133,14 @@ pub fn union_constant(egraph: &mut EGraph, id: Id) {
     if let Some(val) = &egraph[id].data.constant {
         let added = egraph.add(Expr::Constant(val.clone()));
         egraph.union(id, added);
+        // prune other nodes
+        egraph[id].nodes.retain(|n| n.is_leaf());
     }
 }
 
 /// Returns true if the expression is a non-zero constant.
 fn is_not_zero(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     value_is(var, |v| !v.is_zero())
-}
-
-/// Returns true if the expression is a constant.
-fn is_const(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    value_is(var, |_| true)
 }
 
 fn value_is(v: &str, f: impl Fn(&DataValue) -> bool) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {

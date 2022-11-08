@@ -14,8 +14,6 @@ mod nullable_block_builder;
 mod nullable_block_iterator;
 mod primitive_block_builder;
 mod primitive_block_iterator;
-mod primitive_nullable_block_builder;
-mod primitive_nullable_block_iterator;
 mod rle_block_builder;
 mod rle_block_iterator;
 
@@ -27,14 +25,12 @@ pub use fake_block_iterator::*;
 pub use nullable_block_builder::*;
 pub use primitive_block_builder::*;
 pub use primitive_block_iterator::*;
-pub use primitive_nullable_block_builder::*;
 use risinglight_proto::rowset::BlockStatistics;
 mod char_block_iterator;
 pub use char_block_iterator::*;
 pub use dict_block_builder::*;
 pub use dict_block_iterator::*;
 pub use nullable_block_iterator::*;
-pub use primitive_nullable_block_iterator::*;
 pub use rle_block_builder::*;
 pub use rle_block_iterator::*;
 mod block_index_builder;
@@ -84,9 +80,14 @@ pub trait NonNullableBlockBuilder<A: Array> {
     fn append_value(&mut self, item: &A::Item);
 
     fn append_default(&mut self);
+
     /// Get statistics with selection bit vector. Select all values
     /// if `selection` is empty
     fn get_statistics_with_bitmap(&self, selection: &BitVec<u8, Lsb0>) -> Vec<BlockStatistics>;
+    /// Get estimated size if append `next_item`.
+    fn estimated_size_with_next_item(&self, next_item: &Option<&A::Item>) -> usize;
+    /// Return true if no element in builder
+    fn is_empty(&self) -> bool;
 }
 
 /// An iterator on a block. This iterator requires the block being pre-loaded in memory.

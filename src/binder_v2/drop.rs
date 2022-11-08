@@ -30,7 +30,7 @@ impl std::fmt::Display for BoundDrop {
 impl std::fmt::Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Object::Table(table_id_ref) => write!(f, "{}", table_id_ref),
+            Object::Table(table_id_ref) => write!(f, "table {}", table_id_ref),
         }
     }
 }
@@ -60,7 +60,7 @@ impl Binder {
                     .get_table_id_by_name(database_name, schema_name, table_name)
                     .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
 
-                Ok(self.egraph.add(Node::BoundDrop(BoundDrop {
+                Ok(self.egraph.add(Node::Drop(BoundDrop {
                     object: Object::Table(table_ref_id),
                     if_exists,
                     cascade,

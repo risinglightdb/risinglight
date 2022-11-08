@@ -19,21 +19,78 @@ pub use self::blob::*;
 pub use self::date::*;
 pub use self::interval::*;
 pub use self::native::*;
+use crate::array::ArrayImpl;
 
-/// Physical data type
+/// Data type.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum DataTypeKind {
+    // NOTE: order matters
+    Null,
+    Bool,
     Int32,
     Int64,
     // Float32,
     Float64,
-    String,
-    Blob,
-    Bool,
     // decimal (precision, scale)
     Decimal(Option<u8>, Option<u8>),
     Date,
     Interval,
+    String,
+    Blob,
+    Struct(Vec<DataType>),
+}
+
+impl DataTypeKind {
+    pub const fn is_null(&self) -> bool {
+        matches!(self, Self::Null)
+    }
+
+    pub const fn is_number(&self) -> bool {
+        matches!(
+            self,
+            Self::Int32 | Self::Int64 | Self::Float64 | Self::Decimal(_, _)
+        )
+    }
+
+    /// Returns the inner types of the struct.
+    pub fn as_struct(&self) -> &[DataType] {
+        match self {
+            Self::Struct(types) => types,
+            _ => panic!("not a struct type"),
+        }
+    }
+
+    /// Returns the minimum compatible type of 2 types.
+    pub fn union(&self, other: &Self) -> Option<Self> {
+        use DataTypeKind::*;
+        let (a, b) = if self <= other {
+            (self, other)
+        } else {
+            (other, self)
+        }; // a <= b
+        match (a, b) {
+            (Null, _) => Some(b.clone()),
+            (Bool, Bool | Int32 | Int64 | Float64 | Decimal(_, _) | String) => Some(b.clone()),
+            (Int32, Int32 | Int64 | Float64 | Decimal(_, _) | String) => Some(b.clone()),
+            (Int64, Int64 | Float64 | Decimal(_, _) | String) => Some(b.clone()),
+            (Float64, Float64 | Decimal(_, _) | String) => Some(b.clone()),
+            (Decimal(_, _), Decimal(_, _) | String) => Some(b.clone()),
+            (Date, Date | String) => Some(b.clone()),
+            (Interval, Interval | String) => Some(b.clone()),
+            (String, String | Blob) => Some(b.clone()),
+            (Blob, Blob) => Some(b.clone()),
+            (Struct(a), Struct(b)) => {
+                if a.len() != b.len() {
+                    return None;
+                }
+                let c = (a.iter().zip(b.iter()))
+                    .map(|(a, b)| a.union(b))
+                    .try_collect()?;
+                Some(Struct(c))
+            }
+            _ => None,
+        }
+    }
 }
 
 impl From<&crate::parser::DataType> for DataTypeKind {
@@ -58,6 +115,7 @@ impl From<&crate::parser::DataType> for DataTypeKind {
 impl std::fmt::Display for DataTypeKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Null => write!(f, "NULL"),
             Self::Int32 => write!(f, "INT"),
             Self::Int64 => write!(f, "BIGINT"),
             // Self::Float32 => write!(f, "REAL"),
@@ -73,6 +131,16 @@ impl std::fmt::Display for DataTypeKind {
             },
             Self::Date => write!(f, "DATE"),
             Self::Interval => write!(f, "INTERVAL"),
+            Self::Struct(types) => {
+                write!(f, "STRUCT(")?;
+                for t in types.iter().take(1) {
+                    write!(f, "{}", t.kind())?;
+                }
+                for t in types.iter().skip(1) {
+                    write!(f, ", {}", t.kind())?;
+                }
+                write!(f, ")")
+            }
         }
     }
 }
@@ -117,7 +185,7 @@ impl FromStr for DataTypeKind {
 }
 
 /// Data type with nullable.
-#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DataType {
     pub kind: DataTypeKind,
     pub nullable: bool,
@@ -125,7 +193,7 @@ pub struct DataType {
 
 impl std::fmt::Debug for DataType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.kind)?;
+        write!(f, "{}", self.kind)?;
         if self.nullable {
             write!(f, " (nullable)")?;
         }
@@ -135,11 +203,7 @@ impl std::fmt::Debug for DataType {
 
 impl std::fmt::Display for DataType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.kind)?;
-        if self.nullable {
-            write!(f, " (nullable)")?;
-        }
-        Ok(())
+        write!(f, "{:?}", self)
     }
 }
 
@@ -154,6 +218,14 @@ impl DataType {
 
     pub fn kind(&self) -> DataTypeKind {
         self.kind.clone()
+    }
+
+    /// Returns the minimum compatible type of 2 types.
+    pub fn union(&self, other: &Self) -> Option<Self> {
+        Some(DataType {
+            kind: self.kind.union(&other.kind)?,
+            nullable: self.nullable || other.nullable,
+        })
     }
 }
 
@@ -283,19 +355,19 @@ impl DataValue {
         }
     }
 
-    /// Get the type of value. `None` means NULL.
-    pub fn data_type(&self) -> Option<DataType> {
+    /// Get the type of value.
+    pub fn data_type(&self) -> DataType {
         match self {
-            Self::Bool(_) => Some(DataTypeKind::Bool.not_null()),
-            Self::Int32(_) => Some(DataTypeKind::Int32.not_null()),
-            Self::Int64(_) => Some(DataTypeKind::Int64.not_null()),
-            Self::Float64(_) => Some(DataTypeKind::Float64.not_null()),
-            Self::String(_) => Some(DataTypeKind::String.not_null()),
-            Self::Blob(_) => Some(DataTypeKind::Blob.not_null()),
-            Self::Decimal(_) => Some(DataTypeKind::Decimal(None, None).not_null()),
-            Self::Date(_) => Some(DataTypeKind::Date.not_null()),
-            Self::Interval(_) => Some(DataTypeKind::Interval.not_null()),
-            Self::Null => None,
+            Self::Null => DataTypeKind::Null.nullable(),
+            Self::Bool(_) => DataTypeKind::Bool.not_null(),
+            Self::Int32(_) => DataTypeKind::Int32.not_null(),
+            Self::Int64(_) => DataTypeKind::Int64.not_null(),
+            Self::Float64(_) => DataTypeKind::Float64.not_null(),
+            Self::String(_) => DataTypeKind::String.not_null(),
+            Self::Blob(_) => DataTypeKind::Blob.not_null(),
+            Self::Decimal(_) => DataTypeKind::Decimal(None, None).not_null(),
+            Self::Date(_) => DataTypeKind::Date.not_null(),
+            Self::Interval(_) => DataTypeKind::Interval.not_null(),
         }
     }
 
@@ -316,6 +388,11 @@ impl DataValue {
             Self::String(s) => s.parse::<usize>().map_err(|_| cast_err())?,
             Self::Blob(_) => return Err(cast_err()),
         }))
+    }
+
+    /// Cast the value to another type.
+    pub fn cast(&self, ty: &DataTypeKind) -> Result<Self, ConvertError> {
+        Ok(ArrayImpl::from(self).try_cast(ty)?.get(0))
     }
 }
 
@@ -351,6 +428,10 @@ pub enum ConvertError {
     Cast(String, &'static str),
     #[error("constant {0:?} overflows {1:?}")]
     Overflow(DataValue, DataTypeKind),
+    #[error("no function {0}({1})")]
+    NoUnaryOp(String, &'static str),
+    #[error("no function {0}({1}, {2})")]
+    NoBinaryOp(String, &'static str, &'static str),
 }
 
 /// memory table row type
@@ -362,6 +443,8 @@ pub enum ParseValueError {
     ParseIntervalError(#[from] ParseIntervalError),
     #[error("invalid date: {0}")]
     ParseDateError(#[from] ParseDateError),
+    #[error("invalid blob: {0}")]
+    ParseBlobError(#[from] ParseBlobError),
     #[error("invalid value: {0}")]
     Invalid(String),
 }
@@ -378,10 +461,12 @@ impl FromStr for DataValue {
             Ok(Self::Int32(int))
         } else if let Ok(bigint) = s.parse::<i64>() {
             Ok(Self::Int64(bigint))
-        } else if let Ok(float) = s.parse::<F64>() {
-            Ok(Self::Float64(float))
+        } else if let Ok(d) = s.parse::<Decimal>() {
+            Ok(Self::Decimal(d))
         } else if s.starts_with('\'') && s.ends_with('\'') {
             Ok(Self::String(s[1..s.len() - 1].to_string()))
+        } else if s.starts_with("b\'") && s.ends_with('\'') {
+            Ok(Self::Blob(s[2..s.len() - 1].parse()?))
         } else if let Some(s) = s.strip_prefix("interval") {
             Ok(Self::Interval(s.trim().trim_matches('\'').parse()?))
         } else if let Some(s) = s.strip_prefix("date") {

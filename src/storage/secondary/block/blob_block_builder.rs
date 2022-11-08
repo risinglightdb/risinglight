@@ -60,6 +60,17 @@ impl<T: BlobEncode + ?Sized> NonNullableBlockBuilder<T::ArrayType> for PlainBlob
         }
         stats_builder.get_statistics()
     }
+
+    fn estimated_size_with_next_item(
+        &self,
+        next_item: &Option<&<T::ArrayType as Array>::Item>,
+    ) -> usize {
+        self.estimated_size() + next_item.map(|x| x.len()).unwrap_or(0) + std::mem::size_of::<u32>()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
 }
 
 impl<T: BlobEncode + ?Sized> BlockBuilder<T::ArrayType> for PlainBlobBlockBuilder<T> {
@@ -79,11 +90,7 @@ impl<T: BlobEncode + ?Sized> BlockBuilder<T::ArrayType> for PlainBlobBlockBuilde
     }
 
     fn should_finish(&self, next_item: &Option<&T>) -> bool {
-        !self.data.is_empty()
-            && self.estimated_size()
-                + next_item.map(|x| x.len()).unwrap_or(0)
-                + std::mem::size_of::<u32>()
-                > self.target_size
+        !self.is_empty() && self.estimated_size_with_next_item(next_item) > self.target_size
     }
 
     fn get_statistics(&self) -> Vec<BlockStatistics> {

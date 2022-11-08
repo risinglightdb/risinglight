@@ -12,7 +12,6 @@ use crate::array::{
 };
 use crate::binder::{BindError, Binder};
 use crate::catalog::RootCatalogRef;
-use crate::executor::context::Context;
 use crate::executor::{ExecutorBuilder, ExecutorError};
 use crate::logical_planner::{LogicalPlanError, LogicalPlaner};
 use crate::optimizer::logical_plan_rewriter::{InputRefResolver, PlanRewriter};
@@ -165,14 +164,6 @@ impl Database {
     /// Run SQL queries and return the outputs.
 
     pub async fn run(&self, sql: &str) -> Result<Vec<Chunk>, Error> {
-        self.run_with_context(Default::default(), sql).await
-    }
-
-    pub async fn run_with_context(
-        &self,
-        context: Arc<Context>,
-        sql: &str,
-    ) -> Result<Vec<Chunk>, Error> {
         if let Some(cmdline) = sql.trim().strip_prefix('\\') {
             return self.run_internal(cmdline).await;
         }
@@ -181,14 +172,21 @@ impl Database {
         let stmts = parse(sql)?;
 
         if USE_PLANNER_V2.load(Ordering::Relaxed) {
+            let mut outputs: Vec<Chunk> = vec![];
             for stmt in stmts {
                 let mut binder = crate::binder_v2::Binder::new(self.catalog.clone());
                 let bound = binder.bind(stmt)?;
-                println!("bind result:\n{}", bound.pretty(60));
                 let optimized = crate::planner::optimize(&bound);
-                println!("optimize result:\n{}", optimized.pretty(60));
+                let executor = match self.storage.clone() {
+                    StorageImpl::InMemoryStorage(s) => crate::executor_v2::build(s, &optimized),
+                    StorageImpl::SecondaryStorage(s) => crate::executor_v2::build(s, &optimized),
+                };
+                let output = executor.try_collect().await?;
+                let chunk = Chunk::new(output);
+                // TODO: set name
+                outputs.push(chunk);
             }
-            return Ok(vec![]);
+            return Ok(outputs);
         }
 
         let mut binder = Binder::new(self.catalog.clone());
@@ -212,7 +210,7 @@ impl Database {
             let optimized_plan = optimizer.optimize(logical_plan);
             debug!("{:#?}", optimized_plan);
 
-            let mut executor_builder = ExecutorBuilder::new(context.clone(), self.storage.clone());
+            let mut executor_builder = ExecutorBuilder::new(self.storage.clone());
             let executor = executor_builder.build(optimized_plan);
 
             let output = executor.try_collect().await?;
@@ -285,6 +283,12 @@ pub enum Error {
         #[source]
         #[from]
         ExecutorError,
+    ),
+    #[error("execute error: {0}")]
+    ExecuteV2(
+        #[source]
+        #[from]
+        crate::executor_v2::ExecutorError,
     ),
     #[error("Storage error: {0}")]
     StorageError(

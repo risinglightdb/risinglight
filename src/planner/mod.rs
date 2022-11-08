@@ -1,18 +1,16 @@
-#![allow(unused)]
+use egg::{define_language, CostFunction, Id, Symbol};
 
-use std::time::Duration;
-
-use egg::{define_language, Id, Symbol};
-
-use crate::binder_v2::BoundDrop;
+use crate::binder_v2::{BoundDrop, CreateTable, ExtSource};
 use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
 
 mod cost;
+mod explain;
 mod rules;
 
-pub use rules::ExprAnalysis;
+pub use explain::Explain;
+pub use rules::{ColumnIndexResolver, ExprAnalysis, TypeError, TypeSchemaAnalysis};
 
 // Alias types for our language.
 type EGraph = egg::EGraph<Expr, ExprAnalysis>;
@@ -25,10 +23,13 @@ define_language! {
         // values
         Constant(DataValue),            // null, true, 1, 1.0, "hello", ...
         Type(DataTypeKind),             // BOOLEAN, INT, DECIMAL(5), ...
-        // Table(TableRefId),              // $1, $2, ...
         Column(ColumnRefId),            // $1.2, $2.1, ...
+        Table(TableRefId),              // $1, $2, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
-        BoundDrop(BoundDrop),
+        ExtSource(ExtSource),
+
+        // utilities
+        "list" = List(Box<[Id]>),       // (list ...)
 
         // binary operations
         "+" = Add([Id; 2]),
@@ -70,8 +71,6 @@ define_language! {
         "in" = In([Id; 2]),
 
         "cast" = Cast([Id; 2]),                 // (cast type expr)
-        "as" = Alias([Id; 2]),                  // (as name expr)
-        "fn" = Function(Box<[Id]>),             // (fn name args..)
 
         "select" = Select([Id; 6]),             // (select
                                                 //      distinct=[expr..]
@@ -103,16 +102,13 @@ define_language! {
         "agg" = Agg([Id; 3]),                   // (agg aggs=[expr..] group_keys=[expr..] child)
                                                     // expressions must be agg
                                                     // output = aggs || group_keys
-        "create" = Create([Id; 2]),             // (create table [column_desc..])
-        // "drop" = Drop(Id),                      // (drop table)
-        "insert" = Insert([Id; 3]),             // (insert table [column..] child)
-        "delete" = Delete([Id; 2]),             // (delete table condition=expr)
+        CreateTable(CreateTable),
+        Drop(BoundDrop),
+        "insert" = Insert([Id; 2]),             // (insert [column..] child)
+        "delete" = Delete([Id; 2]),             // (delete table child)
         "copy_from" = CopyFrom(Id),             // (copy_from dest)
         "copy_to" = CopyTo([Id; 2]),            // (copy_to dest child)
         "explain" = Explain(Id),                // (explain child)
-
-        // utilities
-        "list" = List(Box<[Id]>),               // (list ...)
 
         // internal functions
         "prune" = Prune([Id; 2]),               // (prune node child)
@@ -132,7 +128,35 @@ impl Expr {
         Self::Constant(DataValue::Null)
     }
 
-    const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {
+    pub fn as_const(&self) -> DataValue {
+        match self {
+            Self::Constant(v) => v.clone(),
+            _ => panic!("not a constant"),
+        }
+    }
+
+    pub fn as_list(&self) -> &[Id] {
+        match self {
+            Self::List(list) => list,
+            _ => panic!("not a list"),
+        }
+    }
+
+    pub fn as_column(&self) -> ColumnRefId {
+        match self {
+            Self::Column(c) => *c,
+            _ => panic!("not a column"),
+        }
+    }
+
+    pub fn as_type(&self) -> &DataTypeKind {
+        match self {
+            Self::Type(t) => t,
+            _ => panic!("not a type"),
+        }
+    }
+
+    pub const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {
         use BinaryOperator as Op;
         #[allow(clippy::match_ref_pats)]
         Some(match self {
@@ -156,7 +180,7 @@ impl Expr {
         })
     }
 
-    const fn unary_op(&self) -> Option<(UnaryOperator, Id)> {
+    pub const fn unary_op(&self) -> Option<(UnaryOperator, Id)> {
         use UnaryOperator as Op;
         #[allow(clippy::match_ref_pats)]
         Some(match self {
@@ -169,24 +193,61 @@ impl Expr {
 
 /// Optimize the given expression.
 pub fn optimize(expr: &RecExpr) -> RecExpr {
-    let mut runner = egg::Runner::default()
-        // .with_explanations_enabled()
+    // 1. column pruning
+    // TODO: remove unused analysis
+    let runner = egg::Runner::default()
         .with_expr(expr)
-        .with_time_limit(Duration::from_secs(1))
-        .run(&rules::all_rules());
-    // extract the best expression
+        .run(&*rules::STAGE1_RULES);
+    let extractor = egg::Extractor::new(&runner.egraph, cost::NoPrune);
+    let (_, mut expr) = extractor.find_best(runner.roots[0]);
+
+    // 2. pushdown
+    let mut best_cost = f32::MAX;
+    // to prune costy nodes, we iterate multiple times and only keep the best one for each run.
+    for _ in 0..3 {
+        let runner = egg::Runner::default()
+            .with_expr(&expr)
+            .with_iter_limit(6)
+            .run(&*rules::STAGE2_RULES);
+        let cost_fn = cost::CostFn {
+            egraph: &runner.egraph,
+        };
+        let extractor = egg::Extractor::new(&runner.egraph, cost_fn);
+        let cost;
+        (cost, expr) = extractor.find_best(runner.roots[0]);
+        if cost >= best_cost {
+            break;
+        }
+        best_cost = cost;
+        // println!(
+        //     "{i}:\n{}",
+        //     crate::planner::Explain::with_costs(&expr, &costs(&expr))
+        // );
+    }
+
+    // 3. join reorder and hashjoin
+    let runner = egg::Runner::default()
+        .with_expr(&expr)
+        .run(&*rules::STAGE3_RULES);
     let cost_fn = cost::CostFn {
         egraph: &runner.egraph,
     };
     let extractor = egg::Extractor::new(&runner.egraph, cost_fn);
-    let root = runner.roots[0];
-    let (_, best) = extractor.find_best(root);
-    // explain the optimization
-    // println!(
-    //     "{}",
-    //     runner
-    //         .explain_equivalence(&expr, &best)
-    //         .get_string_with_let()
-    // );
-    best
+    (_, expr) = extractor.find_best(runner.roots[0]);
+
+    expr
+}
+
+/// Returns the cost for each node in the expression.
+pub fn costs(expr: &RecExpr) -> Vec<f32> {
+    let mut egraph = EGraph::default();
+    // NOTE: we assume Expr node has the same Id in both EGraph and RecExpr.
+    egraph.add_expr(expr);
+    let mut cost_fn = cost::CostFn { egraph: &egraph };
+    let mut costs = vec![0.0; expr.as_ref().len()];
+    for (i, node) in expr.as_ref().iter().enumerate() {
+        let cost = cost_fn.cost(node, |i| costs[usize::from(i)]);
+        costs[i] = cost;
+    }
+    costs
 }

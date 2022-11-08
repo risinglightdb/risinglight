@@ -12,7 +12,7 @@ where
     A: Array,
     B: BlockBuilder<A> + NonNullableBlockBuilder<A>,
 {
-    nested_builder: B,
+    inner_builder: B,
     bitmap: BitVec<u8, Lsb0>,
     target_size: usize,
     _phantom: PhantomData<A>,
@@ -23,11 +23,9 @@ where
     A: Array,
     B: BlockBuilder<A> + NonNullableBlockBuilder<A>,
 {
-    // TODO: replace PlainPrimitiveBlockBuilder
-    #[allow(dead_code)]
-    pub fn new(nested: B, target_size: usize) -> Self {
+    pub fn new(inner: B, target_size: usize) -> Self {
         Self {
-            nested_builder: nested,
+            inner_builder: inner,
             bitmap: BitVec::<u8, Lsb0>::with_capacity(target_size),
             target_size,
             _phantom: PhantomData,
@@ -43,11 +41,11 @@ where
     fn append(&mut self, item: Option<&A::Item>) {
         match item {
             Some(item) => {
-                self.nested_builder.append_value(item);
+                self.inner_builder.append_value(item);
                 self.bitmap.push(true);
             }
             None => {
-                self.nested_builder.append_default();
+                self.inner_builder.append_default();
                 self.bitmap.push(false);
             }
         }
@@ -55,19 +53,23 @@ where
 
     fn estimated_size(&self) -> usize {
         let bitmap_byte_len = (self.bitmap.len() + 7) / 8;
-        self.nested_builder.estimated_size() + bitmap_byte_len
+        self.inner_builder.estimated_size() + bitmap_byte_len
     }
 
     fn get_statistics(&self) -> Vec<BlockStatistics> {
-        self.nested_builder.get_statistics_with_bitmap(&self.bitmap)
+        self.inner_builder.get_statistics_with_bitmap(&self.bitmap)
     }
 
     fn should_finish(&self, next_item: &Option<&A::Item>) -> bool {
-        self.nested_builder.should_finish(next_item)
+        // +1 here since bitmap may extend a byte
+        self.inner_builder.should_finish(next_item)
+            || !self.inner_builder.is_empty()
+                && self.inner_builder.estimated_size_with_next_item(next_item) + 1
+                    > self.target_size
     }
 
     fn finish(self) -> Vec<u8> {
-        let mut data = self.nested_builder.finish();
+        let mut data = self.inner_builder.finish();
         data.extend(self.bitmap.as_raw_slice().iter());
         data.put_u32_le(self.bitmap.as_raw_slice().len() as u32);
         data

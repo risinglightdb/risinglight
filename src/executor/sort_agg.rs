@@ -5,7 +5,6 @@ use smallvec::SmallVec;
 use super::*;
 use crate::array::{ArrayBuilderImpl, ArrayImpl};
 use crate::binder::BoundAggCall;
-use crate::types::DataTypeKind;
 
 pub struct SortAggExecutor {
     pub agg_calls: Vec<BoundAggCall>,
@@ -64,14 +63,9 @@ impl SortAggExecutor {
             .iter()
             .map(|s| {
                 let result = &s.output();
-                match &result.data_type() {
-                    Some(r) => {
-                        let mut builder = ArrayBuilderImpl::with_capacity(1, r);
-                        builder.push(result);
-                        builder.finish()
-                    }
-                    None => ArrayBuilderImpl::new(&DataTypeKind::Int32.nullable()).finish(),
-                }
+                let mut builder = ArrayBuilderImpl::with_capacity(1, &result.data_type());
+                builder.push(result);
+                builder.finish()
             })
             .collect::<DataChunk>();
     }

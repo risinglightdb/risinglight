@@ -8,14 +8,12 @@ use bytes::Buf;
 use super::{Block, BlockIterator, NonNullableBlockIterator};
 use crate::array::{Array, ArrayBuilder};
 
-// TODO: replace PlainPrimitiveBlockIterator
-#[allow(dead_code)]
 pub fn decode_nullable_block(data: Block) -> (Block, Block) {
     let mut bitmap_len_buf = &data[data.len() - 4..];
     let bitmap_len = bitmap_len_buf.get_u32_le() as usize;
     let bitmap_block = data.slice(data.len() - 4 - bitmap_len..data.len() - 4);
-    let nested_block = data.slice(..data.len() - 4 - bitmap_len);
-    (nested_block, bitmap_block)
+    let inner_block = data.slice(..data.len() - 4 - bitmap_len);
+    (inner_block, bitmap_block)
 }
 
 pub struct NullableBlockIterator<A, B>
@@ -36,8 +34,6 @@ where
     A: Array,
     B: BlockIterator<A> + NonNullableBlockIterator<A>,
 {
-    // TODO: replace PlainPrimitiveBlockIterator
-    #[allow(dead_code)]
     pub fn new(inner_iter: B, bitmap_block: Block) -> Self {
         Self {
             inner_iter,
@@ -101,8 +97,8 @@ mod tests {
         builder.append(Some(&3));
         let data = builder.finish();
 
-        let (nested_block, bitmap_block) = decode_nullable_block(Bytes::from(data));
-        let inner_iter = PlainPrimitiveBlockIterator::<i32>::new(nested_block, 3);
+        let (inner_block, bitmap_block) = decode_nullable_block(Bytes::from(data));
+        let inner_iter = PlainPrimitiveBlockIterator::<i32>::new(inner_block, 3);
         let mut iter = NullableBlockIterator::new(inner_iter, bitmap_block);
         iter.skip(1);
         assert_eq!(iter.remaining_items(), 2);
@@ -129,8 +125,8 @@ mod tests {
         builder.append(Some("2333333"));
         let data = builder.finish();
 
-        let (nested_block, bitmap_block) = decode_nullable_block(Bytes::from(data));
-        let inner_iter = PlainBlobBlockIterator::<str>::new(nested_block, 3);
+        let (inner_block, bitmap_block) = decode_nullable_block(Bytes::from(data));
+        let inner_iter = PlainBlobBlockIterator::<str>::new(inner_block, 3);
         let mut iter = NullableBlockIterator::new(inner_iter, bitmap_block);
         iter.skip(1);
         assert_eq!(iter.remaining_items(), 2);

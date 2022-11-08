@@ -17,19 +17,15 @@ impl BoundExpr {
             BoundExpr::BinaryOp(binary_op) => {
                 let left = binary_op.left_expr.eval(chunk)?;
                 let right = binary_op.right_expr.eval(chunk)?;
-                Ok(left.binary_op(&binary_op.op, &right))
+                left.binary_op(&binary_op.op, &right)
             }
             BoundExpr::UnaryOp(op) => {
                 let array = op.expr.eval(chunk)?;
-                Ok(array.unary_op(&op.op))
+                array.unary_op(&op.op)
             }
             BoundExpr::Constant(v) => {
-                let mut builder = ArrayBuilderImpl::with_capacity(
-                    chunk.cardinality(),
-                    &self
-                        .return_type()
-                        .unwrap_or_else(|| DataTypeKind::Int32.nullable()),
-                );
+                let mut builder =
+                    ArrayBuilderImpl::with_capacity(chunk.cardinality(), &self.return_type());
                 // TODO: optimize this
                 for _ in 0..chunk.cardinality() {
                     builder.push(v);
@@ -41,7 +37,7 @@ impl BoundExpr {
                 if self.return_type() == cast.expr.return_type() {
                     return Ok(array);
                 }
-                array.try_cast(cast.ty.clone())
+                array.try_cast(&cast.ty)
             }
             BoundExpr::IsNull(expr) => {
                 let array = expr.expr.eval(chunk)?;
@@ -71,15 +67,14 @@ impl BoundExpr {
                 let right = binary_op
                     .right_expr
                     .eval_array_in_storage(chunk, cardinality)?;
-                Ok(left.binary_op(&binary_op.op, &right))
+                left.binary_op(&binary_op.op, &right)
             }
             BoundExpr::UnaryOp(op) => {
                 let array = op.expr.eval_array_in_storage(chunk, cardinality)?;
-                Ok(array.unary_op(&op.op))
+                array.unary_op(&op.op)
             }
             BoundExpr::Constant(v) => {
-                let mut builder =
-                    ArrayBuilderImpl::with_capacity(cardinality, &self.return_type().unwrap());
+                let mut builder = ArrayBuilderImpl::with_capacity(cardinality, &self.return_type());
                 // TODO: optimize this
                 for _ in 0..cardinality {
                     builder.push(v);
@@ -91,7 +86,7 @@ impl BoundExpr {
                 if self.return_type() == cast.expr.return_type() {
                     return Ok(array);
                 }
-                array.try_cast(cast.ty.clone())
+                array.try_cast(&cast.ty)
             }
             BoundExpr::IsNull(expr) => {
                 let array = expr.expr.eval_array_in_storage(chunk, cardinality)?;
@@ -108,34 +103,41 @@ impl BoundExpr {
 
 impl ArrayImpl {
     /// Perform unary operation.
-    pub fn unary_op(&self, op: &UnaryOperator) -> ArrayImpl {
+    pub fn unary_op(&self, op: &UnaryOperator) -> Result<ArrayImpl, ConvertError> {
         type A = ArrayImpl;
-        match op {
+        Ok(match op {
             UnaryOperator::Plus => match self {
                 A::Int32(_) => self.clone(),
                 A::Int64(_) => self.clone(),
                 A::Float64(_) => self.clone(),
                 A::Decimal(_) => self.clone(),
-                _ => panic!("+ can only be applied to Int, Float or Decimal array"),
+                _ => return Err(ConvertError::NoUnaryOp("+".into(), self.type_string())),
             },
             UnaryOperator::Minus => match self {
                 A::Int32(a) => A::new_int32(unary_op(a.as_ref(), |v| -v)),
                 A::Int64(a) => A::new_int64(unary_op(a.as_ref(), |v| -v)),
                 A::Float64(a) => A::new_float64(unary_op(a.as_ref(), |v| -v)),
                 A::Decimal(a) => A::new_decimal(unary_op(a.as_ref(), |v| -v)),
-                _ => panic!("- can only be applied to Int, Float or Decimal array"),
+                _ => return Err(ConvertError::NoUnaryOp("-".into(), self.type_string())),
             },
             UnaryOperator::Not => match self {
                 A::Bool(a) => A::new_bool(unary_op(a.as_ref(), |b| !b)),
-                _ => panic!("Not can only be applied to BOOL array"),
+                _ => return Err(ConvertError::NoUnaryOp("not".into(), self.type_string())),
             },
-            _ => todo!("evaluate operator: {:?}", op),
-        }
+            _ => return Err(ConvertError::NoUnaryOp(op.to_string(), self.type_string())),
+        })
     }
 
     /// Perform binary operation.
-    pub fn binary_op(&self, op: &BinaryOperator, right: &ArrayImpl) -> ArrayImpl {
+    pub fn binary_op(
+        &self,
+        op: &BinaryOperator,
+        right: &ArrayImpl,
+    ) -> Result<ArrayImpl, ConvertError> {
+        use BinaryOperator::*;
         type A = ArrayImpl;
+        let no_op =
+            || ConvertError::NoBinaryOp(op.to_string(), self.type_string(), right.type_string());
         macro_rules! arith {
             ($op:tt) => {
                 match (self, right) {
@@ -155,7 +157,8 @@ impl ArrayImpl {
 
                     (A::Decimal(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Date(a), A::Interval(b)) => A::new_date(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
-                    _ => todo!("Support {} {} {}", self.type_string(), stringify!($op), right.type_string()),
+
+                    _ => return Err(no_op()),
                 }
             }
         }
@@ -169,23 +172,23 @@ impl ArrayImpl {
                     (A::Utf8(a), A::Utf8(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Date(a), A::Date(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Decimal(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-                    _ => todo!("Support {} {} {}", self.type_string(), stringify!($op), right.type_string()),
+                    _ => return Err(no_op()),
                 }
             }
         }
-        match op {
-            BinaryOperator::Plus => arith!(+),
-            BinaryOperator::Minus => arith!(-),
-            BinaryOperator::Multiply => arith!(*),
-            BinaryOperator::Divide => arith!(/),
-            BinaryOperator::Modulo => arith!(%),
-            BinaryOperator::Eq => cmp!(==),
-            BinaryOperator::NotEq => cmp!(!=),
-            BinaryOperator::Gt => cmp!(>),
-            BinaryOperator::Lt => cmp!(<),
-            BinaryOperator::GtEq => cmp!(>=),
-            BinaryOperator::LtEq => cmp!(<=),
-            BinaryOperator::And => match (self, right) {
+        Ok(match op {
+            Plus => arith!(+),
+            Minus => arith!(-),
+            Multiply => arith!(*),
+            Divide => arith!(/),
+            Modulo => arith!(%),
+            Eq => cmp!(==),
+            NotEq => cmp!(!=),
+            Gt => cmp!(>),
+            Lt => cmp!(<),
+            GtEq => cmp!(>=),
+            LtEq => cmp!(<=),
+            And => match (self, right) {
                 (A::Bool(a), A::Bool(b)) => {
                     A::new_bool(binary_op_with_null(a.as_ref(), b.as_ref(), |a, b| {
                         match (a, b) {
@@ -195,9 +198,9 @@ impl ArrayImpl {
                         }
                     }))
                 }
-                _ => panic!("And can only be applied to BOOL arrays"),
+                _ => return Err(no_op()),
             },
-            BinaryOperator::Or => match (self, right) {
+            Or => match (self, right) {
                 (A::Bool(a), A::Bool(b)) => {
                     A::new_bool(binary_op_with_null(a.as_ref(), b.as_ref(), |a, b| {
                         match (a, b) {
@@ -207,14 +210,14 @@ impl ArrayImpl {
                         }
                     }))
                 }
-                _ => panic!("Or can only be applied to BOOL arrays"),
+                _ => return Err(no_op()),
             },
-            _ => todo!("evaluate operator: {:?}", op),
-        }
+            _ => return Err(no_op()),
+        })
     }
 
     /// Cast the array to another type.
-    pub fn try_cast(&self, data_type: DataTypeKind) -> Result<Self, ConvertError> {
+    pub fn try_cast(&self, data_type: &DataTypeKind) -> Result<Self, ConvertError> {
         type Type = DataTypeKind;
         Ok(match self {
             Self::Bool(a) => match data_type {
@@ -278,7 +281,7 @@ impl ArrayImpl {
                         |&f| match Decimal::from_f64_retain(f.0) {
                             Some(mut d) => {
                                 if let Some(s) = scale {
-                                    d.rescale(s as u32);
+                                    d.rescale(*s as u32);
                                 }
                                 Ok(d)
                             }
@@ -348,9 +351,9 @@ impl ArrayImpl {
             },
             Self::Date(a) => match data_type {
                 Type::String => Self::new_utf8(unary_op(a.as_ref(), |&d| d.to_string())),
-                ty => return Err(ConvertError::FromDateError(ty)),
+                ty => return Err(ConvertError::FromDateError(ty.clone())),
             },
-            Self::Interval(_) => return Err(ConvertError::FromIntervalError(data_type)),
+            Self::Interval(_) => return Err(ConvertError::FromIntervalError(data_type.clone())),
         })
     }
 }

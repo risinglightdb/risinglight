@@ -154,6 +154,7 @@ impl FromStr for Interval {
         let mut seconds = 0;
 
         let mut last_val: Option<i32> = None;
+        let s = s.replace('_', " "); // allow '_' as alias for space
         for token in s.trim().split_ascii_whitespace() {
             if let Some(val) = last_val {
                 match token {

@@ -33,6 +33,7 @@ impl ColumnIteratorImpl {
     ) -> StorageResult<Self> {
         use DataTypeKind::*;
         let iter = match column_info.datatype().kind() {
+            Null => panic!("column type should not be null"),
             Int32 => Self::Int32(
                 I32ColumnIterator::new(column, start_pos, PrimitiveBlockIteratorFactory::new())
                     .await?,
@@ -77,6 +78,7 @@ impl ColumnIteratorImpl {
                 )
                 .await?,
             ),
+            Struct(_) => todo!("struct column iterator"),
         };
         Ok(iter)
     }

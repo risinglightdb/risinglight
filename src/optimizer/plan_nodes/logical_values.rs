@@ -53,7 +53,7 @@ impl PlanNode for LogicalValues {
             .iter()
             .map(|expr| {
                 let name = "?column?".to_string();
-                expr.return_type().unwrap().to_column(name)
+                expr.return_type().to_column(name)
             })
             .collect()
     }

@@ -102,7 +102,7 @@ impl PerfectHashAggExecutor {
     ) -> DataChunk {
         let mut key_builders = group_keys
             .iter()
-            .map(|e| ArrayBuilderImpl::new(&e.return_type().unwrap()))
+            .map(|e| ArrayBuilderImpl::new(&e.return_type()))
             .collect::<Vec<ArrayBuilderImpl>>();
         let mut res_builders = agg_calls
             .iter()
@@ -113,7 +113,7 @@ impl PerfectHashAggExecutor {
             need_shift_bits_num -= bits[idx];
             let mask = (1usize << bits[idx]) - 1;
             let key_builder = &mut key_builders[idx];
-            match group_keys[idx].return_type().unwrap().kind {
+            match group_keys[idx].return_type().kind {
                 DataTypeKind::Bool => locations.iter().for_each(|location| {
                     let value = (location >> need_shift_bits_num) & mask;
                     if value == 0 {

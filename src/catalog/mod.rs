@@ -28,20 +28,23 @@ pub(crate) use crate::types::{ColumnId, DatabaseId, SchemaId, TableId};
 pub type RootCatalogRef = Arc<RootCatalog>;
 
 /// The reference ID of a table.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize, Deserialize)]
 pub struct TableRefId {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_id: TableId,
 }
 
+impl std::fmt::Debug for TableRefId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO: now ignore database and schema
+        write!(f, "${}", self.table_id)
+    }
+}
+
 impl std::fmt::Display for TableRefId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}.{}.{}",
-            self.database_id, self.schema_id, self.table_id
-        )
+        write!(f, "{self:?}")
     }
 }
 
@@ -84,7 +87,7 @@ impl TableRefId {
 }
 
 /// The reference ID of a column.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize)]
 pub struct ColumnRefId {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,
@@ -115,12 +118,26 @@ impl ColumnRefId {
             column_id,
         }
     }
+
+    pub const fn table(&self) -> TableRefId {
+        TableRefId {
+            database_id: self.database_id,
+            schema_id: self.schema_id,
+            table_id: self.table_id,
+        }
+    }
+}
+
+impl std::fmt::Debug for ColumnRefId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO: now ignore database and schema
+        write!(f, "${}.{}", self.table_id, self.column_id)
+    }
 }
 
 impl std::fmt::Display for ColumnRefId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO: now ignore database and schema
-        write!(f, "${}.{}", self.table_id, self.column_id)
+        write!(f, "{self:?}")
     }
 }
 
