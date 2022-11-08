@@ -125,8 +125,7 @@ impl Binder {
     /// This function defines the table name so that it can be referred later.
     ///
     /// # Example
-    /// - `(list $1.1 $1.2)`
-    /// - `(list $1.0 $1.1 $1.2)` (with_rowid)
+    /// - `bind_table_name(t)` => `(list $1.1 $1.2)`
     pub(super) fn bind_table_name(&mut self, name: &ObjectName) -> Result {
         let name = lower_case_name(name);
         let (database_name, schema_name, table_name) = split_name(&name)?;

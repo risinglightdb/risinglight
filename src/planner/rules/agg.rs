@@ -13,7 +13,7 @@ pub fn analyze_aggs(enode: &Expr, x: impl Fn(&Id) -> AggSet) -> AggSet {
     }
     // merge the set from all children
     // TODO: ignore plan nodes
-    enode.children().iter().map(x).flatten().collect()
+    enode.children().iter().flat_map(x).collect()
 }
 
 #[cfg(test)]

@@ -257,7 +257,7 @@ impl ArrayImpl {
                 for _ in 0..a.len() {
                     builder.push(&DataValue::Null);
                 }
-                builder.finish().into()
+                builder.finish()
             }
             Self::Bool(a) => match data_type {
                 Type::Bool => Self::Bool(a.clone()),

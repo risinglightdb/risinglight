@@ -207,7 +207,7 @@ impl<D> ExprExt for egg::EClass<Expr, D> {
     fn as_list(&self) -> &[Id] {
         self.iter()
             .find_map(|e| match e {
-                Expr::List(list) => Some(&*list),
+                Expr::List(list) => Some(list),
                 _ => None,
             })
             .expect("not list")

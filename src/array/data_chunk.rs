@@ -11,7 +11,7 @@ use crate::types::{DataValue, Row};
 ///
 /// A data chunk is a horizontal subset of a query result.
 ///
-/// Note: It's valid for a DataChunk to have 0 column, but non-zero cardinality.
+/// Note: It's valid for a [`DataChunk`] to have 0 column, but non-zero cardinality.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DataChunk {
     arrays: Arc<[ArrayImpl]>,
