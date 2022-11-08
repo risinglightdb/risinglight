@@ -98,7 +98,7 @@ mod tests {
             .create_table(
                 0,
                 0,
-                "t".into(),
+                "t",
                 &[
                     ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("v1".into())),
                     ColumnCatalog::new(1, DataTypeKind::Int32.not_null().to_column("v2".into())),

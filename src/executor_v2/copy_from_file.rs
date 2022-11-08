@@ -41,7 +41,7 @@ impl CopyFromFileExecutor {
         let file = File::open(self.source.path)?;
         let file_size = file.metadata()?.len();
         let mut buf_reader = BufReader::new(file);
-        let mut reader = match self.source.format.clone() {
+        let mut reader = match self.source.format {
             FileFormat::Csv {
                 delimiter,
                 quote,

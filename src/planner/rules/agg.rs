@@ -284,8 +284,8 @@ mod tests {
                 true
                 (list (desc (sum (* $7.5 (- 1 $7.6)))) (asc $6.4))
             ))" => "
-        (topn 10 0 (list (desc (sum (* $7.5 (- 1 $7.6)))) (asc $6.4))
-            (proj (list $7.0 (sum (* $7.5 (- 1 $7.6))) $6.4 $6.7)
+        (proj (list $7.0 (sum (* $7.5 (- 1 $7.6))) $6.4 $6.7)
+            (topn 10 0 (list (desc (sum (* $7.5 (- 1 $7.6)))) (asc $6.4))
                 (agg
                     (list (sum (* $7.5 (- 1 $7.6))))
                     (list $7.0 $6.4 $6.7)
