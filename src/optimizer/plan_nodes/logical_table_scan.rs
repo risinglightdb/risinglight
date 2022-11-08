@@ -160,7 +160,7 @@ impl PlanNode for LogicalTableScan {
                 .map(|index| {
                     BoundExpr::InputRef(BoundInputRef {
                         index,
-                        return_type: *column_descs[index].datatype(),
+                        return_type: column_descs[index].datatype().clone(),
                     })
                 })
                 .collect();

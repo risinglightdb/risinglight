@@ -60,6 +60,7 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             HashJoin([_, _, _, l, r]) => {
                 (rows(l) + 1.0).log2() * (rows(l) + rows(r)) + out() + costs(l) + costs(r)
             }
+            Insert([_, c]) | CopyTo([_, c]) => rows(c) * cols(c) + costs(c),
             // for expressions, the cost is 0.1x AST size
             _ => enode.fold(0.1, |sum, id| sum + costs(&id)),
         };

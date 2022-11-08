@@ -40,6 +40,7 @@ impl ColumnBuilderImpl {
             Date => Self::Date(DateColumnBuilder::new(datatype.nullable, options)),
             Interval => Self::Interval(IntervalColumnBuilder::new(datatype.nullable, options)),
             Blob => Self::Blob(BlobColumnBuilder::new(datatype.nullable, options)),
+            Struct(_) => todo!("struct column builder"),
         }
     }
 

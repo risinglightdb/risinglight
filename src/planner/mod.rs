@@ -1,7 +1,7 @@
 use egg::{define_language, CostFunction, Id, Symbol};
 
-use crate::binder_v2::{BoundDrop, BoundExtSource, BoundTable};
-use crate::catalog::ColumnRefId;
+use crate::binder_v2::{BoundDrop, CreateTable, ExtSource};
+use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
 
@@ -23,12 +23,10 @@ define_language! {
         // values
         Constant(DataValue),            // null, true, 1, 1.0, "hello", ...
         Type(DataTypeKind),             // BOOLEAN, INT, DECIMAL(5), ...
-        // Table(TableRefId),              // $1, $2, ...
         Column(ColumnRefId),            // $1.2, $2.1, ...
+        Table(TableRefId),              // $1, $2, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
-        BoundDrop(BoundDrop),
-        BoundExtSource(BoundExtSource),
-        BoundTable(BoundTable),
+        ExtSource(ExtSource),
 
         // utilities
         "list" = List(Box<[Id]>),       // (list ...)
@@ -104,10 +102,10 @@ define_language! {
         "agg" = Agg([Id; 3]),                   // (agg aggs=[expr..] group_keys=[expr..] child)
                                                     // expressions must be agg
                                                     // output = aggs || group_keys
-        "create" = Create(Id),                  // (create table [column_desc..])
-        // "drop" = Drop(Id),                      // (drop table)
+        CreateTable(CreateTable),
+        Drop(BoundDrop),
         "insert" = Insert([Id; 2]),             // (insert [column..] child)
-        "delete" = Delete([Id; 2]),             // (delete table condition=expr)
+        "delete" = Delete([Id; 2]),             // (delete table child)
         "copy_from" = CopyFrom(Id),             // (copy_from dest)
         "copy_to" = CopyTo([Id; 2]),            // (copy_to dest child)
         "explain" = Explain(Id),                // (explain child)
@@ -130,6 +128,13 @@ impl Expr {
         Self::Constant(DataValue::Null)
     }
 
+    pub fn as_const(&self) -> DataValue {
+        match self {
+            Self::Constant(v) => v.clone(),
+            _ => panic!("not a constant"),
+        }
+    }
+
     pub fn as_list(&self) -> &[Id] {
         match self {
             Self::List(list) => list,
@@ -144,9 +149,9 @@ impl Expr {
         }
     }
 
-    pub fn as_type(&self) -> DataTypeKind {
+    pub fn as_type(&self) -> &DataTypeKind {
         match self {
-            Self::Type(t) => *t,
+            Self::Type(t) => t,
             _ => panic!("not a type"),
         }
     }

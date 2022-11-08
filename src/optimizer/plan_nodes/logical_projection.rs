@@ -24,7 +24,7 @@ impl ExprRewriter for Substitute {
     fn rewrite_input_ref(&self, input_ref: &mut BoundExpr) {
         match input_ref {
             BoundExpr::InputRef(i) => {
-                assert_eq!(self.mapping[i.index].return_type(), i.return_type);
+                assert_eq!(self.mapping[i.index].return_type(), i.return_type.clone());
                 *input_ref = self.mapping[i.index].clone();
             }
             _ => unreachable!(),
@@ -223,9 +223,9 @@ mod tests {
     fn test_prune_projection() {
         let ty = DataTypeKind::Int32.not_null();
         let col_descs = vec![
-            ty.to_column("v1".into()),
-            ty.to_column("v2".into()),
-            ty.to_column("v3".into()),
+            ty.clone().to_column("v1".into()),
+            ty.clone().to_column("v2".into()),
+            ty.clone().to_column("v3".into()),
         ];
         let table_scan = LogicalTableScan::new(
             crate::catalog::TableRefId {
@@ -242,15 +242,15 @@ mod tests {
         let project_expressions = vec![
             BoundExpr::InputRef(BoundInputRef {
                 index: 0,
-                return_type: ty,
+                return_type: ty.clone(),
             }),
             BoundExpr::InputRef(BoundInputRef {
                 index: 1,
-                return_type: ty,
+                return_type: ty.clone(),
             }),
             BoundExpr::InputRef(BoundInputRef {
                 index: 2,
-                return_type: ty,
+                return_type: ty.clone(),
             }),
         ];
         let projection = LogicalProjection::new(project_expressions, table_scan.into_plan_ref());

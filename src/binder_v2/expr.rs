@@ -34,9 +34,7 @@ impl Binder {
             } => self.bind_between(*expr, negated, *low, *high),
             _ => todo!("bind expression: {:?}", expr),
         }?;
-        if let Err(e) = &self.egraph[id].data.type_ {
-            return Err(e.clone().into());
-        }
+        self.check_type(id)?;
         Ok(id)
     }
 
