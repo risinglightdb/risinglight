@@ -5,7 +5,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 use super::*;
-use crate::catalog::{ColumnCatalog, ColumnDesc};
+use crate::catalog::ColumnCatalog;
 use crate::types::{ColumnId, DatabaseId, SchemaId};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
@@ -13,7 +13,7 @@ pub struct CreateTable {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_name: String,
-    pub columns_desc: Vec<ColumnDesc>,
+    pub columns: Vec<ColumnCatalog>,
     pub ordered_pk_ids: Vec<ColumnId>,
 }
 
@@ -21,12 +21,8 @@ impl std::fmt::Display for CreateTable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "databaseId: {}, schemaId: {}, tableName: {}, columnDesc: {:?}, orderedIds: {:?}",
-            self.database_id,
-            self.schema_id,
-            self.table_name,
-            self.columns_desc,
-            self.ordered_pk_ids
+            "databaseId: {}, schemaId: {}, tableName: {}, columns: {:?}, orderedIds: {:?}",
+            self.database_id, self.schema_id, self.table_name, self.columns, self.ordered_pk_ids
         )
     }
 }
@@ -46,7 +42,7 @@ impl Binder {
         columns: &[ColumnDef],
         constraints: &[TableConstraint],
     ) -> Result {
-        let name = lower_case_name(name);
+        let name = lower_case_name(&name);
         let (database_name, schema_name, table_name) = split_name(&name)?;
         let db = self
             .catalog
@@ -109,11 +105,7 @@ impl Binder {
             database_id: db.id(),
             schema_id: schema.id(),
             table_name: table_name.into(),
-            columns_desc: columns
-                .iter()
-                .map(|col| col.desc())
-                .cloned()
-                .collect::<Vec<ColumnDesc>>(),
+            columns,
             ordered_pk_ids,
         }));
         Ok(create)

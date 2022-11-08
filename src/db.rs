@@ -178,8 +178,12 @@ impl Database {
                 let bound = binder.bind(stmt)?;
                 let optimized = crate::planner::optimize(&bound);
                 let executor = match self.storage.clone() {
-                    StorageImpl::InMemoryStorage(s) => crate::executor_v2::build(s, &optimized),
-                    StorageImpl::SecondaryStorage(s) => crate::executor_v2::build(s, &optimized),
+                    StorageImpl::InMemoryStorage(s) => {
+                        crate::executor_v2::build(self.catalog.clone(), s, &optimized)
+                    }
+                    StorageImpl::SecondaryStorage(s) => {
+                        crate::executor_v2::build(self.catalog.clone(), s, &optimized)
+                    }
                 };
                 let output = executor.try_collect().await?;
                 let chunk = Chunk::new(output);

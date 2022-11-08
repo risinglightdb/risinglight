@@ -12,7 +12,7 @@ use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
 use crate::types::{DataTypeKind, DataValue};
 
-mod copy;
+pub mod copy;
 mod create_table;
 mod delete;
 mod drop;
@@ -21,7 +21,6 @@ mod insert;
 mod select;
 mod table;
 
-pub use self::copy::*;
 pub use self::create_table::*;
 pub use self::delete::*;
 pub use self::drop::*;
@@ -92,8 +91,8 @@ impl Binder {
     /// Create a new binder.
     pub fn new(catalog: Arc<RootCatalog>) -> Self {
         Binder {
-            egraph: egg::EGraph::default(),
-            catalog,
+            catalog: catalog.clone(),
+            egraph: egg::EGraph::new(TypeSchemaAnalysis { catalog }),
             contexts: vec![Context::default()],
         }
     }
@@ -173,9 +172,8 @@ impl Binder {
         Ok(())
     }
 
-    fn check_type(&self, id: Id) -> Result<()> {
-        self.egraph[id].data.type_.clone()?;
-        Ok(())
+    fn check_type(&self, id: Id) -> Result<crate::types::DataType> {
+        Ok(self.egraph[id].data.type_.clone()?)
     }
 
     fn bind_explain(&mut self, query: Statement) -> Result {
@@ -196,7 +194,7 @@ fn split_name(name: &ObjectName) -> Result<(&str, &str, &str)> {
 }
 
 /// Convert an object name into lower case
-fn lower_case_name(name: ObjectName) -> ObjectName {
+fn lower_case_name(name: &ObjectName) -> ObjectName {
     ObjectName(
         name.0
             .iter()

@@ -6,6 +6,7 @@ use std::borrow::Borrow;
 use std::fmt;
 
 use egg::{Id, Language};
+use itertools::Itertools;
 
 use crate::array::*;
 use crate::parser::{BinaryOperator, UnaryOperator};
@@ -43,6 +44,12 @@ impl<'a> ExprRef<'a> {
         }
     }
 
+    /// Evaluate a list of expressions.
+    pub fn eval_list(&self, chunk: &DataChunk) -> Result<DataChunk, ConvertError> {
+        let list = self.node().as_list();
+        list.iter().map(|id| self.next(*id).eval(chunk)).collect()
+    }
+
     /// Evaluate the given expression as an array.
     pub fn eval(&self, chunk: &DataChunk) -> Result<ArrayImpl, ConvertError> {
         use Expr::*;
@@ -69,6 +76,7 @@ impl<'a> ExprRef<'a> {
                         .collect(),
                 ))
             }
+            Asc(a) | Desc(a) => self.next(*a).eval(chunk),
             e => {
                 if let Some((op, a, b)) = e.binary_op() {
                     let left = self.next(a).eval(chunk)?;
@@ -82,5 +90,64 @@ impl<'a> ExprRef<'a> {
                 }
             }
         }
+    }
+
+    /// Evaluate a list of aggregations.
+    pub fn eval_agg_list(
+        &self,
+        states: &mut [DataValue],
+        chunk: &DataChunk,
+    ) -> Result<(), ConvertError> {
+        let list = self.node().as_list();
+        for (state, id) in states.iter_mut().zip_eq(list) {
+            *state = self.next(*id).eval_agg(state.clone(), chunk)?;
+        }
+        Ok(())
+    }
+
+    /// Evaluate the aggregation.
+    pub fn eval_agg(&self, state: DataValue, chunk: &DataChunk) -> Result<DataValue, ConvertError> {
+        impl DataValue {
+            fn add(self, other: Self) -> Self {
+                if self.is_null() {
+                    other
+                } else {
+                    self + other
+                }
+            }
+            fn or(self, other: Self) -> Self {
+                if self.is_null() {
+                    other
+                } else {
+                    self
+                }
+            }
+        }
+        use Expr::*;
+        match self.node() {
+            RowCount => Ok(state.add(DataValue::Int32(chunk.cardinality() as _))),
+            Count(a) => Ok(state.add(DataValue::Int32(
+                self.next(*a).eval(chunk)?.get_valid_bitmap().count_ones() as _,
+            ))),
+            Sum(a) => Ok(state.add(self.next(*a).eval(chunk)?.sum())),
+            Min(a) => Ok(state.min(self.next(*a).eval(chunk)?.min_())),
+            Max(a) => Ok(state.max(self.next(*a).eval(chunk)?.max_())),
+            First(a) => Ok(state.or(self.next(*a).eval(chunk)?.first())),
+            Last(a) => Ok(self.next(*a).eval(chunk)?.last().or(state)),
+            t => panic!("not aggregation: {t}"),
+        }
+    }
+
+    /// Returns a list of bools for order keys.
+    ///
+    /// The bool is false if the order is ascending, true if the order is descending.
+    pub fn orders(&self) -> Vec<bool> {
+        (self.node().as_list().iter())
+            .map(|id| match self.next(*id).node() {
+                Expr::Asc(_) => false,
+                Expr::Desc(_) => true,
+                _ => panic!("not order"),
+            })
+            .collect()
     }
 }

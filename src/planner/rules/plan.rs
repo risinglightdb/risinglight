@@ -14,7 +14,7 @@ pub fn always_better_rules() -> Vec<Rewrite> {
 
 #[rustfmt::skip]
 fn cancel_rules() -> Vec<Rewrite> { vec![
-    rw!("limit-null";   "(limit null null ?child)" => "?child"),
+    rw!("limit-null";   "(limit null 0 ?child)" => "?child"),
     rw!("limit-0";      "(limit 0 ?offset ?child)" => "(values)"),
     rw!("filter-true";  "(filter true ?child)" => "?child"),
     rw!("filter-false"; "(filter false ?child)" => "(values)"),
@@ -24,10 +24,6 @@ fn cancel_rules() -> Vec<Rewrite> { vec![
 
 #[rustfmt::skip]
 fn merge_rules() -> Vec<Rewrite> { vec![
-    rw!("topn-limit-order";
-        "(topn ?limit ?offset ?keys ?child)" =>
-        "(limit ?limit ?offset (order ?keys ?child))"
-    ),
     rw!("limit-order-topn";
         "(limit ?limit ?offset (order ?keys ?child))" =>
         "(topn ?limit ?offset ?keys ?child)"
@@ -44,34 +40,33 @@ fn merge_rules() -> Vec<Rewrite> { vec![
 
 #[rustfmt::skip]
 fn pushdown_rules() -> Vec<Rewrite> { vec![
-    pushdown("proj", "?exprs", "order", "?keys"),
     pushdown("proj", "?exprs", "limit", "?limit ?offset"),
-    pushdown("proj", "?exprs", "topn", "?limit ?offset ?keys"),
+    pushdown("limit", "?limit ?offset", "proj", "?exprs"),
     pushdown("filter", "?cond", "order", "?keys"),
     pushdown("filter", "?cond", "limit", "?limit ?offset"),
     pushdown("filter", "?cond", "topn", "?limit ?offset ?keys"),
     rw!("pushdown-filter-join";
-        "(filter ?cond (join ?type ?on ?left ?right))" =>
-        "(join ?type (and ?on ?cond) ?left ?right)"
+        "(filter ?cond (join inner ?on ?left ?right))" =>
+        "(join inner (and ?on ?cond) ?left ?right)"
     ),
     rw!("pushdown-join-left";
-        "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
-        "(join ?type ?cond2 (filter ?cond1 ?left) ?right)"
+        "(join inner (and ?cond1 ?cond2) ?left ?right)" =>
+        "(join inner ?cond2 (filter ?cond1 ?left) ?right)"
         if columns_is_subset("?cond1", "?left")
     ),
     rw!("pushdown-join-left-1";
-        "(join ?type ?cond1 ?left ?right)" =>
-        "(join ?type true (filter ?cond1 ?left) ?right)"
+        "(join inner ?cond1 ?left ?right)" =>
+        "(join inner true (filter ?cond1 ?left) ?right)"
         if columns_is_subset("?cond1", "?left")
     ),
     rw!("pushdown-join-right";
-        "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
-        "(join ?type ?cond2 ?left (filter ?cond1 ?right))"
+        "(join inner (and ?cond1 ?cond2) ?left ?right)" =>
+        "(join inner ?cond2 ?left (filter ?cond1 ?right))"
         if columns_is_subset("?cond1", "?right")
     ),
     rw!("pushdown-join-right-1";
-        "(join ?type ?cond1 ?left ?right)" =>
-        "(join ?type true ?left (filter ?cond1 ?right))"
+        "(join inner ?cond1 ?left ?right)" =>
+        "(join inner true ?left (filter ?cond1 ?right))"
         if columns_is_subset("?cond1", "?right")
     ),
 ]}

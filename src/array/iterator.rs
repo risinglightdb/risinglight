@@ -9,16 +9,16 @@ use super::Array;
 #[derive(Clone)]
 pub struct ArrayIter<'a, A: Array> {
     data: &'a A,
-    pos: usize,
-    _phantom: PhantomData<&'a usize>,
+    begin: usize,
+    end: usize,
 }
 
 impl<'a, A: Array> ArrayIter<'a, A> {
     pub fn new(data: &'a A) -> Self {
         Self {
             data,
-            pos: 0,
-            _phantom: PhantomData,
+            begin: 0,
+            end: data.len(),
         }
     }
 }
@@ -27,18 +27,29 @@ impl<'a, A: Array> Iterator for ArrayIter<'a, A> {
     type Item = Option<&'a A::Item>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.pos >= self.data.len() {
+        if self.begin >= self.end {
             None
         } else {
-            let item = self.data.get(self.pos);
-            self.pos += 1;
+            let item = self.data.get(self.begin);
+            self.begin += 1;
             Some(item)
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let exact = self.data.len() - self.pos;
+        let exact = self.end - self.begin;
         (exact, Some(exact))
+    }
+}
+
+impl<'a, A: Array> DoubleEndedIterator for ArrayIter<'a, A> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.begin >= self.end {
+            None
+        } else {
+            self.end -= 1;
+            Some(self.data.get(self.end))
+        }
     }
 }
 

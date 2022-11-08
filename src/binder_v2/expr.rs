@@ -76,8 +76,6 @@ impl Binder {
                 return Err(BindError::AmbiguousColumn(column_name.into()));
             }
             let id = self.egraph.add(Node::Column(column_ref_id));
-            self.egraph[id].data.type_ =
-                Ok(self.catalog.get_column(&column_ref_id).unwrap().datatype());
             return Ok(id);
         }
         if let Some(id) = self.current_ctx().aliases.get(column_name) {
@@ -192,7 +190,11 @@ impl Binder {
             "max" => Node::Max(args[0]),
             "min" => Node::Min(args[0]),
             "sum" => Node::Sum(args[0]),
-            "avg" => Node::Avg(args[0]),
+            "avg" => {
+                let sum = self.egraph.add(Node::Sum(args[0]));
+                let count = self.egraph.add(Node::Count(args[0]));
+                Node::Div([sum, count])
+            }
             "first" => Node::First(args[0]),
             "last" => Node::Last(args[0]),
             name => todo!("Unsupported function: {}", name),

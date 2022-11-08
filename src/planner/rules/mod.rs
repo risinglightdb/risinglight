@@ -27,6 +27,7 @@ use std::sync::LazyLock;
 use egg::{rewrite as rw, *};
 
 use super::{EGraph, Expr, Pattern, RecExpr, Rewrite};
+use crate::catalog::RootCatalogRef;
 use crate::types::F32;
 
 mod agg;
@@ -132,7 +133,9 @@ impl Analysis<Expr> for ExprAnalysis {
 
 /// Analysis used in binding and building executor.
 #[derive(Default)]
-pub struct TypeSchemaAnalysis;
+pub struct TypeSchemaAnalysis {
+    pub catalog: RootCatalogRef,
+}
 
 #[derive(Debug)]
 pub struct TypeSchema {
@@ -151,7 +154,11 @@ impl Analysis<Expr> for TypeSchemaAnalysis {
 
     fn make(egraph: &egg::EGraph<Expr, Self>, enode: &Expr) -> Self::Data {
         TypeSchema {
-            type_: type_::analyze_type(enode, |i| egraph[*i].data.type_.clone()),
+            type_: type_::analyze_type(
+                enode,
+                |i| egraph[*i].data.type_.clone(),
+                &egraph.analysis.catalog,
+            ),
             schema: schema::analyze_schema(enode, |i| egraph[*i].data.schema.clone()),
         }
     }

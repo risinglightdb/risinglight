@@ -3,6 +3,7 @@ use std::fmt::{Display, Formatter, Result};
 use egg::Id;
 
 use super::{Expr, RecExpr};
+use crate::catalog::RootCatalog;
 
 /// A wrapper over [`RecExpr`] to explain it in [`Display`].
 ///
@@ -15,6 +16,7 @@ use super::{Expr, RecExpr};
 pub struct Explain<'a> {
     expr: &'a RecExpr,
     costs: Option<&'a [f32]>,
+    catalog: Option<&'a RootCatalog>,
     id: Id,
     depth: u8,
 }
@@ -25,19 +27,22 @@ impl<'a> Explain<'a> {
         Self {
             expr,
             costs: None,
+            catalog: None,
             id: Id::from(expr.as_ref().len() - 1),
             depth: 0,
         }
     }
 
-    /// Create a [`Explain`] with costs.
-    pub fn with_costs(expr: &'a RecExpr, costs: &'a [f32]) -> Self {
-        Self {
-            expr,
-            costs: Some(costs),
-            id: Id::from(expr.as_ref().len() - 1),
-            depth: 0,
-        }
+    /// Explain with costs.
+    pub fn with_costs(mut self, costs: &'a [f32]) -> Self {
+        self.costs = Some(costs);
+        self
+    }
+
+    /// Explain column in name.
+    pub fn with_catalog(mut self, catalog: &'a RootCatalog) -> Self {
+        self.catalog = Some(catalog);
+        self
     }
 
     /// Returns a explain for the sub expression.
@@ -46,6 +51,7 @@ impl<'a> Explain<'a> {
         Explain {
             expr: self.expr,
             costs: self.costs,
+            catalog: self.catalog,
             id: *id,
             depth: self.depth,
         }
@@ -57,6 +63,7 @@ impl<'a> Explain<'a> {
         Explain {
             expr: self.expr,
             costs: self.costs,
+            catalog: self.catalog,
             id: *id,
             depth: self.depth + 1,
         }
@@ -109,7 +116,9 @@ impl Display for Explain<'_> {
             Constant(v) => write!(f, "{v}"),
             Type(t) => write!(f, "{t}"),
             Table(i) => write!(f, "{i}"),
-            Column(i) => write!(f, "{i}"),
+            Column(i) => if let Some(catalog) = self.catalog {
+                write!(f, "{}", catalog.get_column(i).expect("no column").name())
+            } else { write!(f, "{i}") },
             ColumnIndex(i) => write!(f, "{i}"),
             ExtSource(src) => write!(f, "path={:?}, format={}", src.path, src.format),
             Symbol(s) => write!(f, "{s}"),
@@ -151,14 +160,15 @@ impl Display for Explain<'_> {
             In([a, b]) => write!(f, "({} in {})", self.expr(a), self.expr(b)),
             Cast([a, b]) => write!(f, "({} :: {})", self.expr(a), self.expr(b)),
 
-            Select([distinct, projection, from, where_, groupby, having]) => write!(
+            Select([distinct, projection, from, where_, groupby, having, orderby]) => write!(
                 f,
-                "{tab}Select:{cost}\n  {tab}distinct={}\n  {tab}projection={}\n  {tab}where={}\n  {tab}groupby={}\n  {tab}having={}\n{}",
+                "{tab}Select:{cost}\n  {tab}distinct={}\n  {tab}projection={}\n  {tab}where={}\n  {tab}groupby={}\n  {tab}having={}\n  {tab}orderby={}\n{}",
                 self.expr(distinct),
                 self.expr(projection),
                 self.expr(where_),
                 self.expr(groupby),
                 self.expr(having),
+                self.expr(orderby),
                 self.child(from),
             ),
             Distinct(_) => todo!(),
@@ -207,14 +217,14 @@ impl Display for Explain<'_> {
             }
             HashJoin([ty, lkeys, rkeys, left, right]) => write!(
                 f,
-                "{tab}HashJoin: {}, lkey={}, rkey={}{cost}\n{}{}",
+                "{tab}HashJoin: {}, on=({} = {}){cost}\n{}{}",
                 self.expr(ty),
                 self.expr(lkeys),
                 self.expr(rkeys),
                 self.child(left),
                 self.child(right)
             ),
-            Inner | LeftOuter | RightOuter | FullOuter | Cross => write!(f, "{}", enode),
+            Inner | LeftOuter | RightOuter | FullOuter => write!(f, "{}", enode),
             Agg([aggs, group_keys, child]) => write!(
                 f,
                 "{tab}Aggregate: {}, groupby={}{cost}\n{}",
@@ -224,9 +234,9 @@ impl Display for Explain<'_> {
             ),
             CreateTable(t) => writeln!(f, "{tab}CreateTable: name={:?}, ...{cost}", t.table_name),
             Drop(t) => writeln!(f, "{tab}Drop: {}, ...{cost}", t.object),
-            Insert([cols, child]) => write!(f, "{tab}Insert: {}{cost}\n{}", self.expr(cols), self.child(child)),
+            Insert([table, cols, child]) => write!(f, "{tab}Insert: {}{}{cost}\n{}", self.expr(table), self.expr(cols), self.child(child)),
             Delete([table, child]) => write!(f, "{tab}Delete: from={}{cost}\n{}", self.expr(table), self.child(child)),
-            CopyFrom(src) => writeln!(f, "{tab}CopyFrom: {}{cost}", self.expr(src)),
+            CopyFrom([src, _]) => writeln!(f, "{tab}CopyFrom: {}{cost}", self.expr(src)),
             CopyTo([dst, child]) => write!(f, "{tab}CopyTo: {}{cost}\n{}", self.expr(dst), self.child(child)),
             Explain(child) => write!(f, "{tab}Explain:{cost}\n{}", self.child(child)),
             Prune(_) => panic!("cannot explain Prune"),

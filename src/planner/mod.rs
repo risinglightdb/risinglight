@@ -1,6 +1,7 @@
 use egg::{define_language, CostFunction, Id, Symbol};
 
-use crate::binder_v2::{BoundDrop, CreateTable, ExtSource};
+use crate::binder_v2::copy::ExtSource;
+use crate::binder_v2::{BoundDrop, CreateTable};
 use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
@@ -72,13 +73,14 @@ define_language! {
 
         "cast" = Cast([Id; 2]),                 // (cast type expr)
 
-        "select" = Select([Id; 6]),             // (select
+        "select" = Select([Id; 7]),             // (select
                                                 //      distinct=[expr..]
                                                 //      select_list=[expr..]
                                                 //      from=join
                                                 //      where=expr
                                                 //      groupby=[expr..]
                                                 //      having=expr
+                                                //      orderby=[order_key..]
                                                 // )
         "distinct" = Distinct([Id; 2]),         // (distinct [expr..] child)
 
@@ -98,15 +100,14 @@ define_language! {
             "left_outer" = LeftOuter,
             "right_outer" = RightOuter,
             "full_outer" = FullOuter,
-            "cross" = Cross,
         "agg" = Agg([Id; 3]),                   // (agg aggs=[expr..] group_keys=[expr..] child)
                                                     // expressions must be agg
                                                     // output = aggs || group_keys
         CreateTable(CreateTable),
         Drop(BoundDrop),
-        "insert" = Insert([Id; 2]),             // (insert [column..] child)
+        "insert" = Insert([Id; 3]),             // (insert table [column..] child)
         "delete" = Delete([Id; 2]),             // (delete table child)
-        "copy_from" = CopyFrom(Id),             // (copy_from dest)
+        "copy_from" = CopyFrom([Id; 2]),        // (copy_from dest types)
         "copy_to" = CopyTo([Id; 2]),            // (copy_to dest child)
         "explain" = Explain(Id),                // (explain child)
 
@@ -128,32 +129,38 @@ impl Expr {
         Self::Constant(DataValue::Null)
     }
 
+    pub const fn zero() -> Self {
+        Self::Constant(DataValue::Int32(0))
+    }
+
     pub fn as_const(&self) -> DataValue {
-        match self {
-            Self::Constant(v) => v.clone(),
-            _ => panic!("not a constant"),
-        }
+        let Self::Constant(v) = self else { panic!("not a constant") };
+        v.clone()
     }
 
     pub fn as_list(&self) -> &[Id] {
-        match self {
-            Self::List(list) => list,
-            _ => panic!("not a list"),
-        }
+        let Self::List(l) = self else { panic!("not a list") };
+        l
     }
 
     pub fn as_column(&self) -> ColumnRefId {
-        match self {
-            Self::Column(c) => *c,
-            _ => panic!("not a column"),
-        }
+        let Self::Column(c) = self else { panic!("not a columnn") };
+        *c
+    }
+
+    pub fn as_table(&self) -> TableRefId {
+        let Self::Table(t) = self else { panic!("not a table") };
+        *t
     }
 
     pub fn as_type(&self) -> &DataTypeKind {
-        match self {
-            Self::Type(t) => t,
-            _ => panic!("not a type"),
-        }
+        let Self::Type(t) = self else { panic!("not a type") };
+        t
+    }
+
+    pub fn as_ext_source(&self) -> ExtSource {
+        let Self::ExtSource(v) = self else { panic!("not an external source") };
+        v.clone()
     }
 
     pub const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {

@@ -6,6 +6,7 @@ use std::borrow::Borrow;
 
 use crate::array::*;
 use crate::binder::BoundExpr;
+use crate::for_all_variants;
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{Blob, ConvertError, DataTypeKind, DataValue, Date, F64};
 
@@ -155,6 +156,13 @@ impl ArrayImpl {
                     #[cfg(not(feature = "simd"))]
                     (A::Float64(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
 
+                    (A::Int32(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
+                    (A::Int64(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
+                    (A::Float64(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from_f64_retain(a.0).unwrap() $op *b)),
+                    (A::Decimal(a), A::Int32(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
+                    (A::Decimal(a), A::Int64(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
+                    (A::Decimal(a), A::Float64(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from_f64_retain(b.0).unwrap())),
+
                     (A::Decimal(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Date(a), A::Interval(b)) => A::new_date(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
 
@@ -172,6 +180,12 @@ impl ArrayImpl {
                     (A::Utf8(a), A::Utf8(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Date(a), A::Date(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Decimal(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+                    (A::Int32(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
+                    (A::Int64(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
+                    (A::Float64(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from_f64_retain(a.0).unwrap() $op *b)),
+                    (A::Decimal(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
+                    (A::Decimal(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
+                    (A::Decimal(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from_f64_retain(b.0).unwrap())),
                     _ => return Err(no_op()),
                 }
             }
@@ -356,7 +370,56 @@ impl ArrayImpl {
             Self::Interval(_) => return Err(ConvertError::FromIntervalError(data_type.clone())),
         })
     }
+
+    /// Returns the sum of values.
+    pub fn sum(&self) -> DataValue {
+        match self {
+            Self::Int32(a) => DataValue::Int32(a.iter().flatten().sum()),
+            Self::Int64(a) => DataValue::Int64(a.iter().flatten().sum()),
+            Self::Float64(a) => DataValue::Float64(a.iter().flatten().sum()),
+            Self::Decimal(a) => DataValue::Decimal(a.iter().flatten().sum()),
+            Self::Interval(a) => DataValue::Interval(a.iter().flatten().sum()),
+            _ => panic!("can not sum array"),
+        }
+    }
 }
+
+/// Implement aggregation functions.
+macro_rules! impl_agg {
+    ([], $( { $Abc:ident, $Type:ty, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Pattern:pat } ),*) => {
+        impl ArrayImpl {
+            /// Returns the minimum of values.
+            pub fn min_(&self) -> DataValue {
+                match self {
+                    $(Self::$Abc(a) => a.iter().flatten().min().into(),)*
+                }
+            }
+
+            /// Returns the maximum of values.
+            pub fn max_(&self) -> DataValue {
+                match self {
+                    $(Self::$Abc(a) => a.iter().flatten().max().into(),)*
+                }
+            }
+
+            /// Returns the first non-null value.
+            pub fn first(&self) -> DataValue {
+                match self {
+                    $(Self::$Abc(a) => a.iter().flatten().next().into(),)*
+                }
+            }
+
+            /// Returns the last non-null value.
+            pub fn last(&self) -> DataValue {
+                match self {
+                    $(Self::$Abc(a) => a.iter().rev().flatten().next().into(),)*
+                }
+            }
+        }
+    }
+}
+
+for_all_variants! { impl_agg }
 
 use std::simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
 

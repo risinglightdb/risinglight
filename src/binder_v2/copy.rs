@@ -1,4 +1,4 @@
-use std::result::Result as RawResult;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
@@ -7,7 +7,7 @@ use super::*;
 
 #[derive(Debug, PartialEq, PartialOrd, Ord, Hash, Eq, Clone, Serialize, Deserialize)]
 pub struct ExtSource {
-    pub path: String,
+    pub path: PathBuf,
     pub format: FileFormat,
 }
 
@@ -40,8 +40,7 @@ impl std::fmt::Display for FileFormat {
 
 impl FromStr for ExtSource {
     type Err = ();
-
-    fn from_str(_s: &str) -> RawResult<Self, Self::Err> {
+    fn from_str(_s: &str) -> std::result::Result<Self, Self::Err> {
         Err(())
     }
 }
@@ -55,11 +54,11 @@ impl Binder {
         target: CopyTarget,
         options: &[CopyOption],
     ) -> Result {
-        let cols = self.bind_table_columns(table_name, columns)?;
+        let cols = self.bind_table_columns(&table_name, columns)?;
 
         let ext_source = self.egraph.add(Node::ExtSource(ExtSource {
             path: match target {
-                CopyTarget::File { filename } => filename,
+                CopyTarget::File { filename } => filename.into(),
                 t => todo!("unsupported copy target: {:?}", t),
             },
             format: FileFormat::from_options(options),
@@ -71,8 +70,11 @@ impl Binder {
             self.egraph.add(Node::CopyTo([ext_source, scan]))
         } else {
             // COPY <dest_table> FROM <source_file>
-            let copy = self.egraph.add(Node::CopyFrom(ext_source));
-            self.egraph.add(Node::Insert([cols, copy]))
+            let table = self.bind_table_id(&table_name)?;
+            let types = self.check_type(cols)?.kind();
+            let types = self.egraph.add(Node::Type(types));
+            let copy = self.egraph.add(Node::CopyFrom([ext_source, types]));
+            self.egraph.add(Node::Insert([table, cols, copy]))
         };
 
         Ok(copy)

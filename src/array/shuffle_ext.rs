@@ -122,7 +122,7 @@ pub trait ArrayImplSortExt {
 
 /// Implement dispatch functions for `ArrayImplBuilderPickExt` and `ArrayImplSortExt`
 macro_rules! impl_array_impl_shuffle_ext {
-    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Type:pat } ),*) => {
+    ([], $( { $Abc:ident, $Type:ty, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Pattern:pat } ),*) => {
         impl ArrayImplBuilderPickExt for ArrayBuilderImpl {
             fn pick_from(&mut self, array: &ArrayImpl, logical_rows: &[usize]) {
                 match (self, array) {

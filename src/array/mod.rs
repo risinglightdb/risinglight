@@ -225,15 +225,15 @@ macro_rules! for_all_variants {
     ($macro:tt $(, $x:tt)*) => {
         $macro! {
             [$($x),*],
-            { Int32, int32, I32Array, I32ArrayBuilder, Int32, Int32 },
-            { Int64, int64, I64Array, I64ArrayBuilder, Int64, Int64 },
-            { Float64, float64, F64Array, F64ArrayBuilder, Float64, Float64 },
-            { Utf8, utf8, Utf8Array, Utf8ArrayBuilder, String, String },
-            { Blob, blob, BlobArray, BlobArrayBuilder, Blob, Blob },
-            { Bool, bool, BoolArray, BoolArrayBuilder, Bool, Bool },
-            { Decimal, decimal, DecimalArray, DecimalArrayBuilder, Decimal, Decimal(_, _) },
-            { Date, date, DateArray, DateArrayBuilder, Date, Date },
-            { Interval, interval, IntervalArray, IntervalArrayBuilder, Interval, Interval }
+            { Bool, bool, bool, BoolArray, BoolArrayBuilder, Bool, Bool },
+            { Int32, i32, int32, I32Array, I32ArrayBuilder, Int32, Int32 },
+            { Int64, i64, int64, I64Array, I64ArrayBuilder, Int64, Int64 },
+            { Float64, F64, float64, F64Array, F64ArrayBuilder, Float64, Float64 },
+            { Decimal, Decimal, decimal, DecimalArray, DecimalArrayBuilder, Decimal, Decimal(_, _) },
+            { Date, Date, date, DateArray, DateArrayBuilder, Date, Date },
+            { Interval, Interval, interval, IntervalArray, IntervalArrayBuilder, Interval, Interval },
+            { Utf8, str, utf8, Utf8Array, Utf8ArrayBuilder, String, String },
+            { Blob, BlobRef, blob, BlobArray, BlobArrayBuilder, Blob, Blob }
         }
     };
 }
@@ -244,7 +244,7 @@ pub struct TypeMismatch;
 
 /// Implement `From` and `TryFrom` between conversions of concrete array types and enum sum type.
 macro_rules! impl_from {
-    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Type:pat } ),*) => {
+    ([], $( { $Abc:ident, $Type:ty, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Pattern:pat } ),*) => {
         $(
             /// Implement `AbcArray -> ArrayImpl`
             impl From<$AbcArray> for ArrayImpl {
@@ -315,7 +315,7 @@ for_all_variants! { impl_from }
 
 /// Implement dispatch functions for `ArrayBuilderImpl`.
 macro_rules! impl_array_builder {
-    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Type:pat } ),*) => {
+    ([], $( { $Abc:ident, $Type:ty, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Pattern:pat } ),*) => {
         impl ArrayBuilderImpl {
             /// Reserve at least `capacity` values.
             pub fn reserve(&mut self, capacity: usize) {
@@ -342,7 +342,7 @@ macro_rules! impl_array_builder {
                     Null => Self::Int32(I32ArrayBuilder::with_capacity(capacity)),
                     Struct(_) => todo!("array of Struct type"),
                     $(
-                        $Type => Self::$Abc(<$AbcArrayBuilder>::with_capacity(capacity)),
+                        $Pattern => Self::$Abc(<$AbcArrayBuilder>::with_capacity(capacity)),
                     )*
                 }
             }
@@ -444,7 +444,7 @@ impl ArrayBuilderImpl {
 
 /// Implement dispatch functions for `ArrayImpl`.
 macro_rules! impl_array {
-    ([], $( { $Abc:ident, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Type:pat } ),*) => {
+    ([], $( { $Abc:ident, $Type:ty, $abc:ident, $AbcArray:ty, $AbcArrayBuilder:ty, $Value:ident, $Pattern:pat } ),*) => {
         impl ArrayImpl {
             $(
                 paste! {

@@ -53,7 +53,7 @@ impl Binder {
     ) -> Result {
         match object_type {
             ObjectType::Table => {
-                let name = lower_case_name(names[0].clone());
+                let name = lower_case_name(&names[0]);
                 let (database_name, schema_name, table_name) = split_name(&name)?;
                 let table_ref_id = self
                     .catalog

@@ -22,65 +22,64 @@ use futures_async_stream::try_stream;
 use itertools::Itertools;
 use minitrace::prelude::*;
 
-use self::evaluator::*;
-// pub use self::aggregation::*;
-// use self::copy_from_file::*;
-// use self::copy_to_file::*;
-// use self::create::*;
+use self::copy_from_file::*;
+use self::copy_to_file::*;
+use self::create::*;
 // use self::delete::*;
-// use self::drop::*;
+use self::drop::*;
+use self::evaluator::*;
 // use self::dummy_scan::*;
 use self::explain::*;
 use self::filter::*;
-// use self::hash_agg::*;
-// use self::hash_join::*;
-// use self::insert::*;
+use self::hash_agg::*;
+use self::hash_join::*;
+use self::insert::*;
 // use self::internal::*;
-// use self::limit::*;
-// use self::nested_loop_join::*;
-// use self::order::*;
+use self::limit::*;
+use self::nested_loop_join::*;
+use self::order::*;
 // #[allow(unused_imports)]
 // use self::perfect_hash_agg::*;
 use self::projection::*;
-// use self::simple_agg::*;
+use self::simple_agg::*;
 // #[allow(unused_imports)]
 // use self::sort_agg::*;
 // #[allow(unused_imports)]
 // use self::sort_merge_join::*;
 use self::table_scan::*;
-// use self::top_n::TopNExecutor;
+use self::top_n::TopNExecutor;
 use self::values::*;
 use crate::array::DataChunk;
 use crate::binder::BoundExpr;
+use crate::catalog::RootCatalogRef;
 use crate::function::FunctionError;
 use crate::planner::{ColumnIndexResolver, Expr, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, StorageImpl, TracedStorageError};
 use crate::types::{ConvertError, DataType, DataValue};
 
-// mod aggregation;
-// mod copy_from_file;
-// mod copy_to_file;
-// mod create;
+mod copy_from_file;
+mod copy_to_file;
+mod create;
 // mod delete;
-// mod drop;
+mod drop;
 // mod dummy_scan;
 mod evaluator;
 mod explain;
 mod filter;
-// mod hash_agg;
-// mod hash_join;
-// mod insert;
+mod hash_agg;
+mod hash_join;
+mod insert;
 // mod internal;
-// mod limit;
-// mod nested_loop_join;
-// mod order;
+mod limit;
+mod nested_loop_join;
+mod order;
 // mod perfect_hash_agg;
 mod projection;
-// mod simple_agg;
+mod simple_agg;
 // mod sort_agg;
 // mod sort_merge_join;
 mod table_scan;
-// mod top_n;
+mod top_n;
 mod values;
 
 /// The error type of execution.
@@ -137,24 +136,28 @@ const PROCESSING_WINDOW_SIZE: usize = 1024;
 /// and produces a stream to its parent.
 pub type BoxedExecutor = BoxStream<'static, Result<DataChunk, ExecutorError>>;
 
-pub fn build(storage: Arc<impl Storage>, plan: &RecExpr) -> BoxedExecutor {
-    Builder::new(storage, plan).build()
+pub fn build(catalog: RootCatalogRef, storage: Arc<impl Storage>, plan: &RecExpr) -> BoxedExecutor {
+    Builder::new(catalog, storage, plan).build()
 }
 
 /// The builder of executor.
 struct Builder<S: Storage> {
     storage: Arc<S>,
+    catalog: RootCatalogRef,
     egraph: egg::EGraph<Expr, TypeSchemaAnalysis>,
     root: Id,
 }
 
 impl<S: Storage> Builder<S> {
     /// Create a new executor builder.
-    fn new(storage: Arc<S>, plan: &RecExpr) -> Self {
-        let mut egraph = egg::EGraph::default();
+    fn new(catalog: RootCatalogRef, storage: Arc<S>, plan: &RecExpr) -> Self {
+        let mut egraph = egg::EGraph::new(TypeSchemaAnalysis {
+            catalog: catalog.clone(),
+        });
         let root = egraph.add_expr(plan);
         Builder {
             storage,
+            catalog,
             egraph,
             root,
         }
@@ -214,13 +217,7 @@ impl<S: Storage> Builder<S> {
             .execute(),
 
             Proj([projs, child]) => ProjectionExecutor {
-                projs: {
-                    let expr = self.resolve_column_index(projs, child);
-                    (expr.as_ref().last().unwrap().as_list())
-                        .iter()
-                        .map(|id| expr[*id].build_recexpr(|id| expr[id].clone()))
-                        .collect()
-                },
+                projs: self.resolve_column_index(projs, child),
             }
             .execute(self.build_id(child)),
 
@@ -229,21 +226,95 @@ impl<S: Storage> Builder<S> {
             }
             .execute(self.build_id(child)),
 
-            Order(_) => todo!(),
-            Limit(_) => todo!(),
-            TopN(_) => todo!(),
-            Join(_) => todo!(),
-            HashJoin(_) => todo!(),
-            Agg(_) => todo!(),
-            CreateTable(_) => todo!(),
-            Drop(_) => todo!(),
-            Insert(_) => todo!(),
+            Order([order_keys, child]) => OrderExecutor {
+                order_keys: self.resolve_column_index(order_keys, child),
+                types: self.plan_types(id).to_vec(),
+            }
+            .execute(self.build_id(child)),
+
+            Limit([limit, offset, child]) => LimitExecutor {
+                limit: (self.node(limit).as_const().as_usize().unwrap()).unwrap_or(usize::MAX / 2),
+                offset: self.node(offset).as_const().as_usize().unwrap().unwrap(),
+            }
+            .execute(self.build_id(child)),
+
+            TopN([limit, offset, order_keys, child]) => TopNExecutor {
+                limit: (self.node(limit).as_const().as_usize().unwrap()).unwrap_or(usize::MAX / 2),
+                offset: self.node(offset).as_const().as_usize().unwrap().unwrap(),
+                order_keys: self.resolve_column_index(order_keys, child),
+                types: self.plan_types(id).to_vec(),
+            }
+            .execute(self.build_id(child)),
+
+            Join([op, on, left, right]) => NestedLoopJoinExecutor {
+                op: self.node(op).clone(),
+                condition: self.recexpr(on),
+                left_types: self.plan_types(left).to_vec(),
+                right_types: self.plan_types(right).to_vec(),
+            }
+            .execute(self.build_id(left), self.build_id(right)),
+
+            HashJoin([op, lkeys, rkeys, left, right]) => HashJoinExecutor {
+                op: self.node(op).clone(),
+                left_keys: self.resolve_column_index(lkeys, left),
+                right_keys: self.resolve_column_index(rkeys, right),
+                left_types: self.plan_types(left).to_vec(),
+                right_types: self.plan_types(right).to_vec(),
+            }
+            .execute(self.build_id(left), self.build_id(right)),
+
+            Agg([aggs, group_keys, child]) => {
+                let aggs = self.resolve_column_index(aggs, child);
+                let group_keys = self.resolve_column_index(group_keys, child);
+                if group_keys.as_ref().last().unwrap().as_list().is_empty() {
+                    SimpleAggExecutor { aggs }.execute(self.build_id(child))
+                } else {
+                    HashAggExecutor {
+                        aggs,
+                        group_keys,
+                        types: self.plan_types(id).to_vec(),
+                    }
+                    .execute(self.build_id(child))
+                }
+            }
+
+            CreateTable(plan) => CreateTableExecutor {
+                plan,
+                storage: self.storage.clone(),
+            }
+            .execute(),
+
+            Drop(plan) => DropExecutor {
+                plan,
+                storage: self.storage.clone(),
+            }
+            .execute(),
+
+            Insert([table, cols, child]) => InsertExecutor {
+                table_id: self.node(table).as_table(),
+                column_ids: (self.node(cols).as_list().iter())
+                    .map(|id| self.node(*id).as_column().column_id)
+                    .collect(),
+                storage: self.storage.clone(),
+            }
+            .execute(self.build_id(child)),
+
             Delete(_) => todo!(),
-            CopyFrom(_) => todo!(),
-            CopyTo(_) => todo!(),
+
+            CopyFrom([src, types]) => CopyFromFileExecutor {
+                source: self.node(src).as_ext_source(),
+                types: self.node(types).as_type().as_struct().to_vec(),
+            }
+            .execute(),
+
+            CopyTo([src, child]) => CopyToFileExecutor {
+                source: self.node(src).as_ext_source(),
+            }
+            .execute(self.build_id(child)),
 
             Explain(plan) => ExplainExecutor {
                 plan: self.recexpr(plan),
+                catalog: self.catalog.clone(),
             }
             .execute(),
 

@@ -11,7 +11,7 @@ impl Binder {
         for table in tables {
             let table_node = self.bind_table_with_joins(table)?;
             node = Some(if let Some(node) = node {
-                let ty = self.egraph.add(Node::Cross);
+                let ty = self.egraph.add(Node::Inner);
                 let expr = self.egraph.add(Node::true_());
                 self.egraph.add(Node::Join([ty, expr, node, table_node]))
             } else {
@@ -78,7 +78,7 @@ impl Binder {
                 Ok((ty, condition))
             }
             CrossJoin => {
-                let ty = self.egraph.add(Node::Cross);
+                let ty = self.egraph.add(Node::Inner);
                 let condition = self.egraph.add(Node::true_());
                 Ok((ty, condition))
             }
@@ -94,7 +94,7 @@ impl Binder {
     }
 
     fn bind_table_name(&mut self, name: ObjectName) -> Result {
-        let name = lower_case_name(name);
+        let name = lower_case_name(&name);
         let (database_name, schema_name, table_name) = split_name(&name)?;
         if self.current_ctx().tables.contains_key(table_name) {
             return Err(BindError::DuplicatedTable(table_name.into()));
@@ -120,7 +120,7 @@ impl Binder {
     /// Returns the Id of a list of columns.
     pub(super) fn bind_table_columns(
         &mut self,
-        table_name: ObjectName,
+        table_name: &ObjectName,
         columns: &[Ident],
     ) -> Result {
         let name = lower_case_name(table_name);
@@ -158,20 +158,15 @@ impl Binder {
     }
 
     /// Returns the Id of a node `TableRefId`.
-    pub(super) fn bind_table_id(&mut self, table: TableFactor) -> Result {
-        match table {
-            TableFactor::Table { name, .. } => {
-                let name = lower_case_name(name);
-                let (database_name, schema_name, table_name) = split_name(&name)?;
+    pub(super) fn bind_table_id(&mut self, table_name: &ObjectName) -> Result {
+        let name = lower_case_name(table_name);
+        let (database_name, schema_name, table_name) = split_name(&name)?;
 
-                let table_ref_id = self
-                    .catalog
-                    .get_table_id_by_name(database_name, schema_name, table_name)
-                    .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
-                let id = self.egraph.add(Node::Table(table_ref_id));
-                Ok(id)
-            }
-            _ => panic!("bind table id"),
-        }
+        let table_ref_id = self
+            .catalog
+            .get_table_id_by_name(database_name, schema_name, table_name)
+            .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
+        let id = self.egraph.add(Node::Table(table_ref_id));
+        Ok(id)
     }
 }
