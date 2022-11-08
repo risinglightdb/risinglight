@@ -251,6 +251,14 @@ impl ArrayImpl {
     pub fn try_cast(&self, data_type: &DataTypeKind) -> Result<Self, ConvertError> {
         type Type = DataTypeKind;
         Ok(match self {
+            Self::Null(a) => {
+                let mut builder =
+                    ArrayBuilderImpl::with_capacity(a.len(), &data_type.clone().nullable());
+                for _ in 0..a.len() {
+                    builder.push(&DataValue::Null);
+                }
+                builder.finish().into()
+            }
             Self::Bool(a) => match data_type {
                 Type::Bool => Self::Bool(a.clone()),
                 Type::Int32 => Self::new_int32(unary_op(a.as_ref(), |&b| b as i32)),
@@ -277,7 +285,7 @@ impl ArrayImpl {
                     Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
                 }
                 Type::Date => return Err(ConvertError::ToDateError(Type::Int32)),
-                _ => todo!("cast array"),
+                t => todo!("cast array: INT -> {t}"),
             },
             Self::Int64(a) => match data_type {
                 Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&i| i != 0)),

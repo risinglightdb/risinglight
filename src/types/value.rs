@@ -6,7 +6,7 @@ use serde::Serialize;
 
 use super::*;
 use crate::array::ArrayImpl;
-use crate::for_all_variants;
+use crate::for_all_variants_without_null;
 
 /// Primitive SQL value.
 #[derive(Debug, Display, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -211,7 +211,13 @@ macro_rules! impl_min_max {
     }
 }
 
-for_all_variants! { impl_min_max }
+for_all_variants_without_null! { impl_min_max }
+
+impl From<Option<&()>> for DataValue {
+    fn from(_: Option<&()>) -> Self {
+        Self::Null
+    }
+}
 
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
 pub enum ParseValueError {

@@ -24,7 +24,7 @@ macro_rules! update_func {
         impl FirstLastAggregationState {
 
             pub fn update_impl(&mut self, array: &ArrayImpl) {
-                match (array) {
+                match array {
                     $(
                         ArrayImpl::$Abc(arr) => {
                             match &self.result {
@@ -69,6 +69,7 @@ macro_rules! update_func {
 }
 
 update_func!(
+    {Null, Null},
     {Bool, Bool},
     {Int32, Int32},
     {Int64, Int64},
