@@ -466,7 +466,10 @@ impl ArrayBuilderImpl {
             Self::Date(a) => a.push(Some(
                 &Date::from_str(s).map_err(|e| ConvertError::ParseDate(s.to_string(), e))?,
             )),
-            Self::Interval(_) => return Err(ConvertError::ParseInterval(s.to_string())),
+            Self::Interval(a) => a.push(Some(
+                &Interval::from_str(s)
+                    .map_err(|e| ConvertError::ParseInterval(s.to_string(), e))?,
+            )),
         }
         Ok(())
     }

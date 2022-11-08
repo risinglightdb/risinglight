@@ -256,16 +256,14 @@ pub enum ConvertError {
     ParseDecimal(String, #[source] rust_decimal::Error),
     #[error("failed to convert string {0:?} to date: {1:?}")]
     ParseDate(String, #[source] chrono::ParseError),
-    #[error("failed to convert string {0:?} to interval")]
-    ParseInterval(String),
+    #[error("failed to convert string {0:?} to interval: {1:?}")]
+    ParseInterval(String, #[source] ParseIntervalError),
     #[error("failed to convert string {0:?} to blob: {1:?}")]
     ParseBlob(String, #[source] ParseBlobError),
     #[error("failed to convert {0:?} to decimal")]
     ToDecimalError(DataValue),
     #[error("failed to convert {0:?} from decimal {1:?}")]
     FromDecimalError(DataTypeKind, DataValue),
-    #[error("failed to convert {0:?} to date")]
-    ToDateError(DataTypeKind),
     #[error("failed to convert {0:?} from date")]
     FromDateError(DataTypeKind),
     #[error("failed to convert {0:?} from interval")]
@@ -278,6 +276,8 @@ pub enum ConvertError {
     NoUnaryOp(String, &'static str),
     #[error("no function {0}({1}, {2})")]
     NoBinaryOp(String, &'static str, &'static str),
+    #[error("no cast {0} -> {1}")]
+    NoCast(&'static str, DataTypeKind),
 }
 
 /// The physical index to the column from child plan.
