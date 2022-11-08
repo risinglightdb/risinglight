@@ -1,4 +1,5 @@
 use super::*;
+use crate::planner::ExprExt;
 use crate::types::DataValue;
 
 /// The data type of row number analysis.
@@ -21,7 +22,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         Scan(_) => 1000.0, // TODO: get from table
         Proj([_, c]) | Order([_, c]) => x(c),
         Agg([_, groupby, c]) => {
-            if egraph[*groupby].nodes[0].as_list().is_empty() {
+            if egraph[*groupby].as_list().is_empty() {
                 1.0
             } else {
                 x(c) / 2.0 // TODO: group by cardinality

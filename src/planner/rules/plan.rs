@@ -236,10 +236,7 @@ impl Applier<Expr, ExprAnalysis> for PruneList {
         _rule_name: Symbol,
     ) -> Vec<Id> {
         let used_columns = &egraph[subst[self.set]].data.columns;
-        let list = match &egraph[subst[self.list]].nodes[0] {
-            Expr::List(list) => list.as_slice(),
-            _ => unreachable!("should be a list"),
-        };
+        let list = egraph[subst[self.list]].nodes[0].as_list();
         let pruned = (list.iter().cloned())
             .filter(|id| !egraph[*id].data.columns.is_disjoint(used_columns))
             .collect();
