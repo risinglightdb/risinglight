@@ -162,12 +162,15 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
         }
     }
 
-    fn fetch_hint_inner(&self) -> usize {
+    fn fetch_hint_inner(&self) -> (usize, bool) {
         if self.finished {
-            return 0;
+            return (0, true);
         }
         let index = self.column.index().index(self.current_block_id);
-        (index.row_count - (self.current_row_id - index.first_rowid)) as usize
+        (
+            (index.row_count - (self.current_row_id - index.first_rowid)) as usize,
+            false,
+        )
     }
 
     /// Increment the `current_block_id` by 1 and check whether it exceeds max block id.
@@ -245,7 +248,7 @@ impl<A: Array, F: BlockIteratorFactory<A>> ColumnIterator<A> for ConcreteColumnI
             self.next_batch_inner(expected_size).await
         }
     }
-    fn fetch_hint(&self) -> usize {
+    fn fetch_hint(&self) -> (usize, bool) {
         self.fetch_hint_inner()
     }
 

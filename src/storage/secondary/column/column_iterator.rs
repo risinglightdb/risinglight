@@ -117,7 +117,7 @@ impl ColumnIteratorImpl {
         Ok(result)
     }
 
-    pub fn fetch_hint(&self) -> usize {
+    pub fn fetch_hint(&self) -> (usize, bool) {
         match self {
             Self::Int32(it) => it.fetch_hint(),
             Self::Int64(it) => it.fetch_hint(),
