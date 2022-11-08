@@ -52,10 +52,8 @@ impl DataTypeKind {
 
     /// Returns the inner types of the struct.
     pub fn as_struct(&self) -> &[DataType] {
-        match self {
-            Self::Struct(types) => types,
-            _ => panic!("not a struct type"),
-        }
+        let Self::Struct(types) = self else { panic!("not a struct: {self}") };
+        types
     }
 
     /// Returns the minimum compatible type of 2 types.

@@ -202,7 +202,11 @@ impl<S: Storage> Builder<S> {
             .execute(),
 
             Values(rows) => ValuesExecutor {
-                column_types: self.plan_types(id).to_vec(),
+                column_types: if rows.is_empty() {
+                    vec![]
+                } else {
+                    self.plan_types(id).to_vec()
+                },
                 values: {
                     rows.iter()
                         .map(|row| {
