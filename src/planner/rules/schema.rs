@@ -86,7 +86,7 @@ pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
         List(ids) => ids.to_vec(),
 
         // plans that change schema
-        Scan(columns) => x(columns)?,
+        Scan([_, columns]) => x(columns)?,
         Values(vs) => vs.first().and_then(x)?,
         Proj([exprs, _]) | Select([exprs, ..]) => x(exprs)?,
         Agg([exprs, group_keys, _]) => concat(x(exprs)?, x(group_keys)?),

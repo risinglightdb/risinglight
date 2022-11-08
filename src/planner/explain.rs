@@ -173,7 +173,7 @@ impl Display for Explain<'_> {
             ),
             Distinct(_) => todo!(),
 
-            Scan(list) => writeln!(f, "{tab}Scan: {}{cost}", self.expr(list)),
+            Scan([table, list]) => writeln!(f, "{tab}Scan: {}{}{cost}", self.expr(table), self.expr(list)),
             Values(rows) => writeln!(f, "{tab}Values: {} rows{cost}", rows.len()),
             Proj([exprs, child]) => write!(
                 f,

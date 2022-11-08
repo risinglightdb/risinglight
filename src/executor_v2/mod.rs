@@ -192,7 +192,8 @@ impl<S: Storage> Builder<S> {
     fn build_id(&mut self, id: Id) -> BoxedExecutor {
         use Expr::*;
         match self.node(id).clone() {
-            Scan(list) => TableScanExecutor {
+            Scan([table, list]) => TableScanExecutor {
+                table_id: self.node(table).as_table(),
                 columns: (self.node(list).as_list().iter())
                     .map(|id| self.node(*id).as_column())
                     .collect(),

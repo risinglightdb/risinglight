@@ -95,7 +95,7 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) => concat_struct(x(l)?, x(r)?),
 
         // plans that change schema
-        Scan(columns) => x(columns),
+        Scan([_, columns]) => x(columns),
         Values(rows) => {
             if rows.is_empty() {
                 return Ok(Kind::Null.not_null());

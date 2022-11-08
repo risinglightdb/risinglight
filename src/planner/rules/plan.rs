@@ -153,8 +153,8 @@ pub fn column_prune_rules() -> Vec<Rewrite> { vec![
         "(proj (prune ?set ?exprs) ?child))"
     ),
     rw!("prune-scan";
-        "(prune ?set (scan ?columns))" =>
-        "(scan (prune ?set ?columns))"
+        "(prune ?set (scan ?table ?columns))" =>
+        "(scan ?table (prune ?set ?columns))"
     ),
     // finally the prune is applied to a list of expressions
     rw!("prune-list";
@@ -275,14 +275,14 @@ mod tests {
         (proj (list $1.2 $2.2)
         (filter (and (= $1.1 $2.1) (= $2.3 'A'))
         (join inner true
-            (scan (list $1.1 $1.2))
-            (scan (list $2.1 $2.2 $2.3))
+            (scan $1 (list $1.1 $1.2))
+            (scan $2 (list $2.1 $2.2 $2.3))
         )))" => "
         (proj (list $1.2 $2.2)
         (join inner (= $1.1 $2.1)
-            (scan (list $1.1 $1.2))
+            (scan $1 (list $1.1 $1.2))
             (filter (= $2.3 'A')
-                (scan (list $2.1 $2.2 $2.3))
+                (scan $2 (list $2.1 $2.2 $2.3))
             )
         ))"
     }
@@ -296,16 +296,16 @@ mod tests {
         (filter (and (= $1.1 $2.1) (= $3.1 $2.1))
         (join inner true
             (join inner true
-                (scan (list $1.1 $1.2))
-                (scan (list $2.1 $2.2))
+                (scan $1 (list $1.1 $1.2))
+                (scan $2 (list $2.1 $2.2))
             )
-            (scan (list $3.1 $3.2))
+            (scan $3 (list $3.1 $3.2))
         ))" => "
         (join inner (= $1.1 $2.1)
-            (scan (list $1.1 $1.2))
+            (scan $1 (list $1.1 $1.2))
             (join inner (= $2.1 $3.1)
-                (scan (list $2.1 $2.2))
-                (scan (list $3.1 $3.2))
+                (scan $2 (list $2.1 $2.2))
+                (scan $3 (list $3.1 $3.2))
             )
         )"
     }
@@ -318,14 +318,14 @@ mod tests {
         "
         (filter (and (= $1.1 $2.1) (> $1.2 2))
         (join inner true
-            (scan (list $1.1 $1.2))
-            (scan (list $2.1 $2.2))
+            (scan $1 (list $1.1 $1.2))
+            (scan $2 (list $2.1 $2.2))
         ))" => "
         (hashjoin inner (list $1.1) (list $2.1)
             (filter (> $1.2 2)
-                (scan (list $1.1 $1.2))
+                (scan $1 (list $1.1 $1.2))
             )
-            (scan (list $2.1 $2.2))
+            (scan $2 (list $2.1 $2.2))
         )"
     }
 
@@ -337,14 +337,14 @@ mod tests {
         (proj (list $1.2)
         (filter (> (+ $1.2 $2.2) 1)
         (join inner (= $1.1 $2.1)
-            (scan (list $1.1 $1.2))
-            (scan (list $2.1 $2.2 $2.3))
+            (scan $1 (list $1.1 $1.2))
+            (scan $2 (list $2.1 $2.2 $2.3))
         )))" => "
         (proj (list $1.2)
         (filter (> (+ $1.2 $2.2) 1)
         (join inner (= $1.1 $2.1)
-            (scan (list $1.1 $1.2))
-            (scan (list $2.1 $2.2))
+            (scan $1 (list $1.1 $1.2))
+            (scan $2 (list $2.1 $2.2))
         )))"
     }
 }

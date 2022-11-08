@@ -4,11 +4,12 @@ use std::sync::Arc;
 
 use super::*;
 use crate::array::DataChunk;
-use crate::catalog::ColumnRefId;
+use crate::catalog::{ColumnRefId, TableRefId};
 use crate::storage::{Storage, StorageColumnRef, Table, Transaction, TxnIterator};
 
 /// The executor of table scan operation.
 pub struct TableScanExecutor<S: Storage> {
+    pub table_id: TableRefId,
     pub columns: Vec<ColumnRefId>,
     pub storage: Arc<S>,
 }
@@ -16,7 +17,7 @@ pub struct TableScanExecutor<S: Storage> {
 impl<S: Storage> TableScanExecutor<S> {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
-        let table = self.storage.get_table(self.columns[0].table())?;
+        let table = self.storage.get_table(self.table_id)?;
 
         let mut col_idx = self
             .columns

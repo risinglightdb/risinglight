@@ -11,7 +11,7 @@ impl Binder {
         };
         let table_id = self.bind_table_id(name)?;
         let cols = self.bind_table_name(name)?;
-        let scan = self.egraph.add(Node::Scan(cols));
+        let scan = self.egraph.add(Node::Scan([table_id, cols]));
         let cond = self.bind_where(selection)?;
         let filter = self.egraph.add(Node::Filter([cond, scan]));
         Ok(self.egraph.add(Node::Delete([table_id, filter])))

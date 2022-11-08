@@ -36,7 +36,7 @@ mod tests {
         (select
             (list)
             (list (+ (sum (+ $1.1 $1.2)) $1.1))
-            (scan (list $1.1 $1.2 $1.3))
+            (scan $1 (list $1.1 $1.2 $1.3))
             (> $1.2 1)
             (list $1.1)
             (> (count $1.1) 1)
@@ -48,7 +48,7 @@ mod tests {
                     (list (sum (+ $1.1 $1.2)) (count $1.1))
                     (list $1.1)
                     (filter (> $1.2 1)
-                        (scan (list $1.1 $1.2 $1.3))
+                        (scan $1 (list $1.1 $1.2 $1.3))
                     )
                 )
             )
@@ -63,12 +63,12 @@ mod tests {
         (select
             (list)
             (list $1.1)
-            (scan (list $1.1 $1.2 $1.3))
+            (scan $1 (list $1.1 $1.2 $1.3))
             true (list $1.1) true (list)
         )" => "
         (proj (list $1.1)
             (agg (list) (list $1.1)
-                (scan (list $1.1 $1.2 $1.3))
+                (scan $1 (list $1.1 $1.2 $1.3))
             )
         )"
     }
@@ -81,11 +81,11 @@ mod tests {
         (select
             (list)
             (list $1.1)
-            (scan (list $1.1 $1.2 $1.3))
+            (scan $1 (list $1.1 $1.2 $1.3))
             true (list) true (list)
         )" => "
         (proj (list $1.1)
-            (scan (list $1.1 $1.2 $1.3))
+            (scan $1 (list $1.1 $1.2 $1.3))
         )"
     }
 
@@ -98,12 +98,12 @@ mod tests {
         (select
             (list $1.1 $1.2)
             (list $1.1 $1.3)
-            (scan (list $1.1 $1.2 $1.3))
+            (scan $1 (list $1.1 $1.2 $1.3))
             true (list) true (list)
         )" => "
         (proj (list $1.1 (first $1.3))
             (agg (list (first $1.3)) (list $1.1 $1.2)
-                (scan (list $1.1 $1.2 $1.3))
+                (scan $1 (list $1.1 $1.2 $1.3))
             )
         )"
     }
@@ -119,17 +119,17 @@ mod tests {
             (list)
             (list $1.2 $2.2)
             (join inner true
-                (scan (list $1.1 $1.2))
-                (scan (list $2.1 $2.2 $2.3))
+                (scan $1 (list $1.1 $1.2))
+                (scan $2 (list $2.1 $2.2 $2.3))
             )
             (and (= $1.1 $2.1) (= $2.3 'A'))
             (list) true (list)
         )" => "
         (proj (list $1.2 $2.2)
         (join inner (= $1.1 $2.1)
-            (scan (list $1.1 $1.2))
+            (scan $1 (list $1.1 $1.2))
             (filter (= $2.3 'A')
-                (scan (list $2.1 $2.2 $2.3))
+                (scan $2 (list $2.1 $2.2 $2.3))
             )
         ))"
     }
@@ -141,9 +141,9 @@ mod tests {
             (select list (list $7.0 (sum (* $7.5 (- 1 $7.6))) $6.4 $6.7)
                 (join inner true
                     (join inner true
-                        (scan (list $5.0 $5.6))
-                        (scan (list $6.0 $6.1 $6.4 $6.7)))
-                    (scan (list $7.0 $7.5 $7.6 $7.10)))
+                        (scan $5 (list $5.0 $5.6))
+                        (scan $6 (list $6.0 $6.1 $6.4 $6.7)))
+                    (scan $7 (list $7.0 $7.5 $7.6 $7.10)))
                 (and (and (and (and (= $5.6 'BUILDING') (= $5.0 $6.1)) (= $7.0 $6.0)) (< $6.4 1995-03-15)) (> $7.10 1995-03-15))
                 (list $7.0 $6.4 $6.7)
                 true
@@ -157,10 +157,10 @@ mod tests {
                     (hashjoin inner (list $6.0) (list $7.0)
                         (hashjoin inner (list $5.0) (list $6.1)
                             (filter (= $5.6 'BUILDING')
-                                (scan (list $5.0 $5.6)))
+                                (scan $5 (list $5.0 $5.6)))
                             (filter (< $6.4 1995-03-15)
-                                (scan (list $6.0 $6.1 $6.4 $6.7))))
+                                (scan $6 (list $6.0 $6.1 $6.4 $6.7))))
                         (filter (> $7.10 1995-03-15)
-                            (scan (list $7.0 $7.5 $7.6 $7.10)))))))"
+                            (scan $7 (list $7.0 $7.5 $7.6 $7.10)))))))"
     }
 }

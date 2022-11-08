@@ -85,7 +85,7 @@ define_language! {
         "distinct" = Distinct([Id; 2]),         // (distinct [expr..] child)
 
         // plans
-        "scan" = Scan(Id),                      // (scan [column..])
+        "scan" = Scan([Id; 2]),                 // (scan table [column..])
         "values" = Values(Box<[Id]>),           // (values [expr..]..)
         "proj" = Proj([Id; 2]),                 // (proj [expr..] child)
         "filter" = Filter([Id; 2]),             // (filter expr child)
