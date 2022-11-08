@@ -63,7 +63,9 @@ where
     fn should_finish(&self, next_item: &Option<&A::Item>) -> bool {
         // +1 here since bitmap may extend a byte
         self.inner_builder.should_finish(next_item)
-            || self.inner_builder.estimated_size_with_next_item(next_item) + 1 > self.target_size
+            || !self.inner_builder.is_empty()
+                && self.inner_builder.estimated_size_with_next_item(next_item) + 1
+                    > self.target_size
     }
 
     fn finish(self) -> Vec<u8> {

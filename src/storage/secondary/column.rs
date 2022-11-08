@@ -73,7 +73,8 @@ pub trait ColumnIterator<A: Array> {
 
     /// Number of items that can be fetched without I/O. When the column iterator has finished
     /// iterating, the returned value should be 0.
-    fn fetch_hint(&self) -> usize;
+    /// If return true, then current column is finished, otherwise has another data.
+    fn fetch_hint(&self) -> (usize, bool);
 
     /// Fetch the current row id in this column iterator
     fn fetch_current_row_id(&self) -> u32;

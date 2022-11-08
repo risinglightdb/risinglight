@@ -6,16 +6,35 @@ use risinglight_proto::rowset::BlockIndex;
 use super::super::{BlockBuilder, BlockIndexBuilder, PlainBlobBlockBuilder};
 use super::{append_one_by_one, ColumnBuilder};
 use crate::array::{Array, BlobArray};
-use crate::storage::secondary::block::{DictBlockBuilder, RleBlockBuilder};
+use crate::storage::secondary::block::{DictBlockBuilder, NullableBlockBuilder, RleBlockBuilder};
 use crate::storage::secondary::encode::BlobEncode;
 use crate::storage::secondary::ColumnBuilderOptions;
 use crate::types::BlobRef;
 
+type PlainNullableBlobBlockBuilder =
+    NullableBlockBuilder<BlobArray, PlainBlobBlockBuilder<BlobRef>>;
+
 /// All supported block builders for blob types.
 pub(super) enum BlobBlockBuilderImpl {
     Plain(PlainBlobBlockBuilder<BlobRef>),
+    PlainNullable(PlainNullableBlobBlockBuilder),
     RunLength(RleBlockBuilder<BlobArray, PlainBlobBlockBuilder<BlobRef>>),
+    RleNullable(RleBlockBuilder<BlobArray, PlainNullableBlobBlockBuilder>),
     Dictionary(DictBlockBuilder<BlobArray, PlainBlobBlockBuilder<BlobRef>>),
+    DictNullable(DictBlockBuilder<BlobArray, PlainNullableBlobBlockBuilder>),
+}
+
+macro_rules! for_all_blob_block_builder_enum {
+    ($marco:tt) => {
+        $marco! {
+            Plain,
+            PlainNullable,
+            RunLength,
+            RleNullable,
+            Dictionary,
+            DictNullable
+        }
+    };
 }
 
 /// Column builder of blob types.
@@ -29,17 +48,21 @@ pub struct BlobColumnBuilder {
     /// Block index builder
     block_index_builder: BlockIndexBuilder,
 
+    /// Indicates whether the current column accepts null elements
+    nullable: bool,
+
     /// First key
     first_key: Option<Vec<u8>>,
 }
 
 impl BlobColumnBuilder {
-    pub fn new(options: ColumnBuilderOptions) -> Self {
+    pub fn new(nullable: bool, options: ColumnBuilderOptions) -> Self {
         Self {
             data: vec![],
             block_index_builder: BlockIndexBuilder::new(options.clone()),
             options,
             current_builder: None,
+            nullable,
             first_key: None,
         }
     }
@@ -49,23 +72,21 @@ impl BlobColumnBuilder {
             return;
         }
 
-        let (block_type, stats, mut block_data) = match self.current_builder.take().unwrap() {
-            BlobBlockBuilderImpl::Plain(builder) => (
-                BlockType::PlainVarchar,
-                builder.get_statistics(),
-                builder.finish(),
-            ),
-            BlobBlockBuilderImpl::RunLength(builder) => (
-                BlockType::RleVarchar,
-                builder.get_statistics(),
-                builder.finish(),
-            ),
-            BlobBlockBuilderImpl::Dictionary(builder) => (
-                BlockType::RleVarchar,
-                builder.get_statistics(),
-                builder.finish(),
-            ),
-        };
+        macro_rules! finish_current_builder {
+            ($($enum_val:ident),*) => {
+                match self.current_builder.take().unwrap() {
+                    $(
+                    BlobBlockBuilderImpl::$enum_val(builder) => (
+                        BlockType::$enum_val,
+                        builder.get_statistics(),
+                        builder.finish(),
+                    ),)*
+            }
+            }
+        }
+
+        let (block_type, stats, mut block_data) =
+            for_all_blob_block_builder_enum! { finish_current_builder };
 
         self.block_index_builder.finish_block(
             block_type,
@@ -83,15 +104,23 @@ impl ColumnBuilder<BlobArray> for BlobColumnBuilder {
 
         while iter.peek().is_some() {
             if self.current_builder.is_none() {
-                match self.options.encode_type {
-                    crate::storage::secondary::EncodeType::Plain => {
+                let target_size = self.options.target_block_size - 16;
+                match (self.nullable, self.options.encode_type) {
+                    (false, crate::storage::secondary::EncodeType::Plain) => {
                         self.current_builder = Some(BlobBlockBuilderImpl::Plain(
-                            PlainBlobBlockBuilder::new(self.options.target_block_size - 16),
+                            PlainBlobBlockBuilder::new(target_size),
                         ));
                     }
-                    crate::storage::secondary::EncodeType::RunLength => {
-                        let builder =
-                            PlainBlobBlockBuilder::new(self.options.target_block_size - 16);
+                    (true, crate::storage::secondary::EncodeType::Plain) => {
+                        self.current_builder = Some(BlobBlockBuilderImpl::PlainNullable(
+                            NullableBlockBuilder::new(
+                                PlainBlobBlockBuilder::new(target_size),
+                                target_size,
+                            ),
+                        ));
+                    }
+                    (false, crate::storage::secondary::EncodeType::RunLength) => {
+                        let builder = PlainBlobBlockBuilder::new(target_size);
                         self.current_builder =
                             Some(BlobBlockBuilderImpl::RunLength(RleBlockBuilder::<
                                 BlobArray,
@@ -100,7 +129,16 @@ impl ColumnBuilder<BlobArray> for BlobColumnBuilder {
                                 builder
                             )));
                     }
-                    crate::storage::secondary::EncodeType::Dictionary => {
+                    (true, crate::storage::secondary::EncodeType::RunLength) => {
+                        let nullable_builder = NullableBlockBuilder::new(
+                            PlainBlobBlockBuilder::<BlobRef>::new(target_size),
+                            target_size,
+                        );
+                        self.current_builder = Some(BlobBlockBuilderImpl::RleNullable(
+                            RleBlockBuilder::new(nullable_builder),
+                        ));
+                    }
+                    (false, crate::storage::secondary::EncodeType::Dictionary) => {
                         let builder =
                             PlainBlobBlockBuilder::new(self.options.target_block_size - 16);
                         self.current_builder =
@@ -111,6 +149,15 @@ impl ColumnBuilder<BlobArray> for BlobColumnBuilder {
                                 builder
                             )));
                     }
+                    (true, crate::storage::secondary::EncodeType::Dictionary) => {
+                        let nullable_builder = NullableBlockBuilder::new(
+                            PlainBlobBlockBuilder::<BlobRef>::new(target_size),
+                            target_size,
+                        );
+                        self.current_builder = Some(BlobBlockBuilderImpl::DictNullable(
+                            DictBlockBuilder::new(nullable_builder),
+                        ));
+                    }
                 }
                 if let Some(to_be_appended) = iter.peek() {
                     if self.options.record_first_key {
@@ -119,11 +166,17 @@ impl ColumnBuilder<BlobArray> for BlobColumnBuilder {
                 }
             }
 
-            let (row_count, should_finish) = match self.current_builder.as_mut().unwrap() {
-                BlobBlockBuilderImpl::Plain(builder) => append_one_by_one(&mut iter, builder),
-                BlobBlockBuilderImpl::RunLength(builder) => append_one_by_one(&mut iter, builder),
-                BlobBlockBuilderImpl::Dictionary(builder) => append_one_by_one(&mut iter, builder),
-            };
+            macro_rules! append_one_by_one {
+                ($($enum_val:ident),*) => {
+                    match self.current_builder.as_mut().unwrap() {
+                        $(
+                            BlobBlockBuilderImpl::$enum_val(builder) => {append_one_by_one(&mut iter, builder)}
+                        ),*
+                    }
+                }
+            }
+
+            let (row_count, should_finish) = for_all_blob_block_builder_enum! { append_one_by_one };
 
             self.block_index_builder.add_rows(row_count);
 

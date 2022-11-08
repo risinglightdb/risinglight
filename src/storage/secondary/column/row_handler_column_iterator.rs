@@ -52,8 +52,9 @@ impl ColumnIterator<I64Array> for RowHandlerColumnIterator {
         }
     }
 
-    fn fetch_hint(&self) -> usize {
-        self.row_count - self.current_row_id
+    fn fetch_hint(&self) -> (usize, bool) {
+        let cnt = self.row_count - self.current_row_id;
+        (cnt, cnt == 0)
     }
 
     fn fetch_current_row_id(&self) -> u32 {
