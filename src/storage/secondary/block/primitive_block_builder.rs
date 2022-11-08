@@ -57,6 +57,10 @@ impl<T: PrimitiveFixedWidthEncode> NonNullableBlockBuilder<T::ArrayType>
     ) -> usize {
         self.estimated_size() + T::WIDTH
     }
+
+    fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
 }
 
 impl<T: PrimitiveFixedWidthEncode> BlockBuilder<T::ArrayType> for PlainPrimitiveBlockBuilder<T> {
@@ -72,7 +76,7 @@ impl<T: PrimitiveFixedWidthEncode> BlockBuilder<T::ArrayType> for PlainPrimitive
     }
 
     fn should_finish(&self, _next_item: &Option<&T>) -> bool {
-        !self.data.is_empty() && self.estimated_size_with_next_item(_next_item) > self.target_size
+        !self.is_empty() && self.estimated_size_with_next_item(_next_item) > self.target_size
     }
 
     fn get_statistics(&self) -> Vec<BlockStatistics> {

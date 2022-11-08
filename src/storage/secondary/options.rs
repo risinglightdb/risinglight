@@ -158,6 +158,15 @@ impl ColumnBuilderOptions {
             record_first_key: false,
         }
     }
+    #[cfg(test)]
+    pub fn default_for_dict_block_test() -> Self {
+        Self {
+            target_block_size: 128,
+            checksum_type: ChecksumType::None,
+            encode_type: EncodeType::Dictionary,
+            record_first_key: false,
+        }
+    }
 
     #[cfg(test)]
     pub fn record_first_key_test() -> Self {

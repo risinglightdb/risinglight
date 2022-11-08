@@ -39,7 +39,7 @@ impl ColumnBuilderImpl {
             Decimal(_, _) => Self::Decimal(DecimalColumnBuilder::new(datatype.nullable, options)),
             Date => Self::Date(DateColumnBuilder::new(datatype.nullable, options)),
             Interval => Self::Interval(IntervalColumnBuilder::new(datatype.nullable, options)),
-            Blob => Self::Blob(BlobColumnBuilder::new(options)),
+            Blob => Self::Blob(BlobColumnBuilder::new(datatype.nullable, options)),
             Struct(_) => todo!("struct column builder"),
         }
     }

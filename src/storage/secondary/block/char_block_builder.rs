@@ -72,6 +72,10 @@ impl NonNullableBlockBuilder<Utf8Array> for PlainCharBlockBuilder {
     ) -> usize {
         self.estimated_size() + self.char_width
     }
+
+    fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
 }
 
 impl BlockBuilder<Utf8Array> for PlainCharBlockBuilder {
@@ -87,7 +91,7 @@ impl BlockBuilder<Utf8Array> for PlainCharBlockBuilder {
     }
 
     fn should_finish(&self, _next_item: &Option<&str>) -> bool {
-        !self.data.is_empty() && self.estimated_size_with_next_item(_next_item) > self.target_size
+        !self.is_empty() && self.estimated_size_with_next_item(_next_item) > self.target_size
     }
 
     fn get_statistics(&self) -> Vec<BlockStatistics> {
