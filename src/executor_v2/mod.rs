@@ -246,7 +246,7 @@ impl<S: Storage> Builder<S> {
 
             Join([op, on, left, right]) => NestedLoopJoinExecutor {
                 op: self.node(op).clone(),
-                condition: self.recexpr(on),
+                condition: self.resolve_column_index(on, id),
                 left_types: self.plan_types(left).to_vec(),
                 right_types: self.plan_types(right).to_vec(),
             }
