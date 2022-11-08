@@ -46,6 +46,7 @@ pub use self::type_::TypeError;
 pub static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     let mut rules = vec![];
     rules.append(&mut plan::column_prune_rules());
+    rules.append(&mut schema::rules());
     rules
 });
 

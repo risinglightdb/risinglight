@@ -5,6 +5,14 @@
 use super::*;
 use crate::types::ColumnIndex;
 
+#[rustfmt::skip]
+pub fn rules() -> Vec<Rewrite> { vec![
+    rw!("remove-identity-projection"; 
+        "(proj ?expr ?child)" => "?child"
+        if schema_is_eq("?expr", "?child")
+    ),
+]}
+
 /// Replaces all column references (`ColumnRefId`) with
 /// physical indices ([`ColumnIndex`]) to the given schema.
 ///
@@ -98,6 +106,17 @@ pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
         // not plan node
         _ => return None,
     })
+}
+
+/// Returns true if the schema of two nodes is equal.
+fn schema_is_eq(v1: &str, v2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let v1 = var(v1);
+    let v2 = var(v2);
+    move |egraph, _, subst| {
+        let s1 = &egraph[subst[v1]].data.schema;
+        let s2 = &egraph[subst[v2]].data.schema;
+        s1.is_some() && s1 == s2
+    }
 }
 
 #[cfg(test)]
