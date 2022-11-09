@@ -115,12 +115,20 @@ impl Display for Explain<'_> {
         match enode {
             Constant(v) => write!(f, "{v}"),
             Type(t) => write!(f, "{t}"),
-            Table(i) => if let Some(catalog) = self.catalog {
-                write!(f, "{}", catalog.get_table(i).expect("no table").name())
-            } else { write!(f, "{i}") },
-            Column(i) => if let Some(catalog) = self.catalog {
-                write!(f, "{}", catalog.get_column(i).expect("no column").name())
-            } else { write!(f, "{i}") },
+            Table(i) => {
+                if let Some(catalog) = self.catalog {
+                    write!(f, "{}", catalog.get_table(i).expect("no table").name())
+                } else {
+                    write!(f, "{i}")
+                }
+            }
+            Column(i) => {
+                if let Some(catalog) = self.catalog {
+                    write!(f, "{}", catalog.get_column(i).expect("no column").name())
+                } else {
+                    write!(f, "{i}")
+                }
+            }
             ColumnIndex(i) => write!(f, "{i}"),
             ExtSource(src) => write!(f, "path={:?}, format={}", src.path, src.format),
             Symbol(s) => write!(f, "{s}"),
@@ -163,20 +171,12 @@ impl Display for Explain<'_> {
             In([a, b]) => write!(f, "({} in {})", self.expr(a), self.expr(b)),
             Cast([a, b]) => write!(f, "({} :: {})", self.expr(a), self.expr(b)),
 
-            Select([distinct, projection, from, where_, groupby, having, orderby]) => write!(
+            Scan([table, list]) => writeln!(
                 f,
-                "{tab}Select:{cost}\n  {tab}distinct={}\n  {tab}projection={}\n  {tab}where={}\n  {tab}groupby={}\n  {tab}having={}\n  {tab}orderby={}\n{}",
-                self.expr(distinct),
-                self.expr(projection),
-                self.expr(where_),
-                self.expr(groupby),
-                self.expr(having),
-                self.expr(orderby),
-                self.child(from),
+                "{tab}Scan: {}{}{cost}",
+                self.expr(table),
+                self.expr(list)
             ),
-            Distinct(_) => todo!(),
-
-            Scan([table, list]) => writeln!(f, "{tab}Scan: {}{}{cost}", self.expr(table), self.expr(list)),
             Values(rows) => writeln!(f, "{tab}Values: {} rows{cost}", rows.len()),
             Proj([exprs, child]) => write!(
                 f,
@@ -185,7 +185,12 @@ impl Display for Explain<'_> {
                 self.child(child)
             ),
             Filter([cond, child]) => {
-                write!(f, "{tab}Filter: {}{cost}\n{}", self.expr(cond), self.child(child))
+                write!(
+                    f,
+                    "{tab}Filter: {}{cost}\n{}",
+                    self.expr(cond),
+                    self.child(child)
+                )
             }
             Order([orderby, child]) => {
                 write!(
@@ -237,10 +242,26 @@ impl Display for Explain<'_> {
             ),
             CreateTable(t) => writeln!(f, "{tab}CreateTable: name={:?}, ...{cost}", t.table_name),
             Drop(t) => writeln!(f, "{tab}Drop: {}, ...{cost}", t.object),
-            Insert([table, cols, child]) => write!(f, "{tab}Insert: {}{}{cost}\n{}", self.expr(table), self.expr(cols), self.child(child)),
-            Delete([table, child]) => write!(f, "{tab}Delete: from={}{cost}\n{}", self.expr(table), self.child(child)),
+            Insert([table, cols, child]) => write!(
+                f,
+                "{tab}Insert: {}{}{cost}\n{}",
+                self.expr(table),
+                self.expr(cols),
+                self.child(child)
+            ),
+            Delete([table, child]) => write!(
+                f,
+                "{tab}Delete: from={}{cost}\n{}",
+                self.expr(table),
+                self.child(child)
+            ),
             CopyFrom([src, _]) => writeln!(f, "{tab}CopyFrom: {}{cost}", self.expr(src)),
-            CopyTo([dst, child]) => write!(f, "{tab}CopyTo: {}{cost}\n{}", self.expr(dst), self.child(child)),
+            CopyTo([dst, child]) => write!(
+                f,
+                "{tab}CopyTo: {}{cost}\n{}",
+                self.expr(dst),
+                self.child(child)
+            ),
             Explain(child) => write!(f, "{tab}Explain:{cost}\n{}", self.child(child)),
             Empty(_) => writeln!(f, "{tab}Empty:{cost}"),
             Prune(_) => panic!("cannot explain Prune"),

@@ -84,8 +84,7 @@ pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
     let concat = |v1: Vec<Id>, v2: Vec<Id>| v1.into_iter().chain(v2.into_iter()).collect();
     Some(match enode {
         // equal to child
-        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c])
-        | Distinct([_, c]) => x(c)?,
+        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(c)?,
 
         // concat 2 children
         Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) => concat(x(l)?, x(r)?),
@@ -96,7 +95,7 @@ pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
         // plans that change schema
         Scan([_, columns]) => x(columns)?,
         Values(vs) => vs.first().and_then(x)?,
-        Proj([exprs, _]) | Select([exprs, ..]) => x(exprs)?,
+        Proj([exprs, _]) => x(exprs)?,
         Agg([exprs, group_keys, _]) => concat(x(exprs)?, x(group_keys)?),
         Empty(ids) => {
             let mut s = vec![];
