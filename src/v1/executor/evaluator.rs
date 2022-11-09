@@ -35,7 +35,7 @@ impl BoundExpr {
                 if self.return_type() == cast.expr.return_type() {
                     return Ok(array);
                 }
-                array.try_cast(&cast.ty)
+                array.cast(&cast.ty)
             }
             BoundExpr::IsNull(expr) => {
                 let array = expr.expr.eval(chunk)?;
@@ -84,7 +84,7 @@ impl BoundExpr {
                 if self.return_type() == cast.expr.return_type() {
                     return Ok(array);
                 }
-                array.try_cast(&cast.ty)
+                array.cast(&cast.ty)
             }
             BoundExpr::IsNull(expr) => {
                 let array = expr.expr.eval_array_in_storage(chunk, cardinality)?;

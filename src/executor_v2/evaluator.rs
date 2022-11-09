@@ -64,7 +64,7 @@ impl<'a> ExprRef<'a> {
             }
             Cast([ty, a]) => {
                 let array = self.next(*a).eval(chunk)?;
-                array.try_cast(self.next(*ty).node().as_type())
+                array.cast(self.next(*ty).node().as_type())
             }
             IsNull(a) => {
                 let array = self.next(*a).eval(chunk)?;

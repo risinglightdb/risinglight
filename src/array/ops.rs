@@ -12,153 +12,199 @@ use crate::for_all_variants;
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{Blob, ConvertError, DataTypeKind, DataValue, Date, Interval, NativeType, F64};
 
+type A = ArrayImpl;
+
 impl ArrayImpl {
+    pub fn neg(&self) -> Result<Self, ConvertError> {
+        Ok(match self {
+            A::Int32(a) => A::new_int32(unary_op(a.as_ref(), |v| -v)),
+            A::Int64(a) => A::new_int64(unary_op(a.as_ref(), |v| -v)),
+            A::Float64(a) => A::new_float64(unary_op(a.as_ref(), |v| -v)),
+            A::Decimal(a) => A::new_decimal(unary_op(a.as_ref(), |v| -v)),
+            _ => return Err(ConvertError::NoUnaryOp("-".into(), self.type_string())),
+        })
+    }
+
+    pub fn not(&self) -> Result<Self, ConvertError> {
+        Ok(match self {
+            A::Bool(a) => A::new_bool(unary_op(a.as_ref(), |b| !b)),
+            _ => return Err(ConvertError::NoUnaryOp("not".into(), self.type_string())),
+        })
+    }
+
     /// Perform unary operation.
     pub fn unary_op(&self, op: &UnaryOperator) -> Result<ArrayImpl, ConvertError> {
-        type A = ArrayImpl;
         Ok(match op {
             UnaryOperator::Plus => match self {
-                A::Int32(_) => self.clone(),
-                A::Int64(_) => self.clone(),
-                A::Float64(_) => self.clone(),
-                A::Decimal(_) => self.clone(),
+                A::Int32(_) | A::Int64(_) | A::Float64(_) | A::Decimal(_) | A::Interval(_) => {
+                    self.clone()
+                }
                 _ => return Err(ConvertError::NoUnaryOp("+".into(), self.type_string())),
             },
-            UnaryOperator::Minus => match self {
-                A::Int32(a) => A::new_int32(unary_op(a.as_ref(), |v| -v)),
-                A::Int64(a) => A::new_int64(unary_op(a.as_ref(), |v| -v)),
-                A::Float64(a) => A::new_float64(unary_op(a.as_ref(), |v| -v)),
-                A::Decimal(a) => A::new_decimal(unary_op(a.as_ref(), |v| -v)),
-                _ => return Err(ConvertError::NoUnaryOp("-".into(), self.type_string())),
-            },
-            UnaryOperator::Not => match self {
-                A::Bool(a) => A::new_bool(unary_op(a.as_ref(), |b| !b)),
-                _ => return Err(ConvertError::NoUnaryOp("not".into(), self.type_string())),
-            },
+            UnaryOperator::Minus => self.neg()?,
+            UnaryOperator::Not => self.neg()?,
             _ => return Err(ConvertError::NoUnaryOp(op.to_string(), self.type_string())),
         })
+    }
+}
+
+/// A macro to implement arithmetic operations.
+macro_rules! arith {
+    ($name:ident, $op:tt) => {
+        pub fn $name(
+            &self,
+            other: &Self,
+        ) -> Result<Self, ConvertError> {
+        Ok(match (self, other) {
+            #[cfg(feature = "simd")]
+            (A::Int32(a), A::Int32(b)) => A::new_int32(simd_op::<_, _, _, 32>(a, b, |a, b| a $op b)),
+            #[cfg(feature = "simd")]
+            (A::Int64(a), A::Int64(b)) => A::new_int64(simd_op::<_, _, _, 64>(a, b, |a, b| a $op b)),
+            #[cfg(feature = "simd")]
+            (A::Float64(a), A::Float64(b)) => A::new_float64(simd_op::<_, _, _, 32>(a.as_native(), b.as_native(), |a, b| a $op b).into_ordered()),
+
+            #[cfg(not(feature = "simd"))]
+            (A::Int32(a), A::Int32(b)) => A::new_int32(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+            #[cfg(not(feature = "simd"))]
+            (A::Int64(a), A::Int64(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+            #[cfg(not(feature = "simd"))]
+            (A::Float64(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
+
+            (A::Int32(a), A::Int64(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i64) $op *b)),
+            (A::Int64(a), A::Int32(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op (*b as i64))),
+
+            (A::Int32(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
+            (A::Int64(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
+            (A::Float64(a), A::Int32(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
+            (A::Float64(a), A::Int64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
+
+            (A::Int32(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
+            (A::Int64(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
+            (A::Float64(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from_f64_retain(a.0).unwrap() $op *b)),
+            (A::Decimal(a), A::Int32(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
+            (A::Decimal(a), A::Int64(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
+            (A::Decimal(a), A::Float64(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from_f64_retain(b.0).unwrap())),
+
+            (A::Decimal(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+            (A::Date(a), A::Interval(b)) => A::new_date(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
+
+            _ => return Err(ConvertError::NoBinaryOp(stringify!($name).into(), self.type_string(), other.type_string())),
+        })
+        }
+    }
+}
+
+/// A macro to implement comparison operations.
+macro_rules! cmp {
+    ($name:ident, $op:tt) => {
+        pub fn $name(
+            &self,
+            other: &Self,
+        ) -> Result<Self, ConvertError> {
+        Ok(match (self, other) {
+            (A::Bool(a), A::Bool(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+            (A::Int32(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+            (A::Int64(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+            (A::Float64(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
+            (A::Utf8(a), A::Utf8(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+            (A::Date(a), A::Date(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+            (A::Decimal(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+
+            (A::Int32(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i64) $op *b)),
+            (A::Int64(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op (*b as i64))),
+
+            (A::Int32(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
+            (A::Int64(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
+            (A::Float64(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
+            (A::Float64(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
+
+            (A::Int32(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
+            (A::Int64(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
+            (A::Float64(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from_f64_retain(a.0).unwrap() $op *b)),
+            (A::Decimal(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
+            (A::Decimal(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
+            (A::Decimal(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from_f64_retain(b.0).unwrap())),
+
+            _ => return Err(ConvertError::NoBinaryOp(stringify!($name).into(), self.type_string(), other.type_string())),
+        })
+        }
+    }
+}
+
+impl ArrayImpl {
+    arith!(add, +);
+    arith!(sub, -);
+    arith!(mul, *);
+    arith!(div, /);
+    arith!(rem, %);
+    cmp!(eq, ==);
+    cmp!(ne, !=);
+    cmp!(gt,  >);
+    cmp!(lt,  <);
+    cmp!(ge, >=);
+    cmp!(le, <=);
+
+    pub fn and(&self, other: &Self) -> Result<Self, ConvertError> {
+        let (A::Bool(a), A::Bool(b)) = (self, other) else {
+            return Err(ConvertError::NoBinaryOp("and".into(), self.type_string(), other.type_string()));
+        };
+        Ok(A::new_bool(binary_op_with_null(
+            a.as_ref(),
+            b.as_ref(),
+            |a, b| match (a, b) {
+                (Some(a), Some(b)) => Some(*a && *b),
+                (Some(false), _) | (_, Some(false)) => Some(false),
+                _ => None,
+            },
+        )))
+    }
+
+    pub fn or(&self, other: &Self) -> Result<Self, ConvertError> {
+        let (A::Bool(a), A::Bool(b)) = (self, other) else {
+            return Err(ConvertError::NoBinaryOp("or".into(), self.type_string(), other.type_string()));
+        };
+        Ok(A::new_bool(binary_op_with_null(
+            a.as_ref(),
+            b.as_ref(),
+            |a, b| match (a, b) {
+                (Some(a), Some(b)) => Some(*a || *b),
+                (Some(true), _) | (_, Some(true)) => Some(true),
+                _ => None,
+            },
+        )))
     }
 
     /// Perform binary operation.
     pub fn binary_op(
         &self,
         op: &BinaryOperator,
-        right: &ArrayImpl,
+        other: &ArrayImpl,
     ) -> Result<ArrayImpl, ConvertError> {
         use BinaryOperator::*;
-        type A = ArrayImpl;
-        let no_op =
-            || ConvertError::NoBinaryOp(op.to_string(), self.type_string(), right.type_string());
-        macro_rules! arith {
-            ($op:tt) => {
-                match (self, right) {
-                    #[cfg(feature = "simd")]
-                    (A::Int32(a), A::Int32(b)) => A::new_int32(simd_op::<_, _, _, 32>(a, b, |a, b| a $op b)),
-                    #[cfg(feature = "simd")]
-                    (A::Int64(a), A::Int64(b)) => A::new_int64(simd_op::<_, _, _, 64>(a, b, |a, b| a $op b)),
-                    #[cfg(feature = "simd")]
-                    (A::Float64(a), A::Float64(b)) => A::new_float64(simd_op::<_, _, _, 32>(a.as_native(), b.as_native(), |a, b| a $op b).into_ordered()),
-
-                    #[cfg(not(feature = "simd"))]
-                    (A::Int32(a), A::Int32(b)) => A::new_int32(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-                    #[cfg(not(feature = "simd"))]
-                    (A::Int64(a), A::Int64(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-                    #[cfg(not(feature = "simd"))]
-                    (A::Float64(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
-
-                    (A::Int32(a), A::Int64(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i64) $op *b)),
-                    (A::Int64(a), A::Int32(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op (*b as i64))),
-
-                    (A::Int32(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
-                    (A::Int64(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
-                    (A::Float64(a), A::Int32(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
-                    (A::Float64(a), A::Int64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
-
-                    (A::Int32(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
-                    (A::Int64(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
-                    (A::Float64(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from_f64_retain(a.0).unwrap() $op *b)),
-                    (A::Decimal(a), A::Int32(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
-                    (A::Decimal(a), A::Int64(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
-                    (A::Decimal(a), A::Float64(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from_f64_retain(b.0).unwrap())),
-
-                    (A::Decimal(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-                    (A::Date(a), A::Interval(b)) => A::new_date(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
-
-                    _ => return Err(no_op()),
-                }
-            }
+        match op {
+            Plus => self.add(other),
+            Minus => self.sub(other),
+            Multiply => self.mul(other),
+            Divide => self.div(other),
+            Modulo => self.rem(other),
+            Eq => self.eq(other),
+            NotEq => self.ne(other),
+            Gt => self.gt(other),
+            Lt => self.lt(other),
+            GtEq => self.ge(other),
+            LtEq => self.le(other),
+            And => self.and(other),
+            Or => self.or(other),
+            _ => Err(ConvertError::NoBinaryOp(
+                op.to_string(),
+                self.type_string(),
+                other.type_string(),
+            )),
         }
-        macro_rules! cmp {
-            ($op:tt) => {
-                match (self, right) {
-                    (A::Bool(a), A::Bool(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-                    (A::Int32(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-                    (A::Int64(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-                    (A::Float64(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
-                    (A::Utf8(a), A::Utf8(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-                    (A::Date(a), A::Date(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-                    (A::Decimal(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-
-                    (A::Int32(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i64) $op *b)),
-                    (A::Int64(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op (*b as i64))),
-
-                    (A::Int32(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
-                    (A::Int64(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
-                    (A::Float64(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
-                    (A::Float64(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
-
-                    (A::Int32(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
-                    (A::Int64(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
-                    (A::Float64(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from_f64_retain(a.0).unwrap() $op *b)),
-                    (A::Decimal(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
-                    (A::Decimal(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
-                    (A::Decimal(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from_f64_retain(b.0).unwrap())),
-                    _ => return Err(no_op()),
-                }
-            }
-        }
-        Ok(match op {
-            Plus => arith!(+),
-            Minus => arith!(-),
-            Multiply => arith!(*),
-            Divide => arith!(/),
-            Modulo => arith!(%),
-            Eq => cmp!(==),
-            NotEq => cmp!(!=),
-            Gt => cmp!(>),
-            Lt => cmp!(<),
-            GtEq => cmp!(>=),
-            LtEq => cmp!(<=),
-            And => match (self, right) {
-                (A::Bool(a), A::Bool(b)) => {
-                    A::new_bool(binary_op_with_null(a.as_ref(), b.as_ref(), |a, b| {
-                        match (a, b) {
-                            (Some(a), Some(b)) => Some(*a && *b),
-                            (Some(false), _) | (_, Some(false)) => Some(false),
-                            _ => None,
-                        }
-                    }))
-                }
-                _ => return Err(no_op()),
-            },
-            Or => match (self, right) {
-                (A::Bool(a), A::Bool(b)) => {
-                    A::new_bool(binary_op_with_null(a.as_ref(), b.as_ref(), |a, b| {
-                        match (a, b) {
-                            (Some(a), Some(b)) => Some(*a || *b),
-                            (Some(true), _) | (_, Some(true)) => Some(true),
-                            _ => None,
-                        }
-                    }))
-                }
-                _ => return Err(no_op()),
-            },
-            _ => return Err(no_op()),
-        })
     }
 
     /// Cast the array to another type.
-    pub fn try_cast(&self, data_type: &DataTypeKind) -> Result<Self, ConvertError> {
+    pub fn cast(&self, data_type: &DataTypeKind) -> Result<Self, ConvertError> {
         type Type = DataTypeKind;
         Ok(match self {
             Self::Null(a) => {
