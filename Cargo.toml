@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "risinglight"
-version = "0.1.3"
+version = "0.2.0-alpha"
 description = "An OLAP database system for educational purpose"
 license = "Apache-2.0"
 readme = "README.md"

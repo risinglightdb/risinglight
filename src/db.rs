@@ -27,7 +27,7 @@ use crate::v1::optimizer::Optimizer;
 pub struct Database {
     catalog: RootCatalogRef,
     storage: StorageImpl,
-    use_v2: AtomicBool,
+    use_v1: AtomicBool,
 }
 
 impl Database {
@@ -37,7 +37,7 @@ impl Database {
         Database {
             catalog: storage.catalog().clone(),
             storage: StorageImpl::InMemoryStorage(Arc::new(storage)),
-            use_v2: AtomicBool::new(false),
+            use_v1: AtomicBool::new(false),
         }
     }
 
@@ -48,7 +48,7 @@ impl Database {
         Database {
             catalog: storage.catalog().clone(),
             storage: StorageImpl::SecondaryStorage(storage),
-            use_v2: AtomicBool::new(false),
+            use_v1: AtomicBool::new(false),
         }
     }
 
@@ -156,8 +156,8 @@ impl Database {
         } else if cmd == "dt" {
             self.run_dt()
         } else if cmd == "v1" || cmd == "v2" {
-            self.use_v2.store(cmd == "v2", Ordering::Relaxed);
-            println!("switched to planner {cmd}");
+            self.use_v1.store(cmd == "v1", Ordering::Relaxed);
+            println!("switched to query engine {cmd}");
             Ok(vec![])
         } else {
             Err(Error::InternalError("unsupported command".to_string()))
@@ -165,37 +165,39 @@ impl Database {
     }
 
     /// Run SQL queries and return the outputs.
-
     pub async fn run(&self, sql: &str) -> Result<Vec<Chunk>, Error> {
         if let Some(cmdline) = sql.trim().strip_prefix('\\') {
             return self.run_internal(cmdline).await;
         }
-
-        // parse
-        let stmts = parse(sql)?;
-
-        if self.use_v2.load(Ordering::Relaxed) {
-            let mut outputs: Vec<Chunk> = vec![];
-            for stmt in stmts {
-                let mut binder = crate::binder_v2::Binder::new(self.catalog.clone());
-                let bound = binder.bind(stmt)?;
-                let optimized = crate::planner::optimize(&bound);
-                let executor = match self.storage.clone() {
-                    StorageImpl::InMemoryStorage(s) => {
-                        crate::executor_v2::build(self.catalog.clone(), s, &optimized)
-                    }
-                    StorageImpl::SecondaryStorage(s) => {
-                        crate::executor_v2::build(self.catalog.clone(), s, &optimized)
-                    }
-                };
-                let output = executor.try_collect().await?;
-                let chunk = Chunk::new(output);
-                // TODO: set name
-                outputs.push(chunk);
-            }
-            return Ok(outputs);
+        if self.use_v1.load(Ordering::Relaxed) {
+            return self.run_v1(sql).await;
         }
 
+        let stmts = parse(sql)?;
+        let mut outputs: Vec<Chunk> = vec![];
+        for stmt in stmts {
+            let mut binder = crate::binder_v2::Binder::new(self.catalog.clone());
+            let bound = binder.bind(stmt)?;
+            let optimized = crate::planner::optimize(&bound);
+            let executor = match self.storage.clone() {
+                StorageImpl::InMemoryStorage(s) => {
+                    crate::executor_v2::build(self.catalog.clone(), s, &optimized)
+                }
+                StorageImpl::SecondaryStorage(s) => {
+                    crate::executor_v2::build(self.catalog.clone(), s, &optimized)
+                }
+            };
+            let output = executor.try_collect().await?;
+            let chunk = Chunk::new(output);
+            // TODO: set name
+            outputs.push(chunk);
+        }
+        Ok(outputs)
+    }
+
+    /// Run SQL queries using query engine v1.
+    async fn run_v1(&self, sql: &str) -> Result<Vec<Chunk>, Error> {
+        let stmts = parse(sql)?;
         let mut binder = Binder::new(self.catalog.clone());
         let logical_planner = LogicalPlaner::default();
         let mut optimizer = Optimizer {
