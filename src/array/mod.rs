@@ -18,6 +18,7 @@ use crate::types::{
 mod data_chunk;
 mod data_chunk_builder;
 mod iterator;
+pub mod ops;
 mod primitive_array;
 mod utf8_array;
 

@@ -15,7 +15,7 @@ fn array_mul(c: &mut Criterion) {
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            use risinglight::v1::executor::evaluator;
+            use risinglight::array::ops;
 
             let mut mask_a = BitVec::new();
             let mut mask_b = BitVec::new();
@@ -40,7 +40,7 @@ fn array_mul(c: &mut Criterion) {
             let a2 = I32Array::from_data(0..size, mask_b);
 
             b.iter(|| {
-                let _: I32Array = evaluator::binary_op(&a1, &a2, |a, b| a * b);
+                let _: I32Array = ops::binary_op(&a1, &a2, |a, b| a * b);
             });
         });
     }
@@ -200,7 +200,7 @@ fn array_mul(c: &mut Criterion) {
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            use risinglight::v1::executor::evaluator;
+            use risinglight::array::ops;
             let mut mask_a = BitVec::new();
             let mut mask_b = BitVec::new();
             let mut i = 0;
@@ -223,7 +223,7 @@ fn array_mul(c: &mut Criterion) {
             let a1 = I32Array::from_data(0..size, mask_a);
             let a2 = I32Array::from_data(0..size, mask_b);
             b.iter(|| {
-                let _: I32Array = evaluator::simd_op::<_, _, _, 32>(&a1, &a2, |a, b| a * b);
+                let _: I32Array = ops::simd_op::<_, _, _, 32>(&a1, &a2, |a, b| a * b);
             });
         });
     }
