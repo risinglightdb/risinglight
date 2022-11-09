@@ -25,7 +25,7 @@ statement ok
 insert into t values('2020-01-01');
 
 query I
-select v1 from t where v1 < '2021-01-01'
+select v1 from t where v1 < date '2021-01-01';
 ----
 2020-01-01
 

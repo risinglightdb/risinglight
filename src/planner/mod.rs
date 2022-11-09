@@ -30,6 +30,7 @@ define_language! {
         ExtSource(ExtSource),
 
         // utilities
+        "`" = Nested(Id),               // (` expr) a wrapper over expr to prevent optimization
         "list" = List(Box<[Id]>),       // (list ...)
 
         // binary operations
@@ -73,19 +74,8 @@ define_language! {
 
         "cast" = Cast([Id; 2]),                 // (cast type expr)
 
-        "select" = Select([Id; 7]),             // (select
-                                                //      distinct=[expr..]
-                                                //      select_list=[expr..]
-                                                //      from=join
-                                                //      where=expr
-                                                //      groupby=[expr..]
-                                                //      having=expr
-                                                //      orderby=[order_key..]
-                                                // )
-        "distinct" = Distinct([Id; 2]),         // (distinct [expr..] child)
-
         // plans
-        "scan" = Scan(Id),                      // (scan [column..])
+        "scan" = Scan([Id; 2]),                 // (scan table [column..])
         "values" = Values(Box<[Id]>),           // (values [expr..]..)
         "proj" = Proj([Id; 2]),                 // (proj [expr..] child)
         "filter" = Filter([Id; 2]),             // (filter expr child)
@@ -115,6 +105,9 @@ define_language! {
         "prune" = Prune([Id; 2]),               // (prune node child)
                                                     // do column prune on `child`
                                                     // with the used columns in `node`
+        "empty" = Empty(Box<[Id]>),             // (empty child..)
+                                                    // returns empty chunk
+                                                    // with the same schema as `child`
 
         Symbol(Symbol),
     }
@@ -134,32 +127,32 @@ impl Expr {
     }
 
     pub fn as_const(&self) -> DataValue {
-        let Self::Constant(v) = self else { panic!("not a constant") };
+        let Self::Constant(v) = self else { panic!("not a constant: {self}") };
         v.clone()
     }
 
     pub fn as_list(&self) -> &[Id] {
-        let Self::List(l) = self else { panic!("not a list") };
+        let Self::List(l) = self else { panic!("not a list: {self}") };
         l
     }
 
     pub fn as_column(&self) -> ColumnRefId {
-        let Self::Column(c) = self else { panic!("not a columnn") };
+        let Self::Column(c) = self else { panic!("not a columnn: {self}") };
         *c
     }
 
     pub fn as_table(&self) -> TableRefId {
-        let Self::Table(t) = self else { panic!("not a table") };
+        let Self::Table(t) = self else { panic!("not a table: {self}") };
         *t
     }
 
     pub fn as_type(&self) -> &DataTypeKind {
-        let Self::Type(t) = self else { panic!("not a type") };
+        let Self::Type(t) = self else { panic!("not a type: {self}") };
         t
     }
 
     pub fn as_ext_source(&self) -> ExtSource {
-        let Self::ExtSource(v) = self else { panic!("not an external source") };
+        let Self::ExtSource(v) = self else { panic!("not an external source: {self}") };
         v.clone()
     }
 
@@ -195,6 +188,21 @@ impl Expr {
             &Self::Not(a) => (Op::Not, a),
             _ => return None,
         })
+    }
+}
+
+trait ExprExt {
+    fn as_list(&self) -> &[Id];
+}
+
+impl<D> ExprExt for egg::EClass<Expr, D> {
+    fn as_list(&self) -> &[Id] {
+        self.iter()
+            .find_map(|e| match e {
+                Expr::List(list) => Some(list),
+                _ => None,
+            })
+            .expect("not list")
     }
 }
 

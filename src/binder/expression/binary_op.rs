@@ -56,7 +56,7 @@ impl Binder {
                     (Float64 | Decimal(_, _), Int32 | Int64)
                     | (Int64, Int32)
                     | (Date, String)
-                    | (Decimal(_, _), Float64) => {
+                    | (Decimal(_, _), Float64 | Decimal(None, None)) => {
                         right_bound_expr = BoundExpr::TypeCast(BoundTypeCast {
                             expr: Box::new(right_bound_expr),
                             ty: left_kind,
@@ -65,7 +65,7 @@ impl Binder {
                     (Int32 | Int64, Float64 | Decimal(_, _))
                     | (Int32, Int64)
                     | (String, Date)
-                    | (Float64, Decimal(_, _)) => {
+                    | (Float64 | Decimal(None, None), Decimal(_, _)) => {
                         left_bound_expr = BoundExpr::TypeCast(BoundTypeCast {
                             expr: Box::new(left_bound_expr),
                             ty: right_kind.clone(),

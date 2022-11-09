@@ -25,7 +25,7 @@ use minitrace::prelude::*;
 use self::copy_from_file::*;
 use self::copy_to_file::*;
 use self::create::*;
-// use self::delete::*;
+use self::delete::*;
 use self::drop::*;
 use self::evaluator::*;
 // use self::dummy_scan::*;
@@ -55,12 +55,12 @@ use crate::catalog::RootCatalogRef;
 use crate::function::FunctionError;
 use crate::planner::{ColumnIndexResolver, Expr, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, StorageImpl, TracedStorageError};
-use crate::types::{ConvertError, DataType, DataValue};
+use crate::types::{ColumnIndex, ConvertError, DataType, DataTypeKind, DataValue};
 
 mod copy_from_file;
 mod copy_to_file;
 mod create;
-// mod delete;
+mod delete;
 mod drop;
 // mod dummy_scan;
 mod evaluator;
@@ -180,11 +180,16 @@ impl<S: Storage> Builder<S> {
 
     /// Resolve the column index of `expr` in `plan`.
     fn resolve_column_index(&self, expr: Id, plan: Id) -> RecExpr {
-        let schema = (self.egraph[plan].data.schema.as_ref().expect("no schema"))
-            .iter()
-            .map(|id| self.recexpr(*id))
-            .collect_vec();
-        ColumnIndexResolver::new(&schema).resolve(&self.recexpr(expr))
+        let schema = self.egraph[plan].data.schema.as_ref().expect("no schema");
+        self.node(expr).build_recexpr(|id| {
+            if let Some(idx) = schema.iter().position(|x| *x == id) {
+                return Expr::ColumnIndex(ColumnIndex(idx as _));
+            }
+            match self.node(id) {
+                Expr::Column(c) => panic!("column {c} not found from input"),
+                e => e.clone(),
+            }
+        })
     }
 
     fn build(self) -> BoxedExecutor {
@@ -194,7 +199,8 @@ impl<S: Storage> Builder<S> {
     fn build_id(&self, id: Id) -> BoxedExecutor {
         use Expr::*;
         match self.node(id).clone() {
-            Scan(list) => TableScanExecutor {
+            Scan([table, list]) => TableScanExecutor {
+                table_id: self.node(table).as_table(),
                 columns: (self.node(list).as_list().iter())
                     .map(|id| self.node(*id).as_column())
                     .collect(),
@@ -248,7 +254,7 @@ impl<S: Storage> Builder<S> {
 
             Join([op, on, left, right]) => NestedLoopJoinExecutor {
                 op: self.node(op).clone(),
-                condition: self.recexpr(on),
+                condition: self.resolve_column_index(on, id),
                 left_types: self.plan_types(left).to_vec(),
                 right_types: self.plan_types(right).to_vec(),
             }
@@ -299,7 +305,11 @@ impl<S: Storage> Builder<S> {
             }
             .execute(self.build_id(child)),
 
-            Delete(_) => todo!(),
+            Delete([table, child]) => DeleteExecutor {
+                table_id: self.node(table).as_table(),
+                storage: self.storage.clone(),
+            }
+            .execute(self.build_id(child)),
 
             CopyFrom([src, types]) => CopyFromFileExecutor {
                 source: self.node(src).as_ext_source(),
@@ -317,6 +327,8 @@ impl<S: Storage> Builder<S> {
                 catalog: self.catalog.clone(),
             }
             .execute(),
+
+            Empty(_) => futures::stream::empty().boxed(),
 
             node => panic!("not a plan: {node:?}"),
         }

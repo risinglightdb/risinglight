@@ -52,10 +52,8 @@ impl DataTypeKind {
 
     /// Returns the inner types of the struct.
     pub fn as_struct(&self) -> &[DataType] {
-        match self {
-            Self::Struct(types) => types,
-            _ => panic!("not a struct type"),
-        }
+        let Self::Struct(types) = self else { panic!("not a struct: {self}") };
+        types
     }
 
     /// Returns the minimum compatible type of 2 types.
@@ -246,38 +244,38 @@ pub(crate) type ColumnId = u32;
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
 #[allow(named_arguments_used_positionally)]
 pub enum ConvertError {
-    #[error("failed to convert string {0:?} to int: {1:?}")]
+    #[error("failed to convert string {0:?} to int: {1}")]
     ParseInt(String, #[source] std::num::ParseIntError),
-    #[error("failed to convert string {0:?} to float: {1:?}")]
+    #[error("failed to convert string {0:?} to float: {1}")]
     ParseFloat(String, #[source] std::num::ParseFloatError),
-    #[error("failed to convert string {0:?} to bool: {1:?}")]
+    #[error("failed to convert string {0:?} to bool: {1}")]
     ParseBool(String, #[source] std::str::ParseBoolError),
-    #[error("failed to convert string {0:?} to decimal: {1:?}")]
+    #[error("failed to convert string {0:?} to decimal: {1}")]
     ParseDecimal(String, #[source] rust_decimal::Error),
-    #[error("failed to convert string {0:?} to date: {1:?}")]
+    #[error("failed to convert string {0:?} to date: {1}")]
     ParseDate(String, #[source] chrono::ParseError),
-    #[error("failed to convert string {0:?} to interval")]
-    ParseInterval(String),
-    #[error("failed to convert string {0:?} to blob: {1:?}")]
+    #[error("failed to convert string {0:?} to interval: {1}")]
+    ParseInterval(String, #[source] ParseIntervalError),
+    #[error("failed to convert string {0:?} to blob: {1}")]
     ParseBlob(String, #[source] ParseBlobError),
-    #[error("failed to convert {0:?} to decimal")]
+    #[error("failed to convert {0} to decimal")]
     ToDecimalError(DataValue),
-    #[error("failed to convert {0:?} from decimal {1:?}")]
+    #[error("failed to convert {0} from decimal {1}")]
     FromDecimalError(DataTypeKind, DataValue),
-    #[error("failed to convert {0:?} to date")]
-    ToDateError(DataTypeKind),
-    #[error("failed to convert {0:?} from date")]
+    #[error("failed to convert {0} from date")]
     FromDateError(DataTypeKind),
-    #[error("failed to convert {0:?} from interval")]
+    #[error("failed to convert {0} from interval")]
     FromIntervalError(DataTypeKind),
     #[error("failed to cast {0} to type {1}")]
     Cast(String, &'static str),
-    #[error("constant {0:?} overflows {1:?}")]
+    #[error("constant {0} overflows {1}")]
     Overflow(DataValue, DataTypeKind),
     #[error("no function {0}({1})")]
     NoUnaryOp(String, &'static str),
     #[error("no function {0}({1}, {2})")]
     NoBinaryOp(String, &'static str, &'static str),
+    #[error("no cast {0} -> {1}")]
+    NoCast(&'static str, DataTypeKind),
 }
 
 /// The physical index to the column from child plan.

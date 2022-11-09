@@ -22,7 +22,6 @@ pub type AggValue = SmallVec<[DataValue; 16]>;
 impl HashAggExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self, child: BoxedExecutor) {
-        let len = self.aggs.as_ref().last().unwrap().as_list().len();
         let mut states = HashMap::<GroupKeys, AggValue>::new();
 
         #[for_await]
@@ -34,7 +33,7 @@ impl HashAggExecutor {
                 let keys = keys_chunk.row(i).values().collect();
                 let states = states
                     .entry(keys)
-                    .or_insert_with(|| smallvec![DataValue::Null; len]);
+                    .or_insert_with(|| ExprRef::new(&self.aggs).init_agg_states().into());
                 ExprRef::new(&self.aggs).eval_agg_list(states, &chunk.slice(i..=i))?;
             }
         }

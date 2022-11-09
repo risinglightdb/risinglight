@@ -6,6 +6,9 @@ use super::*;
 use crate::catalog::ColumnRefId;
 
 impl Binder {
+    /// Binds the FROM clause. Returns a nested [`Join`](Node::Join) plan of tables.
+    ///
+    /// If there is no FROM clause, returns `(values (0))`.
     pub(super) fn bind_from(&mut self, tables: Vec<TableWithJoins>) -> Result {
         let mut node = None;
         for table in tables {
@@ -18,24 +21,48 @@ impl Binder {
                 table_node
             });
         }
-        Ok(node.expect("no table"))
+        if let Some(node) = node {
+            Ok(node)
+        } else {
+            let zero = self.egraph.add(Node::zero());
+            let row = self.egraph.add(Node::List([zero].into()));
+            Ok(self.egraph.add(Node::Values([row].into())))
+        }
     }
 
+    /// Returns a nested [`Join`](Node::Join) plan of tables.
+    ///
+    /// # Example
+    /// ```ignore
+    /// (join inner true
+    ///     (join inner (= $1.1 $2.1)
+    ///        (scan $1 (list $1.1 $1.2))
+    ///        (scan $2 (list $2.1))
+    ///     )
+    ///     (scan $3 (list $3.1 $3.2))
+    /// )
+    /// ```
     fn bind_table_with_joins(&mut self, tables: TableWithJoins) -> Result {
-        let mut node = self.bind_table(tables.relation)?;
+        let mut node = self.bind_table_factor(tables.relation)?;
         for join in tables.joins {
-            let table = self.bind_table(join.relation)?;
+            let table = self.bind_table_factor(join.relation)?;
             let (ty, condition) = self.bind_join_op(join.join_operator)?;
             node = self.egraph.add(Node::Join([ty, condition, node, table]));
         }
         Ok(node)
     }
 
-    pub(super) fn bind_table(&mut self, table: TableFactor) -> Result {
+    /// Returns a `Scan` plan of table or a plan of subquery.
+    ///
+    /// # Example
+    /// - `bind_table_factor(t)` => `(scan $1 (list $1.1 $1.2 $1.3))`
+    /// - `bind_table_factor(select 1)` => `(values (1))`
+    fn bind_table_factor(&mut self, table: TableFactor) -> Result {
         match table {
             TableFactor::Table { name, alias, .. } => {
-                let cols = self.bind_table_name(name)?;
-                let id = self.egraph.add(Node::Scan(cols));
+                let table_id = self.bind_table_id(&name)?;
+                let cols = self.bind_table_name(&name, false)?;
+                let id = self.egraph.add(Node::Scan([table_id, cols]));
                 if let Some(alias) = alias {
                     self.add_alias(alias.name, id)?;
                 }
@@ -93,8 +120,14 @@ impl Binder {
         }
     }
 
-    fn bind_table_name(&mut self, name: ObjectName) -> Result {
-        let name = lower_case_name(&name);
+    /// Returns a list of all columns in the table.
+    ///
+    /// This function defines the table name so that it can be referred later.
+    ///
+    /// # Example
+    /// - `bind_table_name(t)` => `(list $1.1 $1.2)`
+    pub(super) fn bind_table_name(&mut self, name: &ObjectName, with_rowid: bool) -> Result {
+        let name = lower_case_name(name);
         let (database_name, schema_name, table_name) = split_name(&name)?;
         if self.current_ctx().tables.contains_key(table_name) {
             return Err(BindError::DuplicatedTable(table_name.into()));
@@ -109,7 +142,13 @@ impl Binder {
 
         let table = self.catalog.get_table(&ref_id).unwrap();
         let mut ids = vec![];
-        for cid in table.all_columns().keys() {
+        for cid in if with_rowid {
+            table.all_columns_with_rowid()
+        } else {
+            table.all_columns()
+        }
+        .keys()
+        {
             let column_ref_id = ColumnRefId::from_table(ref_id, *cid);
             ids.push(self.egraph.add(Node::Column(column_ref_id)));
         }
@@ -117,7 +156,15 @@ impl Binder {
         Ok(id)
     }
 
-    /// Returns the Id of a list of columns.
+    /// Returns a list of given columns in the table.
+    ///
+    /// If `columns` is empty, returns all columns in the table.
+    /// If `table_name` is undefined or any column name is not exist, returns an error.
+    /// (note: )
+    ///
+    /// # Example
+    /// - `bind_table_columns(t, [c, a])` => `(list $1.3 $1.1)`
+    /// - `bind_table_columns(t, [])` => `(list $1.1 $1.2 $1.3)`
     pub(super) fn bind_table_columns(
         &mut self,
         table_name: &ObjectName,
@@ -157,7 +204,10 @@ impl Binder {
         Ok(id)
     }
 
-    /// Returns the Id of a node `TableRefId`.
+    /// Returns a [`Table`](Node::Table) node.
+    ///
+    /// # Example
+    /// - `bind_table_id(t)` => `$1`
     pub(super) fn bind_table_id(&mut self, table_name: &ObjectName) -> Result {
         let name = lower_case_name(table_name);
         let (database_name, schema_name, table_name) = split_name(&name)?;

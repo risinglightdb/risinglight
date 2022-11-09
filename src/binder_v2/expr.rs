@@ -12,7 +12,7 @@ impl Binder {
     /// Bind an expression.
     pub fn bind_expr(&mut self, expr: Expr) -> Result {
         let id = match expr {
-            Expr::Value(v) => Ok(self.egraph.add(Node::Constant(v.into()))),
+            Expr::Value(v) => Ok(self.egraph.add(Node::Constant(DataValue::from(&v)))), /* WARN: don't use v.into() */
             Expr::Identifier(ident) => self.bind_ident([ident]),
             Expr::CompoundIdentifier(idents) => self.bind_ident(idents),
             Expr::BinaryOp { left, op, right } => self.bind_binary_op(*left, op, *right),

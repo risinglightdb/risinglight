@@ -30,9 +30,10 @@ macro_rules! impl_numeric {
     }
 }
 
+#[rustfmt::skip]
 impl_native!(
     u8, u16, u32, u64, usize, i8, i16, i32, i64, isize, f32, f64, F32, F64, bool, Decimal, Date,
-    Interval
+    Interval, ()
 );
 
 impl_numeric!(u8, u16, u32, u64, usize, i8, i16, i32, i64, isize, f32, f64, bool);

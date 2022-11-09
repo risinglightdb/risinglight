@@ -32,21 +32,19 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
             .ok_or(TypeError::Unavailable)?
             .datatype()),
 
+        Nested(a) => x(a),
         List(list) => Ok(Kind::Struct(list.iter().map(x).try_collect()?).not_null()),
 
         // cast
         Cast([ty, a]) => merge(enode, [x(ty)?, x(a)?], |[ty, _]| Some(ty)),
 
         // number ops
-        Neg(a) => x(a),
+        Neg(a) => check(enode, x(a)?, |a| a.is_number()),
         Add([a, b]) | Sub([a, b]) | Mul([a, b]) | Div([a, b]) | Mod([a, b]) => {
             merge(enode, [x(a)?, x(b)?], |[a, b]| {
                 match if a > b { (b, a) } else { (a, b) } {
                     (Kind::Null, _) => Some(Kind::Null),
-                    (a, b) if a == b && a.is_number() => Some(a),
-                    (Kind::Int32 | Kind::Int64, b @ Kind::Decimal(_, _) | b @ Kind::Float64) => {
-                        Some(b)
-                    }
+                    (a, b) if a.is_number() && b.is_number() => Some(b),
                     (Kind::Date, Kind::Interval) => Some(Kind::Date),
                     _ => None,
                 }
@@ -91,14 +89,13 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         First(a) | Last(a) => x(a),
 
         // equal to child
-        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c])
-        | Distinct([_, c]) => x(c),
+        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(c),
 
         // concat 2 children
         Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) => concat_struct(x(l)?, x(r)?),
 
         // plans that change schema
-        Scan(columns) => x(columns),
+        Scan([_, columns]) => x(columns),
         Values(rows) => {
             if rows.is_empty() {
                 return Ok(Kind::Null.not_null());
@@ -113,8 +110,16 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
             }
             Ok(type_)
         }
-        Proj([exprs, _]) | Select([exprs, ..]) => x(exprs),
+        Proj([exprs, _]) => x(exprs),
         Agg([exprs, group_keys, _]) => concat_struct(x(exprs)?, x(group_keys)?),
+        Empty(ids) => {
+            let mut types = vec![];
+            for id in ids.iter() {
+                let Kind::Struct(list) = x(id)?.kind else { panic!("not struct type") };
+                types.extend(list);
+            }
+            Ok(Kind::Struct(types).not_null())
+        }
 
         // other plan nodes
         _ => Err(TypeError::Unavailable),

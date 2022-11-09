@@ -76,7 +76,7 @@ impl<'a> ExprRef<'a> {
                         .collect(),
                 ))
             }
-            Asc(a) | Desc(a) => self.next(*a).eval(chunk),
+            Asc(a) | Desc(a) | Nested(a) => self.next(*a).eval(chunk),
             e => {
                 if let Some((op, a, b)) = e.binary_op() {
                     let left = self.next(a).eval(chunk)?;
@@ -89,6 +89,23 @@ impl<'a> ExprRef<'a> {
                     panic!("can not evaluate expression: {self}");
                 }
             }
+        }
+    }
+
+    /// Returns the initial aggregation states.
+    pub fn init_agg_states(&self) -> Vec<DataValue> {
+        (self.node().as_list().iter())
+            .map(|id| self.next(*id).init_agg_state())
+            .collect()
+    }
+
+    /// Returns the initial aggregation state.
+    fn init_agg_state(&self) -> DataValue {
+        use Expr::*;
+        match self.node() {
+            RowCount | Count(_) => DataValue::Int32(0),
+            Sum(a) | Min(a) | Max(a) | First(a) | Last(a) => DataValue::Null,
+            t => panic!("not aggregation: {t}"),
         }
     }
 
@@ -106,7 +123,7 @@ impl<'a> ExprRef<'a> {
     }
 
     /// Evaluate the aggregation.
-    pub fn eval_agg(&self, state: DataValue, chunk: &DataChunk) -> Result<DataValue, ConvertError> {
+    fn eval_agg(&self, state: DataValue, chunk: &DataChunk) -> Result<DataValue, ConvertError> {
         impl DataValue {
             fn add(self, other: Self) -> Self {
                 if self.is_null() {

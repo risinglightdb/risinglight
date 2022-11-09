@@ -1,12 +1,13 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use bitvec::prelude::BitVec;
+use rust_decimal::Decimal;
 use serde::Serialize;
 
 use super::*;
 use crate::catalog::ColumnRefId;
 use crate::parser::{BinaryOperator, DateTimeField, Expr, Function, UnaryOperator, Value};
-use crate::types::{DataType, DataTypeKind, DataValue, Interval, F64};
+use crate::types::{DataType, DataTypeKind, DataValue, Interval};
 
 mod agg_call;
 mod binary_op;
@@ -270,8 +271,8 @@ impl From<&Value> for DataValue {
                     Self::Int32(int)
                 } else if let Ok(bigint) = n.parse::<i64>() {
                     Self::Int64(bigint)
-                } else if let Ok(float) = n.parse::<F64>() {
-                    Self::Float64(float)
+                } else if let Ok(decimal) = n.parse::<Decimal>() {
+                    Self::Decimal(decimal)
                 } else {
                     panic!("invalid digit: {}", n);
                 }
@@ -285,24 +286,15 @@ impl From<&Value> for DataValue {
                 leading_field,
                 ..
             } => {
-                if let Expr::Value(Value::SingleQuotedString(value)) = &**value {
-                    match leading_field {
-                        Some(DateTimeField::Day) => {
-                            // TODO: don't directly call to_string here, sqlparser may already
-                            // parsed that.
-                            Self::Interval(Interval::from_days(value.to_string().parse().unwrap()))
-                        }
-                        Some(DateTimeField::Month) => Self::Interval(Interval::from_months(
-                            value.to_string().parse().unwrap(),
-                        )),
-                        Some(DateTimeField::Year) => {
-                            Self::Interval(Interval::from_years(value.to_string().parse().unwrap()))
-                        }
-                        _ => todo!("Support interval with leading field: {:?}", leading_field),
-                    }
-                } else {
-                    todo!("unsupported value: {}", value)
-                }
+                let Expr::Value(Value::SingleQuotedString(value)) = &**value else {
+                    todo!("unsupported value: {}", value);
+                };
+                Self::Interval(match leading_field {
+                    Some(DateTimeField::Day) => Interval::from_days(value.parse().unwrap()),
+                    Some(DateTimeField::Month) => Interval::from_months(value.parse().unwrap()),
+                    Some(DateTimeField::Year) => Interval::from_years(value.parse().unwrap()),
+                    _ => todo!("Support interval with leading field: {:?}", leading_field),
+                })
             }
             _ => todo!("parse value: {:?}", v),
         }

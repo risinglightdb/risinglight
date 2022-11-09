@@ -14,12 +14,22 @@ pub fn always_better_rules() -> Vec<Rewrite> {
 
 #[rustfmt::skip]
 fn cancel_rules() -> Vec<Rewrite> { vec![
-    rw!("limit-null";   "(limit null 0 ?child)" => "?child"),
-    rw!("limit-0";      "(limit 0 ?offset ?child)" => "(values)"),
-    rw!("filter-true";  "(filter true ?child)" => "?child"),
-    rw!("filter-false"; "(filter false ?child)" => "(values)"),
-    rw!("join-false";   "(join ?type false ?left ?right)" => "(values)"),
-    rw!("order-null";   "(order (list) ?child)" => "?child"),
+    rw!("limit-null";       "(limit null 0 ?child)"     => "?child"),
+    rw!("limit-0";          "(limit 0 ?offset ?child)"  => "(empty ?child)"),
+    rw!("order-null";       "(order (list) ?child)"     => "?child"),
+    rw!("filter-true";      "(filter true ?child)"      => "?child"),
+    rw!("filter-false";     "(filter false ?child)"     => "(empty ?child)"),
+    rw!("inner-join-false"; "(join inner false ?l ?r)"  => "(empty ?l ?r)"),
+
+    rw!("proj-on-empty";    "(proj ?exprs (empty ?c))"                  => "(empty ?c)"),
+    // TODO: only valid when aggs don't contain `count`
+    // rw!("agg-on-empty";     "(agg ?aggs ?groupby (empty ?c))"           => "(empty ?c)"),
+    rw!("filter-on-empty";  "(filter ?cond (empty ?c))"                 => "(empty ?c)"),
+    rw!("order-on-empty";   "(order ?keys (empty ?c))"                  => "(empty ?c)"),
+    rw!("limit-on-empty";   "(limit ?limit ?offset (empty ?c))"         => "(empty ?c)"),
+    rw!("topn-on-empty";    "(topn ?limit ?offset ?keys (empty ?c))"    => "(empty ?c)"),
+    rw!("inner-join-on-left-empty";  "(join inner ?on (empty ?l) ?r)"   => "(empty ?l ?r)"),
+    rw!("inner-join-on-right-empty"; "(join inner ?on ?l (empty ?r))"   => "(empty ?l ?r)"),
 ]}
 
 #[rustfmt::skip]
@@ -153,8 +163,8 @@ pub fn column_prune_rules() -> Vec<Rewrite> { vec![
         "(proj (prune ?set ?exprs) ?child))"
     ),
     rw!("prune-scan";
-        "(prune ?set (scan ?columns))" =>
-        "(scan (prune ?set ?columns))"
+        "(prune ?set (scan ?table ?columns))" =>
+        "(scan ?table (prune ?set ?columns))"
     ),
     // finally the prune is applied to a list of expressions
     rw!("prune-list";
@@ -208,7 +218,7 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
     let x = |i: &Id| &egraph[*i].data.columns;
     match enode {
         Column(col) => [*col].into_iter().collect(),
-        Proj([exprs, _]) | Select([exprs, ..]) => x(exprs).clone(),
+        Proj([exprs, _]) => x(exprs).clone(),
         Agg([exprs, group_keys, _]) => x(exprs).union(x(group_keys)).cloned().collect(),
         Prune([cols, child]) => x(cols).intersection(x(child)).cloned().collect(),
         _ => {
@@ -236,10 +246,7 @@ impl Applier<Expr, ExprAnalysis> for PruneList {
         _rule_name: Symbol,
     ) -> Vec<Id> {
         let used_columns = &egraph[subst[self.set]].data.columns;
-        let list = match &egraph[subst[self.list]].nodes[0] {
-            Expr::List(list) => list.as_slice(),
-            _ => unreachable!("should be a list"),
-        };
+        let list = egraph[subst[self.list]].nodes[0].as_list();
         let pruned = (list.iter().cloned())
             .filter(|id| !egraph[*id].data.columns.is_disjoint(used_columns))
             .collect();
@@ -275,14 +282,14 @@ mod tests {
         (proj (list $1.2 $2.2)
         (filter (and (= $1.1 $2.1) (= $2.3 'A'))
         (join inner true
-            (scan (list $1.1 $1.2))
-            (scan (list $2.1 $2.2 $2.3))
+            (scan $1 (list $1.1 $1.2))
+            (scan $2 (list $2.1 $2.2 $2.3))
         )))" => "
         (proj (list $1.2 $2.2)
         (join inner (= $1.1 $2.1)
-            (scan (list $1.1 $1.2))
+            (scan $1 (list $1.1 $1.2))
             (filter (= $2.3 'A')
-                (scan (list $2.1 $2.2 $2.3))
+                (scan $2 (list $2.1 $2.2 $2.3))
             )
         ))"
     }
@@ -296,16 +303,16 @@ mod tests {
         (filter (and (= $1.1 $2.1) (= $3.1 $2.1))
         (join inner true
             (join inner true
-                (scan (list $1.1 $1.2))
-                (scan (list $2.1 $2.2))
+                (scan $1 (list $1.1 $1.2))
+                (scan $2 (list $2.1 $2.2))
             )
-            (scan (list $3.1 $3.2))
+            (scan $3 (list $3.1 $3.2))
         ))" => "
         (join inner (= $1.1 $2.1)
-            (scan (list $1.1 $1.2))
+            (scan $1 (list $1.1 $1.2))
             (join inner (= $2.1 $3.1)
-                (scan (list $2.1 $2.2))
-                (scan (list $3.1 $3.2))
+                (scan $2 (list $2.1 $2.2))
+                (scan $3 (list $3.1 $3.2))
             )
         )"
     }
@@ -318,14 +325,14 @@ mod tests {
         "
         (filter (and (= $1.1 $2.1) (> $1.2 2))
         (join inner true
-            (scan (list $1.1 $1.2))
-            (scan (list $2.1 $2.2))
+            (scan $1 (list $1.1 $1.2))
+            (scan $2 (list $2.1 $2.2))
         ))" => "
         (hashjoin inner (list $1.1) (list $2.1)
             (filter (> $1.2 2)
-                (scan (list $1.1 $1.2))
+                (scan $1 (list $1.1 $1.2))
             )
-            (scan (list $2.1 $2.2))
+            (scan $2 (list $2.1 $2.2))
         )"
     }
 
@@ -337,14 +344,14 @@ mod tests {
         (proj (list $1.2)
         (filter (> (+ $1.2 $2.2) 1)
         (join inner (= $1.1 $2.1)
-            (scan (list $1.1 $1.2))
-            (scan (list $2.1 $2.2 $2.3))
+            (scan $1 (list $1.1 $1.2))
+            (scan $2 (list $2.1 $2.2 $2.3))
         )))" => "
         (proj (list $1.2)
         (filter (> (+ $1.2 $2.2) 1)
         (join inner (= $1.1 $2.1)
-            (scan (list $1.1 $1.2))
-            (scan (list $2.1 $2.2))
+            (scan $1 (list $1.1 $1.2))
+            (scan $2 (list $2.1 $2.2))
         )))"
     }
 }

@@ -8,7 +8,7 @@ use crate::array::*;
 use crate::binder::BoundExpr;
 use crate::for_all_variants;
 use crate::parser::{BinaryOperator, UnaryOperator};
-use crate::types::{Blob, ConvertError, DataTypeKind, DataValue, Date, F64};
+use crate::types::{Blob, ConvertError, DataTypeKind, DataValue, Date, Interval, F64};
 
 impl BoundExpr {
     /// Evaluate the given expression as an array.
@@ -156,6 +156,14 @@ impl ArrayImpl {
                     #[cfg(not(feature = "simd"))]
                     (A::Float64(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
 
+                    (A::Int32(a), A::Int64(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i64) $op *b)),
+                    (A::Int64(a), A::Int32(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op (*b as i64))),
+
+                    (A::Int32(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
+                    (A::Int64(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
+                    (A::Float64(a), A::Int32(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
+                    (A::Float64(a), A::Int64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
+
                     (A::Int32(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
                     (A::Int64(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
                     (A::Float64(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from_f64_retain(a.0).unwrap() $op *b)),
@@ -180,6 +188,15 @@ impl ArrayImpl {
                     (A::Utf8(a), A::Utf8(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Date(a), A::Date(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
                     (A::Decimal(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+
+                    (A::Int32(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i64) $op *b)),
+                    (A::Int64(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op (*b as i64))),
+
+                    (A::Int32(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
+                    (A::Int64(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
+                    (A::Float64(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
+                    (A::Float64(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
+
                     (A::Int32(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
                     (A::Int64(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
                     (A::Float64(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from_f64_retain(a.0).unwrap() $op *b)),
@@ -234,6 +251,14 @@ impl ArrayImpl {
     pub fn try_cast(&self, data_type: &DataTypeKind) -> Result<Self, ConvertError> {
         type Type = DataTypeKind;
         Ok(match self {
+            Self::Null(a) => {
+                let mut builder =
+                    ArrayBuilderImpl::with_capacity(a.len(), &data_type.clone().nullable());
+                for _ in 0..a.len() {
+                    builder.push(&DataValue::Null);
+                }
+                builder.finish()
+            }
             Self::Bool(a) => match data_type {
                 Type::Bool => Self::Bool(a.clone()),
                 Type::Int32 => Self::new_int32(unary_op(a.as_ref(), |&b| b as i32)),
@@ -247,8 +272,9 @@ impl ArrayImpl {
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&b| Decimal::from(b as u8)))
                 }
-                Type::Date => return Err(ConvertError::ToDateError(Type::Bool)),
-                _ => todo!("cast array"),
+                Type::Null | Type::Date | Type::Interval | Type::Blob | Type::Struct(_) => {
+                    return Err(ConvertError::NoCast("BOOLEAN", data_type.clone()));
+                }
             },
             Self::Int32(a) => match data_type {
                 Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&i| i != 0)),
@@ -259,8 +285,9 @@ impl ArrayImpl {
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
                 }
-                Type::Date => return Err(ConvertError::ToDateError(Type::Int32)),
-                _ => todo!("cast array"),
+                Type::Null | Type::Date | Type::Interval | Type::Blob | Type::Struct(_) => {
+                    return Err(ConvertError::NoCast("INT", data_type.clone()));
+                }
             },
             Self::Int64(a) => match data_type {
                 Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&i| i != 0)),
@@ -274,8 +301,9 @@ impl ArrayImpl {
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
                 }
-                Type::Date => return Err(ConvertError::ToDateError(Type::Int64)),
-                _ => todo!("cast array"),
+                Type::Null | Type::Date | Type::Interval | Type::Blob | Type::Struct(_) => {
+                    return Err(ConvertError::NoCast("BIGINT", data_type.clone()));
+                }
             },
             Self::Float64(a) => match data_type {
                 Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&f| f != 0.0)),
@@ -303,8 +331,9 @@ impl ArrayImpl {
                         },
                     )?)
                 }
-                Type::Date => return Err(ConvertError::ToDateError(Type::Float64)),
-                _ => todo!("cast array"),
+                Type::Null | Type::Date | Type::Interval | Type::Blob | Type::Struct(_) => {
+                    return Err(ConvertError::NoCast("DOUBLE", data_type.clone()));
+                }
             },
             Self::Utf8(a) => match data_type {
                 Type::Bool => Self::new_bool(try_unary_op(a.as_ref(), |s| {
@@ -330,10 +359,15 @@ impl ArrayImpl {
                 Type::Date => Self::new_date(try_unary_op(a.as_ref(), |s| {
                     Date::from_str(s).map_err(|e| ConvertError::ParseDate(s.to_string(), e))
                 })?),
+                Type::Interval => Self::new_interval(try_unary_op(a.as_ref(), |s| {
+                    Interval::from_str(s).map_err(|e| ConvertError::ParseInterval(s.to_string(), e))
+                })?),
                 Type::Blob => Self::new_blob(try_unary_op(a.as_ref(), |s| {
                     Blob::from_str(s).map_err(|e| ConvertError::ParseBlob(s.to_string(), e))
                 })?),
-                _ => todo!("cast array"),
+                Type::Null | Type::Struct(_) => {
+                    return Err(ConvertError::NoCast("VARCHAR", data_type.clone()));
+                }
             },
             Self::Blob(_) => todo!("cast array"),
             Self::Decimal(a) => match data_type {
@@ -359,15 +393,21 @@ impl ArrayImpl {
                         ))
                 })?),
                 Type::String => Self::new_utf8(unary_op(a.as_ref(), |d| d.to_string())),
-                Type::Decimal(_, _) => Self::Decimal(a.clone()),
-                Type::Date => return Err(ConvertError::ToDateError(Type::Decimal(None, None))),
-                _ => todo!("cast array"),
+                Type::Decimal(_, _) => self.clone(),
+                Type::Null | Type::Blob | Type::Date | Type::Interval | Type::Struct(_) => {
+                    return Err(ConvertError::NoCast("DOUBLE", data_type.clone()));
+                }
             },
             Self::Date(a) => match data_type {
+                Type::Date => self.clone(),
                 Type::String => Self::new_utf8(unary_op(a.as_ref(), |&d| d.to_string())),
-                ty => return Err(ConvertError::FromDateError(ty.clone())),
+                _ => return Err(ConvertError::NoCast("DATE", data_type.clone())),
             },
-            Self::Interval(_) => return Err(ConvertError::FromIntervalError(data_type.clone())),
+            Self::Interval(a) => match data_type {
+                Type::Interval => self.clone(),
+                Type::String => Self::new_utf8(unary_op(a.as_ref(), |&d| d.to_string())),
+                _ => return Err(ConvertError::NoCast("INTERVAL", data_type.clone())),
+            },
         })
     }
 
@@ -405,14 +445,14 @@ macro_rules! impl_agg {
             /// Returns the first non-null value.
             pub fn first(&self) -> DataValue {
                 match self {
-                    $(Self::$Abc(a) => a.iter().flatten().next().into(),)*
+                    $(Self::$Abc(a) => a.iter().next().flatten().into(),)*
                 }
             }
 
             /// Returns the last non-null value.
             pub fn last(&self) -> DataValue {
                 match self {
-                    $(Self::$Abc(a) => a.iter().rev().flatten().next().into(),)*
+                    $(Self::$Abc(a) => a.iter().rev().next().flatten().into(),)*
                 }
             }
         }

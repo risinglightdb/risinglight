@@ -4,11 +4,12 @@ use std::sync::Arc;
 
 use super::*;
 use crate::array::DataChunk;
-use crate::catalog::ColumnRefId;
+use crate::catalog::{ColumnRefId, TableRefId};
 use crate::storage::{Storage, StorageColumnRef, Table, Transaction, TxnIterator};
 
 /// The executor of table scan operation.
 pub struct TableScanExecutor<S: Storage> {
+    pub table_id: TableRefId,
     pub columns: Vec<ColumnRefId>,
     pub storage: Arc<S>,
 }
@@ -16,15 +17,21 @@ pub struct TableScanExecutor<S: Storage> {
 impl<S: Storage> TableScanExecutor<S> {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
-        let table = self.storage.get_table(self.columns[0].table())?;
+        let table = self.storage.get_table(self.table_id)?;
 
         let mut col_idx = self
             .columns
             .iter()
-            .map(|x| StorageColumnRef::Idx(x.column_id)) // FIXME: use index, not id
+            .map(|x| match x.column_id {
+                u32::MAX => StorageColumnRef::RowHandler,
+                id => StorageColumnRef::Idx(id), // convert column id -> storage column idx
+            })
             .collect_vec();
 
         // TODO: append row handler?
+        if self.columns.is_empty() {
+            col_idx.push(StorageColumnRef::RowHandler);
+        }
 
         let txn = table.read().await?;
 
@@ -39,7 +46,10 @@ impl<S: Storage> TableScanExecutor<S> {
             )
             .await?;
 
-        while let Some(x) = it.next_batch(None).await? {
+        while let Some(mut x) = it.next_batch(None).await? {
+            if self.columns.is_empty() {
+                x = DataChunk::no_column(x.cardinality());
+            }
             yield x;
         }
     }

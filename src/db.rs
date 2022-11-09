@@ -27,26 +27,29 @@ use crate::storage::{
 pub struct Database {
     catalog: RootCatalogRef,
     storage: StorageImpl,
+    use_v2: AtomicBool,
 }
-
-static USE_PLANNER_V2: AtomicBool = AtomicBool::new(false);
 
 impl Database {
     /// Create a new in-memory database instance.
     pub fn new_in_memory() -> Self {
         let storage = InMemoryStorage::new();
-        let catalog = storage.catalog().clone();
-        let storage = StorageImpl::InMemoryStorage(Arc::new(storage));
-        Database { catalog, storage }
+        Database {
+            catalog: storage.catalog().clone(),
+            storage: StorageImpl::InMemoryStorage(Arc::new(storage)),
+            use_v2: AtomicBool::new(false),
+        }
     }
 
     /// Create a new database instance with merge-tree engine.
     pub async fn new_on_disk(options: SecondaryStorageOptions) -> Self {
         let storage = Arc::new(SecondaryStorage::open(options).await.unwrap());
         storage.spawn_compactor().await;
-        let catalog = storage.catalog().clone();
-        let storage = StorageImpl::SecondaryStorage(storage);
-        Database { catalog, storage }
+        Database {
+            catalog: storage.catalog().clone(),
+            storage: StorageImpl::SecondaryStorage(storage),
+            use_v2: AtomicBool::new(false),
+        }
     }
 
     pub async fn shutdown(&self) -> Result<(), Error> {
@@ -152,9 +155,9 @@ impl Database {
             }
         } else if cmd == "dt" {
             self.run_dt()
-        } else if cmd == "v2" {
-            USE_PLANNER_V2.store(true, Ordering::Relaxed);
-            println!("switched to planner v2");
+        } else if cmd == "v1" || cmd == "v2" {
+            self.use_v2.store(cmd == "v2", Ordering::Relaxed);
+            println!("switched to planner {cmd}");
             Ok(vec![])
         } else {
             Err(Error::InternalError("unsupported command".to_string()))
@@ -171,7 +174,7 @@ impl Database {
         // parse
         let stmts = parse(sql)?;
 
-        if USE_PLANNER_V2.load(Ordering::Relaxed) {
+        if self.use_v2.load(Ordering::Relaxed) {
             let mut outputs: Vec<Chunk> = vec![];
             for stmt in stmts {
                 let mut binder = crate::binder_v2::Binder::new(self.catalog.clone());

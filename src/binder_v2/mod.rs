@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::vec::Vec;
 
-use egg::Id;
+use egg::{Id, Language};
 use itertools::Itertools;
 
 use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
@@ -68,6 +68,16 @@ pub enum BindError {
     BindFunctionError(String),
     #[error("type error: {0}")]
     TypeError(#[from] TypeError),
+    #[error("aggregate function calls cannot be nested")]
+    NestedAgg,
+    #[error("WHERE clause cannot contain aggregates")]
+    AggInWhere,
+    #[error("GROUP BY clause cannot contain aggregates")]
+    AggInGroupBy,
+    #[error("column {0} must appear in the GROUP BY clause or be used in an aggregate function")]
+    ColumnNotInAgg(String),
+    #[error("ORDER BY items must appear in the select list if DISTINCT is specified")]
+    OrderKeyNotInDistinct,
 }
 
 /// The binder resolves all expressions referring to schema objects such as
@@ -174,6 +184,18 @@ impl Binder {
 
     fn check_type(&self, id: Id) -> Result<crate::types::DataType> {
         Ok(self.egraph[id].data.type_.clone()?)
+    }
+
+    fn schema(&self, id: Id) -> Vec<Id> {
+        self.egraph[id].data.schema.clone().expect("no schema")
+    }
+
+    fn aggs(&self, id: Id) -> &[Node] {
+        &self.egraph[id].data.aggs
+    }
+
+    fn node(&self, id: Id) -> &Node {
+        &self.egraph[id].nodes[0]
     }
 
     fn bind_explain(&mut self, query: Statement) -> Result {
