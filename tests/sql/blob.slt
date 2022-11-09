@@ -25,10 +25,13 @@ SELECT * FROM blobs
 \xAA\xFF\xAA\xAA\xFF\xAA
 \xAA\xFF\xAA\xAA\xFF\xAA\xAA\xFF\xAA
 
-# Insert valid hex strings, lower case
 statement ok
-DELETE FROM blobs WHERE true
+DROP TABLE blobs;
 
+statement ok
+CREATE TABLE blobs (b BYTEA);
+
+# Insert valid hex strings, lower case
 statement ok
 INSERT INTO blobs VALUES('\xaa\xff\xaa'), ('\xaa\xff\xaa\xaa\xff\xaa'), ('\xaa\xff\xaa\xaa\xff\xaa\xaa\xff\xaa')
 
@@ -39,10 +42,13 @@ SELECT * FROM blobs
 \xAA\xFF\xAA\xAA\xFF\xAA
 \xAA\xFF\xAA\xAA\xFF\xAA\xAA\xFF\xAA
 
-# Insert valid hex strings with number and letters
 statement ok
-DELETE FROM blobs WHERE true
+DROP TABLE blobs;
 
+statement ok
+CREATE TABLE blobs (b BYTEA);
+
+# Insert valid hex strings with number and letters
 statement ok
 INSERT INTO blobs VALUES('\xaa1199'), ('\xaa1199aa1199'), ('\xaa1199aa1199aa1199')
 

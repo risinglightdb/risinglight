@@ -15,25 +15,29 @@ fn main() {
     const MEM_BLOCKLIST: &[&str] = &["statistics.slt"];
     const DISK_BLOCKLIST: &[&str] = &[];
 
-    let paths = glob::glob(PATTERN).expect("failed to find test files");
-
     let mut tests = vec![];
 
-    for entry in paths {
-        let path = entry.expect("failed to read glob entry");
-        let subpath = path.strip_prefix("tests/sql").unwrap().to_str().unwrap();
-        if !MEM_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
-            let path = path.clone();
-            let engine = Engine::Mem;
-            tests.push(Trial::test(format!("{}::{}", engine, subpath), move || {
-                Ok(build_runtime().block_on(test(&path, engine))?)
-            }));
-        }
-        if !DISK_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
-            let engine = Engine::Disk;
-            tests.push(Trial::test(format!("{}::{}", engine, subpath), move || {
-                Ok(build_runtime().block_on(test(&path, engine))?)
-            }));
+    for version in ["v1", "v2"] {
+        let v2 = version == "v2";
+        let paths = glob::glob(PATTERN).expect("failed to find test files");
+        for entry in paths {
+            let path = entry.expect("failed to read glob entry");
+            let subpath = path.strip_prefix("tests/sql").unwrap().to_str().unwrap();
+            if !MEM_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
+                let path = path.clone();
+                let engine = Engine::Mem;
+                tests.push(Trial::test(
+                    format!("{}::{}::{}", version, engine, subpath),
+                    move || Ok(build_runtime().block_on(test(&path, engine, v2))?),
+                ));
+            }
+            if !DISK_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
+                let engine = Engine::Disk;
+                tests.push(Trial::test(
+                    format!("{}::{}::{}", version, engine, subpath),
+                    move || Ok(build_runtime().block_on(test(&path, engine, v2))?),
+                ));
+            }
         }
     }
 
