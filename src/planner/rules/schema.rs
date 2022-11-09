@@ -98,6 +98,13 @@ pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
         Values(vs) => vs.first().and_then(x)?,
         Proj([exprs, _]) | Select([exprs, ..]) => x(exprs)?,
         Agg([exprs, group_keys, _]) => concat(x(exprs)?, x(group_keys)?),
+        Empty(ids) => {
+            let mut s = vec![];
+            for id in ids.iter() {
+                s.extend(x(id)?);
+            }
+            s
+        }
 
         // prune node may changes the schema, but we don't know the exact result for now
         // so just return `None` to indicate "unknown"

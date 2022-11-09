@@ -242,6 +242,7 @@ impl Display for Explain<'_> {
             CopyFrom([src, _]) => writeln!(f, "{tab}CopyFrom: {}{cost}", self.expr(src)),
             CopyTo([dst, child]) => write!(f, "{tab}CopyTo: {}{cost}\n{}", self.expr(dst), self.child(child)),
             Explain(child) => write!(f, "{tab}Explain:{cost}\n{}", self.child(child)),
+            Empty(_) => writeln!(f, "{tab}Empty:{cost}"),
             Prune(_) => panic!("cannot explain Prune"),
         }
     }

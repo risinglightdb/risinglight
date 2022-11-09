@@ -55,7 +55,7 @@ use crate::catalog::RootCatalogRef;
 use crate::function::FunctionError;
 use crate::planner::{ColumnIndexResolver, Expr, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, StorageImpl, TracedStorageError};
-use crate::types::{ColumnIndex, ConvertError, DataType, DataValue};
+use crate::types::{ColumnIndex, ConvertError, DataType, DataTypeKind, DataValue};
 
 mod copy_from_file;
 mod copy_to_file;
@@ -209,11 +209,7 @@ impl<S: Storage> Builder<S> {
             .execute(),
 
             Values(rows) => ValuesExecutor {
-                column_types: if rows.is_empty() {
-                    vec![]
-                } else {
-                    self.plan_types(id).to_vec()
-                },
+                column_types: self.plan_types(id).to_vec(),
                 values: {
                     rows.iter()
                         .map(|row| {
@@ -331,6 +327,8 @@ impl<S: Storage> Builder<S> {
                 catalog: self.catalog.clone(),
             }
             .execute(),
+
+            Empty(_) => futures::stream::empty().boxed(),
 
             node => panic!("not a plan: {node:?}"),
         }

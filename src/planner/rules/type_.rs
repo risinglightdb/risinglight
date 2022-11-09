@@ -113,6 +113,14 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         }
         Proj([exprs, _]) | Select([exprs, ..]) => x(exprs),
         Agg([exprs, group_keys, _]) => concat_struct(x(exprs)?, x(group_keys)?),
+        Empty(ids) => {
+            let mut types = vec![];
+            for id in ids.iter() {
+                let Kind::Struct(list) = x(id)?.kind else { panic!("not struct type") };
+                types.extend(list);
+            }
+            Ok(Kind::Struct(types).not_null())
+        }
 
         // other plan nodes
         _ => Err(TypeError::Unavailable),

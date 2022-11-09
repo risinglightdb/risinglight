@@ -116,6 +116,9 @@ define_language! {
         "prune" = Prune([Id; 2]),               // (prune node child)
                                                     // do column prune on `child`
                                                     // with the used columns in `node`
+        "empty" = Empty(Box<[Id]>),             // (empty child..)
+                                                    // returns empty chunk
+                                                    // with the same schema as `child`
 
         Symbol(Symbol),
     }

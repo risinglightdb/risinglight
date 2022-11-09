@@ -15,20 +15,21 @@ pub fn always_better_rules() -> Vec<Rewrite> {
 #[rustfmt::skip]
 fn cancel_rules() -> Vec<Rewrite> { vec![
     rw!("limit-null";       "(limit null 0 ?child)"     => "?child"),
-    rw!("limit-0";          "(limit 0 ?offset ?child)"  => "(values)"),
+    rw!("limit-0";          "(limit 0 ?offset ?child)"  => "(empty ?child)"),
     rw!("order-null";       "(order (list) ?child)"     => "?child"),
     rw!("filter-true";      "(filter true ?child)"      => "?child"),
-    rw!("filter-false";     "(filter false ?child)"     => "(values)"),
-    rw!("inner-join-false"; "(join inner false ?l ?r)"  => "(values)"),
+    rw!("filter-false";     "(filter false ?child)"     => "(empty ?child)"),
+    rw!("inner-join-false"; "(join inner false ?l ?r)"  => "(empty ?l ?r)"),
 
-    rw!("proj-on-empty";    "(proj ?exprs (values))"            => "(values)"),
-    rw!("agg-on-empty";     "(agg ?aggs ?groupby (values))"     => "(values)"),
-    rw!("filter-on-empty";  "(filter ?cond (values))"           => "(values)"),
-    rw!("order-on-empty";   "(order ?keys (values))"            => "(values)"),
-    rw!("limit-on-empty";   "(limit ?limit ?offset (values))"   => "(values)"),
-    rw!("topn-on-empty";    "(topn ?limit ?offset ?keys (values))" => "(values)"),
-    rw!("inner-join-on-left-empty";     "(join inner ?on (values) ?right)"  => "(values)"),
-    rw!("inner-join-on-right-empty";    "(join inner ?on ?left (values))"   => "(values)"),
+    rw!("proj-on-empty";    "(proj ?exprs (empty ?c))"                  => "(empty ?c)"),
+    // TODO: only valid when aggs don't contain `count`
+    // rw!("agg-on-empty";     "(agg ?aggs ?groupby (empty ?c))"           => "(empty ?c)"),
+    rw!("filter-on-empty";  "(filter ?cond (empty ?c))"                 => "(empty ?c)"),
+    rw!("order-on-empty";   "(order ?keys (empty ?c))"                  => "(empty ?c)"),
+    rw!("limit-on-empty";   "(limit ?limit ?offset (empty ?c))"         => "(empty ?c)"),
+    rw!("topn-on-empty";    "(topn ?limit ?offset ?keys (empty ?c))"    => "(empty ?c)"),
+    rw!("inner-join-on-left-empty";  "(join inner ?on (empty ?l) ?r)"   => "(empty ?l ?r)"),
+    rw!("inner-join-on-right-empty"; "(join inner ?on ?l (empty ?r))"   => "(empty ?l ?r)"),
 ]}
 
 #[rustfmt::skip]
