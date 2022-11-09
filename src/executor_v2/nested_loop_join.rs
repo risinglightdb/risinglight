@@ -5,10 +5,8 @@ use std::vec::Vec;
 use futures::TryStreamExt;
 
 use super::*;
-use crate::array::{
-    Array, ArrayBuilder, ArrayBuilderImpl, ArrayImpl, BoolArrayBuilder, DataChunk, DataChunkBuilder,
-};
-use crate::types::{DataType, DataTypeKind, DataValue};
+use crate::array::{Array, ArrayBuilder, ArrayImpl, BoolArrayBuilder, DataChunk, DataChunkBuilder};
+use crate::types::{DataType, DataValue};
 
 /// The executor for nested loop join.
 pub struct NestedLoopJoinExecutor {

@@ -1,10 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use itertools::Itertools;
-
 use super::*;
-use crate::array::{ArrayBuilderImpl, ArrayImpl};
-use crate::types::DataValue;
+use crate::array::ArrayImpl;
 
 /// The executor of simple aggregation.
 pub struct SimpleAggExecutor {

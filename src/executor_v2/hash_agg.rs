@@ -3,10 +3,10 @@
 use std::collections::HashMap;
 
 use iter_chunks::IterChunks;
-use smallvec::{smallvec, SmallVec};
+use smallvec::SmallVec;
 
 use super::*;
-use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunkBuilder};
+use crate::array::DataChunkBuilder;
 use crate::types::DataValue;
 
 /// The executor of hash aggregation.
@@ -42,7 +42,9 @@ impl HashAggExecutor {
         while let Some(batch) = batches.next() {
             let mut builder = DataChunkBuilder::new(&self.types, PROCESSING_WINDOW_SIZE);
             for (key, aggs) in batch {
-                builder.push_row(aggs.into_iter().chain(key.into_iter()));
+                if let Some(chunk) = builder.push_row(aggs.into_iter().chain(key.into_iter())) {
+                    yield chunk;
+                }
             }
             if let Some(chunk) = builder.take() {
                 yield chunk;

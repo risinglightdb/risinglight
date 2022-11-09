@@ -2,8 +2,6 @@
 
 use std::cmp::Ordering;
 
-use futures::TryStreamExt;
-
 use super::*;
 use crate::array::{DataChunk, DataChunkBuilder, RowRef};
 use crate::types::DataType;

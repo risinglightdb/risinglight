@@ -2,16 +2,14 @@
 
 //! Apply expressions on data chunks.
 
-use std::borrow::Borrow;
 use std::fmt;
 
 use egg::{Id, Language};
 use itertools::Itertools;
 
 use crate::array::*;
-use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::planner::{Expr, RecExpr};
-use crate::types::{Blob, ConvertError, DataType, DataTypeKind, DataValue, Date, F64};
+use crate::types::{ConvertError, DataValue};
 
 pub struct ExprRef<'a> {
     expr: &'a RecExpr,
@@ -104,7 +102,7 @@ impl<'a> ExprRef<'a> {
         use Expr::*;
         match self.node() {
             RowCount | Count(_) => DataValue::Int32(0),
-            Sum(a) | Min(a) | Max(a) | First(a) | Last(a) => DataValue::Null,
+            Sum(_) | Min(_) | Max(_) | First(_) | Last(_) => DataValue::Null,
             t => panic!("not aggregation: {t}"),
         }
     }

@@ -8,7 +8,6 @@ use smallvec::SmallVec;
 
 use super::*;
 use crate::array::{DataChunk, DataChunkBuilder, RowRef};
-use crate::binder::{BoundExpr, BoundJoinOperator};
 use crate::types::{DataType, DataValue};
 
 /// The executor for hash join

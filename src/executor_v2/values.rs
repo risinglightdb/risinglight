@@ -36,8 +36,7 @@ impl ValuesExecutor {
 mod tests {
     use super::*;
     use crate::array::ArrayImpl;
-    use crate::binder::BoundExpr;
-    use crate::types::{DataTypeKind, DataValue};
+    use crate::types::DataTypeKind;
 
     #[tokio::test]
     async fn values() {
