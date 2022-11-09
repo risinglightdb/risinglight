@@ -17,11 +17,11 @@ use super::{
     SecondaryTable, SecondaryTableTxnIterator,
 };
 use crate::array::DataChunk;
-use crate::binder::BoundExpr;
 use crate::catalog::find_sort_key_id;
 use crate::storage::secondary::statistics::create_statistics_global_aggregator;
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
 use crate::types::DataValue;
+use crate::v1::binder::BoundExpr;
 
 /// A transaction running on `SecondaryStorage`.
 pub struct SecondaryTransaction {

@@ -10,18 +10,18 @@ use tracing::debug;
 use crate::array::{
     ArrayBuilder, ArrayBuilderImpl, Chunk, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder,
 };
-use crate::binder::{BindError, Binder};
 use crate::catalog::RootCatalogRef;
-use crate::executor::{ExecutorBuilder, ExecutorError};
-use crate::logical_planner::{LogicalPlanError, LogicalPlaner};
-use crate::optimizer::logical_plan_rewriter::{InputRefResolver, PlanRewriter};
-use crate::optimizer::plan_nodes::PlanRef;
-use crate::optimizer::Optimizer;
 use crate::parser::{parse, ParserError};
 use crate::storage::{
     InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
     StorageImpl, Table,
 };
+use crate::v1::binder::Binder;
+use crate::v1::executor::ExecutorBuilder;
+use crate::v1::logical_planner::LogicalPlaner;
+use crate::v1::optimizer::logical_plan_rewriter::{InputRefResolver, PlanRewriter};
+use crate::v1::optimizer::plan_nodes::PlanRef;
+use crate::v1::optimizer::Optimizer;
 
 /// The database instance.
 pub struct Database {
@@ -268,10 +268,10 @@ pub enum Error {
         ParserError,
     ),
     #[error("bind error: {0}")]
-    Bind(
+    BindV1(
         #[source]
         #[from]
-        BindError,
+        crate::v1::binder::BindError,
     ),
     #[error("bind error: {0}")]
     BindV2(
@@ -280,16 +280,16 @@ pub enum Error {
         crate::binder_v2::BindError,
     ),
     #[error("logical plan error: {0}")]
-    Plan(
+    PlanV1(
         #[source]
         #[from]
-        LogicalPlanError,
+        crate::v1::logical_planner::LogicalPlanError,
     ),
     #[error("execute error: {0}")]
-    Execute(
+    ExecuteV1(
         #[source]
         #[from]
-        ExecutorError,
+        crate::v1::executor::ExecutorError,
     ),
     #[error("execute error: {0}")]
     ExecuteV2(

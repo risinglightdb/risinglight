@@ -9,10 +9,10 @@ use itertools::Itertools;
 use super::table::InMemoryTableInnerRef;
 use super::{InMemoryRowHandler, InMemoryTable, InMemoryTxnIterator};
 use crate::array::{ArrayBuilderImpl, ArrayImplBuilderPickExt, ArrayImplSortExt, DataChunk};
-use crate::binder::BoundExpr;
 use crate::catalog::{find_sort_key_id, ColumnCatalog};
 use crate::storage::{StorageColumnRef, StorageResult, Transaction};
 use crate::types::DataValue;
+use crate::v1::binder::BoundExpr;
 
 /// A transaction running on `InMemoryStorage`.
 pub struct InMemoryTransaction {
