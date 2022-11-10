@@ -19,9 +19,9 @@ pub use chunk::*;
 use enum_dispatch::enum_dispatch;
 
 use crate::array::{ArrayImpl, DataChunk};
-use crate::binder::BoundExpr;
-use crate::catalog::{ColumnCatalog, TableRefId};
-use crate::types::{ColumnId, DataValue, DatabaseId, SchemaId};
+use crate::catalog::{ColumnCatalog, ColumnId, DatabaseId, SchemaId, TableRefId};
+use crate::types::DataValue;
+use crate::v1::binder::BoundExpr;
 
 #[enum_dispatch(StorageDispatch)]
 #[derive(Clone)]

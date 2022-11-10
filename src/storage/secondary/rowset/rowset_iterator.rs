@@ -8,10 +8,10 @@ use smallvec::smallvec;
 use super::super::{ColumnIteratorImpl, ColumnSeekPosition, SecondaryIteratorImpl};
 use super::DiskRowset;
 use crate::array::{Array, ArrayImpl};
-use crate::binder::BoundExpr;
 use crate::storage::secondary::DeleteVector;
 use crate::storage::{PackedVec, StorageChunk, StorageColumnRef, StorageResult};
 use crate::types::DataValue;
+use crate::v1::binder::BoundExpr;
 
 /// When `expected_size` is not specified, we should limit the maximum size of the chunk.
 const ROWSET_MAX_OUTPUT: usize = 2048;
@@ -407,12 +407,12 @@ mod tests {
 
     use super::*;
     use crate::array::{Array, ArrayToVecExt};
-    use crate::binder::{BoundBinaryOp, BoundInputRef};
     use crate::storage::secondary::rowset::tests::{
         helper_build_rowset, helper_build_rowset_with_first_key_recorded,
     };
     use crate::storage::secondary::SecondaryRowHandler;
     use crate::types::{DataTypeKind, DataValue};
+    use crate::v1::binder::{BoundBinaryOp, BoundInputRef};
 
     #[tokio::test]
     async fn test_rowset_iterator() {

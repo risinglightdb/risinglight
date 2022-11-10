@@ -5,8 +5,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 use super::*;
-use crate::catalog::ColumnCatalog;
-use crate::types::{ColumnId, DatabaseId, SchemaId};
+use crate::catalog::{ColumnCatalog, ColumnId, DatabaseId, SchemaId};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
 pub struct CreateTable {

@@ -3,8 +3,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use super::{CatalogError, ColumnCatalog, TableCatalog};
-use crate::types::{ColumnId, SchemaId, TableId};
+use super::*;
 
 /// The catalog of a schema.
 #[derive(Clone)]

@@ -5,10 +5,8 @@ use std::vec::Vec;
 use futures::TryStreamExt;
 
 use super::*;
-use crate::array::{
-    Array, ArrayBuilder, ArrayBuilderImpl, ArrayImpl, BoolArrayBuilder, DataChunk, DataChunkBuilder,
-};
-use crate::types::{DataType, DataTypeKind, DataValue};
+use crate::array::{Array, ArrayBuilder, ArrayImpl, BoolArrayBuilder, DataChunk, DataChunkBuilder};
+use crate::types::{DataType, DataValue};
 
 /// The executor for nested loop join.
 pub struct NestedLoopJoinExecutor {
@@ -42,7 +40,7 @@ impl NestedLoopJoinExecutor {
                     let values = left_row.values().chain(right_row.values());
                     if let Some(chunk) = builder.push_row(values) {
                         // evaluate filter bitmap
-                        let ArrayImpl::Bool(a) = ExprRef::new(&self.condition).eval(&chunk)? else {
+                        let ArrayImpl::Bool(a) = Evaluator::new(&self.condition).eval(&chunk)? else {
                             panic!("join condition should return bool");
                         };
                         yield chunk.filter(a.iter().map(|b| matches!(b, Some(true))));
@@ -57,7 +55,7 @@ impl NestedLoopJoinExecutor {
         // take rest of data
         if let Some(chunk) = builder.take() {
             // evaluate filter bitmap
-            let ArrayImpl::Bool(a) = ExprRef::new(&self.condition).eval(&chunk)? else {
+            let ArrayImpl::Bool(a) = Evaluator::new(&self.condition).eval(&chunk)? else {
                 panic!("join condition should return bool");
             };
             yield chunk.filter(a.iter().map(|b| matches!(b, Some(true))));

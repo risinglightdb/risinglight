@@ -12,13 +12,13 @@ use tokio::io::AsyncReadExt;
 
 use super::super::{Block, BlockCacheKey, Column, ColumnIndex, ColumnSeekPosition, IOBackend};
 use super::{path_of_data_column, path_of_index_column, RowSetIterator};
-use crate::binder::BoundExpr;
 use crate::catalog::ColumnCatalog;
 use crate::storage::secondary::column::ColumnReadableFile;
 use crate::storage::secondary::encode::PrimitiveFixedWidthEncode;
 use crate::storage::secondary::DeleteVector;
 use crate::storage::{StorageColumnRef, StorageResult};
 use crate::types::DataValue;
+use crate::v1::binder::BoundExpr;
 
 /// Represents a column in Secondary.
 ///

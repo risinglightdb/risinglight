@@ -34,8 +34,7 @@ pub use txn_iterator::*;
 use version_manager::*;
 
 use super::{Storage, StorageResult, TracedStorageError};
-use crate::catalog::{ColumnCatalog, RootCatalogRef, TableRefId};
-use crate::types::{ColumnId, DatabaseId, SchemaId};
+use crate::catalog::{ColumnCatalog, ColumnId, DatabaseId, RootCatalogRef, SchemaId, TableRefId};
 
 // public modules and structures
 mod options;

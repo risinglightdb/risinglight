@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::types::ColumnId;
+use crate::catalog::ColumnId;
 
 #[derive(Error, Debug)]
 pub enum StorageError {

@@ -18,7 +18,7 @@ fn main() {
     let mut tests = vec![];
 
     for version in ["v1", "v2"] {
-        let v2 = version == "v2";
+        let v1 = version == "v1";
         let paths = glob::glob(PATTERN).expect("failed to find test files");
         for entry in paths {
             let path = entry.expect("failed to read glob entry");
@@ -28,14 +28,14 @@ fn main() {
                 let engine = Engine::Mem;
                 tests.push(Trial::test(
                     format!("{}::{}::{}", version, engine, subpath),
-                    move || Ok(build_runtime().block_on(test(&path, engine, v2))?),
+                    move || Ok(build_runtime().block_on(test(&path, engine, v1))?),
                 ));
             }
             if !DISK_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
                 let engine = Engine::Disk;
                 tests.push(Trial::test(
                     format!("{}::{}::{}", version, engine, subpath),
-                    move || Ok(build_runtime().block_on(test(&path, engine, v2))?),
+                    move || Ok(build_runtime().block_on(test(&path, engine, v1))?),
                 ));
             }
         }

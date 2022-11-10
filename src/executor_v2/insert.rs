@@ -3,10 +3,10 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::array::{ArrayBuilderImpl, DataChunk};
-use crate::catalog::{ColumnCatalog, TableRefId};
+use crate::array::DataChunk;
+use crate::catalog::{ColumnId, TableRefId};
 use crate::storage::{Storage, Table, Transaction};
-use crate::types::{ColumnId, ColumnIndex, DataType, DataValue};
+use crate::types::ColumnIndex;
 
 /// The executor of `insert` statement.
 pub struct InsertExecutor<S: Storage> {
@@ -42,7 +42,7 @@ impl<S: Storage> InsertExecutor<S> {
         let mut cnt = 0;
         #[for_await]
         for chunk in child {
-            let chunk = ExprRef::new(&expr).eval_list(&chunk?)?;
+            let chunk = Evaluator::new(&expr).eval_list(&chunk?)?;
             cnt += chunk.cardinality();
             txn.append(chunk).await?;
         }
@@ -59,7 +59,7 @@ mod tests {
     use super::*;
     use crate::array::ArrayImpl;
     use crate::catalog::{ColumnCatalog, TableRefId};
-    use crate::storage::InMemoryStorage;
+    use crate::storage::{InMemoryStorage, StorageImpl};
     use crate::types::DataTypeKind;
 
     #[tokio::test]
@@ -96,7 +96,8 @@ mod tests {
                 ],
                 &[],
             )
-            .await;
+            .await
+            .unwrap();
         storage
     }
 }

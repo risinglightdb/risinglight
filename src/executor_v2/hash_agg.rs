@@ -3,10 +3,10 @@
 use std::collections::HashMap;
 
 use iter_chunks::IterChunks;
-use smallvec::{smallvec, SmallVec};
+use smallvec::SmallVec;
 
 use super::*;
-use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunkBuilder};
+use crate::array::DataChunkBuilder;
 use crate::types::DataValue;
 
 /// The executor of hash aggregation.
@@ -27,14 +27,14 @@ impl HashAggExecutor {
         #[for_await]
         for chunk in child {
             let chunk = chunk?;
-            let keys_chunk = ExprRef::new(&self.group_keys).eval_list(&chunk)?;
+            let keys_chunk = Evaluator::new(&self.group_keys).eval_list(&chunk)?;
 
             for i in 0..chunk.cardinality() {
                 let keys = keys_chunk.row(i).values().collect();
                 let states = states
                     .entry(keys)
-                    .or_insert_with(|| ExprRef::new(&self.aggs).init_agg_states().into());
-                ExprRef::new(&self.aggs).eval_agg_list(states, &chunk.slice(i..=i))?;
+                    .or_insert_with(|| Evaluator::new(&self.aggs).init_agg_states().into());
+                Evaluator::new(&self.aggs).eval_agg_list(states, &chunk.slice(i..=i))?;
             }
         }
 
@@ -42,7 +42,9 @@ impl HashAggExecutor {
         while let Some(batch) = batches.next() {
             let mut builder = DataChunkBuilder::new(&self.types, PROCESSING_WINDOW_SIZE);
             for (key, aggs) in batch {
-                builder.push_row(aggs.into_iter().chain(key.into_iter()));
+                if let Some(chunk) = builder.push_row(aggs.into_iter().chain(key.into_iter())) {
+                    yield chunk;
+                }
             }
             if let Some(chunk) = builder.take() {
                 yield chunk;

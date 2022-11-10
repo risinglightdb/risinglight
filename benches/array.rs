@@ -3,7 +3,7 @@
 use bitvec::vec::BitVec;
 use criterion::*;
 use risinglight::array::{ArrayFromDataExt, ArrayImpl, I32Array};
-use risinglight::function::FunctionCtx;
+use risinglight::v1::function::FunctionCtx;
 
 #[inline(never)]
 fn never_inline_mul(a: &i32, b: &i32, _: &mut FunctionCtx) -> i32 {
@@ -15,7 +15,7 @@ fn array_mul(c: &mut Criterion) {
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            use risinglight::executor::evaluator;
+            use risinglight::array::ops;
 
             let mut mask_a = BitVec::new();
             let mut mask_b = BitVec::new();
@@ -40,7 +40,7 @@ fn array_mul(c: &mut Criterion) {
             let a2 = I32Array::from_data(0..size, mask_b);
 
             b.iter(|| {
-                let _: I32Array = evaluator::binary_op(&a1, &a2, |a, b| a * b);
+                let _: I32Array = ops::binary_op(&a1, &a2, |a, b| a * b);
             });
         });
     }
@@ -50,7 +50,7 @@ fn array_mul(c: &mut Criterion) {
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            use risinglight::function::BinaryExecutor;
+            use risinglight::v1::function::BinaryExecutor;
             let mut mask_a = BitVec::new();
             let mut mask_b = BitVec::new();
 
@@ -87,7 +87,7 @@ fn array_mul(c: &mut Criterion) {
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            use risinglight::function::BinaryExecutor;
+            use risinglight::v1::function::BinaryExecutor;
             let mut mask_a = BitVec::new();
             let mut mask_b = BitVec::new();
 
@@ -125,7 +125,7 @@ fn array_mul(c: &mut Criterion) {
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            use risinglight::function::BinaryExecutor;
+            use risinglight::v1::function::BinaryExecutor;
             let mut mask_a = BitVec::new();
             let mut mask_b = BitVec::new();
 
@@ -162,7 +162,7 @@ fn array_mul(c: &mut Criterion) {
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            use risinglight::function::BinaryExecutor;
+            use risinglight::v1::function::BinaryExecutor;
             let mut mask_a = BitVec::new();
             let mut mask_b = BitVec::new();
 
@@ -200,7 +200,7 @@ fn array_mul(c: &mut Criterion) {
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            use risinglight::executor::evaluator;
+            use risinglight::array::ops;
             let mut mask_a = BitVec::new();
             let mut mask_b = BitVec::new();
             let mut i = 0;
@@ -223,7 +223,7 @@ fn array_mul(c: &mut Criterion) {
             let a1 = I32Array::from_data(0..size, mask_a);
             let a2 = I32Array::from_data(0..size, mask_b);
             b.iter(|| {
-                let _: I32Array = evaluator::simd_op::<_, _, _, 32>(&a1, &a2, |a, b| a * b);
+                let _: I32Array = ops::simd_op::<_, _, _, 32>(&a1, &a2, |a, b| a * b);
             });
         });
     }
@@ -236,7 +236,7 @@ fn array_sum(c: &mut Criterion) {
     for size in [1, 16, 256, 4096, 65536, 1048576] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
             use risinglight::array::Array;
-            use risinglight::executor::sum_i32;
+            use risinglight::v1::executor::sum_i32;
             let a1: I32Array = (0..size).collect();
             b.iter(|| {
                 a1.iter().fold(None, sum_i32);

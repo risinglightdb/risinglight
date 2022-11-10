@@ -112,37 +112,11 @@ order by
     l_linestatus;
 
 /*
-PhysicalOrder:
-    [InputRef #0 (asc), InputRef #1 (asc)]
-  PhysicalProjection:
-      InputRef #0
-      InputRef #1
-      InputRef #2 (alias to sum_qty)
-      InputRef #3 (alias to sum_base_price)
-      InputRef #4 (alias to sum_disc_price)
-      InputRef #5 (alias to sum_charge)
-      (InputRef #2 / InputRef #6) (alias to avg_qty)
-      (InputRef #3 / InputRef #7) (alias to avg_price)
-      (InputRef #8 / InputRef #9) (alias to avg_disc)
-      InputRef #10 (alias to count_order)
-    PhysicalHashAgg:
-        InputRef #1
-        InputRef #2
-        sum(InputRef #3) -> DECIMAL(15,2)
-        sum(InputRef #4) -> DECIMAL(15,2)
-        sum((InputRef #4 * (1 - InputRef #5))) -> DECIMAL(15,2) (nullable)
-        sum(((InputRef #4 * (1 - InputRef #5)) * (1 + InputRef #6))) -> DECIMAL(15,2) (nullable)
-        count(InputRef #3) -> INT
-        count(InputRef #4) -> INT
-        sum(InputRef #5) -> DECIMAL(15,2)
-        count(InputRef #5) -> INT
-        count(InputRef #0) -> INT
-      PhysicalTableScan:
-          table #7,
-          columns [10, 8, 9, 4, 5, 6, 7],
-          with_row_handler: false,
-          is_sorted: false,
-          expr: LtEq(InputRef #0, Date(Date(10490)) (const))
+Projection: [l_returnflag, l_linestatus, sum(l_quantity), sum(l_extendedprice), sum((l_extendedprice * (1 - l_discount))), sum(((1 - l_discount) * (l_extendedprice + (l_tax * l_extendedprice)))), (sum(l_quantity) / count(l_quantity)), (sum(l_extendedprice) / count(l_extendedprice)), (sum(l_discount) / count(l_discount)), rowcount] (cost=33878.984)
+  Order: [l_returnflag asc, l_linestatus asc] (cost=27798.984)
+    Aggregate: [sum(l_quantity), sum(l_extendedprice), sum((l_extendedprice * (1 - l_discount))), sum(((1 - l_discount) * (l_extendedprice + (l_tax * l_extendedprice)))), count(l_quantity), count(l_extendedprice), sum(l_discount), count(l_discount), rowcount], groupby=[l_returnflag, l_linestatus] (cost=19940)
+      Filter: (1998-09-21 >= l_shipdate) (cost=12900)
+        Scan: lineitem[l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate] (cost=7000)
 */
 
 -- tpch-q3: TPC-H Q3
@@ -171,57 +145,17 @@ order by
 limit 10;
 
 /*
-PhysicalTopN: offset: 0, limit: 10, order by [InputRef #1 (desc), InputRef #2 (asc)]
-  PhysicalProjection:
-      InputRef #0
-      InputRef #3 (alias to revenue)
-      InputRef #1
-      InputRef #2
-    PhysicalHashAgg:
-        InputRef #2
-        InputRef #0
-        InputRef #1
-        sum((InputRef #3 * (1 - InputRef #4))) -> DECIMAL(15,2) (nullable)
-      PhysicalProjection:
-          InputRef #1
-          InputRef #2
-          InputRef #3
-          InputRef #4
-          InputRef #5
-        PhysicalHashJoin:
-            op Inner,
-            predicate: Eq(InputRef #0, InputRef #3)
-          PhysicalProjection:
-              InputRef #2
-              InputRef #3
-              InputRef #4
-            PhysicalHashJoin:
-                op Inner,
-                predicate: Eq(InputRef #0, InputRef #1)
-              PhysicalProjection:
-                  InputRef #0
-                PhysicalTableScan:
-                    table #5,
-                    columns [0, 6],
-                    with_row_handler: false,
-                    is_sorted: false,
-                    expr: Eq(InputRef #1, String("BUILDING") (const))
-              PhysicalTableScan:
-                  table #6,
-                  columns [1, 0, 4, 7],
-                  with_row_handler: false,
-                  is_sorted: false,
-                  expr: Lt(InputRef #2, Date(Date(9204)) (const))
-          PhysicalProjection:
-              InputRef #0
-              InputRef #1
-              InputRef #2
-            PhysicalTableScan:
-                table #7,
-                columns [0, 5, 6, 10],
-                with_row_handler: false,
-                is_sorted: false,
-                expr: Gt(InputRef #3, Date(Date(9204)) (const))
+Projection: [l_orderkey, sum((l_extendedprice * (1 - l_discount))), o_orderdate, o_shippriority] (cost=57541.88)
+  TopN: limit=10, offset=0, orderby=[sum((l_extendedprice * (1 - l_discount))) desc, o_orderdate asc] (cost=57487.88)
+    Aggregate: [sum((l_extendedprice * (1 - l_discount)))], groupby=[l_orderkey, o_orderdate, o_shippriority] (cost=56064.105)
+      HashJoin: inner, on=([o_orderkey] = [l_orderkey]) (cost=53584.105)
+        HashJoin: inner, on=([c_custkey] = [o_custkey]) (cost=22651.05)
+          Filter: (c_mktsegment = 'BUILDING') (cost=2700)
+            Scan: customer[c_custkey, c_mktsegment] (cost=2000)
+          Filter: (1995-03-15 > o_orderdate) (cost=7500)
+            Scan: orders[o_orderkey, o_custkey, o_orderdate, o_shippriority] (cost=4000)
+        Filter: (l_shipdate > 1995-03-15) (cost=7500)
+          Scan: lineitem[l_orderkey, l_extendedprice, l_discount, l_shipdate] (cost=4000)
 */
 
 -- tpch-q5: TPC-H Q5
@@ -251,91 +185,22 @@ order by
     revenue desc;
 
 /*
-PhysicalOrder:
-    [InputRef #1 (desc)]
-  PhysicalProjection:
-      InputRef #0
-      InputRef #1 (alias to revenue)
-    PhysicalHashAgg:
-        InputRef #2
-        sum((InputRef #0 * (1 - InputRef #1))) -> DECIMAL(15,2) (nullable)
-      PhysicalProjection:
-          InputRef #0
-          InputRef #1
-          InputRef #3
-        PhysicalHashJoin:
-            op Inner,
-            predicate: Eq(InputRef #2, InputRef #4)
-          PhysicalProjection:
-              InputRef #0
-              InputRef #1
-              InputRef #4
-              InputRef #5
-            PhysicalHashJoin:
-                op Inner,
-                predicate: Eq(InputRef #2, InputRef #3)
-              PhysicalProjection:
-                  InputRef #2
-                  InputRef #3
-                  InputRef #5
-                PhysicalHashJoin:
-                    op Inner,
-                    predicate: And(Eq(InputRef #1, InputRef #4), Eq(InputRef #0, InputRef #5))
-                  PhysicalProjection:
-                      InputRef #0
-                      InputRef #3
-                      InputRef #4
-                      InputRef #5
-                    PhysicalHashJoin:
-                        op Inner,
-                        predicate: Eq(InputRef #1, InputRef #2)
-                      PhysicalProjection:
-                          InputRef #1
-                          InputRef #3
-                        PhysicalHashJoin:
-                            op Inner,
-                            predicate: Eq(InputRef #0, InputRef #2)
-                          PhysicalTableScan:
-                              table #5,
-                              columns [0, 3],
-                              with_row_handler: false,
-                              is_sorted: false,
-                              expr: None
-                          PhysicalProjection:
-                              InputRef #0
-                              InputRef #1
-                            PhysicalTableScan:
-                                table #6,
-                                columns [1, 0, 4],
-                                with_row_handler: false,
-                                is_sorted: false,
-                                expr: And(GtEq(InputRef #2, Date(Date(8766)) (const)), Lt(InputRef #2, Date(Date(9131)) (const)))
-                      PhysicalTableScan:
-                          table #7,
-                          columns [0, 2, 5, 6],
-                          with_row_handler: false,
-                          is_sorted: false,
-                          expr: None
-                  PhysicalTableScan:
-                      table #3,
-                      columns [0, 3],
-                      with_row_handler: false,
-                      is_sorted: false,
-                      expr: None
-              PhysicalTableScan:
-                  table #0,
-                  columns [0, 2, 1],
-                  with_row_handler: false,
-                  is_sorted: false,
-                  expr: None
-          PhysicalProjection:
-              InputRef #0
-            PhysicalTableScan:
-                table #1,
-                columns [0, 1],
-                with_row_handler: false,
-                is_sorted: false,
-                expr: Eq(InputRef #1, String("AFRICA") (const))
+Projection: [n_name, sum((l_extendedprice * (1 - l_discount)))] (cost=158314.61)
+  Order: [sum((l_extendedprice * (1 - l_discount))) desc] (cost=156814.61)
+    Aggregate: [sum((l_extendedprice * (1 - l_discount)))], groupby=[n_name] (cost=151330.28)
+      HashJoin: inner, on=([l_suppkey, c_nationkey] = [s_suppkey, s_nationkey]) (cost=149430.28)
+        HashJoin: inner, on=([o_orderkey] = [l_orderkey]) (cost=61900.703)
+          HashJoin: inner, on=([c_custkey] = [o_custkey]) (cost=28966.25)
+            Scan: customer[c_custkey, c_nationkey] (cost=2000)
+            Filter: ((o_orderdate >= 1994-01-01) and (1995-01-01 > o_orderdate)) (cost=5620)
+              Scan: orders[o_orderkey, o_custkey, o_orderdate] (cost=3000)
+          Scan: lineitem[l_orderkey, l_suppkey, l_extendedprice, l_discount] (cost=4000)
+        HashJoin: inner, on=([n_regionkey] = [r_regionkey]) (cost=51595.125)
+          HashJoin: inner, on=([s_nationkey] = [n_nationkey]) (cost=29934.451)
+            Scan: supplier[s_suppkey, s_nationkey] (cost=2000)
+            Scan: nation[n_nationkey, n_name, n_regionkey] (cost=3000)
+          Filter: (r_name = 'AFRICA') (cost=2700)
+            Scan: region[r_regionkey, r_name] (cost=2000)
 */
 
 -- tpch-q6
@@ -350,19 +215,10 @@ where
     and l_quantity < 24;
 
 /*
-PhysicalProjection:
-    InputRef #0 (alias to revenue)
-  PhysicalSimpleAgg:
-      sum((InputRef #1 * InputRef #0)) -> DECIMAL(15,2) (nullable)
-    PhysicalProjection:
-        InputRef #0
-        InputRef #1
-      PhysicalTableScan:
-          table #7,
-          columns [6, 5, 10, 4],
-          with_row_handler: false,
-          is_sorted: false,
-          expr: And(And(And(GtEq(InputRef #2, Date(Date(8766)) (const)), Lt(InputRef #2, Date(Date(9131)) (const))), And(GtEq(InputRef #0, Decimal(0.07) (const)), LtEq(InputRef #0, Decimal(0.09) (const)))), Lt(InputRef #3, Decimal(24) (const)))
+Projection: [sum((l_discount * l_extendedprice))] (cost=7409.928)
+  Aggregate: [sum((l_discount * l_extendedprice))], groupby=[] (cost=7408.328)
+    Filter: ((l_shipdate >= 1994-01-01) and ((1995-01-01 > l_shipdate) and ((0.09 >= l_discount) and ((24 > l_quantity) and (l_discount >= 0.07))))) (cost=7210.72)
+      Scan: lineitem[l_quantity, l_extendedprice, l_discount, l_shipdate] (cost=4000)
 */
 
 -- tpch-q10: TPC-H Q10
@@ -400,93 +256,17 @@ order by
 limit 20;
 
 /*
-PhysicalTopN: offset: 0, limit: 20, order by [InputRef #2 (desc)]
-  PhysicalProjection:
-      InputRef #0
-      InputRef #1
-      InputRef #7 (alias to revenue)
-      InputRef #2
-      InputRef #4
-      InputRef #5
-      InputRef #3
-      InputRef #6
-    PhysicalHashAgg:
-        InputRef #0
-        InputRef #1
-        InputRef #2
-        InputRef #4
-        InputRef #8
-        InputRef #3
-        InputRef #5
-        sum((InputRef #6 * (1 - InputRef #7))) -> DECIMAL(15,2) (nullable)
-      PhysicalProjection:
-          InputRef #0
-          InputRef #2
-          InputRef #3
-          InputRef #4
-          InputRef #5
-          InputRef #6
-          InputRef #7
-          InputRef #8
-          InputRef #10
-        PhysicalHashJoin:
-            op Inner,
-            predicate: Eq(InputRef #1, InputRef #9)
-          PhysicalProjection:
-              InputRef #0
-              InputRef #1
-              InputRef #2
-              InputRef #3
-              InputRef #4
-              InputRef #5
-              InputRef #6
-              InputRef #9
-              InputRef #10
-            PhysicalHashJoin:
-                op Inner,
-                predicate: Eq(InputRef #7, InputRef #8)
-              PhysicalProjection:
-                  InputRef #0
-                  InputRef #1
-                  InputRef #2
-                  InputRef #3
-                  InputRef #4
-                  InputRef #5
-                  InputRef #6
-                  InputRef #8
-                PhysicalHashJoin:
-                    op Inner,
-                    predicate: Eq(InputRef #0, InputRef #7)
-                  PhysicalTableScan:
-                      table #5,
-                      columns [0, 3, 1, 5, 2, 4, 7],
-                      with_row_handler: false,
-                      is_sorted: false,
-                      expr: None
-                  PhysicalProjection:
-                      InputRef #0
-                      InputRef #1
-                    PhysicalTableScan:
-                        table #6,
-                        columns [1, 0, 4],
-                        with_row_handler: false,
-                        is_sorted: false,
-                        expr: And(GtEq(InputRef #2, Date(Date(8674)) (const)), Lt(InputRef #2, Date(Date(8766)) (const)))
-              PhysicalProjection:
-                  InputRef #0
-                  InputRef #1
-                  InputRef #2
-                PhysicalTableScan:
-                    table #7,
-                    columns [0, 5, 6, 8],
-                    with_row_handler: false,
-                    is_sorted: false,
-                    expr: Eq(InputRef #3, String("R") (const))
-          PhysicalTableScan:
-              table #0,
-              columns [0, 1],
-              with_row_handler: false,
-              is_sorted: false,
-              expr: None
+Projection: [c_custkey, c_name, sum((l_extendedprice * (1 - l_discount))), c_acctbal, n_name, c_address, c_phone, c_comment] (cost=106373.17)
+  TopN: limit=20, offset=0, orderby=[sum((l_extendedprice * (1 - l_discount))) desc] (cost=106169.17)
+    Aggregate: [sum((l_extendedprice * (1 - l_discount)))], groupby=[c_custkey, c_name, c_acctbal, c_phone, n_name, c_address, c_comment] (cost=103813.016)
+      HashJoin: inner, on=([c_nationkey] = [n_nationkey]) (cost=98313.016)
+        HashJoin: inner, on=([c_custkey] = [o_custkey]) (cost=60378.563)
+          Scan: customer[c_custkey, c_name, c_address, c_nationkey, c_phone, c_acctbal, c_comment] (cost=7000)
+          HashJoin: inner, on=([o_orderkey] = [l_orderkey]) (cost=23032.313)
+            Filter: ((o_orderdate >= 1993-10-01) and (1994-01-01 > o_orderdate)) (cost=5620)
+              Scan: orders[o_orderkey, o_custkey, o_orderdate] (cost=3000)
+            Filter: (l_returnflag = 'R') (cost=5100)
+              Scan: lineitem[l_orderkey, l_extendedprice, l_discount, l_returnflag] (cost=4000)
+        Scan: nation[n_nationkey, n_name] (cost=2000)
 */
 

@@ -1778,7 +1778,7 @@ checksum = "4389f1d5789befaf6029ebd9f7dac4af7f7e3d61b69d4f30e2ac02b57e7712b0"
 
 [[package]]
 name = "risinglight"
-version = "0.1.3"
+version = "0.2.0-alpha"
 dependencies = [
  "anyhow",
  "async-recursion",

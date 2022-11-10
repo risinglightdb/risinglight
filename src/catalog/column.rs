@@ -2,7 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::types::{ColumnId, DataType};
+use super::ColumnId;
+use crate::types::DataType;
 
 /// A descriptor of a column.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

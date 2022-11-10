@@ -10,24 +10,24 @@ use tracing::debug;
 use crate::array::{
     ArrayBuilder, ArrayBuilderImpl, Chunk, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder,
 };
-use crate::binder::{BindError, Binder};
 use crate::catalog::RootCatalogRef;
-use crate::executor::{ExecutorBuilder, ExecutorError};
-use crate::logical_planner::{LogicalPlanError, LogicalPlaner};
-use crate::optimizer::logical_plan_rewriter::{InputRefResolver, PlanRewriter};
-use crate::optimizer::plan_nodes::PlanRef;
-use crate::optimizer::Optimizer;
 use crate::parser::{parse, ParserError};
 use crate::storage::{
     InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
     StorageImpl, Table,
 };
+use crate::v1::binder::Binder;
+use crate::v1::executor::ExecutorBuilder;
+use crate::v1::logical_planner::LogicalPlaner;
+use crate::v1::optimizer::logical_plan_rewriter::{InputRefResolver, PlanRewriter};
+use crate::v1::optimizer::plan_nodes::PlanRef;
+use crate::v1::optimizer::Optimizer;
 
 /// The database instance.
 pub struct Database {
     catalog: RootCatalogRef,
     storage: StorageImpl,
-    use_v2: AtomicBool,
+    use_v1: AtomicBool,
 }
 
 impl Database {
@@ -37,7 +37,7 @@ impl Database {
         Database {
             catalog: storage.catalog().clone(),
             storage: StorageImpl::InMemoryStorage(Arc::new(storage)),
-            use_v2: AtomicBool::new(false),
+            use_v1: AtomicBool::new(false),
         }
     }
 
@@ -48,7 +48,7 @@ impl Database {
         Database {
             catalog: storage.catalog().clone(),
             storage: StorageImpl::SecondaryStorage(storage),
-            use_v2: AtomicBool::new(false),
+            use_v1: AtomicBool::new(false),
         }
     }
 
@@ -156,8 +156,8 @@ impl Database {
         } else if cmd == "dt" {
             self.run_dt()
         } else if cmd == "v1" || cmd == "v2" {
-            self.use_v2.store(cmd == "v2", Ordering::Relaxed);
-            println!("switched to planner {cmd}");
+            self.use_v1.store(cmd == "v1", Ordering::Relaxed);
+            println!("switched to query engine {cmd}");
             Ok(vec![])
         } else {
             Err(Error::InternalError("unsupported command".to_string()))
@@ -165,37 +165,39 @@ impl Database {
     }
 
     /// Run SQL queries and return the outputs.
-
     pub async fn run(&self, sql: &str) -> Result<Vec<Chunk>, Error> {
         if let Some(cmdline) = sql.trim().strip_prefix('\\') {
             return self.run_internal(cmdline).await;
         }
-
-        // parse
-        let stmts = parse(sql)?;
-
-        if self.use_v2.load(Ordering::Relaxed) {
-            let mut outputs: Vec<Chunk> = vec![];
-            for stmt in stmts {
-                let mut binder = crate::binder_v2::Binder::new(self.catalog.clone());
-                let bound = binder.bind(stmt)?;
-                let optimized = crate::planner::optimize(&bound);
-                let executor = match self.storage.clone() {
-                    StorageImpl::InMemoryStorage(s) => {
-                        crate::executor_v2::build(self.catalog.clone(), s, &optimized)
-                    }
-                    StorageImpl::SecondaryStorage(s) => {
-                        crate::executor_v2::build(self.catalog.clone(), s, &optimized)
-                    }
-                };
-                let output = executor.try_collect().await?;
-                let chunk = Chunk::new(output);
-                // TODO: set name
-                outputs.push(chunk);
-            }
-            return Ok(outputs);
+        if self.use_v1.load(Ordering::Relaxed) {
+            return self.run_v1(sql).await;
         }
 
+        let stmts = parse(sql)?;
+        let mut outputs: Vec<Chunk> = vec![];
+        for stmt in stmts {
+            let mut binder = crate::binder_v2::Binder::new(self.catalog.clone());
+            let bound = binder.bind(stmt)?;
+            let optimized = crate::planner::optimize(&bound);
+            let executor = match self.storage.clone() {
+                StorageImpl::InMemoryStorage(s) => {
+                    crate::executor_v2::build(self.catalog.clone(), s, &optimized)
+                }
+                StorageImpl::SecondaryStorage(s) => {
+                    crate::executor_v2::build(self.catalog.clone(), s, &optimized)
+                }
+            };
+            let output = executor.try_collect().await?;
+            let chunk = Chunk::new(output);
+            // TODO: set name
+            outputs.push(chunk);
+        }
+        Ok(outputs)
+    }
+
+    /// Run SQL queries using query engine v1.
+    async fn run_v1(&self, sql: &str) -> Result<Vec<Chunk>, Error> {
+        let stmts = parse(sql)?;
         let mut binder = Binder::new(self.catalog.clone());
         let logical_planner = LogicalPlaner::default();
         let mut optimizer = Optimizer {
@@ -268,10 +270,10 @@ pub enum Error {
         ParserError,
     ),
     #[error("bind error: {0}")]
-    Bind(
+    BindV1(
         #[source]
         #[from]
-        BindError,
+        crate::v1::binder::BindError,
     ),
     #[error("bind error: {0}")]
     BindV2(
@@ -280,16 +282,16 @@ pub enum Error {
         crate::binder_v2::BindError,
     ),
     #[error("logical plan error: {0}")]
-    Plan(
+    PlanV1(
         #[source]
         #[from]
-        LogicalPlanError,
+        crate::v1::logical_planner::LogicalPlanError,
     ),
     #[error("execute error: {0}")]
-    Execute(
+    ExecuteV1(
         #[source]
         #[from]
-        ExecutorError,
+        crate::v1::executor::ExecutorError,
     ),
     #[error("execute error: {0}")]
     ExecuteV2(

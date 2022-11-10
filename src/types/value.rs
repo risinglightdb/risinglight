@@ -167,7 +167,7 @@ impl DataValue {
 
     /// Cast the value to another type.
     pub fn cast(&self, ty: &DataTypeKind) -> Result<Self, ConvertError> {
-        Ok(ArrayImpl::from(self).try_cast(ty)?.get(0))
+        Ok(ArrayImpl::from(self).cast(ty)?.get(0))
     }
 }
 

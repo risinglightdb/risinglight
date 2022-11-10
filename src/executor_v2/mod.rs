@@ -1,7 +1,5 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-#![allow(unused)]
-
 //! # Execution Model
 //!
 //! The execution engine executes the query in a Vectorized Volcano model.
@@ -20,15 +18,14 @@ use egg::{Id, Language};
 use futures::stream::{BoxStream, StreamExt};
 use futures_async_stream::try_stream;
 use itertools::Itertools;
-use minitrace::prelude::*;
 
+// use minitrace::prelude::*;
 use self::copy_from_file::*;
 use self::copy_to_file::*;
 use self::create::*;
 use self::delete::*;
 use self::drop::*;
 use self::evaluator::*;
-// use self::dummy_scan::*;
 use self::explain::*;
 use self::filter::*;
 use self::hash_agg::*;
@@ -50,19 +47,16 @@ use self::table_scan::*;
 use self::top_n::TopNExecutor;
 use self::values::*;
 use crate::array::DataChunk;
-use crate::binder::BoundExpr;
 use crate::catalog::RootCatalogRef;
-use crate::function::FunctionError;
-use crate::planner::{ColumnIndexResolver, Expr, RecExpr, TypeSchemaAnalysis};
-use crate::storage::{Storage, StorageImpl, TracedStorageError};
-use crate::types::{ColumnIndex, ConvertError, DataType, DataTypeKind, DataValue};
+use crate::planner::{Expr, RecExpr, TypeSchemaAnalysis};
+use crate::storage::{Storage, TracedStorageError};
+use crate::types::{ColumnIndex, ConvertError, DataType};
 
 mod copy_from_file;
 mod copy_to_file;
 mod create;
 mod delete;
 mod drop;
-// mod dummy_scan;
 mod evaluator;
 mod explain;
 mod filter;
@@ -85,15 +79,6 @@ mod values;
 /// The error type of execution.
 #[derive(thiserror::Error, Debug)]
 pub enum ExecutorError {
-    #[error("function error: {0}")]
-    Function(
-        #[from]
-        #[backtrace]
-        #[source]
-        FunctionError,
-    ),
-    #[error("failed to build executors from the physical plan")]
-    BuildingPlanError,
     #[error("storage error: {0}")]
     Storage(
         #[from]
