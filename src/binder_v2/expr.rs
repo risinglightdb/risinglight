@@ -1,18 +1,20 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use rust_decimal::Decimal;
+
 use super::*;
 use crate::catalog::ColumnRefId;
 use crate::parser::{
     BinaryOperator, DataType, DateTimeField, Expr, Function, FunctionArg, FunctionArgExpr,
     UnaryOperator, Value,
 };
-use crate::types::{DataTypeKind, DataValue, Interval, F64};
+use crate::types::{DataTypeKind, DataValue, Interval};
 
 impl Binder {
     /// Bind an expression.
     pub fn bind_expr(&mut self, expr: Expr) -> Result {
         let id = match expr {
-            Expr::Value(v) => Ok(self.egraph.add(Node::Constant(DataValue::from(&v)))), /* WARN: don't use v.into() */
+            Expr::Value(v) => Ok(self.egraph.add(Node::Constant(v.into()))),
             Expr::Identifier(ident) => self.bind_ident([ident]),
             Expr::CompoundIdentifier(idents) => self.bind_ident(idents),
             Expr::BinaryOp { left, op, right } => self.bind_binary_op(*left, op, *right),
@@ -26,12 +28,23 @@ impl Binder {
                 Ok(self.egraph.add(Node::Not(isnull)))
             }
             Expr::TypedString { data_type, value } => self.bind_typed_string(data_type, value),
+            Expr::Like {
+                negated,
+                expr,
+                pattern,
+                ..
+            } => self.bind_like(*expr, *pattern, negated),
             Expr::Between {
                 expr,
                 negated,
                 low,
                 high,
             } => self.bind_between(*expr, negated, *low, *high),
+            Expr::Interval {
+                value,
+                leading_field,
+                ..
+            } => self.bind_interval(*value, leading_field),
             _ => todo!("bind expression: {:?}", expr),
         }?;
         self.check_type(id)?;
@@ -105,7 +118,6 @@ impl Binder {
             And => Node::And([l, r]),
             Or => Node::Or([l, r]),
             Xor => Node::Xor([l, r]),
-            Like => Node::Like([l, r]),
             _ => todo!("bind binary op: {:?}", op),
         };
         Ok(self.egraph.add(node))
@@ -127,7 +139,7 @@ impl Binder {
         // workaround for 'BLOB'
         if let DataType::Custom(name) = &ty {
             if name.0.len() == 1 && name.0[0].value.to_lowercase() == "blob" {
-                ty = DataType::Blob(0);
+                ty = DataType::Blob(None);
             }
         }
         let ty = self.egraph.add(Node::Type((&ty).into()));
@@ -151,6 +163,17 @@ impl Binder {
         }
     }
 
+    fn bind_like(&mut self, expr: Expr, pattern: Expr, negated: bool) -> Result {
+        let expr = self.bind_expr(expr)?;
+        let pattern = self.bind_expr(pattern)?;
+        let like = self.egraph.add(Node::Like([expr, pattern]));
+        if negated {
+            Ok(self.egraph.add(Node::Not(like)))
+        } else {
+            Ok(like)
+        }
+    }
+
     fn bind_between(&mut self, expr: Expr, negated: bool, low: Expr, high: Expr) -> Result {
         let expr = self.bind_expr(expr)?;
         let low = self.bind_expr(low)?;
@@ -163,6 +186,20 @@ impl Binder {
         } else {
             Ok(between)
         }
+    }
+
+    fn bind_interval(&mut self, value: Expr, leading_field: Option<DateTimeField>) -> Result {
+        let Expr::Value(Value::Number(v, _) | Value::SingleQuotedString(v)) = value else {
+            panic!("interval value must be number or string");
+        };
+        let num = v.parse().expect("interval value is not a number");
+        let value = DataValue::Interval(match leading_field {
+            Some(DateTimeField::Day) => Interval::from_days(num),
+            Some(DateTimeField::Month) => Interval::from_months(num),
+            Some(DateTimeField::Year) => Interval::from_years(num),
+            _ => todo!("Support interval with leading field: {:?}", leading_field),
+        });
+        Ok(self.egraph.add(Node::Constant(value)))
     }
 
     fn bind_function(&mut self, func: Function) -> Result {
@@ -211,8 +248,8 @@ impl From<Value> for DataValue {
                     Self::Int32(int)
                 } else if let Ok(bigint) = n.parse::<i64>() {
                     Self::Int64(bigint)
-                } else if let Ok(float) = n.parse::<F64>() {
-                    Self::Float64(float)
+                } else if let Ok(decimal) = n.parse::<Decimal>() {
+                    Self::Decimal(decimal)
                 } else {
                     panic!("invalid digit: {}", n);
                 }
@@ -221,23 +258,6 @@ impl From<Value> for DataValue {
             Value::DoubleQuotedString(s) => Self::String(s),
             Value::Boolean(b) => Self::Bool(b),
             Value::Null => Self::Null,
-            Value::Interval {
-                value,
-                leading_field,
-                ..
-            } => {
-                if let Expr::Value(Value::SingleQuotedString(value)) = *value {
-                    let num = value.parse().unwrap();
-                    Self::Interval(match leading_field {
-                        Some(DateTimeField::Day) => Interval::from_days(num),
-                        Some(DateTimeField::Month) => Interval::from_months(num),
-                        Some(DateTimeField::Year) => Interval::from_years(num),
-                        _ => todo!("Support interval with leading field: {:?}", leading_field),
-                    })
-                } else {
-                    todo!("unsupported value: {}", value)
-                }
-            }
             _ => todo!("parse value: {:?}", v),
         }
     }

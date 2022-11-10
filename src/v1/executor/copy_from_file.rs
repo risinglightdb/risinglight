@@ -63,6 +63,7 @@ impl CopyFromFileExecutor {
             bar.set_style(
                 ProgressStyle::default_bar()
                     .template("[{elapsed_precise}] {bar:40.cyan/blue} {bytes}/{total_bytes}")
+                    .unwrap()
                     .progress_chars("=>-"),
             );
             bar

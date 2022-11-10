@@ -91,6 +91,8 @@ impl DataTypeKind {
 
 impl From<&crate::parser::DataType> for DataTypeKind {
     fn from(kind: &crate::parser::DataType) -> Self {
+        use sqlparser::ast::ExactNumberInfo;
+
         use crate::parser::DataType::*;
         match kind {
             Char(_) | Varchar(_) | String => Self::String,
@@ -100,7 +102,13 @@ impl From<&crate::parser::DataType> for DataTypeKind {
             Int(_) => Self::Int32,
             BigInt(_) => Self::Int64,
             Boolean => Self::Bool,
-            Decimal(p, s) => Self::Decimal(p.map(|x| x as u8), s.map(|x| x as u8)),
+            Decimal(info) => match info {
+                ExactNumberInfo::None => Self::Decimal(None, None),
+                ExactNumberInfo::Precision(p) => Self::Decimal(Some(*p as u8), None),
+                ExactNumberInfo::PrecisionAndScale(p, s) => {
+                    Self::Decimal(Some(*p as u8), Some(*s as u8))
+                }
+            },
             Date => Self::Date,
             Interval => Self::Interval,
             _ => todo!("not supported type: {:?}", kind),
