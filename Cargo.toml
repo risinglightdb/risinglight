@@ -28,6 +28,7 @@ bytes = "1"
 chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
 comfy-table = { version = "6", default-features = false }
+console-subscriber = "0.1"
 crc32fast = "1"
 csv = "1"
 dirs = "4"
