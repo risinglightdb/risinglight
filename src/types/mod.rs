@@ -235,14 +235,8 @@ impl DataTypeKind {
     }
 }
 
-pub(crate) type DatabaseId = u32;
-pub(crate) type SchemaId = u32;
-pub(crate) type TableId = u32;
-pub(crate) type ColumnId = u32;
-
 /// The error type of value type convention.
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
-#[allow(named_arguments_used_positionally)]
 pub enum ConvertError {
     #[error("failed to convert string {0:?} to int: {1}")]
     ParseInt(String, #[source] std::num::ParseIntError),

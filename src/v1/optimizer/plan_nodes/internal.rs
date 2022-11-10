@@ -6,8 +6,7 @@ use itertools::Itertools;
 use serde::Serialize;
 
 use super::*;
-use crate::catalog::{ColumnDesc, TableRefId};
-use crate::types::ColumnId;
+use crate::catalog::{ColumnDesc, ColumnId, TableRefId};
 
 /// The logical plan of scanning internal tables.
 #[derive(Debug, Clone, Serialize)]

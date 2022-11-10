@@ -6,8 +6,8 @@ use itertools::Itertools;
 use serde::Serialize;
 
 use super::*;
-use crate::catalog::ColumnCatalog;
-use crate::types::{ColumnId, DataTypeKind, DatabaseId, SchemaId};
+use crate::catalog::{ColumnCatalog, ColumnId, DatabaseId, SchemaId};
+use crate::types::DataTypeKind;
 
 /// The logical plan of `CREATE TABLE`.
 #[derive(Debug, Clone, Serialize)]

@@ -22,8 +22,9 @@ use std::future::Future;
 use std::sync::{Arc, Mutex};
 
 use super::{Storage, StorageError, StorageResult, TracedStorageError};
-use crate::catalog::{ColumnCatalog, RootCatalog, RootCatalogRef, TableRefId};
-use crate::types::{ColumnId, DatabaseId, SchemaId};
+use crate::catalog::{
+    ColumnCatalog, ColumnId, DatabaseId, RootCatalog, RootCatalogRef, SchemaId, TableRefId,
+};
 
 mod table;
 pub use table::InMemoryTable;

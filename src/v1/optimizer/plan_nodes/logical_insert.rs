@@ -6,8 +6,8 @@ use itertools::Itertools;
 use serde::Serialize;
 
 use super::*;
-use crate::catalog::TableRefId;
-use crate::types::{ColumnId, DataTypeKind};
+use crate::catalog::{ColumnId, TableRefId};
+use crate::types::DataTypeKind;
 
 /// The logical plan of `INSERT`.
 #[derive(Debug, Clone, Serialize)]

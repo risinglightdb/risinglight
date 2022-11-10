@@ -7,8 +7,8 @@ use itertools::Itertools;
 use serde::Serialize;
 
 use super::*;
-use crate::catalog::{ColumnDesc, TableRefId};
-use crate::types::{ColumnId, DataTypeKind};
+use crate::catalog::{ColumnDesc, ColumnId, TableRefId};
+use crate::types::DataTypeKind;
 use crate::v1::binder::ExprVisitor;
 use crate::v1::optimizer::logical_plan_rewriter::ExprRewriter;
 /// The logical plan of sequential scan operation.

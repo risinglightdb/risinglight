@@ -18,8 +18,7 @@ use tracing::warn;
 
 use super::version_manager::EpochOp;
 use super::{SecondaryStorage, SecondaryTable, StorageResult, TracedStorageError};
-use crate::catalog::{ColumnCatalog, TableRefId};
-use crate::types::{ColumnId, DatabaseId, SchemaId};
+use crate::catalog::{ColumnCatalog, ColumnId, DatabaseId, SchemaId, TableRefId};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CreateTableEntry {

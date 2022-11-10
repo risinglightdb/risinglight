@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use super::*;
 use crate::array::DataChunk;
-use crate::catalog::TableRefId;
+use crate::catalog::{ColumnId, TableRefId};
 use crate::storage::{Storage, Table, Transaction};
-use crate::types::{ColumnId, ColumnIndex};
+use crate::types::ColumnIndex;
 
 /// The executor of `insert` statement.
 pub struct InsertExecutor<S: Storage> {

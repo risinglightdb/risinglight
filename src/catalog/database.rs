@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::*;
-use crate::types::{DatabaseId, SchemaId};
 
 /// The catalog of a database.
 #[derive(Clone)]

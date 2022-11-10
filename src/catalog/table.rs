@@ -3,7 +3,6 @@
 use std::collections::{BTreeMap, HashMap};
 
 use super::*;
-use crate::types::{ColumnId, TableId};
 
 /// The catalog of a table.
 pub struct TableCatalog {

@@ -5,10 +5,10 @@ use std::sync::Arc;
 use std::vec::Vec;
 
 use crate::catalog::{
-    ColumnDesc, RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME,
+    ColumnDesc, ColumnId, RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME,
 };
 use crate::parser::{Ident, ObjectName, Statement};
-use crate::types::{ColumnId, DataTypeKind, DataValue};
+use crate::types::{DataTypeKind, DataValue};
 
 mod expr_visitor;
 mod expression;

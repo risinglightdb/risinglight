@@ -22,8 +22,10 @@ mod root;
 mod schema;
 mod table;
 
-// TODO: move to this mod
-pub(crate) use crate::types::{ColumnId, DatabaseId, SchemaId, TableId};
+pub type DatabaseId = u32;
+pub type SchemaId = u32;
+pub type TableId = u32;
+pub type ColumnId = u32;
 
 pub type RootCatalogRef = Arc<RootCatalog>;
 

@@ -2,9 +2,9 @@
 use sqlparser::ast::TableConstraint;
 
 use super::*;
-use crate::catalog::{ColumnCatalog, ColumnDesc};
+use crate::catalog::{ColumnCatalog, ColumnDesc, DatabaseId, SchemaId};
 use crate::parser::{ColumnDef, ColumnOption, Statement};
-use crate::types::{DataType, DatabaseId, SchemaId};
+use crate::types::DataType;
 
 /// A bound `create table` statement.
 #[derive(Debug, PartialEq, Eq, Clone)]

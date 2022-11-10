@@ -4,9 +4,10 @@ use itertools::Itertools;
 use sqlparser::ast::{Expr, Value};
 
 use super::*;
-use crate::catalog::{ColumnCatalog, TableCatalog, TableRefId};
+use crate::catalog::{ColumnCatalog, ColumnId, TableCatalog, TableRefId};
 use crate::parser::{Query, SetExpr, Statement};
-use crate::types::{ColumnId, DataType};
+use crate::types::DataType;
+
 /// A bound `insert` statement.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BoundInsert {
