@@ -183,7 +183,7 @@ impl<S: Storage> Builder<S> {
 
     fn build_id(&self, id: Id) -> BoxedExecutor {
         use Expr::*;
-        spawn(match self.node(id).clone() {
+        let stream = match self.node(id).clone() {
             Scan([table, list]) => TableScanExecutor {
                 table_id: self.node(table).as_table(),
                 columns: (self.node(list).as_list().iter())
@@ -316,20 +316,24 @@ impl<S: Storage> Builder<S> {
             Empty(_) => futures::stream::empty().boxed(),
 
             node => panic!("not a plan: {node:?}"),
-        })
+        };
+        spawn(&self.node(id).to_string(), stream)
     }
 }
 
 /// Spawn a new task to execute the given stream.
-fn spawn(mut stream: BoxedExecutor) -> BoxedExecutor {
+fn spawn(name: &str, mut stream: BoxedExecutor) -> BoxedExecutor {
     let (tx, rx) = tokio::sync::mpsc::channel(16);
-    let handle = tokio::spawn(async move {
-        while let Some(item) = stream.next().await {
-            if tx.send(item).await.is_err() {
-                return;
+    let handle = tokio::task::Builder::default()
+        .name(name)
+        .spawn(async move {
+            while let Some(item) = stream.next().await {
+                if tx.send(item).await.is_err() {
+                    return;
+                }
             }
-        }
-    });
+        })
+        .expect("failed to spawn task");
     use std::pin::Pin;
     use std::task::{Context, Poll};
     struct SpawnedStream {
