@@ -42,7 +42,7 @@ impl ArrayImpl {
                 _ => return Err(ConvertError::NoUnaryOp("+".into(), self.type_string())),
             },
             UnaryOperator::Minus => self.neg()?,
-            UnaryOperator::Not => self.neg()?,
+            UnaryOperator::Not => self.not()?,
             _ => return Err(ConvertError::NoUnaryOp(op.to_string(), self.type_string())),
         })
     }
