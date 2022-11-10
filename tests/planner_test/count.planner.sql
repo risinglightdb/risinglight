@@ -2,31 +2,17 @@
 explain select count(*) from t
 
 /*
-PhysicalProjection:
-    InputRef #0
-  PhysicalSimpleAgg:
-      count(InputRef #0) -> INT
-    PhysicalTableScan:
-        table #0,
-        columns [],
-        with_row_handler: true,
-        is_sorted: false,
-        expr: None
+Projection: [rowcount] (cost=302.3)
+  Aggregate: [rowcount], groupby=[] (cost=301)
+    Scan: t[] (cost=0)
 */
 
 -- count(*) with projection
 explain select count(*) + 1 from t
 
 /*
-PhysicalProjection:
-    (InputRef #0 + 1)
-  PhysicalSimpleAgg:
-      count(InputRef #0) -> INT
-    PhysicalTableScan:
-        table #0,
-        columns [],
-        with_row_handler: true,
-        is_sorted: false,
-        expr: None
+Projection: [(1 + rowcount)] (cost=302.5)
+  Aggregate: [rowcount], groupby=[] (cost=301)
+    Scan: t[] (cost=0)
 */
 
