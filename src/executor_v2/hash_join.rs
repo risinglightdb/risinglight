@@ -36,7 +36,7 @@ impl HashJoinExecutor {
         // build
         let mut hash_map: HashMap<JoinKeys, Vec<RowRef<'_>>> = HashMap::new();
         for chunk in &left_chunks {
-            let keys_chunk = ExprRef::new(&self.left_keys).eval_list(chunk)?;
+            let keys_chunk = Evaluator::new(&self.left_keys).eval_list(chunk)?;
             for i in 0..chunk.cardinality() {
                 let keys = keys_chunk.row(i).values().collect();
                 let row = chunk.row(i);
@@ -51,7 +51,7 @@ impl HashJoinExecutor {
 
         // probe
         for chunk in &right_chunks {
-            let keys_chunk = ExprRef::new(&self.right_keys).eval_list(chunk)?;
+            let keys_chunk = Evaluator::new(&self.right_keys).eval_list(chunk)?;
             for i in 0..chunk.cardinality() {
                 let right_row = chunk.row(i);
                 let keys: JoinKeys = keys_chunk.row(i).values().collect();
@@ -78,7 +78,7 @@ impl HashJoinExecutor {
         // append rows for left outer join
         if matches!(self.op, Expr::LeftOuter | Expr::FullOuter) {
             for chunk in &left_chunks {
-                let keys_chunk = ExprRef::new(&self.left_keys).eval_list(chunk)?;
+                let keys_chunk = Evaluator::new(&self.left_keys).eval_list(chunk)?;
                 for i in 0..chunk.cardinality() {
                     let keys: JoinKeys = keys_chunk.row(i).values().collect();
                     let row = chunk.row(i);

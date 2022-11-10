@@ -57,7 +57,7 @@ mod copy_to_file;
 mod create;
 mod delete;
 mod drop;
-pub mod evaluator;
+mod evaluator;
 mod explain;
 mod filter;
 mod hash_agg;

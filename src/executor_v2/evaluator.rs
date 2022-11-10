@@ -11,19 +11,21 @@ use crate::array::*;
 use crate::planner::{Expr, RecExpr};
 use crate::types::{ConvertError, DataValue};
 
-pub struct ExprRef<'a> {
+/// A wrapper over [`RecExpr`] to evaluate it on [`DataChunk`]s.
+pub struct Evaluator<'a> {
     expr: &'a RecExpr,
     id: Id,
 }
 
-impl fmt::Display for ExprRef<'_> {
+impl fmt::Display for Evaluator<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let recexpr = self.node().build_recexpr(|id| self.expr[id].clone());
         write!(f, "{recexpr}")
     }
 }
 
-impl<'a> ExprRef<'a> {
+impl<'a> Evaluator<'a> {
+    /// Create a [`Evaluator`] over [`RecExpr`].
     pub fn new(expr: &'a RecExpr) -> Self {
         Self {
             expr,

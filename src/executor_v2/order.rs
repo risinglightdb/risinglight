@@ -24,13 +24,13 @@ impl OrderExecutor {
         #[for_await]
         for chunk in child {
             let chunk = chunk?;
-            let order_key_chunk = ExprRef::new(&self.order_keys).eval_list(&chunk)?;
+            let order_key_chunk = Evaluator::new(&self.order_keys).eval_list(&chunk)?;
             chunks.push(order_key_chunk.row_concat(chunk));
         }
 
         // sort the rows by keys
         let mut rows = gen_row_array(&chunks);
-        let orders = ExprRef::new(&self.order_keys).orders();
+        let orders = Evaluator::new(&self.order_keys).orders();
         rows.sort_unstable_by(|row1, row2| cmp(row1, row2, &orders));
 
         // build chunk by the new order

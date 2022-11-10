@@ -27,14 +27,14 @@ impl HashAggExecutor {
         #[for_await]
         for chunk in child {
             let chunk = chunk?;
-            let keys_chunk = ExprRef::new(&self.group_keys).eval_list(&chunk)?;
+            let keys_chunk = Evaluator::new(&self.group_keys).eval_list(&chunk)?;
 
             for i in 0..chunk.cardinality() {
                 let keys = keys_chunk.row(i).values().collect();
                 let states = states
                     .entry(keys)
-                    .or_insert_with(|| ExprRef::new(&self.aggs).init_agg_states().into());
-                ExprRef::new(&self.aggs).eval_agg_list(states, &chunk.slice(i..=i))?;
+                    .or_insert_with(|| Evaluator::new(&self.aggs).init_agg_states().into());
+                Evaluator::new(&self.aggs).eval_agg_list(states, &chunk.slice(i..=i))?;
             }
         }
 

@@ -42,7 +42,7 @@ impl<S: Storage> InsertExecutor<S> {
         let mut cnt = 0;
         #[for_await]
         for chunk in child {
-            let chunk = ExprRef::new(&expr).eval_list(&chunk?)?;
+            let chunk = Evaluator::new(&expr).eval_list(&chunk?)?;
             cnt += chunk.cardinality();
             txn.append(chunk).await?;
         }

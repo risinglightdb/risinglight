@@ -61,7 +61,7 @@ mod create;
 mod delete;
 mod drop;
 mod dummy_scan;
-pub mod evaluator;
+mod evaluator;
 mod explain;
 mod filter;
 mod hash_agg;

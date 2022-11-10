@@ -20,7 +20,7 @@ impl ValuesExecutor {
         let dummy = DataChunk::single(0);
         for row in self.values {
             let row_data: Vec<_> = (row.into_iter().zip_eq(&self.column_types))
-                .map(|(expr, ty)| ExprRef::new(&expr).eval(&dummy)?.get(0).cast(&ty.kind))
+                .map(|(expr, ty)| Evaluator::new(&expr).eval(&dummy)?.get(0).cast(&ty.kind))
                 .try_collect()?;
             if let Some(chunk) = builder.push_row(row_data) {
                 yield chunk;

@@ -16,7 +16,7 @@ impl ProjectionExecutor {
     pub async fn execute(self, child: BoxedExecutor) {
         #[for_await]
         for batch in child {
-            yield ExprRef::new(&self.projs).eval_list(&batch?)?;
+            yield Evaluator::new(&self.projs).eval_list(&batch?)?;
         }
     }
 }

@@ -24,7 +24,7 @@ impl TopNExecutor {
     pub async fn execute(self, child: BoxedExecutor) {
         // initialize heap
         let heap_size = self.offset + self.limit;
-        let orders = ExprRef::new(&self.order_keys).orders();
+        let orders = Evaluator::new(&self.order_keys).orders();
         let mut heap =
             BinaryHeap::with_capacity_by(heap_size, |row1, row2| cmp(row1, row2, &orders));
 
@@ -33,7 +33,7 @@ impl TopNExecutor {
         #[for_await]
         for chunk in child {
             let chunk = chunk?;
-            let order_key_chunk = ExprRef::new(&self.order_keys).eval_list(&chunk)?;
+            let order_key_chunk = Evaluator::new(&self.order_keys).eval_list(&chunk)?;
             for row in order_key_chunk.row_concat(chunk).rows() {
                 heap.push(row.to_owned());
                 if heap.len() > heap_size {

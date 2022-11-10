@@ -14,7 +14,7 @@ impl FilterExecutor {
         #[for_await]
         for batch in child {
             let batch = batch?;
-            let vis = match ExprRef::new(&self.condition).eval(&batch)? {
+            let vis = match Evaluator::new(&self.condition).eval(&batch)? {
                 ArrayImpl::Bool(a) => a,
                 _ => panic!("filters can only accept bool array"),
             };
