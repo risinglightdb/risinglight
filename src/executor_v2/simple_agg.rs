@@ -14,7 +14,7 @@ pub struct SimpleAggExecutor {
 impl SimpleAggExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self, child: BoxedExecutor) {
-        let mut states = Evaluator::new(&self.aggs).init_agg_states();
+        let mut states = Evaluator::new(&self.aggs).init_agg_states::<Vec<_>>();
         #[for_await]
         for chunk in child {
             let chunk = chunk?;
