@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use egg::{Id, Language};
-use futures::stream::{BoxStream, StreamExt};
+use futures::stream::{BoxStream, Stream, StreamExt};
 use futures_async_stream::try_stream;
 use itertools::Itertools;
 
@@ -183,7 +183,7 @@ impl<S: Storage> Builder<S> {
 
     fn build_id(&self, id: Id) -> BoxedExecutor {
         use Expr::*;
-        match self.node(id).clone() {
+        spawn(match self.node(id).clone() {
             Scan([table, list]) => TableScanExecutor {
                 table_id: self.node(table).as_table(),
                 columns: (self.node(list).as_list().iter())
@@ -316,6 +316,36 @@ impl<S: Storage> Builder<S> {
             Empty(_) => futures::stream::empty().boxed(),
 
             node => panic!("not a plan: {node:?}"),
+        })
+    }
+}
+
+/// Spawn a new task to execute the given stream.
+fn spawn(mut stream: BoxedExecutor) -> BoxedExecutor {
+    let (tx, rx) = tokio::sync::mpsc::channel(16);
+    let handle = tokio::spawn(async move {
+        while let Some(item) = stream.next().await {
+            if tx.send(item).await.is_err() {
+                return;
+            }
+        }
+    });
+    use std::pin::Pin;
+    use std::task::{Context, Poll};
+    struct SpawnedStream {
+        rx: tokio::sync::mpsc::Receiver<Result<DataChunk, ExecutorError>>,
+        handle: tokio::task::JoinHandle<()>,
+    }
+    impl Stream for SpawnedStream {
+        type Item = Result<DataChunk, ExecutorError>;
+        fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            self.rx.poll_recv(cx)
         }
     }
+    impl Drop for SpawnedStream {
+        fn drop(&mut self) {
+            self.handle.abort();
+        }
+    }
+    Box::pin(SpawnedStream { rx, handle })
 }
