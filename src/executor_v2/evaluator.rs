@@ -47,6 +47,9 @@ impl<'a> Evaluator<'a> {
     /// Evaluate a list of expressions.
     pub fn eval_list(&self, chunk: &DataChunk) -> Result<DataChunk, ConvertError> {
         let list = self.node().as_list();
+        if list.is_empty() {
+            return Ok(DataChunk::no_column(chunk.cardinality()));
+        }
         list.iter().map(|id| self.next(*id).eval(chunk)).collect()
     }
 
@@ -71,12 +74,15 @@ impl<'a> Evaluator<'a> {
             IsNull(a) => {
                 let array = self.next(*a).eval(chunk)?;
                 Ok(ArrayImpl::new_bool(
-                    (0..array.len())
-                        .map(|i| array.get(i) == DataValue::Null)
-                        .collect(),
+                    array.get_valid_bitmap().iter().map(|v| !v).collect(),
                 ))
             }
             Asc(a) | Desc(a) | Nested(a) => self.next(*a).eval(chunk),
+            // for aggs, evaluate its children
+            RowCount => Ok(ArrayImpl::new_null(
+                (0..chunk.cardinality()).map(|_| ()).collect(),
+            )),
+            Count(a) | Sum(a) | Min(a) | Max(a) | First(a) | Last(a) => self.next(*a).eval(chunk),
             e => {
                 if let Some((op, a, b)) = e.binary_op() {
                     let left = self.next(a).eval(chunk)?;
@@ -93,7 +99,7 @@ impl<'a> Evaluator<'a> {
     }
 
     /// Returns the initial aggregation states.
-    pub fn init_agg_states(&self) -> Vec<DataValue> {
+    pub fn init_agg_states<B: FromIterator<DataValue>>(&self) -> B {
         (self.node().as_list().iter())
             .map(|id| self.next(*id).init_agg_state())
             .collect()
@@ -120,6 +126,18 @@ impl<'a> Evaluator<'a> {
             *state = self.next(*id).eval_agg(state.clone(), chunk)?;
         }
         Ok(())
+    }
+
+    /// Append a list of values to a list of agg states.
+    pub fn agg_list_append(
+        &self,
+        states: &mut [DataValue],
+        values: impl Iterator<Item = DataValue>,
+    ) {
+        let list = self.node().as_list();
+        for ((state, id), value) in states.iter_mut().zip_eq(list).zip_eq(values) {
+            *state = self.next(*id).agg_append(state.clone(), value);
+        }
     }
 
     /// Evaluate the aggregation.
@@ -151,6 +169,21 @@ impl<'a> Evaluator<'a> {
             Max(a) => Ok(state.max(self.next(*a).eval(chunk)?.max_())),
             First(a) => Ok(state.or(self.next(*a).eval(chunk)?.first())),
             Last(a) => Ok(self.next(*a).eval(chunk)?.last().or(state)),
+            t => panic!("not aggregation: {t}"),
+        }
+    }
+
+    /// Append a value to agg state.
+    fn agg_append(&self, state: DataValue, value: DataValue) -> DataValue {
+        use Expr::*;
+        match self.node() {
+            RowCount => state.add(DataValue::Int32(1)),
+            Count(_) => state.add(DataValue::Int32(!value.is_null() as _)),
+            Sum(_) => state.add(value),
+            Min(_) => state.min(value),
+            Max(_) => state.max(value),
+            First(_) => state.or(value),
+            Last(_) => value,
             t => panic!("not aggregation: {t}"),
         }
     }
