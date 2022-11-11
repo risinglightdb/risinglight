@@ -175,7 +175,6 @@ impl Expr {
             &Self::And([a, b]) => (Op::And, a, b),
             &Self::Or([a, b]) => (Op::Or, a, b),
             &Self::Xor([a, b]) => (Op::Xor, a, b),
-            &Self::Like([a, b]) => (Op::Like, a, b),
             _ => return None,
         })
     }

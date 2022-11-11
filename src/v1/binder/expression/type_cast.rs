@@ -23,7 +23,7 @@ impl Binder {
         // workaround for 'BLOB'
         if let DataType::Custom(name) = &ty {
             if name.0.len() == 1 && name.0[0].value.to_lowercase() == "blob" {
-                ty = DataType::Blob(0);
+                ty = DataType::Blob(None);
             }
         }
         Ok(BoundExpr::TypeCast(BoundTypeCast {

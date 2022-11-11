@@ -113,25 +113,35 @@ impl SecondaryStorage {
         let storage = self.clone();
         *self.compactor_handler.lock().await = (
             Some(tx),
-            Some(tokio::spawn(async move {
-                Compactor::new(storage, rx)
-                    .run()
-                    .await
-                    .expect("compactor stopped unexpectedly");
-            })),
+            Some(
+                tokio::task::Builder::default()
+                    .name("compactor")
+                    .spawn(async move {
+                        Compactor::new(storage, rx)
+                            .run()
+                            .await
+                            .expect("compactor stopped unexpectedly");
+                    })
+                    .expect("failed to spawn task"),
+            ),
         );
 
         let storage = self.clone();
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         *self.vacuum_handler.lock().await = (
             Some(tx),
-            Some(tokio::spawn(async move {
-                storage
-                    .version
-                    .run(rx)
-                    .await
-                    .expect("vacuum stopped unexpectedly");
-            })),
+            Some(
+                tokio::task::Builder::default()
+                    .name("vacuum")
+                    .spawn(async move {
+                        storage
+                            .version
+                            .run(rx)
+                            .await
+                            .expect("vacuum stopped unexpectedly");
+                    })
+                    .expect("failed to spawn task"),
+            ),
         );
     }
 

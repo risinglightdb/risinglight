@@ -44,6 +44,10 @@ struct Args {
     /// Whether to use minitrace
     #[clap(long)]
     enable_tracing: bool,
+
+    /// Whether to use tokio console.
+    #[clap(long)]
+    tokio_console: bool,
 }
 
 // human-readable message
@@ -302,15 +306,18 @@ async fn run_sqllogictest(
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    let fmt_layer = tracing_subscriber::fmt::layer().compact();
-    let filter_layer = tracing_subscriber::EnvFilter::from_default_env()
-        .add_directive(Level::INFO.into())
-        .add_directive("egg=warn".parse()?);
-
-    tracing_subscriber::registry()
-        .with(filter_layer)
-        .with(fmt_layer)
-        .init();
+    if args.tokio_console {
+        console_subscriber::init();
+    } else {
+        let fmt_layer = tracing_subscriber::fmt::layer().compact();
+        let filter_layer = tracing_subscriber::EnvFilter::from_default_env()
+            .add_directive(Level::INFO.into())
+            .add_directive("egg=warn".parse()?);
+        tracing_subscriber::registry()
+            .with(filter_layer)
+            .with(fmt_layer)
+            .init();
+    }
 
     info!("using query engine v2. type '\\v1' to use the legacy engine");
 
