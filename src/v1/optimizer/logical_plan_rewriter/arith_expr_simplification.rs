@@ -105,38 +105,3 @@ impl PlanRewriter for ArithExprSimplificationRule {
         Arc::new(plan.clone_with_rewrite_expr(self))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use std::fs;
-
-    use manifest_dir_macros;
-    use serde::Serialize;
-
-    use crate::Database;
-
-    #[tokio::main]
-    #[test]
-    async fn test_expr_simplification() {
-        let db = Database::new_in_memory();
-        let create_stmt = "create table t(a int)";
-        let sql0 = "select a + 0 from t";
-        // a + 0 should be converted to a
-        let _ = db.run(create_stmt).await;
-
-        let plans = db.generate_execution_plan(sql0).unwrap();
-        assert_eq!(plans.len(), 1);
-        let buf = Vec::new();
-        let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
-        let mut ser = serde_json::Serializer::with_formatter(buf, formatter);
-        plans[0].serialize(&mut ser).unwrap();
-        let ser_str = String::from_utf8(ser.into_inner()).unwrap();
-
-        let data = fs::read_to_string(manifest_dir_macros::file_relative_path!(
-            "tests/json/arith_expr_simplification.json"
-        ))
-        .unwrap();
-
-        assert_eq!(ser_str, data);
-    }
-}

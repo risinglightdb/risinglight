@@ -1,7 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use bitvec::prelude::BitVec;
-use rust_decimal::Decimal;
 use serde::Serialize;
 
 use super::*;
@@ -194,7 +193,7 @@ impl Binder {
     /// Bind an expression.
     pub fn bind_expr(&mut self, expr: &Expr) -> Result<BoundExpr, BindError> {
         match expr {
-            Expr::Value(v) => Ok(BoundExpr::Constant(v.into())),
+            Expr::Value(v) => Ok(BoundExpr::Constant(v.clone().into())),
             Expr::Identifier(ident) => self.bind_column_ref(std::slice::from_ref(ident)),
             Expr::CompoundIdentifier(idents) => self.bind_column_ref(idents),
             Expr::BinaryOp { left, op, right } => self.bind_binary_op(left, op, right),
@@ -218,6 +217,11 @@ impl Binder {
                 low,
                 high,
             } => self.bind_between(expr, negated, low, high),
+            Expr::Interval {
+                value,
+                leading_field,
+                ..
+            } => self.bind_interval(value, leading_field),
             _ => todo!("bind expression: {:?}", expr),
         }
     }
@@ -261,43 +265,23 @@ impl Binder {
             return_type: DataTypeKind::Bool.not_null(),
         }))
     }
-}
 
-impl From<&Value> for DataValue {
-    fn from(v: &Value) -> Self {
-        match v {
-            Value::Number(n, _) => {
-                if let Ok(int) = n.parse::<i32>() {
-                    Self::Int32(int)
-                } else if let Ok(bigint) = n.parse::<i64>() {
-                    Self::Int64(bigint)
-                } else if let Ok(decimal) = n.parse::<Decimal>() {
-                    Self::Decimal(decimal)
-                } else {
-                    panic!("invalid digit: {}", n);
-                }
-            }
-            Value::SingleQuotedString(s) => Self::String(s.clone()),
-            Value::DoubleQuotedString(s) => Self::String(s.clone()),
-            Value::Boolean(b) => Self::Bool(*b),
-            Value::Null => Self::Null,
-            Value::Interval {
-                value,
-                leading_field,
-                ..
-            } => {
-                let Expr::Value(Value::SingleQuotedString(value)) = &**value else {
-                    todo!("unsupported value: {}", value);
-                };
-                Self::Interval(match leading_field {
-                    Some(DateTimeField::Day) => Interval::from_days(value.parse().unwrap()),
-                    Some(DateTimeField::Month) => Interval::from_months(value.parse().unwrap()),
-                    Some(DateTimeField::Year) => Interval::from_years(value.parse().unwrap()),
-                    _ => todo!("Support interval with leading field: {:?}", leading_field),
-                })
-            }
-            _ => todo!("parse value: {:?}", v),
-        }
+    fn bind_interval(
+        &mut self,
+        value: &Expr,
+        leading_field: &Option<DateTimeField>,
+    ) -> Result<BoundExpr, BindError> {
+        let Expr::Value(Value::Number(v, _) | Value::SingleQuotedString(v)) = value else {
+            panic!("interval value must be number or string");
+        };
+        let num = v.parse().expect("interval value is not a number");
+        let value = DataValue::Interval(match leading_field {
+            Some(DateTimeField::Day) => Interval::from_days(num),
+            Some(DateTimeField::Month) => Interval::from_months(num),
+            Some(DateTimeField::Year) => Interval::from_years(num),
+            _ => todo!("Support interval with leading field: {:?}", leading_field),
+        });
+        Ok(BoundExpr::Constant(value))
     }
 }
 
