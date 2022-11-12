@@ -37,7 +37,7 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
         use Expr::*;
         let id = &self.egraph.lookup(enode.clone()).unwrap();
         let mut costs = |i: &Id| costs(*i);
-        let rows = |i: &Id| self.egraph[*i].data.rows as f32;
+        let rows = |i: &Id| self.egraph[*i].data.rows;
         let cols = |i: &Id| match &self.egraph[*i].data.schema {
             Some(s) => s.len() as f32,
             None => f32::INFINITY,

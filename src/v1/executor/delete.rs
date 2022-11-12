@@ -37,6 +37,6 @@ impl<S: Storage> DeleteExecutor<S> {
         }
         txn.commit().await?;
 
-        yield DataChunk::single(cnt as i32);
+        yield DataChunk::single(cnt);
     }
 }

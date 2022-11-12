@@ -116,8 +116,8 @@ impl PlanNode for LogicalTableScan {
             .map(|id| {
                 idx_table.insert(id, idx_table.len());
                 (
-                    self.column_ids[id as usize],
-                    self.column_descs[id as usize].clone(),
+                    self.column_ids[id],
+                    self.column_descs[id].clone(),
                 )
             })
             .unzip();
@@ -132,8 +132,8 @@ impl PlanNode for LogicalTableScan {
                     idx_table.insert(id, offset);
                     offset += 1;
                     (
-                        self.column_ids[id as usize],
-                        self.column_descs[id as usize].clone(),
+                        self.column_ids[id],
+                        self.column_descs[id].clone(),
                     )
                 })
                 .unzip();

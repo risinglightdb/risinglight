@@ -80,7 +80,7 @@ impl FromStr for Blob {
                 if !s.is_char_boundary(1) {
                     return Err(ParseBlobError::InvalidChar);
                 }
-                v.push(s.as_bytes()[0] as u8);
+                v.push(s.as_bytes()[0]);
                 s = &s[1..];
             }
         }

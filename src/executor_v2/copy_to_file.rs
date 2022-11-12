@@ -41,7 +41,7 @@ impl CopyToFileExecutor {
         format: FileFormat,
         mut recver: mpsc::Receiver<DataChunk>,
     ) -> Result<usize, ExecutorError> {
-        let file = File::create(&path)?;
+        let file = File::create(path)?;
         let mut writer = match format {
             FileFormat::Csv {
                 delimiter,
