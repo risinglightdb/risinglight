@@ -18,7 +18,6 @@
 //! * `RowHandler` scan
 
 use std::collections::HashMap;
-use std::future::Future;
 use std::sync::{Arc, Mutex};
 
 use super::{Storage, StorageError, StorageResult, TracedStorageError};
@@ -64,51 +63,47 @@ impl InMemoryStorage {
 }
 
 impl Storage for InMemoryStorage {
-    type CreateTableResultFuture<'a> = impl Future<Output = StorageResult<()>> + 'a;
-    type DropTableResultFuture<'a> = impl Future<Output = StorageResult<()>> + 'a;
-    type TransactionType = InMemoryTransaction;
-    type TableType = InMemoryTable;
+    type Transaction = InMemoryTransaction;
+    type Table = InMemoryTable;
 
-    fn create_table<'a>(
-        &'a self,
+    async fn create_table(
+        &self,
         database_id: DatabaseId,
         schema_id: SchemaId,
-        table_name: &'a str,
-        column_descs: &'a [ColumnCatalog],
-        ordered_pk_ids: &'a [ColumnId],
-    ) -> Self::CreateTableResultFuture<'a> {
-        async move {
-            let db = self
-                .catalog
-                .get_database_by_id(database_id)
-                .ok_or_else(|| TracedStorageError::not_found("database", database_id))?;
-            let schema = db
-                .get_schema_by_id(schema_id)
-                .ok_or_else(|| TracedStorageError::not_found("schema", schema_id))?;
-            if schema.get_table_by_name(table_name).is_some() {
-                return Err(TracedStorageError::duplicated("table", table_name));
-            }
-            let ref_id = TableRefId::new(database_id, schema_id, 0);
-            let table_id = self
-                .catalog
-                .add_table(
-                    ref_id,
-                    table_name.into(),
-                    column_descs.to_vec(),
-                    false,
-                    ordered_pk_ids.to_vec(),
-                )
-                .map_err(|_| StorageError::Duplicated("table", table_name.into()))?;
-
-            let id = TableRefId {
-                database_id,
-                schema_id,
-                table_id,
-            };
-            let table = InMemoryTable::new(id, column_descs);
-            self.tables.lock().unwrap().insert(id, table);
-            Ok(())
+        table_name: &str,
+        column_descs: &[ColumnCatalog],
+        ordered_pk_ids: &[ColumnId],
+    ) -> StorageResult<()> {
+        let db = self
+            .catalog
+            .get_database_by_id(database_id)
+            .ok_or_else(|| TracedStorageError::not_found("database", database_id))?;
+        let schema = db
+            .get_schema_by_id(schema_id)
+            .ok_or_else(|| TracedStorageError::not_found("schema", schema_id))?;
+        if schema.get_table_by_name(table_name).is_some() {
+            return Err(TracedStorageError::duplicated("table", table_name));
         }
+        let ref_id = TableRefId::new(database_id, schema_id, 0);
+        let table_id = self
+            .catalog
+            .add_table(
+                ref_id,
+                table_name.into(),
+                column_descs.to_vec(),
+                false,
+                ordered_pk_ids.to_vec(),
+            )
+            .map_err(|_| StorageError::Duplicated("table", table_name.into()))?;
+
+        let id = TableRefId {
+            database_id,
+            schema_id,
+            table_id,
+        };
+        let table = InMemoryTable::new(id, column_descs);
+        self.tables.lock().unwrap().insert(id, table);
+        Ok(())
     }
 
     fn get_table(&self, table_id: TableRefId) -> StorageResult<InMemoryTable> {
@@ -122,15 +117,13 @@ impl Storage for InMemoryStorage {
         Ok(table)
     }
 
-    fn drop_table(&self, table_id: TableRefId) -> Self::DropTableResultFuture<'_> {
-        async move {
-            self.tables
-                .lock()
-                .unwrap()
-                .remove(&table_id)
-                .ok_or_else(|| TracedStorageError::not_found("table", table_id.table_id))?;
-            self.catalog.drop_table(table_id);
-            Ok(())
-        }
+    async fn drop_table(&self, table_id: TableRefId) -> StorageResult<()> {
+        self.tables
+            .lock()
+            .unwrap()
+            .remove(&table_id)
+            .ok_or_else(|| TracedStorageError::not_found("table", table_id.table_id))?;
+        self.catalog.drop_table(table_id);
+        Ok(())
     }
 }
