@@ -65,6 +65,6 @@ fn init_logger() {
         env_logger::init();
         // Force set pwd to the root directory of RisingLight
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..");
-        std::env::set_current_dir(&path).unwrap();
+        std::env::set_current_dir(path).unwrap();
     });
 }

@@ -54,20 +54,11 @@ impl StorageImpl {
 
 /// Represents a storage engine.
 pub trait Storage: Sync + Send + 'static {
-    /// the following two result future types to avoid `impl Future` return different types when
-    /// impl `Storage`.
-    type CreateTableResultFuture<'a>: Future<Output = StorageResult<()>> + Send + 'a
-    where
-        Self: 'a;
-    type DropTableResultFuture<'a>: Future<Output = StorageResult<()>> + Send + 'a
-    where
-        Self: 'a;
-
     /// Type of the transaction.
-    type TransactionType: Transaction;
+    type Transaction: Transaction;
 
     /// Type of the table belonging to this storage engine.
-    type TableType: Table<TransactionType = Self::TransactionType>;
+    type Table: Table<Transaction = Self::Transaction>;
 
     fn create_table<'a>(
         &'a self,
@@ -76,40 +67,33 @@ pub trait Storage: Sync + Send + 'static {
         table_name: &'a str,
         column_descs: &'a [ColumnCatalog],
         ordered_pk_ids: &'a [ColumnId],
-    ) -> Self::CreateTableResultFuture<'a>;
+    ) -> impl Future<Output = StorageResult<()>> + Send + 'a;
 
-    fn get_table(&self, table_id: TableRefId) -> StorageResult<Self::TableType>;
+    fn get_table(&self, table_id: TableRefId) -> StorageResult<Self::Table>;
 
-    fn drop_table(&self, table_id: TableRefId) -> Self::DropTableResultFuture<'_>;
+    fn drop_table(
+        &self,
+        table_id: TableRefId,
+    ) -> impl Future<Output = StorageResult<()>> + Send + '_;
 }
 
 /// A table in the storage engine. [`Table`] is by default a reference to a table,
 /// so you could clone it and manipulate in different threads as you like.
 pub trait Table: Sync + Send + Clone + 'static {
     /// Type of the transaction.
-    type TransactionType: Transaction;
-
-    type WriteResultFuture<'a>: Future<Output = StorageResult<Self::TransactionType>> + Send + 'a
-    where
-        Self: 'a;
-    type ReadResultFuture<'a>: Future<Output = StorageResult<Self::TransactionType>> + Send + 'a
-    where
-        Self: 'a;
-    type UpdateResultFuture<'a>: Future<Output = StorageResult<Self::TransactionType>> + Send + 'a
-    where
-        Self: 'a;
+    type Transaction: Transaction;
 
     /// Get schema of the current table
     fn columns(&self) -> StorageResult<Arc<[ColumnCatalog]>>;
 
     /// Begin a read-write-only txn
-    fn write(&self) -> Self::WriteResultFuture<'_>;
+    fn write(&self) -> impl Future<Output = StorageResult<Self::Transaction>> + Send + '_;
 
     /// Begin a read-only txn
-    fn read(&self) -> Self::ReadResultFuture<'_>;
+    fn read(&self) -> impl Future<Output = StorageResult<Self::Transaction>> + Send + '_;
 
     /// Begin a txn that might delete or update rows
-    fn update(&self) -> Self::UpdateResultFuture<'_>;
+    fn update(&self) -> impl Future<Output = StorageResult<Self::Transaction>> + Send + '_;
 
     /// Get table id
     fn table_id(&self) -> TableRefId;
@@ -142,21 +126,6 @@ pub trait Transaction: Sync + Send + 'static {
     /// Type of the unique reference to a row
     type RowHandlerType: RowHandler;
 
-    type ScanResultFuture<'a>: Future<Output = StorageResult<Self::TxnIteratorType>> + Send + 'a
-    where
-        Self: 'a;
-    type AppendResultFuture<'a>: Future<Output = StorageResult<()>> + Send + 'a
-    where
-        Self: 'a;
-    type DeleteResultFuture<'a>: Future<Output = StorageResult<()>> + Send + 'a
-    where
-        Self: 'a;
-    type CommitResultFuture<'a>: Future<Output = StorageResult<()>> + Send + 'a
-    where
-        Self: 'a;
-    type AbortResultFuture<'a>: Future<Output = StorageResult<()>> + Send + 'a
-    where
-        Self: 'a;
     /// Scan one or multiple columns.
     fn scan<'a>(
         &'a self,
@@ -166,28 +135,31 @@ pub trait Transaction: Sync + Send + 'static {
         is_sorted: bool,
         reversed: bool,
         expr: Option<BoundExpr>,
-    ) -> Self::ScanResultFuture<'a>;
+    ) -> impl Future<Output = StorageResult<Self::TxnIteratorType>> + Send + 'a;
 
     /// Append data to the table. Generally, `columns` should be in the same order as
     /// [`ColumnCatalog`] when constructing the [`Table`].
-    fn append(&mut self, columns: DataChunk) -> Self::AppendResultFuture<'_>;
+    fn append(&mut self, columns: DataChunk)
+        -> impl Future<Output = StorageResult<()>> + Send + '_;
 
     /// Delete a record.
-    fn delete<'a>(&'a mut self, id: &'a Self::RowHandlerType) -> Self::DeleteResultFuture<'a>;
+    fn delete<'a>(
+        &'a mut self,
+        id: &'a Self::RowHandlerType,
+    ) -> impl Future<Output = StorageResult<()>> + Send + 'a;
 
     /// Commit a transaction.
-    fn commit<'a>(self) -> Self::CommitResultFuture<'a>;
+    fn commit(self) -> impl Future<Output = StorageResult<()>> + Send;
 
     /// Abort a transaction.
-    fn abort<'a>(self) -> Self::AbortResultFuture<'a>;
+    fn abort(self) -> impl Future<Output = StorageResult<()>> + Send;
 }
 
 /// An iterator over table in a transaction.
 pub trait TxnIterator: Send {
-    type NextFuture<'a>: Future<Output = StorageResult<Option<DataChunk>>> + Send + 'a
-    where
-        Self: 'a;
-
     /// get next batch of elements
-    fn next_batch(&mut self, expected_size: Option<usize>) -> Self::NextFuture<'_>;
+    fn next_batch(
+        &mut self,
+        expected_size: Option<usize>,
+    ) -> impl Future<Output = StorageResult<Option<DataChunk>>> + Send + '_;
 }

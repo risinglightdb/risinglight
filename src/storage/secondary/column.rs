@@ -172,7 +172,7 @@ impl Column {
                             ColumnReadableFile::NormalRead(file) => {
                                 let mut data = vec![0; info.length as usize];
                                 let mut file = file.lock().unwrap();
-                                file.seek(SeekFrom::Start(info.offset as u64))?;
+                                file.seek(SeekFrom::Start(info.offset))?;
                                 file.read_exact(&mut data[..])?;
                                 Bytes::from(data)
                             }

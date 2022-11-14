@@ -3,7 +3,6 @@
 //! Secondary storage engine for RisingLight
 
 use std::collections::HashMap;
-use std::future::Future;
 use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::Arc;
 
@@ -161,36 +160,32 @@ impl SecondaryStorage {
 }
 
 impl Storage for SecondaryStorage {
-    type CreateTableResultFuture<'a> = impl Future<Output = StorageResult<()>> + 'a;
-    type DropTableResultFuture<'a> = impl Future<Output = StorageResult<()>> + 'a;
-    type TransactionType = SecondaryTransaction;
-    type TableType = SecondaryTable;
+    type Transaction = SecondaryTransaction;
+    type Table = SecondaryTable;
 
-    fn create_table<'a>(
-        &'a self,
+    async fn create_table(
+        &self,
         database_id: DatabaseId,
         schema_id: SchemaId,
-        table_name: &'a str,
-        column_descs: &'a [ColumnCatalog],
-        ordered_pk_ids: &'a [ColumnId],
-    ) -> Self::CreateTableResultFuture<'a> {
-        async move {
-            self.create_table_inner(
-                database_id,
-                schema_id,
-                table_name,
-                column_descs,
-                ordered_pk_ids,
-            )
-            .await
-        }
+        table_name: &str,
+        column_descs: &[ColumnCatalog],
+        ordered_pk_ids: &[ColumnId],
+    ) -> StorageResult<()> {
+        self.create_table_inner(
+            database_id,
+            schema_id,
+            table_name,
+            column_descs,
+            ordered_pk_ids,
+        )
+        .await
     }
 
     fn get_table(&self, table_id: TableRefId) -> StorageResult<SecondaryTable> {
         self.get_table_inner(table_id)
     }
 
-    fn drop_table(&self, table_id: TableRefId) -> Self::DropTableResultFuture<'_> {
-        async move { self.drop_table_inner(table_id).await }
+    async fn drop_table(&self, table_id: TableRefId) -> StorageResult<()> {
+        self.drop_table_inner(table_id).await
     }
 }

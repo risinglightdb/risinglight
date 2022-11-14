@@ -1,6 +1,5 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::future::Future;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::Arc;
@@ -106,10 +105,7 @@ impl SecondaryTable {
 }
 
 impl Table for SecondaryTable {
-    type TransactionType = SecondaryTransaction;
-    type ReadResultFuture<'a> = impl Future<Output = StorageResult<Self::TransactionType>> + 'a;
-    type WriteResultFuture<'a> = impl Future<Output = StorageResult<Self::TransactionType>> + 'a;
-    type UpdateResultFuture<'a> = impl Future<Output = StorageResult<Self::TransactionType>> + 'a;
+    type Transaction = SecondaryTransaction;
 
     fn columns(&self) -> StorageResult<Arc<[ColumnCatalog]>> {
         Ok(self.columns.clone())
@@ -119,15 +115,15 @@ impl Table for SecondaryTable {
         self.table_ref_id
     }
 
-    fn write(&self) -> Self::WriteResultFuture<'_> {
-        async move { SecondaryTransaction::start(self, false, false).await }
+    async fn write(&self) -> StorageResult<SecondaryTransaction> {
+        SecondaryTransaction::start(self, false, false).await
     }
 
-    fn read(&self) -> Self::ReadResultFuture<'_> {
-        async move { SecondaryTransaction::start(self, true, false).await }
+    async fn read(&self) -> StorageResult<SecondaryTransaction> {
+        SecondaryTransaction::start(self, true, false).await
     }
 
-    fn update(&self) -> Self::UpdateResultFuture<'_> {
-        async move { SecondaryTransaction::start(self, false, true).await }
+    async fn update(&self) -> StorageResult<SecondaryTransaction> {
+        SecondaryTransaction::start(self, false, true).await
     }
 }

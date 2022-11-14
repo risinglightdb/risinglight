@@ -1,7 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::collections::HashSet;
-use std::future::Future;
 use std::sync::Arc;
 
 use bitvec::prelude::BitVec;
@@ -78,9 +77,10 @@ impl InMemoryTxnIterator {
 }
 
 impl TxnIterator for InMemoryTxnIterator {
-    type NextFuture<'a> = impl Future<Output = StorageResult<Option<DataChunk>>> + 'a;
-
-    fn next_batch(&mut self, expected_size: Option<usize>) -> Self::NextFuture<'_> {
-        async move { self.next_batch_inner(expected_size).await }
+    async fn next_batch(
+        &mut self,
+        expected_size: Option<usize>,
+    ) -> StorageResult<Option<DataChunk>> {
+        self.next_batch_inner(expected_size).await
     }
 }

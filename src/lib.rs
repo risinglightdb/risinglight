@@ -17,10 +17,12 @@
 #![feature(proc_macro_hygiene)]
 #![feature(core_intrinsics)]
 #![feature(trusted_len)]
-#![feature(int_log)]
 #![feature(once_cell)]
 #![feature(array_methods)]
 #![feature(iterator_try_collect)]
+#![feature(async_fn_in_trait)]
+#![feature(return_position_impl_trait_in_trait)]
+#![allow(incomplete_features)]
 
 /// Top-level structure of the database.
 pub mod db;
