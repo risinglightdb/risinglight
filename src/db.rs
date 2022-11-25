@@ -4,7 +4,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use futures::TryStreamExt;
-use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use tracing::debug;
 
 use crate::array::{
@@ -12,10 +11,9 @@ use crate::array::{
 };
 use crate::catalog::RootCatalogRef;
 use crate::parser::{parse, ParserError};
-use crate::storage::{
-    InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
-    StorageImpl, Table,
-};
+use crate::storage::{InMemoryStorage, Storage, StorageColumnRef, StorageImpl, Table};
+#[cfg(feature = "storage")]
+use crate::storage::{SecondaryStorage, SecondaryStorageOptions};
 use crate::v1::binder::Binder;
 use crate::v1::executor::ExecutorBuilder;
 use crate::v1::logical_planner::LogicalPlaner;
@@ -42,6 +40,7 @@ impl Database {
     }
 
     /// Create a new database instance with merge-tree engine.
+    #[cfg(feature = "storage")]
     pub async fn new_on_disk(options: SecondaryStorageOptions) -> Self {
         let storage = Arc::new(SecondaryStorage::open(options).await.unwrap());
         storage.spawn_compactor().await;
@@ -53,6 +52,7 @@ impl Database {
     }
 
     pub async fn shutdown(&self) -> Result<(), Error> {
+        #[cfg(feature = "storage")]
         if let StorageImpl::SecondaryStorage(storage) = &self.storage {
             storage.shutdown().await?;
         }
@@ -94,7 +94,9 @@ impl Database {
     pub async fn run_internal(&self, cmd: &str) -> Result<Vec<Chunk>, Error> {
         if let Some((cmd, arg)) = cmd.split_once(' ') {
             if cmd == "stat" {
+                #[cfg(feature = "storage")]
                 if let StorageImpl::SecondaryStorage(ref storage) = self.storage {
+                    use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
                     let (table, col) = arg.split_once(' ').expect("failed to parse command");
                     let table_id = self
                         .catalog
@@ -141,15 +143,14 @@ impl Database {
                             .to_string()
                             .as_str(),
                     ));
-                    Ok(vec![Chunk::new(vec![DataChunk::from_iter([
+                    return Ok(vec![Chunk::new(vec![DataChunk::from_iter([
                         ArrayBuilderImpl::from(stat_name),
                         ArrayBuilderImpl::from(stat_value),
-                    ])])])
-                } else {
-                    Err(Error::InternalError(
-                        "this storage engine doesn't support statistics".to_string(),
-                    ))
+                    ])])]);
                 }
+                Err(Error::InternalError(
+                    "this storage engine doesn't support statistics".to_string(),
+                ))
             } else {
                 Err(Error::InternalError("unsupported command".to_string()))
             }
@@ -183,6 +184,7 @@ impl Database {
                 StorageImpl::InMemoryStorage(s) => {
                     crate::executor_v2::build(self.catalog.clone(), s, &optimized)
                 }
+                #[cfg(feature = "storage")]
                 StorageImpl::SecondaryStorage(s) => {
                     crate::executor_v2::build(self.catalog.clone(), s, &optimized)
                 }

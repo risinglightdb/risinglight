@@ -188,6 +188,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                     storage: storage.clone(),
                 }
                 .execute(),
+                #[cfg(feature = "storage")]
                 StorageImpl::SecondaryStorage(storage) => CreateTableExecutor {
                     plan: plan.clone(),
                     storage: storage.clone(),
@@ -206,6 +207,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                     storage: storage.clone(),
                 }
                 .execute(),
+                #[cfg(feature = "storage")]
                 StorageImpl::SecondaryStorage(storage) => DropExecutor {
                     plan: plan.clone(),
                     storage: storage.clone(),
@@ -226,6 +228,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                     child: self.visit(plan.child()).unwrap(),
                 }
                 .execute(),
+                #[cfg(feature = "storage")]
                 StorageImpl::SecondaryStorage(storage) => InsertExecutor {
                     table_ref_id: plan.logical().table_ref_id(),
                     column_ids: plan.logical().column_ids().to_vec(),
@@ -267,6 +270,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                     storage: storage.clone(),
                 }
                 .execute(),
+                #[cfg(feature = "storage")]
                 StorageImpl::SecondaryStorage(storage) => TableScanExecutor {
                     plan: plan.clone(),
                     expr: plan.logical().expr().cloned(),
@@ -406,6 +410,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                     storage: storage.clone(),
                 }
                 .execute(),
+                #[cfg(feature = "storage")]
                 StorageImpl::SecondaryStorage(storage) => DeleteExecutor {
                     child,
                     table_ref_id: plan.logical().table_ref_id(),

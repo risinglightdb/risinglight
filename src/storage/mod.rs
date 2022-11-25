@@ -5,7 +5,9 @@
 mod memory;
 pub use memory::InMemoryStorage;
 
+#[cfg(feature = "storage")]
 mod secondary;
+#[cfg(feature = "storage")]
 pub use secondary::{SecondaryStorage, StorageOptions as SecondaryStorageOptions};
 
 mod error;
@@ -27,6 +29,7 @@ use crate::v1::binder::BoundExpr;
 #[derive(Clone)]
 pub enum StorageImpl {
     InMemoryStorage(Arc<InMemoryStorage>),
+    #[cfg(feature = "storage")]
     SecondaryStorage(Arc<SecondaryStorage>),
 }
 
@@ -46,6 +49,7 @@ impl StorageImpl {
 impl StorageImpl {
     pub fn enable_filter_scan(&self) -> bool {
         match self {
+            #[cfg(feature = "storage")]
             Self::SecondaryStorage(_) => true,
             Self::InMemoryStorage(_) => false,
         }

@@ -14,12 +14,13 @@ use clap::Parser;
 use humantime::format_duration;
 use minitrace::prelude::*;
 use risinglight::array::{datachunk_to_sqllogictest_string, Chunk};
-use risinglight::storage::SecondaryStorageOptions;
+#[cfg(not(feature = "rustyline"))]
+use risinglight::utils::rustyline_mock as rustyline;
 use risinglight::utils::time::RoundingDuration;
 use risinglight::Database;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
-use tokio::{select, signal};
+use tokio::select;
 use tracing::{info, warn, Level};
 use tracing_subscriber::prelude::*;
 
@@ -116,22 +117,26 @@ async fn run_query_in_background(
         }
     };
 
-    select! {
-        _ = signal::ctrl_c() => {
+    #[cfg(not(target_os = "wasi"))]
+    let ret = select! {
+        _ = tokio::signal::ctrl_c() => {
             // we simply drop the future `task` to cancel the query.
             println!("Interrupted");
+            return;
         }
-        ret = task => {
-            match ret {
-                Ok(chunks) => {
-                    for chunk in chunks {
-                        print_chunk(&chunk, &output_format);
-                    }
-                    print_execution_time(start_time);
-                }
-                Err(err) => println!("{}", err),
+        ret = task => ret,
+    };
+    #[cfg(target_os = "wasi")]
+    let ret = task.await;
+
+    match ret {
+        Ok(chunks) => {
+            for chunk in chunks {
+                print_chunk(&chunk, &output_format);
             }
+            print_execution_time(start_time);
         }
+        Err(err) => println!("{}", err),
     }
 }
 
@@ -302,11 +307,13 @@ async fn run_sqllogictest(
     Ok(())
 }
 
-#[tokio::main]
+#[cfg_attr(not(target_os = "wasi"), tokio::main)]
+#[cfg_attr(target_os = "wasi", tokio::main(flavor = "current_thread"))]
 async fn main() -> Result<()> {
     let args = Args::parse();
 
     if args.tokio_console {
+        #[cfg(feature = "console-subscriber")]
         console_subscriber::init();
     } else {
         let fmt_layer = tracing_subscriber::fmt::layer().compact();
@@ -321,12 +328,22 @@ async fn main() -> Result<()> {
 
     info!("using query engine v2. type '\\v1' to use the legacy engine");
 
-    let db = if args.memory {
-        info!("using memory engine");
-        Database::new_in_memory()
-    } else {
-        info!("using Secondary engine");
-        Database::new_on_disk(SecondaryStorageOptions::default_for_cli()).await
+    let db = match args.memory {
+        true => {
+            info!("using memory engine");
+            Database::new_in_memory()
+        }
+        #[cfg(not(feature = "storage"))]
+        _ => {
+            info!("using memory engine");
+            Database::new_in_memory()
+        }
+        #[cfg(feature = "storage")]
+        false => {
+            info!("using Secondary engine");
+            use risinglight::storage::SecondaryStorageOptions;
+            Database::new_on_disk(SecondaryStorageOptions::default_for_cli()).await
+        }
     };
 
     if let Some(file) = args.file {
