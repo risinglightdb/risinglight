@@ -14,6 +14,7 @@ pub struct CopyToFileExecutor {
 }
 
 impl CopyToFileExecutor {
+    #[cfg(not(target_os = "wasi"))]
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self, child: BoxedExecutor) {
         let (sender, recver) = mpsc::channel(1);
@@ -34,6 +35,12 @@ impl CopyToFileExecutor {
         drop(sender);
         let rows = writer.await.unwrap()?;
         yield DataChunk::single(rows as _);
+    }
+
+    #[cfg(target_os = "wasi")]
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self, child: BoxedExecutor) {
+        panic!("not supported in WASI");
     }
 
     fn write_file_blocking(

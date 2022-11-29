@@ -21,6 +21,7 @@ pub struct CopyFromFileExecutor {
 const IMPORT_PROGRESS_BAR_LIMIT: u64 = 1024 * 1024;
 
 impl CopyFromFileExecutor {
+    #[cfg(not(target_os = "wasi"))]
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         let (tx, mut rx) = tokio::sync::mpsc::channel(1);
@@ -32,6 +33,12 @@ impl CopyFromFileExecutor {
             yield chunk;
         }
         handle.await.unwrap()?;
+    }
+
+    #[cfg(target_os = "wasi")]
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self) {
+        panic!("not supported in WASI");
     }
 
     /// Read records from file using blocking IO.

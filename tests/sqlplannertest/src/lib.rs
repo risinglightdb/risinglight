@@ -2,7 +2,6 @@
 
 use anyhow::Error;
 use risinglight::array::*;
-use risinglight::storage::SecondaryStorageOptions;
 use risinglight::Database;
 use sqlplannertest::ParsedTestCase;
 
@@ -13,7 +12,7 @@ pub struct DatabaseWrapper;
 impl sqlplannertest::PlannerTestRunner for DatabaseWrapper {
     async fn run(&mut self, test_case: &ParsedTestCase) -> Result<String, Error> {
         if !test_case.tasks.is_empty() {
-            let db = Database::new_on_disk(SecondaryStorageOptions::default_for_test()).await;
+            let db = Database::new_in_memory();
             for sql in &test_case.before_sql {
                 db.run(sql).await?;
             }
