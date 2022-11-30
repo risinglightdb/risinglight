@@ -21,7 +21,7 @@ impl Binder {
     ) -> Result<BoundExpr, BindError> {
         let bound_expr = self.bind_expr(expr)?;
         // workaround for 'BLOB'
-        if let DataType::Custom(name) = &ty {
+        if let DataType::Custom(name, _modifiers) = &ty {
             if name.0.len() == 1 && name.0[0].value.to_lowercase() == "blob" {
                 ty = DataType::Blob(None);
             }
