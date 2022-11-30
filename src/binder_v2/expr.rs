@@ -137,7 +137,7 @@ impl Binder {
     fn bind_cast(&mut self, expr: Expr, mut ty: DataType) -> Result {
         let expr = self.bind_expr(expr)?;
         // workaround for 'BLOB'
-        if let DataType::Custom(name) = &ty {
+        if let DataType::Custom(name, _modifiers) = &ty {
             if name.0.len() == 1 && name.0[0].value.to_lowercase() == "blob" {
                 ty = DataType::Blob(None);
             }
