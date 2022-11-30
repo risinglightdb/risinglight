@@ -63,7 +63,12 @@ impl std::ops::Add<Interval> for Date {
         // For example, 1970.1.31 + 1 month = 1970.2.28
         day = day.min(get_month_days(year, month as usize));
 
-        Date::new(NaiveDate::from_ymd_opt(year, month as u32, day).unwrap().num_days_from_ce() - UNIX_EPOCH_DAYS)
+        Date::new(
+            NaiveDate::from_ymd_opt(year, month as u32, day)
+                .unwrap()
+                .num_days_from_ce()
+                - UNIX_EPOCH_DAYS,
+        )
     }
 }
 
