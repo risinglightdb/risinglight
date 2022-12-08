@@ -6,6 +6,7 @@ use std::path::Path;
 use risinglight::array::*;
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::{Database, Error};
+use sqllogictest::{ColumnType, DBOutput};
 
 type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -47,12 +48,16 @@ struct DatabaseWrapper(Database);
 #[async_trait::async_trait]
 impl sqllogictest::AsyncDB for &DatabaseWrapper {
     type Error = Error;
-    async fn run(&mut self, sql: &str) -> core::result::Result<String, Self::Error> {
+    async fn run(&mut self, sql: &str) -> core::result::Result<DBOutput, Self::Error> {
         let chunks = self.0.run(sql).await?;
-        let output = chunks
+        if chunks.is_empty() || chunks.iter().all(|c| c.data_chunks().is_empty()) {
+            return Ok(DBOutput::StatementComplete(0));
+        }
+        let types = vec![ColumnType::Any; chunks[0].get_first_data_chunk().column_count()];
+        let rows = chunks
             .iter()
-            .map(datachunk_to_sqllogictest_string)
+            .flat_map(datachunk_to_sqllogictest_string)
             .collect();
-        Ok(output)
+        Ok(DBOutput::Rows { types, rows })
     }
 }

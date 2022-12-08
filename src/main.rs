@@ -12,6 +12,7 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use clap::Parser;
 use humantime::format_duration;
+use itertools::Itertools;
 use minitrace::prelude::*;
 use risinglight::array::{datachunk_to_sqllogictest_string, Chunk};
 use risinglight::storage::SecondaryStorageOptions;
@@ -78,7 +79,12 @@ fn print_chunk(chunk: &Chunk, output_format: &Option<String>) {
             },
             None => println!("{}", chunk),
         },
-        Some("text") => println!("{}", datachunk_to_sqllogictest_string(chunk)),
+        Some("text") => println!(
+            "{}",
+            datachunk_to_sqllogictest_string(chunk)
+                .iter()
+                .format_with("\n", |row, f| f(&row.iter().format(","))),
+        ),
         Some(format) => panic!("unsupported output format: {}", format),
     }
 }
@@ -258,7 +264,9 @@ struct DatabaseWrapper {
 #[async_trait]
 impl sqllogictest::AsyncDB for DatabaseWrapper {
     type Error = risinglight::Error;
-    async fn run(&mut self, sql: &str) -> Result<String, Self::Error> {
+    async fn run(&mut self, sql: &str) -> Result<sqllogictest::DBOutput, Self::Error> {
+        use sqllogictest::{ColumnType, DBOutput};
+
         info!("{}", sql);
         let chunks = if self.enable_tracing {
             let (root, collector) = Span::root("root");
@@ -273,10 +281,16 @@ impl sqllogictest::AsyncDB for DatabaseWrapper {
         for chunk in &chunks {
             print_chunk(chunk, &self.output_format);
         }
-        Ok(chunks
+
+        if chunks.is_empty() || chunks.iter().all(|c| c.data_chunks().is_empty()) {
+            return Ok(DBOutput::StatementComplete(0));
+        }
+        let types = vec![ColumnType::Any; chunks[0].get_first_data_chunk().column_count()];
+        let rows = chunks
             .iter()
-            .map(datachunk_to_sqllogictest_string)
-            .collect())
+            .flat_map(datachunk_to_sqllogictest_string)
+            .collect();
+        Ok(DBOutput::Rows { types, rows })
     }
 }
 
