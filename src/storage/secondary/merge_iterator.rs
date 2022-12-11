@@ -3,7 +3,7 @@
 use std::cmp::Ordering;
 
 use super::{SecondaryIterator, SecondaryIteratorImpl};
-use crate::array::{ArrayBuilderImpl, ArrayImpl, ArrayImplBuilderPickExt, I32Array};
+use crate::array::{ArrayBuilderImpl, ArrayImplBuilderPickExt};
 use crate::storage::{PackedVec, StorageChunk, StorageResult};
 
 /// [`MergeIterator`] merges data from multiple sorted `RowSet`s.
@@ -28,9 +28,6 @@ pub struct MergeIterator {
     /// As we have to implement a lot of custom compare logic, we have
     /// to implement our own binary heap.
     pending_heap: Vec<(usize, usize)>,
-
-    /// Sometimes we need an array placeholder
-    dummy_array: ArrayImpl,
 }
 
 impl MergeIterator {
@@ -41,7 +38,6 @@ impl MergeIterator {
             has_finished: vec![false; iters.len()],
             iters,
             pending_heap: vec![],
-            dummy_array: ArrayImpl::new_int32(I32Array::from_iter([0])),
         }
     }
 
@@ -275,6 +271,8 @@ impl MergeIterator {
         let arrays = builders
             .enumerate()
             .map(|(col_idx, mut builder)| {
+                let empty_array = builder.take();
+
                 let arrays = self
                     .chunk_buffer
                     .iter()
@@ -282,10 +280,11 @@ impl MergeIterator {
                         chunk
                             .as_ref()
                             .map(|x| x.array_at(col_idx))
-                            .unwrap_or(&self.dummy_array)
+                            .unwrap_or(&empty_array)
                             .clone()
                     })
                     .collect::<PackedVec<_>>();
+
                 builder.pick_from_multiple(&arrays, &pick_from);
                 builder.finish()
             })
