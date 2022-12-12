@@ -272,6 +272,8 @@ impl MergeIterator {
             .enumerate()
             .map(|(col_idx, mut builder)| {
                 let empty_array = builder.take();
+                // ensure the array is empty and we didn't accidentally consume something.
+                debug_assert!(empty_array.is_empty());
 
                 let arrays = self
                     .chunk_buffer
