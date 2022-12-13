@@ -8,10 +8,10 @@ use rust_decimal::Decimal;
 
 use super::super::{Block, BlockIterator, PlainPrimitiveBlockIterator, PrimitiveFixedWidthEncode};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
-use crate::array::Array;
+use crate::array::{Array, ArrayBuilder};
 use crate::storage::secondary::block::{
-    decode_nullable_block, decode_rle_block, FakeBlockIterator, NullableBlockIterator,
-    RleBlockIterator,
+    decode_dict_block, decode_nullable_block, decode_rle_block, DictBlockIterator,
+    FakeBlockIterator, NullableBlockIterator, RleBlockIterator,
 };
 use crate::types::{Date, Interval, F64};
 
@@ -27,6 +27,13 @@ pub enum PrimitiveBlockIteratorImpl<T: PrimitiveFixedWidthEncode> {
         >,
     ),
     Fake(FakeBlockIterator<T::ArrayType>),
+    Dictionary(DictBlockIterator<T::ArrayType, PlainPrimitiveBlockIterator<T>>),
+    DictNullable(
+        DictBlockIterator<
+            T::ArrayType,
+            NullableBlockIterator<T::ArrayType, PlainPrimitiveBlockIterator<T>>,
+        >,
+    ),
 }
 
 impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PrimitiveBlockIteratorImpl<T> {
@@ -41,6 +48,8 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PrimitiveBloc
             Self::RunLength(it) => it.next_batch(expected_size, builder),
             Self::RleNullable(it) => it.next_batch(expected_size, builder),
             Self::Fake(it) => it.next_batch(expected_size, builder),
+            Self::Dictionary(it) => it.next_batch(expected_size, builder),
+            Self::DictNullable(it) => it.next_batch(expected_size, builder),
         }
     }
 
@@ -51,6 +60,8 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PrimitiveBloc
             Self::RunLength(it) => it.skip(cnt),
             Self::RleNullable(it) => it.skip(cnt),
             Self::Fake(it) => it.skip(cnt),
+            Self::Dictionary(it) => it.skip(cnt),
+            Self::DictNullable(it) => it.skip(cnt),
         }
     }
 
@@ -61,6 +72,8 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PrimitiveBloc
             Self::RunLength(it) => it.remaining_items(),
             Self::RleNullable(it) => it.remaining_items(),
             Self::Fake(it) => it.remaining_items(),
+            Self::Dictionary(it) => it.remaining_items(),
+            Self::DictNullable(it) => it.remaining_items(),
         }
     }
 }
@@ -134,6 +147,40 @@ impl<T: PrimitiveFixedWidthEncode> BlockIteratorFactory<T::ArrayType>
                     NullableBlockIterator<T::ArrayType, PlainPrimitiveBlockIterator<T>>,
                 >::new(block_iter, rle_data, rle_num);
                 PrimitiveBlockIteratorImpl::RleNullable(it)
+            }
+            BlockType::Dictionary => {
+                let (dict_size, dict_values, rle_block) = decode_dict_block(block);
+
+                let mut dict_builder = <<T::ArrayType as Array>::Builder as ArrayBuilder>::new();
+                let mut dict_values_iter =
+                    PlainPrimitiveBlockIterator::<T>::new(dict_values, dict_size);
+
+                let iter = DictBlockIterator::new(
+                    &mut dict_builder,
+                    &mut dict_values_iter,
+                    rle_block,
+                    dict_size,
+                );
+                PrimitiveBlockIteratorImpl::Dictionary(iter)
+            }
+            BlockType::DictNullable => {
+                let (dict_size, dict_values, rle_block) = decode_dict_block(block);
+
+                let mut dict_builder = <<T::ArrayType as Array>::Builder as ArrayBuilder>::new();
+
+                let (dict_values_inner, bitmap_block) = decode_nullable_block(dict_values);
+                let dict_values_inner_iter =
+                    PlainPrimitiveBlockIterator::<T>::new(dict_values_inner, dict_size);
+                let mut dict_values_iter =
+                    NullableBlockIterator::new(dict_values_inner_iter, bitmap_block);
+
+                let iter = DictBlockIterator::new(
+                    &mut dict_builder,
+                    &mut dict_values_iter,
+                    rle_block,
+                    dict_size,
+                );
+                PrimitiveBlockIteratorImpl::DictNullable(iter)
             }
             _ => todo!(),
         };
