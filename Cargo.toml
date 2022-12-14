@@ -12,7 +12,6 @@ keywords = ["sql", "database", "embedded", "cli"]
 
 [features]
 default = ["jemalloc"]
-simd = []
 jemalloc = ["tikv-jemallocator"]
 
 [dependencies]

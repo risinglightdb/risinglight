@@ -1,7 +1,6 @@
 //! Array operations.
 
 use std::borrow::Borrow;
-use std::simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
 
 use num_traits::ToPrimitive;
 use rust_decimal::prelude::FromStr;
@@ -10,7 +9,7 @@ use rust_decimal::Decimal;
 use super::*;
 use crate::for_all_variants;
 use crate::parser::{BinaryOperator, UnaryOperator};
-use crate::types::{Blob, ConvertError, DataTypeKind, DataValue, Date, Interval, NativeType, F64};
+use crate::types::{Blob, ConvertError, DataTypeKind, DataValue, Date, Interval, F64};
 
 type A = ArrayImpl;
 
@@ -56,18 +55,8 @@ macro_rules! arith {
             other: &Self,
         ) -> Result<Self, ConvertError> {
         Ok(match (self, other) {
-            #[cfg(feature = "simd")]
-            (A::Int32(a), A::Int32(b)) => A::new_int32(simd_op::<_, _, _, 32>(a, b, |a, b| a $op b)),
-            #[cfg(feature = "simd")]
-            (A::Int64(a), A::Int64(b)) => A::new_int64(simd_op::<_, _, _, 64>(a, b, |a, b| a $op b)),
-            #[cfg(feature = "simd")]
-            (A::Float64(a), A::Float64(b)) => A::new_float64(simd_op::<_, _, _, 32>(a.as_native(), b.as_native(), |a, b| a $op b).into_ordered()),
-
-            #[cfg(not(feature = "simd"))]
             (A::Int32(a), A::Int32(b)) => A::new_int32(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-            #[cfg(not(feature = "simd"))]
             (A::Int64(a), A::Int64(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-            #[cfg(not(feature = "simd"))]
             (A::Float64(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
 
             (A::Int32(a), A::Int64(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i64) $op *b)),
@@ -416,28 +405,6 @@ macro_rules! impl_agg {
 }
 
 for_all_variants! { impl_agg }
-
-pub fn simd_op<T, O, F, const N: usize>(
-    a: &PrimitiveArray<T>,
-    b: &PrimitiveArray<T>,
-    f: F,
-) -> PrimitiveArray<O>
-where
-    T: NativeType + SimdElement,
-    O: NativeType + SimdElement,
-    F: Fn(Simd<T, N>, Simd<T, N>) -> Simd<O, N>,
-    LaneCount<N>: SupportedLaneCount,
-{
-    assert_eq!(a.len(), b.len());
-    a.batch_iter::<N>()
-        .zip(b.batch_iter::<N>())
-        .map(|(a, b)| BatchItem {
-            valid: a.valid & b.valid,
-            data: f(a.data, b.data),
-            len: a.len,
-        })
-        .collect()
-}
 
 pub fn binary_op<A, B, O, F, V>(a: &A, b: &B, f: F) -> O
 where

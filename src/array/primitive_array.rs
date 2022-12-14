@@ -9,9 +9,6 @@ use serde::{Deserialize, Serialize};
 use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidExt};
 use crate::types::{NativeType, F32, F64};
 
-mod simd;
-pub use self::simd::*;
-
 /// A collection of primitive types, such as `i32`, `F32`.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct PrimitiveArray<T: NativeType> {

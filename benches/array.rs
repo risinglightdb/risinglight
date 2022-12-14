@@ -195,64 +195,15 @@ fn array_mul(c: &mut Criterion) {
         });
     }
     group.finish();
-
-    let mut group = c.benchmark_group("array mul simd");
-    group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
-    for size in [1, 16, 256, 4096, 65536] {
-        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            use risinglight::array::ops;
-            let mut mask_a = BitVec::new();
-            let mut mask_b = BitVec::new();
-            let mut i = 0;
-            (0..size).into_iter().for_each(|_| {
-                if i == 192 {
-                    i = 0;
-                }
-                if i < 128 {
-                    mask_a.push(true);
-                    mask_b.push(true);
-                } else if (128..192).contains(&i) {
-                    mask_a.push(i % 2 == 0);
-                    mask_b.push(i % 2 == 0);
-                } else {
-                    unreachable!();
-                }
-                i += 1;
-            });
-
-            let a1 = I32Array::from_data(0..size, mask_a);
-            let a2 = I32Array::from_data(0..size, mask_b);
-            b.iter(|| {
-                let _: I32Array = ops::simd_op::<_, _, _, 32>(&a1, &a2, |a, b| a * b);
-            });
-        });
-    }
-    group.finish();
 }
 
 fn array_sum(c: &mut Criterion) {
     let mut group = c.benchmark_group("array sum");
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
-    for size in [1, 16, 256, 4096, 65536, 1048576] {
+    for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            use risinglight::array::Array;
-            use risinglight::v1::executor::sum_i32;
-            let a1: I32Array = (0..size).collect();
-            b.iter(|| {
-                a1.iter().fold(None, sum_i32);
-            })
-        });
-    }
-    group.finish();
-
-    let mut group = c.benchmark_group("array sum simd");
-    group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
-    for size in [1, 16, 256, 4096, 65536, 1048576] {
-        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            let a1: I32Array = (0..size).collect();
-            b.iter(|| {
-                a1.batch_iter::<32>().sum::<i32>();
-            })
+            let a1 = ArrayImpl::new_int32((0..size).collect());
+            b.iter(|| a1.sum())
         });
     }
     group.finish();
