@@ -361,6 +361,11 @@ impl ArrayImpl {
             _ => panic!("can not sum array"),
         }
     }
+
+    /// Returns the number of non-null values.
+    pub fn count(&self) -> usize {
+        self.get_valid_bitmap().count_ones()
+    }
 }
 
 /// Implement aggregation functions.

@@ -8,7 +8,6 @@
 #![warn(clippy::inconsistent_struct_constructor)]
 #![warn(clippy::map_flatten)]
 #![deny(unused_must_use)]
-#![feature(portable_simd)]
 #![feature(generators)]
 #![feature(error_generic_member_access)]
 #![feature(provide_any)]
