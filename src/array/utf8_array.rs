@@ -1,7 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::borrow::Borrow;
-use std::iter::TrustedLen;
 use std::marker::PhantomData;
 use std::mem;
 
@@ -86,6 +85,9 @@ impl<T: ValueRef + ?Sized> ArrayValidExt for BytesArray<T> {
     fn get_valid_bitmap(&self) -> &BitVec {
         &self.valid
     }
+    fn get_valid_bitmap_mut(&mut self) -> &mut BitVec {
+        &mut self.valid
+    }
 }
 
 impl<T: ValueRef + ?Sized> ArrayEstimateExt for BytesArray<T> {
@@ -95,10 +97,7 @@ impl<T: ValueRef + ?Sized> ArrayEstimateExt for BytesArray<T> {
 }
 
 impl<T: ValueRef + ?Sized> ArrayFromDataExt for BytesArray<T> {
-    fn from_data(
-        data_iter: impl Iterator<Item = <Self::Item as ToOwned>::Owned> + TrustedLen,
-        valid: BitVec,
-    ) -> Self {
+    fn from_data(data_iter: impl Iterator<Item = impl Borrow<Self::Item>>, valid: BitVec) -> Self {
         let mut data = Vec::with_capacity(valid.len());
         let mut offset = Vec::with_capacity(valid.len());
         for raw in data_iter {

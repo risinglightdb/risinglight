@@ -1,6 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::iter::{FromIterator, TrustedLen};
+use std::borrow::Borrow;
+use std::iter::FromIterator;
 use std::mem;
 
 use bitvec::vec::BitVec;
@@ -88,6 +89,9 @@ impl<T: NativeType> ArrayValidExt for PrimitiveArray<T> {
     fn get_valid_bitmap(&self) -> &BitVec {
         &self.valid
     }
+    fn get_valid_bitmap_mut(&mut self) -> &mut BitVec {
+        &mut self.valid
+    }
 }
 
 impl<T: NativeType> ArrayEstimateExt for PrimitiveArray<T> {
@@ -97,11 +101,8 @@ impl<T: NativeType> ArrayEstimateExt for PrimitiveArray<T> {
 }
 
 impl<T: NativeType> ArrayFromDataExt for PrimitiveArray<T> {
-    fn from_data(
-        data_iter: impl Iterator<Item = <Self::Item as ToOwned>::Owned> + TrustedLen,
-        valid: BitVec,
-    ) -> Self {
-        let data = data_iter.collect();
+    fn from_data(data_iter: impl Iterator<Item = impl Borrow<Self::Item>>, valid: BitVec) -> Self {
+        let data = data_iter.map(|v| *v.borrow()).collect();
         Self { valid, data }
     }
 }

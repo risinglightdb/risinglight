@@ -1,8 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use bitvec::vec::BitVec;
 use criterion::*;
-use risinglight::array::{ArrayFromDataExt, ArrayImpl, I32Array};
+use risinglight::array::{ArrayFromDataExt, ArrayImpl, BoolArray, I32Array};
 use risinglight::v1::function::FunctionCtx;
 
 #[inline(never)]
@@ -10,38 +9,51 @@ fn never_inline_mul(a: &i32, b: &i32, _: &mut FunctionCtx) -> i32 {
     *a * *b
 }
 
+fn make_i32_array(size: usize) -> ArrayImpl {
+    let mask = (0..size)
+        .map(|i| {
+            let i = i % 192;
+            if i < 128 {
+                true
+            } else {
+                i % 2 == 0
+            }
+        })
+        .collect();
+
+    I32Array::from_data(0..size as i32, mask).into()
+}
+
 fn array_mul(c: &mut Criterion) {
-    let mut group = c.benchmark_group("array mul binary op");
+    let mut group = c.benchmark_group("add(i32,i32)");
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            use risinglight::array::ops;
+            let a1 = make_i32_array(size);
+            let a2 = make_i32_array(size);
+            b.iter(|| a1.add(&a2));
+        });
+    }
+    group.finish();
 
-            let mut mask_a = BitVec::new();
-            let mut mask_b = BitVec::new();
-            let mut i = 0;
-            (0..size).into_iter().for_each(|_| {
-                if i == 192 {
-                    i = 0;
-                }
-                if i < 128 {
-                    mask_a.push(true);
-                    mask_b.push(true);
-                } else if (128..192).contains(&i) {
-                    mask_a.push(i % 2 == 0);
-                    mask_b.push(i % 2 == 0);
-                } else {
-                    unreachable!();
-                }
-                i += 1;
-            });
+    let mut group = c.benchmark_group("mul(i32,i32)");
+    group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    for size in [1, 16, 256, 4096, 65536] {
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+            let a1 = make_i32_array(size);
+            let a2 = make_i32_array(size);
+            b.iter(|| a1.mul(&a2));
+        });
+    }
+    group.finish();
 
-            let a1 = I32Array::from_data(0..size, mask_a);
-            let a2 = I32Array::from_data(0..size, mask_b);
-
-            b.iter(|| {
-                let _: I32Array = ops::binary_op(&a1, &a2, |a, b| a * b);
-            });
+    let mut group = c.benchmark_group("and(bool,bool)");
+    group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    for size in [1, 16, 256, 4096, 65536] {
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
+            let a1: ArrayImpl = (0..size).map(|i| i % 2 == 0).collect::<BoolArray>().into();
+            let a2: ArrayImpl = a1.clone();
+            b.iter(|| a1.and(&a2));
         });
     }
     group.finish();
@@ -51,32 +63,12 @@ fn array_mul(c: &mut Criterion) {
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
             use risinglight::v1::function::BinaryExecutor;
-            let mut mask_a = BitVec::new();
-            let mut mask_b = BitVec::new();
-
-            let mut i = 0;
-            (0..size).into_iter().for_each(|_| {
-                if i == 192 {
-                    i = 0;
-                }
-                if i < 128 {
-                    mask_a.push(true);
-                    mask_b.push(true);
-                } else if (128..192).contains(&i) {
-                    mask_a.push(i % 2 == 0);
-                    mask_b.push(i % 2 == 0);
-                } else {
-                    unreachable!();
-                }
-                i += 1;
-            });
-
-            let array_a: ArrayImpl = I32Array::from_data(0..size, mask_a).into();
-            let array_b: ArrayImpl = I32Array::from_data(0..size, mask_b).into();
+            let a1 = make_i32_array(size);
+            let a2 = make_i32_array(size);
             let f = |x: &i32, y: &i32, _: &mut FunctionCtx| (*x) * (*y);
             b.iter(|| {
                 let _ = BinaryExecutor::eval_batch_standard::<I32Array, I32Array, I32Array, _>(
-                    &array_a, &array_b, f,
+                    &a1, &a2, f,
                 );
             });
         });
@@ -88,32 +80,12 @@ fn array_mul(c: &mut Criterion) {
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
             use risinglight::v1::function::BinaryExecutor;
-            let mut mask_a = BitVec::new();
-            let mut mask_b = BitVec::new();
-
-            let mut i = 0;
-            (0..size).into_iter().for_each(|_| {
-                if i == 192 {
-                    i = 0;
-                }
-                if i < 128 {
-                    mask_a.push(true);
-                    mask_b.push(true);
-                } else if (128..192).contains(&i) {
-                    mask_a.push(i % 2 == 0);
-                    mask_b.push(i % 2 == 0);
-                } else {
-                    unreachable!();
-                }
-                i += 1;
-            });
-
-            let array_a: ArrayImpl = I32Array::from_data(0..size, mask_a).into();
-            let array_b: ArrayImpl = I32Array::from_data(0..size, mask_b).into();
+            let a1 = make_i32_array(size);
+            let a2 = make_i32_array(size);
             b.iter(|| {
                 let _ = BinaryExecutor::eval_batch_standard::<I32Array, I32Array, I32Array, _>(
-                    &array_a,
-                    &array_b,
+                    &a1,
+                    &a2,
                     never_inline_mul,
                 );
             });
@@ -126,32 +98,12 @@ fn array_mul(c: &mut Criterion) {
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
             use risinglight::v1::function::BinaryExecutor;
-            let mut mask_a = BitVec::new();
-            let mut mask_b = BitVec::new();
-
-            let mut i = 0;
-            (0..size).into_iter().for_each(|_| {
-                if i == 192 {
-                    i = 0;
-                }
-                if i < 128 {
-                    mask_a.push(true);
-                    mask_b.push(true);
-                } else if (128..192).contains(&i) {
-                    mask_a.push(i % 2 == 0);
-                    mask_b.push(i % 2 == 0);
-                } else {
-                    unreachable!();
-                }
-                i += 1;
-            });
-
-            let array_a: ArrayImpl = I32Array::from_data(0..size, mask_a).into();
-            let array_b: ArrayImpl = I32Array::from_data(0..size, mask_b).into();
+            let a1 = make_i32_array(size);
+            let a2 = make_i32_array(size);
             let f = |x: &i32, y: &i32, _: &mut FunctionCtx| (*x) * (*y);
             b.iter(|| {
                 let _ = BinaryExecutor::eval_batch_lazy_select::<I32Array, I32Array, I32Array, _>(
-                    &array_a, &array_b, f,
+                    &a1, &a2, f,
                 );
             });
         });
@@ -163,32 +115,12 @@ fn array_mul(c: &mut Criterion) {
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
             use risinglight::v1::function::BinaryExecutor;
-            let mut mask_a = BitVec::new();
-            let mut mask_b = BitVec::new();
-
-            let mut i = 0;
-            (0..size).into_iter().for_each(|_| {
-                if i == 192 {
-                    i = 0;
-                }
-                if i < 128 {
-                    mask_a.push(true);
-                    mask_b.push(true);
-                } else if (128..192).contains(&i) {
-                    mask_a.push(i % 2 == 0);
-                    mask_b.push(i % 2 == 0);
-                } else {
-                    unreachable!();
-                }
-                i += 1;
-            });
-
-            let array_a: ArrayImpl = I32Array::from_data(0..size, mask_a).into();
-            let array_b: ArrayImpl = I32Array::from_data(0..size, mask_b).into();
+            let a1 = make_i32_array(size);
+            let a2 = make_i32_array(size);
             b.iter(|| {
                 let _ = BinaryExecutor::eval_batch_lazy_select::<I32Array, I32Array, I32Array, _>(
-                    &array_a,
-                    &array_b,
+                    &a1,
+                    &a2,
                     never_inline_mul,
                 );
             });

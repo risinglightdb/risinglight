@@ -2,7 +2,7 @@
 
 //! Provide utilities to access the internal states of the [`Array`].
 
-use std::iter::TrustedLen;
+use std::borrow::Borrow;
 
 use bitvec::vec::BitVec;
 
@@ -11,6 +11,7 @@ use crate::for_all_variants;
 
 pub trait ArrayValidExt: Array {
     fn get_valid_bitmap(&self) -> &BitVec;
+    fn get_valid_bitmap_mut(&mut self) -> &mut BitVec;
 }
 
 pub trait ArrayImplValidExt {
@@ -28,10 +29,7 @@ pub trait ArrayImplEstimateExt {
 }
 
 pub trait ArrayFromDataExt: Array {
-    fn from_data(
-        data_iter: impl Iterator<Item = <Self::Item as ToOwned>::Owned> + TrustedLen,
-        valid: BitVec,
-    ) -> Self;
+    fn from_data(data_iter: impl Iterator<Item = impl Borrow<Self::Item>>, valid: BitVec) -> Self;
 }
 
 /// Implement dispatch functions for `ArrayImplValidExt` and `ArrayImplEstimateExt`
