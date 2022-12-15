@@ -24,13 +24,6 @@ impl ArrayImpl {
         })
     }
 
-    pub fn not(&self) -> Result<Self, ConvertError> {
-        Ok(match self {
-            A::Bool(a) => A::new_bool(unary_op(a.as_ref(), |b| !b)),
-            _ => return Err(ConvertError::NoUnaryOp("not".into(), self.type_string())),
-        })
-    }
-
     /// Perform unary operation.
     pub fn unary_op(&self, op: &UnaryOperator) -> Result<ArrayImpl, ConvertError> {
         Ok(match op {
@@ -138,10 +131,9 @@ impl ArrayImpl {
             return Err(ConvertError::NoBinaryOp("and".into(), self.type_string(), other.type_string()));
         };
         let mut c: BoolArray = binary_op(a.as_ref(), b.as_ref(), |a, b| *a && *b);
-        let a_false = !a.raw_iter().collect::<BitVec>() & a.get_valid_bitmap();
-        let b_false = !b.raw_iter().collect::<BitVec>() & b.get_valid_bitmap();
-        *c.get_valid_bitmap_mut() |= a_false;
-        *c.get_valid_bitmap_mut() |= b_false;
+        let a_false = !a.to_raw_bitvec() & a.get_valid_bitmap();
+        let b_false = !b.to_raw_bitvec() & b.get_valid_bitmap();
+        *c.get_valid_bitmap_mut() |= a_false | b_false;
         Ok(A::new_bool(c))
     }
 
@@ -150,11 +142,18 @@ impl ArrayImpl {
             return Err(ConvertError::NoBinaryOp("or".into(), self.type_string(), other.type_string()));
         };
         let mut c: BoolArray = binary_op(a.as_ref(), b.as_ref(), |a, b| *a || *b);
-        let a_true = a.raw_iter().collect::<BitVec>() & a.get_valid_bitmap();
-        let b_true = b.raw_iter().collect::<BitVec>() & b.get_valid_bitmap();
-        *c.get_valid_bitmap_mut() |= a_true;
-        *c.get_valid_bitmap_mut() |= b_true;
+        let a_true = a.to_raw_bitvec() & a.get_valid_bitmap();
+        let b_true = b.to_raw_bitvec() & b.get_valid_bitmap();
+        *c.get_valid_bitmap_mut() |= a_true | b_true;
         Ok(A::new_bool(c))
+    }
+
+    pub fn not(&self) -> Result<Self, ConvertError> {
+        let A::Bool(a) = self else {
+            return Err(ConvertError::NoUnaryOp("not".into(), self.type_string()));
+        };
+        // should we zero the null values?
+        Ok(A::new_bool(unary_op(a.as_ref(), |b| !b)))
     }
 
     /// Perform binary operation.
