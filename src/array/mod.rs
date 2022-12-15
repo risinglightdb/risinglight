@@ -380,7 +380,14 @@ macro_rules! impl_array_builder {
 
             /// Appends an element to the back of array.
             pub fn push(&mut self, v: &DataValue) {
-                self.push_n(1, v);
+                match (self, v) {
+                    (Self::Null(a), DataValue::Null) => a.push(None),
+                    $(
+                        (Self::$Abc(a), DataValue::$Value(v)) => a.push(Some(v)),
+                        (Self::$Abc(a), DataValue::Null) => a.push(None),
+                    )*
+                    _ => panic!("failed to push value: type mismatch"),
+                }
             }
 
             /// Appends an element `n` times to the back of array.

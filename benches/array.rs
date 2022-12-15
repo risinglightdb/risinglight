@@ -14,7 +14,7 @@ use rust_decimal::Decimal;
 fn ops(c: &mut Criterion) {
     for ty in ["i32", "f64", "decimal"] {
         for op in ["add", "mul", "div", "eq", "gt"] {
-            if op == "div" && ty != "decimal" {
+            if op == "div" && ty != "f64" {
                 // FIXME: handle panic: division by 0
                 continue;
             }

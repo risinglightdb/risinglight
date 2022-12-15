@@ -140,6 +140,11 @@ impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
         self.data.reserve(capacity);
     }
 
+    fn push(&mut self, value: Option<&T>) {
+        self.valid.push(value.is_some());
+        self.data.push(value.cloned().unwrap_or_default());
+    }
+
     fn push_n(&mut self, n: usize, value: Option<&T>) {
         self.valid
             .extend(std::iter::repeat(value.is_some()).take(n));
