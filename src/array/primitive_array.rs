@@ -170,7 +170,7 @@ impl PrimitiveArray<bool> {
         use std::simd::ToBitMask;
         let mut iter = self.data.array_chunks::<64>();
         let mut bitvec = BitVec::with_capacity(self.len());
-        while let Some(chunk) = iter.next() {
+        for chunk in iter.by_ref() {
             let bitmask = std::simd::Mask::<i8, 64>::from_array(*chunk).to_bitmask() as usize;
             bitvec.extend_from_raw_slice(std::slice::from_ref(&bitmask));
         }
