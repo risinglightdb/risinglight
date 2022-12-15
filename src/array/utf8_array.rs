@@ -159,12 +159,21 @@ impl<T: ValueRef + ?Sized> ArrayBuilder for BytesArrayBuilder<T> {
         self.data.reserve(capacity);
     }
 
-    fn push(&mut self, value: Option<&T>) {
-        self.valid.push(value.is_some());
-        if let Some(x) = value {
-            self.data.extend_from_slice(x.as_ref());
+    fn push_n(&mut self, n: usize, value: Option<&T>) {
+        self.valid
+            .extend(std::iter::repeat(value.is_some()).take(n));
+        if let Some(value) = value {
+            self.data.reserve(value.as_ref().len() * n);
+            self.offset.reserve(n);
+            // TODO: optimize: push the value only once
+            for _ in 0..n {
+                self.data.extend_from_slice(value.as_ref());
+                self.offset.push(self.data.len());
+            }
+        } else {
+            self.offset
+                .extend(std::iter::repeat(self.data.len()).take(n));
         }
-        self.offset.push(self.data.len());
     }
 
     fn append(&mut self, other: &BytesArray<T>) {

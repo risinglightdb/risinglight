@@ -61,10 +61,7 @@ impl<'a> Evaluator<'a> {
             Constant(v) => {
                 let mut builder =
                     ArrayBuilderImpl::with_capacity(chunk.cardinality(), &v.data_type());
-                // TODO: optimize this
-                for _ in 0..chunk.cardinality() {
-                    builder.push(v);
-                }
+                builder.push_n(chunk.cardinality(), v);
                 Ok(builder.finish())
             }
             Cast([ty, a]) => {
