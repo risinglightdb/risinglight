@@ -10,7 +10,7 @@ use sqllogictest::{ColumnType, DBOutput};
 
 type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Engine {
     Disk,
     Mem,
@@ -37,6 +37,14 @@ pub async fn test(filename: impl AsRef<Path>, engine: Engine, v1: bool) -> Resul
     let db = DatabaseWrapper(db);
     let mut tester = sqllogictest::Runner::new(&db);
     tester.enable_testdir();
+
+    // Uncomment the following lines to update the test files.
+    // if engine == Engine::Disk && !v1 {
+    //     // Only use one engine to update to avoid conflicts.
+    //     sqllogictest::update_test_file(filename, tester, "\t", sqllogictest::default_validator)
+    //         .await?;
+    // }
+
     tester.run_file_async(filename).await?;
     db.0.shutdown().await?;
     Ok(())
@@ -49,9 +57,25 @@ struct DatabaseWrapper(Database);
 impl sqllogictest::AsyncDB for &DatabaseWrapper {
     type Error = Error;
     async fn run(&mut self, sql: &str) -> core::result::Result<DBOutput, Self::Error> {
+        let is_query_sql = {
+            let lower_sql = sql.trim_start().to_ascii_lowercase();
+            lower_sql.starts_with("select")
+                || lower_sql.starts_with("values")
+                || lower_sql.starts_with("show")
+                || lower_sql.starts_with("with")
+                || lower_sql.starts_with("describe")
+        };
+
         let chunks = self.0.run(sql).await?;
         if chunks.is_empty() || chunks.iter().all(|c| c.data_chunks().is_empty()) {
-            return Ok(DBOutput::StatementComplete(0));
+            if is_query_sql {
+                return Ok(DBOutput::Rows {
+                    types: vec![],
+                    rows: vec![],
+                });
+            } else {
+                return Ok(DBOutput::StatementComplete(0));
+            }
         }
         let types = vec![ColumnType::Any; chunks[0].get_first_data_chunk().column_count()];
         let rows = chunks

@@ -56,8 +56,8 @@ select sum(v1), sum(v2) from t
 query IIII rowsort
 select sum(v1), count(v3), min(v3), max(v1) from t group by v2, v2
 ----
-6 2 3 4
-4 2 2 3
+4	2	2	3
+6	2	3	4
 
 # AggregateWithProjectionTest0
 

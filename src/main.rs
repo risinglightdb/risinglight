@@ -267,6 +267,15 @@ impl sqllogictest::AsyncDB for DatabaseWrapper {
     async fn run(&mut self, sql: &str) -> Result<sqllogictest::DBOutput, Self::Error> {
         use sqllogictest::{ColumnType, DBOutput};
 
+        let is_query_sql = {
+            let lower_sql = sql.trim_start().to_ascii_lowercase();
+            lower_sql.starts_with("select")
+                || lower_sql.starts_with("values")
+                || lower_sql.starts_with("show")
+                || lower_sql.starts_with("with")
+                || lower_sql.starts_with("describe")
+        };
+
         info!("{}", sql);
         let chunks = if self.enable_tracing {
             let (root, collector) = Span::root("root");
@@ -283,7 +292,14 @@ impl sqllogictest::AsyncDB for DatabaseWrapper {
         }
 
         if chunks.is_empty() || chunks.iter().all(|c| c.data_chunks().is_empty()) {
-            return Ok(DBOutput::StatementComplete(0));
+            if is_query_sql {
+                return Ok(DBOutput::Rows {
+                    types: vec![],
+                    rows: vec![],
+                });
+            } else {
+                return Ok(DBOutput::StatementComplete(0));
+            }
         }
         let types = vec![ColumnType::Any; chunks[0].get_first_data_chunk().column_count()];
         let rows = chunks
