@@ -1,7 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::borrow::Borrow;
-use std::iter::TrustedLen;
 use std::marker::PhantomData;
 use std::mem;
 
@@ -86,6 +85,9 @@ impl<T: ValueRef + ?Sized> ArrayValidExt for BytesArray<T> {
     fn get_valid_bitmap(&self) -> &BitVec {
         &self.valid
     }
+    fn get_valid_bitmap_mut(&mut self) -> &mut BitVec {
+        &mut self.valid
+    }
 }
 
 impl<T: ValueRef + ?Sized> ArrayEstimateExt for BytesArray<T> {
@@ -95,10 +97,7 @@ impl<T: ValueRef + ?Sized> ArrayEstimateExt for BytesArray<T> {
 }
 
 impl<T: ValueRef + ?Sized> ArrayFromDataExt for BytesArray<T> {
-    fn from_data(
-        data_iter: impl Iterator<Item = <Self::Item as ToOwned>::Owned> + TrustedLen,
-        valid: BitVec,
-    ) -> Self {
+    fn from_data(data_iter: impl Iterator<Item = impl Borrow<Self::Item>>, valid: BitVec) -> Self {
         let mut data = Vec::with_capacity(valid.len());
         let mut offset = Vec::with_capacity(valid.len());
         for raw in data_iter {
@@ -166,6 +165,23 @@ impl<T: ValueRef + ?Sized> ArrayBuilder for BytesArrayBuilder<T> {
             self.data.extend_from_slice(x.as_ref());
         }
         self.offset.push(self.data.len());
+    }
+
+    fn push_n(&mut self, n: usize, value: Option<&T>) {
+        self.valid
+            .extend(std::iter::repeat(value.is_some()).take(n));
+        if let Some(value) = value {
+            self.data.reserve(value.as_ref().len() * n);
+            self.offset.reserve(n);
+            // TODO: optimize: push the value only once
+            for _ in 0..n {
+                self.data.extend_from_slice(value.as_ref());
+                self.offset.push(self.data.len());
+            }
+        } else {
+            self.offset
+                .extend(std::iter::repeat(self.data.len()).take(n));
+        }
     }
 
     fn append(&mut self, other: &BytesArray<T>) {

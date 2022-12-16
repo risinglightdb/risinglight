@@ -66,7 +66,12 @@ pub trait ArrayBuilder: Sized + Send + Sync + 'static {
     fn reserve(&mut self, capacity: usize);
 
     /// Append a value to builder.
-    fn push(&mut self, value: Option<&<Self::Array as Array>::Item>);
+    fn push(&mut self, value: Option<&<Self::Array as Array>::Item>) {
+        self.push_n(1, value);
+    }
+
+    /// Append a value multiple times.
+    fn push_n(&mut self, n: usize, value: Option<&<Self::Array as Array>::Item>);
 
     /// Append an array to builder.
     fn append(&mut self, other: &Self::Array);
@@ -385,6 +390,19 @@ macro_rules! impl_array_builder {
                 }
             }
 
+            /// Appends an element `n` times to the back of array.
+            pub fn push_n(&mut self, n: usize, v: &DataValue) {
+                match (self, v) {
+                    (Self::Null(a), DataValue::Null) => a.push_n(n, None),
+                    $(
+                        (Self::$Abc(a), DataValue::$Value(v)) => a.push_n(n, Some(v)),
+                        (Self::$Abc(a), DataValue::Null) => a.push_n(n, None),
+                    )*
+                    _ => panic!("failed to push value: type mismatch"),
+                }
+            }
+
+            /// Take all elements to a new array.
             pub fn take(&mut self) -> ArrayImpl {
                 match self {
                     Self::Null(a) => ArrayImpl::Null(a.take().into()),
