@@ -4,7 +4,7 @@ use bitvec::vec::BitVec;
 use criterion::*;
 use ordered_float::OrderedFloat;
 use risinglight::array::{
-    ArrayFromDataExt, ArrayImpl, BoolArray, DecimalArray, F64Array, I32Array,
+    Array, ArrayFromDataExt, ArrayImpl, BoolArray, DecimalArray, F64Array, I32Array,
 };
 use risinglight::parser::BinaryOperator;
 use risinglight::types::DataTypeKind;
@@ -39,12 +39,12 @@ fn ops(c: &mut Criterion) {
     }
 
     for_all_size(c, "and(bool,bool)", |b, &size| {
-        let a1: ArrayImpl = (0..size).map(|i| i % 2 == 0).collect::<BoolArray>().into();
-        let a2: ArrayImpl = a1.clone();
+        let a1: ArrayImpl = make_bool_array(size);
+        let a2: ArrayImpl = make_bool_array(size);
         b.iter(|| a1.and(&a2));
     });
     for_all_size(c, "not(bool)", |b, &size| {
-        let a1: ArrayImpl = (0..size).map(|i| i % 2 == 0).collect::<BoolArray>().into();
+        let a1: ArrayImpl = make_bool_array(size);
         b.iter(|| a1.not());
     });
 }
@@ -96,6 +96,14 @@ fn cast(c: &mut Criterion) {
             b.iter(|| a1.cast(&DataTypeKind::String))
         });
     }
+}
+
+fn filter(c: &mut Criterion) {
+    for_all_size(c, "filter(i32)", |b, &size| {
+        let a1 = make_i32_array(size);
+        let ArrayImpl::Bool(a2) = make_bool_array(size) else { unreachable!() };
+        b.iter(|| a1.filter(a2.iter().map(|b| matches!(b, Some(true)))))
+    });
 }
 
 fn function(c: &mut Criterion) {
@@ -162,6 +170,14 @@ fn function(c: &mut Criterion) {
     }
 }
 
+fn make_bool_array(size: usize) -> ArrayImpl {
+    let mask = make_valid_bitmap(size);
+    let iter = (0..size as i32)
+        .zip(mask.clone())
+        .map(|(i, v)| if v { i % 2 == 0 } else { false });
+    BoolArray::from_data(iter, mask).into()
+}
+
 fn make_i32_array(size: usize) -> ArrayImpl {
     let mask = make_valid_bitmap(size);
     let iter = (0..size as i32)
@@ -212,5 +228,5 @@ fn for_all_size(
     group.finish();
 }
 
-criterion_group!(benches, function, ops, agg, cast);
+criterion_group!(benches, function, ops, agg, cast, filter);
 criterion_main!(benches);
