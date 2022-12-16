@@ -17,7 +17,7 @@ SELECT DISTINCT sum(x) FROM test ORDER BY sum(x);
 7
 
 
-# ORDER BY items must appear in the select list 
+# ORDER BY items must appear in the select list
 # if SELECT DISTINCT is specified
 statement error
 SELECT DISTINCT x FROM test ORDER BY y;

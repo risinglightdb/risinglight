@@ -240,32 +240,29 @@ impl fmt::Debug for Chunk {
 }
 
 /// Convert a [`Chunk`] to sqllogictest string
-pub fn datachunk_to_sqllogictest_string(chunk: &Chunk) -> String {
-    let mut output = String::new();
+pub fn datachunk_to_sqllogictest_string(chunk: &Chunk) -> Vec<Vec<String>> {
+    let mut output = vec![];
     for data_chunk in chunk.data_chunks() {
         for row in 0..data_chunk.cardinality() {
-            use std::fmt::Write;
-            for (col, array) in data_chunk.arrays().iter().enumerate() {
-                if col != 0 {
-                    write!(output, " ").unwrap();
-                }
-                match array.get(row) {
-                    DataValue::Null => write!(output, "NULL"),
-                    DataValue::Bool(v) => write!(output, "{}", v),
-                    DataValue::Int32(v) => write!(output, "{}", v),
-                    DataValue::Int64(v) => write!(output, "{}", v),
-                    DataValue::Float64(v) => write!(output, "{}", v),
-                    DataValue::String(s) if s.is_empty() => write!(output, "(empty)"),
-                    DataValue::String(s) => write!(output, "{}", s),
-                    DataValue::Blob(s) if s.is_empty() => write!(output, "(empty)"),
-                    DataValue::Blob(s) => write!(output, "{}", s),
-                    DataValue::Decimal(v) => write!(output, "{}", v),
-                    DataValue::Date(v) => write!(output, "{}", v),
-                    DataValue::Interval(v) => write!(output, "{}", v),
-                }
-                .unwrap();
+            let mut row_vec = vec![];
+            for array in data_chunk.arrays() {
+                let s = match array.get(row) {
+                    DataValue::Null => "NULL".to_string(),
+                    DataValue::Bool(v) => v.to_string(),
+                    DataValue::Int32(v) => v.to_string(),
+                    DataValue::Int64(v) => v.to_string(),
+                    DataValue::Float64(v) => v.to_string(),
+                    DataValue::String(s) if s.is_empty() => "(empty)".to_string(),
+                    DataValue::String(s) => s,
+                    DataValue::Blob(s) if s.is_empty() => "(empty)".to_string(),
+                    DataValue::Blob(s) => s.to_string(),
+                    DataValue::Decimal(v) => v.to_string(),
+                    DataValue::Date(v) => v.to_string(),
+                    DataValue::Interval(v) => v.to_string(),
+                };
+                row_vec.push(s);
             }
-            writeln!(output).unwrap();
+            output.push(row_vec);
         }
     }
     output

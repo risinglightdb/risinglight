@@ -20,7 +20,13 @@ impl sqlplannertest::PlannerTestRunner for DatabaseWrapper {
             let chunks = db.run(&test_case.sql).await?;
             let output = chunks
                 .iter()
-                .map(datachunk_to_sqllogictest_string)
+                .map(|c| {
+                    let rows = datachunk_to_sqllogictest_string(c);
+                    rows.into_iter()
+                        .map(|row| row.join("\t"))
+                        .collect::<Vec<String>>()
+                        .join("\n")
+                })
                 .collect();
             Ok(output)
         } else {

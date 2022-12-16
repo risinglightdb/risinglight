@@ -1524,6 +1524,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "libtest-mimic"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7b603516767d1ab23d0de09d023e62966c3322f7148297c35cf3d97aa8b37fa"
+dependencies = [
+ "clap 4.0.29",
+ "termcolor",
+ "threadpool",
+]
+
+[[package]]
 name = "link-cplusplus"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1580,6 +1591,12 @@ name = "matchit"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b87248edafb776e59e6ee64a79086f65890d3510f2c656c000bf2a7e8a0aea40"
+
+[[package]]
+name = "md5"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "490cc448043f947bae3cbee9c203358d62dbee0db12107a74be5c30ccfd09771"
 
 [[package]]
 name = "memchr"
@@ -1826,6 +1843,12 @@ name = "overload"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
+
+[[package]]
+name = "owo-colors"
+version = "3.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1b04fb49957986fdce4d6ee7a65027d55d4b6d2265e5848bbb507b58ccfdb6f"
 
 [[package]]
 name = "parking"
@@ -2431,7 +2454,7 @@ dependencies = [
  "async-trait",
  "env_logger",
  "glob",
- "libtest-mimic",
+ "libtest-mimic 0.5.2",
  "risinglight",
  "sqllogictest",
  "tempfile",
@@ -2703,9 +2726,9 @@ dependencies = [
 
 [[package]]
 name = "sqllogictest"
-version = "0.6.4"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e69883160fe47b7662659307bb7d32e854791c05e9951d1fe87c35bc09bd6422"
+checksum = "a89f3be6c90ef2b67d55f999663b367ede63747a2311e480e7710f70c52fef65"
 dependencies = [
  "async-trait",
  "difference",
@@ -2713,7 +2736,10 @@ dependencies = [
  "glob",
  "humantime",
  "itertools",
- "libtest-mimic",
+ "libtest-mimic 0.6.0",
+ "md5",
+ "owo-colors",
+ "regex",
  "tempfile",
  "thiserror",
  "tracing",
@@ -2739,7 +2765,7 @@ dependencies = [
  "console",
  "futures-util",
  "glob",
- "libtest-mimic",
+ "libtest-mimic 0.5.2",
  "serde",
  "serde_yaml",
  "similar",

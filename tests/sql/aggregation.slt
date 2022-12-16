@@ -215,5 +215,3 @@ NULL
 
 statement ok
 DROP TABLE test;
-
-
