@@ -1,6 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::borrow::Borrow;
+use std::fmt::{Display, Write};
 use std::marker::PhantomData;
 use std::mem;
 
@@ -200,6 +201,42 @@ impl<T: ValueRef + ?Sized> ArrayBuilder for BytesArrayBuilder<T> {
             offset: mem::replace(&mut self.offset, vec![0]),
             _type: PhantomData,
         }
+    }
+}
+
+struct BytesArrayWriter<'a, T: ValueRef + ?Sized> {
+    builder: &'a mut BytesArrayBuilder<T>,
+}
+
+impl<T: ValueRef + ?Sized> Write for BytesArrayWriter<'_, T> {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        self.builder.data.extend_from_slice(s.as_bytes());
+        Ok(())
+    }
+}
+
+impl<T: ValueRef + ?Sized> Drop for BytesArrayWriter<'_, T> {
+    fn drop(&mut self) {
+        self.builder.offset.push(self.builder.data.len());
+        self.builder.valid.push(true);
+    }
+}
+
+impl Utf8Array {
+    pub fn from_iter_display(iter: impl IntoIterator<Item = Option<impl Display>>) -> Self {
+        let iter = iter.into_iter();
+        let mut builder = <Self as Array>::Builder::with_capacity(iter.size_hint().0);
+        for e in iter {
+            if let Some(s) = e {
+                let mut writer = BytesArrayWriter {
+                    builder: &mut builder,
+                };
+                write!(writer, "{}", s).unwrap();
+            } else {
+                builder.push(None);
+            }
+        }
+        builder.finish()
     }
 }
 

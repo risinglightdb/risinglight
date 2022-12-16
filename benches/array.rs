@@ -85,10 +85,17 @@ fn cast(c: &mut Criterion) {
         let a1 = make_f64_array(size);
         b.iter(|| a1.cast(&DataTypeKind::Decimal(None, None)))
     });
-    for_all_size(c, "cast(i32->string)", |b, &size| {
-        let a1 = make_i32_array(size);
-        b.iter(|| a1.cast(&DataTypeKind::String))
-    });
+    for ty in ["i32", "f64", "decimal"] {
+        for_all_size(c, format!("cast({ty}->string)"), |b, &size| {
+            let a1 = match ty {
+                "i32" => make_i32_array(size),
+                "f64" => make_f64_array(size),
+                "decimal" => make_decimal_array(size),
+                _ => unreachable!(),
+            };
+            b.iter(|| a1.cast(&DataTypeKind::String))
+        });
+    }
 }
 
 fn function(c: &mut Criterion) {

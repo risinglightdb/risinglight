@@ -219,7 +219,7 @@ impl ArrayImpl {
                 Type::Int32 => Self::Int32(a.clone()),
                 Type::Int64 => Self::new_int64(unary_op(a.as_ref(), |&b| b as i64)),
                 Type::Float64 => Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64))),
-                Type::String => Self::new_utf8(unary_op(a.as_ref(), |&i| i.to_string())),
+                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
                 }
@@ -235,7 +235,7 @@ impl ArrayImpl {
                 })?),
                 Type::Int64 => Self::Int64(a.clone()),
                 Type::Float64 => Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64))),
-                Type::String => Self::new_utf8(unary_op(a.as_ref(), |&i| i.to_string())),
+                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
                 }
@@ -254,7 +254,7 @@ impl ArrayImpl {
                     None => Err(ConvertError::Overflow(DataValue::Float64(b), Type::Int64)),
                 })?),
                 Type::Float64 => Self::Float64(a.clone()),
-                Type::String => Self::new_utf8(unary_op(a.as_ref(), |&f| f.to_string())),
+                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
                 Type::Decimal(_, scale) => {
                     Self::new_decimal(try_unary_op(
                         a.as_ref(),
@@ -330,7 +330,7 @@ impl ArrayImpl {
                             DataValue::Decimal(d),
                         ))
                 })?),
-                Type::String => Self::new_utf8(unary_op(a.as_ref(), |d| d.to_string())),
+                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
                 Type::Decimal(_, _) => self.clone(),
                 Type::Null | Type::Blob | Type::Date | Type::Interval | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("DOUBLE", data_type.clone()));
@@ -338,12 +338,12 @@ impl ArrayImpl {
             },
             Self::Date(a) => match data_type {
                 Type::Date => self.clone(),
-                Type::String => Self::new_utf8(unary_op(a.as_ref(), |&d| d.to_string())),
+                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
                 _ => return Err(ConvertError::NoCast("DATE", data_type.clone())),
             },
             Self::Interval(a) => match data_type {
                 Type::Interval => self.clone(),
-                Type::String => Self::new_utf8(unary_op(a.as_ref(), |&d| d.to_string())),
+                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
                 _ => return Err(ConvertError::NoCast("INTERVAL", data_type.clone())),
             },
         })
