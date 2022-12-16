@@ -65,7 +65,7 @@ impl TopNExecutor {
 ///
 /// The order is `false` for ascending and `true` for descending.
 fn cmp(row1: &Row, row2: &Row, orders: &[bool]) -> Ordering {
-    for ((v1, v2), desc) in row1.iter().zip_eq(row2.iter()).zip(orders) {
+    for ((v1, v2), desc) in row1.iter().zip(row2.iter()).zip(orders) {
         match v1.cmp(v2) {
             Ordering::Equal => continue,
             o if *desc => return o.reverse(),

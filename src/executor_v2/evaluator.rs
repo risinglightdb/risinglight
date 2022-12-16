@@ -5,7 +5,6 @@
 use std::fmt;
 
 use egg::{Id, Language};
-use itertools::Itertools;
 
 use crate::array::*;
 use crate::planner::{Expr, RecExpr};
@@ -119,7 +118,7 @@ impl<'a> Evaluator<'a> {
         chunk: &DataChunk,
     ) -> Result<(), ConvertError> {
         let list = self.node().as_list();
-        for (state, id) in states.iter_mut().zip_eq(list) {
+        for (state, id) in states.iter_mut().zip(list) {
             *state = self.next(*id).eval_agg(state.clone(), chunk)?;
         }
         Ok(())
@@ -132,7 +131,7 @@ impl<'a> Evaluator<'a> {
         values: impl Iterator<Item = DataValue>,
     ) {
         let list = self.node().as_list();
-        for ((state, id), value) in states.iter_mut().zip_eq(list).zip_eq(values) {
+        for ((state, id), value) in states.iter_mut().zip(list).zip(values) {
             *state = self.next(*id).agg_append(state.clone(), value);
         }
     }
