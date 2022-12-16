@@ -59,16 +59,11 @@ impl<T: ValueRef + ?Sized> Array for BytesArray<T> {
     type Builder = BytesArrayBuilder<T>;
     type RawIter<'a> = NonNullArrayIter<'a, Self>;
 
-    fn get(&self, idx: usize) -> Option<&T> {
-        if self.valid[idx] {
-            let data_slice = &self.data[self.offset[idx]..self.offset[idx + 1]];
-            Some(T::from_bytes(data_slice))
-        } else {
-            None
-        }
+    fn is_null(&self, idx: usize) -> bool {
+        !self.valid[idx]
     }
 
-    fn get_unchecked(&self, idx: usize) -> &T {
+    fn get_raw(&self, idx: usize) -> &T {
         let data_slice = &self.data[self.offset[idx]..self.offset[idx + 1]];
         T::from_bytes(data_slice)
     }

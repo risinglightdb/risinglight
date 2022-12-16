@@ -68,11 +68,11 @@ impl<T: NativeType> Array for PrimitiveArray<T> {
     type Builder = PrimitiveArrayBuilder<T>;
     type RawIter<'a> = std::slice::Iter<'a, T>;
 
-    fn get(&self, idx: usize) -> Option<&T> {
-        self.valid[idx].then(|| &self.data[idx])
+    fn is_null(&self, idx: usize) -> bool {
+        !self.valid[idx]
     }
 
-    fn get_unchecked(&self, idx: usize) -> &T {
+    fn get_raw(&self, idx: usize) -> &T {
         &self.data[idx]
     }
 

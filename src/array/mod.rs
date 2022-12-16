@@ -103,13 +103,23 @@ pub trait Array: Sized + Send + Sync + 'static {
 
     type RawIter<'a>: Iterator<Item = &'a Self::Item> + TrustedLen;
 
-    /// Retrieve a reference to value.
-    fn get(&self, idx: usize) -> Option<&Self::Item>;
+    /// Returns true if the value at `idx` is null.
+    fn is_null(&self, idx: usize) -> bool;
 
-    fn get_unchecked(&self, idx: usize) -> &Self::Item;
+    /// Returns the raw value at `idx` regardless of null.
+    fn get_raw(&self, idx: usize) -> &Self::Item;
 
     /// Number of items of array.
     fn len(&self) -> usize;
+
+    /// Retrieve a reference to value.
+    fn get(&self, idx: usize) -> Option<&Self::Item> {
+        if self.is_null(idx) {
+            None
+        } else {
+            Some(self.get_raw(idx))
+        }
+    }
 
     /// Get iterator of current array.
     fn iter(&self) -> ArrayIter<'_, Self> {

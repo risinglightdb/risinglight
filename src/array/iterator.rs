@@ -76,7 +76,7 @@ impl<'a, A: Array> Iterator for NonNullArrayIter<'a, A> {
         if self.pos >= self.data.len() {
             None
         } else {
-            let value = self.data.get_unchecked(self.pos);
+            let value = self.data.get_raw(self.pos);
             self.pos += 1;
             Some(value)
         }

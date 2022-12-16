@@ -60,7 +60,7 @@ impl UnaryExecutor {
                     buffer
                         .iter_mut()
                         .enumerate()
-                        .for_each(|(i, value)| *value = f(i1a.get_unchecked(base + i), &mut ctx));
+                        .for_each(|(i, value)| *value = f(i1a.get_raw(base + i), &mut ctx));
                     builder.extend_from_raw_data(&buffer);
                 } else if zeros == y.len() {
                     // all invalid
@@ -70,7 +70,7 @@ impl UnaryExecutor {
                     let mut res_count = 0;
                     buffer.iter_mut().enumerate().for_each(|(i, value)| unsafe {
                         if *masks.get_unchecked(base + i) {
-                            *value = f(i1a.get_unchecked(base + i), &mut ctx);
+                            *value = f(i1a.get_raw(base + i), &mut ctx);
                             res_count += 1;
                         }
                     });
@@ -87,7 +87,7 @@ impl UnaryExecutor {
                 .enumerate()
                 .for_each(|(i, (value, mask))| {
                     if *mask {
-                        *value = f(i1a.get_unchecked(cnt + i), &mut ctx);
+                        *value = f(i1a.get_raw(cnt + i), &mut ctx);
                         res_count += 1;
                     }
                 });
