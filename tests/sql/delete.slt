@@ -21,4 +21,5 @@ statement ok
 delete from t
 
 query III rowsort
+select * from t
 ----
