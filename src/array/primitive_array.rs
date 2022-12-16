@@ -83,6 +83,18 @@ impl<T: NativeType> Array for PrimitiveArray<T> {
     fn raw_iter(&self) -> Self::RawIter<'_> {
         self.data.iter()
     }
+
+    fn filter(&self, p: &[bool]) -> Self {
+        assert_eq!(p.len(), self.len());
+        let mut builder = Self::Builder::with_capacity(self.len());
+        for (i, &v) in p.iter().enumerate() {
+            if v {
+                builder.valid.push(unsafe { *self.valid.get_unchecked(i) });
+                builder.data.push(self.data[i]);
+            }
+        }
+        builder.finish()
+    }
 }
 
 impl<T: NativeType> ArrayValidExt for PrimitiveArray<T> {

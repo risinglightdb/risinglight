@@ -121,6 +121,11 @@ pub trait Array: Sized + Send + Sync + 'static {
         }
     }
 
+    /// Get iterator over the raw values.
+    fn raw_iter(&self) -> Self::RawIter<'_>;
+
+    fn filter(&self, p: &[bool]) -> Self;
+
     /// Get iterator of current array.
     fn iter(&self) -> ArrayIter<'_, Self> {
         ArrayIter::new(self)
@@ -130,31 +135,15 @@ pub trait Array: Sized + Send + Sync + 'static {
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
-
-    fn raw_iter(&self) -> Self::RawIter<'_>;
 }
 
 /// An extension trait for [`Array`].
 pub trait ArrayExt: Array {
-    /// Filter the elements and return a new array.
-    fn filter(&self, visibility: impl Iterator<Item = bool>) -> Self;
-
     /// Return a slice of self for the provided range.
     fn slice(&self, range: impl RangeBounds<usize>) -> Self;
 }
 
 impl<A: Array> ArrayExt for A {
-    /// Filter the elements and return a new array.
-    fn filter(&self, visibility: impl Iterator<Item = bool>) -> Self {
-        let mut builder = Self::Builder::with_capacity(self.len());
-        for (a, visible) in self.iter().zip(visibility) {
-            if visible {
-                builder.push(a);
-            }
-        }
-        builder.finish()
-    }
-
     /// Return a slice of self for the provided range.
     fn slice(&self, range: impl RangeBounds<usize>) -> Self {
         let len = self.len();
@@ -558,10 +547,11 @@ macro_rules! impl_array {
 
             /// Filter the elements and return a new array.
             pub fn filter(&self, visibility: impl Iterator<Item = bool>) -> Self {
+                let vis = visibility.collect::<Vec<bool>>();
                 match self {
-                    Self::Null(a) => Self::Null(a.filter(visibility).into()),
+                    Self::Null(a) => Self::Null(a.filter(&vis).into()),
                     $(
-                        Self::$Abc(a) => Self::$Abc(a.filter(visibility).into()),
+                        Self::$Abc(a) => Self::$Abc(a.filter(&vis).into()),
                     )*
                 }
             }

@@ -75,6 +75,17 @@ impl<T: ValueRef + ?Sized> Array for BytesArray<T> {
     fn raw_iter(&self) -> Self::RawIter<'_> {
         NonNullArrayIter::new(self)
     }
+
+    fn filter(&self, p: &[bool]) -> Self {
+        assert_eq!(p.len(), self.len());
+        let mut builder = Self::Builder::with_capacity(self.len());
+        for (i, &v) in p.iter().enumerate() {
+            if v {
+                builder.push(self.get(i));
+            }
+        }
+        builder.finish()
+    }
 }
 
 impl<T: ValueRef + ?Sized> ArrayValidExt for BytesArray<T> {
