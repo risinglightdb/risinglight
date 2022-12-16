@@ -8,10 +8,10 @@ use rust_decimal::Decimal;
 
 use super::super::{Block, BlockIterator, PlainPrimitiveBlockIterator, PrimitiveFixedWidthEncode};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
-use crate::array::Array;
+use crate::array::{Array, ArrayBuilder};
 use crate::storage::secondary::block::{
-    decode_nullable_block, decode_rle_block, FakeBlockIterator, NullableBlockIterator,
-    RleBlockIterator,
+    decode_dict_block, decode_nullable_block, decode_rle_block, DictBlockIterator,
+    FakeBlockIterator, NullableBlockIterator, RleBlockIterator,
 };
 use crate::types::{Date, Interval, F64};
 
@@ -27,6 +27,13 @@ pub enum PrimitiveBlockIteratorImpl<T: PrimitiveFixedWidthEncode> {
         >,
     ),
     Fake(FakeBlockIterator<T::ArrayType>),
+    Dictionary(DictBlockIterator<T::ArrayType, PlainPrimitiveBlockIterator<T>>),
+    DictNullable(
+        DictBlockIterator<
+            T::ArrayType,
+            NullableBlockIterator<T::ArrayType, PlainPrimitiveBlockIterator<T>>,
+        >,
+    ),
 }
 
 impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PrimitiveBlockIteratorImpl<T> {
@@ -41,6 +48,8 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PrimitiveBloc
             Self::RunLength(it) => it.next_batch(expected_size, builder),
             Self::RleNullable(it) => it.next_batch(expected_size, builder),
             Self::Fake(it) => it.next_batch(expected_size, builder),
+            Self::Dictionary(it) => it.next_batch(expected_size, builder),
+            Self::DictNullable(it) => it.next_batch(expected_size, builder),
         }
     }
 
@@ -51,6 +60,8 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PrimitiveBloc
             Self::RunLength(it) => it.skip(cnt),
             Self::RleNullable(it) => it.skip(cnt),
             Self::Fake(it) => it.skip(cnt),
+            Self::Dictionary(it) => it.skip(cnt),
+            Self::DictNullable(it) => it.skip(cnt),
         }
     }
 
@@ -61,6 +72,8 @@ impl<T: PrimitiveFixedWidthEncode> BlockIterator<T::ArrayType> for PrimitiveBloc
             Self::RunLength(it) => it.remaining_items(),
             Self::RleNullable(it) => it.remaining_items(),
             Self::Fake(it) => it.remaining_items(),
+            Self::Dictionary(it) => it.remaining_items(),
+            Self::DictNullable(it) => it.remaining_items(),
         }
     }
 }
@@ -135,6 +148,40 @@ impl<T: PrimitiveFixedWidthEncode> BlockIteratorFactory<T::ArrayType>
                 >::new(block_iter, rle_data, rle_num);
                 PrimitiveBlockIteratorImpl::RleNullable(it)
             }
+            BlockType::Dictionary => {
+                let (dict_size, dict_values, rle_block) = decode_dict_block(block);
+
+                let mut dict_builder = <<T::ArrayType as Array>::Builder as ArrayBuilder>::new();
+                let mut dict_values_iter =
+                    PlainPrimitiveBlockIterator::<T>::new(dict_values, dict_size);
+
+                let iter = DictBlockIterator::new(
+                    &mut dict_builder,
+                    &mut dict_values_iter,
+                    rle_block,
+                    dict_size,
+                );
+                PrimitiveBlockIteratorImpl::Dictionary(iter)
+            }
+            BlockType::DictNullable => {
+                let (dict_size, dict_values, rle_block) = decode_dict_block(block);
+
+                let mut dict_builder = <<T::ArrayType as Array>::Builder as ArrayBuilder>::new();
+
+                let (dict_values_inner, bitmap_block) = decode_nullable_block(dict_values);
+                let dict_values_inner_iter =
+                    PlainPrimitiveBlockIterator::<T>::new(dict_values_inner, dict_size);
+                let mut dict_values_iter =
+                    NullableBlockIterator::new(dict_values_inner_iter, bitmap_block);
+
+                let iter = DictBlockIterator::new(
+                    &mut dict_builder,
+                    &mut dict_values_iter,
+                    rle_block,
+                    dict_size,
+                );
+                PrimitiveBlockIteratorImpl::DictNullable(iter)
+            }
             _ => todo!(),
         };
         it.skip(start_pos - index.first_rowid as usize);
@@ -156,7 +203,9 @@ mod tests {
     use super::*;
     use crate::array::ArrayToVecExt;
     use crate::storage::secondary::column::Column;
-    use crate::storage::secondary::rowset::tests::{helper_build_rle_rowset, helper_build_rowset};
+    use crate::storage::secondary::rowset::tests::{
+        helper_build_dict_encoding_rowset, helper_build_rle_rowset, helper_build_rowset,
+    };
     use crate::storage::secondary::{ColumnIterator, PrimitiveColumnIterator};
 
     #[tokio::test]
@@ -216,6 +265,59 @@ mod tests {
     async fn test_scan_rle_i32() {
         let tempdir = tempfile::tempdir().unwrap();
         let rowset = helper_build_rle_rowset(&tempdir, false, 1000).await;
+        let column = rowset.column(0);
+        let mut scanner = PrimitiveColumnIterator::<i32>::new(
+            column.clone(),
+            0,
+            PrimitiveBlockIteratorFactory::new(),
+        )
+        .await
+        .unwrap();
+        let mut recv_data = vec![];
+        while let Some((_, data)) = scanner.next_batch(None).await.unwrap() {
+            recv_data.extend(data.to_vec());
+        }
+
+        for i in 0..100 {
+            assert_eq!(
+                recv_data[i * 1000..(i + 1) * 1000],
+                [1, 1, 2, 2, 2]
+                    .iter()
+                    .cycle()
+                    .cloned()
+                    .take(1000)
+                    .map(Some)
+                    .collect_vec()
+            );
+        }
+
+        let mut scanner = PrimitiveColumnIterator::<i32>::new(
+            column,
+            10000,
+            PrimitiveBlockIteratorFactory::new(),
+        )
+        .await
+        .unwrap();
+        for i in 0..10 {
+            let (id, data) = scanner.next_batch(Some(1000)).await.unwrap().unwrap();
+            assert_eq!(id, 10000 + i * 1000);
+            let left = data.to_vec();
+            let right = [1, 1, 2, 2, 2]
+                .iter()
+                .cycle()
+                .cloned()
+                .take(1000)
+                .map(Some)
+                .collect_vec();
+            assert_eq!(left.len(), right.len());
+            assert_eq!(left, right);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_scan_dict_i32() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let rowset = helper_build_dict_encoding_rowset(&tempdir, false, 1000).await;
         let column = rowset.column(0);
         let mut scanner = PrimitiveColumnIterator::<i32>::new(
             column.clone(),
