@@ -142,9 +142,8 @@ impl ArrayImpl {
             return Err(ConvertError::NoBinaryOp("or".into(), self.type_string(), other.type_string()));
         };
         let mut c: BoolArray = binary_op(a.as_ref(), b.as_ref(), |a, b| *a || *b);
-        let a_true = a.to_raw_bitvec() & a.get_valid_bitmap();
-        let b_true = b.to_raw_bitvec() & b.get_valid_bitmap();
-        *c.get_valid_bitmap_mut() |= a_true | b_true;
+        let bitmap = c.to_raw_bitvec();
+        *c.get_valid_bitmap_mut() |= bitmap;
         Ok(A::new_bool(c))
     }
 

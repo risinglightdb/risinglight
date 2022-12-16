@@ -43,6 +43,11 @@ fn ops(c: &mut Criterion) {
         let a2: ArrayImpl = make_bool_array(size);
         b.iter(|| a1.and(&a2));
     });
+    for_all_size(c, "or(bool,bool)", |b, &size| {
+        let a1: ArrayImpl = make_bool_array(size);
+        let a2: ArrayImpl = make_bool_array(size);
+        b.iter(|| a1.or(&a2));
+    });
     for_all_size(c, "not(bool)", |b, &size| {
         let a1: ArrayImpl = make_bool_array(size);
         b.iter(|| a1.not());
@@ -102,7 +107,7 @@ fn filter(c: &mut Criterion) {
     for_all_size(c, "filter(i32)", |b, &size| {
         let a1 = make_i32_array(size);
         let ArrayImpl::Bool(a2) = make_bool_array(size) else { unreachable!() };
-        b.iter(|| a1.filter(a2.iter().map(|b| matches!(b, Some(true)))))
+        b.iter(|| a1.filter(a2.true_array()))
     });
 }
 

@@ -198,6 +198,11 @@ impl PrimitiveArray<bool> {
         bitvec.truncate(self.len());
         bitvec
     }
+
+    /// Returns a bool array of `true` values.
+    pub fn true_array(&self) -> &[bool] {
+        &self.data
+    }
 }
 
 #[cfg(test)]

@@ -546,12 +546,11 @@ macro_rules! impl_array {
             }
 
             /// Filter the elements and return a new array.
-            pub fn filter(&self, visibility: impl Iterator<Item = bool>) -> Self {
-                let vis = visibility.collect::<Vec<bool>>();
+            pub fn filter(&self, visibility: &[bool]) -> Self {
                 match self {
-                    Self::Null(a) => Self::Null(a.filter(&vis).into()),
+                    Self::Null(a) => Self::Null(a.filter(&visibility).into()),
                     $(
-                        Self::$Abc(a) => Self::$Abc(a.filter(&vis).into()),
+                        Self::$Abc(a) => Self::$Abc(a.filter(&visibility).into()),
                     )*
                 }
             }
