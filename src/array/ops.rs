@@ -1,7 +1,6 @@
 //! Array operations.
 
 use std::borrow::Borrow;
-use std::simd::{LaneCount, Simd, SimdElement, SupportedLaneCount};
 
 use num_traits::ToPrimitive;
 use rust_decimal::prelude::FromStr;
@@ -10,7 +9,7 @@ use rust_decimal::Decimal;
 use super::*;
 use crate::for_all_variants;
 use crate::parser::{BinaryOperator, UnaryOperator};
-use crate::types::{Blob, ConvertError, DataTypeKind, DataValue, Date, Interval, NativeType, F64};
+use crate::types::{Blob, ConvertError, DataTypeKind, DataValue, Date, Interval, F64};
 
 type A = ArrayImpl;
 
@@ -22,13 +21,6 @@ impl ArrayImpl {
             A::Float64(a) => A::new_float64(unary_op(a.as_ref(), |v| -v)),
             A::Decimal(a) => A::new_decimal(unary_op(a.as_ref(), |v| -v)),
             _ => return Err(ConvertError::NoUnaryOp("-".into(), self.type_string())),
-        })
-    }
-
-    pub fn not(&self) -> Result<Self, ConvertError> {
-        Ok(match self {
-            A::Bool(a) => A::new_bool(unary_op(a.as_ref(), |b| !b)),
-            _ => return Err(ConvertError::NoUnaryOp("not".into(), self.type_string())),
         })
     }
 
@@ -56,18 +48,8 @@ macro_rules! arith {
             other: &Self,
         ) -> Result<Self, ConvertError> {
         Ok(match (self, other) {
-            #[cfg(feature = "simd")]
-            (A::Int32(a), A::Int32(b)) => A::new_int32(simd_op::<_, _, _, 32>(a, b, |a, b| a $op b)),
-            #[cfg(feature = "simd")]
-            (A::Int64(a), A::Int64(b)) => A::new_int64(simd_op::<_, _, _, 64>(a, b, |a, b| a $op b)),
-            #[cfg(feature = "simd")]
-            (A::Float64(a), A::Float64(b)) => A::new_float64(simd_op::<_, _, _, 32>(a.as_native(), b.as_native(), |a, b| a $op b).into_ordered()),
-
-            #[cfg(not(feature = "simd"))]
             (A::Int32(a), A::Int32(b)) => A::new_int32(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-            #[cfg(not(feature = "simd"))]
             (A::Int64(a), A::Int64(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-            #[cfg(not(feature = "simd"))]
             (A::Float64(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
 
             (A::Int32(a), A::Int64(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i64) $op *b)),
@@ -148,30 +130,30 @@ impl ArrayImpl {
         let (A::Bool(a), A::Bool(b)) = (self, other) else {
             return Err(ConvertError::NoBinaryOp("and".into(), self.type_string(), other.type_string()));
         };
-        Ok(A::new_bool(binary_op_with_null(
-            a.as_ref(),
-            b.as_ref(),
-            |a, b| match (a, b) {
-                (Some(a), Some(b)) => Some(*a && *b),
-                (Some(false), _) | (_, Some(false)) => Some(false),
-                _ => None,
-            },
-        )))
+        let mut c: BoolArray = binary_op(a.as_ref(), b.as_ref(), |a, b| *a && *b);
+        let a_false = !a.to_raw_bitvec() & a.get_valid_bitmap();
+        let b_false = !b.to_raw_bitvec() & b.get_valid_bitmap();
+        *c.get_valid_bitmap_mut() |= a_false | b_false;
+        Ok(A::new_bool(c))
     }
 
     pub fn or(&self, other: &Self) -> Result<Self, ConvertError> {
         let (A::Bool(a), A::Bool(b)) = (self, other) else {
             return Err(ConvertError::NoBinaryOp("or".into(), self.type_string(), other.type_string()));
         };
-        Ok(A::new_bool(binary_op_with_null(
-            a.as_ref(),
-            b.as_ref(),
-            |a, b| match (a, b) {
-                (Some(a), Some(b)) => Some(*a || *b),
-                (Some(true), _) | (_, Some(true)) => Some(true),
-                _ => None,
-            },
-        )))
+        let mut c: BoolArray = binary_op(a.as_ref(), b.as_ref(), |a, b| *a || *b);
+        let a_true = a.to_raw_bitvec() & a.get_valid_bitmap();
+        let b_true = b.to_raw_bitvec() & b.get_valid_bitmap();
+        *c.get_valid_bitmap_mut() |= a_true | b_true;
+        Ok(A::new_bool(c))
+    }
+
+    pub fn not(&self) -> Result<Self, ConvertError> {
+        let A::Bool(a) = self else {
+            return Err(ConvertError::NoUnaryOp("not".into(), self.type_string()));
+        };
+        // should we zero the null values?
+        Ok(A::new_bool(unary_op(a.as_ref(), |b| !b)))
     }
 
     /// Perform binary operation.
@@ -370,13 +352,18 @@ impl ArrayImpl {
     /// Returns the sum of values.
     pub fn sum(&self) -> DataValue {
         match self {
-            Self::Int32(a) => DataValue::Int32(a.iter().flatten().sum()),
-            Self::Int64(a) => DataValue::Int64(a.iter().flatten().sum()),
-            Self::Float64(a) => DataValue::Float64(a.iter().flatten().sum()),
-            Self::Decimal(a) => DataValue::Decimal(a.iter().flatten().sum()),
-            Self::Interval(a) => DataValue::Interval(a.iter().flatten().sum()),
+            Self::Int32(a) => DataValue::Int32(a.raw_iter().sum()),
+            Self::Int64(a) => DataValue::Int64(a.raw_iter().sum()),
+            Self::Float64(a) => DataValue::Float64(a.raw_iter().sum()),
+            Self::Decimal(a) => DataValue::Decimal(a.raw_iter().sum()),
+            Self::Interval(a) => DataValue::Interval(a.raw_iter().sum()),
             _ => panic!("can not sum array"),
         }
+    }
+
+    /// Returns the number of non-null values.
+    pub fn count(&self) -> usize {
+        self.get_valid_bitmap().count_ones()
     }
 }
 
@@ -417,49 +404,7 @@ macro_rules! impl_agg {
 
 for_all_variants! { impl_agg }
 
-pub fn simd_op<T, O, F, const N: usize>(
-    a: &PrimitiveArray<T>,
-    b: &PrimitiveArray<T>,
-    f: F,
-) -> PrimitiveArray<O>
-where
-    T: NativeType + SimdElement,
-    O: NativeType + SimdElement,
-    F: Fn(Simd<T, N>, Simd<T, N>) -> Simd<O, N>,
-    LaneCount<N>: SupportedLaneCount,
-{
-    assert_eq!(a.len(), b.len());
-    a.batch_iter::<N>()
-        .zip(b.batch_iter::<N>())
-        .map(|(a, b)| BatchItem {
-            valid: a.valid & b.valid,
-            data: f(a.data, b.data),
-            len: a.len,
-        })
-        .collect()
-}
-
-pub fn binary_op<A, B, O, F, V>(a: &A, b: &B, f: F) -> O
-where
-    A: Array,
-    B: Array,
-    O: Array,
-    V: Borrow<O::Item>,
-    F: Fn(&A::Item, &B::Item) -> V,
-{
-    assert_eq!(a.len(), b.len());
-    let mut builder = O::Builder::with_capacity(a.len());
-    for (a, b) in a.iter().zip(b.iter()) {
-        if let (Some(a), Some(b)) = (a, b) {
-            builder.push(Some(f(a, b).borrow()));
-        } else {
-            builder.push(None);
-        }
-    }
-    builder.finish()
-}
-
-pub fn binary_op_masks<A, B, O, F>(a: &A, b: &B, f: F) -> O
+fn binary_op<A, B, O, F>(a: &A, b: &B, f: F) -> O
 where
     A: ArrayValidExt,
     B: ArrayValidExt,
@@ -469,46 +414,18 @@ where
 {
     assert_eq!(a.len(), b.len());
     let it = a.raw_iter().zip(b.raw_iter()).map(|(a, b)| f(a, b));
-    let valid = a.get_valid_bitmap().clone() & b.get_valid_bitmap().clone();
+    let valid = a.get_valid_bitmap().clone() & b.get_valid_bitmap();
     O::from_data(it, valid)
-}
-
-fn binary_op_with_null<A, B, O, F, V>(a: &A, b: &B, f: F) -> O
-where
-    A: Array,
-    B: Array,
-    O: Array,
-    V: Borrow<O::Item>,
-    F: Fn(Option<&A::Item>, Option<&B::Item>) -> Option<V>,
-{
-    assert_eq!(a.len(), b.len());
-    let mut builder = O::Builder::with_capacity(a.len());
-    for (a, b) in a.iter().zip(b.iter()) {
-        if let Some(c) = f(a, b) {
-            builder.push(Some(c.borrow()));
-        } else {
-            builder.push(None);
-        }
-    }
-    builder.finish()
 }
 
 fn unary_op<A, O, F, V>(a: &A, f: F) -> O
 where
-    A: Array,
-    O: Array,
+    A: ArrayValidExt,
+    O: ArrayFromDataExt,
     V: Borrow<O::Item>,
     F: Fn(&A::Item) -> V,
 {
-    let mut builder = O::Builder::with_capacity(a.len());
-    for e in a.iter() {
-        if let Some(e) = e {
-            builder.push(Some(f(e).borrow()));
-        } else {
-            builder.push(None);
-        }
-    }
-    builder.finish()
+    O::from_data(a.raw_iter().map(f), a.get_valid_bitmap().clone())
 }
 
 fn try_unary_op<A, O, F, V, E>(a: &A, f: F) -> Result<O, E>

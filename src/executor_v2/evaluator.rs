@@ -61,10 +61,7 @@ impl<'a> Evaluator<'a> {
             Constant(v) => {
                 let mut builder =
                     ArrayBuilderImpl::with_capacity(chunk.cardinality(), &v.data_type());
-                // TODO: optimize this
-                for _ in 0..chunk.cardinality() {
-                    builder.push(v);
-                }
+                builder.push_n(chunk.cardinality(), v);
                 Ok(builder.finish())
             }
             Cast([ty, a]) => {
@@ -161,9 +158,7 @@ impl<'a> Evaluator<'a> {
         use Expr::*;
         match self.node() {
             RowCount => Ok(state.add(DataValue::Int32(chunk.cardinality() as _))),
-            Count(a) => Ok(state.add(DataValue::Int32(
-                self.next(*a).eval(chunk)?.get_valid_bitmap().count_ones() as _,
-            ))),
+            Count(a) => Ok(state.add(DataValue::Int32(self.next(*a).eval(chunk)?.count() as _))),
             Sum(a) => Ok(state.add(self.next(*a).eval(chunk)?.sum())),
             Min(a) => Ok(state.min(self.next(*a).eval(chunk)?.min_())),
             Max(a) => Ok(state.max(self.next(*a).eval(chunk)?.max_())),
