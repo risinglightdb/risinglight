@@ -4,7 +4,7 @@ use bitvec::vec::BitVec;
 use criterion::*;
 use ordered_float::OrderedFloat;
 use risinglight::array::{
-    Array, ArrayFromDataExt, ArrayImpl, BoolArray, DecimalArray, F64Array, I32Array,
+    ArrayFromDataExt, ArrayImpl, BoolArray, DecimalArray, F64Array, I32Array,
 };
 use risinglight::parser::BinaryOperator;
 use risinglight::types::DataTypeKind;
@@ -227,7 +227,7 @@ fn for_all_size(
 ) {
     let mut group = c.benchmark_group(name);
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
-    for size in [1, 16, 256, 4096, 65536] {
+    for size in [1, 16, 256, 4096] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, &mut f);
     }
     group.finish();

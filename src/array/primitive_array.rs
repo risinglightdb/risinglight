@@ -7,7 +7,7 @@ use std::mem;
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
-use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidExt};
+use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidExt, BoolArray};
 use crate::types::{NativeType, F32, F64};
 
 /// A collection of primitive types, such as `i32`, `F32`.
@@ -203,6 +203,19 @@ impl PrimitiveArray<bool> {
     pub fn true_array(&self) -> &[bool] {
         &self.data
     }
+}
+
+pub fn clear_null(mut array: BoolArray) -> BoolArray {
+    use std::simd::ToBitMask;
+    let mut valid = Vec::with_capacity(array.valid.as_raw_slice().len() * 64);
+    for &bitmask in array.valid.as_raw_slice() {
+        let chunk = std::simd::Mask::<i8, 64>::from_bitmask(bitmask as u64).to_array();
+        valid.extend_from_slice(&chunk);
+    }
+    for (d, v) in array.data.iter_mut().zip(valid) {
+        *d &= v;
+    }
+    array
 }
 
 #[cfg(test)]
