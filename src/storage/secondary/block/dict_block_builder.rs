@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 use bytes::BufMut;
+use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use risinglight_proto::rowset::BlockStatistics;
 
 use super::PlainPrimitiveBlockBuilder;
@@ -79,8 +80,12 @@ where
     }
 
     fn get_statistics(&self) -> Vec<BlockStatistics> {
-        // Tracking issue: https://github.com/risinglightdb/risinglight/issues/674
-        vec![]
+        let distinct_count = self.dict_map.len() as u64;
+        let distinct_stat = BlockStatistics {
+            block_stat_type: BlockStatisticsType::DistinctValue as i32,
+            body: distinct_count.to_le_bytes().to_vec(),
+        };
+        vec![distinct_stat]
     }
 
     fn should_finish(&self, next_item: &Option<&A::Item>) -> bool {
