@@ -314,6 +314,49 @@ pub mod tests {
         .unwrap()
     }
 
+    pub async fn helper_build_dict_encoding_rowset(
+        tempdir: &TempDir,
+        nullable: bool,
+        len: usize,
+    ) -> DiskRowset {
+        let columns = vec![ColumnCatalog::new(
+            0,
+            if nullable {
+                DataTypeKind::Int32.nullable().to_column("v1".to_string())
+            } else {
+                DataTypeKind::Int32.not_null().to_column("v1".to_string())
+            },
+        )];
+        let mut column_options = ColumnBuilderOptions::default_for_test();
+        column_options.encode_type = EncodeType::Dictionary;
+        let mut builder = RowsetBuilder::new(columns.clone().into(), column_options);
+
+        for _ in 0..100 {
+            builder.append(
+                [ArrayImpl::new_int32(
+                    [1, 1, 2, 2, 2].into_iter().cycle().take(len).collect(),
+                )]
+                .into_iter()
+                .collect(),
+            )
+        }
+
+        let backend = IOBackend::in_memory();
+
+        let writer = RowsetWriter::new(tempdir.path(), backend.clone());
+        writer.flush(builder.finish()).await.unwrap();
+
+        DiskRowset::open(
+            tempdir.path().to_path_buf(),
+            columns.into(),
+            Cache::new(2333),
+            0,
+            backend,
+        )
+        .await
+        .unwrap()
+    }
+
     pub async fn helper_build_rowset_with_first_key_recorded(tempdir: &TempDir) -> DiskRowset {
         let columns = vec![
             ColumnCatalog::new(
