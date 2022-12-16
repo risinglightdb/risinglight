@@ -10,7 +10,7 @@ env_logger = "0.9"
 glob = "0.3"
 libtest-mimic = "0.5"
 risinglight = { path = "../.." }
-sqllogictest = "0.6"
+sqllogictest = "0.9"
 tempfile = "3"
 tokio = { version = "1", features = ["rt"] }
 

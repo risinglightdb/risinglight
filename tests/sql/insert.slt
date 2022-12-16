@@ -22,12 +22,12 @@ insert into t values (NULL,NULL,NULL)
 query III rowsort
 select * from t
 ----
-1 10 100
-1 10 100
-2 20 200
-3 30 300
-4 40 400
-1 10 100
-1 10 NULL
-10 1 NULL
-NULL NULL NULL
+1	10	100
+1	10	100
+1	10	100
+1	10	NULL
+10	1	NULL
+2	20	200
+3	30	300
+4	40	400
+NULL	NULL	NULL
