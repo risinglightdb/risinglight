@@ -169,8 +169,7 @@ impl<T: ValueRef + ?Sized> ArrayBuilder for BytesArrayBuilder<T> {
     }
 
     fn push_n(&mut self, n: usize, value: Option<&T>) {
-        self.valid
-            .extend(std::iter::repeat(value.is_some()).take(n));
+        self.valid.resize(self.valid.len() + n, value.is_some());
         if let Some(value) = value {
             self.data.reserve(value.as_ref().len() * n);
             self.offset.reserve(n);
