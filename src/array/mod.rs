@@ -128,6 +128,13 @@ pub trait Array: Sized + Send + Sync + 'static {
         (0..self.len()).map(|i| self.get_raw(i))
     }
 
+    /// Get iterator over the non-null values.
+    fn nonnull_iter(&self) -> impl DoubleEndedIterator<Item = &Self::Item> {
+        (0..self.len())
+            .filter(|i| !self.is_null(*i))
+            .map(|i| self.get_raw(i))
+    }
+
     /// Check if `Array` is empty.
     fn is_empty(&self) -> bool {
         self.len() == 0

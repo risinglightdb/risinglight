@@ -372,28 +372,28 @@ macro_rules! impl_agg {
             /// Returns the minimum of values.
             pub fn min_(&self) -> DataValue {
                 match self {
-                    $(Self::$Abc(a) => a.iter().flatten().min().into(),)*
+                    $(Self::$Abc(a) => a.nonnull_iter().min().into(),)*
                 }
             }
 
             /// Returns the maximum of values.
             pub fn max_(&self) -> DataValue {
                 match self {
-                    $(Self::$Abc(a) => a.iter().flatten().max().into(),)*
+                    $(Self::$Abc(a) => a.nonnull_iter().max().into(),)*
                 }
             }
 
             /// Returns the first non-null value.
             pub fn first(&self) -> DataValue {
                 match self {
-                    $(Self::$Abc(a) => a.iter().next().flatten().into(),)*
+                    $(Self::$Abc(a) => a.nonnull_iter().next().into(),)*
                 }
             }
 
             /// Returns the last non-null value.
             pub fn last(&self) -> DataValue {
                 match self {
-                    $(Self::$Abc(a) => a.iter().rev().next().flatten().into(),)*
+                    $(Self::$Abc(a) => a.nonnull_iter().rev().next().into(),)*
                 }
             }
         }
