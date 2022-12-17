@@ -89,10 +89,13 @@ impl DataChunk {
 
     /// Filter elements and create a new chunk.
     pub fn filter(&self, visibility: &[bool]) -> Self {
-        let arrays = self.arrays.iter().map(|a| a.filter(visibility)).collect();
+        let arrays: Arc<[ArrayImpl]> = self.arrays.iter().map(|a| a.filter(visibility)).collect();
         DataChunk {
+            cardinality: match arrays.first() {
+                Some(a) => a.len(),
+                None => visibility.iter().filter(|b| **b).count(),
+            },
             arrays,
-            cardinality: visibility.iter().filter(|b| **b).count(),
         }
     }
 

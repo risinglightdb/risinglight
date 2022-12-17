@@ -131,9 +131,10 @@ impl ArrayImpl {
             return Err(ConvertError::NoBinaryOp("and".into(), self.type_string(), other.type_string()));
         };
         let mut c: BoolArray = binary_op(a.as_ref(), b.as_ref(), |a, b| *a && *b);
-        let a_false = !a.to_raw_bitvec() & a.get_valid_bitmap();
-        let b_false = !b.to_raw_bitvec() & b.get_valid_bitmap();
-        *c.get_valid_bitmap_mut() |= a_false | b_false;
+        let a_false = a.to_raw_bitvec().not_then_and(a.get_valid_bitmap());
+        let b_false = b.to_raw_bitvec().not_then_and(b.get_valid_bitmap());
+        c.get_valid_bitmap_mut().or(&a_false);
+        c.get_valid_bitmap_mut().or(&b_false);
         Ok(A::new_bool(c))
     }
 
@@ -143,7 +144,7 @@ impl ArrayImpl {
         };
         let mut c: BoolArray = binary_op(a.as_ref(), b.as_ref(), |a, b| *a || *b);
         let bitmap = c.to_raw_bitvec();
-        *c.get_valid_bitmap_mut() |= bitmap;
+        c.get_valid_bitmap_mut().or(&bitmap);
         Ok(A::new_bool(c))
     }
 
@@ -412,11 +413,7 @@ where
 {
     assert_eq!(a.len(), b.len());
     let it = a.raw_iter().zip(b.raw_iter()).map(|(a, b)| f(a, b));
-    let mut valid: BitVec = (a.get_valid_bitmap().as_raw_slice().iter())
-        .zip(b.get_valid_bitmap().as_raw_slice())
-        .map(|(a, b)| a & b)
-        .collect();
-    unsafe { valid.set_len(a.len()) };
+    let valid = a.get_valid_bitmap().and(b.get_valid_bitmap());
     O::from_data(it, valid)
 }
 
@@ -446,4 +443,65 @@ where
         }
     }
     Ok(builder.finish())
+}
+
+/// Optimized operations.
+///
+/// Assume both bitvecs have the same length.
+pub trait BitVecExt {
+    /// self & other
+    fn and(&self, other: &Self) -> Self;
+    /// self |= other
+    fn or(&mut self, other: &Self);
+    /// !self & other
+    fn not_then_and(&self, other: &Self) -> Self;
+    /// Creates a BitVec from `&[bool]`.
+    fn from_bool_slice(bools: &[bool]) -> Self;
+}
+
+impl BitVecExt for BitVec {
+    fn and(&self, other: &Self) -> Self {
+        let mut res: BitVec = (self.as_raw_slice().iter())
+            .zip(other.as_raw_slice())
+            .map(|(a, b)| a & b)
+            .collect();
+        unsafe { res.set_len(self.len()) };
+        res
+    }
+
+    fn or(&mut self, other: &Self) {
+        for (a, b) in self.as_raw_mut_slice().iter_mut().zip(other.as_raw_slice()) {
+            *a |= b;
+        }
+    }
+
+    fn not_then_and(&self, other: &Self) -> Self {
+        let mut res: BitVec = (self.as_raw_slice().iter())
+            .zip(other.as_raw_slice())
+            .map(|(a, b)| !a & b)
+            .collect();
+        unsafe { res.set_len(self.len()) };
+        res
+    }
+
+    fn from_bool_slice(bools: &[bool]) -> Self {
+        // use SIMD to speed up
+        use std::simd::ToBitMask;
+        let mut iter = bools.array_chunks::<64>();
+        let mut bitvec = Vec::with_capacity((bools.len() + 63) / 64);
+        for chunk in iter.by_ref() {
+            let bitmask = std::simd::Mask::<i8, 64>::from_array(*chunk).to_bitmask() as usize;
+            bitvec.push(bitmask);
+        }
+        if !iter.remainder().is_empty() {
+            let mut bitmask = 0;
+            for (i, b) in iter.remainder().iter().enumerate() {
+                bitmask |= (*b as usize) << i;
+            }
+            bitvec.push(bitmask);
+        }
+        let mut bitvec = BitVec::from_vec(bitvec);
+        bitvec.truncate(bools.len());
+        bitvec
+    }
 }

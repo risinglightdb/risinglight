@@ -7,6 +7,7 @@ use std::mem;
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
+use super::ops::BitVecExt;
 use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidExt, BoolArray};
 use crate::types::{NativeType, F32, F64};
 
@@ -178,24 +179,7 @@ impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
 impl PrimitiveArray<bool> {
     /// Converts the raw bool array into a [`BitVec`].
     pub fn to_raw_bitvec(&self) -> BitVec {
-        // use SIMD to speed up
-        use std::simd::ToBitMask;
-        let mut iter = self.data.array_chunks::<64>();
-        let mut bitvec = Vec::with_capacity((self.len() + 63) / 64);
-        for chunk in iter.by_ref() {
-            let bitmask = std::simd::Mask::<i8, 64>::from_array(*chunk).to_bitmask() as usize;
-            bitvec.push(bitmask);
-        }
-        if !iter.remainder().is_empty() {
-            let mut bitmask = 0;
-            for (i, b) in iter.remainder().iter().enumerate() {
-                bitmask |= (*b as usize) << i;
-            }
-            bitvec.push(bitmask);
-        }
-        let mut bitvec = BitVec::from_vec(bitvec);
-        bitvec.truncate(self.len());
-        bitvec
+        BitVec::from_bool_slice(&self.data)
     }
 
     /// Returns a bool array of `true` values.
