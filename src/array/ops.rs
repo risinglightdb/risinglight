@@ -412,7 +412,11 @@ where
 {
     assert_eq!(a.len(), b.len());
     let it = a.raw_iter().zip(b.raw_iter()).map(|(a, b)| f(a, b));
-    let valid = a.get_valid_bitmap().clone() & b.get_valid_bitmap();
+    let mut valid: BitVec = (a.get_valid_bitmap().as_raw_slice().iter())
+        .zip(b.get_valid_bitmap().as_raw_slice())
+        .map(|(a, b)| a & b)
+        .collect();
+    unsafe { valid.set_len(a.len()) };
     O::from_data(it, valid)
 }
 
