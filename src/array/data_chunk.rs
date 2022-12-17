@@ -92,7 +92,7 @@ impl DataChunk {
         let arrays = self.arrays.iter().map(|a| a.filter(visibility)).collect();
         DataChunk {
             arrays,
-            cardinality: visibility.iter().count(),
+            cardinality: visibility.iter().filter(|b| **b).count(),
         }
     }
 
