@@ -66,7 +66,6 @@ impl FromIterator<f64> for PrimitiveArray<F64> {
 impl<T: NativeType> Array for PrimitiveArray<T> {
     type Item = T;
     type Builder = PrimitiveArrayBuilder<T>;
-    type RawIter<'a> = std::slice::Iter<'a, T>;
 
     fn is_null(&self, idx: usize) -> bool {
         !self.valid[idx]
@@ -80,7 +79,7 @@ impl<T: NativeType> Array for PrimitiveArray<T> {
         self.valid.len()
     }
 
-    fn raw_iter(&self) -> Self::RawIter<'_> {
+    fn raw_iter(&self) -> impl DoubleEndedIterator<Item = &Self::Item> {
         self.data.iter()
     }
 

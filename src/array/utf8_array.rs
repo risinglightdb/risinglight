@@ -8,7 +8,6 @@ use std::mem;
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
-use super::iterator::NonNullArrayIter;
 use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidExt};
 use crate::types::BlobRef;
 
@@ -57,7 +56,6 @@ impl<T: ValueRef + ?Sized> Clone for BytesArray<T> {
 impl<T: ValueRef + ?Sized> Array for BytesArray<T> {
     type Item = T;
     type Builder = BytesArrayBuilder<T>;
-    type RawIter<'a> = NonNullArrayIter<'a, Self>;
 
     fn is_null(&self, idx: usize) -> bool {
         !self.valid[idx]
@@ -70,10 +68,6 @@ impl<T: ValueRef + ?Sized> Array for BytesArray<T> {
 
     fn len(&self) -> usize {
         self.valid.len()
-    }
-
-    fn raw_iter(&self) -> Self::RawIter<'_> {
-        NonNullArrayIter::new(self)
     }
 
     fn filter(&self, p: &[bool]) -> Self {

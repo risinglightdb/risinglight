@@ -2,7 +2,6 @@
 
 use std::convert::TryFrom;
 use std::fmt::Debug;
-use std::iter::TrustedLen;
 use std::ops::{Bound, RangeBounds};
 use std::sync::Arc;
 
@@ -17,14 +16,12 @@ use crate::types::{
 
 mod data_chunk;
 mod data_chunk_builder;
-mod iterator;
 pub mod ops;
 mod primitive_array;
 mod utf8_array;
 
 pub use self::data_chunk::*;
 pub use self::data_chunk_builder::*;
-pub use self::iterator::ArrayIter;
 pub use self::primitive_array::*;
 pub use self::utf8_array::*;
 
@@ -101,8 +98,6 @@ pub trait Array: Sized + Send + Sync + 'static {
     /// Type of element in the array.
     type Item: ToOwned + ?Sized;
 
-    type RawIter<'a>: Iterator<Item = &'a Self::Item> + TrustedLen;
-
     /// Returns true if the value at `idx` is null.
     fn is_null(&self, idx: usize) -> bool;
 
@@ -121,14 +116,16 @@ pub trait Array: Sized + Send + Sync + 'static {
         }
     }
 
-    /// Get iterator over the raw values.
-    fn raw_iter(&self) -> Self::RawIter<'_>;
-
     fn filter(&self, p: &[bool]) -> Self;
 
     /// Get iterator of current array.
-    fn iter(&self) -> ArrayIter<'_, Self> {
-        ArrayIter::new(self)
+    fn iter(&self) -> impl DoubleEndedIterator<Item = Option<&Self::Item>> {
+        (0..self.len()).map(|i| self.get(i))
+    }
+
+    /// Get iterator over the raw values.
+    fn raw_iter(&self) -> impl DoubleEndedIterator<Item = &Self::Item> {
+        (0..self.len()).map(|i| self.get_raw(i))
     }
 
     /// Check if `Array` is empty.
