@@ -180,7 +180,7 @@ impl Binder {
     /// Returns the new expression.
     ///
     /// # Example
-    /// ```ignore
+    /// ```text
     /// id:         (+ (sum a) (+ b 1))
     /// schema:     (sum a), (+ b 1)
     /// output:     (+ (`(sum a)) (`(+ b 1)))
