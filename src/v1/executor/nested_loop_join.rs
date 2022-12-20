@@ -51,7 +51,7 @@ impl NestedLoopJoinExecutor {
                         // evaluate filter bitmap
                         match self.condition.eval(&chunk)? {
                             ArrayImpl::Bool(a) => {
-                                yield chunk.filter(a.iter().map(|b| matches!(b, Some(true))));
+                                yield chunk.filter(a.true_array());
                                 filter_builder.append(&ArrayImpl::Bool(a))
                             }
                             _ => panic!("unsupported value from join condition"),
@@ -67,7 +67,7 @@ impl NestedLoopJoinExecutor {
         if let Some(chunk) = builder.take() {
             match self.condition.eval(&chunk)? {
                 ArrayImpl::Bool(a) => {
-                    yield chunk.filter(a.iter().map(|b| matches!(b, Some(true))));
+                    yield chunk.filter(a.true_array());
                     filter_builder.append(&ArrayImpl::Bool(a))
                 }
                 _ => panic!("unsupported value from join condition"),

@@ -1,7 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use super::*;
-use crate::array::{Array, ArrayImpl, DataChunk};
+use crate::array::{ArrayImpl, DataChunk};
 use crate::v1::binder::BoundExpr;
 
 /// The executor of a filter operation.
@@ -20,7 +20,7 @@ impl FilterExecutor {
                 ArrayImpl::Bool(a) => a,
                 _ => panic!("filters can only accept bool array"),
             };
-            yield batch.filter(vis.iter().map(|b| matches!(b, Some(true))));
+            yield batch.filter(vis.true_array());
         }
     }
 }

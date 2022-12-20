@@ -88,15 +88,14 @@ impl DataChunk {
     }
 
     /// Filter elements and create a new chunk.
-    pub fn filter(&self, visibility: impl Iterator<Item = bool> + Clone) -> Self {
-        let arrays = self
-            .arrays
-            .iter()
-            .map(|a| a.filter(visibility.clone()))
-            .collect();
+    pub fn filter(&self, visibility: &[bool]) -> Self {
+        let arrays: Arc<[ArrayImpl]> = self.arrays.iter().map(|a| a.filter(visibility)).collect();
         DataChunk {
+            cardinality: match arrays.first() {
+                Some(a) => a.len(),
+                None => visibility.iter().filter(|b| **b).count(),
+            },
             arrays,
-            cardinality: visibility.filter(|b| *b).count(),
         }
     }
 

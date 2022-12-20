@@ -43,7 +43,7 @@ impl NestedLoopJoinExecutor {
                         let ArrayImpl::Bool(a) = Evaluator::new(&self.condition).eval(&chunk)? else {
                             panic!("join condition should return bool");
                         };
-                        yield chunk.filter(a.iter().map(|b| matches!(b, Some(true))));
+                        yield chunk.filter(a.true_array());
                         filter_builder.append(&a);
                     }
                     tokio::task::consume_budget().await;
@@ -58,7 +58,7 @@ impl NestedLoopJoinExecutor {
             let ArrayImpl::Bool(a) = Evaluator::new(&self.condition).eval(&chunk)? else {
                 panic!("join condition should return bool");
             };
-            yield chunk.filter(a.iter().map(|b| matches!(b, Some(true))));
+            yield chunk.filter(a.true_array());
             filter_builder.append(&a);
         }
         let filter = filter_builder.take();

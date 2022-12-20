@@ -39,12 +39,17 @@ fn ops(c: &mut Criterion) {
     }
 
     for_all_size(c, "and(bool,bool)", |b, &size| {
-        let a1: ArrayImpl = (0..size).map(|i| i % 2 == 0).collect::<BoolArray>().into();
-        let a2: ArrayImpl = a1.clone();
+        let a1: ArrayImpl = make_bool_array(size);
+        let a2: ArrayImpl = make_bool_array(size);
         b.iter(|| a1.and(&a2));
     });
+    for_all_size(c, "or(bool,bool)", |b, &size| {
+        let a1: ArrayImpl = make_bool_array(size);
+        let a2: ArrayImpl = make_bool_array(size);
+        b.iter(|| a1.or(&a2));
+    });
     for_all_size(c, "not(bool)", |b, &size| {
-        let a1: ArrayImpl = (0..size).map(|i| i % 2 == 0).collect::<BoolArray>().into();
+        let a1: ArrayImpl = make_bool_array(size);
         b.iter(|| a1.not());
     });
 }
@@ -85,9 +90,24 @@ fn cast(c: &mut Criterion) {
         let a1 = make_f64_array(size);
         b.iter(|| a1.cast(&DataTypeKind::Decimal(None, None)))
     });
-    for_all_size(c, "cast(i32->string)", |b, &size| {
+    for ty in ["i32", "f64", "decimal"] {
+        for_all_size(c, format!("cast({ty}->string)"), |b, &size| {
+            let a1 = match ty {
+                "i32" => make_i32_array(size),
+                "f64" => make_f64_array(size),
+                "decimal" => make_decimal_array(size),
+                _ => unreachable!(),
+            };
+            b.iter(|| a1.cast(&DataTypeKind::String))
+        });
+    }
+}
+
+fn filter(c: &mut Criterion) {
+    for_all_size(c, "filter(i32)", |b, &size| {
         let a1 = make_i32_array(size);
-        b.iter(|| a1.cast(&DataTypeKind::String))
+        let ArrayImpl::Bool(a2) = make_bool_array(size) else { unreachable!() };
+        b.iter(|| a1.filter(a2.true_array()))
     });
 }
 
@@ -155,6 +175,14 @@ fn function(c: &mut Criterion) {
     }
 }
 
+fn make_bool_array(size: usize) -> ArrayImpl {
+    let mask = make_valid_bitmap(size);
+    let iter = (0..size as i32)
+        .zip(mask.clone())
+        .map(|(i, v)| if v { i % 2 == 0 } else { false });
+    BoolArray::from_data(iter, mask).into()
+}
+
 fn make_i32_array(size: usize) -> ArrayImpl {
     let mask = make_valid_bitmap(size);
     let iter = (0..size as i32)
@@ -199,11 +227,11 @@ fn for_all_size(
 ) {
     let mut group = c.benchmark_group(name);
     group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
-    for size in [1, 16, 256, 4096, 65536] {
+    for size in [1, 16, 256, 4096] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, &mut f);
     }
     group.finish();
 }
 
-criterion_group!(benches, function, ops, agg, cast);
+criterion_group!(benches, function, ops, agg, cast, filter);
 criterion_main!(benches);
