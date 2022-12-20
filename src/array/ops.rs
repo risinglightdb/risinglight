@@ -387,14 +387,14 @@ macro_rules! impl_agg {
             /// Returns the first non-null value.
             pub fn first(&self) -> DataValue {
                 match self {
-                    $(Self::$Abc(a) => a.nonnull_iter().next().into(),)*
+                    $(Self::$Abc(a) => a.iter().next().flatten().into(),)*
                 }
             }
 
             /// Returns the last non-null value.
             pub fn last(&self) -> DataValue {
                 match self {
-                    $(Self::$Abc(a) => a.nonnull_iter().rev().next().into(),)*
+                    $(Self::$Abc(a) => a.iter().rev().next().flatten().into(),)*
                 }
             }
         }
@@ -455,7 +455,7 @@ pub trait BitVecExt {
     fn or(&mut self, other: &Self);
     /// !self & other
     fn not_then_and(&self, other: &Self) -> Self;
-    /// Creates a BitVec from `&[bool]`.
+    /// Creates a [`BitVec`] from `&[bool]`.
     fn from_bool_slice(bools: &[bool]) -> Self;
 }
 
