@@ -21,6 +21,7 @@ jobs:
       - uses: arduino/setup-protoc@v1
         with:
           version: "3.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -39,13 +40,12 @@ jobs:
 
   test:
     runs-on: ubuntu-22.04
-    env:
-      PROTOC_NO_VENDOR: 1
     steps:
       - uses: actions/checkout@v2
       - uses: arduino/setup-protoc@v1
         with:
           version: "3.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -69,6 +69,7 @@ jobs:
       - uses: arduino/setup-protoc@v1
         with:
           version: "3.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal

@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "risinglight"
-version = "0.2.0-alpha"
+version = "0.2.0"
 description = "An OLAP database system for educational purpose"
 license = "Apache-2.0"
 readme = "README.md"
@@ -51,7 +51,7 @@ parse-display = "0.6"
 paste = "1"
 prost = "0.11.0"
 ref-cast = "1.0"
-risinglight_proto = "0.1"
+risinglight_proto = "0.2"
 rust_decimal = "1"
 rustyline = "10"
 serde = { version = "1", features = ["derive", "rc"] }
