@@ -51,7 +51,7 @@ impl OrderExecutor {
 ///
 /// The order is `false` for ascending and `true` for descending.
 fn cmp(row1: &RowRef, row2: &RowRef, orders: &[bool]) -> Ordering {
-    for ((v1, v2), desc) in row1.values().zip_eq(row2.values()).zip(orders) {
+    for ((v1, v2), desc) in row1.values().zip(row2.values()).zip(orders) {
         match v1.cmp(&v2) {
             Ordering::Equal => continue,
             o if *desc => return o.reverse(),

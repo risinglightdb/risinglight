@@ -1,13 +1,13 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::borrow::Borrow;
+use std::fmt::{Display, Write};
 use std::marker::PhantomData;
 use std::mem;
 
 use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
-use super::iterator::NonNullArrayIter;
 use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidExt};
 use crate::types::BlobRef;
 
@@ -56,18 +56,12 @@ impl<T: ValueRef + ?Sized> Clone for BytesArray<T> {
 impl<T: ValueRef + ?Sized> Array for BytesArray<T> {
     type Item = T;
     type Builder = BytesArrayBuilder<T>;
-    type RawIter<'a> = NonNullArrayIter<'a, Self>;
 
-    fn get(&self, idx: usize) -> Option<&T> {
-        if self.valid[idx] {
-            let data_slice = &self.data[self.offset[idx]..self.offset[idx + 1]];
-            Some(T::from_bytes(data_slice))
-        } else {
-            None
-        }
+    fn is_null(&self, idx: usize) -> bool {
+        !self.valid[idx]
     }
 
-    fn get_unchecked(&self, idx: usize) -> &T {
+    fn get_raw(&self, idx: usize) -> &T {
         let data_slice = &self.data[self.offset[idx]..self.offset[idx + 1]];
         T::from_bytes(data_slice)
     }
@@ -76,8 +70,15 @@ impl<T: ValueRef + ?Sized> Array for BytesArray<T> {
         self.valid.len()
     }
 
-    fn raw_iter(&self) -> Self::RawIter<'_> {
-        NonNullArrayIter::new(self)
+    fn filter(&self, p: &[bool]) -> Self {
+        assert_eq!(p.len(), self.len());
+        let mut builder = Self::Builder::with_capacity(self.len());
+        for (i, &v) in p.iter().enumerate() {
+            if v {
+                builder.push(self.get(i));
+            }
+        }
+        builder.finish()
     }
 }
 
@@ -168,8 +169,7 @@ impl<T: ValueRef + ?Sized> ArrayBuilder for BytesArrayBuilder<T> {
     }
 
     fn push_n(&mut self, n: usize, value: Option<&T>) {
-        self.valid
-            .extend(std::iter::repeat(value.is_some()).take(n));
+        self.valid.resize(self.valid.len() + n, value.is_some());
         if let Some(value) = value {
             self.data.reserve(value.as_ref().len() * n);
             self.offset.reserve(n);
@@ -200,6 +200,42 @@ impl<T: ValueRef + ?Sized> ArrayBuilder for BytesArrayBuilder<T> {
             offset: mem::replace(&mut self.offset, vec![0]),
             _type: PhantomData,
         }
+    }
+}
+
+struct BytesArrayWriter<'a, T: ValueRef + ?Sized> {
+    builder: &'a mut BytesArrayBuilder<T>,
+}
+
+impl<T: ValueRef + ?Sized> Write for BytesArrayWriter<'_, T> {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        self.builder.data.extend_from_slice(s.as_bytes());
+        Ok(())
+    }
+}
+
+impl<T: ValueRef + ?Sized> Drop for BytesArrayWriter<'_, T> {
+    fn drop(&mut self) {
+        self.builder.offset.push(self.builder.data.len());
+        self.builder.valid.push(true);
+    }
+}
+
+impl Utf8Array {
+    pub fn from_iter_display(iter: impl IntoIterator<Item = Option<impl Display>>) -> Self {
+        let iter = iter.into_iter();
+        let mut builder = <Self as Array>::Builder::with_capacity(iter.size_hint().0);
+        for e in iter {
+            if let Some(s) = e {
+                let mut writer = BytesArrayWriter {
+                    builder: &mut builder,
+                };
+                write!(writer, "{}", s).unwrap();
+            } else {
+                builder.push(None);
+            }
+        }
+        builder.finish()
     }
 }
 

@@ -83,32 +83,32 @@ macro_rules! cmp {
             &self,
             other: &Self,
         ) -> Result<Self, ConvertError> {
-        Ok(match (self, other) {
-            (A::Bool(a), A::Bool(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-            (A::Int32(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-            (A::Int64(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-            (A::Float64(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
-            (A::Utf8(a), A::Utf8(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-            (A::Date(a), A::Date(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-            (A::Decimal(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+        Ok(A::new_bool(clear_null(match (self, other) {
+            (A::Bool(a), A::Bool(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
+            (A::Int32(a), A::Int32(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
+            (A::Int64(a), A::Int64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
+            (A::Float64(a), A::Float64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b),
+            (A::Utf8(a), A::Utf8(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
+            (A::Date(a), A::Date(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
+            (A::Decimal(a), A::Decimal(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
 
-            (A::Int32(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i64) $op *b)),
-            (A::Int64(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op (*b as i64))),
+            (A::Int32(a), A::Int64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i64) $op *b),
+            (A::Int64(a), A::Int32(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op (*b as i64)),
 
-            (A::Int32(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
-            (A::Int64(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
-            (A::Float64(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
-            (A::Float64(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
+            (A::Int32(a), A::Float64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b),
+            (A::Int64(a), A::Float64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b),
+            (A::Float64(a), A::Int32(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64)),
+            (A::Float64(a), A::Int64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64)),
 
-            (A::Int32(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
-            (A::Int64(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
-            (A::Float64(a), A::Decimal(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from_f64_retain(a.0).unwrap() $op *b)),
-            (A::Decimal(a), A::Int32(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
-            (A::Decimal(a), A::Int64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
-            (A::Decimal(a), A::Float64(b)) => A::new_bool(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from_f64_retain(b.0).unwrap())),
+            (A::Int32(a), A::Decimal(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b),
+            (A::Int64(a), A::Decimal(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b),
+            (A::Float64(a), A::Decimal(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from_f64_retain(a.0).unwrap() $op *b),
+            (A::Decimal(a), A::Int32(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b)),
+            (A::Decimal(a), A::Int64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b)),
+            (A::Decimal(a), A::Float64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from_f64_retain(b.0).unwrap()),
 
             _ => return Err(ConvertError::NoBinaryOp(stringify!($name).into(), self.type_string(), other.type_string())),
-        })
+        })))
         }
     }
 }
@@ -131,9 +131,10 @@ impl ArrayImpl {
             return Err(ConvertError::NoBinaryOp("and".into(), self.type_string(), other.type_string()));
         };
         let mut c: BoolArray = binary_op(a.as_ref(), b.as_ref(), |a, b| *a && *b);
-        let a_false = !a.to_raw_bitvec() & a.get_valid_bitmap();
-        let b_false = !b.to_raw_bitvec() & b.get_valid_bitmap();
-        *c.get_valid_bitmap_mut() |= a_false | b_false;
+        let a_false = a.to_raw_bitvec().not_then_and(a.get_valid_bitmap());
+        let b_false = b.to_raw_bitvec().not_then_and(b.get_valid_bitmap());
+        c.get_valid_bitmap_mut().or(&a_false);
+        c.get_valid_bitmap_mut().or(&b_false);
         Ok(A::new_bool(c))
     }
 
@@ -142,9 +143,8 @@ impl ArrayImpl {
             return Err(ConvertError::NoBinaryOp("or".into(), self.type_string(), other.type_string()));
         };
         let mut c: BoolArray = binary_op(a.as_ref(), b.as_ref(), |a, b| *a || *b);
-        let a_true = a.to_raw_bitvec() & a.get_valid_bitmap();
-        let b_true = b.to_raw_bitvec() & b.get_valid_bitmap();
-        *c.get_valid_bitmap_mut() |= a_true | b_true;
+        let bitmap = c.to_raw_bitvec();
+        c.get_valid_bitmap_mut().or(&bitmap);
         Ok(A::new_bool(c))
     }
 
@@ -152,8 +152,7 @@ impl ArrayImpl {
         let A::Bool(a) = self else {
             return Err(ConvertError::NoUnaryOp("not".into(), self.type_string()));
         };
-        // should we zero the null values?
-        Ok(A::new_bool(unary_op(a.as_ref(), |b| !b)))
+        Ok(A::new_bool(clear_null(unary_op(a.as_ref(), |b| !b))))
     }
 
     /// Perform binary operation.
@@ -219,7 +218,7 @@ impl ArrayImpl {
                 Type::Int32 => Self::Int32(a.clone()),
                 Type::Int64 => Self::new_int64(unary_op(a.as_ref(), |&b| b as i64)),
                 Type::Float64 => Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64))),
-                Type::String => Self::new_utf8(unary_op(a.as_ref(), |&i| i.to_string())),
+                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
                 }
@@ -235,7 +234,7 @@ impl ArrayImpl {
                 })?),
                 Type::Int64 => Self::Int64(a.clone()),
                 Type::Float64 => Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64))),
-                Type::String => Self::new_utf8(unary_op(a.as_ref(), |&i| i.to_string())),
+                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
                 }
@@ -254,7 +253,7 @@ impl ArrayImpl {
                     None => Err(ConvertError::Overflow(DataValue::Float64(b), Type::Int64)),
                 })?),
                 Type::Float64 => Self::Float64(a.clone()),
-                Type::String => Self::new_utf8(unary_op(a.as_ref(), |&f| f.to_string())),
+                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
                 Type::Decimal(_, scale) => {
                     Self::new_decimal(try_unary_op(
                         a.as_ref(),
@@ -330,7 +329,7 @@ impl ArrayImpl {
                             DataValue::Decimal(d),
                         ))
                 })?),
-                Type::String => Self::new_utf8(unary_op(a.as_ref(), |d| d.to_string())),
+                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
                 Type::Decimal(_, _) => self.clone(),
                 Type::Null | Type::Blob | Type::Date | Type::Interval | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("DOUBLE", data_type.clone()));
@@ -338,12 +337,12 @@ impl ArrayImpl {
             },
             Self::Date(a) => match data_type {
                 Type::Date => self.clone(),
-                Type::String => Self::new_utf8(unary_op(a.as_ref(), |&d| d.to_string())),
+                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
                 _ => return Err(ConvertError::NoCast("DATE", data_type.clone())),
             },
             Self::Interval(a) => match data_type {
                 Type::Interval => self.clone(),
-                Type::String => Self::new_utf8(unary_op(a.as_ref(), |&d| d.to_string())),
+                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
                 _ => return Err(ConvertError::NoCast("INTERVAL", data_type.clone())),
             },
         })
@@ -374,14 +373,14 @@ macro_rules! impl_agg {
             /// Returns the minimum of values.
             pub fn min_(&self) -> DataValue {
                 match self {
-                    $(Self::$Abc(a) => a.iter().flatten().min().into(),)*
+                    $(Self::$Abc(a) => a.nonnull_iter().min().into(),)*
                 }
             }
 
             /// Returns the maximum of values.
             pub fn max_(&self) -> DataValue {
                 match self {
-                    $(Self::$Abc(a) => a.iter().flatten().max().into(),)*
+                    $(Self::$Abc(a) => a.nonnull_iter().max().into(),)*
                 }
             }
 
@@ -414,7 +413,7 @@ where
 {
     assert_eq!(a.len(), b.len());
     let it = a.raw_iter().zip(b.raw_iter()).map(|(a, b)| f(a, b));
-    let valid = a.get_valid_bitmap().clone() & b.get_valid_bitmap();
+    let valid = a.get_valid_bitmap().and(b.get_valid_bitmap());
     O::from_data(it, valid)
 }
 
@@ -444,4 +443,65 @@ where
         }
     }
     Ok(builder.finish())
+}
+
+/// Optimized operations.
+///
+/// Assume both bitvecs have the same length.
+pub trait BitVecExt {
+    /// self & other
+    fn and(&self, other: &Self) -> Self;
+    /// self |= other
+    fn or(&mut self, other: &Self);
+    /// !self & other
+    fn not_then_and(&self, other: &Self) -> Self;
+    /// Creates a [`BitVec`] from `&[bool]`.
+    fn from_bool_slice(bools: &[bool]) -> Self;
+}
+
+impl BitVecExt for BitVec {
+    fn and(&self, other: &Self) -> Self {
+        let mut res: BitVec = (self.as_raw_slice().iter())
+            .zip(other.as_raw_slice())
+            .map(|(a, b)| a & b)
+            .collect();
+        unsafe { res.set_len(self.len()) };
+        res
+    }
+
+    fn or(&mut self, other: &Self) {
+        for (a, b) in self.as_raw_mut_slice().iter_mut().zip(other.as_raw_slice()) {
+            *a |= b;
+        }
+    }
+
+    fn not_then_and(&self, other: &Self) -> Self {
+        let mut res: BitVec = (self.as_raw_slice().iter())
+            .zip(other.as_raw_slice())
+            .map(|(a, b)| !a & b)
+            .collect();
+        unsafe { res.set_len(self.len()) };
+        res
+    }
+
+    fn from_bool_slice(bools: &[bool]) -> Self {
+        // use SIMD to speed up
+        use std::simd::ToBitMask;
+        let mut iter = bools.array_chunks::<64>();
+        let mut bitvec = Vec::with_capacity((bools.len() + 63) / 64);
+        for chunk in iter.by_ref() {
+            let bitmask = std::simd::Mask::<i8, 64>::from_array(*chunk).to_bitmask() as usize;
+            bitvec.push(bitmask);
+        }
+        if !iter.remainder().is_empty() {
+            let mut bitmask = 0;
+            for (i, b) in iter.remainder().iter().enumerate() {
+                bitmask |= (*b as usize) << i;
+            }
+            bitvec.push(bitmask);
+        }
+        let mut bitvec = BitVec::from_vec(bitvec);
+        bitvec.truncate(bools.len());
+        bitvec
+    }
 }

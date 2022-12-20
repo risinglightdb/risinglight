@@ -70,11 +70,7 @@ impl BinaryExecutor {
                     let base = cnt;
                     // auto vectoried
                     buffer.iter_mut().enumerate().for_each(|(i, value)| {
-                        *value = f(
-                            i1a.get_unchecked(base + i),
-                            i2a.get_unchecked(base + i),
-                            &mut ctx,
-                        );
+                        *value = f(i1a.get_raw(base + i), i2a.get_raw(base + i), &mut ctx);
                     });
 
                     builder.extend_from_raw_data(&buffer);
@@ -86,11 +82,7 @@ impl BinaryExecutor {
                     let mut res_count = 0;
                     buffer.iter_mut().enumerate().for_each(|(i, value)| unsafe {
                         if *masks.get_unchecked(base + i) {
-                            *value = f(
-                                i1a.get_unchecked(base + i),
-                                i2a.get_unchecked(base + i),
-                                &mut ctx,
-                            );
+                            *value = f(i1a.get_raw(base + i), i2a.get_raw(base + i), &mut ctx);
                             res_count += 1;
                         }
                     });
@@ -107,11 +99,7 @@ impl BinaryExecutor {
                 .enumerate()
                 .for_each(|(i, (value, mask))| {
                     if *mask {
-                        *value = f(
-                            i1a.get_unchecked(cnt + i),
-                            i2a.get_unchecked(cnt + i),
-                            &mut ctx,
-                        );
+                        *value = f(i1a.get_raw(cnt + i), i2a.get_raw(cnt + i), &mut ctx);
                         res_count += 1;
                     }
                 });

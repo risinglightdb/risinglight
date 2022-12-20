@@ -86,7 +86,7 @@ impl StorageChunk {
             Some(visibility) => DataChunk::from_iter(
                 self.arrays
                     .iter()
-                    .map(|a| a.filter(visibility.iter().map(|x| *x))),
+                    .map(|a| a.filter(&visibility.iter().map(|x| *x).collect::<Vec<bool>>())),
             ),
             None => DataChunk::from_iter(self.arrays),
         }

@@ -59,11 +59,11 @@ impl InMemoryTxnIterator {
                     .map(|idx| match idx {
                         StorageColumnRef::Idx(idx) => selected_chunk
                             .array_at(*idx as usize)
-                            .filter(visibility.iter().map(|x| *x)),
+                            .filter(&visibility.iter().map(|x| *x).collect::<Vec<bool>>()),
                         StorageColumnRef::RowHandler => ArrayImpl::new_int64(I64Array::from_iter(
                             batch_range.clone().map(|x| x as i64),
                         ))
-                        .filter(visibility.iter().map(|x| *x)),
+                        .filter(&visibility.iter().map(|x| *x).collect::<Vec<bool>>()),
                     })
                     .collect::<DataChunk>()
             };

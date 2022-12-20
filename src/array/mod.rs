@@ -2,7 +2,6 @@
 
 use std::convert::TryFrom;
 use std::fmt::Debug;
-use std::iter::TrustedLen;
 use std::ops::{Bound, RangeBounds};
 use std::sync::Arc;
 
@@ -17,14 +16,12 @@ use crate::types::{
 
 mod data_chunk;
 mod data_chunk_builder;
-mod iterator;
 pub mod ops;
 mod primitive_array;
 mod utf8_array;
 
 pub use self::data_chunk::*;
 pub use self::data_chunk_builder::*;
-pub use self::iterator::ArrayIter;
 pub use self::primitive_array::*;
 pub use self::utf8_array::*;
 
@@ -101,50 +98,56 @@ pub trait Array: Sized + Send + Sync + 'static {
     /// Type of element in the array.
     type Item: ToOwned + ?Sized;
 
-    type RawIter<'a>: Iterator<Item = &'a Self::Item> + TrustedLen;
+    /// Returns true if the value at `idx` is null.
+    fn is_null(&self, idx: usize) -> bool;
 
-    /// Retrieve a reference to value.
-    fn get(&self, idx: usize) -> Option<&Self::Item>;
-
-    fn get_unchecked(&self, idx: usize) -> &Self::Item;
+    /// Returns the raw value at `idx` regardless of null.
+    fn get_raw(&self, idx: usize) -> &Self::Item;
 
     /// Number of items of array.
     fn len(&self) -> usize;
 
+    /// Retrieve a reference to value.
+    fn get(&self, idx: usize) -> Option<&Self::Item> {
+        if self.is_null(idx) {
+            None
+        } else {
+            Some(self.get_raw(idx))
+        }
+    }
+
+    fn filter(&self, p: &[bool]) -> Self;
+
     /// Get iterator of current array.
-    fn iter(&self) -> ArrayIter<'_, Self> {
-        ArrayIter::new(self)
+    fn iter(&self) -> impl DoubleEndedIterator<Item = Option<&Self::Item>> {
+        (0..self.len()).map(|i| self.get(i))
+    }
+
+    /// Get iterator over the raw values.
+    fn raw_iter(&self) -> impl DoubleEndedIterator<Item = &Self::Item> {
+        (0..self.len()).map(|i| self.get_raw(i))
+    }
+
+    /// Get iterator over the non-null values.
+    fn nonnull_iter(&self) -> impl DoubleEndedIterator<Item = &Self::Item> {
+        (0..self.len())
+            .filter(|i| !self.is_null(*i))
+            .map(|i| self.get_raw(i))
     }
 
     /// Check if `Array` is empty.
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
-
-    fn raw_iter(&self) -> Self::RawIter<'_>;
 }
 
 /// An extension trait for [`Array`].
 pub trait ArrayExt: Array {
-    /// Filter the elements and return a new array.
-    fn filter(&self, visibility: impl Iterator<Item = bool>) -> Self;
-
     /// Return a slice of self for the provided range.
     fn slice(&self, range: impl RangeBounds<usize>) -> Self;
 }
 
 impl<A: Array> ArrayExt for A {
-    /// Filter the elements and return a new array.
-    fn filter(&self, visibility: impl Iterator<Item = bool>) -> Self {
-        let mut builder = Self::Builder::with_capacity(self.len());
-        for (a, visible) in self.iter().zip(visibility) {
-            if visible {
-                builder.push(a);
-            }
-        }
-        builder.finish()
-    }
-
     /// Return a slice of self for the provided range.
     fn slice(&self, range: impl RangeBounds<usize>) -> Self {
         let len = self.len();
@@ -547,11 +550,11 @@ macro_rules! impl_array {
             }
 
             /// Filter the elements and return a new array.
-            pub fn filter(&self, visibility: impl Iterator<Item = bool>) -> Self {
+            pub fn filter(&self, visibility: &[bool]) -> Self {
                 match self {
-                    Self::Null(a) => Self::Null(a.filter(visibility).into()),
+                    Self::Null(a) => Self::Null(a.filter(&visibility).into()),
                     $(
-                        Self::$Abc(a) => Self::$Abc(a.filter(visibility).into()),
+                        Self::$Abc(a) => Self::$Abc(a.filter(&visibility).into()),
                     )*
                 }
             }

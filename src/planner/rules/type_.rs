@@ -68,7 +68,8 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
             })
         }
         And([a, b]) | Or([a, b]) | Xor([a, b]) => merge(enode, [x(a)?, x(b)?], |[a, b]| {
-            (a == Kind::Bool && b == Kind::Bool).then_some(Kind::Bool)
+            (matches!(a, Kind::Bool | Kind::Null) && matches!(b, Kind::Bool | Kind::Null))
+                .then_some(Kind::Bool)
         }),
         If([cond, then, else_]) => merge(
             enode,
