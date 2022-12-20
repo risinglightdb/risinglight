@@ -51,7 +51,7 @@ parse-display = "0.6"
 paste = "1"
 prost = "0.11.0"
 ref-cast = "1.0"
-risinglight_proto = "0.1"
+risinglight_proto = "0.2"
 rust_decimal = "1"
 rustyline = "10"
 serde = { version = "1", features = ["derive", "rc"] }
