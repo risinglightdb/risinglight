@@ -5,6 +5,7 @@
 #![feature(div_duration)]
 
 use std::fs::File;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -45,6 +46,10 @@ struct Args {
     /// Whether to use minitrace
     #[clap(long)]
     enable_tracing: bool,
+
+    /// Where to store the datbase files
+    #[clap(short, long)]
+    storage_path: Option<String>,
 
     /// Whether to use tokio console.
     #[clap(long)]
@@ -356,7 +361,11 @@ async fn main() -> Result<()> {
         Database::new_in_memory()
     } else {
         info!("using Secondary engine");
-        Database::new_on_disk(SecondaryStorageOptions::default_for_cli()).await
+        let mut options = SecondaryStorageOptions::default_for_cli();
+        if let Some(path) = args.storage_path {
+            options.path = PathBuf::new().join(path);
+        }
+        Database::new_on_disk(options).await
     };
 
     if let Some(file) = args.file {
