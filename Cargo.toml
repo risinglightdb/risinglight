@@ -64,7 +64,7 @@ tikv-jemallocator = { version = "0.5", optional = true }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "parking_lot"] }
-
+pyo3 = { version = "0.17.3", features = ["extension-module"] }
 [dev-dependencies]
 criterion = { version = "0.4", features = ["async_tokio"] }
 tempfile = "3"
