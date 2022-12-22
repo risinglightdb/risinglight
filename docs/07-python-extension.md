@@ -16,5 +16,5 @@ db.query("select 1 + 1")
 ## Progress
 
 - [x] Support Python API on x86-64 Linux   
-- [ ] Support Python API on arm macOS  
+- [x] Support Python API on arm macOS  
 - [ ] Support more APIs
