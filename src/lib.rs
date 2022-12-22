@@ -69,7 +69,6 @@ pub mod types;
 /// Utilities.
 pub mod utils;
 
-use pyo3::types::{PyBool, PyString};
 #[cfg(feature = "jemalloc")]
 use tikv_jemallocator::Jemalloc;
 
