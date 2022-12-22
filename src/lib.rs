@@ -111,7 +111,7 @@ pub struct PythonDatabase {
 }
 use pyo3::exceptions::PyException;
 
-use crate::array::{Chunk};
+use crate::array::Chunk;
 #[pymethods]
 impl PythonDatabase {
     fn query(&self, py: Python<'_>, sql: String) -> PyResult<Vec<Vec<PyObject>>> {
