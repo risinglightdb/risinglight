@@ -62,6 +62,8 @@ pub mod v1 {
 pub mod array;
 /// Metadata of database objects.
 pub mod catalog;
+/// Python Extension
+pub mod python_extension;
 /// Persistent storage engine.
 pub mod storage;
 /// Basic type definitions.
@@ -69,6 +71,7 @@ pub mod types;
 /// Utilities.
 pub mod utils;
 
+use python_extension::open;
 #[cfg(feature = "jemalloc")]
 use tikv_jemallocator::Jemalloc;
 
@@ -78,3 +81,13 @@ pub use self::db::{Database, Error};
 #[cfg(feature = "jemalloc")]
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
+
+/// Python Extension
+use pyo3::{prelude::*, wrap_pyfunction};
+
+/// The entry point of python module must be in the lib.rs
+#[pymodule]
+fn risinglight(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(open, m)?)?;
+    Ok(())
+}
