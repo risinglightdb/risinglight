@@ -10,7 +10,7 @@ python3 -m matruin build
 pip3 install ./target/wheels/risinglight-*.whl
 python3
 import risinglight
-db = risnglight.open("risinglight.db")
+db = risinglight.open("risinglight.db")
 db.query("select 1 + 1")
 ```
 
