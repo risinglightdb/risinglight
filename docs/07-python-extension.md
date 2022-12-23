@@ -5,8 +5,9 @@ We are working to support Python API for user to process and analyze data in Pyt
 
 ## Build and Use Python APIs
 ```
-matruin build
-pip3 install ./target/wheels/package_name.whl
+pip3 install maturin
+python3 -m matruin build
+pip3 install ./target/wheels/risinglight-*.whl
 python3
 import risinglight
 db = risnglight.open("risinglight.db")
