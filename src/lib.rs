@@ -87,7 +87,7 @@ use storage::SecondaryStorageOptions;
 /// Open a database for user, user can specify the path of database file
 #[pyfunction]
 fn open(path: String) -> PyResult<PythonDatabase> {
-    let runtime = tokio::runtime::Builder::new_current_thread()
+    let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
     let mut options = SecondaryStorageOptions::default_for_cli();
