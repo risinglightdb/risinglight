@@ -3,7 +3,7 @@
 use std::vec::Vec;
 
 use super::*;
-use crate::catalog::ColumnRefId;
+use crate::catalog::BaseTableColumnRefId;
 
 impl Binder {
     /// Binds the FROM clause. Returns a nested [`Join`](Node::Join) plan of tables.
@@ -149,8 +149,8 @@ impl Binder {
         }
         .keys()
         {
-            let column_ref_id = ColumnRefId::from_table(ref_id, *cid);
-            ids.push(self.egraph.add(Node::Column(column_ref_id)));
+            let column_ref_id = BaseTableColumnRefId::from_table(ref_id, *cid);
+            ids.push(self.egraph.add(Node::Column(ColumnRef::Base(column_ref_id))));
         }
         let id = self.egraph.add(Node::List(ids.into()));
         Ok(id)
@@ -196,8 +196,8 @@ impl Binder {
         let ids = column_ids
             .into_iter()
             .map(|id| {
-                let column_ref_id = ColumnRefId::from_table(table_ref_id, id);
-                self.egraph.add(Node::Column(column_ref_id))
+                let column_ref_id = BaseTableColumnRefId::from_table(table_ref_id, id);
+                self.egraph.add(Node::Column(ColumnRef::Base(column_ref_id)))
             })
             .collect();
         let id = self.egraph.add(Node::List(ids));

@@ -13,7 +13,7 @@ pub fn rules() -> Vec<Rewrite> { vec![
     ),
 ]}
 
-/// Replaces all column references (`ColumnRefId`) with
+/// Replaces all column references (`BaseTableColumnRefId`) with
 /// physical indices ([`ColumnIndex`]) to the given schema.
 ///
 /// # Example
@@ -48,7 +48,7 @@ impl ColumnIndexResolver {
         ColumnIndexResolver { egraph }
     }
 
-    /// Replaces all column references (`ColumnRefId`) with
+    /// Replaces all column references (`BaseTableColumnRefId`) with
     /// physical indices ([`ColumnIndex`]) in the expr.
     pub fn resolve(&mut self, expr: &RecExpr) -> RecExpr {
         struct PreferColumnIndex;

@@ -120,8 +120,8 @@ The binder will figure out some basic information like which tables do each vari
 Select(
   BoundSelect {
     select_list: [
-      Column #ColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 0 },
-      Sum([Column #ColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 1 }]) -> Int32 (nullable) (agg),
+      Column #BaseTableColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 0 },
+      Sum([Column #BaseTableColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 1 }]) -> Int32 (nullable) (agg),
     ],
     from_table: Some(
       JoinTableRef {
@@ -152,7 +152,7 @@ Select(
     where_clause: None,
     select_distinct: false,
     group_by: [
-      Column #ColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 0 },
+      Column #BaseTableColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 0 },
     ],
   },
 )
@@ -180,15 +180,15 @@ The example SQL will have the following logical plan, which is a simple DAG: `Pr
 ```rust
 LogicalProjection {
   project_expressions: [
-    Column #ColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 0 },
+    Column #BaseTableColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 0 },
     InputRef #1,
   ],
   child: LogicalAggregate {
     agg_calls: [
-      Sum([Column #ColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 1 }]) -> Int32 (nullable),
+      Sum([Column #BaseTableColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 1 }]) -> Int32 (nullable),
     ],
     group_keys: [
-      Column #ColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 0 },
+      Column #BaseTableColumnRefId { database_id: 0, schema_id: 0, table_id: 18, column_id: 0 },
     ],
     child: LogicalTableScan {
       table_ref_id: 0.0.18,

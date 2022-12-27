@@ -3,7 +3,7 @@
 use rust_decimal::Decimal;
 
 use super::*;
-use crate::catalog::ColumnRefId;
+use crate::catalog::BaseTableColumnRefId;
 use crate::parser::{
     BinaryOperator, DataType, DateTimeField, Expr, Function, FunctionArg, FunctionArgExpr,
     UnaryOperator, Value,
@@ -72,8 +72,8 @@ impl Binder {
             let col = table
                 .get_column_by_name(column_name)
                 .ok_or_else(|| BindError::InvalidColumn(column_name.into()))?;
-            let column_ref_id = ColumnRefId::from_table(table_ref_id, col.id());
-            return Ok(self.egraph.add(Node::Column(column_ref_id)));
+            let column_ref_id = BaseTableColumnRefId::from_table(table_ref_id, col.id());
+            return Ok(self.egraph.add(Node::Column(ColumnRef::Base(column_ref_id))));
         }
         // find column in all tables
         let mut column_ids = self.current_ctx().tables.values().filter_map(|table_id| {
@@ -81,14 +81,14 @@ impl Binder {
                 .get_table(table_id)
                 .unwrap()
                 .get_column_by_name(column_name)
-                .map(|col| ColumnRefId::from_table(*table_id, col.id()))
+                .map(|col| BaseTableColumnRefId::from_table(*table_id, col.id()))
         });
 
         if let Some(column_ref_id) = column_ids.next() {
             if column_ids.next().is_some() {
                 return Err(BindError::AmbiguousColumn(column_name.into()));
             }
-            let id = self.egraph.add(Node::Column(column_ref_id));
+            let id = self.egraph.add(Node::Column(ColumnRef::Base(column_ref_id)));
             return Ok(id);
         }
         if let Some(id) = self.current_ctx().aliases.get(column_name) {

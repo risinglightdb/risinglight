@@ -1,7 +1,8 @@
 //! Plan optimization rules.
 
 use super::*;
-use crate::catalog::ColumnRefId;
+use crate::binder_v2::ColumnRef;
+use crate::catalog::BaseTableColumnRefId;
 
 /// Returns the rules that always improve the plan.
 pub fn always_better_rules() -> Vec<Rewrite> {
@@ -210,14 +211,14 @@ fn is_list(v: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 }
 
 /// The data type of column analysis.
-pub type ColumnSet = HashSet<ColumnRefId>;
+pub type ColumnSet = HashSet<BaseTableColumnRefId>;
 
 /// Returns all columns involved in the node.
 pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
     use Expr::*;
     let x = |i: &Id| &egraph[*i].data.columns;
     match enode {
-        Column(col) => [*col].into_iter().collect(),
+        Column(ColumnRef::Base(col)) => [*col].into_iter().collect(),
         Proj([exprs, _]) => x(exprs).clone(),
         Agg([exprs, group_keys, _]) => x(exprs).union(x(group_keys)).cloned().collect(),
         Prune([cols, child]) => x(cols).intersection(x(child)).cloned().collect(),

@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter, Result};
 
 use egg::Id;
-
+use crate::binder_v2::ColumnRef;
 use super::{Expr, RecExpr};
 use crate::catalog::RootCatalog;
 
@@ -122,7 +122,7 @@ impl Display for Explain<'_> {
                     write!(f, "{i}")
                 }
             }
-            Column(i) => {
+            Column(ColumnRef::Base(i)) => {
                 if let Some(catalog) = self.catalog {
                     write!(f, "{}", catalog.get_column(i).expect("no column").name())
                 } else {

@@ -3,11 +3,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::vec::Vec;
+use serde::Serialize;
 
 use egg::{Id, Language};
 use itertools::Itertools;
 
-use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
+use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME, BaseTableColumnRefId, TableId, ColumnId};
 use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
 use crate::types::{DataTypeKind, DataValue};
@@ -221,4 +222,47 @@ fn lower_case_name(name: &ObjectName) -> ObjectName {
             .map(|ident| Ident::new(ident.value.to_lowercase()))
             .collect::<Vec<_>>(),
     )
+}
+/// A column reference has two cases.
+
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize)]
+pub enum ColumnRef {
+    /// Case 1: access a column in table directly: select a from t; 
+    Base(BaseTableColumnRefId),
+    /// Case 2: access a column in a subqeury: select sub0.x from (select a * 20 as x from t) as sub0;
+    SubQuery(SubQueryColumnRefId)
+}
+
+impl std::fmt::Display for ColumnRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
+impl std::fmt::Debug for ColumnRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            ColumnRef::Base(base) => write!(f, "base {base}"),
+            ColumnRef::SubQuery(subquery) => write!(f, "subquery {subquery}")
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize)]
+pub struct SubQueryColumnRefId {
+   pub table_id: TableId,
+   pub column_id: ColumnId
+}
+
+impl std::fmt::Debug for SubQueryColumnRefId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "${}.{}", self.table_id, self.column_id)
+    }
+}
+
+impl std::fmt::Display for SubQueryColumnRefId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
 }

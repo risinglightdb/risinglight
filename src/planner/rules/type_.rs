@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::{DataType, DataTypeKind as Kind};
+use crate::{types::{DataType, DataTypeKind as Kind}, planner::ColumnRef};
 
 /// The data type of type analysis.
 pub type Type = Result<DataType, TypeError>;
@@ -27,7 +27,7 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         // values
         Constant(v) => Ok(v.data_type()),
         Type(t) => Ok(t.clone().not_null()),
-        Column(col) => Ok(catalog
+        Column(ColumnRef::Base(col)) => Ok(catalog
             .get_column(col)
             .ok_or(TypeError::Unavailable)?
             .datatype()),
