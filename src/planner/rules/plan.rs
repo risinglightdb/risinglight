@@ -211,7 +211,7 @@ fn is_list(v: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 }
 
 /// The data type of column analysis.
-pub type ColumnSet = HashSet<BaseTableColumnRefId>;
+pub type ColumnSet = HashSet<ColumnRef>;
 
 /// Returns all columns involved in the node.
 pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
