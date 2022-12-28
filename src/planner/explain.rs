@@ -138,7 +138,7 @@ impl Display for Explain<'_> {
                         write!(f, "{base_column_ref}")
                     }
                 } else {
-                    panic!("Not supported")
+                    write!(f, "{i}")
                 }
             }
             ColumnIndex(i) => write!(f, "{i}"),
