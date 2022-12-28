@@ -32,7 +32,7 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
             .get_column(col)
             .ok_or(TypeError::Unavailable)?
             .datatype()),
-
+        Column(ColumnRef::SubQuery(_)) => todo!("support subquery encoding in the future."),   
         Nested(a) => x(a),
         List(list) => Ok(Kind::Struct(list.iter().map(x).try_collect()?).not_null()),
 

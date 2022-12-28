@@ -2,7 +2,6 @@
 
 use super::*;
 use crate::binder_v2::ColumnRef;
-use crate::catalog::BaseTableColumnRefId;
 
 /// Returns the rules that always improve the plan.
 pub fn always_better_rules() -> Vec<Rewrite> {
@@ -218,8 +217,7 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
     use Expr::*;
     let x = |i: &Id| &egraph[*i].data.columns;
     match enode {
-        Column(ColumnRef::Base(col)) => [*col].into_iter().collect(),
-        Column(ColumnRef::SubQuery(_)) => panic!("Not supported!"),
+        Column(col) => [*col].into_iter().collect(),
         Proj([exprs, _]) => x(exprs).clone(),
         Agg([exprs, group_keys, _]) => x(exprs).union(x(group_keys)).cloned().collect(),
         Prune([cols, child]) => x(cols).intersection(x(child)).cloned().collect(),

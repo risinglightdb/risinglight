@@ -142,6 +142,11 @@ impl Expr {
         *c
     }
 
+    pub fn as_base_column(&self) -> BaseTableColumnRefId {
+        let Self::Column(ColumnRef::Base(c)) = self else { panic!("not a columnn: {self}") };
+        *c
+    }
+
     pub fn as_table(&self) -> TableRefId {
         let Self::Table(t) = self else { panic!("not a table: {self}") };
         *t

@@ -187,7 +187,7 @@ impl<S: Storage> Builder<S> {
             Scan([table, list]) => TableScanExecutor {
                 table_id: self.node(table).as_table(),
                 columns: (self.node(list).as_list().iter())
-                    .map(|id| self.node(*id).as_column())
+                    .map(|id| self.node(*id).as_base_column())
                     .collect(),
                 storage: self.storage.clone(),
             }
@@ -284,7 +284,7 @@ impl<S: Storage> Builder<S> {
             Insert([table, cols, child]) => InsertExecutor {
                 table_id: self.node(table).as_table(),
                 column_ids: (self.node(cols).as_list().iter())
-                    .map(|id| self.node(*id).as_column().column_id)
+                    .map(|id| self.node(*id).as_base_column().column_id)
                     .collect(),
                 storage: self.storage.clone(),
             }
