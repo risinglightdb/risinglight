@@ -1,7 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use super::*;
-use crate::catalog::ColumnRefId;
+use crate::catalog::BaseTableColumnRefId;
 use crate::v1::binder::*;
 
 /// Resolves column references into physical indices into the `DataChunk`.
@@ -91,7 +91,7 @@ impl PlanRewriter for InputRefResolver {
             .zip(plan.column_descs())
             .map(|(col_id, col_desc)| {
                 Some(BoundExpr::ColumnRef(BoundColumnRef {
-                    column_ref_id: ColumnRefId::from_table(plan.table_ref_id(), *col_id),
+                    column_ref_id: BaseTableColumnRefId::from_table(plan.table_ref_id(), *col_id),
                     is_primary_key: col_desc.is_primary(),
                     desc: col_desc.clone(),
                 }))
@@ -107,7 +107,7 @@ impl PlanRewriter for InputRefResolver {
             .zip(plan.column_descs())
             .map(|(col_id, col_desc)| {
                 Some(BoundExpr::ColumnRef(BoundColumnRef {
-                    column_ref_id: ColumnRefId::from_table(plan.table_ref_id(), *col_id),
+                    column_ref_id: BaseTableColumnRefId::from_table(plan.table_ref_id(), *col_id),
                     is_primary_key: col_desc.is_primary(),
                     desc: col_desc.clone(),
                 }))
@@ -236,7 +236,7 @@ mod tests {
         let sum_v1_call = BoundExpr::AggCall(BoundAggCall {
             kind: AggKind::Sum,
             args: vec![BoundExpr::ColumnRef(BoundColumnRef {
-                column_ref_id: ColumnRefId::new(0, 0, 0, 0),
+                column_ref_id: BaseTableColumnRefId::new(0, 0, 0, 0),
                 is_primary_key: false,
                 desc: DataTypeKind::Int32.not_null().to_column("v1".into()),
             })],
@@ -245,7 +245,7 @@ mod tests {
         let v2_plus_1_expr = BoundExpr::BinaryOp(BoundBinaryOp {
             op: BinaryOperator::Plus,
             left_expr: BoundExpr::ColumnRef(BoundColumnRef {
-                column_ref_id: ColumnRefId::new(0, 0, 0, 1),
+                column_ref_id: BaseTableColumnRefId::new(0, 0, 0, 1),
                 is_primary_key: false,
                 desc: DataTypeKind::Int32.not_null().to_column("v2".into()),
             })
@@ -287,14 +287,14 @@ mod tests {
         let sum_v1_call = BoundExpr::AggCall(BoundAggCall {
             kind: AggKind::Sum,
             args: vec![BoundExpr::ColumnRef(BoundColumnRef {
-                column_ref_id: ColumnRefId::new(0, 0, 0, 0),
+                column_ref_id: BaseTableColumnRefId::new(0, 0, 0, 0),
                 is_primary_key: false,
                 desc: DataTypeKind::Int32.not_null().to_column("v1".into()),
             })],
             return_type: DataTypeKind::Int32.not_null(),
         });
         let v2_expr = BoundExpr::ColumnRef(BoundColumnRef {
-            column_ref_id: ColumnRefId::new(0, 0, 0, 1),
+            column_ref_id: BaseTableColumnRefId::new(0, 0, 0, 1),
             is_primary_key: false,
             desc: DataTypeKind::Int32.not_null().to_column("v2".into()),
         });

@@ -1,13 +1,19 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::collections::HashMap;
+use std::result::Result as RawResult;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::vec::Vec;
 
 use egg::{Id, Language};
 use itertools::Itertools;
+use serde::Serialize;
 
-use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
+use crate::catalog::{
+    BaseTableColumnRefId, ParseColumnIdError, RootCatalog, TableRefId, DEFAULT_DATABASE_NAME,
+    DEFAULT_SCHEMA_NAME,
+};
 use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
 use crate::types::{DataTypeKind, DataValue};
@@ -221,4 +227,57 @@ fn lower_case_name(name: &ObjectName) -> ObjectName {
             .map(|ident| Ident::new(ident.value.to_lowercase()))
             .collect::<Vec<_>>(),
     )
+}
+/// A column reference has two cases.
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize)]
+pub enum ColumnRef {
+    /// Case 1: access a column in table directly: select a from t;
+    Base(BaseTableColumnRefId),
+    /// Case 2: access a column in a subqeury: select sub0.x from (select a * 20 as x from t) as
+    /// sub0;
+    SubQuery(BoundSubQueryColumnRef),
+}
+
+impl std::fmt::Display for ColumnRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
+impl FromStr for ColumnRef {
+    type Err = ParseColumnIdError;
+
+    fn from_str(_s: &str) -> RawResult<Self, Self::Err> {
+        let column_id = BaseTableColumnRefId::from_str(_s)?;
+        Ok(ColumnRef::Base(column_id))
+    }
+}
+
+impl std::fmt::Debug for ColumnRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ColumnRef::Base(base) => write!(f, "{base}"),
+            ColumnRef::SubQuery(subquery) => write!(f, "{subquery}"),
+        }
+    }
+}
+
+// We won't convert the subquery column reference into ids in binder.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize)]
+pub struct BoundSubQueryColumnRef {
+    pub subquery_name: String,
+    pub column_name: String,
+}
+
+impl std::fmt::Debug for BoundSubQueryColumnRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "@{}.{}", self.subquery_name, self.column_name)
+    }
+}
+
+impl std::fmt::Display for BoundSubQueryColumnRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
 }

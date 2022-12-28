@@ -1,4 +1,5 @@
 use super::*;
+use crate::binder_v2::ColumnRef;
 use crate::types::{DataType, DataTypeKind as Kind};
 
 /// The data type of type analysis.
@@ -27,11 +28,11 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         // values
         Constant(v) => Ok(v.data_type()),
         Type(t) => Ok(t.clone().not_null()),
-        Column(col) => Ok(catalog
+        Column(ColumnRef::Base(col)) => Ok(catalog
             .get_column(col)
             .ok_or(TypeError::Unavailable)?
             .datatype()),
-
+        Column(ColumnRef::SubQuery(_)) => todo!("support subquery encoding in the future."),
         Nested(a) => x(a),
         List(list) => Ok(Kind::Struct(list.iter().map(x).try_collect()?).not_null()),
 

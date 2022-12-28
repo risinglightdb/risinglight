@@ -4,7 +4,7 @@ use bitvec::prelude::BitVec;
 use serde::Serialize;
 
 use super::*;
-use crate::catalog::ColumnRefId;
+use crate::catalog::BaseTableColumnRefId;
 use crate::parser::{BinaryOperator, DateTimeField, Expr, Function, UnaryOperator, Value};
 use crate::types::{DataType, DataTypeKind, DataValue, Interval};
 
@@ -101,8 +101,8 @@ impl BoundExpr {
         visitor.0
     }
 
-    pub fn resolve_column_ref_id(&self, column_ref_ids: &mut Vec<ColumnRefId>) {
-        struct Visitor<'a>(&'a mut Vec<ColumnRefId>);
+    pub fn resolve_column_ref_id(&self, column_ref_ids: &mut Vec<BaseTableColumnRefId>) {
+        struct Visitor<'a>(&'a mut Vec<BaseTableColumnRefId>);
         impl<'a> ExprVisitor for Visitor<'a> {
             fn visit_column_ref(&mut self, expr: &BoundColumnRef) {
                 self.0.push(expr.column_ref_id);

@@ -2,7 +2,7 @@ use egg::{define_language, CostFunction, Id, Symbol};
 
 use crate::binder_v2::copy::ExtSource;
 use crate::binder_v2::{BoundDrop, CreateTable};
-use crate::catalog::{ColumnRefId, TableRefId};
+use crate::catalog::{BaseTableColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
 
@@ -13,6 +13,7 @@ mod rules;
 pub use explain::Explain;
 pub use rules::{ColumnIndexResolver, ExprAnalysis, TypeError, TypeSchemaAnalysis};
 
+pub use crate::binder_v2::ColumnRef;
 // Alias types for our language.
 type EGraph = egg::EGraph<Expr, ExprAnalysis>;
 type Rewrite = egg::Rewrite<Expr, ExprAnalysis>;
@@ -24,7 +25,7 @@ define_language! {
         // values
         Constant(DataValue),            // null, true, 1, 1.0, "hello", ...
         Type(DataTypeKind),             // BOOLEAN, INT, DECIMAL(5), ...
-        Column(ColumnRefId),            // $1.2, $2.1, ...
+        Column(ColumnRef),              // $1.2, @subquery.column, ...
         Table(TableRefId),              // $1, $2, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
         ExtSource(ExtSource),
@@ -136,8 +137,13 @@ impl Expr {
         l
     }
 
-    pub fn as_column(&self) -> ColumnRefId {
+    pub fn as_column(&self) -> ColumnRef {
         let Self::Column(c) = self else { panic!("not a columnn: {self}") };
+        c.clone()
+    }
+
+    pub fn as_base_column(&self) -> BaseTableColumnRefId {
+        let Self::Column(ColumnRef::Base(c)) = self else { panic!("not a columnn: {self}") };
         *c
     }
 

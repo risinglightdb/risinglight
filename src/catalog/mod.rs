@@ -90,16 +90,16 @@ impl TableRefId {
 
 /// The reference ID of a column.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize)]
-pub struct ColumnRefId {
+pub struct BaseTableColumnRefId {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_id: TableId,
     pub column_id: ColumnId,
 }
 
-impl ColumnRefId {
+impl BaseTableColumnRefId {
     pub const fn from_table(table: TableRefId, column_id: ColumnId) -> Self {
-        ColumnRefId {
+        BaseTableColumnRefId {
             database_id: table.database_id,
             schema_id: table.schema_id,
             table_id: table.table_id,
@@ -113,7 +113,7 @@ impl ColumnRefId {
         table_id: TableId,
         column_id: ColumnId,
     ) -> Self {
-        ColumnRefId {
+        BaseTableColumnRefId {
             database_id,
             schema_id,
             table_id,
@@ -130,14 +130,14 @@ impl ColumnRefId {
     }
 }
 
-impl std::fmt::Debug for ColumnRefId {
+impl std::fmt::Debug for BaseTableColumnRefId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // TODO: now ignore database and schema
         write!(f, "${}.{}", self.table_id, self.column_id)
     }
 }
 
-impl std::fmt::Display for ColumnRefId {
+impl std::fmt::Display for BaseTableColumnRefId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
     }
@@ -156,7 +156,7 @@ pub enum ParseColumnIdError {
     InvalidNum(#[from] std::num::ParseIntError),
 }
 
-impl FromStr for ColumnRefId {
+impl FromStr for BaseTableColumnRefId {
     type Err = ParseColumnIdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -166,7 +166,7 @@ impl FromStr for ColumnRefId {
         let table_id = parts.next().ok_or(Self::Err::InvalidTable)?.parse()?;
         let schema_id = parts.next().map_or(Ok(0), |s| s.parse())?;
         let database_id = parts.next().map_or(Ok(0), |s| s.parse())?;
-        Ok(ColumnRefId {
+        Ok(BaseTableColumnRefId {
             database_id,
             schema_id,
             table_id,
