@@ -11,8 +11,8 @@ use itertools::Itertools;
 use serde::Serialize;
 
 use crate::catalog::{
-    BaseTableColumnRefId, ColumnId, RootCatalog, TableId, TableRefId, DEFAULT_DATABASE_NAME,
-    DEFAULT_SCHEMA_NAME,
+    BaseTableColumnRefId, ColumnId, ParseColumnIdError, RootCatalog, TableId, TableRefId,
+    DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME,
 };
 use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
@@ -241,26 +241,24 @@ pub enum ColumnRef {
 
 impl std::fmt::Display for ColumnRef {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match *self {
-            ColumnRef::Base(base) => write!(f, "${}.{}", base.table_id, base.column_id),
-            ColumnRef::SubQuery(subquery) => panic!("Not supported"),
-        }
+        write!(f, "{self:?}")
     }
 }
 
 impl FromStr for ColumnRef {
-    type Err = ();
+    type Err = ParseColumnIdError;
 
     fn from_str(_s: &str) -> RawResult<Self, Self::Err> {
-        Err(())
+        let column_id = BaseTableColumnRefId::from_str(_s)?;
+        Ok(ColumnRef::Base(column_id))
     }
 }
 
 impl std::fmt::Debug for ColumnRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
-            ColumnRef::Base(base) => write!(f, "${}.{}", base.table_id, base.column_id),
-            ColumnRef::SubQuery(subquery) => panic!("Not supported"),
+            ColumnRef::Base(base) => write!(f, "{base}"),
+            ColumnRef::SubQuery(subquery) => write!(f, "{subquery}"),
         }
     }
 }
@@ -273,7 +271,7 @@ pub struct SubQueryColumnRefId {
 
 impl std::fmt::Debug for SubQueryColumnRefId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "${}.{}", self.table_id, self.column_id)
+        write!(f, "@{}.{}", self.table_id, self.column_id)
     }
 }
 
