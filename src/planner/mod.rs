@@ -139,7 +139,7 @@ impl Expr {
 
     pub fn as_column(&self) -> ColumnRef {
         let Self::Column(c) = self else { panic!("not a columnn: {self}") };
-        *c
+        c.clone()
     }
 
     pub fn as_base_column(&self) -> BaseTableColumnRefId {
