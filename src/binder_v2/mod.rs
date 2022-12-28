@@ -241,7 +241,10 @@ pub enum ColumnRef {
 
 impl std::fmt::Display for ColumnRef {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self:?}")
+        match *self {
+            ColumnRef::Base(base) => write!(f, "${}.{}", base.table_id, base.column_id),
+            ColumnRef::SubQuery(subquery) => panic!("Not supported"),
+        }
     }
 }
 
@@ -256,8 +259,8 @@ impl FromStr for ColumnRef {
 impl std::fmt::Debug for ColumnRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
-            ColumnRef::Base(base) => write!(f, "base {base}"),
-            ColumnRef::SubQuery(subquery) => write!(f, "subquery {subquery}"),
+            ColumnRef::Base(base) => write!(f, "${}.{}", base.table_id, base.column_id),
+            ColumnRef::SubQuery(subquery) => panic!("Not supported"),
         }
     }
 }

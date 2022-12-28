@@ -219,6 +219,7 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
     let x = |i: &Id| &egraph[*i].data.columns;
     match enode {
         Column(ColumnRef::Base(col)) => [*col].into_iter().collect(),
+        Column(ColumnRef::SubQuery(col)) => panic!("Not supported!"),
         Proj([exprs, _]) => x(exprs).clone(),
         Agg([exprs, group_keys, _]) => x(exprs).union(x(group_keys)).cloned().collect(),
         Prune([cols, child]) => x(cols).intersection(x(child)).cloned().collect(),

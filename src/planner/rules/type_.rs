@@ -1,5 +1,5 @@
 use super::*;
-use crate::planner::ColumnRef;
+use crate::binder_v2::ColumnRef;
 use crate::types::{DataType, DataTypeKind as Kind};
 
 /// The data type of type analysis.
