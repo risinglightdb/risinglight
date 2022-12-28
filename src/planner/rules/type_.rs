@@ -1,5 +1,6 @@
 use super::*;
-use crate::{types::{DataType, DataTypeKind as Kind}, planner::ColumnRef};
+use crate::planner::ColumnRef;
+use crate::types::{DataType, DataTypeKind as Kind};
 
 /// The data type of type analysis.
 pub type Type = Result<DataType, TypeError>;

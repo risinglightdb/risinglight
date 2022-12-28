@@ -150,7 +150,10 @@ impl Binder {
         .keys()
         {
             let column_ref_id = BaseTableColumnRefId::from_table(ref_id, *cid);
-            ids.push(self.egraph.add(Node::Column(ColumnRef::Base(column_ref_id))));
+            ids.push(
+                self.egraph
+                    .add(Node::Column(ColumnRef::Base(column_ref_id))),
+            );
         }
         let id = self.egraph.add(Node::List(ids.into()));
         Ok(id)
@@ -197,7 +200,8 @@ impl Binder {
             .into_iter()
             .map(|id| {
                 let column_ref_id = BaseTableColumnRefId::from_table(table_ref_id, id);
-                self.egraph.add(Node::Column(ColumnRef::Base(column_ref_id)))
+                self.egraph
+                    .add(Node::Column(ColumnRef::Base(column_ref_id)))
             })
             .collect();
         let id = self.egraph.add(Node::List(ids));

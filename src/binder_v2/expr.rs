@@ -73,7 +73,9 @@ impl Binder {
                 .get_column_by_name(column_name)
                 .ok_or_else(|| BindError::InvalidColumn(column_name.into()))?;
             let column_ref_id = BaseTableColumnRefId::from_table(table_ref_id, col.id());
-            return Ok(self.egraph.add(Node::Column(ColumnRef::Base(column_ref_id))));
+            return Ok(self
+                .egraph
+                .add(Node::Column(ColumnRef::Base(column_ref_id))));
         }
         // find column in all tables
         let mut column_ids = self.current_ctx().tables.values().filter_map(|table_id| {
@@ -88,7 +90,9 @@ impl Binder {
             if column_ids.next().is_some() {
                 return Err(BindError::AmbiguousColumn(column_name.into()));
             }
-            let id = self.egraph.add(Node::Column(ColumnRef::Base(column_ref_id)));
+            let id = self
+                .egraph
+                .add(Node::Column(ColumnRef::Base(column_ref_id)));
             return Ok(id);
         }
         if let Some(id) = self.current_ctx().aliases.get(column_name) {

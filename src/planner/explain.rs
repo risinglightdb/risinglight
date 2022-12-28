@@ -1,8 +1,9 @@
 use std::fmt::{Display, Formatter, Result};
 
 use egg::Id;
-use crate::binder_v2::ColumnRef;
+
 use super::{Expr, RecExpr};
+use crate::binder_v2::ColumnRef;
 use crate::catalog::RootCatalog;
 
 /// A wrapper over [`RecExpr`] to explain it in [`Display`].
@@ -122,9 +123,20 @@ impl Display for Explain<'_> {
                     write!(f, "{i}")
                 }
             }
-            Column(ColumnRef::Base(i)) => {
-                if let Some(catalog) = self.catalog {
-                    write!(f, "{}", catalog.get_column(i).expect("no column").name())
+            Column(i) => {
+                if let ColumnRef::Base(base_column_ref) = i {
+                    if let Some(catalog) = self.catalog {
+                        write!(
+                            f,
+                            "{}",
+                            catalog
+                                .get_column(base_column_ref)
+                                .expect("no column")
+                                .name()
+                        )
+                    } else {
+                        write!(f, "{base_column_ref}")
+                    }
                 } else {
                     write!(f, "{i}")
                 }

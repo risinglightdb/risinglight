@@ -12,6 +12,7 @@ mod rules;
 
 pub use explain::Explain;
 pub use rules::{ColumnIndexResolver, ExprAnalysis, TypeError, TypeSchemaAnalysis};
+
 pub use crate::binder_v2::ColumnRef;
 // Alias types for our language.
 type EGraph = egg::EGraph<Expr, ExprAnalysis>;

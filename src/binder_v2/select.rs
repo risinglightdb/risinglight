@@ -196,7 +196,6 @@ impl Binder {
             return Ok(self.egraph.add(Node::Nested(id)));
         }
         if let Node::Column(ColumnRef::Base(cid)) = &expr {
-            
             let name = self.catalog.get_column(cid).unwrap().name().to_string();
             return Err(BindError::ColumnNotInAgg(name));
         }
