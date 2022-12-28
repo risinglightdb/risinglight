@@ -13,7 +13,7 @@ pub fn rules() -> Vec<Rewrite> { vec![
     ),
 ]}
 
-/// Replaces all column references (`BaseTableColumnRefId`) with
+/// Replaces all column references (`ColumnRef`) with
 /// physical indices ([`ColumnIndex`]) to the given schema.
 ///
 /// # Example
