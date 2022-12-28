@@ -48,7 +48,7 @@ impl ColumnIndexResolver {
         ColumnIndexResolver { egraph }
     }
 
-    /// Replaces all column references (`BaseTableColumnRefId`) with
+    /// Replaces all column references (`ColumnRef`) with
     /// physical indices ([`ColumnIndex`]) in the expr.
     pub fn resolve(&mut self, expr: &RecExpr) -> RecExpr {
         struct PreferColumnIndex;
