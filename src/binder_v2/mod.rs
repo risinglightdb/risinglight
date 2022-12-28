@@ -11,8 +11,8 @@ use itertools::Itertools;
 use serde::Serialize;
 
 use crate::catalog::{
-    BaseTableColumnRefId, ColumnId, ParseColumnIdError, RootCatalog, TableId, TableRefId,
-    DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME,
+    BaseTableColumnRefId, ParseColumnIdError, RootCatalog, TableRefId, DEFAULT_DATABASE_NAME,
+    DEFAULT_SCHEMA_NAME,
 };
 use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
@@ -230,13 +230,13 @@ fn lower_case_name(name: &ObjectName) -> ObjectName {
 }
 /// A column reference has two cases.
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize)]
 pub enum ColumnRef {
     /// Case 1: access a column in table directly: select a from t;
     Base(BaseTableColumnRefId),
     /// Case 2: access a column in a subqeury: select sub0.x from (select a * 20 as x from t) as
     /// sub0;
-    SubQuery(SubQueryColumnRefId),
+    SubQuery(BoundSubQueryColumnRef),
 }
 
 impl std::fmt::Display for ColumnRef {
@@ -256,26 +256,27 @@ impl FromStr for ColumnRef {
 
 impl std::fmt::Debug for ColumnRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match *self {
+        match self {
             ColumnRef::Base(base) => write!(f, "{base}"),
             ColumnRef::SubQuery(subquery) => write!(f, "{subquery}"),
         }
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize)]
-pub struct SubQueryColumnRefId {
-    pub table_id: TableId,
-    pub column_id: ColumnId,
+// We won't convert the subquery column reference into ids in binder.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize)]
+pub struct BoundSubQueryColumnRef {
+    pub subquery_name: String,
+    pub column_name: String,
 }
 
-impl std::fmt::Debug for SubQueryColumnRefId {
+impl std::fmt::Debug for BoundSubQueryColumnRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "@{}.{}", self.table_id, self.column_id)
+        write!(f, "@{}.{}", self.subquery_name, self.column_name)
     }
 }
 
-impl std::fmt::Display for SubQueryColumnRefId {
+impl std::fmt::Display for BoundSubQueryColumnRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
     }
