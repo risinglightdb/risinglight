@@ -5,24 +5,6 @@ use tracing::debug;
 
 use super::*;
 
-/// Avoid `Prune` and `Select` nodes.
-///
-/// This is used in stage1 optimization.
-pub struct NoPrune;
-
-impl egg::CostFunction<Expr> for NoPrune {
-    type Cost = u32;
-    fn cost<C>(&mut self, enode: &Expr, mut costs: C) -> Self::Cost
-    where
-        C: FnMut(Id) -> Self::Cost,
-    {
-        match enode {
-            Expr::Prune(_) => u32::MAX,
-            _ => enode.fold(1, |sum, id| sum.checked_add(costs(id)).unwrap_or(u32::MAX)),
-        }
-    }
-}
-
 /// The main cost function.
 pub struct CostFn<'a> {
     pub egraph: &'a EGraph,
@@ -47,7 +29,7 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
         let out = || rows(id) * cols(id);
 
         let c = match enode {
-            Prune(_) => f32::INFINITY, // should no longer exists
+            ColumnPrune(_) | ColumnMerge(_) => f32::INFINITY, // should no longer exists
             Scan(_) | Values(_) => out(),
             Order([_, c]) => nlogn(rows(c)) + out() + costs(c),
             Proj([exprs, c]) | Filter([exprs, c]) => costs(exprs) * rows(c) + out() + costs(c),

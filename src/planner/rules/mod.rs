@@ -1,7 +1,7 @@
 //! Optimization rules and related program analyses.
 //!
-//! Currently we have 4 kinds of rules.
-//! Each of them is defined in a sub-module and has its own analysis:
+//! Currently we have 6 kinds of analyses.
+//! Each of them is defined in a sub-module:
 //!
 //! |   module   |         rules         |            analysis           | analysis data  |
 //! |------------|-----------------------|-------------------------------|----------------|
@@ -28,7 +28,7 @@ use std::sync::LazyLock;
 
 use egg::{rewrite as rw, *};
 
-use super::{EGraph, Expr, Pattern, RecExpr, Rewrite};
+use super::{EGraph, Expr, Pattern, Rewrite};
 use crate::catalog::RootCatalogRef;
 use crate::types::F32;
 
@@ -39,27 +39,18 @@ mod rows;
 mod schema;
 mod type_;
 
-pub use self::schema::ColumnIndexResolver;
 pub use self::type_::TypeError;
 
 /// Stage1 rules in the optimizer.
 pub static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
-    let mut rules = vec![];
-    rules.append(&mut plan::column_prune_rules());
-    rules.append(&mut schema::rules());
-    rules
-});
-
-/// Stage2 rules in the optimizer.
-pub static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     let mut rules = vec![];
     rules.append(&mut expr::rules());
     rules.append(&mut plan::always_better_rules());
     rules
 });
 
-/// Stage3 rules in the optimizer.
-pub static STAGE3_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
+/// Stage2 rules in the optimizer.
+pub static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     let mut rules = vec![];
     rules.append(&mut expr::rules());
     rules.append(&mut plan::join_rules());

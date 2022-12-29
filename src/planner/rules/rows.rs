@@ -32,7 +32,6 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         Limit([limit, _, c]) | TopN([limit, _, _, c]) => x(c).min(get_limit_num(limit)),
         Join([_, on, l, r]) => x(l) * x(r) * x(on),
         HashJoin([_, _, _, l, r]) => x(l).max(x(r)),
-        Prune([_, c]) => x(c),
         Empty(_) => 0.0,
 
         // for expressions, the result represents selectivity
