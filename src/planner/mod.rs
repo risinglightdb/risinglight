@@ -11,7 +11,7 @@ mod explain;
 mod rules;
 
 pub use explain::Explain;
-pub use rules::{ColumnIndexResolver, ExprAnalysis, TypeError, TypeSchemaAnalysis};
+pub use rules::{ExprAnalysis, TypeError, TypeSchemaAnalysis};
 
 pub use crate::binder_v2::ColumnRef;
 // Alias types for our language.
@@ -103,9 +103,10 @@ define_language! {
         "explain" = Explain(Id),                // (explain child)
 
         // internal functions
-        "prune" = Prune([Id; 2]),               // (prune node child)
-                                                    // do column prune on `child`
-                                                    // with the used columns in `node`
+        "column-merge" = ColumnMerge([Id; 2]),  // (column-merge list1 list2)
+                                                    // return a list of columns from list1 and list2
+        "column-prune" = ColumnPrune([Id; 2]),  // (column-prune filter list)
+                                                    // remove element from `list` whose column set is not a subset of `filter`
         "empty" = Empty(Box<[Id]>),             // (empty child..)
                                                     // returns empty chunk
                                                     // with the same schema as `child`
@@ -213,22 +214,16 @@ impl<D> ExprExt for egg::EClass<Expr, D> {
 
 /// Optimize the given expression.
 pub fn optimize(expr: &RecExpr) -> RecExpr {
-    // 1. column pruning
-    // TODO: remove unused analysis
-    let runner = egg::Runner::default()
-        .with_expr(expr)
-        .run(&*rules::STAGE1_RULES);
-    let extractor = egg::Extractor::new(&runner.egraph, cost::NoPrune);
-    let (_, mut expr) = extractor.find_best(runner.roots[0]);
+    let mut expr = expr.clone();
 
-    // 2. pushdown
+    // 1. pushdown
     let mut best_cost = f32::MAX;
     // to prune costy nodes, we iterate multiple times and only keep the best one for each run.
     for _ in 0..3 {
         let runner = egg::Runner::default()
             .with_expr(&expr)
             .with_iter_limit(6)
-            .run(&*rules::STAGE2_RULES);
+            .run(&*rules::STAGE1_RULES);
         let cost_fn = cost::CostFn {
             egraph: &runner.egraph,
         };
@@ -245,10 +240,10 @@ pub fn optimize(expr: &RecExpr) -> RecExpr {
         // );
     }
 
-    // 3. join reorder and hashjoin
+    // 2. join reorder and hashjoin
     let runner = egg::Runner::default()
         .with_expr(&expr)
-        .run(&*rules::STAGE3_RULES);
+        .run(&*rules::STAGE2_RULES);
     let cost_fn = cost::CostFn {
         egraph: &runner.egraph,
     };

@@ -276,7 +276,7 @@ impl Display for Explain<'_> {
             ),
             Explain(child) => write!(f, "{tab}Explain:{cost}\n{}", self.child(child)),
             Empty(_) => writeln!(f, "{tab}Empty:{cost}"),
-            Prune(_) => panic!("cannot explain Prune"),
+            ColumnPrune(_) | ColumnMerge(_) => panic!("cannot explain {enode}"),
         }
     }
 }
