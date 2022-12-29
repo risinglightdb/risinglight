@@ -112,11 +112,12 @@ order by
     l_linestatus;
 
 /*
-Projection: [l_returnflag, l_linestatus, sum(l_quantity), sum(l_extendedprice), sum((l_extendedprice * (1 - l_discount))), sum(((1 - l_discount) * (l_extendedprice + (l_tax * l_extendedprice)))), (sum(l_quantity) / count(l_quantity)), (sum(l_extendedprice) / count(l_extendedprice)), (sum(l_discount) / count(l_discount)), rowcount] (cost=33878.984)
-  Order: [l_returnflag asc, l_linestatus asc] (cost=27798.984)
-    Aggregate: [sum(l_quantity), sum(l_extendedprice), sum((l_extendedprice * (1 - l_discount))), sum(((1 - l_discount) * (l_extendedprice + (l_tax * l_extendedprice)))), count(l_quantity), count(l_extendedprice), sum(l_discount), count(l_discount), rowcount], groupby=[l_returnflag, l_linestatus] (cost=19940)
-      Filter: (1998-09-21 >= l_shipdate) (cost=12900)
-        Scan: lineitem[l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate] (cost=7000)
+Projection: [l_returnflag, l_linestatus, sum(l_quantity), sum(l_extendedprice), sum((l_extendedprice * (1 - l_discount))), sum(((l_tax + 1) * (l_extendedprice * (1 - l_discount)))), (sum(l_quantity) / count(l_quantity)), (sum(l_extendedprice) / count(l_extendedprice)), (sum(l_discount) / count(l_discount)), rowcount] (cost=39238.984)
+  Order: [l_returnflag asc, l_linestatus asc] (cost=33158.984)
+    Aggregate: [sum(l_quantity), sum(l_extendedprice), sum((l_extendedprice * (1 - l_discount))), sum(((l_tax + 1) * (l_extendedprice * (1 - l_discount)))), count(l_quantity), count(l_extendedprice), sum(l_discount), count(l_discount), rowcount], groupby=[l_returnflag, l_linestatus] (cost=25300)
+      Projection: [l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus] (cost=18260)
+        Filter: (1998-09-21 >= l_shipdate) (cost=12900)
+          Scan: lineitem[l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate] (cost=7000)
 */
 
 -- tpch-q3: TPC-H Q3
@@ -145,17 +146,21 @@ order by
 limit 10;
 
 /*
-Projection: [l_orderkey, sum((l_extendedprice * (1 - l_discount))), o_orderdate, o_shippriority] (cost=57541.88)
-  TopN: limit=10, offset=0, orderby=[sum((l_extendedprice * (1 - l_discount))) desc, o_orderdate asc] (cost=57487.88)
-    Aggregate: [sum((l_extendedprice * (1 - l_discount)))], groupby=[l_orderkey, o_orderdate, o_shippriority] (cost=56064.105)
-      HashJoin: inner, on=([o_orderkey] = [l_orderkey]) (cost=53584.105)
-        HashJoin: inner, on=([c_custkey] = [o_custkey]) (cost=22651.05)
-          Filter: (c_mktsegment = 'BUILDING') (cost=2700)
-            Scan: customer[c_custkey, c_mktsegment] (cost=2000)
-          Filter: (1995-03-15 > o_orderdate) (cost=7500)
-            Scan: orders[o_orderkey, o_custkey, o_orderdate, o_shippriority] (cost=4000)
-        Filter: (l_shipdate > 1995-03-15) (cost=7500)
-          Scan: lineitem[l_orderkey, l_extendedprice, l_discount, l_shipdate] (cost=4000)
+Projection: [l_orderkey, sum((l_extendedprice * (1 - l_discount))), o_orderdate, o_shippriority] (cost=63701.88)
+  TopN: limit=10, offset=0, orderby=[sum((l_extendedprice * (1 - l_discount))) desc, o_orderdate asc] (cost=63647.88)
+    Aggregate: [sum((l_extendedprice * (1 - l_discount)))], groupby=[l_orderkey, o_orderdate, o_shippriority] (cost=62224.105)
+      Projection: [o_orderdate, o_shippriority, l_orderkey, l_extendedprice, l_discount] (cost=59744.105)
+        HashJoin: inner, on=([o_orderkey] = [l_orderkey]) (cost=55264.105)
+          Projection: [o_orderkey, o_orderdate, o_shippriority] (cost=24811.05)
+            HashJoin: inner, on=([c_custkey] = [o_custkey]) (cost=22091.05)
+              Projection: [c_custkey] (cost=2940)
+                Filter: (c_mktsegment = 'BUILDING') (cost=2700)
+                  Scan: customer[c_custkey, c_mktsegment] (cost=2000)
+              Filter: (1995-03-15 > o_orderdate) (cost=7500)
+                Scan: orders[o_orderkey, o_custkey, o_orderdate, o_shippriority] (cost=4000)
+          Projection: [l_orderkey, l_extendedprice, l_discount] (cost=10220)
+            Filter: (l_shipdate > 1995-03-15) (cost=7500)
+              Scan: lineitem[l_orderkey, l_extendedprice, l_discount, l_shipdate] (cost=4000)
 */
 
 -- tpch-q5: TPC-H Q5
@@ -185,22 +190,29 @@ order by
     revenue desc;
 
 /*
-Projection: [n_name, sum((l_extendedprice * (1 - l_discount)))] (cost=158314.61)
-  Order: [sum((l_extendedprice * (1 - l_discount))) desc] (cost=156814.61)
-    Aggregate: [sum((l_extendedprice * (1 - l_discount)))], groupby=[n_name] (cost=151330.28)
-      HashJoin: inner, on=([l_suppkey, c_nationkey] = [s_suppkey, s_nationkey]) (cost=149430.28)
-        HashJoin: inner, on=([o_orderkey] = [l_orderkey]) (cost=61900.703)
-          HashJoin: inner, on=([c_custkey] = [o_custkey]) (cost=28966.25)
-            Scan: customer[c_custkey, c_nationkey] (cost=2000)
-            Filter: ((o_orderdate >= 1994-01-01) and (1995-01-01 > o_orderdate)) (cost=5620)
-              Scan: orders[o_orderkey, o_custkey, o_orderdate] (cost=3000)
-          Scan: lineitem[l_orderkey, l_suppkey, l_extendedprice, l_discount] (cost=4000)
-        HashJoin: inner, on=([n_regionkey] = [r_regionkey]) (cost=51595.125)
-          HashJoin: inner, on=([s_nationkey] = [n_nationkey]) (cost=29934.451)
-            Scan: supplier[s_suppkey, s_nationkey] (cost=2000)
-            Scan: nation[n_nationkey, n_name, n_regionkey] (cost=3000)
-          Filter: (r_name = 'AFRICA') (cost=2700)
-            Scan: region[r_regionkey, r_name] (cost=2000)
+Projection: [n_name, sum((l_extendedprice * (1 - l_discount)))] (cost=163126.61)
+  Order: [sum((l_extendedprice * (1 - l_discount))) desc] (cost=161626.61)
+    Aggregate: [sum((l_extendedprice * (1 - l_discount)))], groupby=[n_name] (cost=156142.28)
+      Projection: [n_name, l_extendedprice, l_discount] (cost=154242.28)
+        HashJoin: inner, on=([n_regionkey] = [r_regionkey]) (cost=150842.28)
+          Projection: [n_name, n_regionkey, l_extendedprice, l_discount] (cost=130941.61)
+            HashJoin: inner, on=([s_nationkey] = [n_nationkey]) (cost=126441.61)
+              Projection: [s_nationkey, l_extendedprice, l_discount] (cost=97507.16)
+                HashJoin: inner, on=([l_suppkey, c_nationkey] = [s_suppkey, s_nationkey]) (cost=94107.16)
+                  Projection: [c_nationkey, l_suppkey, l_extendedprice, l_discount] (cost=66172.7)
+                    HashJoin: inner, on=([o_orderkey] = [l_orderkey]) (cost=61672.703)
+                      Projection: [c_nationkey, o_orderkey] (cost=31738.25)
+                        HashJoin: inner, on=([c_custkey] = [o_custkey]) (cost=29438.25)
+                          Scan: customer[c_custkey, c_nationkey] (cost=2000)
+                          Projection: [o_orderkey, o_custkey] (cost=7092)
+                            Filter: ((o_orderdate >= 1994-01-01) and (1995-01-01 > o_orderdate)) (cost=5620)
+                              Scan: orders[o_orderkey, o_custkey, o_orderdate] (cost=3000)
+                      Scan: lineitem[l_orderkey, l_suppkey, l_extendedprice, l_discount] (cost=4000)
+                  Scan: supplier[s_suppkey, s_nationkey] (cost=2000)
+              Scan: nation[n_nationkey, n_name, n_regionkey] (cost=3000)
+          Projection: [r_regionkey] (cost=2940)
+            Filter: (r_name = 'AFRICA') (cost=2700)
+              Scan: region[r_regionkey, r_name] (cost=2000)
 */
 
 -- tpch-q6
@@ -215,10 +227,11 @@ where
     and l_quantity < 24;
 
 /*
-Projection: [sum((l_discount * l_extendedprice))] (cost=7409.928)
-  Aggregate: [sum((l_discount * l_extendedprice))], groupby=[] (cost=7408.328)
-    Filter: ((l_shipdate >= 1994-01-01) and ((1995-01-01 > l_shipdate) and ((0.09 >= l_discount) and ((24 > l_quantity) and (l_discount >= 0.07))))) (cost=7210.72)
-      Scan: lineitem[l_quantity, l_extendedprice, l_discount, l_shipdate] (cost=4000)
+Projection: [sum((l_discount * l_extendedprice))] (cost=8163.5923)
+  Aggregate: [sum((l_discount * l_extendedprice))], groupby=[] (cost=8161.992)
+    Projection: [l_extendedprice, l_discount] (cost=7964.3843)
+      Filter: ((l_discount >= 0.07) and ((1995-01-01 > l_shipdate) and ((24 > l_quantity) and ((l_shipdate >= 1994-01-01) and (0.09 >= l_discount))))) (cost=7210.72)
+        Scan: lineitem[l_quantity, l_extendedprice, l_discount, l_shipdate] (cost=4000)
 */
 
 -- tpch-q10: TPC-H Q10
@@ -256,17 +269,22 @@ order by
 limit 20;
 
 /*
-Projection: [c_custkey, c_name, sum((l_extendedprice * (1 - l_discount))), c_acctbal, n_name, c_address, c_phone, c_comment] (cost=106373.17)
-  TopN: limit=20, offset=0, orderby=[sum((l_extendedprice * (1 - l_discount))) desc] (cost=106169.17)
-    Aggregate: [sum((l_extendedprice * (1 - l_discount)))], groupby=[c_custkey, c_name, c_acctbal, c_phone, n_name, c_address, c_comment] (cost=103813.016)
-      HashJoin: inner, on=([c_nationkey] = [n_nationkey]) (cost=98313.016)
-        HashJoin: inner, on=([c_custkey] = [o_custkey]) (cost=60378.563)
-          Scan: customer[c_custkey, c_name, c_address, c_nationkey, c_phone, c_acctbal, c_comment] (cost=7000)
-          HashJoin: inner, on=([o_orderkey] = [l_orderkey]) (cost=23032.313)
-            Filter: ((o_orderdate >= 1993-10-01) and (1994-01-01 > o_orderdate)) (cost=5620)
-              Scan: orders[o_orderkey, o_custkey, o_orderdate] (cost=3000)
-            Filter: (l_returnflag = 'R') (cost=5100)
-              Scan: lineitem[l_orderkey, l_extendedprice, l_discount, l_returnflag] (cost=4000)
-        Scan: nation[n_nationkey, n_name] (cost=2000)
+Projection: [c_custkey, c_name, sum((l_extendedprice * (1 - l_discount))), c_acctbal, n_name, c_address, c_phone, c_comment] (cost=138073.53)
+  TopN: limit=20, offset=0, orderby=[sum((l_extendedprice * (1 - l_discount))) desc] (cost=137869.53)
+    Aggregate: [sum((l_extendedprice * (1 - l_discount)))], groupby=[c_custkey, c_name, c_acctbal, c_phone, n_name, c_address, c_comment] (cost=135513.38)
+      Projection: [n_name, c_custkey, c_name, c_address, c_phone, c_acctbal, c_comment, l_extendedprice, l_discount] (cost=130013.375)
+        HashJoin: inner, on=([c_nationkey] = [n_nationkey]) (cost=120013.375)
+          Projection: [c_custkey, c_name, c_address, c_nationkey, c_phone, c_acctbal, c_comment, l_extendedprice, l_discount] (cost=87078.92)
+            HashJoin: inner, on=([o_orderkey] = [l_orderkey]) (cost=77078.92)
+              Projection: [c_custkey, c_name, c_address, c_nationkey, c_phone, c_acctbal, c_comment, o_orderkey] (cost=48338.25)
+                HashJoin: inner, on=([c_custkey] = [o_custkey]) (cost=39438.25)
+                  Scan: customer[c_custkey, c_name, c_address, c_nationkey, c_phone, c_acctbal, c_comment] (cost=7000)
+                  Projection: [o_orderkey, o_custkey] (cost=7092)
+                    Filter: ((o_orderdate >= 1993-10-01) and (1994-01-01 > o_orderdate)) (cost=5620)
+                      Scan: orders[o_orderkey, o_custkey, o_orderdate] (cost=3000)
+              Projection: [l_orderkey, l_extendedprice, l_discount] (cost=5780)
+                Filter: (l_returnflag = 'R') (cost=5100)
+                  Scan: lineitem[l_orderkey, l_extendedprice, l_discount, l_returnflag] (cost=4000)
+          Scan: nation[n_nationkey, n_name] (cost=2000)
 */
 
