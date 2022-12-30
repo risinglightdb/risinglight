@@ -82,6 +82,8 @@ pub enum BindError {
     ColumnNotInAgg(String),
     #[error("ORDER BY items must appear in the select list if DISTINCT is specified")]
     OrderKeyNotInDistinct,
+    #[error("Subquery in from caluse must have an alias")]
+    SubqueryNoAlias,
 }
 
 /// The binder resolves all expressions referring to schema objects such as

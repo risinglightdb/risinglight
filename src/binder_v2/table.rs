@@ -72,9 +72,15 @@ impl Binder {
                 subquery, alias, ..
             } => {
                 let id = self.bind_query(*subquery)?;
-                if let Some(alias) = alias {
-                    self.add_alias(alias.name, id)?;
-                }
+                // A subquery in "from" clause must have an alias
+                // For example, select x.a from (select avg(c) from t) as x;
+                let alias = alias.ok_or_else(|| BindError::SubqueryNoAlias)?;
+                self.add_alias(alias.name, id)?;
+                // if let Some(alias) = alias {
+                // self.add_alias(alias.name, id)?;
+                // } else {
+                // return ;
+                // }
                 Ok(id)
             }
             _ => panic!("bind table ref"),
