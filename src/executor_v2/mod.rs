@@ -18,7 +18,7 @@ use egg::{Id, Language};
 use futures::stream::{BoxStream, Stream, StreamExt};
 use futures_async_stream::try_stream;
 use itertools::Itertools;
-
+use crate::binder_v2::ColumnRef;
 // use minitrace::prelude::*;
 use self::copy_from_file::*;
 use self::copy_to_file::*;
@@ -171,7 +171,7 @@ impl<S: Storage> Builder<S> {
                 return Expr::ColumnIndex(ColumnIndex(idx as _));
             }
             match self.node(id) {
-                Expr::Column(c) => panic!("column {c} not found from input"),
+                Expr::Column(ColumnRef::SubQuery(sbuquery_ref)) => panic!("column {c} not found from input"),
                 e => e.clone(),
             }
         })

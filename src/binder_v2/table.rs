@@ -71,15 +71,16 @@ impl Binder {
             TableFactor::Derived {
                 subquery, alias, ..
             } => {
-                let id = self.bind_query(*subquery)?;
+                self.push_context();
+                let id = self.bind_query_internal(*subquery)?;
                 // A subquery in "from" clause must have an alias
                 // For example, select x.a from (select avg(c) as y from t) as x;
                 let alias = alias.ok_or_else(|| BindError::SubqueryNoAlias)?;
                 let name = alias.name.to_string().clone();
                 self.add_alias(alias.name, id)?;
-                
-                self.subquery_columns.insert(name, self.current_ctx().columns.clone());
-
+                self.subquery_columns
+                    .insert(name, self.current_ctx().columns.clone());
+                self.pop_context();
                 Ok(id)
             }
             _ => panic!("bind table ref"),
@@ -235,7 +236,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::catalog::{RootCatalog, ColumnCatalog};
+    use crate::catalog::{ColumnCatalog, RootCatalog};
     use crate::parser::parse;
 
     #[test]
@@ -252,8 +253,7 @@ mod tests {
         let mut binder = Binder::new(catalog);
         for stmt in stmts {
             let result = binder.bind(stmt);
-            println!("{:?}", result)    
+            println!("{:?}", result)
         }
-      
     }
 }

@@ -51,19 +51,12 @@ impl Binder {
         Ok(id)
     }
 
-    fn bind_ident(&mut self, idents: impl IntoIterator<Item = Ident>) -> Result {
-        let idents = idents
-            .into_iter()
-            .map(|ident| Ident::new(ident.value.to_lowercase()))
-            .collect_vec();
-        let (_schema_name, table_name, column_name) = match idents.as_slice() {
-            [column] => (None, None, &column.value),
-            [table, column] => (None, Some(&table.value), &column.value),
-            [schema, table, column] => (Some(&schema.value), Some(&table.value), &column.value),
-            _ => return Err(BindError::InvalidTableName(idents)),
-        };
-
-        // Check if the columns are in the base tables or in the subqeries
+    fn bind_ident_from_base_table(
+        &mut self,
+        table_name: Option<&String>,
+        column_name: &String,
+    ) -> Result {
+        // Check if the columns are in the base table
         if let Some(name) = table_name {
             let table_ref_id = *self
                 .current_ctx()
@@ -101,6 +94,48 @@ impl Binder {
             return Ok(*id);
         }
         Err(BindError::InvalidColumn(column_name.into()))
+    }
+
+    fn bind_ident(&mut self, idents: impl IntoIterator<Item = Ident>) -> Result {
+        let idents = idents
+            .into_iter()
+            .map(|ident| Ident::new(ident.value.to_lowercase()))
+            .collect_vec();
+        let (_schema_name, table_name, column_name) = match idents.as_slice() {
+            [column] => (None, None, &column.value),
+            [table, column] => (None, Some(&table.value), &column.value),
+            [schema, table, column] => (Some(&schema.value), Some(&table.value), &column.value),
+            _ => return Err(BindError::InvalidTableName(idents)),
+        };
+        let base_table_binding_result = self.bind_ident_from_base_table(table_name, column_name);
+        if base_table_binding_result.is_err() {
+            if let Some(table_name) = table_name {
+                if let Some(column_names) = self.subquery_columns.get(table_name) {
+                    if let Some(_) = column_names.iter().position(|col| col == column_name) {
+                        let id = self.egraph.add(Node::Column(ColumnRef::SubQuery(
+                            BoundSubQueryColumnRef {
+                                subquery_name: table_name.clone(),
+                                column_name: column_name.clone(),
+                            },
+                        )));
+                        return Ok(id);
+                    }
+                }
+            } else {
+                for (table, columns) in self.subquery_columns.iter() {
+                    if let Some(_) = columns.iter().position(|col| col == column_name) {
+                        let id = self.egraph.add(Node::Column(ColumnRef::SubQuery(
+                            BoundSubQueryColumnRef {
+                                subquery_name: table.clone(),
+                                column_name: column_name.clone(),
+                            },
+                        )));
+                        return Ok(id);
+                    }
+                }
+            }
+        }
+        return base_table_binding_result;
     }
 
     fn bind_binary_op(&mut self, left: Expr, op: BinaryOperator, right: Expr) -> Result {

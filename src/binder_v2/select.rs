@@ -11,7 +11,7 @@ impl Binder {
         ret
     }
 
-    fn bind_query_internal(&mut self, query: Query) -> Result {
+    pub(super) fn bind_query_internal(&mut self, query: Query) -> Result {
         let child = match *query.body {
             SetExpr::Select(select) => self.bind_select(*select, query.order_by)?,
             SetExpr::Values(values) => self.bind_values(values)?,
@@ -59,7 +59,9 @@ impl Binder {
             match item {
                 SelectItem::UnnamedExpr(expr) => {
                     if let Expr::Identifier(ident) = &expr {
-                        self.current_ctx_mut().columns.push(ident.to_string().clone());
+                        self.current_ctx_mut()
+                            .columns
+                            .push(ident.to_string().clone());
                     }
                     let expr = self.bind_expr(expr)?;
                     select_list.push(expr);

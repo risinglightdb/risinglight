@@ -96,7 +96,7 @@ pub struct Binder {
     // Record all available column names can be accessed from outside in subqueries
     // select y.a from (select a, b from x) as y;
     // Key y: column [a, b]
-    subquery_columns: HashMap<String, Vec<String>>
+    subquery_columns: HashMap<String, Vec<String>>,
 }
 
 /// The context of binder execution.
@@ -107,7 +107,7 @@ struct Context {
     /// Mapping alias name to expression.
     aliases: HashMap<String, Id>,
     // All available columns can be referred.
-    columns: Vec<String>
+    columns: Vec<String>,
 }
 
 impl Binder {
@@ -117,7 +117,7 @@ impl Binder {
             catalog: catalog.clone(),
             egraph: egg::EGraph::new(TypeSchemaAnalysis { catalog }),
             contexts: vec![Context::default()],
-            subquery_columns: HashMap::new()
+            subquery_columns: HashMap::new(),
         }
     }
 
