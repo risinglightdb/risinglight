@@ -31,7 +31,7 @@ pub async fn test(filename: impl AsRef<Path>, engine: Engine, v1: bool) -> Resul
         Engine::Mem => Database::new_in_memory(),
     };
     if v1 {
-        db.run_internal("v1").await.unwrap();
+        db.run_internal("v2").await.unwrap();
     }
 
     let db = DatabaseWrapper(db);

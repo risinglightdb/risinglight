@@ -73,14 +73,13 @@ impl Binder {
             } => {
                 let id = self.bind_query(*subquery)?;
                 // A subquery in "from" clause must have an alias
-                // For example, select x.a from (select avg(c) from t) as x;
+                // For example, select x.a from (select avg(c) as y from t) as x;
                 let alias = alias.ok_or_else(|| BindError::SubqueryNoAlias)?;
+                let name = alias.name.to_string().clone();
                 self.add_alias(alias.name, id)?;
-                // if let Some(alias) = alias {
-                // self.add_alias(alias.name, id)?;
-                // } else {
-                // return ;
-                // }
+                
+                self.subquery_columns.insert(name, self.current_ctx().columns.clone());
+
                 Ok(id)
             }
             _ => panic!("bind table ref"),
@@ -228,5 +227,33 @@ impl Binder {
             .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
         let id = self.egraph.add(Node::Table(table_ref_id));
         Ok(id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use super::*;
+    use crate::catalog::{RootCatalog, ColumnCatalog};
+    use crate::parser::parse;
+
+    #[test]
+    fn bind_test_subquery() {
+        let catalog = Arc::new(RootCatalog::new());
+        let col_desc = DataTypeKind::Int32.not_null().to_column("a".into());
+        let col_catalog = ColumnCatalog::new(0, col_desc);
+        let ref_id = TableRefId::new(0, 0, 0);
+        catalog
+            .add_table(ref_id, "t".into(), vec![col_catalog], false, vec![])
+            .unwrap();
+
+        let stmts = parse("select x.a from (select a from t) as x").unwrap();
+        let mut binder = Binder::new(catalog);
+        for stmt in stmts {
+            let result = binder.bind(stmt);
+            println!("{:?}", result)    
+        }
+      
     }
 }

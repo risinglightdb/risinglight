@@ -1,6 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::result::Result as RawResult;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -92,6 +93,10 @@ pub struct Binder {
     egraph: egg::EGraph<Node, TypeSchemaAnalysis>,
     catalog: Arc<RootCatalog>,
     contexts: Vec<Context>,
+    // Record all available column names can be accessed from outside in subqueries
+    // select y.a from (select a, b from x) as y;
+    // Key y: column [a, b]
+    subquery_columns: HashMap<String, Vec<String>>
 }
 
 /// The context of binder execution.
@@ -101,6 +106,8 @@ struct Context {
     tables: HashMap<String, TableRefId>,
     /// Mapping alias name to expression.
     aliases: HashMap<String, Id>,
+    // All available columns can be referred.
+    columns: Vec<String>
 }
 
 impl Binder {
@@ -110,6 +117,7 @@ impl Binder {
             catalog: catalog.clone(),
             egraph: egg::EGraph::new(TypeSchemaAnalysis { catalog }),
             contexts: vec![Context::default()],
+            subquery_columns: HashMap::new()
         }
     }
 

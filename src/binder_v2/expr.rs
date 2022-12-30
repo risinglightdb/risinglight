@@ -62,6 +62,8 @@ impl Binder {
             [schema, table, column] => (Some(&schema.value), Some(&table.value), &column.value),
             _ => return Err(BindError::InvalidTableName(idents)),
         };
+
+        // Check if the columns are in the base tables or in the subqeries
         if let Some(name) = table_name {
             let table_ref_id = *self
                 .current_ctx()

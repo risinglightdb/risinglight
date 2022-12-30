@@ -58,11 +58,15 @@ impl Binder {
         for item in projection {
             match item {
                 SelectItem::UnnamedExpr(expr) => {
+                    if let Expr::Identifier(ident) = &expr {
+                        self.current_ctx_mut().columns.push(ident.to_string().clone());
+                    }
                     let expr = self.bind_expr(expr)?;
                     select_list.push(expr);
                 }
                 SelectItem::ExprWithAlias { expr, alias } => {
                     let expr = self.bind_expr(expr)?;
+                    self.current_ctx_mut().columns.push(alias.value.clone());
                     self.add_alias(alias, expr)?;
                     select_list.push(expr);
                 }
