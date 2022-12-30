@@ -18,7 +18,7 @@ use egg::{Id, Language};
 use futures::stream::{BoxStream, Stream, StreamExt};
 use futures_async_stream::try_stream;
 use itertools::Itertools;
-use crate::binder_v2::ColumnRef;
+
 // use minitrace::prelude::*;
 use self::copy_from_file::*;
 use self::copy_to_file::*;
@@ -47,6 +47,7 @@ use self::table_scan::*;
 use self::top_n::TopNExecutor;
 use self::values::*;
 use crate::array::DataChunk;
+use crate::binder_v2::ColumnRef;
 use crate::catalog::RootCatalogRef;
 use crate::planner::{Expr, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, TracedStorageError};
@@ -171,7 +172,9 @@ impl<S: Storage> Builder<S> {
                 return Expr::ColumnIndex(ColumnIndex(idx as _));
             }
             match self.node(id) {
-                Expr::Column(ColumnRef::SubQuery(sbuquery_ref)) => panic!("column {c} not found from input"),
+                Expr::Column(ColumnRef::SubQuery(sbuquery_ref)) => {
+                    todo!("support subquery indexing")
+                }
                 e => e.clone(),
             }
         })
