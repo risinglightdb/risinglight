@@ -82,6 +82,7 @@ define_language! {
 
         // plans
         "scan" = Scan([Id; 2]),                 // (scan table [column..])
+        "internal" = Internal([Id; 2]),         // (internal table [column..])
         "values" = Values(Box<[Id]>),           // (values [expr..]..)
         "proj" = Proj([Id; 2]),                 // (proj [expr..] child)
         "filter" = Filter([Id; 2]),             // (filter expr child)
