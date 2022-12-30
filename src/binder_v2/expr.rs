@@ -111,7 +111,7 @@ impl Binder {
         if base_table_binding_result.is_err() {
             if let Some(table_name) = table_name {
                 if let Some(column_names) = self.subquery_columns.get(table_name) {
-                    if let Some(_) = column_names.iter().position(|col| col == column_name) {
+                    if column_names.iter().any(|col| col == column_name) {
                         let id = self.egraph.add(Node::Column(ColumnRef::SubQuery(
                             BoundSubQueryColumnRef {
                                 subquery_name: table_name.clone(),
@@ -122,8 +122,8 @@ impl Binder {
                     }
                 }
             } else {
-                for (table, columns) in self.subquery_columns.iter() {
-                    if let Some(_) = columns.iter().position(|col| col == column_name) {
+                for (table, columns) in &self.subquery_columns {
+                    if columns.iter().any(|col| col == column_name) {
                         let id = self.egraph.add(Node::Column(ColumnRef::SubQuery(
                             BoundSubQueryColumnRef {
                                 subquery_name: table.clone(),
@@ -135,7 +135,7 @@ impl Binder {
                 }
             }
         }
-        return base_table_binding_result;
+        base_table_binding_result
     }
 
     fn bind_binary_op(&mut self, left: Expr, op: BinaryOperator, right: Expr) -> Result {

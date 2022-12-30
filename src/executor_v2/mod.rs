@@ -172,7 +172,7 @@ impl<S: Storage> Builder<S> {
                 return Expr::ColumnIndex(ColumnIndex(idx as _));
             }
             match self.node(id) {
-                Expr::Column(ColumnRef::SubQuery(sbuquery_ref)) => {
+                Expr::Column(ColumnRef::SubQuery(_sbuquery_ref)) => {
                     todo!("support subquery indexing")
                 }
                 e => e.clone(),
