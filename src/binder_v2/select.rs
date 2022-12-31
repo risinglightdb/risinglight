@@ -49,6 +49,7 @@ impl Binder {
         plan = self.plan_distinct(distinct, orderby, &mut projection, plan)?;
         plan = self.egraph.add(Node::Order([orderby, plan]));
         plan = self.egraph.add(Node::Proj([projection, plan]));
+        println!("{:?}", self.egraph[plan].data);
         Ok(plan)
     }
 

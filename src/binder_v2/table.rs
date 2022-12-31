@@ -83,6 +83,8 @@ impl Binder {
                 self.subuqery_column_to_id
                     .insert(name, self.current_ctx().column_to_id.clone());
                 self.pop_context();
+                println!("subquery cols: {:?}",  self.egraph[id].data.type_);
+                println!("{:?}",self.subuqery_column_to_id);
                 Ok(id)
             }
             _ => panic!("bind table ref"),
@@ -251,11 +253,15 @@ mod tests {
             .add_table(ref_id, "t".into(), vec![col_catalog], false, vec![])
             .unwrap();
 
-        let stmts = parse("select x.a from (select a from t) as x").unwrap();
+        let stmts = parse("select x.b from (select a + 1 as b from t) as x").unwrap();
         let mut binder = Binder::new(catalog);
         for stmt in stmts {
             let result = binder.bind(stmt);
-            println!("{:?}", result)
+            println!("{}", result.as_ref().unwrap().pretty(4));
+            let optimized = crate::planner::optimize(&result.unwrap());
+            
+            println!("{}", optimized.pretty(4));
         }
+       
     }
 }

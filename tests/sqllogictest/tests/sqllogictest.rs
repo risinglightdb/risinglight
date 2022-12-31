@@ -17,7 +17,7 @@ fn main() {
 
     let mut tests = vec![];
 
-    for version in ["v1", "v2"] {
+    for version in ["v2"] {
         let v1 = version == "v1";
         let paths = glob::glob(PATTERN).expect("failed to find test files");
         for entry in paths {

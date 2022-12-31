@@ -168,12 +168,18 @@ impl<S: Storage> Builder<S> {
     fn resolve_column_index(&self, expr: Id, plan: Id) -> RecExpr {
         let schema = self.egraph[plan].data.schema.as_ref().expect("no schema");
         self.node(expr).build_recexpr(|id| {
+            
             if let Some(idx) = schema.iter().position(|x| *x == id) {
                 return Expr::ColumnIndex(ColumnIndex(idx as _));
             }
             match self.node(id) {
-                Expr::Column(ColumnRef::SubQuery(_sbuquery_ref)) => {
-                    todo!("support subquery indexing")
+                Expr::Column(ColumnRef::SubQuery(sbuquery_ref)) => {
+                    
+                    if let Some(idx) = schema.iter().position(|x| *x == sbuquery_ref.id) {
+                        return Expr::ColumnIndex(ColumnIndex(idx as _));
+                    } else {
+                        panic!("wtf");
+                    }
                 }
                 e => e.clone(),
             }
