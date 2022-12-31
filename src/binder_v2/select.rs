@@ -58,19 +58,29 @@ impl Binder {
         for item in projection {
             match item {
                 SelectItem::UnnamedExpr(expr) => {
+                    let mut is_ident = false;
+                    let mut col_name = String::from("");
                     if let Expr::Identifier(ident) = &expr {
-                        self.current_ctx_mut()
-                            .columns
-                            .push(ident.to_string().clone());
+                        col_name = ident.to_string().clone();
+                        is_ident = true;
                     }
-                    let expr = self.bind_expr(expr)?;
-                    select_list.push(expr);
+                    let expr_id = self.bind_expr(expr)?;
+                    if is_ident {
+                        self.current_ctx_mut().columns.push(col_name.clone());
+                        self.current_ctx_mut()
+                            .column_to_id
+                            .insert(col_name, expr_id);
+                    }
+                    select_list.push(expr_id);
                 }
                 SelectItem::ExprWithAlias { expr, alias } => {
-                    let expr = self.bind_expr(expr)?;
+                    let expr_id = self.bind_expr(expr)?;
                     self.current_ctx_mut().columns.push(alias.value.clone());
-                    self.add_alias(alias, expr)?;
-                    select_list.push(expr);
+                    self.current_ctx_mut()
+                        .column_to_id
+                        .insert(alias.value.clone(), expr_id);
+                    self.add_alias(alias, expr_id)?;
+                    select_list.push(expr_id);
                 }
                 SelectItem::Wildcard => {
                     select_list.append(&mut self.schema(from));

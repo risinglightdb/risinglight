@@ -97,6 +97,8 @@ pub struct Binder {
     // select y.a from (select a, b from x) as y;
     // Key y: column [a, b]
     subquery_columns: HashMap<String, Vec<String>>,
+
+    subuqery_column_to_id: HashMap<String, HashMap<String, Id>>,
 }
 
 /// The context of binder execution.
@@ -108,6 +110,8 @@ struct Context {
     aliases: HashMap<String, Id>,
     // All available columns can be referred.
     columns: Vec<String>,
+    /// columns -> Id
+    column_to_id: HashMap<String, Id>,
 }
 
 impl Binder {
@@ -118,6 +122,7 @@ impl Binder {
             egraph: egg::EGraph::new(TypeSchemaAnalysis { catalog }),
             contexts: vec![Context::default()],
             subquery_columns: HashMap::new(),
+            subuqery_column_to_id: HashMap::new(),
         }
     }
 
@@ -278,6 +283,7 @@ impl std::fmt::Debug for ColumnRef {
 pub struct BoundSubQueryColumnRef {
     pub subquery_name: String,
     pub column_name: String,
+    pub id: Id
 }
 
 impl std::fmt::Debug for BoundSubQueryColumnRef {

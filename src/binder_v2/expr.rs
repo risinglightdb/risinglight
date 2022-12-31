@@ -116,6 +116,7 @@ impl Binder {
                             BoundSubQueryColumnRef {
                                 subquery_name: table_name.clone(),
                                 column_name: column_name.clone(),
+                                
                             },
                         )));
                         return Ok(id);
