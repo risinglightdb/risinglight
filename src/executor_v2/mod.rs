@@ -47,7 +47,6 @@ use self::table_scan::*;
 use self::top_n::TopNExecutor;
 use self::values::*;
 use crate::array::DataChunk;
-use crate::binder_v2::ColumnRef;
 use crate::catalog::RootCatalogRef;
 use crate::planner::{Expr, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, TracedStorageError};
@@ -139,6 +138,7 @@ impl<S: Storage> Builder<S> {
     fn new(catalog: RootCatalogRef, storage: Arc<S>, plan: &RecExpr) -> Self {
         let mut egraph = egg::EGraph::new(TypeSchemaAnalysis {
             catalog: catalog.clone(),
+            alias_types: Default::default(),
         });
         let root = egraph.add_expr(plan);
         Builder {
@@ -168,19 +168,17 @@ impl<S: Storage> Builder<S> {
     fn resolve_column_index(&self, expr: Id, plan: Id) -> RecExpr {
         let schema = self.egraph[plan].data.schema.as_ref().expect("no schema");
         self.node(expr).build_recexpr(|id| {
-            
-            if let Some(idx) = schema.iter().position(|x| *x == id) {
+            if let Some(idx) = schema.iter().position(|x| {
+                if let Expr::As([alias, _]) = self.node(*x) {
+                    *alias == id
+                } else {
+                    *x == id
+                }
+            }) {
                 return Expr::ColumnIndex(ColumnIndex(idx as _));
             }
             match self.node(id) {
-                Expr::Column(ColumnRef::SubQuery(sbuquery_ref)) => {
-                    
-                    if let Some(idx) = schema.iter().position(|x| *x == sbuquery_ref.id) {
-                        return Expr::ColumnIndex(ColumnIndex(idx as _));
-                    } else {
-                        panic!("wtf");
-                    }
-                }
+                Expr::Column(c) => panic!("column {c} not found from input"),
                 e => e.clone(),
             }
         })
@@ -196,7 +194,7 @@ impl<S: Storage> Builder<S> {
             Scan([table, list]) => TableScanExecutor {
                 table_id: self.node(table).as_table(),
                 columns: (self.node(list).as_list().iter())
-                    .map(|id| self.node(*id).as_base_column())
+                    .map(|id| self.node(*id).as_column())
                     .collect(),
                 storage: self.storage.clone(),
             }
@@ -293,7 +291,7 @@ impl<S: Storage> Builder<S> {
             Insert([table, cols, child]) => InsertExecutor {
                 table_id: self.node(table).as_table(),
                 column_ids: (self.node(cols).as_list().iter())
-                    .map(|id| self.node(*id).as_base_column().column_id)
+                    .map(|id| self.node(*id).as_column().column_id)
                     .collect(),
                 storage: self.storage.clone(),
             }

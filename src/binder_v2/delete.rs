@@ -10,7 +10,7 @@ impl Binder {
             todo!("unsupported delete target: {:?}", table_name);
         };
         let table_id = self.bind_table_id(name)?;
-        let cols = self.bind_table_name(name, true)?;
+        let cols = self.bind_table_name(name, None, true)?;
         let scan = self.egraph.add(Node::Scan([table_id, cols]));
         let cond = self.bind_where(selection)?;
         let filter = self.egraph.add(Node::Filter([cond, scan]));

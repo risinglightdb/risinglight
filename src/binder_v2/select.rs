@@ -1,14 +1,15 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use super::*;
+use crate::catalog::BaseTableColumnRefId;
 use crate::parser::{Expr, Query, SelectItem, SetExpr};
 
 impl Binder {
-    pub(super) fn bind_query(&mut self, query: Query) -> Result {
-        self.push_context();
+    pub(super) fn bind_query(&mut self, query: Query) -> Result<(Id, Context)> {
+        self.contexts.push(Context::default());
         let ret = self.bind_query_internal(query);
-        self.pop_context();
-        ret
+        let ctx = self.contexts.pop().unwrap();
+        ret.map(|id| (id, ctx))
     }
 
     pub(super) fn bind_query_internal(&mut self, query: Query) -> Result {
@@ -49,39 +50,41 @@ impl Binder {
         plan = self.plan_distinct(distinct, orderby, &mut projection, plan)?;
         plan = self.egraph.add(Node::Order([orderby, plan]));
         plan = self.egraph.add(Node::Proj([projection, plan]));
-        println!("{:?}", self.egraph[plan].data);
         Ok(plan)
     }
 
     /// Binds the select list. Returns a list of expressions.
     fn bind_projection(&mut self, projection: Vec<SelectItem>, from: Id) -> Result {
+        let temp_table_id = self.new_temp_table();
         let mut select_list = vec![];
         for item in projection {
             match item {
                 SelectItem::UnnamedExpr(expr) => {
-                    let mut is_ident = false;
-                    let mut col_name = String::from("");
-                    if let Expr::Identifier(ident) = &expr {
-                        col_name = ident.to_string().clone();
-                        is_ident = true;
+                    let ident = if let Expr::Identifier(ident) = &expr {
+                        Some(ident.value.clone())
+                    } else {
+                        None
+                    };
+                    let id = self.bind_expr(expr)?;
+                    if let Some(ident) = ident {
+                        self.current_ctx_mut().output_aliases.insert(ident, id);
                     }
-                    let expr_id = self.bind_expr(expr)?;
-                    if is_ident {
-                        self.current_ctx_mut().columns.push(col_name.clone());
-                        self.current_ctx_mut()
-                            .column_to_id
-                            .insert(col_name, expr_id);
-                    }
-                    select_list.push(expr_id);
+                    select_list.push(id);
                 }
                 SelectItem::ExprWithAlias { expr, alias } => {
                     let expr_id = self.bind_expr(expr)?;
-                    self.current_ctx_mut().columns.push(alias.value.clone());
+                    let alias_id = self
+                        .egraph
+                        .add(Node::Column(BaseTableColumnRefId::from_table(
+                            temp_table_id,
+                            select_list.len() as _,
+                        )));
+                    self.add_alias(alias.value.clone(), "".into(), expr_id);
                     self.current_ctx_mut()
-                        .column_to_id
-                        .insert(alias.value.clone(), expr_id);
-                    self.add_alias(alias, expr_id)?;
-                    select_list.push(expr_id);
+                        .output_aliases
+                        .insert(alias.value, alias_id);
+                    let id = self.egraph.add(Node::As([alias_id, expr_id]));
+                    select_list.push(id);
                 }
                 SelectItem::Wildcard => {
                     select_list.append(&mut self.schema(from));
@@ -212,7 +215,7 @@ impl Binder {
             // found agg, wrap it with Nested
             return Ok(self.egraph.add(Node::Nested(id)));
         }
-        if let Node::Column(ColumnRef::Base(cid)) = &expr {
+        if let Node::Column(cid) = &expr {
             let name = self.catalog.get_column(cid).unwrap().name().to_string();
             return Err(BindError::ColumnNotInAgg(name));
         }

@@ -2,7 +2,6 @@
 
 use super::schema::schema_is_eq;
 use super::*;
-use crate::binder_v2::ColumnRef;
 use crate::planner::ExprExt;
 
 /// Returns the rules that always improve the plan.
@@ -206,7 +205,7 @@ fn is_list(v: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 }
 
 /// The data type of column analysis.
-pub type ColumnSet = HashSet<ColumnRef>;
+pub type ColumnSet = HashSet<BaseTableColumnRefId>;
 
 /// Returns all columns involved in the node.
 pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
@@ -217,6 +216,7 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
         Proj([exprs, _]) => x(exprs).clone(),
         Agg([exprs, group_keys, _]) => x(exprs).union(x(group_keys)).cloned().collect(),
         ColumnPrune([filter, _]) => x(filter).clone(), // inaccurate
+        As([_, expr]) => x(expr).clone(),
         _ => {
             // merge the columns from all children
             (enode.children().iter())
@@ -242,7 +242,7 @@ impl Applier<Expr, ExprAnalysis> for ColumnMerge {
     ) -> Vec<Id> {
         let list1 = &egraph[subst[self.lists[0]]].data.columns;
         let list2 = &egraph[subst[self.lists[1]]].data.columns;
-        let mut list: Vec<&ColumnRef> = list1.union(list2).collect();
+        let mut list: Vec<&BaseTableColumnRefId> = list1.union(list2).collect();
         list.sort_unstable();
         let list = list
             .into_iter()

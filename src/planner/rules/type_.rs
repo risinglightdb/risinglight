@@ -1,5 +1,4 @@
 use super::*;
-use crate::binder_v2::ColumnRef;
 use crate::types::{DataType, DataTypeKind as Kind};
 
 /// The data type of type analysis.
@@ -7,8 +6,8 @@ pub type Type = Result<DataType, TypeError>;
 
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TypeError {
-    #[error("type is not available for node")]
-    Unavailable,
+    #[error("type is not available for node {0:?}")]
+    Unavailable(String),
     #[error("no function for {op}{operands:?}")]
     NoFunction { op: String, operands: Vec<Kind> },
     #[error("no cast {from} -> {to}")]
@@ -16,7 +15,7 @@ pub enum TypeError {
 }
 
 /// Returns data type of the expression.
-pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalogRef) -> Type {
+pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, data: &TypeSchemaAnalysis) -> Type {
     use Expr::*;
     let concat_struct = |t1: DataType, t2: DataType| match (t1.kind, t2.kind) {
         (Kind::Struct(l), Kind::Struct(r)) => {
@@ -28,12 +27,18 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         // values
         Constant(v) => Ok(v.data_type()),
         Type(t) => Ok(t.clone().not_null()),
-        Column(ColumnRef::Base(col)) => Ok(catalog
+        Column(col) if col.table().is_base() => Ok(data
+            .catalog
             .get_column(col)
-            .ok_or(TypeError::Unavailable)?
+            .ok_or_else(|| TypeError::Unavailable(enode.to_string()))?
             .datatype()),
-        Column(ColumnRef::SubQuery(query)) => x(&query.id),
+        Column(col) if col.table().is_temp() => data
+            .alias_types
+            .get(col)
+            .ok_or_else(|| TypeError::Unavailable(enode.to_string()))?
+            .clone(),
         Nested(a) => x(a),
+        As([_, expr]) => x(expr),
         List(list) => Ok(Kind::Struct(list.iter().map(x).try_collect()?).not_null()),
 
         // cast
@@ -124,7 +129,20 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         }
 
         // other plan nodes
-        _ => Err(TypeError::Unavailable),
+        _ => Err(TypeError::Unavailable(enode.to_string())),
+    }
+}
+
+/// Add type information for alias.
+pub fn update_type(egraph: &mut egg::EGraph<Expr, TypeSchemaAnalysis>, id: Id) {
+    if let &Expr::As([alias, expr]) = &egraph[id].nodes[0] {
+        let column = egraph[alias].nodes[0].as_column();
+        let type_ = egraph[expr].data.type_.clone();
+        egraph.analysis.alias_types.insert(column, type_.clone());
+        // update type for alias node
+        let mut data = egraph[alias].data.clone();
+        data.type_ = type_;
+        egraph.set_analysis_data(alias, data);
     }
 }
 

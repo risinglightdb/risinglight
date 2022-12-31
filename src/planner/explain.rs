@@ -3,7 +3,6 @@ use std::fmt::{Display, Formatter, Result};
 use egg::Id;
 
 use super::{Expr, RecExpr};
-use crate::binder_v2::ColumnRef;
 use crate::catalog::RootCatalog;
 
 /// A wrapper over [`RecExpr`] to explain it in [`Display`].
@@ -124,20 +123,14 @@ impl Display for Explain<'_> {
                 }
             }
             Column(i) => {
-                if let ColumnRef::Base(base_column_ref) = i {
+                if i.table().is_base() {
                     if let Some(catalog) = self.catalog {
-                        write!(
-                            f,
-                            "{}",
-                            catalog
-                                .get_column(base_column_ref)
-                                .expect("no column")
-                                .name()
-                        )
+                        write!(f, "{}", catalog.get_column(i).expect("no column").name())
                     } else {
-                        write!(f, "{base_column_ref}")
+                        write!(f, "{i}")
                     }
                 } else {
+                    // TODO: show alias name
                     write!(f, "{i}")
                 }
             }
@@ -180,6 +173,7 @@ impl Display for Explain<'_> {
             }
 
             Exists(a) => write!(f, "exists({})", self.expr(a)),
+            As([alias, expr]) => write!(f, "({} as {})", self.expr(expr), self.expr(alias)),
             In([a, b]) => write!(f, "({} in {})", self.expr(a), self.expr(b)),
             Cast([a, b]) => write!(f, "({} :: {})", self.expr(a), self.expr(b)),
 

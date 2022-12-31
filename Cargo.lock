@@ -903,12 +903,10 @@ dependencies = [
  "indexmap",
  "instant",
  "log",
- "serde",
  "smallvec",
  "symbol_table",
  "symbolic_expressions",
  "thiserror",
- "vectorize",
 ]
 
 [[package]]
@@ -1262,7 +1260,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 dependencies = [
  "ahash",
- "serde",
 ]
 
 [[package]]
@@ -1416,7 +1413,6 @@ checksum = "1885e79c1fc4b10f0e172c475f458b7f7b93061064d98c3293e98c5ba0c8b399"
 dependencies = [
  "autocfg",
  "hashbrown 0.12.3",
- "serde",
 ]
 
 [[package]]
@@ -2899,7 +2895,6 @@ checksum = "32bf088d1d7df2b2b6711b06da3471bc86677383c57b27251e18c56df8deac14"
 dependencies = [
  "ahash",
  "hashbrown 0.12.3",
- "serde",
 ]
 
 [[package]]
@@ -3387,15 +3382,6 @@ name = "valuable"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
-
-[[package]]
-name = "vectorize"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25e3bbfdfdcc4ea60ce183b1b45c936aacd69fe097ebf137984a32faf80e365b"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "version_check"

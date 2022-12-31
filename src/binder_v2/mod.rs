@@ -1,19 +1,15 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
-use std::result::Result as RawResult;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::vec::Vec;
 
 use egg::{Id, Language};
 use itertools::Itertools;
-use serde::Serialize;
 
 use crate::catalog::{
-    BaseTableColumnRefId, ParseColumnIdError, RootCatalog, TableRefId, DEFAULT_DATABASE_NAME,
-    DEFAULT_SCHEMA_NAME,
+    RootCatalog, TableId, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME,
 };
 use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
@@ -83,8 +79,6 @@ pub enum BindError {
     ColumnNotInAgg(String),
     #[error("ORDER BY items must appear in the select list if DISTINCT is specified")]
     OrderKeyNotInDistinct,
-    #[error("Subquery in from caluse must have an alias")]
-    SubqueryNoAlias,
 }
 
 /// The binder resolves all expressions referring to schema objects such as
@@ -93,25 +87,20 @@ pub struct Binder {
     egraph: egg::EGraph<Node, TypeSchemaAnalysis>,
     catalog: Arc<RootCatalog>,
     contexts: Vec<Context>,
-    // Record all available column names can be accessed from outside in subqueries
-    // select y.a from (select a, b from x) as y;
-    // Key y: column [a, b]
-    subquery_columns: HashMap<String, Vec<String>>,
-
-    subuqery_column_to_id: HashMap<String, HashMap<String, Id>>,
+    next_temp_table_id: TableId,
 }
 
 /// The context of binder execution.
 #[derive(Debug, Default)]
 struct Context {
-    /// Mapping table name to its ID.
-    tables: HashMap<String, TableRefId>,
-    /// Mapping alias name to expression.
-    aliases: HashMap<String, Id>,
-    // All available columns can be referred.
-    columns: Vec<String>,
-    /// columns -> Id
-    column_to_id: HashMap<String, Id>,
+    /// Table names that can be accessed from the current query.
+    table_aliases: HashSet<String>,
+    /// Column names that can be accessed from the current query.
+    /// column_name -> (table_name -> id)
+    aliases: HashMap<String, HashMap<String, Id>>,
+    /// Column names that can be accessed from the outside query.
+    /// column_name -> id
+    output_aliases: HashMap<String, Id>,
 }
 
 impl Binder {
@@ -119,10 +108,12 @@ impl Binder {
     pub fn new(catalog: Arc<RootCatalog>) -> Self {
         Binder {
             catalog: catalog.clone(),
-            egraph: egg::EGraph::new(TypeSchemaAnalysis { catalog }),
+            egraph: egg::EGraph::new(TypeSchemaAnalysis {
+                catalog,
+                alias_types: Default::default(),
+            }),
             contexts: vec![Context::default()],
-            subquery_columns: HashMap::new(),
-            subuqery_column_to_id: HashMap::new(),
+            next_temp_table_id: TableRefId::START_TEMP_ID,
         }
     }
 
@@ -168,21 +159,13 @@ impl Binder {
                 options,
                 ..
             } => self.bind_copy(table_name, &columns, to, target, &options),
-            Statement::Query(query) => self.bind_query(*query),
+            Statement::Query(query) => self.bind_query(*query).map(|(id, _)| id),
             Statement::Explain { statement, .. } => self.bind_explain(*statement),
             Statement::ShowVariable { .. }
             | Statement::ShowCreate { .. }
             | Statement::ShowColumns { .. } => Err(BindError::NotSupportedTSQL),
             _ => Err(BindError::InvalidSQL),
         }
-    }
-
-    fn push_context(&mut self) {
-        self.contexts.push(Context::default());
-    }
-
-    fn pop_context(&mut self) {
-        self.contexts.pop();
     }
 
     fn current_ctx(&self) -> &Context {
@@ -194,11 +177,21 @@ impl Binder {
     }
 
     /// Add an alias to the current context.
-    fn add_alias(&mut self, alias: Ident, expr: Id) -> Result<()> {
+    fn add_alias(&mut self, column_name: String, table_name: String, id: Id) {
         let context = self.contexts.last_mut().unwrap();
-        context.aliases.insert(alias.value, expr);
+        context
+            .aliases
+            .entry(column_name)
+            .or_default()
+            .insert(table_name.clone(), id);
         // may override the same name
-        Ok(())
+    }
+
+    /// Assign a new temporary table ID.
+    fn new_temp_table(&mut self) -> TableRefId {
+        let id = self.next_temp_table_id;
+        self.next_temp_table_id += 1;
+        TableRefId::new(0, 0, id)
     }
 
     fn check_type(&self, id: Id) -> Result<crate::types::DataType> {
@@ -242,62 +235,4 @@ fn lower_case_name(name: &ObjectName) -> ObjectName {
             .map(|ident| Ident::new(ident.value.to_lowercase()))
             .collect::<Vec<_>>(),
     )
-}
-/// A column reference has two cases.
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize)]
-pub enum ColumnRef {
-    /// Case 1: access a column in table directly: select a from t;
-    Base(BaseTableColumnRefId),
-    /// Case 2: access a column in a subqeury: select sub0.x from (select a * 20 as x from t) as
-    /// sub0;
-    SubQuery(BoundSubQueryColumnRef),
-}
-
-impl std::fmt::Display for ColumnRef {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self:?}")
-    }
-}
-
-impl FromStr for ColumnRef {
-    type Err = ParseColumnIdError;
-
-    fn from_str(_s: &str) -> RawResult<Self, Self::Err> {
-        let column_id = BaseTableColumnRefId::from_str(_s)?;
-        Ok(ColumnRef::Base(column_id))
-    }
-}
-
-impl std::fmt::Debug for ColumnRef {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ColumnRef::Base(base) => write!(f, "{base}"),
-            ColumnRef::SubQuery(subquery) => write!(f, "{subquery}"),
-        }
-    }
-}
-
-// We won't convert the subquery column reference into ids in binder.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize)]
-pub struct BoundSubQueryColumnRef {
-    pub subquery_name: String,
-    pub column_name: String,
-    pub id: Id,
-}
-
-impl std::fmt::Debug for BoundSubQueryColumnRef {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "@{}.{} id: {}",
-            self.subquery_name, self.column_name, self.id
-        )
-    }
-}
-
-impl std::fmt::Display for BoundSubQueryColumnRef {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
-    }
 }

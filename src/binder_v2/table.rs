@@ -61,30 +61,19 @@ impl Binder {
         match table {
             TableFactor::Table { name, alias, .. } => {
                 let table_id = self.bind_table_id(&name)?;
-                let cols = self.bind_table_name(&name, false)?;
+                let cols = self.bind_table_name(&name, alias, false)?;
                 let id = self.egraph.add(Node::Scan([table_id, cols]));
-                if let Some(alias) = alias {
-                    self.add_alias(alias.name, id)?;
-                }
                 Ok(id)
             }
             TableFactor::Derived {
                 subquery, alias, ..
             } => {
-                self.push_context();
-                let id = self.bind_query_internal(*subquery)?;
-                // A subquery in "from" clause must have an alias
-                // For example, select x.a from (select avg(c) as y from t) as x;
-                let alias = alias.ok_or(BindError::SubqueryNoAlias)?;
-                let name = alias.name.to_string();
-                self.add_alias(alias.name, id)?;
-                self.subquery_columns
-                    .insert(name.clone(), self.current_ctx().columns.clone());
-                self.subuqery_column_to_id
-                    .insert(name, self.current_ctx().column_to_id.clone());
-                self.pop_context();
-                println!("subquery cols: {:?}",  self.egraph[id].data.type_);
-                println!("{:?}",self.subuqery_column_to_id);
+                let (id, ctx) = self.bind_query(*subquery)?;
+                // move `output_aliases` to current context
+                let table_name = alias.map_or("".into(), |alias| alias.name.value);
+                for (name, id) in ctx.output_aliases {
+                    self.add_alias(name, table_name.clone(), id);
+                }
                 Ok(id)
             }
             _ => panic!("bind table ref"),
@@ -136,34 +125,43 @@ impl Binder {
     ///
     /// # Example
     /// - `bind_table_name(t)` => `(list $1.1 $1.2)`
-    pub(super) fn bind_table_name(&mut self, name: &ObjectName, with_rowid: bool) -> Result {
+    pub(super) fn bind_table_name(
+        &mut self,
+        name: &ObjectName,
+        alias: Option<TableAlias>,
+        with_rowid: bool,
+    ) -> Result {
         let name = lower_case_name(name);
         let (database_name, schema_name, table_name) = split_name(&name)?;
-        if self.current_ctx().tables.contains_key(table_name) {
-            return Err(BindError::DuplicatedTable(table_name.into()));
-        }
         let ref_id = self
             .catalog
             .get_table_id_by_name(database_name, schema_name, table_name)
             .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
-        self.current_ctx_mut()
-            .tables
-            .insert(table_name.into(), ref_id);
+
+        let table_alias = match &alias {
+            Some(alias) => &alias.name.value,
+            None => table_name,
+        };
+        if !self
+            .current_ctx_mut()
+            .table_aliases
+            .insert(table_alias.into())
+        {
+            return Err(BindError::DuplicatedTable(table_alias.into()));
+        }
 
         let table = self.catalog.get_table(&ref_id).unwrap();
         let mut ids = vec![];
-        for cid in if with_rowid {
+        for (cid, column) in if with_rowid {
             table.all_columns_with_rowid()
         } else {
             table.all_columns()
-        }
-        .keys()
-        {
-            let column_ref_id = BaseTableColumnRefId::from_table(ref_id, *cid);
-            ids.push(
-                self.egraph
-                    .add(Node::Column(ColumnRef::Base(column_ref_id))),
-            );
+        } {
+            let column_ref_id = BaseTableColumnRefId::from_table(ref_id, cid);
+            let id = self.egraph.add(Node::Column(column_ref_id));
+            // TODO: handle column aliases
+            self.add_alias(column.name().into(), table_alias.into(), id);
+            ids.push(id);
         }
         let id = self.egraph.add(Node::List(ids.into()));
         Ok(id)
@@ -210,8 +208,7 @@ impl Binder {
             .into_iter()
             .map(|id| {
                 let column_ref_id = BaseTableColumnRefId::from_table(table_ref_id, id);
-                self.egraph
-                    .add(Node::Column(ColumnRef::Base(column_ref_id)))
+                self.egraph.add(Node::Column(column_ref_id))
             })
             .collect();
         let id = self.egraph.add(Node::List(ids));
@@ -258,18 +255,16 @@ mod tests {
         for stmt in stmts {
             let result = binder.bind(stmt);
             println!("{}", result.as_ref().unwrap().pretty(10));
-           
+
             let optimized = crate::planner::optimize(&result.unwrap());
-           
-            
+
             let mut egraph = egg::EGraph::new(TypeSchemaAnalysis {
                 catalog: catalog.clone(),
+                alias_types: Default::default(),
             });
             println!("{}", optimized.pretty(10));
             egraph.add_expr(&optimized);
             println!("{:?}", egraph[0.into()]);
-          
         }
-       
     }
 }
