@@ -80,7 +80,8 @@ impl Binder {
                 self.add_alias(alias.name, id)?;
                 self.subquery_columns
                     .insert(name.clone(), self.current_ctx().columns.clone());
-                self.subuqery_column_to_id.insert(name, self.current_ctx().column_to_id.clone());
+                self.subuqery_column_to_id
+                    .insert(name, self.current_ctx().column_to_id.clone());
                 self.pop_context();
                 Ok(id)
             }

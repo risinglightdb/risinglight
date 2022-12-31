@@ -116,19 +116,30 @@ impl Binder {
                             BoundSubQueryColumnRef {
                                 subquery_name: table_name.clone(),
                                 column_name: column_name.clone(),
-                                
+                                id: *self
+                                    .subuqery_column_to_id
+                                    .get(table_name)
+                                    .unwrap()
+                                    .get(column_name)
+                                    .unwrap(),
                             },
                         )));
                         return Ok(id);
                     }
                 }
             } else {
-                for (table, columns) in &self.subquery_columns {
+                for (table_name, columns) in &self.subquery_columns {
                     if columns.iter().any(|col| col == column_name) {
                         let id = self.egraph.add(Node::Column(ColumnRef::SubQuery(
                             BoundSubQueryColumnRef {
-                                subquery_name: table.clone(),
+                                subquery_name: table_name.clone(),
                                 column_name: column_name.clone(),
+                                id: *self
+                                    .subuqery_column_to_id
+                                    .get(table_name)
+                                    .unwrap()
+                                    .get(column_name)
+                                    .unwrap(),
                             },
                         )));
                         return Ok(id);

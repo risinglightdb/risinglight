@@ -283,7 +283,7 @@ impl std::fmt::Debug for ColumnRef {
 pub struct BoundSubQueryColumnRef {
     pub subquery_name: String,
     pub column_name: String,
-    pub id: Id
+    pub id: Id,
 }
 
 impl std::fmt::Debug for BoundSubQueryColumnRef {
