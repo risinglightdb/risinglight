@@ -44,10 +44,6 @@ fn merge_rules() -> Vec<Rewrite> { vec![
         "(filter ?cond1 (filter ?cond2 ?child))" =>
         "(filter (and ?cond1 ?cond2) ?child)"
     ),
-    rw!("proj-merge";
-        "(proj ?exprs1 (proj ?exprs2 ?child))" =>
-        "(proj ?exprs1 ?child)"
-    ),
 ]}
 
 #[rustfmt::skip]

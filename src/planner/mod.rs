@@ -158,6 +158,13 @@ impl Expr {
         v.clone()
     }
 
+    pub fn as_as(&self) -> Option<Id> {
+        match self {
+            Self::As([alias, _]) => Some(*alias),
+            _ => None,
+        }
+    }
+
     pub const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {
         use BinaryOperator as Op;
         #[allow(clippy::match_ref_pats)]

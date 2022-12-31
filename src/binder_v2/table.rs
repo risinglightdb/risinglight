@@ -115,6 +115,7 @@ impl Binder {
     fn bind_join_constraint(&mut self, constraint: JoinConstraint) -> Result {
         match constraint {
             JoinConstraint::On(expr) => self.bind_expr(expr),
+            JoinConstraint::None => Ok(self.egraph.add(Node::true_())),
             _ => todo!("Support more join constraints"),
         }
     }

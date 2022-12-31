@@ -89,7 +89,11 @@ impl Analysis<Expr> for ExprAnalysis {
         Data {
             constant: expr::eval_constant(egraph, enode),
             columns: plan::analyze_columns(egraph, enode),
-            schema: schema::analyze_schema(enode, |i| egraph[*i].data.schema.clone()),
+            schema: schema::analyze_schema(
+                enode,
+                |i| egraph[*i].data.schema.clone(),
+                |i| egraph[*i].nodes[0].as_as(),
+            ),
             rows: rows::analyze_rows(egraph, enode),
         }
     }
@@ -150,7 +154,11 @@ impl Analysis<Expr> for TypeSchemaAnalysis {
     fn make(egraph: &egg::EGraph<Expr, Self>, enode: &Expr) -> Self::Data {
         TypeSchema {
             type_: type_::analyze_type(enode, |i| egraph[*i].data.type_.clone(), &egraph.analysis),
-            schema: schema::analyze_schema(enode, |i| egraph[*i].data.schema.clone()),
+            schema: schema::analyze_schema(
+                enode,
+                |i| egraph[*i].data.schema.clone(),
+                |i| egraph[*i].nodes[0].as_as(),
+            ),
             aggs: agg::analyze_aggs(enode, |i| egraph[*i].data.aggs.clone()),
         }
     }
