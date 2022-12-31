@@ -33,9 +33,7 @@ pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
         }
 
         // not plan node
-        _ => {
-            return None
-        },
+        _ => return None,
     })
 }
 

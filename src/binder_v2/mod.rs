@@ -288,7 +288,11 @@ pub struct BoundSubQueryColumnRef {
 
 impl std::fmt::Debug for BoundSubQueryColumnRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "@{}.{} id: {}", self.subquery_name, self.column_name, self.id)
+        write!(
+            f,
+            "@{}.{} id: {}",
+            self.subquery_name, self.column_name, self.id
+        )
     }
 }
 
