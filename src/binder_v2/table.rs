@@ -253,14 +253,22 @@ mod tests {
             .add_table(ref_id, "t".into(), vec![col_catalog], false, vec![])
             .unwrap();
 
-        let stmts = parse("select x.b from (select a + 1 as b from t) as x").unwrap();
-        let mut binder = Binder::new(catalog);
+        let stmts = parse("select x.b from (select a as b from t) as x").unwrap();
+        let mut binder = Binder::new(catalog.clone());
         for stmt in stmts {
             let result = binder.bind(stmt);
-            println!("{}", result.as_ref().unwrap().pretty(4));
+            println!("{}", result.as_ref().unwrap().pretty(10));
+           
             let optimized = crate::planner::optimize(&result.unwrap());
+           
             
-            println!("{}", optimized.pretty(4));
+            let mut egraph = egg::EGraph::new(TypeSchemaAnalysis {
+                catalog: catalog.clone(),
+            });
+            println!("{}", optimized.pretty(10));
+            egraph.add_expr(&optimized);
+            println!("{:?}", egraph[0.into()]);
+          
         }
        
     }
