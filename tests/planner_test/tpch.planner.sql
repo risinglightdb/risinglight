@@ -190,8 +190,8 @@ order by
     revenue desc;
 
 /*
-Projection: [n_name, sum((l_extendedprice * (1 - l_discount)))] (cost=163126.61)
-  Order: [sum((l_extendedprice * (1 - l_discount))) desc] (cost=161626.61)
+Order: [sum((l_extendedprice * (1 - l_discount))) desc] (cost=163126.61)
+  Projection: [n_name, sum((l_extendedprice * (1 - l_discount)))] (cost=157642.28)
     Aggregate: [sum((l_extendedprice * (1 - l_discount)))], groupby=[n_name] (cost=156142.28)
       Projection: [n_name, l_extendedprice, l_discount] (cost=154242.28)
         HashJoin: inner, on=([n_regionkey] = [r_regionkey]) (cost=150842.28)
@@ -230,7 +230,7 @@ where
 Projection: [sum((l_discount * l_extendedprice))] (cost=8163.5923)
   Aggregate: [sum((l_discount * l_extendedprice))], groupby=[] (cost=8161.992)
     Projection: [l_extendedprice, l_discount] (cost=7964.3843)
-      Filter: ((l_discount >= 0.07) and ((1995-01-01 > l_shipdate) and ((24 > l_quantity) and ((l_shipdate >= 1994-01-01) and (0.09 >= l_discount))))) (cost=7210.72)
+      Filter: ((l_discount >= 0.07) and ((1995-01-01 > l_shipdate) and ((0.09 >= l_discount) and ((l_shipdate >= 1994-01-01) and (24 > l_quantity))))) (cost=7210.72)
         Scan: lineitem[l_quantity, l_extendedprice, l_discount, l_shipdate] (cost=4000)
 */
 
