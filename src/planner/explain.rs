@@ -123,14 +123,9 @@ impl Display for Explain<'_> {
                 }
             }
             Column(i) => {
-                if i.table().is_base() {
-                    if let Some(catalog) = self.catalog {
-                        write!(f, "{}", catalog.get_column(i).expect("no column").name())
-                    } else {
-                        write!(f, "{i}")
-                    }
+                if let Some(catalog) = self.catalog {
+                    write!(f, "{}", catalog.get_column(i).expect("no column").name())
                 } else {
-                    // TODO: show alias name
                     write!(f, "{i}")
                 }
             }
@@ -138,7 +133,7 @@ impl Display for Explain<'_> {
             ExtSource(src) => write!(f, "path={:?}, format={}", src.path, src.format),
             Symbol(s) => write!(f, "{s}"),
 
-            Nested(e) => write!(f, "{}", self.expr(e)),
+            Ref(e) => write!(f, "{}", self.expr(e)),
             List(list) => {
                 write!(f, "[")?;
                 for (i, v) in list.iter().enumerate() {
@@ -173,7 +168,6 @@ impl Display for Explain<'_> {
             }
 
             Exists(a) => write!(f, "exists({})", self.expr(a)),
-            As([alias, expr]) => write!(f, "({} as {})", self.expr(expr), self.expr(alias)),
             In([a, b]) => write!(f, "({} in {})", self.expr(a), self.expr(b)),
             Cast([a, b]) => write!(f, "({} :: {})", self.expr(a), self.expr(b)),
 

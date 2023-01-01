@@ -201,18 +201,17 @@ fn is_list(v: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 }
 
 /// The data type of column analysis.
-pub type ColumnSet = HashSet<ColumnRefId>;
+pub type ColumnSet = HashSet<Expr>;
 
 /// Returns all columns involved in the node.
 pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
     use Expr::*;
     let x = |i: &Id| &egraph[*i].data.columns;
     match enode {
-        Column(col) => [col.clone()].into_iter().collect(),
+        Column(_) | Ref(_) => [enode.clone()].into_iter().collect(),
         Proj([exprs, _]) => x(exprs).clone(),
         Agg([exprs, group_keys, _]) => x(exprs).union(x(group_keys)).cloned().collect(),
         ColumnPrune([filter, _]) => x(filter).clone(), // inaccurate
-        As([_, expr]) => x(expr).clone(),
         _ => {
             // merge the columns from all children
             (enode.children().iter())
@@ -238,11 +237,11 @@ impl Applier<Expr, ExprAnalysis> for ColumnMerge {
     ) -> Vec<Id> {
         let list1 = &egraph[subst[self.lists[0]]].data.columns;
         let list2 = &egraph[subst[self.lists[1]]].data.columns;
-        let mut list: Vec<&ColumnRefId> = list1.union(list2).collect();
+        let mut list: Vec<&Expr> = list1.union(list2).collect();
         list.sort_unstable();
         let list = list
             .into_iter()
-            .map(|col| egraph.lookup(Expr::Column(col.clone())).unwrap())
+            .map(|col| egraph.lookup(col.clone()).unwrap())
             .collect();
         let id = egraph.add(Expr::List(list));
 

@@ -161,10 +161,6 @@ impl Analysis<Expr> for TypeSchemaAnalysis {
         let merge_aggs = egg::merge_max(&mut to.aggs, from.aggs);
         merge_type | merge_schema | merge_aggs
     }
-
-    fn modify(egraph: &mut egg::EGraph<Expr, Self>, id: Id) {
-        type_::update_type(egraph, id);
-    }
 }
 
 /// Merge two result set and keep the smaller one.

@@ -27,18 +27,12 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, data: &TypeSchemaAnal
         // values
         Constant(v) => Ok(v.data_type()),
         Type(t) => Ok(t.clone().not_null()),
-        Column(col) if col.table().is_base() => Ok(data
+        Column(col) => Ok(data
             .catalog
             .get_column(col)
             .ok_or_else(|| TypeError::Unavailable(enode.to_string()))?
             .datatype()),
-        Column(col) if col.table().is_temp() => data
-            .alias_types
-            .get(col)
-            .ok_or_else(|| TypeError::Unavailable(enode.to_string()))?
-            .clone(),
-        Nested(a) => x(a),
-        As([_, expr]) => x(expr),
+        Ref(a) => x(a),
         List(list) => Ok(Kind::Struct(list.iter().map(x).try_collect()?).not_null()),
 
         // cast
@@ -130,19 +124,6 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, data: &TypeSchemaAnal
 
         // other plan nodes
         _ => Err(TypeError::Unavailable(enode.to_string())),
-    }
-}
-
-/// Add type information for alias.
-pub fn update_type(egraph: &mut egg::EGraph<Expr, TypeSchemaAnalysis>, id: Id) {
-    if let &Expr::As([alias, expr]) = &egraph[id].nodes[0] {
-        let column = egraph[alias].nodes[0].as_column();
-        let type_ = egraph[expr].data.type_.clone();
-        egraph.analysis.alias_types.insert(column, type_.clone());
-        // update type for alias node
-        let mut data = egraph[alias].data.clone();
-        data.type_ = type_;
-        egraph.set_analysis_data(alias, data);
     }
 }
 

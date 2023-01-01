@@ -30,7 +30,9 @@ define_language! {
         ExtSource(ExtSource),
 
         // utilities
-        "`" = Nested(Id),               // (` expr) a wrapper over expr to prevent optimization
+        "ref" = Ref(Id),                // (ref expr)
+                                            // refer the expr as a column
+                                            // it can also prevent optimization
         "list" = List(Box<[Id]>),       // (list ...)
 
         // binary operations
@@ -69,7 +71,6 @@ define_language! {
         "last" = Last(Id),
 
         // subquery related
-        "as" = As([Id; 2]),                     // (as column expr)
         "exists" = Exists(Id),
         "in" = In([Id; 2]),
 
@@ -156,13 +157,6 @@ impl Expr {
     pub fn as_ext_source(&self) -> ExtSource {
         let Self::ExtSource(v) = self else { panic!("not an external source: {self}") };
         v.clone()
-    }
-
-    pub fn as_as(&self) -> Option<Id> {
-        match self {
-            Self::As([alias, _]) => Some(*alias),
-            _ => None,
-        }
     }
 
     pub const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {

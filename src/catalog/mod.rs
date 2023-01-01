@@ -86,18 +86,6 @@ impl TableRefId {
             table_id,
         }
     }
-
-    pub const START_TEMP_ID: TableId = 1000;
-
-    /// Whether it is a base table in the database.
-    pub const fn is_base(&self) -> bool {
-        self.table_id < Self::START_TEMP_ID
-    }
-
-    /// Whether it is a temporary table in the query.
-    pub const fn is_temp(&self) -> bool {
-        self.table_id >= Self::START_TEMP_ID
-    }
 }
 
 /// The reference ID of a column.

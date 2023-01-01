@@ -1,7 +1,6 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use super::*;
-use crate::catalog::ColumnRefId;
 use crate::parser::{Expr, Query, SelectItem, SetExpr};
 
 impl Binder {
@@ -55,7 +54,6 @@ impl Binder {
 
     /// Binds the select list. Returns a list of expressions.
     fn bind_projection(&mut self, projection: Vec<SelectItem>, from: Id) -> Result {
-        let temp_table_id = self.new_temp_table();
         let mut select_list = vec![];
         for item in projection {
             match item {
@@ -72,16 +70,12 @@ impl Binder {
                     select_list.push(id);
                 }
                 SelectItem::ExprWithAlias { expr, alias } => {
-                    let expr_id = self.bind_expr(expr)?;
-                    let alias_id = self.egraph.add(Node::Column(ColumnRefId::from_table(
-                        temp_table_id,
-                        select_list.len() as _,
-                    )));
-                    self.add_alias(alias.value.clone(), "".into(), expr_id);
+                    let id = self.bind_expr(expr)?;
+                    let ref_id = self.egraph.add(Node::Ref(id));
+                    self.add_alias(alias.value.clone(), "".into(), id);
                     self.current_ctx_mut()
                         .output_aliases
-                        .insert(alias.value, alias_id);
-                    let id = self.egraph.add(Node::As([alias_id, expr_id]));
+                        .insert(alias.value, ref_id);
                     select_list.push(id);
                 }
                 SelectItem::Wildcard => {
@@ -194,14 +188,14 @@ impl Binder {
         Ok(plan)
     }
 
-    /// Rewrites the expression `id` with aggs wrapped in a [`Nested`](Node::Nested) node.
+    /// Rewrites the expression `id` with aggs wrapped in a [`Ref`](Node::Ref) node.
     /// Returns the new expression.
     ///
     /// # Example
     /// ```text
     /// id:         (+ (sum a) (+ b 1))
     /// schema:     (sum a), (+ b 1)
-    /// output:     (+ (`(sum a)) (`(+ b 1)))
+    /// output:     (+ (ref (sum a)) (ref (+ b 1)))
     ///
     /// so that `id` won't be optimized to:
     ///             (+ b (+ (sum a) 1))
@@ -210,8 +204,8 @@ impl Binder {
     fn rewrite_agg_in_expr(&mut self, id: Id, schema: &[Id]) -> Result {
         let mut expr = self.node(id).clone();
         if schema.contains(&id) {
-            // found agg, wrap it with Nested
-            return Ok(self.egraph.add(Node::Nested(id)));
+            // found agg, wrap it with Ref
+            return Ok(self.egraph.add(Node::Ref(id)));
         }
         if let Node::Column(cid) = &expr {
             let name = self.catalog.get_column(cid).unwrap().name().to_string();

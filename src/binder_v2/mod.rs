@@ -8,9 +8,7 @@ use std::vec::Vec;
 use egg::{Id, Language};
 use itertools::Itertools;
 
-use crate::catalog::{
-    RootCatalog, TableId, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME,
-};
+use crate::catalog::{RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
 use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
 use crate::types::{DataTypeKind, DataValue};
@@ -87,7 +85,6 @@ pub struct Binder {
     egraph: egg::EGraph<Node, TypeSchemaAnalysis>,
     catalog: Arc<RootCatalog>,
     contexts: Vec<Context>,
-    next_temp_table_id: TableId,
 }
 
 /// The context of binder execution.
@@ -113,7 +110,6 @@ impl Binder {
                 alias_types: Default::default(),
             }),
             contexts: vec![Context::default()],
-            next_temp_table_id: TableRefId::START_TEMP_ID,
         }
     }
 
@@ -185,13 +181,6 @@ impl Binder {
             .or_default()
             .insert(table_name.clone(), id);
         // may override the same name
-    }
-
-    /// Assign a new temporary table ID.
-    fn new_temp_table(&mut self) -> TableRefId {
-        let id = self.next_temp_table_id;
-        self.next_temp_table_id += 1;
-        TableRefId::new(0, 0, id)
     }
 
     fn check_type(&self, id: Id) -> Result<crate::types::DataType> {
