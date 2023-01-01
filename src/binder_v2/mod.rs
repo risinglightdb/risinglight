@@ -179,7 +179,7 @@ impl Binder {
             .aliases
             .entry(column_name)
             .or_default()
-            .insert(table_name.clone(), id);
+            .insert(table_name, id);
         // may override the same name
     }
 
