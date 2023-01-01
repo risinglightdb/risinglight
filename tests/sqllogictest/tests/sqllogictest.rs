@@ -14,15 +14,19 @@ fn main() {
     const PATTERN: &str = "tests/sql/**/[!_]*.slt"; // ignore files start with '_'
     const MEM_BLOCKLIST: &[&str] = &["statistics.slt"];
     const DISK_BLOCKLIST: &[&str] = &[];
+    const V1_BLOCKLIST: &[&str] = &["subquery.slt"];
 
     let mut tests = vec![];
 
-    for version in ["v2"] {
+    for version in ["v1", "v2"] {
         let v1 = version == "v1";
         let paths = glob::glob(PATTERN).expect("failed to find test files");
         for entry in paths {
             let path = entry.expect("failed to read glob entry");
             let subpath = path.strip_prefix("tests/sql").unwrap().to_str().unwrap();
+            if v1 && V1_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
+                continue;
+            }
             if !MEM_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
                 let path = path.clone();
                 let engine = Engine::Mem;
