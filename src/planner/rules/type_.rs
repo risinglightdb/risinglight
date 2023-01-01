@@ -15,7 +15,7 @@ pub enum TypeError {
 }
 
 /// Returns data type of the expression.
-pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, data: &TypeSchemaAnalysis) -> Type {
+pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalogRef) -> Type {
     use Expr::*;
     let concat_struct = |t1: DataType, t2: DataType| match (t1.kind, t2.kind) {
         (Kind::Struct(l), Kind::Struct(r)) => {
@@ -27,8 +27,7 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, data: &TypeSchemaAnal
         // values
         Constant(v) => Ok(v.data_type()),
         Type(t) => Ok(t.clone().not_null()),
-        Column(col) => Ok(data
-            .catalog
+        Column(col) => Ok(catalog
             .get_column(col)
             .ok_or_else(|| TypeError::Unavailable(enode.to_string()))?
             .datatype()),

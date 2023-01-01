@@ -138,7 +138,6 @@ impl<S: Storage> Builder<S> {
     fn new(catalog: RootCatalogRef, storage: Arc<S>, plan: &RecExpr) -> Self {
         let mut egraph = egg::EGraph::new(TypeSchemaAnalysis {
             catalog: catalog.clone(),
-            alias_types: Default::default(),
         });
         let root = egraph.add_expr(plan);
         Builder {

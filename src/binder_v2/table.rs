@@ -261,7 +261,6 @@ mod tests {
 
             let mut egraph = egg::EGraph::new(TypeSchemaAnalysis {
                 catalog: catalog.clone(),
-                alias_types: Default::default(),
             });
             println!("{}", optimized.pretty(10));
             egraph.add_expr(&optimized);

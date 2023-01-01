@@ -22,14 +22,14 @@
 //! [`Type`]: type_::Type
 //! [`Rows`]: rows::Rows
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::LazyLock;
 
 use egg::{rewrite as rw, *};
 
 use super::{EGraph, Expr, Pattern, Rewrite};
-use crate::catalog::{ColumnRefId, RootCatalogRef};
+use crate::catalog::RootCatalogRef;
 use crate::types::F32;
 
 mod agg;
@@ -121,10 +121,6 @@ impl Analysis<Expr> for ExprAnalysis {
 #[derive(Default)]
 pub struct TypeSchemaAnalysis {
     pub catalog: RootCatalogRef,
-    /// Types for alias node.
-    ///
-    /// Once meet `(as alias expr)`, it will insert `(alias, type(expr))` to this map.
-    pub alias_types: HashMap<ColumnRefId, type_::Type>,
 }
 
 #[derive(Debug, Clone)]
@@ -147,7 +143,11 @@ impl Analysis<Expr> for TypeSchemaAnalysis {
 
     fn make(egraph: &egg::EGraph<Expr, Self>, enode: &Expr) -> Self::Data {
         TypeSchema {
-            type_: type_::analyze_type(enode, |i| egraph[*i].data.type_.clone(), &egraph.analysis),
+            type_: type_::analyze_type(
+                enode,
+                |i| egraph[*i].data.type_.clone(),
+                &egraph.analysis.catalog,
+            ),
             schema: schema::analyze_schema(enode, |i| egraph[*i].data.schema.clone()),
             aggs: agg::analyze_aggs(enode, |i| egraph[*i].data.aggs.clone()),
         }

@@ -105,10 +105,7 @@ impl Binder {
     pub fn new(catalog: Arc<RootCatalog>) -> Self {
         Binder {
             catalog: catalog.clone(),
-            egraph: egg::EGraph::new(TypeSchemaAnalysis {
-                catalog,
-                alias_types: Default::default(),
-            }),
+            egraph: egg::EGraph::new(TypeSchemaAnalysis { catalog }),
             contexts: vec![Context::default()],
         }
     }
