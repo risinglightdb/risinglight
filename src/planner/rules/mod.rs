@@ -29,7 +29,7 @@ use std::sync::LazyLock;
 use egg::{rewrite as rw, *};
 
 use super::{EGraph, Expr, Pattern, Rewrite};
-use crate::catalog::{BaseTableColumnRefId, RootCatalogRef};
+use crate::catalog::{ColumnRefId, RootCatalogRef};
 use crate::types::F32;
 
 mod agg;
@@ -126,7 +126,7 @@ pub struct TypeSchemaAnalysis {
     /// Types for alias node.
     ///
     /// Once meet `(as alias expr)`, it will insert `(alias, type(expr))` to this map.
-    pub alias_types: HashMap<BaseTableColumnRefId, type_::Type>,
+    pub alias_types: HashMap<ColumnRefId, type_::Type>,
 }
 
 #[derive(Debug, Clone)]

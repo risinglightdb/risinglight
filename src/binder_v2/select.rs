@@ -1,7 +1,7 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use super::*;
-use crate::catalog::BaseTableColumnRefId;
+use crate::catalog::ColumnRefId;
 use crate::parser::{Expr, Query, SelectItem, SetExpr};
 
 impl Binder {
@@ -73,12 +73,10 @@ impl Binder {
                 }
                 SelectItem::ExprWithAlias { expr, alias } => {
                     let expr_id = self.bind_expr(expr)?;
-                    let alias_id = self
-                        .egraph
-                        .add(Node::Column(BaseTableColumnRefId::from_table(
-                            temp_table_id,
-                            select_list.len() as _,
-                        )));
+                    let alias_id = self.egraph.add(Node::Column(ColumnRefId::from_table(
+                        temp_table_id,
+                        select_list.len() as _,
+                    )));
                     self.add_alias(alias.value.clone(), "".into(), expr_id);
                     self.current_ctx_mut()
                         .output_aliases

@@ -136,7 +136,7 @@ impl fmt::Display for LogicalProjection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::catalog::BaseTableColumnRefId;
+    use crate::catalog::ColumnRefId;
     use crate::types::{DataTypeKind, DataValue};
     use crate::v1::binder::{BoundColumnRef, BoundExprWithAlias, BoundTypeCast};
 
@@ -145,7 +145,7 @@ mod tests {
         let plan = LogicalProjection::new(
             vec![
                 BoundExpr::ColumnRef(BoundColumnRef {
-                    column_ref_id: BaseTableColumnRefId::new(0, 0, 0, 0),
+                    column_ref_id: ColumnRefId::new(0, 0, 0, 0),
                     is_primary_key: false,
                     desc: DataTypeKind::Int32.not_null().to_column("v1".into()),
                 }),
@@ -174,7 +174,7 @@ mod tests {
         let inner = LogicalProjection::new(
             vec![
                 BoundExpr::ColumnRef(BoundColumnRef {
-                    column_ref_id: BaseTableColumnRefId::new(0, 0, 0, 0),
+                    column_ref_id: ColumnRefId::new(0, 0, 0, 0),
                     is_primary_key: false,
                     desc: DataTypeKind::Int32.not_null().to_column("v1".into()),
                 }),

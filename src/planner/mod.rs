@@ -2,7 +2,7 @@ use egg::{define_language, CostFunction, Id, Symbol};
 
 use crate::binder_v2::copy::ExtSource;
 use crate::binder_v2::{BoundDrop, CreateTable};
-use crate::catalog::{BaseTableColumnRefId, TableRefId};
+use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
 
@@ -24,7 +24,7 @@ define_language! {
         // values
         Constant(DataValue),            // null, true, 1, 1.0, "hello", ...
         Type(DataTypeKind),             // BOOLEAN, INT, DECIMAL(5), ...
-        Column(BaseTableColumnRefId),   // $1.2, $2.1, ...
+        Column(ColumnRefId),            // $1.2, $2.1, ...
         Table(TableRefId),              // $1, $2, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
         ExtSource(ExtSource),
@@ -138,7 +138,7 @@ impl Expr {
         l
     }
 
-    pub fn as_column(&self) -> BaseTableColumnRefId {
+    pub fn as_column(&self) -> ColumnRefId {
         let Self::Column(c) = self else { panic!("not a columnn: {self}") };
         c.clone()
     }

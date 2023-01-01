@@ -102,16 +102,16 @@ impl TableRefId {
 
 /// The reference ID of a column.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize)]
-pub struct BaseTableColumnRefId {
+pub struct ColumnRefId {
     pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_id: TableId,
     pub column_id: ColumnId,
 }
 
-impl BaseTableColumnRefId {
+impl ColumnRefId {
     pub const fn from_table(table: TableRefId, column_id: ColumnId) -> Self {
-        BaseTableColumnRefId {
+        ColumnRefId {
             database_id: table.database_id,
             schema_id: table.schema_id,
             table_id: table.table_id,
@@ -125,7 +125,7 @@ impl BaseTableColumnRefId {
         table_id: TableId,
         column_id: ColumnId,
     ) -> Self {
-        BaseTableColumnRefId {
+        ColumnRefId {
             database_id,
             schema_id,
             table_id,
@@ -142,14 +142,14 @@ impl BaseTableColumnRefId {
     }
 }
 
-impl std::fmt::Debug for BaseTableColumnRefId {
+impl std::fmt::Debug for ColumnRefId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // TODO: now ignore database and schema
         write!(f, "${}.{}", self.table_id, self.column_id)
     }
 }
 
-impl std::fmt::Display for BaseTableColumnRefId {
+impl std::fmt::Display for ColumnRefId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
     }
@@ -168,7 +168,7 @@ pub enum ParseColumnIdError {
     InvalidNum(#[from] std::num::ParseIntError),
 }
 
-impl FromStr for BaseTableColumnRefId {
+impl FromStr for ColumnRefId {
     type Err = ParseColumnIdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -178,7 +178,7 @@ impl FromStr for BaseTableColumnRefId {
         let table_id = parts.next().ok_or(Self::Err::InvalidTable)?.parse()?;
         let schema_id = parts.next().map_or(Ok(0), |s| s.parse())?;
         let database_id = parts.next().map_or(Ok(0), |s| s.parse())?;
-        Ok(BaseTableColumnRefId {
+        Ok(ColumnRefId {
             database_id,
             schema_id,
             table_id,

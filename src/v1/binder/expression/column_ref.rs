@@ -9,7 +9,7 @@ use crate::catalog::ColumnDesc;
 /// A bound column reference expression.
 #[derive(PartialEq, Eq, Clone, Serialize)]
 pub struct BoundColumnRef {
-    pub column_ref_id: BaseTableColumnRefId,
+    pub column_ref_id: ColumnRefId,
     pub is_primary_key: bool,
     pub desc: ColumnDesc,
 }
@@ -26,7 +26,7 @@ impl Binder {
         for ref_id in self.context.regular_tables.values().cloned().collect_vec() {
             let table = self.catalog.get_table(&ref_id).unwrap();
             for (col_id, col) in &table.all_columns() {
-                let column_ref_id = BaseTableColumnRefId::from_table(ref_id, *col_id);
+                let column_ref_id = ColumnRefId::from_table(ref_id, *col_id);
                 self.record_regular_table_column(
                     &table.name(),
                     col.name(),
@@ -65,7 +65,7 @@ impl Binder {
             let col = table
                 .get_column_by_name(column_name)
                 .ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
-            let column_ref_id = BaseTableColumnRefId::from_table(table_ref_id, col.id());
+            let column_ref_id = ColumnRefId::from_table(table_ref_id, col.id());
             self.record_regular_table_column(name, column_name, col.id(), col.desc().clone());
             Ok(BoundExpr::ColumnRef(BoundColumnRef {
                 column_ref_id,
@@ -80,7 +80,7 @@ impl Binder {
                     if info.is_some() {
                         return Err(BindError::AmbiguousColumn);
                     }
-                    let column_ref_id = BaseTableColumnRefId::from_table(*ref_id, col.id());
+                    let column_ref_id = ColumnRefId::from_table(*ref_id, col.id());
                     info = Some((
                         table.name().clone(),
                         column_ref_id,

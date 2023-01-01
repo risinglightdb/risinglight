@@ -3,7 +3,7 @@
 use std::vec::Vec;
 
 use super::*;
-use crate::catalog::BaseTableColumnRefId;
+use crate::catalog::ColumnRefId;
 
 impl Binder {
     /// Binds the FROM clause. Returns a nested [`Join`](Node::Join) plan of tables.
@@ -158,7 +158,7 @@ impl Binder {
         } else {
             table.all_columns()
         } {
-            let column_ref_id = BaseTableColumnRefId::from_table(ref_id, cid);
+            let column_ref_id = ColumnRefId::from_table(ref_id, cid);
             let id = self.egraph.add(Node::Column(column_ref_id));
             // TODO: handle column aliases
             self.add_alias(column.name().into(), table_alias.into(), id);
@@ -208,7 +208,7 @@ impl Binder {
         let ids = column_ids
             .into_iter()
             .map(|id| {
-                let column_ref_id = BaseTableColumnRefId::from_table(table_ref_id, id);
+                let column_ref_id = ColumnRefId::from_table(table_ref_id, id);
                 self.egraph.add(Node::Column(column_ref_id))
             })
             .collect();
