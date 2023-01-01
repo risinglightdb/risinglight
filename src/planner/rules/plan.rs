@@ -174,45 +174,62 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
 
 /// Returns true if the columns in `var1` are a subset of the columns in `var2`.
 fn columns_is_subset(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    columns_is(var1, var2, ColumnSet::is_subset)
+    columns_is(var1, var2, HashSet::is_subset)
 }
 
 /// Returns true if the columns in `var1` has no elements in common with the columns in `var2`.
 fn columns_is_disjoint(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    columns_is(var1, var2, ColumnSet::is_disjoint)
+    columns_is(var1, var2, HashSet::is_disjoint)
 }
 
 fn columns_is(
     var1: &str,
     var2: &str,
-    f: impl Fn(&ColumnSet, &ColumnSet) -> bool,
+    f: impl Fn(&HashSet<Id>, &HashSet<Id>) -> bool,
 ) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var1 = var(var1);
     let var2 = var(var2);
     move |egraph, _, subst| {
-        let var1_set = &egraph[subst[var1]].data.columns;
-        let var2_set = &egraph[subst[var2]].data.columns;
-        f(var1_set, var2_set)
+        let get_set = |var| {
+            egraph[subst[var]]
+                .data
+                .columns
+                .iter()
+                .map(|e| egraph.lookup(e.clone()).unwrap())
+                .collect()
+        };
+        f(&get_set(var1), &get_set(var2))
     }
 }
 
 /// The data type of column analysis.
+///
+/// The elements of the set are either `Column` or child of `Ref`.
 pub type ColumnSet = HashSet<Expr>;
 
 /// Returns all columns involved in the node.
 pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
     use Expr::*;
     let x = |i: &Id| &egraph[*i].data.columns;
+    let output = |i: &Id| {
+        egraph[*i]
+            .as_list()
+            .iter()
+            .map(|id| egraph[*id].nodes[0].clone())
+            .collect::<ColumnSet>()
+    };
     match enode {
-        Column(_) | Ref(_) => [enode.clone()].into_iter().collect(),
-        Proj([exprs, _]) => x(exprs).clone(),
-        Agg([exprs, group_keys, _]) => x(exprs).union(x(group_keys)).cloned().collect(),
-        _ => {
-            // merge the columns from all children
-            (enode.children().iter())
-                .flat_map(|id| x(id).iter().cloned())
-                .collect()
-        }
+        // source
+        Column(_) => [enode.clone()].into_iter().collect(),
+        Ref(c) => [egraph[*c].nodes[0].clone()].into_iter().collect(),
+
+        Proj([exprs, _]) => output(exprs),
+        Agg([exprs, group_keys, _]) => output(exprs).union(&output(group_keys)).cloned().collect(),
+
+        // expressions: merge from all children
+        _ => (enode.children().iter())
+            .flat_map(|id| x(id).iter().cloned())
+            .collect(),
     }
 }
 
@@ -244,17 +261,17 @@ impl Applier<Expr, ExprAnalysis> for ProjectionPushdown {
         let mut subst = subst.clone();
         for &child in &self.children {
             let child_id = subst[child];
-            // remove this block when we fix the child_set
-            if self.children.len() == 1 {
-                let id = egraph.add(Expr::List(used.clone().into()));
-                let id = egraph.add(Expr::Proj([id, child_id]));
-                subst.insert(child, id);
-                continue;
-            }
-            let child_set = &egraph[child_id].data.columns;
-            let filtered = (used.iter().cloned())
-                .filter(|id| egraph[*id].data.columns.is_subset(child_set))
-                .collect();
+            let filtered = if self.children.len() == 1 {
+                // no need to filter
+                used.clone().into()
+            } else {
+                let child_set = (egraph[child_id].data.columns.iter())
+                    .map(|e| egraph.lookup(e.clone()).unwrap())
+                    .collect::<HashSet<Id>>();
+                (used.iter().cloned())
+                    .filter(|id| child_set.contains(id))
+                    .collect()
+            };
             let id = egraph.add(Expr::List(filtered));
             let id = egraph.add(Expr::Proj([id, child_id]));
             subst.insert(child, id);
