@@ -104,10 +104,6 @@ define_language! {
         "explain" = Explain(Id),                // (explain child)
 
         // internal functions
-        "column-merge" = ColumnMerge([Id; 2]),  // (column-merge list1 list2)
-                                                    // return a list of columns from list1 and list2
-        "column-prune" = ColumnPrune([Id; 2]),  // (column-prune filter list)
-                                                    // remove element from `list` whose column set is not a subset of `filter`
         "empty" = Empty(Box<[Id]>),             // (empty child..)
                                                     // returns empty chunk
                                                     // with the same schema as `child`

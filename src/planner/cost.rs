@@ -26,7 +26,6 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
         let out = || rows(id) * cols(id);
 
         let c = match enode {
-            ColumnPrune(_) | ColumnMerge(_) => f32::INFINITY, // should no longer exists
             Scan(_) | Values(_) => out(),
             Order([_, c]) => nlogn(rows(c)) + out() + costs(c),
             Proj([exprs, c]) | Filter([exprs, c]) => costs(exprs) * rows(c) + out() + costs(c),
