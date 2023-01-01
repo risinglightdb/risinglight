@@ -6,11 +6,7 @@ use super::*;
 pub type Schema = Option<Vec<Id>>;
 
 /// Returns the output expressions for plan node.
-pub fn analyze_schema(
-    enode: &Expr,
-    x: impl Fn(&Id) -> Schema,
-    as_as: impl Fn(&Id) -> Option<Id>,
-) -> Schema {
+pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
     use Expr::*;
     let concat = |v1: Vec<Id>, v2: Vec<Id>| v1.into_iter().chain(v2.into_iter()).collect();
     Some(match enode {
@@ -21,13 +17,7 @@ pub fn analyze_schema(
         Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) => concat(x(l)?, x(r)?),
 
         // list is the source for the following nodes
-        List(ids) => ids
-            .iter()
-            .map(|id| {
-                // only keep alias for `(as alias _)`
-                as_as(id).unwrap_or(*id)
-            })
-            .collect(),
+        List(ids) => ids.to_vec(),
 
         // plans that change schema
         Scan([_, columns]) => x(columns)?,

@@ -173,7 +173,10 @@ impl<S: Storage> Builder<S> {
                 id = *expr;
             }
             // resolve column index
-            if let Some(idx) = schema.iter().position(|x| *x == id) {
+            if let Some(idx) = schema
+                .iter()
+                .position(|x| self.node(*x).as_as().unwrap_or(*x) == id)
+            {
                 return Expr::ColumnIndex(ColumnIndex(idx as _));
             }
             match self.node(id) {
