@@ -188,7 +188,7 @@ impl Binder {
     }
 
     fn schema(&self, id: Id) -> Vec<Id> {
-        self.egraph[id].data.schema.clone().expect("no schema")
+        self.egraph[id].data.schema.clone()
     }
 
     fn aggs(&self, id: Id) -> &[Node] {

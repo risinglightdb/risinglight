@@ -166,7 +166,7 @@ impl<S: Storage> Builder<S> {
 
     /// Resolve the column index of `expr` in `plan`.
     fn resolve_column_index(&self, expr: Id, plan: Id) -> RecExpr {
-        let schema = self.egraph[plan].data.schema.as_ref().expect("no schema");
+        let schema = &self.egraph[plan].data.schema;
         self.node(expr).build_recexpr(|id| {
             if let Some(idx) = schema.iter().position(|x| *x == id) {
                 return Expr::ColumnIndex(ColumnIndex(idx as _));

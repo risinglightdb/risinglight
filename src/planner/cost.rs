@@ -20,10 +20,7 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
         let id = &self.egraph.lookup(enode.clone()).unwrap();
         let mut costs = |i: &Id| costs(*i);
         let rows = |i: &Id| self.egraph[*i].data.rows;
-        let cols = |i: &Id| match &self.egraph[*i].data.schema {
-            Some(s) => s.len() as f32,
-            None => f32::INFINITY,
-        };
+        let cols = |i: &Id| self.egraph[*i].data.schema.len() as f32;
         let nlogn = |x: f32| x * (x + 1.0).log2();
         // The cost of output chunks of a plan.
         let out = || rows(id) * cols(id);
