@@ -16,6 +16,7 @@ use humantime::format_duration;
 use itertools::Itertools;
 use minitrace::prelude::*;
 use risinglight::array::{datachunk_to_sqllogictest_string, Chunk};
+use risinglight::server::run_server;
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::utils::time::RoundingDuration;
 use risinglight::Database;
@@ -54,6 +55,20 @@ struct Args {
     /// Whether to use tokio console.
     #[clap(long)]
     tokio_console: bool,
+
+    /// Start the postgres server instead of the interactive shell.
+    #[clap(long)]
+    server: bool,
+    /// The host to bind to.
+    /// Defaults to localhost.
+    /// Ignored if --server is not set.
+    #[clap(long)]
+    host: Option<String>,
+    /// The port to listen on.
+    /// Default to 5432.
+    /// Ignored if `--server` is not specified.
+    #[clap(long)]
+    port: Option<u16>,
 }
 
 // human-readable message
@@ -377,6 +392,8 @@ async fn main() -> Result<()> {
             warn!("No suffix detected, assume sql file");
             run_sql(db, &file, args.output_format, args.enable_tracing).await?;
         }
+    } else if args.server {
+        run_server(args.host, args.port, db).await;
     } else {
         interactive(db, args.output_format, args.enable_tracing).await?;
     }

@@ -64,6 +64,8 @@ pub mod array;
 pub mod catalog;
 /// Python Extension
 pub mod python_extension;
+/// Postgres wire protocol.
+pub mod server;
 /// Persistent storage engine.
 pub mod storage;
 /// Basic type definitions.
