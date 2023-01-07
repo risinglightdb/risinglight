@@ -60,6 +60,8 @@ mod storage;
 mod transaction_manager;
 mod version_manager;
 
+const MANIFEST_FILE_NAME: &str = "manifest.json";
+
 #[cfg(test)]
 mod tests;
 

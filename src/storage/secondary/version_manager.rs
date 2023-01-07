@@ -1,15 +1,17 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::sync::Arc;
 
 use futures::lock::Mutex;
 use parking_lot::Mutex as PLMutex;
+use tokio::fs::OpenOptions;
 use tokio::select;
 use tracing::{info, warn};
 
 use super::manifest::*;
-use super::{DeleteVector, DiskRowset, StorageOptions, StorageResult};
+use super::{DeleteVector, DiskRowset, StorageOptions, StorageResult, MANIFEST_FILE_NAME};
 
 /// The operations sent to the version manager. Compared with manifest entries, operations
 /// like `AddRowSet` needs to be associated with a `DiskRowSet` struct.
@@ -179,11 +181,50 @@ impl VersionManager {
         }
     }
 
+    pub async fn rewrite_changes(
+        &self,
+        ops: Vec<EpochOp>,
+        manifest_dir_path: &Path,
+    ) -> StorageResult<u64> {
+        // Hold the manifest lock so that no one else could commit changes.
+        let mut manifest = self.manifest.lock().await;
+        // Create and truncate a tempfile.
+        let temp_manifest_path = manifest_dir_path.join("manifest.tmp.json");
+        {
+            OpenOptions::default()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(&temp_manifest_path)
+                .await?;
+        }
+        // Write to tempfile
+        let epoch = {
+            let mut temp_manifest = Manifest::open(&temp_manifest_path, true).await?;
+            self.commit_changes_with_custom_manifest(ops, &mut temp_manifest)
+                .await?
+        };
+        // Rename this tempfile to manifest
+        let manifest_path = manifest_dir_path.join(MANIFEST_FILE_NAME);
+        tokio::fs::rename(&temp_manifest_path, &manifest_path).await?;
+        manifest.reopen(&manifest_path).await?;
+        Ok(epoch)
+    }
+
     /// Commit changes and return a new epoch number
     pub async fn commit_changes(&self, ops: Vec<EpochOp>) -> StorageResult<u64> {
         // Hold the manifest lock so that no one else could commit changes.
         let mut manifest = self.manifest.lock().await;
 
+        self.commit_changes_with_custom_manifest(ops, &mut manifest)
+            .await
+    }
+
+    async fn commit_changes_with_custom_manifest(
+        &self,
+        ops: Vec<EpochOp>,
+        manifest: &mut Manifest,
+    ) -> StorageResult<u64> {
         let mut snapshot;
         let mut entries;
         let current_epoch;
