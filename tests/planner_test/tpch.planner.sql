@@ -230,7 +230,7 @@ where
 Projection: [sum((l_discount * l_extendedprice))] (cost=8163.5923)
   Aggregate: [sum((l_discount * l_extendedprice))], groupby=[] (cost=8161.992)
     Projection: [l_extendedprice, l_discount] (cost=7964.3843)
-      Filter: ((24 > l_quantity) and ((l_shipdate >= 1994-01-01) and ((0.09 >= l_discount) and ((1995-01-01 > l_shipdate) and (l_discount >= 0.07))))) (cost=7210.72)
+      Filter: ((l_shipdate >= 1994-01-01) and ((1995-01-01 > l_shipdate) and ((0.09 >= l_discount) and ((24 > l_quantity) and (l_discount >= 0.07))))) (cost=7210.72)
         Scan: lineitem[l_quantity, l_extendedprice, l_discount, l_shipdate] (cost=4000)
 */
 
