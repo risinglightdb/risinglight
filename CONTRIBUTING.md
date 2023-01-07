@@ -12,9 +12,9 @@
 
 Thanks for your contribution! The RisingLight project welcomes contribution of various types -- new features, bug fixes
 and reports, typo fixes, etc. If you want to contribute to the RisingLight project, you will need to pass necessary
-checks and sign DCO. If you have any question, feel free to ping community members on GitHub and in Slack channels.
+checks and sign DCO. If you have any question, feel free to ping community members on GitHub.
 
-Besides sending Pull Requests, you may also take part in our community scrum meeting (see [README](README.md) for more information), chat in Slack channels, and become a RisingLight member (see [GOVERNANCE](GOVERNANCE.md) for more information).
+Besides sending Pull Requests, you may also take part in our community in [GitHub Discussions](https://github.com/risinglightdb/risinglight/discussions), and become a RisingLight member (see [GOVERNANCE](GOVERNANCE.md) for more information).
 
 ## Architecture Design
 

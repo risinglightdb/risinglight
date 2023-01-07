@@ -314,6 +314,6 @@ That's the end of the lifecycle of a SQL query in RisingLight. To summarize,
 * Optimizer: Do query optimization and generate physical plans.
 * Executor: Execute the queries.
 
-Looking for some challenges in RisingLight? Just pick some [good first issues](https://github.com/risinglightdb/risinglight/issues) and follow the [contribution guide](../CONTRIBUTING.md). Also welcome to join our Slack community, please refer to [readme](../README.md) for more information.
+Looking for some challenges in RisingLight? Just pick some [good first issues](https://github.com/risinglightdb/risinglight/issues) and follow the [contribution guide](../CONTRIBUTING.md).
 
 The RisingLight storage is also interesting to learn. [An Overview of RisingLight Storage](04-storage-overview.md) will give more insights on it.
