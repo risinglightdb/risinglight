@@ -22,7 +22,7 @@ impl Binder {
         // use UnaryOperator as Op;
         let bound_expr = self.bind_expr(expr)?;
         Ok(BoundExpr::UnaryOp(BoundUnaryOp {
-            op: op.clone(),
+            op: *op,
             // TODO: check data type
             return_type: bound_expr.return_type(),
             expr: bound_expr.into(),
