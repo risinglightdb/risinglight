@@ -1,5 +1,4 @@
 use super::*;
-use crate::binder_v2::ColumnRef;
 use crate::types::{DataType, DataTypeKind as Kind};
 
 /// The data type of type analysis.
@@ -7,8 +6,8 @@ pub type Type = Result<DataType, TypeError>;
 
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TypeError {
-    #[error("type is not available for node")]
-    Unavailable,
+    #[error("type is not available for node {0:?}")]
+    Unavailable(String),
     #[error("no function for {op}{operands:?}")]
     NoFunction { op: String, operands: Vec<Kind> },
     #[error("no cast {from} -> {to}")]
@@ -28,12 +27,11 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         // values
         Constant(v) => Ok(v.data_type()),
         Type(t) => Ok(t.clone().not_null()),
-        Column(ColumnRef::Base(col)) => Ok(catalog
+        Column(col) => Ok(catalog
             .get_column(col)
-            .ok_or(TypeError::Unavailable)?
+            .ok_or_else(|| TypeError::Unavailable(enode.to_string()))?
             .datatype()),
-        Column(ColumnRef::SubQuery(_)) => todo!("support subquery encoding in the future."),
-        Nested(a) => x(a),
+        Ref(a) => x(a),
         List(list) => Ok(Kind::Struct(list.iter().map(x).try_collect()?).not_null()),
 
         // cast
@@ -124,7 +122,7 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         }
 
         // other plan nodes
-        _ => Err(TypeError::Unavailable),
+        _ => Err(TypeError::Unavailable(enode.to_string())),
     }
 }
 

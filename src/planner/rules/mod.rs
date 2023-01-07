@@ -69,13 +69,11 @@ pub struct Data {
     /// Some if the expression is a constant.
     pub constant: expr::ConstValue,
 
-    /// All columns involved in the node.
+    /// For expression node, it is the set of columns used in the expression.
+    /// For plan node, it is the set of columns produced by the plan.
     pub columns: plan::ColumnSet,
 
-    /// The schema for plan node: a list of expressions.
-    ///
-    /// For non-plan node, it always be None.
-    /// For plan node, it may be None if the schema is unknown due to unresolved `prune`.
+    /// A list of expressions produced by plan node.
     pub schema: schema::Schema,
     /// Estimate rows.
     pub rows: rows::Rows,
@@ -125,7 +123,7 @@ pub struct TypeSchemaAnalysis {
     pub catalog: RootCatalogRef,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TypeSchema {
     /// Data type of the expression.
     pub type_: type_::Type,

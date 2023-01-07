@@ -2,7 +2,7 @@ use egg::{define_language, CostFunction, Id, Symbol};
 
 use crate::binder_v2::copy::ExtSource;
 use crate::binder_v2::{BoundDrop, CreateTable};
-use crate::catalog::{BaseTableColumnRefId, TableRefId};
+use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue};
 
@@ -13,7 +13,6 @@ mod rules;
 pub use explain::Explain;
 pub use rules::{ExprAnalysis, TypeError, TypeSchemaAnalysis};
 
-pub use crate::binder_v2::ColumnRef;
 // Alias types for our language.
 type EGraph = egg::EGraph<Expr, ExprAnalysis>;
 type Rewrite = egg::Rewrite<Expr, ExprAnalysis>;
@@ -25,13 +24,15 @@ define_language! {
         // values
         Constant(DataValue),            // null, true, 1, 1.0, "hello", ...
         Type(DataTypeKind),             // BOOLEAN, INT, DECIMAL(5), ...
-        Column(ColumnRef),              // $1.2, @subquery.column, ...
+        Column(ColumnRefId),            // $1.2, $2.1, ...
         Table(TableRefId),              // $1, $2, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
         ExtSource(ExtSource),
 
         // utilities
-        "`" = Nested(Id),               // (` expr) a wrapper over expr to prevent optimization
+        "ref" = Ref(Id),                // (ref expr)
+                                            // refer the expr as a column
+                                            // it can also prevent optimization
         "list" = List(Box<[Id]>),       // (list ...)
 
         // binary operations
@@ -103,10 +104,6 @@ define_language! {
         "explain" = Explain(Id),                // (explain child)
 
         // internal functions
-        "column-merge" = ColumnMerge([Id; 2]),  // (column-merge list1 list2)
-                                                    // return a list of columns from list1 and list2
-        "column-prune" = ColumnPrune([Id; 2]),  // (column-prune filter list)
-                                                    // remove element from `list` whose column set is not a subset of `filter`
         "empty" = Empty(Box<[Id]>),             // (empty child..)
                                                     // returns empty chunk
                                                     // with the same schema as `child`
@@ -138,13 +135,8 @@ impl Expr {
         l
     }
 
-    pub fn as_column(&self) -> ColumnRef {
+    pub fn as_column(&self) -> ColumnRefId {
         let Self::Column(c) = self else { panic!("not a columnn: {self}") };
-        c.clone()
-    }
-
-    pub fn as_base_column(&self) -> BaseTableColumnRefId {
-        let Self::Column(ColumnRef::Base(c)) = self else { panic!("not a columnn: {self}") };
         *c
     }
 

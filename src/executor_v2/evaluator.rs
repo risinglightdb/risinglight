@@ -73,7 +73,7 @@ impl<'a> Evaluator<'a> {
                     array.get_valid_bitmap().iter().map(|v| !v).collect(),
                 ))
             }
-            Asc(a) | Desc(a) | Nested(a) => self.next(*a).eval(chunk),
+            Asc(a) | Desc(a) | Ref(a) => self.next(*a).eval(chunk),
             // for aggs, evaluate its children
             RowCount => Ok(ArrayImpl::new_null(
                 (0..chunk.cardinality()).map(|_| ()).collect(),

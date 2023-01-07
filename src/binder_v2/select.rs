@@ -4,14 +4,14 @@ use super::*;
 use crate::parser::{Expr, Query, SelectItem, SetExpr};
 
 impl Binder {
-    pub(super) fn bind_query(&mut self, query: Query) -> Result {
-        self.push_context();
+    pub(super) fn bind_query(&mut self, query: Query) -> Result<(Id, Context)> {
+        self.contexts.push(Context::default());
         let ret = self.bind_query_internal(query);
-        self.pop_context();
-        ret
+        let ctx = self.contexts.pop().unwrap();
+        ret.map(|id| (id, ctx))
     }
 
-    fn bind_query_internal(&mut self, query: Query) -> Result {
+    pub(super) fn bind_query_internal(&mut self, query: Query) -> Result {
         let child = match *query.body {
             SetExpr::Select(select) => self.bind_select(*select, query.order_by)?,
             SetExpr::Values(values) => self.bind_values(values)?,
@@ -58,13 +58,25 @@ impl Binder {
         for item in projection {
             match item {
                 SelectItem::UnnamedExpr(expr) => {
-                    let expr = self.bind_expr(expr)?;
-                    select_list.push(expr);
+                    let ident = if let Expr::Identifier(ident) = &expr {
+                        Some(ident.value.clone())
+                    } else {
+                        None
+                    };
+                    let id = self.bind_expr(expr)?;
+                    if let Some(ident) = ident {
+                        self.current_ctx_mut().output_aliases.insert(ident, id);
+                    }
+                    select_list.push(id);
                 }
                 SelectItem::ExprWithAlias { expr, alias } => {
-                    let expr = self.bind_expr(expr)?;
-                    self.add_alias(alias, expr)?;
-                    select_list.push(expr);
+                    let id = self.bind_expr(expr)?;
+                    let ref_id = self.egraph.add(Node::Ref(id));
+                    self.add_alias(alias.value.clone(), "".into(), id);
+                    self.current_ctx_mut()
+                        .output_aliases
+                        .insert(alias.value, ref_id);
+                    select_list.push(id);
                 }
                 SelectItem::Wildcard => {
                     select_list.append(&mut self.schema(from));
@@ -176,14 +188,14 @@ impl Binder {
         Ok(plan)
     }
 
-    /// Rewrites the expression `id` with aggs wrapped in a [`Nested`](Node::Nested) node.
+    /// Rewrites the expression `id` with aggs wrapped in a [`Ref`](Node::Ref) node.
     /// Returns the new expression.
     ///
     /// # Example
     /// ```text
     /// id:         (+ (sum a) (+ b 1))
     /// schema:     (sum a), (+ b 1)
-    /// output:     (+ (`(sum a)) (`(+ b 1)))
+    /// output:     (+ (ref (sum a)) (ref (+ b 1)))
     ///
     /// so that `id` won't be optimized to:
     ///             (+ b (+ (sum a) 1))
@@ -192,10 +204,10 @@ impl Binder {
     fn rewrite_agg_in_expr(&mut self, id: Id, schema: &[Id]) -> Result {
         let mut expr = self.node(id).clone();
         if schema.contains(&id) {
-            // found agg, wrap it with Nested
-            return Ok(self.egraph.add(Node::Nested(id)));
+            // found agg, wrap it with Ref
+            return Ok(self.egraph.add(Node::Ref(id)));
         }
-        if let Node::Column(ColumnRef::Base(cid)) = &expr {
+        if let Node::Column(cid) = &expr {
             let name = self.catalog.get_column(cid).unwrap().name().to_string();
             return Err(BindError::ColumnNotInAgg(name));
         }
