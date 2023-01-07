@@ -162,6 +162,11 @@ impl Display for Explain<'_> {
                 self.expr(else_)
             ),
 
+            // functions
+            Extract([field, e]) => write!(f, "extract({} from {})", self.expr(field), self.expr(e)),
+            Field(field) => write!(f, "{field}"),
+
+            // aggregations
             RowCount => write!(f, "rowcount"),
             Max(a) | Min(a) | Sum(a) | Avg(a) | Count(a) | First(a) | Last(a) => {
                 write!(f, "{}({})", enode, self.expr(a))

@@ -78,7 +78,7 @@ impl Binder {
                         .insert(alias.value, ref_id);
                     select_list.push(id);
                 }
-                SelectItem::Wildcard => {
+                SelectItem::Wildcard(_) => {
                     select_list.append(&mut self.schema(from));
                 }
                 _ => todo!("bind select list"),
@@ -135,7 +135,8 @@ impl Binder {
     }
 
     /// Binds the VALUES clause. Returns a [`Values`](Node::Values) plan.
-    fn bind_values(&mut self, Values(values): Values) -> Result {
+    fn bind_values(&mut self, values: Values) -> Result {
+        let values = values.rows;
         let mut bound_values = Vec::with_capacity(values.len());
         if values.is_empty() {
             return Ok(self.egraph.add(Node::Values([].into())));

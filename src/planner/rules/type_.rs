@@ -79,6 +79,11 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         // null ops
         IsNull(_) => Ok(Kind::Bool.not_null()),
 
+        // functions
+        Extract([_, a]) => merge(enode, [x(a)?], |[a]| {
+            matches!(a, Kind::Date | Kind::Interval).then_some(Kind::Int32)
+        }),
+
         // number agg
         Max(a) | Min(a) => x(a),
         Sum(a) => check(enode, x(a)?, |a| a.is_number()),

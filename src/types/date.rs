@@ -25,6 +25,10 @@ impl Date {
     pub fn get_inner(&self) -> i32 {
         self.0
     }
+
+    pub fn extract(&self, field: DateTimeField) -> i32 {
+        todo!()
+    }
 }
 
 pub type ParseDateError = chrono::ParseError;
@@ -128,5 +132,55 @@ impl Display for Date {
                 .unwrap()
                 .format("%Y-%m-%d")
         )
+    }
+}
+
+#[derive(Debug, parse_display::Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[display("{0}")]
+pub struct DateTimeField(sqlparser::ast::DateTimeField);
+
+impl From<sqlparser::ast::DateTimeField> for DateTimeField {
+    fn from(field: sqlparser::ast::DateTimeField) -> Self {
+        DateTimeField(field)
+    }
+}
+
+impl FromStr for DateTimeField {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use sqlparser::ast::DateTimeField::*;
+        Ok(Self(match s {
+            "YEAR" => Year,
+            "MONTH" => Month,
+            "WEEK" => Week,
+            "DAY" => Day,
+            "DATE" => Date,
+            "HOUR" => Hour,
+            "MINUTE" => Minute,
+            "SECOND" => Second,
+            "CENTURY" => Century,
+            "DECADE" => Decade,
+            "DOW" => Dow,
+            "DOY" => Doy,
+            "EPOCH" => Epoch,
+            "ISODOW" => Isodow,
+            "ISOYEAR" => Isoyear,
+            "JULIAN" => Julian,
+            "MICROSECOND" => Microsecond,
+            "MICROSECONDS" => Microseconds,
+            "MILLENIUM" => Millenium,
+            "MILLENNIUM" => Millennium,
+            "MILLISECOND" => Millisecond,
+            "MILLISECONDS" => Milliseconds,
+            "NANOSECOND" => Nanosecond,
+            "NANOSECONDS" => Nanoseconds,
+            "QUARTER" => Quarter,
+            "TIMEZONE" => Timezone,
+            "TIMEZONE_HOUR" => TimezoneHour,
+            "TIMEZONE_MINUTE" => TimezoneMinute,
+            "NODATETIME" => NoDateTime,
+            _ => return Err(()),
+        }))
     }
 }

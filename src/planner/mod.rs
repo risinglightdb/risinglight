@@ -4,7 +4,7 @@ use crate::binder_v2::copy::ExtSource;
 use crate::binder_v2::{BoundDrop, CreateTable};
 use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
-use crate::types::{ColumnIndex, DataTypeKind, DataValue};
+use crate::types::{ColumnIndex, DataTypeKind, DataValue, DateTimeField};
 
 mod cost;
 mod explain;
@@ -60,7 +60,11 @@ define_language! {
 
         "if" = If([Id; 3]),                     // (if cond then else)
 
-        // aggregates
+        // functions
+        "extract" = Extract([Id; 2]),           // (extract field expr)
+            Field(DateTimeField),
+
+        // aggregations
         "max" = Max(Id),
         "min" = Min(Id),
         "sum" = Sum(Id),

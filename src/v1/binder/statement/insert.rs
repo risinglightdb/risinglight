@@ -56,7 +56,7 @@ impl Binder {
                         column_ids,
                         column_types,
                         column_descs,
-                        &values.0,
+                        &values.rows,
                     ),
                     _ => todo!("handle insert ???"),
                 }
