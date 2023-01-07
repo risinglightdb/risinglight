@@ -2,16 +2,21 @@
 
 use std::collections::{HashMap, HashSet};
 use std::vec::Vec;
-
 use futures::TryStreamExt;
 use smallvec::SmallVec;
-
 use super::*;
 use crate::array::{DataChunk, DataChunkBuilder, RowRef};
 use crate::types::{DataType, DataValue};
 
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum JoinType {
+    Inner,
+    LeftOuter,
+    RightOuter,
+    FullOuter,
+}
 /// The executor for hash join
-pub struct HashJoinExecutor {
+pub struct HashJoinExecutor<const T: JoinType>  {
     pub op: Expr,
     pub left_keys: RecExpr,
     pub right_keys: RecExpr,
@@ -21,7 +26,7 @@ pub struct HashJoinExecutor {
 
 pub type JoinKeys = SmallVec<[DataValue; 2]>;
 
-impl HashJoinExecutor {
+impl<const T: JoinType>  HashJoinExecutor<T> {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self, left: BoxedExecutor, right: BoxedExecutor) {
         // collect all chunks from children
