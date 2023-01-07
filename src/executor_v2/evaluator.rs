@@ -80,6 +80,11 @@ impl<'a> Evaluator<'a> {
                 }
                 _ => panic!("like pattern must be a string constant"),
             },
+            Extract([field, a]) => {
+                let a = self.next(*a).eval(chunk)?;
+                let Expr::Field(field) = self.expr[*field] else { panic!("not a field") };
+                a.extract(field)
+            }
             Asc(a) | Desc(a) | Ref(a) => self.next(*a).eval(chunk),
             // for aggs, evaluate its children
             RowCount => Ok(ArrayImpl::new_null(

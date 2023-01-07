@@ -26,8 +26,9 @@ impl Date {
         self.0
     }
 
-    pub fn extract(&self, field: DateTimeField) -> i32 {
-        todo!()
+    pub fn year(&self) -> i32 {
+        let date = NaiveDate::from_num_days_from_ce_opt(self.0 + UNIX_EPOCH_DAYS).unwrap();
+        date.year()
     }
 }
 
@@ -137,7 +138,7 @@ impl Display for Date {
 
 #[derive(Debug, parse_display::Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[display("{0}")]
-pub struct DateTimeField(sqlparser::ast::DateTimeField);
+pub struct DateTimeField(pub sqlparser::ast::DateTimeField);
 
 impl From<sqlparser::ast::DateTimeField> for DateTimeField {
     fn from(field: sqlparser::ast::DateTimeField) -> Self {

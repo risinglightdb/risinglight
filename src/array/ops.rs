@@ -10,7 +10,9 @@ use rust_decimal::Decimal;
 use super::*;
 use crate::for_all_variants;
 use crate::parser::{BinaryOperator, UnaryOperator};
-use crate::types::{Blob, ConvertError, DataTypeKind, DataValue, Date, Interval, F64};
+use crate::types::{
+    Blob, ConvertError, DataTypeKind, DataValue, Date, DateTimeField, Interval, F64,
+};
 
 type A = ArrayImpl;
 
@@ -176,6 +178,24 @@ impl ArrayImpl {
         Ok(A::new_bool(clear_null(unary_op(a.as_ref(), |s| {
             regex.is_match(s)
         }))))
+    }
+
+    pub fn extract(&self, field: DateTimeField) -> Result<Self, ConvertError> {
+        Ok(match self {
+            A::Date(a) => match field.0 {
+                sqlparser::ast::DateTimeField::Year => {
+                    A::new_int32(unary_op(a.as_ref(), |d| d.year()))
+                }
+                f => todo!("extract {f} from date"),
+            },
+            A::Interval(_) => todo!("extract {field} from interval"),
+            _ => {
+                return Err(ConvertError::NoUnaryOp(
+                    "extract".into(),
+                    self.type_string(),
+                ))
+            }
+        })
     }
 
     /// Perform binary operation.
