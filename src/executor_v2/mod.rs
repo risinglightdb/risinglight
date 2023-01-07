@@ -255,7 +255,7 @@ impl<S: Storage> Builder<S> {
             .execute(self.build_id(left), self.build_id(right)),
             HashJoin([op, lkeys, rkeys, left, right]) => {
                 if matches!(self.node(op), Expr::Inner) {
-                    HashJoinExecutor::<{JoinType::Inner}> {
+                    HashJoinExecutor::<{ JoinType::Inner }> {
                         op: self.node(op).clone(),
                         left_keys: self.resolve_column_index(lkeys, left),
                         right_keys: self.resolve_column_index(rkeys, right),
@@ -264,7 +264,7 @@ impl<S: Storage> Builder<S> {
                     }
                     .execute(self.build_id(left), self.build_id(right))
                 } else if matches!(self.node(op), Expr::LeftOuter) {
-                    HashJoinExecutor::<{JoinType::LeftOuter}> {
+                    HashJoinExecutor::<{ JoinType::LeftOuter }> {
                         op: self.node(op).clone(),
                         left_keys: self.resolve_column_index(lkeys, left),
                         right_keys: self.resolve_column_index(rkeys, right),
@@ -273,7 +273,7 @@ impl<S: Storage> Builder<S> {
                     }
                     .execute(self.build_id(left), self.build_id(right))
                 } else if matches!(self.node(op), Expr::RightOuter) {
-                    HashJoinExecutor::<{JoinType::RightOuter}> {
+                    HashJoinExecutor::<{ JoinType::RightOuter }> {
                         op: self.node(op).clone(),
                         left_keys: self.resolve_column_index(lkeys, left),
                         right_keys: self.resolve_column_index(rkeys, right),
@@ -282,7 +282,7 @@ impl<S: Storage> Builder<S> {
                     }
                     .execute(self.build_id(left), self.build_id(right))
                 } else if matches!(self.node(op), Expr::FullOuter) {
-                    HashJoinExecutor::<{JoinType::FullOuter}> {
+                    HashJoinExecutor::<{ JoinType::FullOuter }> {
                         op: self.node(op).clone(),
                         left_keys: self.resolve_column_index(lkeys, left),
                         right_keys: self.resolve_column_index(rkeys, right),
@@ -293,17 +293,15 @@ impl<S: Storage> Builder<S> {
                 } else {
                     unimplemented!()
                 }
-            },
-            /* 
-            HashJoin([op, lkeys, rkeys, left, right]) => HashJoinExecutor {
-                op: self.node(op).clone(),
-                left_keys: self.resolve_column_index(lkeys, left),
-                right_keys: self.resolve_column_index(rkeys, right),
-                left_types: self.plan_types(left).to_vec(),
-                right_types: self.plan_types(right).to_vec(),
             }
-            .execute(self.build_id(left), self.build_id(right)),*/
-
+            // HashJoin([op, lkeys, rkeys, left, right]) => HashJoinExecutor {
+            // op: self.node(op).clone(),
+            // left_keys: self.resolve_column_index(lkeys, left),
+            // right_keys: self.resolve_column_index(rkeys, right),
+            // left_types: self.plan_types(left).to_vec(),
+            // right_types: self.plan_types(right).to_vec(),
+            // }
+            // .execute(self.build_id(left), self.build_id(right)),
             Agg([aggs, group_keys, child]) => {
                 let aggs = self.resolve_column_index(aggs, child);
                 let group_keys = self.resolve_column_index(group_keys, child);
