@@ -231,8 +231,8 @@ pub fn optimize(expr: &RecExpr) -> RecExpr {
         }
         best_cost = cost;
         // println!(
-        //     "{i}:\n{}",
-        //     crate::planner::Explain::with_costs(&expr, &costs(&expr))
+        //     "{}",
+        //     crate::planner::Explain::of(&expr).with_costs(&costs(&expr))
         // );
     }
 

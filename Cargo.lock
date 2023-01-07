@@ -2641,6 +2641,7 @@ dependencies = [
  "pyo3",
  "pyo3-build-config",
  "ref-cast",
+ "regex",
  "risinglight_proto",
  "rust_decimal",
  "rustyline",

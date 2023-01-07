@@ -3,6 +3,7 @@
 use std::borrow::Borrow;
 
 use num_traits::ToPrimitive;
+use regex::Regex;
 use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 
@@ -153,6 +154,28 @@ impl ArrayImpl {
             return Err(ConvertError::NoUnaryOp("not".into(), self.type_string()));
         };
         Ok(A::new_bool(clear_null(unary_op(a.as_ref(), |b| !b))))
+    }
+
+    pub fn like(&self, pattern: &str) -> Result<Self, ConvertError> {
+        /// Converts a SQL LIKE pattern to a regex pattern.
+        fn like_to_regex(pattern: &str) -> String {
+            let mut regex = String::with_capacity(pattern.len());
+            for c in pattern.chars() {
+                match c {
+                    '%' => regex.push_str(".*"),
+                    '_' => regex.push('.'),
+                    c => regex.push(c),
+                }
+            }
+            regex
+        }
+        let A::Utf8(a) = self else {
+            return Err(ConvertError::NoUnaryOp("like".into(), self.type_string()));
+        };
+        let regex = Regex::new(&like_to_regex(pattern)).unwrap();
+        Ok(A::new_bool(clear_null(unary_op(a.as_ref(), |s| {
+            regex.is_match(s)
+        }))))
     }
 
     /// Perform binary operation.

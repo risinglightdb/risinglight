@@ -51,8 +51,11 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         }
 
         // string ops
-        StringConcat([a, b]) | Like([a, b]) => merge(enode, [x(a)?, x(b)?], |[a, b]| {
+        StringConcat([a, b]) => merge(enode, [x(a)?, x(b)?], |[a, b]| {
             (a == Kind::String && b == Kind::String).then_some(Kind::String)
+        }),
+        Like([a, b]) => merge(enode, [x(a)?, x(b)?], |[a, b]| {
+            (a == Kind::String && b == Kind::String).then_some(Kind::Bool)
         }),
 
         // bool ops

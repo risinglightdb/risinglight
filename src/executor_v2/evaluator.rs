@@ -73,6 +73,13 @@ impl<'a> Evaluator<'a> {
                     array.get_valid_bitmap().iter().map(|v| !v).collect(),
                 ))
             }
+            Like([a, b]) => match self.next(*b).node() {
+                Expr::Constant(DataValue::String(pattern)) => {
+                    let a = self.next(*a).eval(chunk)?;
+                    a.like(pattern)
+                }
+                _ => panic!("like pattern must be a string constant"),
+            },
             Asc(a) | Desc(a) | Ref(a) => self.next(*a).eval(chunk),
             // for aggs, evaluate its children
             RowCount => Ok(ArrayImpl::new_null(
