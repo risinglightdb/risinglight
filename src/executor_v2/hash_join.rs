@@ -8,13 +8,7 @@ use super::*;
 use crate::array::{DataChunk, DataChunkBuilder, RowRef};
 use crate::types::{DataType, DataValue};
 
-#[derive(Copy, Clone, Eq, PartialEq)]
-pub enum JoinType {
-    Inner,
-    LeftOuter,
-    RightOuter,
-    FullOuter,
-}
+
 /// The executor for hash join
 pub struct HashJoinExecutor<const T: JoinType>  {
     pub op: Expr,
@@ -60,7 +54,7 @@ impl<const T: JoinType>  HashJoinExecutor<T> {
             for i in 0..chunk.cardinality() {
                 let right_row = chunk.row(i);
                 let keys: JoinKeys = keys_chunk.row(i).values().collect();
-                if matches!(self.op, Expr::LeftOuter | Expr::FullOuter) {
+                if T == JoinType::LeftOuter || T == JoinType::FullOuter {
                     right_keys.insert(keys.clone());
                 }
                 if let Some(left_rows) = hash_map.get(&keys) {
@@ -70,7 +64,7 @@ impl<const T: JoinType>  HashJoinExecutor<T> {
                             yield chunk;
                         }
                     }
-                } else if matches!(self.op, Expr::RightOuter | Expr::FullOuter) {
+                } else if T == JoinType::RightOuter || T == JoinType::FullOuter {
                     // append row: (NULL, right)
                     let values =
                         (self.left_types.iter().map(|_| DataValue::Null)).chain(right_row.values());
@@ -83,7 +77,7 @@ impl<const T: JoinType>  HashJoinExecutor<T> {
         }
 
         // append rows for left outer join
-        if matches!(self.op, Expr::LeftOuter | Expr::FullOuter) {
+        if T == JoinType::LeftOuter || T == JoinType::FullOuter {
             for chunk in &left_chunks {
                 let keys_chunk = Evaluator::new(&self.left_keys).eval_list(chunk)?;
                 for i in 0..chunk.cardinality() {

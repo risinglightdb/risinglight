@@ -76,6 +76,15 @@ mod table_scan;
 mod top_n;
 mod values;
 
+/// Join types for generating join code during the compilation.
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum JoinType {
+    Inner,
+    LeftOuter,
+    RightOuter,
+    FullOuter,
+}
+
 /// The error type of execution.
 #[derive(thiserror::Error, Debug)]
 pub enum ExecutorError {
