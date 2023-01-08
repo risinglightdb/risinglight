@@ -86,15 +86,15 @@ pub enum JoinType {
 }
 
 macro_rules! generate_hash_join_operator {
-    ($self:item, $join_type:expr, $op:expr, $lkeys:expr, $rkeys:expr, $left:expr, $right:expr) => {
-        return HashJoinExecutor::<{ $join_type }> {
-            op: self.node($op).clone(),
-            left_keys: self.resolve_column_index($lkeys, $left),
-            right_keys: self.resolve_column_index($rkeys, $right),
-            left_types: self.plan_types(left).to_vec(),
-            right_types: self.plan_types(right).to_vec(),
+    ($self:ident, $join_type:expr, $op:expr, $lkeys:expr, $rkeys:expr, $left:expr, $right:expr) => {
+        HashJoinExecutor::<{ $join_type }> {
+            op: $self.node($op).clone(),
+            left_keys: $self.resolve_column_index($lkeys, $left),
+            right_keys: $self.resolve_column_index($rkeys, $right),
+            left_types: $self.plan_types($left).to_vec(),
+            right_types: $self.plan_types($right).to_vec(),
         }
-        .execute(self.build_id(left), self.build_id(right));
+        .execute($self.build_id($left), $self.build_id($right))
     };
 }
 /// The error type of execution.
