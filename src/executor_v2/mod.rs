@@ -85,7 +85,7 @@ pub enum JoinType {
     FullOuter,
 }
 
-macro_rules! generate_hash_join_operator {
+macro_rules! hash_join_operator {
     ($self:ident, $join_type:expr, $op:expr, $lkeys:expr, $rkeys:expr, $left:expr, $right:expr) => {
         HashJoinExecutor::<{ $join_type }> {
             op: $self.node($op).clone(),
@@ -267,45 +267,13 @@ impl<S: Storage> Builder<S> {
             .execute(self.build_id(left), self.build_id(right)),
             HashJoin([op, lkeys, rkeys, left, right]) => {
                 if matches!(self.node(op), Expr::Inner) {
-                    generate_hash_join_operator!(
-                        self,
-                        JoinType::Inner,
-                        op,
-                        lkeys,
-                        rkeys,
-                        left,
-                        right
-                    )
+                    hash_join_operator!(self, JoinType::Inner, op, lkeys, rkeys, left, right)
                 } else if matches!(self.node(op), Expr::LeftOuter) {
-                    generate_hash_join_operator!(
-                        self,
-                        JoinType::LeftOuter,
-                        op,
-                        lkeys,
-                        rkeys,
-                        left,
-                        right
-                    )
+                    hash_join_operator!(self, JoinType::LeftOuter, op, lkeys, rkeys, left, right)
                 } else if matches!(self.node(op), Expr::RightOuter) {
-                    generate_hash_join_operator!(
-                        self,
-                        JoinType::RightOuter,
-                        op,
-                        lkeys,
-                        rkeys,
-                        left,
-                        right
-                    )
+                    hash_join_operator!(self, JoinType::RightOuter, op, lkeys, rkeys, left, right)
                 } else if matches!(self.node(op), Expr::FullOuter) {
-                    generate_hash_join_operator!(
-                        self,
-                        JoinType::FullOuter,
-                        op,
-                        lkeys,
-                        rkeys,
-                        left,
-                        right
-                    )
+                    hash_join_operator!(self, JoinType::FullOuter, op, lkeys, rkeys, left, right)
                 } else {
                     unimplemented!()
                 }
