@@ -85,6 +85,18 @@ pub enum JoinType {
     FullOuter,
 }
 
+macro_rules! generate_hash_join_operator {
+    ($self:item, $join_type:expr, $op:expr, $lkeys:expr, $rkeys:expr, $left:expr, $right:expr) => {
+        return HashJoinExecutor::<{ $join_type }> {
+            op: self.node($op).clone(),
+            left_keys: self.resolve_column_index($lkeys, $left),
+            right_keys: self.resolve_column_index($rkeys, $right),
+            left_types: self.plan_types(left).to_vec(),
+            right_types: self.plan_types(right).to_vec(),
+        }
+        .execute(self.build_id(left), self.build_id(right));
+    };
+}
 /// The error type of execution.
 #[derive(thiserror::Error, Debug)]
 pub enum ExecutorError {
@@ -255,41 +267,45 @@ impl<S: Storage> Builder<S> {
             .execute(self.build_id(left), self.build_id(right)),
             HashJoin([op, lkeys, rkeys, left, right]) => {
                 if matches!(self.node(op), Expr::Inner) {
-                    HashJoinExecutor::<{ JoinType::Inner }> {
-                        op: self.node(op).clone(),
-                        left_keys: self.resolve_column_index(lkeys, left),
-                        right_keys: self.resolve_column_index(rkeys, right),
-                        left_types: self.plan_types(left).to_vec(),
-                        right_types: self.plan_types(right).to_vec(),
-                    }
-                    .execute(self.build_id(left), self.build_id(right))
+                    generate_hash_join_operator!(
+                        self,
+                        JoinType::Inner,
+                        op,
+                        lkeys,
+                        rkeys,
+                        left,
+                        right
+                    )
                 } else if matches!(self.node(op), Expr::LeftOuter) {
-                    HashJoinExecutor::<{ JoinType::LeftOuter }> {
-                        op: self.node(op).clone(),
-                        left_keys: self.resolve_column_index(lkeys, left),
-                        right_keys: self.resolve_column_index(rkeys, right),
-                        left_types: self.plan_types(left).to_vec(),
-                        right_types: self.plan_types(right).to_vec(),
-                    }
-                    .execute(self.build_id(left), self.build_id(right))
+                    generate_hash_join_operator!(
+                        self,
+                        JoinType::LeftOuter,
+                        op,
+                        lkeys,
+                        rkeys,
+                        left,
+                        right
+                    )
                 } else if matches!(self.node(op), Expr::RightOuter) {
-                    HashJoinExecutor::<{ JoinType::RightOuter }> {
-                        op: self.node(op).clone(),
-                        left_keys: self.resolve_column_index(lkeys, left),
-                        right_keys: self.resolve_column_index(rkeys, right),
-                        left_types: self.plan_types(left).to_vec(),
-                        right_types: self.plan_types(right).to_vec(),
-                    }
-                    .execute(self.build_id(left), self.build_id(right))
+                    generate_hash_join_operator!(
+                        self,
+                        JoinType::RightOuter,
+                        op,
+                        lkeys,
+                        rkeys,
+                        left,
+                        right
+                    )
                 } else if matches!(self.node(op), Expr::FullOuter) {
-                    HashJoinExecutor::<{ JoinType::FullOuter }> {
-                        op: self.node(op).clone(),
-                        left_keys: self.resolve_column_index(lkeys, left),
-                        right_keys: self.resolve_column_index(rkeys, right),
-                        left_types: self.plan_types(left).to_vec(),
-                        right_types: self.plan_types(right).to_vec(),
-                    }
-                    .execute(self.build_id(left), self.build_id(right))
+                    generate_hash_join_operator!(
+                        self,
+                        JoinType::FullOuter,
+                        op,
+                        lkeys,
+                        rkeys,
+                        left,
+                        right
+                    )
                 } else {
                     unimplemented!()
                 }
