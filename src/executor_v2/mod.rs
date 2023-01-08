@@ -76,6 +76,27 @@ mod table_scan;
 mod top_n;
 mod values;
 
+/// Join types for generating join code during the compilation.
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum JoinType {
+    Inner,
+    LeftOuter,
+    RightOuter,
+    FullOuter,
+}
+
+macro_rules! hash_join_operator {
+    ($self:ident, $join_type:expr, $op:expr, $lkeys:expr, $rkeys:expr, $left:expr, $right:expr) => {
+        HashJoinExecutor::<{ $join_type }> {
+            op: $self.node($op).clone(),
+            left_keys: $self.resolve_column_index($lkeys, $left),
+            right_keys: $self.resolve_column_index($rkeys, $right),
+            left_types: $self.plan_types($left).to_vec(),
+            right_types: $self.plan_types($right).to_vec(),
+        }
+        .execute($self.build_id($left), $self.build_id($right))
+    };
+}
 /// The error type of execution.
 #[derive(thiserror::Error, Debug)]
 pub enum ExecutorError {
@@ -244,16 +265,19 @@ impl<S: Storage> Builder<S> {
                 right_types: self.plan_types(right).to_vec(),
             }
             .execute(self.build_id(left), self.build_id(right)),
-
-            HashJoin([op, lkeys, rkeys, left, right]) => HashJoinExecutor {
-                op: self.node(op).clone(),
-                left_keys: self.resolve_column_index(lkeys, left),
-                right_keys: self.resolve_column_index(rkeys, right),
-                left_types: self.plan_types(left).to_vec(),
-                right_types: self.plan_types(right).to_vec(),
+            HashJoin([op, lkeys, rkeys, left, right]) => {
+                if matches!(self.node(op), Expr::Inner) {
+                    hash_join_operator!(self, JoinType::Inner, op, lkeys, rkeys, left, right)
+                } else if matches!(self.node(op), Expr::LeftOuter) {
+                    hash_join_operator!(self, JoinType::LeftOuter, op, lkeys, rkeys, left, right)
+                } else if matches!(self.node(op), Expr::RightOuter) {
+                    hash_join_operator!(self, JoinType::RightOuter, op, lkeys, rkeys, left, right)
+                } else if matches!(self.node(op), Expr::FullOuter) {
+                    hash_join_operator!(self, JoinType::FullOuter, op, lkeys, rkeys, left, right)
+                } else {
+                    unimplemented!()
+                }
             }
-            .execute(self.build_id(left), self.build_id(right)),
-
             Agg([aggs, group_keys, child]) => {
                 let aggs = self.resolve_column_index(aggs, child);
                 let group_keys = self.resolve_column_index(group_keys, child);

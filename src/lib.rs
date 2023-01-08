@@ -18,6 +18,7 @@
 #![feature(proc_macro_hygiene)]
 #![feature(core_intrinsics)]
 #![feature(trusted_len)]
+#![feature(adt_const_params)]
 #![feature(once_cell)]
 #![feature(array_methods)]
 #![feature(iterator_try_collect)]
