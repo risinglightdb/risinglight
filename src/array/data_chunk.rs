@@ -82,6 +82,11 @@ impl DataChunk {
         &self.arrays[idx]
     }
 
+    /// Get the mutable reference of array by index.
+    pub fn array_mut_at(&mut self, idx: usize) -> &mut ArrayImpl {
+        &mut Arc::get_mut(&mut self.arrays).unwrap()[idx]
+    }
+
     /// Get all arrays.
     pub fn arrays(&self) -> &[ArrayImpl] {
         &self.arrays

@@ -5,6 +5,7 @@ use std::iter::FromIterator;
 use std::mem;
 
 use bitvec::vec::BitVec;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 use super::ops::BitVecExt;
@@ -185,6 +186,15 @@ impl PrimitiveArray<bool> {
     /// Returns a bool array of `true` values.
     pub fn true_array(&self) -> &[bool] {
         &self.data
+    }
+}
+
+impl PrimitiveArray<Decimal> {
+    /// Rescale the decimals.
+    pub fn rescale(&mut self, scale: u8) {
+        for v in &mut self.data {
+            v.rescale(scale as u32);
+        }
     }
 }
 

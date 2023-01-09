@@ -43,6 +43,17 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
             merge(enode, [x(a)?, x(b)?], |[a, b]| {
                 match if a > b { (b, a) } else { (a, b) } {
                     (Kind::Null, _) => Some(Kind::Null),
+                    (Kind::Decimal(Some(p1), Some(s1)), Kind::Decimal(Some(p2), Some(s2))) => {
+                        match enode {
+                            Add(_) | Sub(_) => Some(Kind::Decimal(
+                                Some((p1 - s1).max(p2 - s2) + s1.max(s2) + 1),
+                                Some(s1.max(s2)),
+                            )),
+                            Mul(_) => Some(Kind::Decimal(Some(p1 + p2), Some(s1 + s2))),
+                            Div(_) | Mod(_) => Some(Kind::Decimal(None, None)),
+                            _ => unreachable!(),
+                        }
+                    }
                     (a, b) if a.is_number() && b.is_number() => Some(b),
                     (Kind::Date, Kind::Interval) => Some(Kind::Date),
                     _ => None,

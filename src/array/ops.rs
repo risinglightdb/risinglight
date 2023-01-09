@@ -287,30 +287,19 @@ impl ArrayImpl {
             },
             Self::Float64(a) => match data_type {
                 Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&f| f != 0.0)),
-                Type::Int32 => Self::new_int32(try_unary_op(a.as_ref(), |&b| match b.to_i32() {
-                    Some(d) => Ok(d),
-                    None => Err(ConvertError::Overflow(DataValue::Float64(b), Type::Int32)),
+                Type::Int32 => Self::new_int32(try_unary_op(a.as_ref(), |&b| {
+                    b.to_i32()
+                        .ok_or(ConvertError::Overflow(DataValue::Float64(b), Type::Int32))
                 })?),
-                Type::Int64 => Self::new_int64(try_unary_op(a.as_ref(), |&b| match b.to_i64() {
-                    Some(d) => Ok(d),
-                    None => Err(ConvertError::Overflow(DataValue::Float64(b), Type::Int64)),
+                Type::Int64 => Self::new_int64(try_unary_op(a.as_ref(), |&b| {
+                    b.to_i64()
+                        .ok_or(ConvertError::Overflow(DataValue::Float64(b), Type::Int64))
                 })?),
                 Type::Float64 => Self::Float64(a.clone()),
                 Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
-                Type::Decimal(_, scale) => {
-                    Self::new_decimal(try_unary_op(
-                        a.as_ref(),
-                        |&f| match Decimal::from_f64_retain(f.0) {
-                            Some(mut d) => {
-                                if let Some(s) = scale {
-                                    d.rescale(*s as u32);
-                                }
-                                Ok(d)
-                            }
-                            None => Err(ConvertError::ToDecimalError(DataValue::Float64(f))),
-                        },
-                    )?)
-                }
+                Type::Decimal(_, _) => Self::new_decimal(unary_op(a.as_ref(), |&f| {
+                    Decimal::from_f64_retain(f.0).unwrap()
+                })),
                 Type::Null | Type::Date | Type::Interval | Type::Blob | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("DOUBLE", data_type.clone()));
                 }
