@@ -11,7 +11,7 @@ use crate::array::{DataChunk, DataChunkBuilder, RowRef};
 use crate::types::{DataType, DataValue};
 
 /// The executor for hash join
-pub struct HashJoinExecutor {
+pub struct HashJoinExecutor<const T: JoinType> {
     pub op: Expr,
     pub left_keys: RecExpr,
     pub right_keys: RecExpr,
@@ -21,7 +21,7 @@ pub struct HashJoinExecutor {
 
 pub type JoinKeys = SmallVec<[DataValue; 2]>;
 
-impl HashJoinExecutor {
+impl<const T: JoinType> HashJoinExecutor<T> {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self, left: BoxedExecutor, right: BoxedExecutor) {
         // collect all chunks from children
@@ -55,7 +55,7 @@ impl HashJoinExecutor {
             for i in 0..chunk.cardinality() {
                 let right_row = chunk.row(i);
                 let keys: JoinKeys = keys_chunk.row(i).values().collect();
-                if matches!(self.op, Expr::LeftOuter | Expr::FullOuter) {
+                if T == JoinType::LeftOuter || T == JoinType::FullOuter {
                     right_keys.insert(keys.clone());
                 }
                 if let Some(left_rows) = hash_map.get(&keys) {
@@ -65,7 +65,7 @@ impl HashJoinExecutor {
                             yield chunk;
                         }
                     }
-                } else if matches!(self.op, Expr::RightOuter | Expr::FullOuter) {
+                } else if T == JoinType::RightOuter || T == JoinType::FullOuter {
                     // append row: (NULL, right)
                     let values =
                         (self.left_types.iter().map(|_| DataValue::Null)).chain(right_row.values());
@@ -78,7 +78,7 @@ impl HashJoinExecutor {
         }
 
         // append rows for left outer join
-        if matches!(self.op, Expr::LeftOuter | Expr::FullOuter) {
+        if T == JoinType::LeftOuter || T == JoinType::FullOuter {
             for chunk in &left_chunks {
                 let keys_chunk = Evaluator::new(&self.left_keys).eval_list(chunk)?;
                 for i in 0..chunk.cardinality() {
