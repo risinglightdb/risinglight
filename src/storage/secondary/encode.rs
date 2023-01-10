@@ -6,10 +6,7 @@ use bytes::{Buf, BufMut};
 use ordered_float::OrderedFloat;
 use rust_decimal::Decimal;
 
-use crate::array::{
-    Array, BlobArray, BoolArray, DateArray, DecimalArray, F64Array, I32Array, I64Array,
-    IntervalArray, Utf8Array,
-};
+use crate::array::*;
 use crate::types::{BlobRef, Date, Interval, F64};
 
 /// Encode a primitive value into fixed-width buffer
@@ -40,6 +37,21 @@ impl PrimitiveFixedWidthEncode for bool {
 
     fn decode(buffer: &mut impl Buf) -> Self {
         buffer.get_u8() != 0
+    }
+}
+
+impl PrimitiveFixedWidthEncode for i16 {
+    const WIDTH: usize = std::mem::size_of::<i16>();
+    const DEFAULT_VALUE: &'static i16 = &0;
+
+    type ArrayType = I16Array;
+
+    fn encode(&self, buffer: &mut impl BufMut) {
+        buffer.put_i16_le(*self);
+    }
+
+    fn decode(buffer: &mut impl Buf) -> Self {
+        buffer.get_i16_le()
     }
 }
 

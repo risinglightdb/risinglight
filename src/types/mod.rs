@@ -5,6 +5,7 @@ use std::num::ParseIntError;
 use std::str::FromStr;
 
 use parse_display::Display;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 mod blob;
@@ -25,6 +26,7 @@ pub enum DataTypeKind {
     // NOTE: order matters
     Null,
     Bool,
+    Int16,
     Int32,
     Int64,
     // Float32,
@@ -99,6 +101,7 @@ impl From<&crate::parser::DataType> for DataTypeKind {
             Bytea | Binary(_) | Varbinary(_) | Blob(_) => Self::Blob,
             // Real => Self::Float32,
             Float(_) | Double => Self::Float64,
+            SmallInt(_) => Self::Int16,
             Int(_) => Self::Int32,
             BigInt(_) => Self::Int64,
             Boolean => Self::Bool,
@@ -120,6 +123,7 @@ impl std::fmt::Display for DataTypeKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Null => write!(f, "NULL"),
+            Self::Int16 => write!(f, "SMALLINT"),
             Self::Int32 => write!(f, "INT"),
             Self::Int64 => write!(f, "BIGINT"),
             // Self::Float32 => write!(f, "REAL"),
@@ -263,7 +267,7 @@ pub enum ConvertError {
     #[error("failed to convert {0} to decimal")]
     ToDecimalError(DataValue),
     #[error("failed to convert {0} from decimal {1}")]
-    FromDecimalError(DataTypeKind, DataValue),
+    FromDecimalError(DataTypeKind, Decimal),
     #[error("failed to convert {0} from date")]
     FromDateError(DataTypeKind),
     #[error("failed to convert {0} from interval")]

@@ -174,6 +174,7 @@ impl<A: Array> ArrayExt for A {
 
 pub type NullArray = PrimitiveArray<()>;
 pub type BoolArray = PrimitiveArray<bool>;
+pub type I16Array = PrimitiveArray<i16>;
 pub type I32Array = PrimitiveArray<i32>;
 pub type I64Array = PrimitiveArray<i64>;
 pub type F32Array = PrimitiveArray<F32>;
@@ -187,7 +188,7 @@ pub type IntervalArray = PrimitiveArray<Interval>;
 pub enum ArrayImpl {
     Null(Arc<NullArray>),
     Bool(Arc<BoolArray>),
-    // Int16(PrimitiveArray<i16>),
+    Int16(Arc<I16Array>),
     Int32(Arc<I32Array>),
     Int64(Arc<I64Array>),
     // Float32(PrimitiveArray<f32>),
@@ -201,6 +202,7 @@ pub enum ArrayImpl {
 
 pub type NullArrayBuilder = PrimitiveArrayBuilder<()>;
 pub type BoolArrayBuilder = PrimitiveArrayBuilder<bool>;
+pub type I16ArrayBuilder = PrimitiveArrayBuilder<i16>;
 pub type I32ArrayBuilder = PrimitiveArrayBuilder<i32>;
 pub type I64ArrayBuilder = PrimitiveArrayBuilder<i64>;
 pub type F32ArrayBuilder = PrimitiveArrayBuilder<F32>;
@@ -213,7 +215,7 @@ pub type IntervalArrayBuilder = PrimitiveArrayBuilder<Interval>;
 pub enum ArrayBuilderImpl {
     Null(NullArrayBuilder),
     Bool(BoolArrayBuilder),
-    // Int16(PrimitiveArrayBuilder<i16>),
+    Int16(I16ArrayBuilder),
     Int32(I32ArrayBuilder),
     Int64(I64ArrayBuilder),
     // Float32(PrimitiveArrayBuilder<f32>),
@@ -240,6 +242,7 @@ macro_rules! for_all_variants {
             [$($x),*],
             { Null, (), null, NullArray, NullArrayBuilder, Null, Null },
             { Bool, bool, bool, BoolArray, BoolArrayBuilder, Bool, Bool },
+            { Int16, i16, int16, I16Array, I16ArrayBuilder, Int16, Int16 },
             { Int32, i32, int32, I32Array, I32ArrayBuilder, Int32, Int32 },
             { Int64, i64, int64, I64Array, I64ArrayBuilder, Int64, Int64 },
             { Float64, F64, float64, F64Array, F64ArrayBuilder, Float64, Float64 },
@@ -258,6 +261,7 @@ macro_rules! for_all_variants_without_null {
         $macro! {
             [$($x),*],
             { Bool, bool, bool, BoolArray, BoolArrayBuilder, Bool, Bool },
+            { Int16, i16, int16, I16Array, I16ArrayBuilder, Int16, Int16 },
             { Int32, i32, int32, I32Array, I32ArrayBuilder, Int32, Int32 },
             { Int64, i64, int64, I64Array, I64ArrayBuilder, Int64, Int64 },
             { Float64, F64, float64, F64Array, F64ArrayBuilder, Float64, Float64 },
@@ -453,6 +457,7 @@ impl ArrayBuilderImpl {
         match self {
             Self::Null(a) => a.push(None),
             Self::Bool(a) if null => a.push(None),
+            Self::Int16(a) if null => a.push(None),
             Self::Int32(a) if null => a.push(None),
             Self::Int64(a) if null => a.push(None),
             Self::Float64(a) if null => a.push(None),
@@ -464,6 +469,10 @@ impl ArrayBuilderImpl {
             Self::Bool(a) => a.push(Some(
                 &s.parse::<bool>()
                     .map_err(|e| ConvertError::ParseBool(s.to_string(), e))?,
+            )),
+            Self::Int16(a) => a.push(Some(
+                &s.parse::<i16>()
+                    .map_err(|e| ConvertError::ParseInt(s.to_string(), e))?,
             )),
             Self::Int32(a) => a.push(Some(
                 &s.parse::<i32>()
@@ -597,6 +606,7 @@ impl From<&DataValue> for ArrayImpl {
         match val {
             DataValue::Null => Self::new_null([None].into_iter().collect()),
             &DataValue::Bool(v) => Self::new_bool([v].into_iter().collect()),
+            &DataValue::Int16(v) => Self::new_int16([v].into_iter().collect()),
             &DataValue::Int32(v) => Self::new_int32([v].into_iter().collect()),
             &DataValue::Int64(v) => Self::new_int64([v].into_iter().collect()),
             &DataValue::Float64(v) => Self::new_float64([v].into_iter().collect()),

@@ -57,8 +57,9 @@ pub fn datachunk_to_python_list(py: Python, chunk: &Chunk) -> Vec<Vec<PyObject>>
 
             for array in data_chunk.arrays() {
                 let s = match array.get(row) {
-                    DataValue::Null => "null".to_string().to_object(py),
+                    DataValue::Null => "null".to_object(py),
                     DataValue::Bool(v) => v.to_object(py),
+                    DataValue::Int16(v) => v.to_object(py),
                     DataValue::Int32(v) => v.to_object(py),
                     DataValue::Int64(v) => (v).to_object(py),
                     DataValue::Float64(v) => v.to_object(py),
