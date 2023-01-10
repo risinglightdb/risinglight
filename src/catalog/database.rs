@@ -84,7 +84,7 @@ impl DatabaseCatalog {
         let schema = self.get_schema_mut(schema_id).unwrap();
         schema
             .add_table(
-                "contributors".to_string(),
+                CONTRIBUTORS_TABLE_NAME.to_string(),
                 vec![ColumnCatalog::new(
                     0,
                     DataTypeKind::String
@@ -95,5 +95,11 @@ impl DatabaseCatalog {
                 vec![],
             )
             .unwrap();
+        assert_eq!(
+            schema
+                .get_table_id_by_name(CONTRIBUTORS_TABLE_NAME)
+                .unwrap(),
+            CONTRIBUTORS_TABLE_ID
+        );
     }
 }

@@ -176,7 +176,7 @@ impl Display for Explain<'_> {
             In([a, b]) => write!(f, "({} in {})", self.expr(a), self.expr(b)),
             Cast([a, b]) => write!(f, "({} :: {})", self.expr(a), self.expr(b)),
 
-            Scan([table, list]) => writeln!(
+            Scan([table, list]) | Internal([table, list]) => writeln!(
                 f,
                 "{tab}Scan: {}{}{cost}",
                 self.expr(table),
