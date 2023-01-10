@@ -91,7 +91,7 @@ impl Binder {
                     let expr = self.bind_alias(expr, alias.clone());
                     select_list.push(expr);
                 }
-                SelectItem::Wildcard => {
+                SelectItem::Wildcard(_) => {
                     select_list.extend_from_slice(self.bind_all_column_refs()?.as_slice())
                 }
                 _ => todo!("bind select list"),

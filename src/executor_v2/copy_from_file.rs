@@ -4,12 +4,12 @@ use std::fs::File;
 use std::io::BufReader;
 
 use indicatif::{ProgressBar, ProgressStyle};
-use itertools::izip;
 use tokio::sync::mpsc::Sender;
 
 use super::*;
-use crate::array::DataChunkBuilder;
+use crate::array::{ArrayImpl, DataChunkBuilder};
 use crate::binder_v2::copy::{ExtSource, FileFormat};
+use crate::types::DataTypeKind;
 
 /// The executor of loading file data.
 pub struct CopyFromFileExecutor {
@@ -23,12 +23,21 @@ const IMPORT_PROGRESS_BAR_LIMIT: u64 = 1024 * 1024;
 impl CopyFromFileExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
+        let types = self.types.clone();
         let (tx, mut rx) = tokio::sync::mpsc::channel(1);
         // # Cancellation
         // When this stream is dropped, the `rx` is dropped, the spawned task will fail to send to
         // `tx`, then the task will finish.
         let handle = tokio::task::spawn_blocking(|| self.read_file_blocking(tx));
-        while let Some(chunk) = rx.recv().await {
+        while let Some(mut chunk) = rx.recv().await {
+            // rescale decimals
+            for (i, ty) in types.iter().enumerate() {
+                if let (ArrayImpl::Decimal(a), DataTypeKind::Decimal(_, Some(scale))) =
+                    (chunk.array_mut_at(i), ty.kind())
+                {
+                    Arc::get_mut(a).unwrap().rescale(scale);
+                }
+            }
             yield chunk;
         }
         handle.await.unwrap()?;
@@ -88,18 +97,15 @@ impl CopyFromFileExecutor {
                 });
             }
 
-            let str_row_data: Result<Vec<&str>, _> = izip!(record.iter(), &self.types)
-                .map(|(v, ty)| {
-                    if !ty.nullable && v.is_empty() {
-                        return Err(ExecutorError::NotNullable);
-                    }
-                    Ok(v)
-                })
-                .collect();
+            for (v, ty) in record.iter().zip(&self.types) {
+                if !ty.nullable && v.is_empty() {
+                    return Err(ExecutorError::NotNullable);
+                }
+            }
             size_count += record.as_slice().as_bytes().len();
 
             // push a raw str row and send it if necessary
-            if let Some(chunk) = chunk_builder.push_str_row(str_row_data?)? {
+            if let Some(chunk) = chunk_builder.push_str_row(record.iter())? {
                 bar.set_position(size_count as u64);
                 tx.blocking_send(chunk).map_err(|_| ExecutorError::Abort)?;
             }

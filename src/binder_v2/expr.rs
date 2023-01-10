@@ -44,6 +44,7 @@ impl Binder {
                 leading_field,
                 ..
             } => self.bind_interval(*value, leading_field),
+            Expr::Extract { field, expr } => self.bind_extract(field, *expr),
             _ => todo!("bind expression: {:?}", expr),
         }?;
         self.check_type(id)?;
@@ -180,6 +181,12 @@ impl Binder {
             _ => todo!("Support interval with leading field: {:?}", leading_field),
         });
         Ok(self.egraph.add(Node::Constant(value)))
+    }
+
+    fn bind_extract(&mut self, field: DateTimeField, expr: Expr) -> Result {
+        let expr = self.bind_expr(expr)?;
+        let field = self.egraph.add(Node::Field(field.into()));
+        Ok(self.egraph.add(Node::Extract([field, expr])))
     }
 
     fn bind_function(&mut self, func: Function) -> Result {
