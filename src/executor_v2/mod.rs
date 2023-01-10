@@ -31,7 +31,7 @@ use self::filter::*;
 use self::hash_agg::*;
 use self::hash_join::*;
 use self::insert::*;
-// use self::internal::*;
+use self::internal::*;
 use self::limit::*;
 use self::nested_loop_join::*;
 use self::order::*;
@@ -63,7 +63,7 @@ mod filter;
 mod hash_agg;
 mod hash_join;
 mod insert;
-// mod internal;
+mod internal;
 mod limit;
 mod nested_loop_join;
 mod order;
@@ -225,6 +225,11 @@ impl<S: Storage> Builder<S> {
                         })
                         .collect()
                 },
+            }
+            .execute(),
+
+            Internal([table, _]) => InternalTableExecutor {
+                table_id: self.node(table).as_table(),
             }
             .execute(),
 

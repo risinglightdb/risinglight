@@ -1,32 +1,32 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
-
 use super::*;
 use crate::array::{ArrayImpl, Utf8Array};
-
+use crate::catalog::{TableRefId, CONTRIBUTORS_TABLE_ID};
 /// The executor of internal tables.
 pub struct InternalTableExecutor {
-    pub table_name: String,
+    pub table_id: TableRefId,
 }
 
 impl InternalTableExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
-        match self.table_name.as_ref() {
-            "contributors" => {
+        match self.table_id.table_id {
+            CONTRIBUTORS_TABLE_ID => {
                 yield contributors();
             }
             _ => {
                 panic!(
-                    "InternalTableExecutor::execute: unknown table name: {}",
-                    self.table_name
+                    "InternalTableExecutor::execute: unknown table ref id: {}",
+                    self.table_id
                 );
             }
         }
     }
 }
 
-// TODO: find a better way to maintain the contributors list instead of hard-coding.
-// update this funciton with `curl https://api.github.com/repos/risinglightdb/risinglight/contributors | jq ".[].login"`
+// TODO: find a better way to maintain the contributors list instead of hard-coding, and get total
+// contributors when contributors is more than 100. (per_page max is 100)
+// update this funciton with `curl https://api.github.com/repos/risinglightdb/risinglight/contributors?per_page=100 | jq ".[].login"`
 fn contributors() -> DataChunk {
     let contributors = vec![
         "skyzh",
