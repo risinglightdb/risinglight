@@ -48,7 +48,7 @@ impl DataTypeKind {
     pub const fn is_number(&self) -> bool {
         matches!(
             self,
-            Self::Int32 | Self::Int64 | Self::Float64 | Self::Decimal(_, _)
+            Self::Int16 | Self::Int32 | Self::Int64 | Self::Float64 | Self::Decimal(_, _)
         )
     }
 
