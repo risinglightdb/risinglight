@@ -71,6 +71,7 @@ macro_rules! update_func {
 update_func!(
     {Null, Null},
     {Bool, Bool},
+    {Int16, Int16},
     {Int32, Int32},
     {Int64, Int64},
     {Float64, Float64},
