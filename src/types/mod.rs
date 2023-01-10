@@ -97,7 +97,7 @@ impl From<&crate::parser::DataType> for DataTypeKind {
 
         use crate::parser::DataType::*;
         match kind {
-            Char(_) | Varchar(_) | String => Self::String,
+            Char(_) | Varchar(_) | String | Text => Self::String,
             Bytea | Binary(_) | Varbinary(_) | Blob(_) => Self::Blob,
             // Real => Self::Float32,
             Float(_) | Double => Self::Float64,
