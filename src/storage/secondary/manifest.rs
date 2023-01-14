@@ -101,6 +101,23 @@ impl Manifest {
         })
     }
 
+    // Reopen manifest file at `path` and seek to the end of file.
+    pub async fn reopen(&mut self, path: impl AsRef<Path>) -> StorageResult<()> {
+        if self.file.is_some() {
+            let mut file = OpenOptions::default()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open(path.as_ref())
+                .await?;
+            // Seek to end directly as the compacted manifest won't be replayed.
+            file.seek(SeekFrom::End(0)).await?;
+            self.file = Some(file);
+        }
+
+        Ok(())
+    }
+
     pub async fn replay(&mut self) -> StorageResult<Vec<ManifestOperation>> {
         let file = if let Some(file) = &mut self.file {
             file
