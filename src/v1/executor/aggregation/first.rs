@@ -79,6 +79,8 @@ update_func!(
     {Blob, Blob},
     {Decimal, Decimal},
     {Date, Date},
+    {Timestamp, Timestamp},
+    {TimestampTz, TimestampTz},
     {Interval, Interval}
 );
 

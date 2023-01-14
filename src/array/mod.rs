@@ -11,7 +11,8 @@ use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 
 use crate::types::{
-    Blob, ConvertError, DataType, DataTypeKind, DataValue, Date, Interval, F32, F64,
+    Blob, ConvertError, DataType, DataTypeKind, DataValue, Date, Interval, Timestamp, TimestampTz,
+    F32, F64,
 };
 
 mod data_chunk;
@@ -26,9 +27,11 @@ pub use self::primitive_array::*;
 pub use self::utf8_array::*;
 
 mod internal_ext;
+
 pub use internal_ext::*;
 
 mod shuffle_ext;
+
 pub use shuffle_ext::*;
 
 /// A trait over all array builders.
@@ -181,6 +184,8 @@ pub type F32Array = PrimitiveArray<F32>;
 pub type F64Array = PrimitiveArray<F64>;
 pub type DecimalArray = PrimitiveArray<Decimal>;
 pub type DateArray = PrimitiveArray<Date>;
+pub type TimestampArray = PrimitiveArray<Timestamp>;
+pub type TimestampTzArray = PrimitiveArray<TimestampTz>;
 pub type IntervalArray = PrimitiveArray<Interval>;
 
 /// Embeds all types of arrays in `array` module.
@@ -197,6 +202,8 @@ pub enum ArrayImpl {
     Blob(Arc<BlobArray>),
     Decimal(Arc<DecimalArray>),
     Date(Arc<DateArray>),
+    Timestamp(Arc<TimestampArray>),
+    TimestampTz(Arc<TimestampTzArray>),
     Interval(Arc<IntervalArray>),
 }
 
@@ -209,6 +216,8 @@ pub type F32ArrayBuilder = PrimitiveArrayBuilder<F32>;
 pub type F64ArrayBuilder = PrimitiveArrayBuilder<F64>;
 pub type DecimalArrayBuilder = PrimitiveArrayBuilder<Decimal>;
 pub type DateArrayBuilder = PrimitiveArrayBuilder<Date>;
+pub type TimestampArrayBuilder = PrimitiveArrayBuilder<Timestamp>;
+pub type TimestampTzArrayBuilder = PrimitiveArrayBuilder<TimestampTz>;
 pub type IntervalArrayBuilder = PrimitiveArrayBuilder<Interval>;
 
 /// Embeds all types of array builders in `array` module.
@@ -224,6 +233,8 @@ pub enum ArrayBuilderImpl {
     Blob(BlobArrayBuilder),
     Decimal(DecimalArrayBuilder),
     Date(DateArrayBuilder),
+    Timestamp(TimestampArrayBuilder),
+    TimestampTz(TimestampTzArrayBuilder),
     Interval(IntervalArrayBuilder),
 }
 
@@ -248,6 +259,8 @@ macro_rules! for_all_variants {
             { Float64, F64, float64, F64Array, F64ArrayBuilder, Float64, Float64 },
             { Decimal, Decimal, decimal, DecimalArray, DecimalArrayBuilder, Decimal, Decimal(_, _) },
             { Date, Date, date, DateArray, DateArrayBuilder, Date, Date },
+            { Timestamp, Timestamp, timestamp, TimestampArray, TimestampArrayBuilder, Timestamp, Timestamp },
+            { TimestampTz, TimestampTz, timestamp_tz, TimestampTzArray, TimestampTzArrayBuilder, TimestampTz, TimestampTz },
             { Interval, Interval, interval, IntervalArray, IntervalArrayBuilder, Interval, Interval },
             { Utf8, str, utf8, Utf8Array, Utf8ArrayBuilder, String, String },
             { Blob, BlobRef, blob, BlobArray, BlobArrayBuilder, Blob, Blob }
@@ -267,6 +280,8 @@ macro_rules! for_all_variants_without_null {
             { Float64, F64, float64, F64Array, F64ArrayBuilder, Float64, Float64 },
             { Decimal, Decimal, decimal, DecimalArray, DecimalArrayBuilder, Decimal, Decimal(_, _) },
             { Date, Date, date, DateArray, DateArrayBuilder, Date, Date },
+            { Timestamp, Timestamp, timestamp, TimestampArray, TimestampArrayBuilder, Timestamp, Timestamp },
+            { TimestampTz, TimestampTz, timestamp_tz, TimestampTzArray, TimestampTzArrayBuilder, TimestampTz, TimestampTz },
             { Interval, Interval, interval, IntervalArray, IntervalArrayBuilder, Interval, Interval },
             { Utf8, str, utf8, Utf8Array, Utf8ArrayBuilder, String, String },
             { Blob, BlobRef, blob, BlobArray, BlobArrayBuilder, Blob, Blob }
@@ -465,6 +480,8 @@ impl ArrayBuilderImpl {
             Self::Blob(a) if null => a.push(None),
             Self::Decimal(a) if null => a.push(None),
             Self::Date(a) if null => a.push(None),
+            Self::Timestamp(a) if null => a.push(None),
+            Self::TimestampTz(a) if null => a.push(None),
             Self::Interval(a) if null => a.push(None),
             Self::Bool(a) => a.push(Some(
                 &s.parse::<bool>()
@@ -497,6 +514,14 @@ impl ArrayBuilderImpl {
             Self::Date(a) => a.push(Some(
                 &Date::from_str(s).map_err(|e| ConvertError::ParseDate(s.to_string(), e))?,
             )),
+            Self::Timestamp(a) => a
+                .push(Some(&Timestamp::from_str(s).map_err(|e| {
+                    ConvertError::ParseTimestamp(s.to_string(), e)
+                })?)),
+            Self::TimestampTz(a) => a
+                .push(Some(&TimestampTz::from_str(s).map_err(|e| {
+                    ConvertError::ParseTimestampTz(s.to_string(), e)
+                })?)),
             Self::Interval(a) => a.push(Some(
                 &Interval::from_str(s)
                     .map_err(|e| ConvertError::ParseInterval(s.to_string(), e))?,
@@ -614,6 +639,8 @@ impl From<&DataValue> for ArrayImpl {
             DataValue::Blob(v) => Self::new_blob([Some(v)].into_iter().collect()),
             &DataValue::Decimal(v) => Self::new_decimal([v].into_iter().collect()),
             &DataValue::Date(v) => Self::new_date([v].into_iter().collect()),
+            &DataValue::Timestamp(v) => Self::new_timestamp([v].into_iter().collect()),
+            &DataValue::TimestampTz(v) => Self::new_timestamp_tz([v].into_iter().collect()),
             &DataValue::Interval(v) => Self::new_interval([v].into_iter().collect()),
         }
     }

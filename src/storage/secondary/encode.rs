@@ -7,7 +7,7 @@ use ordered_float::OrderedFloat;
 use rust_decimal::Decimal;
 
 use crate::array::*;
-use crate::types::{BlobRef, Date, Interval, F64};
+use crate::types::{BlobRef, Date, Interval, Timestamp, TimestampTz, F64};
 
 /// Encode a primitive value into fixed-width buffer
 pub trait PrimitiveFixedWidthEncode:
@@ -127,6 +127,35 @@ impl PrimitiveFixedWidthEncode for Date {
 
     fn decode(buffer: &mut impl Buf) -> Self {
         Date::new(buffer.get_i32())
+    }
+}
+
+impl PrimitiveFixedWidthEncode for Timestamp {
+    const WIDTH: usize = std::mem::size_of::<i64>();
+    const DEFAULT_VALUE: &'static Self = &Timestamp::new(0);
+
+    type ArrayType = TimestampArray;
+
+    fn encode(&self, buffer: &mut impl BufMut) {
+        buffer.put_i64(self.get_inner());
+    }
+
+    fn decode(buffer: &mut impl Buf) -> Self {
+        Timestamp::new(buffer.get_i64())
+    }
+}
+
+impl PrimitiveFixedWidthEncode for TimestampTz {
+    const WIDTH: usize = std::mem::size_of::<i64>();
+    const DEFAULT_VALUE: &'static Self = &TimestampTz::new(0);
+    type ArrayType = TimestampTzArray;
+
+    fn encode(&self, buffer: &mut impl BufMut) {
+        buffer.put_i64(self.get_inner());
+    }
+
+    fn decode(buffer: &mut impl Buf) -> Self {
+        TimestampTz::new(buffer.get_i64())
     }
 }
 

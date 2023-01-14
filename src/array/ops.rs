@@ -11,7 +11,8 @@ use super::*;
 use crate::for_all_variants;
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{
-    Blob, ConvertError, DataTypeKind, DataValue, Date, DateTimeField, Interval, F64,
+    Blob, ConvertError, DataTypeKind, DataValue, Date, DateTimeField, Interval, Timestamp,
+    TimestampTz, F64,
 };
 
 type A = ArrayImpl;
@@ -216,7 +217,7 @@ impl ArrayImpl {
                 return Err(ConvertError::NoUnaryOp(
                     "extract".into(),
                     self.type_string(),
-                ))
+                ));
             }
         })
     }
@@ -276,7 +277,13 @@ impl ArrayImpl {
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&b| Decimal::from(b as u8)))
                 }
-                Type::Null | Type::Date | Type::Interval | Type::Blob | Type::Struct(_) => {
+                Type::Null
+                | Type::Date
+                | Type::Timestamp
+                | Type::TimestampTz
+                | Type::Interval
+                | Type::Blob
+                | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("BOOLEAN", data_type.clone()));
                 }
             },
@@ -290,7 +297,13 @@ impl ArrayImpl {
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
                 }
-                Type::Null | Type::Date | Type::Interval | Type::Blob | Type::Struct(_) => {
+                Type::Null
+                | Type::Date
+                | Type::Timestamp
+                | Type::TimestampTz
+                | Type::Interval
+                | Type::Blob
+                | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("SMALLINT", data_type.clone()));
                 }
             },
@@ -307,7 +320,13 @@ impl ArrayImpl {
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
                 }
-                Type::Null | Type::Date | Type::Interval | Type::Blob | Type::Struct(_) => {
+                Type::Null
+                | Type::Date
+                | Type::Timestamp
+                | Type::TimestampTz
+                | Type::Interval
+                | Type::Blob
+                | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("INT", data_type.clone()));
                 }
             },
@@ -327,7 +346,13 @@ impl ArrayImpl {
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
                 }
-                Type::Null | Type::Date | Type::Interval | Type::Blob | Type::Struct(_) => {
+                Type::Null
+                | Type::Date
+                | Type::Timestamp
+                | Type::TimestampTz
+                | Type::Interval
+                | Type::Blob
+                | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("BIGINT", data_type.clone()));
                 }
             },
@@ -350,7 +375,13 @@ impl ArrayImpl {
                 Type::Decimal(_, _) => Self::new_decimal(unary_op(a.as_ref(), |&f| {
                     Decimal::from_f64_retain(f.0).unwrap()
                 })),
-                Type::Null | Type::Date | Type::Interval | Type::Blob | Type::Struct(_) => {
+                Type::Null
+                | Type::Date
+                | Type::Timestamp
+                | Type::TimestampTz
+                | Type::Interval
+                | Type::Blob
+                | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("DOUBLE", data_type.clone()));
                 }
             },
@@ -381,6 +412,14 @@ impl ArrayImpl {
                 })?),
                 Type::Date => Self::new_date(try_unary_op(a.as_ref(), |s| {
                     Date::from_str(s).map_err(|e| ConvertError::ParseDate(s.to_string(), e))
+                })?),
+                Type::Timestamp => Self::new_timestamp(try_unary_op(a.as_ref(), |s| {
+                    Timestamp::from_str(s)
+                        .map_err(|e| ConvertError::ParseTimestamp(s.to_string(), e))
+                })?),
+                Type::TimestampTz => Self::new_timestamp_tz(try_unary_op(a.as_ref(), |s| {
+                    TimestampTz::from_str(s)
+                        .map_err(|e| ConvertError::ParseTimestampTz(s.to_string(), e))
                 })?),
                 Type::Interval => Self::new_interval(try_unary_op(a.as_ref(), |s| {
                     Interval::from_str(s).map_err(|e| ConvertError::ParseInterval(s.to_string(), e))
@@ -414,7 +453,13 @@ impl ArrayImpl {
                 })?),
                 Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
                 Type::Decimal(_, _) => self.clone(),
-                Type::Null | Type::Blob | Type::Date | Type::Interval | Type::Struct(_) => {
+                Type::Null
+                | Type::Blob
+                | Type::Date
+                | Type::Timestamp
+                | Type::TimestampTz
+                | Type::Interval
+                | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("DOUBLE", data_type.clone()));
                 }
             },
@@ -422,6 +467,21 @@ impl ArrayImpl {
                 Type::Date => self.clone(),
                 Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
                 _ => return Err(ConvertError::NoCast("DATE", data_type.clone())),
+            },
+            Self::Timestamp(a) => match data_type {
+                Type::Timestamp => self.clone(),
+                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
+                _ => return Err(ConvertError::NoCast("TIMESTAMP", data_type.clone())),
+            },
+            Self::TimestampTz(a) => match data_type {
+                Type::TimestampTz => self.clone(),
+                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
+                _ => {
+                    return Err(ConvertError::NoCast(
+                        "TIMESTAMP WITH TIME ZONE",
+                        data_type.clone(),
+                    ))
+                }
             },
             Self::Interval(a) => match data_type {
                 Type::Interval => self.clone(),

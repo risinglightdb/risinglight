@@ -7,17 +7,20 @@ use std::str::FromStr;
 use parse_display::Display;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use sqlparser::ast::TimezoneInfo;
 
 mod blob;
 mod date;
 mod interval;
 mod native;
+mod timestamp;
 mod value;
 
 pub use self::blob::*;
 pub use self::date::*;
 pub use self::interval::*;
 pub use self::native::*;
+pub use self::timestamp::*;
 pub use self::value::*;
 
 /// Data type.
@@ -34,6 +37,8 @@ pub enum DataTypeKind {
     // decimal (precision, scale)
     Decimal(Option<u8>, Option<u8>),
     Date,
+    Timestamp,
+    TimestampTz,
     Interval,
     String,
     Blob,
@@ -113,6 +118,8 @@ impl From<&crate::parser::DataType> for DataTypeKind {
                 }
             },
             Date => Self::Date,
+            Timestamp(_, TimezoneInfo::None) => Self::Timestamp,
+            Timestamp(_, TimezoneInfo::Tz) => Self::TimestampTz,
             Interval => Self::Interval,
             _ => todo!("not supported type: {:?}", kind),
         }
@@ -138,6 +145,8 @@ impl std::fmt::Display for DataTypeKind {
                 (None, Some(_)) => panic!("invalid decimal"),
             },
             Self::Date => write!(f, "DATE"),
+            Self::Timestamp => write!(f, "TIMESTAMP"),
+            Self::TimestampTz => write!(f, "TIMESTAMP WITH TIME ZONE"),
             Self::Interval => write!(f, "INTERVAL"),
             Self::Struct(types) => {
                 write!(f, "STRUCT(")?;
@@ -260,6 +269,10 @@ pub enum ConvertError {
     ParseDecimal(String, #[source] rust_decimal::Error),
     #[error("failed to convert string {0:?} to date: {1}")]
     ParseDate(String, #[source] chrono::ParseError),
+    #[error("failed to convert string {0:?} to timestamp: {1}")]
+    ParseTimestamp(String, #[source] ParseTimestampError),
+    #[error("failed to convert string {0:?} to timestamp with time zone: {1}")]
+    ParseTimestampTz(String, #[source] ParseTimestampError),
     #[error("failed to convert string {0:?} to interval: {1}")]
     ParseInterval(String, #[source] ParseIntervalError),
     #[error("failed to convert string {0:?} to blob: {1}")]

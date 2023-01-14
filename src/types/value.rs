@@ -34,6 +34,10 @@ pub enum DataValue {
     #[display("{0}")]
     Date(Date),
     #[display("{0}")]
+    Timestamp(Timestamp),
+    #[display("{0}")]
+    TimestampTz(TimestampTz),
+    #[display("{0}")]
     Interval(Interval),
 }
 
@@ -113,6 +117,8 @@ impl DataValue {
             Self::Blob(_) => false,
             Self::Decimal(v) => v.is_sign_positive(),
             Self::Date(_) => false,
+            Self::Timestamp(_) => false,
+            Self::TimestampTz(_) => false,
             Self::Interval(v) => v.is_positive(),
         }
     }
@@ -130,6 +136,8 @@ impl DataValue {
             Self::Blob(_) => false,
             Self::Decimal(v) => v.is_zero(),
             Self::Date(_) => false,
+            Self::Timestamp(_) => false,
+            Self::TimestampTz(_) => false,
             Self::Interval(v) => v.is_zero(),
         }
     }
@@ -147,6 +155,8 @@ impl DataValue {
             Self::Blob(_) => DataTypeKind::Blob.not_null(),
             Self::Decimal(_) => DataTypeKind::Decimal(None, None).not_null(),
             Self::Date(_) => DataTypeKind::Date.not_null(),
+            Self::Timestamp(_) => DataTypeKind::Timestamp.not_null(),
+            Self::TimestampTz(_) => DataTypeKind::TimestampTz.not_null(),
             Self::Interval(_) => DataTypeKind::Interval.not_null(),
         }
     }
@@ -165,6 +175,8 @@ impl DataValue {
             &Self::Decimal(d) if d.is_sign_negative() => return Err(cast_err()),
             &Self::Decimal(d) => d.to_usize().ok_or_else(cast_err)?,
             &Self::Date(_) => return Err(cast_err()),
+            &Self::Timestamp(_) => return Err(cast_err()),
+            &Self::TimestampTz(_) => return Err(cast_err()),
             &Self::Interval(_) => return Err(cast_err()),
             Self::String(s) => s.parse::<usize>().map_err(|_| cast_err())?,
             Self::Blob(_) => return Err(cast_err()),
