@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::sync::OnceLock;
 
-use chrono::{DateTime, Datelike, FixedOffset, NaiveDateTime, Timelike, Utc};
+use chrono::{DateTime, Datelike, FixedOffset, NaiveDateTime, Timelike};
 use serde::Serialize;
 
 /// unix timestamp counts from 1970-01-01 00:00:00,
@@ -92,9 +92,7 @@ impl Display for TimestampTz {
         let dt = NaiveDateTime::from_timestamp_millis((self.0 - THIRTY_YEARS_MICROSECONDS) / 1000)
             .ok_or(std::fmt::Error)?;
         let sys_tz = TIME_ZONE.get_or_init(|| FixedOffset::east_opt(0).unwrap());
-        let dt = DateTime::<FixedOffset>::from_utc(dt, *sys_tz)
-            .with_timezone(&Utc)
-            .naive_local();
+        let dt = dt + *sys_tz;
         dt_fmt(&dt, f)?;
         write!(f, " {}", sys_tz)
     }
@@ -142,9 +140,7 @@ fn dt_to_timestamp(
     tz: &FixedOffset,
     is_bc: bool,
 ) -> Result<i64, ParseTimestampError> {
-    let mut dt = DateTime::<FixedOffset>::from_utc(*dt, *tz)
-        .with_timezone(&Utc)
-        .naive_local();
+    let mut dt = *dt + *tz;
     if is_bc {
         let new_date = dt
             .date()
