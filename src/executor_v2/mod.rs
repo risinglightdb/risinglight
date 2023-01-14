@@ -31,7 +31,7 @@ use self::filter::*;
 use self::hash_agg::*;
 use self::hash_join::*;
 use self::insert::*;
-// use self::internal::*;
+use self::internal::*;
 use self::limit::*;
 use self::nested_loop_join::*;
 use self::order::*;
@@ -63,7 +63,7 @@ mod filter;
 mod hash_agg;
 mod hash_join;
 mod insert;
-// mod internal;
+mod internal;
 mod limit;
 mod nested_loop_join;
 mod order;
@@ -76,6 +76,27 @@ mod table_scan;
 mod top_n;
 mod values;
 
+/// Join types for generating join code during the compilation.
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum JoinType {
+    Inner,
+    LeftOuter,
+    RightOuter,
+    FullOuter,
+}
+
+macro_rules! hash_join_operator {
+    ($self:ident, $join_type:expr, $op:expr, $lkeys:expr, $rkeys:expr, $left:expr, $right:expr) => {
+        HashJoinExecutor::<{ $join_type }> {
+            op: $self.node($op).clone(),
+            left_keys: $self.resolve_column_index($lkeys, $left),
+            right_keys: $self.resolve_column_index($rkeys, $right),
+            left_types: $self.plan_types($left).to_vec(),
+            right_types: $self.plan_types($right).to_vec(),
+        }
+        .execute($self.build_id($left), $self.build_id($right))
+    };
+}
 /// The error type of execution.
 #[derive(thiserror::Error, Debug)]
 pub enum ExecutorError {
@@ -165,7 +186,7 @@ impl<S: Storage> Builder<S> {
 
     /// Resolve the column index of `expr` in `plan`.
     fn resolve_column_index(&self, expr: Id, plan: Id) -> RecExpr {
-        let schema = self.egraph[plan].data.schema.as_ref().expect("no schema");
+        let schema = &self.egraph[plan].data.schema;
         self.node(expr).build_recexpr(|id| {
             if let Some(idx) = schema.iter().position(|x| *x == id) {
                 return Expr::ColumnIndex(ColumnIndex(idx as _));
@@ -187,7 +208,7 @@ impl<S: Storage> Builder<S> {
             Scan([table, list]) => TableScanExecutor {
                 table_id: self.node(table).as_table(),
                 columns: (self.node(list).as_list().iter())
-                    .map(|id| self.node(*id).as_base_column())
+                    .map(|id| self.node(*id).as_column())
                     .collect(),
                 storage: self.storage.clone(),
             }
@@ -204,6 +225,11 @@ impl<S: Storage> Builder<S> {
                         })
                         .collect()
                 },
+            }
+            .execute(),
+
+            Internal([table, _]) => InternalTableExecutor {
+                table_id: self.node(table).as_table(),
             }
             .execute(),
 
@@ -244,16 +270,19 @@ impl<S: Storage> Builder<S> {
                 right_types: self.plan_types(right).to_vec(),
             }
             .execute(self.build_id(left), self.build_id(right)),
-
-            HashJoin([op, lkeys, rkeys, left, right]) => HashJoinExecutor {
-                op: self.node(op).clone(),
-                left_keys: self.resolve_column_index(lkeys, left),
-                right_keys: self.resolve_column_index(rkeys, right),
-                left_types: self.plan_types(left).to_vec(),
-                right_types: self.plan_types(right).to_vec(),
+            HashJoin([op, lkeys, rkeys, left, right]) => {
+                if matches!(self.node(op), Expr::Inner) {
+                    hash_join_operator!(self, JoinType::Inner, op, lkeys, rkeys, left, right)
+                } else if matches!(self.node(op), Expr::LeftOuter) {
+                    hash_join_operator!(self, JoinType::LeftOuter, op, lkeys, rkeys, left, right)
+                } else if matches!(self.node(op), Expr::RightOuter) {
+                    hash_join_operator!(self, JoinType::RightOuter, op, lkeys, rkeys, left, right)
+                } else if matches!(self.node(op), Expr::FullOuter) {
+                    hash_join_operator!(self, JoinType::FullOuter, op, lkeys, rkeys, left, right)
+                } else {
+                    unimplemented!()
+                }
             }
-            .execute(self.build_id(left), self.build_id(right)),
-
             Agg([aggs, group_keys, child]) => {
                 let aggs = self.resolve_column_index(aggs, child);
                 let group_keys = self.resolve_column_index(group_keys, child);
@@ -284,7 +313,7 @@ impl<S: Storage> Builder<S> {
             Insert([table, cols, child]) => InsertExecutor {
                 table_id: self.node(table).as_table(),
                 column_ids: (self.node(cols).as_list().iter())
-                    .map(|id| self.node(*id).as_base_column().column_id)
+                    .map(|id| self.node(*id).as_column().column_id)
                     .collect(),
                 storage: self.storage.clone(),
             }

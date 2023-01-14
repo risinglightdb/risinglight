@@ -6,7 +6,8 @@ use super::super::ColumnBuilderOptions;
 use super::blob_column_builder::BlobColumnBuilder;
 use super::char_column_builder::CharColumnBuilder;
 use super::primitive_column_builder::{
-    DateColumnBuilder, DecimalColumnBuilder, F64ColumnBuilder, I32ColumnBuilder, I64ColumnBuilder,
+    DateColumnBuilder, DecimalColumnBuilder, F64ColumnBuilder, I16ColumnBuilder, I32ColumnBuilder,
+    I64ColumnBuilder,
 };
 use super::{BoolColumnBuilder, ColumnBuilder};
 use crate::array::ArrayImpl;
@@ -15,6 +16,7 @@ use crate::types::{DataType, DataTypeKind};
 
 /// [`ColumnBuilder`] of all types
 pub enum ColumnBuilderImpl {
+    Int16(I16ColumnBuilder),
     Int32(I32ColumnBuilder),
     Int64(I64ColumnBuilder),
     Float64(F64ColumnBuilder),
@@ -31,6 +33,7 @@ impl ColumnBuilderImpl {
         use DataTypeKind::*;
         match datatype.kind() {
             Null => panic!("column type should not be null"),
+            Int16 => Self::Int16(I16ColumnBuilder::new(datatype.nullable, options)),
             Int32 => Self::Int32(I32ColumnBuilder::new(datatype.nullable, options)),
             Int64 => Self::Int64(I64ColumnBuilder::new(datatype.nullable, options)),
             Bool => Self::Bool(BoolColumnBuilder::new(datatype.nullable, options)),
@@ -46,6 +49,7 @@ impl ColumnBuilderImpl {
 
     pub fn append(&mut self, array: &ArrayImpl) {
         match (self, array) {
+            (Self::Int16(builder), ArrayImpl::Int16(array)) => builder.append(array),
             (Self::Int32(builder), ArrayImpl::Int32(array)) => builder.append(array),
             (Self::Int64(builder), ArrayImpl::Int64(array)) => builder.append(array),
             (Self::Bool(builder), ArrayImpl::Bool(array)) => builder.append(array),
@@ -61,6 +65,7 @@ impl ColumnBuilderImpl {
 
     pub fn finish(self) -> (Vec<BlockIndex>, Vec<u8>) {
         match self {
+            Self::Int16(builder) => builder.finish(),
             Self::Int32(builder) => builder.finish(),
             Self::Int64(builder) => builder.finish(),
             Self::Bool(builder) => builder.finish(),

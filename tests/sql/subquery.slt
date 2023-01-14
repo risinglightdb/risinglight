@@ -1,0 +1,49 @@
+# Test subquery 
+
+statement ok
+create table t(a int not null, b int not null)
+
+statement ok
+insert into t values (1, 2), (3, 4)
+
+query II
+select a, b from (select a, b from t);
+----
+1 2
+3 4
+
+query II
+select x.a, x.b from (select a, b from t) as x;
+----
+1 2
+3 4
+
+query II
+select * from (select a, b from t);
+----
+1 2
+3 4
+
+query I
+select s from (select a + b as s from t);
+----
+3
+7
+
+query II rowsort
+select a, b from (select b from t), (select a from t);
+----
+1 2
+1 4
+3 2
+3 4
+
+query II rowsort
+select x.a, y.a from 
+    (select -a as a from t) as x,
+    (select -b as a from t) as y;
+----
+-1 -2
+-1 -4
+-3 -2
+-3 -4

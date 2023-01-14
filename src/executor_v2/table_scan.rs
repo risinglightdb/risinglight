@@ -4,13 +4,13 @@ use std::sync::Arc;
 
 use super::*;
 use crate::array::DataChunk;
-use crate::catalog::{BaseTableColumnRefId, TableRefId};
+use crate::catalog::{ColumnRefId, TableRefId};
 use crate::storage::{Storage, StorageColumnRef, Table, Transaction, TxnIterator};
 
 /// The executor of table scan operation.
 pub struct TableScanExecutor<S: Storage> {
     pub table_id: TableRefId,
-    pub columns: Vec<BaseTableColumnRefId>,
+    pub columns: Vec<ColumnRefId>,
     pub storage: Arc<S>,
 }
 

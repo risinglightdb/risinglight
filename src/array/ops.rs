@@ -3,13 +3,16 @@
 use std::borrow::Borrow;
 
 use num_traits::ToPrimitive;
+use regex::Regex;
 use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 
 use super::*;
 use crate::for_all_variants;
 use crate::parser::{BinaryOperator, UnaryOperator};
-use crate::types::{Blob, ConvertError, DataTypeKind, DataValue, Date, Interval, F64};
+use crate::types::{
+    Blob, ConvertError, DataTypeKind, DataValue, Date, DateTimeField, Interval, F64,
+};
 
 type A = ArrayImpl;
 
@@ -48,26 +51,36 @@ macro_rules! arith {
             other: &Self,
         ) -> Result<Self, ConvertError> {
         Ok(match (self, other) {
+            (A::Int16(a), A::Int16(b)) => A::new_int16(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+
+            (A::Int16(a), A::Int32(b)) => A::new_int32(binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i32) $op *b)),
+            (A::Int32(a), A::Int16(b)) => A::new_int32(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op (*b as i32))),
             (A::Int32(a), A::Int32(b)) => A::new_int32(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-            (A::Int64(a), A::Int64(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
-            (A::Float64(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
 
+            (A::Int16(a), A::Int64(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i64) $op *b)),
             (A::Int32(a), A::Int64(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i64) $op *b)),
+            (A::Int64(a), A::Int16(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op (*b as i64))),
             (A::Int64(a), A::Int32(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op (*b as i64))),
+            (A::Int64(a), A::Int64(b)) => A::new_int64(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
 
+            (A::Int16(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
             (A::Int32(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
             (A::Int64(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b)),
+            (A::Float64(a), A::Int16(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
             (A::Float64(a), A::Int32(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
             (A::Float64(a), A::Int64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64))),
+            (A::Float64(a), A::Float64(b)) => A::new_float64(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
 
+            (A::Int16(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
             (A::Int32(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
             (A::Int64(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b)),
             (A::Float64(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from_f64_retain(a.0).unwrap() $op *b)),
+            (A::Decimal(a), A::Int16(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
             (A::Decimal(a), A::Int32(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
             (A::Decimal(a), A::Int64(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b))),
             (A::Decimal(a), A::Float64(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from_f64_retain(b.0).unwrap())),
-
             (A::Decimal(a), A::Decimal(b)) => A::new_decimal(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
+
             (A::Date(a), A::Interval(b)) => A::new_date(binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b)),
 
             _ => return Err(ConvertError::NoBinaryOp(stringify!($name).into(), self.type_string(), other.type_string())),
@@ -85,27 +98,40 @@ macro_rules! cmp {
         ) -> Result<Self, ConvertError> {
         Ok(A::new_bool(clear_null(match (self, other) {
             (A::Bool(a), A::Bool(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
+
+            (A::Int16(a), A::Int16(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
+
+            (A::Int16(a), A::Int32(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i32) $op *b),
+            (A::Int32(a), A::Int16(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op (*b as i32)),
             (A::Int32(a), A::Int32(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
-            (A::Int64(a), A::Int64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
-            (A::Float64(a), A::Float64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b),
-            (A::Utf8(a), A::Utf8(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
-            (A::Date(a), A::Date(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
-            (A::Decimal(a), A::Decimal(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
 
+            (A::Int16(a), A::Int64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i64) $op *b),
             (A::Int32(a), A::Int64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| (*a as i64) $op *b),
+            (A::Int64(a), A::Int16(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op (*b as i64)),
             (A::Int64(a), A::Int32(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op (*b as i64)),
+            (A::Int64(a), A::Int64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
 
+            (A::Int16(a), A::Float64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b),
             (A::Int32(a), A::Float64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b),
             (A::Int64(a), A::Float64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| F64::from(*a as f64) $op *b),
+            (A::Float64(a), A::Int16(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64)),
             (A::Float64(a), A::Int32(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64)),
             (A::Float64(a), A::Int64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op F64::from(*b as f64)),
+            (A::Float64(a), A::Float64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op *b),
 
+            (A::Int16(a), A::Decimal(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b),
             (A::Int32(a), A::Decimal(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b),
             (A::Int64(a), A::Decimal(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from(*a) $op *b),
             (A::Float64(a), A::Decimal(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| Decimal::from_f64_retain(a.0).unwrap() $op *b),
+            (A::Decimal(a), A::Int16(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b)),
             (A::Decimal(a), A::Int32(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b)),
             (A::Decimal(a), A::Int64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from(*b)),
             (A::Decimal(a), A::Float64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from_f64_retain(b.0).unwrap()),
+            (A::Decimal(a), A::Decimal(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
+
+            (A::Utf8(a), A::Utf8(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
+
+            (A::Date(a), A::Date(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
 
             _ => return Err(ConvertError::NoBinaryOp(stringify!($name).into(), self.type_string(), other.type_string())),
         })))
@@ -155,6 +181,46 @@ impl ArrayImpl {
         Ok(A::new_bool(clear_null(unary_op(a.as_ref(), |b| !b))))
     }
 
+    pub fn like(&self, pattern: &str) -> Result<Self, ConvertError> {
+        /// Converts a SQL LIKE pattern to a regex pattern.
+        fn like_to_regex(pattern: &str) -> String {
+            let mut regex = String::with_capacity(pattern.len());
+            for c in pattern.chars() {
+                match c {
+                    '%' => regex.push_str(".*"),
+                    '_' => regex.push('.'),
+                    c => regex.push(c),
+                }
+            }
+            regex
+        }
+        let A::Utf8(a) = self else {
+            return Err(ConvertError::NoUnaryOp("like".into(), self.type_string()));
+        };
+        let regex = Regex::new(&like_to_regex(pattern)).unwrap();
+        Ok(A::new_bool(clear_null(unary_op(a.as_ref(), |s| {
+            regex.is_match(s)
+        }))))
+    }
+
+    pub fn extract(&self, field: DateTimeField) -> Result<Self, ConvertError> {
+        Ok(match self {
+            A::Date(a) => match field.0 {
+                sqlparser::ast::DateTimeField::Year => {
+                    A::new_int32(unary_op(a.as_ref(), |d| d.year()))
+                }
+                f => todo!("extract {f} from date"),
+            },
+            A::Interval(_) => todo!("extract {field} from interval"),
+            _ => {
+                return Err(ConvertError::NoUnaryOp(
+                    "extract".into(),
+                    self.type_string(),
+                ))
+            }
+        })
+    }
+
     /// Perform binary operation.
     pub fn binary_op(
         &self,
@@ -198,6 +264,7 @@ impl ArrayImpl {
             }
             Self::Bool(a) => match data_type {
                 Type::Bool => Self::Bool(a.clone()),
+                Type::Int16 => Self::new_int16(unary_op(a.as_ref(), |&b| b as i16)),
                 Type::Int32 => Self::new_int32(unary_op(a.as_ref(), |&b| b as i32)),
                 Type::Int64 => Self::new_int64(unary_op(a.as_ref(), |&b| b as i64)),
                 Type::Float64 => {
@@ -213,8 +280,26 @@ impl ArrayImpl {
                     return Err(ConvertError::NoCast("BOOLEAN", data_type.clone()));
                 }
             },
+            Self::Int16(a) => match data_type {
+                Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&i| i != 0)),
+                Type::Int16 => Self::Int16(a.clone()),
+                Type::Int32 => Self::new_int32(unary_op(a.as_ref(), |&b| b as i32)),
+                Type::Int64 => Self::new_int64(unary_op(a.as_ref(), |&b| b as i64)),
+                Type::Float64 => Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64))),
+                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
+                Type::Decimal(_, _) => {
+                    Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
+                }
+                Type::Null | Type::Date | Type::Interval | Type::Blob | Type::Struct(_) => {
+                    return Err(ConvertError::NoCast("SMALLINT", data_type.clone()));
+                }
+            },
             Self::Int32(a) => match data_type {
                 Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&i| i != 0)),
+                Type::Int16 => Self::new_int16(try_unary_op(a.as_ref(), |&b| {
+                    b.to_i16()
+                        .ok_or(ConvertError::Overflow(DataValue::Int32(b), Type::Int16))
+                })?),
                 Type::Int32 => Self::Int32(a.clone()),
                 Type::Int64 => Self::new_int64(unary_op(a.as_ref(), |&b| b as i64)),
                 Type::Float64 => Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64))),
@@ -228,9 +313,13 @@ impl ArrayImpl {
             },
             Self::Int64(a) => match data_type {
                 Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&i| i != 0)),
-                Type::Int32 => Self::new_int32(try_unary_op(a.as_ref(), |&b| match b.to_i32() {
-                    Some(d) => Ok(d),
-                    None => Err(ConvertError::Overflow(DataValue::Int64(b), Type::Int32)),
+                Type::Int16 => Self::new_int16(try_unary_op(a.as_ref(), |&b| {
+                    b.to_i16()
+                        .ok_or(ConvertError::Overflow(DataValue::Int64(b), Type::Int16))
+                })?),
+                Type::Int32 => Self::new_int32(try_unary_op(a.as_ref(), |&b| {
+                    b.to_i32()
+                        .ok_or(ConvertError::Overflow(DataValue::Int64(b), Type::Int32))
                 })?),
                 Type::Int64 => Self::Int64(a.clone()),
                 Type::Float64 => Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64))),
@@ -244,30 +333,23 @@ impl ArrayImpl {
             },
             Self::Float64(a) => match data_type {
                 Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&f| f != 0.0)),
-                Type::Int32 => Self::new_int32(try_unary_op(a.as_ref(), |&b| match b.to_i32() {
-                    Some(d) => Ok(d),
-                    None => Err(ConvertError::Overflow(DataValue::Float64(b), Type::Int32)),
+                Type::Int16 => Self::new_int16(try_unary_op(a.as_ref(), |&b| {
+                    b.to_i16()
+                        .ok_or(ConvertError::Overflow(DataValue::Float64(b), Type::Int16))
                 })?),
-                Type::Int64 => Self::new_int64(try_unary_op(a.as_ref(), |&b| match b.to_i64() {
-                    Some(d) => Ok(d),
-                    None => Err(ConvertError::Overflow(DataValue::Float64(b), Type::Int64)),
+                Type::Int32 => Self::new_int32(try_unary_op(a.as_ref(), |&b| {
+                    b.to_i32()
+                        .ok_or(ConvertError::Overflow(DataValue::Float64(b), Type::Int32))
+                })?),
+                Type::Int64 => Self::new_int64(try_unary_op(a.as_ref(), |&b| {
+                    b.to_i64()
+                        .ok_or(ConvertError::Overflow(DataValue::Float64(b), Type::Int64))
                 })?),
                 Type::Float64 => Self::Float64(a.clone()),
                 Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
-                Type::Decimal(_, scale) => {
-                    Self::new_decimal(try_unary_op(
-                        a.as_ref(),
-                        |&f| match Decimal::from_f64_retain(f.0) {
-                            Some(mut d) => {
-                                if let Some(s) = scale {
-                                    d.rescale(*s as u32);
-                                }
-                                Ok(d)
-                            }
-                            None => Err(ConvertError::ToDecimalError(DataValue::Float64(f))),
-                        },
-                    )?)
-                }
+                Type::Decimal(_, _) => Self::new_decimal(unary_op(a.as_ref(), |&f| {
+                    Decimal::from_f64_retain(f.0).unwrap()
+                })),
                 Type::Null | Type::Date | Type::Interval | Type::Blob | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("DOUBLE", data_type.clone()));
                 }
@@ -276,6 +358,10 @@ impl ArrayImpl {
                 Type::Bool => Self::new_bool(try_unary_op(a.as_ref(), |s| {
                     s.parse::<bool>()
                         .map_err(|e| ConvertError::ParseBool(s.to_string(), e))
+                })?),
+                Type::Int16 => Self::new_int16(try_unary_op(a.as_ref(), |s| {
+                    s.parse::<i16>()
+                        .map_err(|e| ConvertError::ParseInt(s.to_string(), e))
                 })?),
                 Type::Int32 => Self::new_int32(try_unary_op(a.as_ref(), |s| {
                     s.parse::<i32>()
@@ -309,25 +395,22 @@ impl ArrayImpl {
             Self::Blob(_) => todo!("cast array"),
             Self::Decimal(a) => match data_type {
                 Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&d| !d.is_zero())),
+                Type::Int16 => Self::new_int16(try_unary_op(a.as_ref(), |&d| {
+                    d.to_i16()
+                        .ok_or(ConvertError::FromDecimalError(DataTypeKind::Int16, d))
+                })?),
                 Type::Int32 => Self::new_int32(try_unary_op(a.as_ref(), |&d| {
-                    d.to_i32().ok_or(ConvertError::FromDecimalError(
-                        DataTypeKind::Int32,
-                        DataValue::Decimal(d),
-                    ))
+                    d.to_i32()
+                        .ok_or(ConvertError::FromDecimalError(DataTypeKind::Int32, d))
                 })?),
                 Type::Int64 => Self::new_int64(try_unary_op(a.as_ref(), |&d| {
-                    d.to_i64().ok_or(ConvertError::FromDecimalError(
-                        DataTypeKind::Int64,
-                        DataValue::Decimal(d),
-                    ))
+                    d.to_i64()
+                        .ok_or(ConvertError::FromDecimalError(DataTypeKind::Int64, d))
                 })?),
                 Type::Float64 => Self::new_float64(try_unary_op(a.as_ref(), |&d| {
                     d.to_f64()
                         .map(F64::from)
-                        .ok_or(ConvertError::FromDecimalError(
-                            DataTypeKind::Float64,
-                            DataValue::Decimal(d),
-                        ))
+                        .ok_or(ConvertError::FromDecimalError(DataTypeKind::Float64, d))
                 })?),
                 Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
                 Type::Decimal(_, _) => self.clone(),
@@ -351,6 +434,7 @@ impl ArrayImpl {
     /// Returns the sum of values.
     pub fn sum(&self) -> DataValue {
         match self {
+            Self::Int16(a) => DataValue::Int16(a.raw_iter().sum()),
             Self::Int32(a) => DataValue::Int32(a.raw_iter().sum()),
             Self::Int64(a) => DataValue::Int64(a.raw_iter().sum()),
             Self::Float64(a) => DataValue::Float64(a.raw_iter().sum()),

@@ -1,5 +1,4 @@
 use super::*;
-use crate::binder_v2::ColumnRef;
 use crate::types::{DataType, DataTypeKind as Kind};
 
 /// The data type of type analysis.
@@ -7,8 +6,8 @@ pub type Type = Result<DataType, TypeError>;
 
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TypeError {
-    #[error("type is not available for node")]
-    Unavailable,
+    #[error("type is not available for node {0:?}")]
+    Unavailable(String),
     #[error("no function for {op}{operands:?}")]
     NoFunction { op: String, operands: Vec<Kind> },
     #[error("no cast {from} -> {to}")]
@@ -28,12 +27,11 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         // values
         Constant(v) => Ok(v.data_type()),
         Type(t) => Ok(t.clone().not_null()),
-        Column(ColumnRef::Base(col)) => Ok(catalog
+        Column(col) => Ok(catalog
             .get_column(col)
-            .ok_or(TypeError::Unavailable)?
+            .ok_or_else(|| TypeError::Unavailable(enode.to_string()))?
             .datatype()),
-        Column(ColumnRef::SubQuery(_)) => todo!("support subquery encoding in the future."),
-        Nested(a) => x(a),
+        Ref(a) => x(a),
         List(list) => Ok(Kind::Struct(list.iter().map(x).try_collect()?).not_null()),
 
         // cast
@@ -45,6 +43,17 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
             merge(enode, [x(a)?, x(b)?], |[a, b]| {
                 match if a > b { (b, a) } else { (a, b) } {
                     (Kind::Null, _) => Some(Kind::Null),
+                    (Kind::Decimal(Some(p1), Some(s1)), Kind::Decimal(Some(p2), Some(s2))) => {
+                        match enode {
+                            Add(_) | Sub(_) => Some(Kind::Decimal(
+                                Some((p1 - s1).max(p2 - s2) + s1.max(s2) + 1),
+                                Some(s1.max(s2)),
+                            )),
+                            Mul(_) => Some(Kind::Decimal(Some(p1 + p2), Some(s1 + s2))),
+                            Div(_) | Mod(_) => Some(Kind::Decimal(None, None)),
+                            _ => unreachable!(),
+                        }
+                    }
                     (a, b) if a.is_number() && b.is_number() => Some(b),
                     (Kind::Date, Kind::Interval) => Some(Kind::Date),
                     _ => None,
@@ -53,8 +62,11 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         }
 
         // string ops
-        StringConcat([a, b]) | Like([a, b]) => merge(enode, [x(a)?, x(b)?], |[a, b]| {
+        StringConcat([a, b]) => merge(enode, [x(a)?, x(b)?], |[a, b]| {
             (a == Kind::String && b == Kind::String).then_some(Kind::String)
+        }),
+        Like([a, b]) => merge(enode, [x(a)?, x(b)?], |[a, b]| {
+            (a == Kind::String && b == Kind::String).then_some(Kind::Bool)
         }),
 
         // bool ops
@@ -80,6 +92,11 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
 
         // null ops
         IsNull(_) => Ok(Kind::Bool.not_null()),
+
+        // functions
+        Extract([_, a]) => merge(enode, [x(a)?], |[a]| {
+            matches!(a, Kind::Date | Kind::Interval).then_some(Kind::Int32)
+        }),
 
         // number agg
         Max(a) | Min(a) => x(a),
@@ -124,7 +141,7 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         }
 
         // other plan nodes
-        _ => Err(TypeError::Unavailable),
+        _ => Err(TypeError::Unavailable(enode.to_string())),
     }
 }
 

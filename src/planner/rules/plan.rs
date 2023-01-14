@@ -2,7 +2,6 @@
 
 use super::schema::schema_is_eq;
 use super::*;
-use crate::binder_v2::ColumnRef;
 use crate::planner::ExprExt;
 
 /// Returns the rules that always improve the plan.
@@ -44,10 +43,6 @@ fn merge_rules() -> Vec<Rewrite> { vec![
     rw!("filter-merge";
         "(filter ?cond1 (filter ?cond2 ?child))" =>
         "(filter (and ?cond1 ?cond2) ?child)"
-    ),
-    rw!("proj-merge";
-        "(proj ?exprs1 (proj ?exprs2 ?child))" =>
-        "(proj ?exprs1 ?child)"
     ),
 ]}
 
@@ -128,141 +123,170 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
     pushdown("limit", "?limit ?offset", "proj", "?exprs"),
     rw!("pushdown-proj-order";
         "(proj ?exprs (order ?keys ?child))" =>
-        "(proj ?exprs (order ?keys (proj (column-merge ?exprs ?keys) ?child)))"
+        { ProjectionPushdown {
+            pattern: pattern("(proj ?exprs (order ?keys ?child))"),
+            used: [var("?exprs"), var("?keys")],
+            children: vec![var("?child")],
+        }}
     ),
     rw!("pushdown-proj-topn";
         "(proj ?exprs (topn ?limit ?offset ?keys ?child))" =>
-        "(proj ?exprs (topn ?limit ?offset ?keys (proj (column-merge ?exprs ?keys) ?child)))"
+        { ProjectionPushdown {
+            pattern: pattern("(proj ?exprs (topn ?limit ?offset ?keys ?child))"),
+            used: [var("?exprs"), var("?keys")],
+            children: vec![var("?child")],
+        }}
     ),
     rw!("pushdown-proj-filter";
         "(proj ?exprs (filter ?cond ?child))" =>
-        "(proj ?exprs (filter ?cond (proj (column-merge ?exprs ?cond) ?child)))"
+        { ProjectionPushdown {
+            pattern: pattern("(proj ?exprs (filter ?cond ?child))"),
+            used: [var("?exprs"), var("?cond")],
+            children: vec![var("?child")],
+        }}
     ),
     rw!("pushdown-proj-agg";
         "(agg ?aggs ?groupby ?child)" =>
-        "(agg ?aggs ?groupby (proj (column-merge ?aggs ?groupby) ?child))"
+        { ProjectionPushdown {
+            pattern: pattern("(agg ?aggs ?groupby ?child)"),
+            used: [var("?aggs"), var("?groupby")],
+            children: vec![var("?child")],
+        }}
     ),
     rw!("pushdown-proj-join";
         "(proj ?exprs (join ?type ?on ?left ?right))" =>
-        "(proj ?exprs (join ?type ?on
-            (proj (column-prune ?left (column-merge ?exprs ?on)) ?left)
-            (proj (column-prune ?right (column-merge ?exprs ?on)) ?right)
-        ))"
+        { ProjectionPushdown {
+            pattern: pattern("(proj ?exprs (join ?type ?on ?left ?right))"),
+            used: [var("?exprs"), var("?on")],
+            children: vec![var("?left"), var("?right")],
+        }}
     ),
     // column pruning
     rw!("pushdown-proj-scan";
         "(proj ?exprs (scan ?table ?columns))" =>
-        "(proj ?exprs (scan ?table (column-prune ?exprs ?columns)))"
-    ),
-    // evaluate 'column-merge' and 'column-prune'
-    rw!("column-merge";
-        "(column-merge ?list1 ?list2)" =>
-        { ColumnMerge {
-            lists: [var("?list1"), var("?list2")],
-        }}
-    ),
-    rw!("column-prune";
-        "(column-prune ?filter ?list)" =>
         { ColumnPrune {
-            filter: var("?filter"),
-            list: var("?list"),
+            pattern: pattern("(proj ?exprs (scan ?table ?columns))"),
+            used: var("?exprs"),
+            columns: var("?columns"),
         }}
-        if is_list("?list")
     ),
 ]}
 
 /// Returns true if the columns in `var1` are a subset of the columns in `var2`.
 fn columns_is_subset(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    columns_is(var1, var2, ColumnSet::is_subset)
+    columns_is(var1, var2, HashSet::is_subset)
 }
 
 /// Returns true if the columns in `var1` has no elements in common with the columns in `var2`.
 fn columns_is_disjoint(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    columns_is(var1, var2, ColumnSet::is_disjoint)
+    columns_is(var1, var2, HashSet::is_disjoint)
 }
 
 fn columns_is(
     var1: &str,
     var2: &str,
-    f: impl Fn(&ColumnSet, &ColumnSet) -> bool,
+    f: impl Fn(&HashSet<Id>, &HashSet<Id>) -> bool,
 ) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var1 = var(var1);
     let var2 = var(var2);
     move |egraph, _, subst| {
-        let var1_set = &egraph[subst[var1]].data.columns;
-        let var2_set = &egraph[subst[var2]].data.columns;
-        f(var1_set, var2_set)
-    }
-}
-
-/// Returns true if the variable is a list.
-fn is_list(v: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    let v = var(v);
-    move |egraph, _, subst| {
-        egraph[subst[v]]
-            .iter()
-            .any(|node| matches!(node, Expr::List(_)))
+        let get_set = |var| {
+            egraph[subst[var]]
+                .data
+                .columns
+                .iter()
+                .map(|e| egraph.lookup(e.clone()).unwrap())
+                .collect()
+        };
+        f(&get_set(var1), &get_set(var2))
     }
 }
 
 /// The data type of column analysis.
-pub type ColumnSet = HashSet<ColumnRef>;
+///
+/// The elements of the set are either `Column` or child of `Ref`.
+pub type ColumnSet = HashSet<Expr>;
 
 /// Returns all columns involved in the node.
 pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
     use Expr::*;
     let x = |i: &Id| &egraph[*i].data.columns;
+    let output = |i: &Id| {
+        egraph[*i]
+            .as_list()
+            .iter()
+            .map(|id| egraph[*id].nodes[0].clone())
+            .collect::<ColumnSet>()
+    };
     match enode {
-        Column(col) => [col.clone()].into_iter().collect(),
-        Proj([exprs, _]) => x(exprs).clone(),
-        Agg([exprs, group_keys, _]) => x(exprs).union(x(group_keys)).cloned().collect(),
-        ColumnPrune([filter, _]) => x(filter).clone(), // inaccurate
-        _ => {
-            // merge the columns from all children
-            (enode.children().iter())
-                .flat_map(|id| x(id).iter().cloned())
-                .collect()
-        }
+        // source
+        Column(_) => [enode.clone()].into_iter().collect(),
+        Ref(c) => [egraph[*c].nodes[0].clone()].into_iter().collect(),
+
+        Proj([exprs, _]) => output(exprs),
+        Agg([exprs, group_keys, _]) => output(exprs).union(&output(group_keys)).cloned().collect(),
+
+        // expressions: merge from all children
+        _ => (enode.children().iter())
+            .flat_map(|id| x(id).iter().cloned())
+            .collect(),
     }
 }
 
-/// Return a list of columns from `lists`.
-struct ColumnMerge {
-    lists: [Var; 2],
+/// Generate a projection node over each children.
+struct ProjectionPushdown {
+    pattern: Pattern,
+    used: [Var; 2],
+    children: Vec<Var>,
 }
 
-impl Applier<Expr, ExprAnalysis> for ColumnMerge {
+impl Applier<Expr, ExprAnalysis> for ProjectionPushdown {
     fn apply_one(
         &self,
         egraph: &mut EGraph,
         eclass: Id,
         subst: &Subst,
-        _searcher_ast: Option<&PatternAst<Expr>>,
-        _rule_name: Symbol,
+        searcher_ast: Option<&PatternAst<Expr>>,
+        rule_name: Symbol,
     ) -> Vec<Id> {
-        let list1 = &egraph[subst[self.lists[0]]].data.columns;
-        let list2 = &egraph[subst[self.lists[1]]].data.columns;
-        let mut list: Vec<&ColumnRef> = list1.union(list2).collect();
-        list.sort_unstable();
-        let list = list
+        let used1 = &egraph[subst[self.used[0]]].data.columns;
+        let used2 = &egraph[subst[self.used[1]]].data.columns;
+        let mut used: Vec<&Expr> = used1.union(used2).collect();
+        used.sort_unstable();
+        let used = used
             .into_iter()
-            .map(|col| egraph.lookup(Expr::Column(col.clone())).unwrap())
-            .collect();
-        let id = egraph.add(Expr::List(list));
+            .map(|col| egraph.lookup(col.clone()).unwrap())
+            .collect::<Vec<Id>>();
 
-        // copied from `Pattern::apply_one`
-        if egraph.union(eclass, id) {
-            vec![eclass]
-        } else {
-            vec![]
+        let mut subst = subst.clone();
+        for &child in &self.children {
+            let child_id = subst[child];
+            let filtered = if self.children.len() == 1 {
+                // no need to filter
+                used.clone().into()
+            } else {
+                let child_set = (egraph[child_id].data.columns.iter())
+                    .map(|e| egraph.lookup(e.clone()).unwrap())
+                    .collect::<HashSet<Id>>();
+                (used.iter().cloned())
+                    .filter(|id| child_set.contains(id))
+                    .collect()
+            };
+            let id = egraph.add(Expr::List(filtered));
+            let id = egraph.add(Expr::Proj([id, child_id]));
+            subst.insert(child, id);
         }
+
+        self.pattern
+            .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
     }
 }
 
-/// Remove element from `list` whose column set is not a subset of `filter`
+/// Remove element from `columns` whose column set is not a subset of `used`
 struct ColumnPrune {
-    filter: Var,
-    list: Var,
+    pattern: Pattern,
+    used: Var,
+    columns: Var,
 }
 
 impl Applier<Expr, ExprAnalysis> for ColumnPrune {
@@ -271,22 +295,20 @@ impl Applier<Expr, ExprAnalysis> for ColumnPrune {
         egraph: &mut EGraph,
         eclass: Id,
         subst: &Subst,
-        _searcher_ast: Option<&PatternAst<Expr>>,
-        _rule_name: Symbol,
+        searcher_ast: Option<&PatternAst<Expr>>,
+        rule_name: Symbol,
     ) -> Vec<Id> {
-        let columns = &egraph[subst[self.filter]].data.columns;
-        let list = egraph[subst[self.list]].as_list();
-        let filtered = (list.iter().cloned())
-            .filter(|id| egraph[*id].data.columns.is_subset(columns))
+        let used = &egraph[subst[self.used]].data.columns;
+        let columns = egraph[subst[self.columns]].as_list();
+        let filtered = (columns.iter().cloned())
+            .filter(|id| egraph[*id].data.columns.is_subset(used))
             .collect();
         let id = egraph.add(Expr::List(filtered));
 
-        // copied from `Pattern::apply_one`
-        if egraph.union(eclass, id) {
-            vec![eclass]
-        } else {
-            vec![]
-        }
+        let mut subst = subst.clone();
+        subst.insert(self.columns, id);
+        self.pattern
+            .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
     }
 }
 

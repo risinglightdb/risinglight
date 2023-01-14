@@ -52,6 +52,7 @@ paste = "1"
 pgwire = "0.6.3"
 prost = "0.11.0"
 ref-cast = "1.0"
+regex = "1"
 risinglight_proto = "0.2"
 rust_decimal = "1"
 rustyline = "10"
@@ -59,7 +60,7 @@ serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 smallvec = { version = "1", features = ["serde"] }
 sqllogictest = "0.9"
-sqlparser = { version = "0.27", features = ["serde"] }
+sqlparser = { version = "0.30", features = ["serde"] }
 thiserror = "1"
 tikv-jemallocator = { version = "0.5", optional = true, features=["disable_initial_exec_tls"] }
 tokio = { version = "1", features = ["full"] }

@@ -96,6 +96,7 @@ pub type PrimitiveColumnIterator<T> = ConcreteColumnIterator<
     PrimitiveBlockIteratorFactory<T>,
 >;
 
+pub type I16ColumnIterator = PrimitiveColumnIterator<i16>;
 pub type I32ColumnIterator = PrimitiveColumnIterator<i32>;
 pub type I64ColumnIterator = PrimitiveColumnIterator<i64>;
 pub type F64ColumnIterator = PrimitiveColumnIterator<F64>;

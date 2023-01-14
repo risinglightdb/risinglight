@@ -3,7 +3,6 @@
 use rust_decimal::Decimal;
 
 use super::*;
-use crate::catalog::BaseTableColumnRefId;
 use crate::parser::{
     BinaryOperator, DataType, DateTimeField, Expr, Function, FunctionArg, FunctionArgExpr,
     UnaryOperator, Value,
@@ -45,6 +44,7 @@ impl Binder {
                 leading_field,
                 ..
             } => self.bind_interval(*value, leading_field),
+            Expr::Extract { field, expr } => self.bind_extract(field, *expr),
             _ => todo!("bind expression: {:?}", expr),
         }?;
         self.check_type(id)?;
@@ -62,43 +62,20 @@ impl Binder {
             [schema, table, column] => (Some(&schema.value), Some(&table.value), &column.value),
             _ => return Err(BindError::InvalidTableName(idents)),
         };
-        if let Some(name) = table_name {
-            let table_ref_id = *self
-                .current_ctx()
-                .tables
-                .get(name)
-                .ok_or_else(|| BindError::InvalidTable(name.clone()))?;
-            let table = self.catalog.get_table(&table_ref_id).unwrap();
-            let col = table
-                .get_column_by_name(column_name)
-                .ok_or_else(|| BindError::InvalidColumn(column_name.into()))?;
-            let column_ref_id = BaseTableColumnRefId::from_table(table_ref_id, col.id());
-            return Ok(self
-                .egraph
-                .add(Node::Column(ColumnRef::Base(column_ref_id))));
+        let map = self
+            .current_ctx()
+            .aliases
+            .get(column_name)
+            .ok_or_else(|| BindError::InvalidColumn(column_name.into()))?;
+        if let Some(table_name) = table_name {
+            map.get(table_name)
+                .cloned()
+                .ok_or_else(|| BindError::InvalidTable(table_name.clone()))
+        } else if map.len() == 1 {
+            Ok(*map.values().next().unwrap())
+        } else {
+            Err(BindError::AmbiguousColumn(column_name.into()))
         }
-        // find column in all tables
-        let mut column_ids = self.current_ctx().tables.values().filter_map(|table_id| {
-            self.catalog
-                .get_table(table_id)
-                .unwrap()
-                .get_column_by_name(column_name)
-                .map(|col| BaseTableColumnRefId::from_table(*table_id, col.id()))
-        });
-
-        if let Some(column_ref_id) = column_ids.next() {
-            if column_ids.next().is_some() {
-                return Err(BindError::AmbiguousColumn(column_name.into()));
-            }
-            let id = self
-                .egraph
-                .add(Node::Column(ColumnRef::Base(column_ref_id)));
-            return Ok(id);
-        }
-        if let Some(id) = self.current_ctx().aliases.get(column_name) {
-            return Ok(*id);
-        }
-        Err(BindError::InvalidColumn(column_name.into()))
     }
 
     fn bind_binary_op(&mut self, left: Expr, op: BinaryOperator, right: Expr) -> Result {
@@ -204,6 +181,12 @@ impl Binder {
             _ => todo!("Support interval with leading field: {:?}", leading_field),
         });
         Ok(self.egraph.add(Node::Constant(value)))
+    }
+
+    fn bind_extract(&mut self, field: DateTimeField, expr: Expr) -> Result {
+        let expr = self.bind_expr(expr)?;
+        let field = self.egraph.add(Node::Field(field.into()));
+        Ok(self.egraph.add(Node::Extract([field, expr])))
     }
 
     fn bind_function(&mut self, func: Function) -> Result {

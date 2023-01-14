@@ -18,6 +18,8 @@ pub enum DataValue {
     #[display("{0}")]
     Bool(bool),
     #[display("{0}")]
+    Int16(i16),
+    #[display("{0}")]
     Int32(i32),
     #[display("{0}")]
     Int64(i64),
@@ -103,6 +105,7 @@ impl DataValue {
         match self {
             Self::Null => false,
             Self::Bool(v) => *v,
+            Self::Int16(v) => v.is_positive(),
             Self::Int32(v) => v.is_positive(),
             Self::Int64(v) => v.is_positive(),
             Self::Float64(v) => v.0.is_sign_positive(),
@@ -119,6 +122,7 @@ impl DataValue {
         match self {
             Self::Null => false,
             Self::Bool(v) => !*v,
+            Self::Int16(v) => *v == 0,
             Self::Int32(v) => *v == 0,
             Self::Int64(v) => *v == 0,
             Self::Float64(v) => v.0 == 0.0,
@@ -135,6 +139,7 @@ impl DataValue {
         match self {
             Self::Null => DataTypeKind::Null.nullable(),
             Self::Bool(_) => DataTypeKind::Bool.not_null(),
+            Self::Int16(_) => DataTypeKind::Int16.not_null(),
             Self::Int32(_) => DataTypeKind::Int32.not_null(),
             Self::Int64(_) => DataTypeKind::Int64.not_null(),
             Self::Float64(_) => DataTypeKind::Float64.not_null(),
@@ -152,6 +157,7 @@ impl DataValue {
         Ok(Some(match self {
             Self::Null => return Ok(None),
             &Self::Bool(b) => b as usize,
+            &Self::Int16(v) => v.try_into().map_err(|_| cast_err())?,
             &Self::Int32(v) => v.try_into().map_err(|_| cast_err())?,
             &Self::Int64(v) => v.try_into().map_err(|_| cast_err())?,
             &Self::Float64(f) if f.is_sign_negative() => return Err(cast_err()),

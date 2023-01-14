@@ -82,6 +82,11 @@ impl DataChunk {
         &self.arrays[idx]
     }
 
+    /// Get the mutable reference of array by index.
+    pub fn array_mut_at(&mut self, idx: usize) -> &mut ArrayImpl {
+        &mut Arc::get_mut(&mut self.arrays).unwrap()[idx]
+    }
+
     /// Get all arrays.
     pub fn arrays(&self) -> &[ArrayImpl] {
         &self.arrays
@@ -248,6 +253,7 @@ pub fn datachunk_to_sqllogictest_string(chunk: &Chunk) -> Vec<Vec<String>> {
                 let s = match array.get(row) {
                     DataValue::Null => "NULL".to_string(),
                     DataValue::Bool(v) => v.to_string(),
+                    DataValue::Int16(v) => v.to_string(),
                     DataValue::Int32(v) => v.to_string(),
                     DataValue::Int64(v) => v.to_string(),
                     DataValue::Float64(v) => v.to_string(),

@@ -31,3 +31,18 @@ select v1 from t where v1 < date '2021-01-01';
 
 statement ok
 drop table t
+
+# smallint
+statement ok
+create table t (a smallint not null);
+
+statement ok
+insert into t values (1);
+
+query I
+select a + a, a - a, a * a, a / a from t;
+----
+2 0 1 1
+
+statement ok
+drop table t

@@ -8,7 +8,8 @@ use itertools::izip;
 use tokio::sync::mpsc::Sender;
 
 use super::*;
-use crate::array::DataChunkBuilder;
+use crate::array::{ArrayImpl, DataChunkBuilder};
+use crate::types::DataTypeKind;
 use crate::v1::binder::FileFormat;
 use crate::v1::optimizer::plan_nodes::PhysicalCopyFromFile;
 
@@ -23,12 +24,21 @@ const IMPORT_PROGRESS_BAR_LIMIT: u64 = 1024 * 1024;
 impl CopyFromFileExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
+        let types = self.plan.logical().column_types().to_vec();
         let (tx, mut rx) = tokio::sync::mpsc::channel(1);
         // # Cancellation
         // When this stream is dropped, the `rx` is dropped, the spawned task will fail to send to
         // `tx`, then the task will finish.
         let handle = tokio::task::spawn_blocking(|| self.read_file_blocking(tx));
-        while let Some(chunk) = rx.recv().await {
+        while let Some(mut chunk) = rx.recv().await {
+            // rescale decimals
+            for (i, ty) in types.iter().enumerate() {
+                if let (ArrayImpl::Decimal(a), DataTypeKind::Decimal(_, Some(scale))) =
+                    (chunk.array_mut_at(i), ty.kind())
+                {
+                    Arc::get_mut(a).unwrap().rescale(scale);
+                }
+            }
             yield chunk;
         }
         handle.await.unwrap()?;
