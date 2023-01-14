@@ -17,7 +17,7 @@ static TIME_ZONE: OnceLock<FixedOffset> = OnceLock::new();
 
 /// input format without timezone
 const TIMESTAMP_FORMATS: [&str; 3] = [
-    "%Y-%m-%d %H:%M:%S", // 1991-01-08 04:05:06
+    "%Y-%m-%d %H:%M:%S",    // 1991-01-08 04:05:06
     "%Y-%m-%d %H:%M:%S AD", // 1991-01-08 04:05:06 AD
     "%Y-%m-%d %H:%M:%S BC", // 1991-01-08 04:05:06 BC
 ];
