@@ -15,6 +15,8 @@ const THIRTY_YEARS_MICROSECONDS: i64 = 946_684_800_000_000;
 /// global timezone
 static TIME_ZONE: OnceLock<FixedOffset> = OnceLock::new();
 
+const DEFALUT_TZ: i32 = 0;
+
 /// input format without timezone
 const TIMESTAMP_FORMATS: [&str; 3] = [
     "%Y-%m-%d %H:%M:%S",    // 1991-01-08 04:05:06
@@ -56,7 +58,7 @@ impl Display for Timestamp {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let dt = NaiveDateTime::from_timestamp_millis((self.0 - THIRTY_YEARS_MICROSECONDS) / 1000)
             .ok_or(std::fmt::Error)?;
-        dt_fmt(&dt, f)
+        naive_sys_fmt(&dt, f)
     }
 }
 
@@ -66,8 +68,7 @@ impl FromStr for Timestamp {
         for fmt in TIMESTAMP_FORMATS.iter().chain(TIMESTAMP_TZ_FORMATS.iter()) {
             // like postgresql,silently ignore timezone
             if let Ok(dt) = NaiveDateTime::parse_from_str(s, fmt) {
-                return dt_to_timestamp(&dt, &FixedOffset::east_opt(0).unwrap(), s.contains("BC"))
-                    .map(Self);
+                return naive_utc_to_timestamp(&dt, s.contains("BC")).map(Self);
             }
         }
         Err(ParseTimestampError::InvalidString(s.to_string()))
@@ -91,9 +92,9 @@ impl Display for TimestampTz {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let dt = NaiveDateTime::from_timestamp_millis((self.0 - THIRTY_YEARS_MICROSECONDS) / 1000)
             .ok_or(std::fmt::Error)?;
-        let sys_tz = TIME_ZONE.get_or_init(|| FixedOffset::east_opt(0).unwrap());
+        let sys_tz = TIME_ZONE.get_or_init(|| FixedOffset::east_opt(DEFALUT_TZ * 3600).unwrap());
         let dt = dt + *sys_tz;
-        dt_fmt(&dt, f)?;
+        naive_sys_fmt(&dt, f)?;
         write!(f, " {}", sys_tz)
     }
 }
@@ -102,23 +103,24 @@ impl FromStr for TimestampTz {
     type Err = ParseTimestampError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let sys_tz = TIME_ZONE.get_or_init(|| FixedOffset::east_opt(0).unwrap());
+        let sys_tz = TIME_ZONE.get_or_init(|| FixedOffset::east_opt(DEFALUT_TZ * 3600).unwrap());
         for fmt in TIMESTAMP_FORMATS {
             if let Ok(dt) = NaiveDateTime::parse_from_str(s, fmt) {
-                return dt_to_timestamp(&dt, sys_tz, s.contains("BC")).map(Self);
+                let dt = dt - *sys_tz;
+                return naive_utc_to_timestamp(&dt, s.contains("BC")).map(Self);
             }
         }
         for fmt in TIMESTAMP_TZ_FORMATS {
             if let Ok(dt) = DateTime::parse_from_str(s, fmt) {
                 let dt = dt.naive_utc();
-                return dt_to_timestamp(&dt, sys_tz, s.contains("BC")).map(Self);
+                return naive_utc_to_timestamp(&dt, s.contains("BC")).map(Self);
             }
         }
         Err(ParseTimestampError::InvalidString(s.to_string()))
     }
 }
 
-fn dt_fmt(dt: &NaiveDateTime, f: &mut Formatter<'_>) -> std::fmt::Result {
+fn naive_sys_fmt(dt: &NaiveDateTime, f: &mut Formatter<'_>) -> std::fmt::Result {
     if dt.year() < 0 {
         write!(
             f,
@@ -135,18 +137,14 @@ fn dt_fmt(dt: &NaiveDateTime, f: &mut Formatter<'_>) -> std::fmt::Result {
     }
 }
 
-fn dt_to_timestamp(
-    dt: &NaiveDateTime,
-    tz: &FixedOffset,
-    is_bc: bool,
-) -> Result<i64, ParseTimestampError> {
-    let mut dt = *dt + *tz;
+fn naive_utc_to_timestamp(dt: &NaiveDateTime, is_bc: bool) -> Result<i64, ParseTimestampError> {
     if is_bc {
         let new_date = dt
             .date()
             .with_year(-dt.year())
             .ok_or_else(|| ParseTimestampError::InvalidYear(-dt.year()))?;
-        dt = NaiveDateTime::new(new_date, dt.time());
+        let new_dt = NaiveDateTime::new(new_date, dt.time());
+        return Ok(new_dt.timestamp_micros() + THIRTY_YEARS_MICROSECONDS);
     }
     Ok(dt.timestamp_micros() + THIRTY_YEARS_MICROSECONDS)
 }
