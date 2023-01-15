@@ -1,0 +1,83 @@
+statement ok
+create table timestamp_test(ts timestamp);
+
+statement ok
+insert into timestamp_test values ('1991-01-08 04:05:06');
+
+statement ok
+insert into timestamp_test values ('1991-01-09 04:05:06 AD');
+
+statement ok
+insert into timestamp_test values ('1991-01-10 04:05:06 BC');
+
+statement ok
+insert into timestamp_test values ('1991-01-14 04:05:06 +08:00');
+
+statement ok
+insert into timestamp_test values ('1991-01-15 04:05:06 AD +08:00');
+
+statement ok
+insert into timestamp_test values ('1991-01-16 04:05:06 BC +08:00');
+
+statement ok
+insert into timestamp_test values ('1991-01-17 04:05:06 +08:00 AD');
+
+statement ok
+insert into timestamp_test values ('1991-01-18 04:05:06 +08:00 BC');
+
+query T
+select * from timestamp_test order by ts;
+----
+1991-01-10 04:05:05 BC
+1991-01-16 04:05:05 BC
+1991-01-18 04:05:05 BC
+1991-01-08 04:05:06
+1991-01-09 04:05:06
+1991-01-14 04:05:06
+1991-01-15 04:05:06
+1991-01-17 04:05:06
+
+statement ok
+drop table timestamp_test;
+
+statement ok
+create table timestamptz_test(ts timestamptz);
+
+statement ok
+insert into timestamptz_test values ('1991-01-08 04:05:06');
+
+statement ok
+insert into timestamptz_test values ('1991-01-09 04:05:06 AD');
+
+statement ok
+insert into timestamptz_test values ('1991-01-10 04:05:06 BC');
+
+statement ok
+insert into timestamptz_test values ('1991-01-14 04:05:06 +08:00');
+
+statement ok
+insert into timestamptz_test values ('1991-01-15 04:05:06 AD +08:00');
+
+statement ok
+insert into timestamptz_test values ('1991-01-16 04:05:06 BC +08:00');
+
+statement ok
+insert into timestamptz_test values ('1991-01-17 04:05:06 +08:00 AD');
+
+statement ok
+insert into timestamptz_test values ('1991-01-18 04:05:06 +08:00 BC');
+
+query T
+select * from timestamptz_test order by ts;
+----
+1991-01-10 04:05:05 BC +00:00
+1991-01-15 20:05:05 BC +00:00
+1991-01-17 20:05:05 BC +00:00
+1991-01-08 04:05:06 +00:00
+1991-01-09 04:05:06 +00:00
+1991-01-13 20:05:06 +00:00
+1991-01-14 20:05:06 +00:00
+1991-01-16 20:05:06 +00:00
+
+statement ok
+drop table timestamptz_test;

@@ -263,6 +263,8 @@ pub fn datachunk_to_sqllogictest_string(chunk: &Chunk) -> Vec<Vec<String>> {
                     DataValue::Blob(s) => s.to_string(),
                     DataValue::Decimal(v) => v.to_string(),
                     DataValue::Date(v) => v.to_string(),
+                    DataValue::Timestamp(v) => v.to_string(),
+                    DataValue::TimestampTz(v) => v.to_string(),
                     DataValue::Interval(v) => v.to_string(),
                 };
                 row_vec.push(s);

@@ -13,7 +13,7 @@ use crate::storage::secondary::block::{
     decode_dict_block, decode_nullable_block, decode_rle_block, DictBlockIterator,
     FakeBlockIterator, NullableBlockIterator, RleBlockIterator,
 };
-use crate::types::{Date, Interval, F64};
+use crate::types::{Date, Interval, Timestamp, TimestampTz, F64};
 
 /// All supported block iterators for primitive types.
 pub enum PrimitiveBlockIteratorImpl<T: PrimitiveFixedWidthEncode> {
@@ -103,6 +103,8 @@ pub type F64ColumnIterator = PrimitiveColumnIterator<F64>;
 pub type BoolColumnIterator = PrimitiveColumnIterator<bool>;
 pub type DecimalColumnIterator = PrimitiveColumnIterator<Decimal>;
 pub type DateColumnIterator = PrimitiveColumnIterator<Date>;
+pub type TimestampColumnIterator = PrimitiveColumnIterator<Timestamp>;
+pub type TimestampTzColumnIterator = PrimitiveColumnIterator<TimestampTz>;
 pub type IntervalColumnIterator = PrimitiveColumnIterator<Interval>;
 
 impl<T: PrimitiveFixedWidthEncode> BlockIteratorFactory<T::ArrayType>

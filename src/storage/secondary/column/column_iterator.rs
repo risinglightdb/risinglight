@@ -16,6 +16,8 @@ pub enum ColumnIteratorImpl {
     Char(CharColumnIterator),
     Decimal(DecimalColumnIterator),
     Date(DateColumnIterator),
+    Timestamp(TimestampColumnIterator),
+    TimestampTz(TimestampTzColumnIterator),
     Interval(IntervalColumnIterator),
     Blob(BlobColumnIterator),
     /// Special for row handler and not correspond to any data type
@@ -62,6 +64,22 @@ impl ColumnIteratorImpl {
             Date => Self::Date(
                 DateColumnIterator::new(column, start_pos, PrimitiveBlockIteratorFactory::new())
                     .await?,
+            ),
+            Timestamp => Self::Timestamp(
+                TimestampColumnIterator::new(
+                    column,
+                    start_pos,
+                    PrimitiveBlockIteratorFactory::new(),
+                )
+                .await?,
+            ),
+            TimestampTz => Self::TimestampTz(
+                TimestampTzColumnIterator::new(
+                    column,
+                    start_pos,
+                    PrimitiveBlockIteratorFactory::new(),
+                )
+                .await?,
             ),
             Interval => Self::Interval(
                 IntervalColumnIterator::new(
@@ -112,6 +130,8 @@ impl ColumnIteratorImpl {
             Self::Char(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
             Self::Decimal(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
             Self::Date(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
+            Self::Timestamp(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
+            Self::TimestampTz(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
             Self::Interval(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
             Self::Blob(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
             Self::RowHandler(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
@@ -129,6 +149,8 @@ impl ColumnIteratorImpl {
             Self::Char(it) => it.fetch_hint(),
             Self::Decimal(it) => it.fetch_hint(),
             Self::Date(it) => it.fetch_hint(),
+            Self::Timestamp(it) => it.fetch_hint(),
+            Self::TimestampTz(it) => it.fetch_hint(),
             Self::Interval(it) => it.fetch_hint(),
             Self::Blob(it) => it.fetch_hint(),
             Self::RowHandler(it) => it.fetch_hint(),
@@ -145,6 +167,8 @@ impl ColumnIteratorImpl {
             Self::Char(it) => it.fetch_current_row_id(),
             Self::Decimal(it) => it.fetch_current_row_id(),
             Self::Date(it) => it.fetch_current_row_id(),
+            Self::Timestamp(it) => it.fetch_current_row_id(),
+            Self::TimestampTz(it) => it.fetch_current_row_id(),
             Self::Interval(it) => it.fetch_current_row_id(),
             Self::Blob(it) => it.fetch_current_row_id(),
             Self::RowHandler(it) => it.fetch_current_row_id(),
@@ -161,6 +185,8 @@ impl ColumnIteratorImpl {
             Self::Char(it) => it.skip(cnt),
             Self::Decimal(it) => it.skip(cnt),
             Self::Date(it) => it.skip(cnt),
+            Self::Timestamp(it) => it.skip(cnt),
+            Self::TimestampTz(it) => it.skip(cnt),
             Self::Interval(it) => it.skip(cnt),
             Self::Blob(it) => it.skip(cnt),
             Self::RowHandler(it) => it.skip(cnt),

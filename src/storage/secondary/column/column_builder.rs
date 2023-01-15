@@ -11,7 +11,9 @@ use super::primitive_column_builder::{
 };
 use super::{BoolColumnBuilder, ColumnBuilder};
 use crate::array::ArrayImpl;
-use crate::storage::secondary::column::IntervalColumnBuilder;
+use crate::storage::secondary::column::{
+    IntervalColumnBuilder, TimestampColumnBuilder, TimestampTzColumnBuilder,
+};
 use crate::types::{DataType, DataTypeKind};
 
 /// [`ColumnBuilder`] of all types
@@ -24,6 +26,8 @@ pub enum ColumnBuilderImpl {
     Utf8(CharColumnBuilder),
     Decimal(DecimalColumnBuilder),
     Date(DateColumnBuilder),
+    Timestamp(TimestampColumnBuilder),
+    TimestampTz(TimestampTzColumnBuilder),
     Interval(IntervalColumnBuilder),
     Blob(BlobColumnBuilder),
 }
@@ -41,6 +45,10 @@ impl ColumnBuilderImpl {
             String => Self::Utf8(CharColumnBuilder::new(datatype.nullable, None, options)),
             Decimal(_, _) => Self::Decimal(DecimalColumnBuilder::new(datatype.nullable, options)),
             Date => Self::Date(DateColumnBuilder::new(datatype.nullable, options)),
+            Timestamp => Self::Timestamp(TimestampColumnBuilder::new(datatype.nullable, options)),
+            TimestampTz => {
+                Self::TimestampTz(TimestampTzColumnBuilder::new(datatype.nullable, options))
+            }
             Interval => Self::Interval(IntervalColumnBuilder::new(datatype.nullable, options)),
             Blob => Self::Blob(BlobColumnBuilder::new(datatype.nullable, options)),
             Struct(_) => todo!("struct column builder"),
@@ -57,6 +65,8 @@ impl ColumnBuilderImpl {
             (Self::Utf8(builder), ArrayImpl::Utf8(array)) => builder.append(array),
             (Self::Decimal(builder), ArrayImpl::Decimal(array)) => builder.append(array),
             (Self::Date(builder), ArrayImpl::Date(array)) => builder.append(array),
+            (Self::Timestamp(builder), ArrayImpl::Timestamp(array)) => builder.append(array),
+            (Self::TimestampTz(builder), ArrayImpl::TimestampTz(array)) => builder.append(array),
             (Self::Interval(builder), ArrayImpl::Interval(array)) => builder.append(array),
             (Self::Blob(builder), ArrayImpl::Blob(array)) => builder.append(array),
             _ => todo!(),
@@ -73,6 +83,8 @@ impl ColumnBuilderImpl {
             Self::Utf8(builder) => builder.finish(),
             Self::Decimal(builder) => builder.finish(),
             Self::Date(builder) => builder.finish(),
+            Self::Timestamp(builder) => builder.finish(),
+            Self::TimestampTz(builder) => builder.finish(),
             Self::Interval(builder) => builder.finish(),
             Self::Blob(builder) => builder.finish(),
         }

@@ -67,6 +67,8 @@ pub fn datachunk_to_python_list(py: Python, chunk: &Chunk) -> Vec<Vec<PyObject>>
                     DataValue::Blob(s) => s.to_string().to_object(py),
                     DataValue::Decimal(v) => v.to_string().to_object(py),
                     DataValue::Date(v) => v.to_string().to_object(py),
+                    DataValue::Timestamp(v) => v.to_string().to_object(py),
+                    DataValue::TimestampTz(v) => v.to_string().to_object(py),
                     DataValue::Interval(v) => v.to_string().to_object(py),
                 };
                 row_vec.push(s);

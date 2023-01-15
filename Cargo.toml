@@ -62,7 +62,7 @@ smallvec = { version = "1", features = ["serde"] }
 sqllogictest = "0.9"
 sqlparser = { version = "0.30", features = ["serde"] }
 thiserror = "1"
-tikv-jemallocator = { version = "0.5", optional = true, features=["disable_initial_exec_tls"] }
+tikv-jemallocator = { version = "0.5", optional = true, features = ["disable_initial_exec_tls"] }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "parking_lot"] }
@@ -89,9 +89,9 @@ lto = 'thin'
 
 [workspace]
 members = [
-  "proto",
-  "tests/sqllogictest",
-  "tests/sqlplannertest"
+    "proto",
+    "tests/sqllogictest",
+    "tests/sqlplannertest"
 ]
 
 [patch.crates-io]
@@ -99,4 +99,4 @@ risinglight_proto = { path = "proto" }
 
 [lib]
 name = "risinglight"
-crate-type = ["cdylib",  "rlib"]
+crate-type = ["cdylib", "rlib"]
