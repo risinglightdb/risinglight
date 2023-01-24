@@ -81,6 +81,10 @@ impl ColumnCatalog {
         &self.desc.name
     }
 
+    pub(crate) fn into_name(self) -> String {
+        self.desc.name
+    }
+
     pub fn desc(&self) -> &ColumnDesc {
         &self.desc
     }

@@ -1,14 +1,25 @@
+use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
 
 use egg::Id;
 use maplit::btreemap;
-use pretty_xmlish::Pretty;
+use pretty_xmlish::{Pretty, XmlNode};
 
 use super::{Expr, RecExpr};
 use crate::catalog::RootCatalog;
 
-fn pretty_node<'a>(name: &'a str, v: Vec<Pretty<'a>>) -> Pretty<'a> {
-    Pretty::simple_record(name, Default::default(), v)
+fn pretty_node<'a>(name: impl Into<Cow<'a, str>>, v: Vec<Pretty<'a>>) -> Pretty<'a> {
+    named_record(name, Default::default(), v)
+}
+
+fn named_record<'a>(
+    name: impl Into<Cow<'a, str>>,
+    fields: BTreeMap<&'a str, Pretty<'a>>,
+    children: Vec<Pretty<'a>>,
+) -> Pretty<'a> {
+    let fields = fields.into_iter().map(|(k, v)| (k.into(), v)).collect();
+    Pretty::Record(XmlNode::new(name.into(), fields, children))
 }
 
 /// A wrapper over [`RecExpr`] to explain it in [`Display`].
@@ -92,7 +103,7 @@ impl<'a> Explain<'a> {
         self.expr[*id] == Expr::true_()
     }
 
-    pub fn pretty(&'a self) -> Pretty<'a> {
+    pub fn pretty(&self) -> Pretty<'a> {
         use Expr::*;
         let enode = &self.expr[self.id];
         let cost = self.cost();
@@ -108,7 +119,8 @@ impl<'a> Explain<'a> {
             }
             Column(i) => {
                 if let Some(catalog) = self.catalog {
-                    catalog.get_column(i).expect("no column").name().into()
+                    let column_catalog = catalog.get_column(i).expect("no column");
+                    column_catalog.into_name().into()
                 } else {
                     Pretty::display(i)
                 }
@@ -125,8 +137,8 @@ impl<'a> Explain<'a> {
             Add([a, b]) | Sub([a, b]) | Mul([a, b]) | Div([a, b]) | Mod([a, b])
             | StringConcat([a, b]) | Gt([a, b]) | Lt([a, b]) | GtEq([a, b]) | LtEq([a, b])
             | Eq([a, b]) | NotEq([a, b]) | And([a, b]) | Or([a, b]) | Xor([a, b])
-            | Like([a, b]) => Pretty::simple_record(
-                &enode.to_string(),
+            | Like([a, b]) => named_record(
+                enode.to_string(),
                 btreemap! {
                     "lhs" => self.expr(a).pretty(),
                     "rhs" => self.expr(b).pretty(),
@@ -136,7 +148,7 @@ impl<'a> Explain<'a> {
 
             // unary operations
             Neg(a) | Not(a) | IsNull(a) => {
-                pretty_node(&enode.to_string(), vec![self.expr(a).pretty()])
+                pretty_node(enode.to_string(), vec![self.expr(a).pretty()])
             }
 
             If([cond, then, else_]) => Pretty::simple_record(
@@ -163,7 +175,7 @@ impl<'a> Explain<'a> {
             // aggregations
             RowCount => "rowcount".into(),
             Max(a) | Min(a) | Sum(a) | Avg(a) | Count(a) | First(a) | Last(a) => {
-                pretty_node(&enode.to_string(), vec![self.expr(a).pretty()])
+                pretty_node(enode.to_string(), vec![self.expr(a).pretty()])
             }
 
             Exists(a) => pretty_node("Exists", vec![self.expr(a).pretty()]),
@@ -223,7 +235,7 @@ impl<'a> Explain<'a> {
                 },
                 vec![self.child(child).pretty()],
             ),
-            Asc(a) | Desc(a) => pretty_node(&enode.to_string(), vec![self.expr(a).pretty()]),
+            Asc(a) | Desc(a) => pretty_node(enode.to_string(), vec![self.expr(a).pretty()]),
             Limit([limit, offset, child]) => Pretty::simple_record(
                 "Limit",
                 btreemap! {
@@ -249,7 +261,7 @@ impl<'a> Explain<'a> {
                     "cost" => Pretty::display(&cost)
                 };
                 if !self.is_true(cond) {
-                    fields["on"] = self.expr(cond).pretty();
+                    fields.entry("on").or_insert(self.expr(cond).pretty());
                 }
                 Pretty::simple_record(
                     "Join",
