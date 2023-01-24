@@ -1,9 +1,15 @@
 use std::fmt::{Display, Formatter, Result};
 
 use egg::Id;
+use maplit::btreemap;
+use pretty_xmlish::Pretty;
 
 use super::{Expr, RecExpr};
 use crate::catalog::RootCatalog;
+
+fn pretty_node<'a>(name: &'a str, v: Vec<Pretty<'a>>) -> Pretty<'a> {
+    Pretty::simple_record(name, Default::default(), v)
+}
 
 /// A wrapper over [`RecExpr`] to explain it in [`Display`].
 ///
@@ -18,7 +24,6 @@ pub struct Explain<'a> {
     costs: Option<&'a [f32]>,
     catalog: Option<&'a RootCatalog>,
     id: Id,
-    depth: u8,
 }
 
 impl<'a> Explain<'a> {
@@ -29,7 +34,6 @@ impl<'a> Explain<'a> {
             costs: None,
             catalog: None,
             id: Id::from(expr.as_ref().len() - 1),
-            depth: 0,
         }
     }
 
@@ -53,7 +57,6 @@ impl<'a> Explain<'a> {
             costs: self.costs,
             catalog: self.catalog,
             id: *id,
-            depth: self.depth,
         }
     }
 
@@ -65,23 +68,7 @@ impl<'a> Explain<'a> {
             costs: self.costs,
             catalog: self.catalog,
             id: *id,
-            depth: self.depth + 1,
         }
-    }
-
-    /// Returns a struct displaying the tabs.
-    #[inline]
-    const fn tab(&self) -> impl Display {
-        struct Tab(u8);
-        impl Display for Tab {
-            fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-                for _ in 0..self.0 {
-                    write!(f, "  ")?;
-                }
-                Ok(())
-            }
-        }
-        Tab(self.depth)
     }
 
     /// Returns a struct displaying the cost.
@@ -104,171 +91,237 @@ impl<'a> Explain<'a> {
     fn is_true(&self, id: &Id) -> bool {
         self.expr[*id] == Expr::true_()
     }
-}
 
-impl Display for Explain<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    pub fn pretty(&'a self) -> Pretty<'a> {
         use Expr::*;
         let enode = &self.expr[self.id];
-        let tab = self.tab();
         let cost = self.cost();
         match enode {
-            Constant(v) => write!(f, "{v}"),
-            Type(t) => write!(f, "{t}"),
+            Constant(v) => Pretty::display(v),
+            Type(t) => Pretty::display(t),
             Table(i) => {
                 if let Some(catalog) = self.catalog {
-                    write!(f, "{}", catalog.get_table(i).expect("no table").name())
+                    catalog.get_table(i).expect("no table").name().into()
                 } else {
-                    write!(f, "{i}")
+                    Pretty::display(i)
                 }
             }
             Column(i) => {
                 if let Some(catalog) = self.catalog {
-                    write!(f, "{}", catalog.get_column(i).expect("no column").name())
+                    catalog.get_column(i).expect("no column").name().into()
                 } else {
-                    write!(f, "{i}")
+                    Pretty::display(i)
                 }
             }
-            ColumnIndex(i) => write!(f, "{i}"),
-            ExtSource(src) => write!(f, "path={:?}, format={}", src.path, src.format),
-            Symbol(s) => write!(f, "{s}"),
+            ColumnIndex(i) => Pretty::display(i),
 
-            Ref(e) => write!(f, "{}", self.expr(e)),
-            List(list) => {
-                write!(f, "[")?;
-                for (i, v) in list.iter().enumerate() {
-                    if i != 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{}", self.expr(v))?;
-                }
-                write!(f, "]")
-            }
+            // TODO: use object
+            ExtSource(src) => format!("path={:?}, format={}", src.path, src.format).into(),
+            Symbol(s) => Pretty::display(s),
+            Ref(e) => self.expr(e).pretty(),
+            List(list) => Pretty::Array(list.iter().map(|e| self.expr(e).pretty()).collect()),
 
             // binary operations
             Add([a, b]) | Sub([a, b]) | Mul([a, b]) | Div([a, b]) | Mod([a, b])
             | StringConcat([a, b]) | Gt([a, b]) | Lt([a, b]) | GtEq([a, b]) | LtEq([a, b])
             | Eq([a, b]) | NotEq([a, b]) | And([a, b]) | Or([a, b]) | Xor([a, b])
-            | Like([a, b]) => write!(f, "({} {} {})", self.expr(a), enode, self.expr(b)),
+            | Like([a, b]) => Pretty::simple_record(
+                &enode.to_string(),
+                btreemap! {
+                    "lhs" => self.expr(a).pretty(),
+                    "rhs" => self.expr(b).pretty(),
+                },
+                vec![],
+            ),
 
             // unary operations
-            Neg(a) | Not(a) | IsNull(a) => write!(f, "({} {})", enode, self.expr(a)),
+            Neg(a) | Not(a) | IsNull(a) => {
+                pretty_node(&enode.to_string(), vec![self.expr(a).pretty()])
+            }
 
-            If([cond, then, else_]) => write!(
-                f,
-                "(if {} {} {})",
-                self.expr(cond),
-                self.expr(then),
-                self.expr(else_)
+            If([cond, then, else_]) => Pretty::simple_record(
+                "If",
+                btreemap! {
+                    "cond" => self.expr(cond).pretty(),
+                    "then" => self.expr(then).pretty(),
+                    "else" => self.expr(else_).pretty(),
+                },
+                vec![],
             ),
 
             // functions
-            Extract([field, e]) => write!(f, "extract({} from {})", self.expr(field), self.expr(e)),
-            Field(field) => write!(f, "{field}"),
+            Extract([field, e]) => Pretty::simple_record(
+                "Extract",
+                btreemap! {
+                    "from" => self.expr(e).pretty(),
+                    "field" => self.expr(field).pretty(),
+                },
+                vec![],
+            ),
+            Field(field) => Pretty::display(field),
 
             // aggregations
-            RowCount => write!(f, "rowcount"),
+            RowCount => "rowcount".into(),
             Max(a) | Min(a) | Sum(a) | Avg(a) | Count(a) | First(a) | Last(a) => {
-                write!(f, "{}({})", enode, self.expr(a))
+                pretty_node(&enode.to_string(), vec![self.expr(a).pretty()])
             }
 
-            Exists(a) => write!(f, "exists({})", self.expr(a)),
-            In([a, b]) => write!(f, "({} in {})", self.expr(a), self.expr(b)),
-            Cast([a, b]) => write!(f, "({} :: {})", self.expr(a), self.expr(b)),
+            Exists(a) => pretty_node("Exists", vec![self.expr(a).pretty()]),
+            In([a, b]) => Pretty::simple_record(
+                "In",
+                btreemap! {
+                    "in" => self.expr(b).pretty(),
+                },
+                vec![self.expr(a).pretty()],
+            ),
+            Cast([a, b]) => Pretty::simple_record(
+                "Cast",
+                btreemap! {
+                    "type" => self.expr(b).pretty(),
+                },
+                vec![self.expr(a).pretty()],
+            ),
 
-            Scan([table, list]) | Internal([table, list]) => writeln!(
-                f,
-                "{tab}Scan: {}{}{cost}",
-                self.expr(table),
-                self.expr(list)
+            Scan([table, list]) | Internal([table, list]) => Pretty::simple_record(
+                "Scan",
+                btreemap! {
+                   "table" => self.expr(table).pretty(),
+                   "list" => self.expr(list).pretty(),
+                   "cost" => Pretty::display(&cost)
+                },
+                vec![],
             ),
-            Values(rows) => writeln!(f, "{tab}Values: {} rows{cost}", rows.len()),
-            Proj([exprs, child]) => write!(
-                f,
-                "{tab}Projection: {}{cost}\n{}",
-                self.expr(exprs),
-                self.child(child)
+            Values(rows) => Pretty::simple_record(
+                "Values",
+                btreemap! {
+                    "rows" => Pretty::display(&rows.len()),
+                    "cost" => Pretty::display(&cost)
+                },
+                vec![],
             ),
-            Filter([cond, child]) => {
-                write!(
-                    f,
-                    "{tab}Filter: {}{cost}\n{}",
-                    self.expr(cond),
-                    self.child(child)
-                )
-            }
-            Order([orderby, child]) => {
-                write!(
-                    f,
-                    "{tab}Order: {}{cost}\n{}",
-                    self.expr(orderby),
-                    self.child(child)
-                )
-            }
-            Asc(a) | Desc(a) => write!(f, "{} {}", self.expr(a), enode),
-            Limit([limit, offset, child]) => write!(
-                f,
-                "{tab}Limit: limit={}, offset={}{cost}\n{}",
-                self.expr(limit),
-                self.expr(offset),
-                self.child(child)
+            Proj([exprs, child]) => Pretty::simple_record(
+                "Projection",
+                btreemap! {
+                    "exprs" => self.expr(exprs).pretty(),
+                    "cost" => Pretty::display(&cost)
+                },
+                vec![self.child(child).pretty()],
             ),
-            TopN([limit, offset, orderby, child]) => write!(
-                f,
-                "{tab}TopN: limit={}, offset={}, orderby={}{cost}\n{}",
-                self.expr(limit),
-                self.expr(offset),
-                self.expr(orderby),
-                self.child(child)
+            Filter([cond, child]) => Pretty::simple_record(
+                "Filter",
+                btreemap! {
+                    "cond" => self.expr(cond).pretty(),
+                    "cost" => Pretty::display(&cost)
+                },
+                vec![self.child(child).pretty()],
+            ),
+            Order([orderby, child]) => Pretty::simple_record(
+                "Order",
+                btreemap! {
+                    "by" => self.expr(orderby).pretty(),
+                    "cost" => Pretty::display(&cost)
+                },
+                vec![self.child(child).pretty()],
+            ),
+            Asc(a) | Desc(a) => pretty_node(&enode.to_string(), vec![self.expr(a).pretty()]),
+            Limit([limit, offset, child]) => Pretty::simple_record(
+                "Limit",
+                btreemap! {
+                    "limit" => self.expr(limit).pretty(),
+                    "offset" => self.expr(offset).pretty(),
+                    "cost" => Pretty::display(&cost)
+                },
+                vec![self.child(child).pretty()],
+            ),
+            TopN([limit, offset, orderby, child]) => Pretty::simple_record(
+                "TopN",
+                btreemap! {
+                    "limit" => self.expr(limit).pretty(),
+                    "offset" => self.expr(offset).pretty(),
+                    "order_by" => self.expr(orderby).pretty(),
+                    "cost" => Pretty::display(&cost)
+                },
+                vec![self.child(child).pretty()],
             ),
             Join([ty, cond, left, right]) => {
-                write!(f, "{tab}Join: {}", self.expr(ty))?;
+                let mut fields = btreemap! {
+                    "type" => self.expr(ty).pretty(),
+                    "cost" => Pretty::display(&cost)
+                };
                 if !self.is_true(cond) {
-                    write!(f, ", on={}", self.expr(cond))?;
+                    fields["on"] = self.expr(cond).pretty();
                 }
-                write!(f, "{cost}\n{}{}", self.child(left), self.child(right))
+                Pretty::simple_record(
+                    "Join",
+                    fields,
+                    vec![self.child(left).pretty(), self.child(right).pretty()],
+                )
             }
-            HashJoin([ty, lkeys, rkeys, left, right]) => write!(
-                f,
-                "{tab}HashJoin: {}, on=({} = {}){cost}\n{}{}",
-                self.expr(ty),
-                self.expr(lkeys),
-                self.expr(rkeys),
-                self.child(left),
-                self.child(right)
+            HashJoin([ty, lkeys, rkeys, left, right]) => Pretty::simple_record(
+                "HashJoin",
+                btreemap! {
+                    "type" => self.expr(ty).pretty(),
+                    "on" => Pretty::simple_record(
+                        "Equality",
+                        btreemap! {
+                            "lhs" => self.expr(lkeys).pretty(),
+                            "rhs" => self.expr(rkeys).pretty(),
+                        },
+                        vec![],
+                    ),
+                    "cost" => Pretty::display(&cost)
+                },
+                vec![self.child(left).pretty(), self.child(right).pretty()],
             ),
-            Inner | LeftOuter | RightOuter | FullOuter => write!(f, "{}", enode),
-            Agg([aggs, group_keys, child]) => write!(
-                f,
-                "{tab}Aggregate: {}, groupby={}{cost}\n{}",
-                self.expr(aggs),
-                self.expr(group_keys),
-                self.child(child)
+            Inner | LeftOuter | RightOuter | FullOuter => Pretty::display(enode),
+            Agg([aggs, group_keys, child]) => Pretty::simple_record(
+                "Aggregate",
+                btreemap! {
+                    "aggs" => self.expr(aggs).pretty(),
+                    "group_by" => self.expr(group_keys).pretty(),
+                    "cost" => Pretty::display(&cost)
+                },
+                vec![self.child(child).pretty()],
             ),
-            CreateTable(t) => writeln!(f, "{tab}CreateTable: name={:?}, ...{cost}", t.table_name),
-            Drop(t) => writeln!(f, "{tab}Drop: {}, ...{cost}", t.object),
-            Insert([table, cols, child]) => write!(
-                f,
-                "{tab}Insert: {}{}{cost}\n{}",
-                self.expr(table),
-                self.expr(cols),
-                self.child(child)
-            ),
-            Delete([table, child]) => write!(
-                f,
-                "{tab}Delete: from={}{cost}\n{}",
-                self.expr(table),
-                self.child(child)
-            ),
-            CopyFrom([src, _]) => writeln!(f, "{tab}CopyFrom: {}{cost}", self.expr(src)),
-            CopyTo([dst, child]) => write!(
-                f,
-                "{tab}CopyTo: {}{cost}\n{}",
-                self.expr(dst),
-                self.child(child)
-            ),
-            Explain(child) => write!(f, "{tab}Explain:{cost}\n{}", self.child(child)),
-            Empty(_) => writeln!(f, "{tab}Empty:{cost}"),
+            CreateTable(t) => {
+                let mut fields = btreemap! {
+                    "name" => Pretty::display(&t.table_name),
+                    "cost" => Pretty::display(&cost)
+                };
+                // TODO
+                Pretty::simple_record("CreateTable", fields, vec![])
+            }
+            Drop(t) => {
+                let mut fields = btreemap! {
+                    "name" => Pretty::display(&t.object),
+                    "cost" => Pretty::display(&cost)
+                };
+                // TODO
+                Pretty::simple_record("Drop", fields, vec![])
+            }
+            _ => todo!(),
+            // Insert([table, cols, child]) => write!(
+            //     f,
+            //     "{tab}Insert: {}{}{cost}\n{}",
+            //     self.expr(table),
+            //     self.expr(cols),
+            //     self.child(child)
+            // ),
+            // Delete([table, child]) => write!(
+            //     f,
+            //     "{tab}Delete: from={}{cost}\n{}",
+            //     self.expr(table),
+            //     self.child(child)
+            // ),
+            // CopyFrom([src, _]) => writeln!(f, "{tab}CopyFrom: {}{cost}", self.expr(src)),
+            // CopyTo([dst, child]) => write!(
+            //     f,
+            //     "{tab}CopyTo: {}{cost}\n{}",
+            //     self.expr(dst),
+            //     self.child(child)
+            // ),
+            // Explain(child) => write!(f, "{tab}Explain:{cost}\n{}", self.child(child)),
+            // Empty(_) => writeln!(f, "{tab}Empty:{cost}"),
         }
     }
 }
