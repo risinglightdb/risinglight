@@ -296,11 +296,7 @@ impl<'a> Explain<'a> {
                 named_record("CreateTable", fields, vec![])
             }
             Drop(t) => {
-                let mut fields = btreemap! {
-                    "name" => Pretty::display(&t.object),
-                }
-                .with_cost(cost);
-                // TODO
+                let fields = t.pretty_table().with_cost(cost);
                 named_record("Drop", fields, vec![])
             }
             _ => todo!(),

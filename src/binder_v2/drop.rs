@@ -1,6 +1,8 @@
-use std::result::Result as RawResult;
+use std::{result::Result as RawResult, collections::BTreeMap};
 use std::str::FromStr;
 
+use maplit::btreemap;
+use pretty_xmlish::Pretty;
 use serde::{Deserialize, Serialize};
 
 use super::*;
@@ -24,6 +26,17 @@ impl std::fmt::Display for BoundDrop {
             "object: {}, exists: {}, cascade: {}",
             self.object, self.if_exists, self.cascade,
         )
+    }
+}
+
+// TODO: rewrite display with pretty_xmlish
+impl BoundDrop {
+    pub fn pretty_table<'a>(&self) -> BTreeMap<&'a str, Pretty<'a>> {
+        btreemap! {
+            "object" => Pretty::display(&self.object),
+            "if_exists" => Pretty::display(&self.if_exists),
+            "cascade" => Pretty::display(&self.cascade),
+        }
     }
 }
 

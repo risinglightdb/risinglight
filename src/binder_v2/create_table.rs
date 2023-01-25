@@ -1,13 +1,15 @@
 use std::collections::{BTreeMap, HashSet};
+use std::fmt;
 use std::result::Result as RawResult;
 use std::str::FromStr;
 
 use maplit::btreemap;
-use pretty_xmlish::Pretty;
+use pretty_xmlish::{Pretty, PrettyConfig};
 use serde::{Deserialize, Serialize};
 
 use super::*;
 use crate::catalog::{ColumnCatalog, ColumnId, DatabaseId, SchemaId};
+use crate::utils::pretty::named_record;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
 pub struct CreateTable {
@@ -18,6 +20,18 @@ pub struct CreateTable {
     pub ordered_pk_ids: Vec<ColumnId>,
 }
 
+impl fmt::Display for CreateTable {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let explainer = named_record("CreateTable", self.pretty_table(), vec![]);
+        let mut explain = String::with_capacity(1000);
+        let mut config = PrettyConfig::default();
+        config.need_boundaries = false;
+        config.unicode(&mut explain, &explainer);
+        f.write_str(&explain)
+    }
+}
+
+// TODO: rewrite display with pretty_xmlish
 impl CreateTable {
     pub fn pretty_table<'a>(&self) -> BTreeMap<&'a str, Pretty<'a>> {
         btreemap! {
