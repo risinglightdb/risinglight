@@ -1,7 +1,9 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::result::Result as RawResult;
 use std::str::FromStr;
 
+use maplit::btreemap;
+use pretty_xmlish::Pretty;
 use serde::{Deserialize, Serialize};
 
 use super::*;
@@ -16,13 +18,15 @@ pub struct CreateTable {
     pub ordered_pk_ids: Vec<ColumnId>,
 }
 
-impl std::fmt::Display for CreateTable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "databaseId: {}, schemaId: {}, tableName: {}, columns: {:?}, orderedIds: {:?}",
-            self.database_id, self.schema_id, self.table_name, self.columns, self.ordered_pk_ids
-        )
+impl CreateTable {
+    pub fn pretty_table<'a>(&self) -> BTreeMap<&'a str, Pretty<'a>> {
+        btreemap! {
+            "database_id" => Pretty::display(&self.database_id),
+            "schema_id" => Pretty::display(&self.schema_id),
+            "name" => Pretty::display(&self.table_name),
+            "columns" => Pretty::Array(self.columns.iter().map(|c| Pretty::display(&format!("{:?}", c))).collect()),
+            "ordered_ids" => Pretty::Array(self.ordered_pk_ids.iter().map(|c| Pretty::display(c)).collect()),
+        }
     }
 }
 

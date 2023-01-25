@@ -3,22 +3,14 @@ use std::collections::BTreeMap;
 
 use egg::Id;
 use maplit::btreemap;
-use pretty_xmlish::{Pretty, XmlNode};
+use pretty_xmlish::Pretty;
 
 use super::{Expr, RecExpr};
 use crate::catalog::RootCatalog;
+use crate::utils::pretty::named_record;
 
 fn pretty_node<'a>(name: impl Into<Cow<'a, str>>, v: Vec<Pretty<'a>>) -> Pretty<'a> {
     named_record(name, Default::default(), v)
-}
-
-fn named_record<'a>(
-    name: impl Into<Cow<'a, str>>,
-    fields: BTreeMap<&'a str, Pretty<'a>>,
-    children: Vec<Pretty<'a>>,
-) -> Pretty<'a> {
-    let fields = fields.into_iter().map(|(k, v)| (k.into(), v)).collect();
-    Pretty::Record(XmlNode::new(name.into(), fields, children))
 }
 
 trait Insertable<'a> {
@@ -300,11 +292,7 @@ impl<'a> Explain<'a> {
                 vec![self.child(child).pretty()],
             ),
             CreateTable(t) => {
-                let mut fields = btreemap! {
-                    "name" => Pretty::display(&t.table_name),
-                }
-                .with_cost(cost);
-                // TODO
+                let fields = t.pretty_table().with_cost(cost);
                 named_record("CreateTable", fields, vec![])
             }
             Drop(t) => {
@@ -340,14 +328,4 @@ impl<'a> Explain<'a> {
             // Empty(_) => writeln!(f, "{tab}Empty:{cost}"),
         }
     }
-}
-
-fn with_cost<'a>(
-    cost: Option<f32>,
-    mut map: BTreeMap<&'a str, Pretty<'a>>,
-) -> BTreeMap<&'a str, Pretty<'a>> {
-    if let Some(cost) = cost {
-        map.entry("cost").or_insert(Pretty::display(&cost));
-    }
-    map
 }
