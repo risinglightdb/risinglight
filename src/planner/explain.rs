@@ -204,7 +204,7 @@ impl<'a> Explain<'a> {
                     "rows" => Pretty::display(&rows.len()),
                 }
                 .with_cost(cost),
-                vec![],
+                rows.iter().map(|id| self.expr(id).pretty()).collect(),
             ),
             Proj([exprs, child]) => named_record(
                 "Projection",
