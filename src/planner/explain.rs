@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::collections::BTreeMap;
-use std::fmt::{Display, Formatter, Result};
 
 use egg::Id;
 use maplit::btreemap;
@@ -20,6 +19,19 @@ fn named_record<'a>(
 ) -> Pretty<'a> {
     let fields = fields.into_iter().map(|(k, v)| (k.into(), v)).collect();
     Pretty::Record(XmlNode::new(name.into(), fields, children))
+}
+
+trait Insertable<'a> {
+    fn with_cost(self, value: Option<f32>) -> Self;
+}
+
+impl<'a> Insertable<'a> for BTreeMap<&'a str, Pretty<'a>> {
+    fn with_cost(mut self, value: Option<f32>) -> Self {
+        if let Some(value) = value {
+            self.insert("cost", Pretty::display(&value));
+        }
+        self
+    }
 }
 
 /// A wrapper over [`RecExpr`] to explain it in [`Display`].
@@ -187,86 +199,70 @@ impl<'a> Explain<'a> {
 
             Scan([table, list]) | Internal([table, list]) => named_record(
                 "Scan",
-                with_cost(
-                    cost,
-                    btreemap! {
-                       "table" => self.expr(table).pretty(),
-                       "list" => self.expr(list).pretty()
-                    },
-                ),
+                btreemap! {
+                   "table" => self.expr(table).pretty(),
+                   "list" => self.expr(list).pretty()
+                }
+                .with_cost(cost),
                 vec![],
             ),
             Values(rows) => named_record(
                 "Values",
-                with_cost(
-                    cost,
-                    btreemap! {
-                        "rows" => Pretty::display(&rows.len()),
-                    },
-                ),
+                btreemap! {
+                    "rows" => Pretty::display(&rows.len()),
+                }
+                .with_cost(cost),
                 vec![],
             ),
             Proj([exprs, child]) => named_record(
                 "Projection",
-                with_cost(
-                    cost,
-                    btreemap! {
-                        "exprs" => self.expr(exprs).pretty(),
-                    },
-                ),
+                btreemap! {
+                    "exprs" => self.expr(exprs).pretty(),
+                }
+                .with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
             Filter([cond, child]) => named_record(
                 "Filter",
-                with_cost(
-                    cost,
-                    btreemap! {
-                        "cond" => self.expr(cond).pretty(),
-                    },
-                ),
+                btreemap! {
+                    "cond" => self.expr(cond).pretty(),
+                }
+                .with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
             Order([orderby, child]) => named_record(
                 "Order",
-                with_cost(
-                    cost,
-                    btreemap! {
-                        "by" => self.expr(orderby).pretty(),
-                    },
-                ),
+                btreemap! {
+                    "by" => self.expr(orderby).pretty(),
+                }
+                .with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
             Asc(a) | Desc(a) => pretty_node(enode.to_string(), vec![self.expr(a).pretty()]),
             Limit([limit, offset, child]) => named_record(
                 "Limit",
-                with_cost(
-                    cost,
-                    btreemap! {
-                        "limit" => self.expr(limit).pretty(),
-                        "offset" => self.expr(offset).pretty(),
-                    },
-                ),
+                btreemap! {
+                    "limit" => self.expr(limit).pretty(),
+                    "offset" => self.expr(offset).pretty(),
+                }
+                .with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
             TopN([limit, offset, orderby, child]) => named_record(
                 "TopN",
-                with_cost(
-                    cost,
-                    btreemap! {
-                        "limit" => self.expr(limit).pretty(),
-                        "offset" => self.expr(offset).pretty(),
-                        "order_by" => self.expr(orderby).pretty(),
-                    },
-                ),
+                btreemap! {
+                    "limit" => self.expr(limit).pretty(),
+                    "offset" => self.expr(offset).pretty(),
+                    "order_by" => self.expr(orderby).pretty(),
+                }
+                .with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
             Join([ty, cond, left, right]) => {
-                let mut fields = with_cost(
-                    cost,
-                    btreemap! {
-                        "type" => self.expr(ty).pretty(),
-                    },
-                );
+                let mut fields = btreemap! {
+                    "type" => self.expr(ty).pretty(),
+                }
+                .with_cost(cost);
 
                 if !self.is_true(cond) {
                     fields.entry("on").or_insert(self.expr(cond).pretty());
@@ -279,51 +275,43 @@ impl<'a> Explain<'a> {
             }
             HashJoin([ty, lkeys, rkeys, left, right]) => named_record(
                 "HashJoin",
-                with_cost(
-                    cost,
-                    btreemap! {
-                        "type" => self.expr(ty).pretty(),
-                        "on" => named_record(
-                            "Equality",
-                            btreemap! {
-                                "lhs" => self.expr(lkeys).pretty(),
-                                "rhs" => self.expr(rkeys).pretty(),
-                            },
-                            vec![],
-                        ),
-                    },
-                ),
+                btreemap! {
+                    "type" => self.expr(ty).pretty(),
+                    "on" => named_record(
+                        "Equality",
+                        btreemap! {
+                            "lhs" => self.expr(lkeys).pretty(),
+                            "rhs" => self.expr(rkeys).pretty(),
+                        },
+                        vec![],
+                    ),
+                }
+                .with_cost(cost),
                 vec![self.child(left).pretty(), self.child(right).pretty()],
             ),
             Inner | LeftOuter | RightOuter | FullOuter => Pretty::display(enode),
             Agg([aggs, group_keys, child]) => named_record(
                 "Aggregate",
-                with_cost(
-                    cost,
-                    btreemap! {
-                        "aggs" => self.expr(aggs).pretty(),
-                        "group_by" => self.expr(group_keys).pretty(),
-                    },
-                ),
+                btreemap! {
+                    "aggs" => self.expr(aggs).pretty(),
+                    "group_by" => self.expr(group_keys).pretty(),
+                }
+                .with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
             CreateTable(t) => {
-                let mut fields = with_cost(
-                    cost,
-                    btreemap! {
-                        "name" => Pretty::display(&t.table_name),
-                    },
-                );
+                let mut fields = btreemap! {
+                    "name" => Pretty::display(&t.table_name),
+                }
+                .with_cost(cost);
                 // TODO
                 named_record("CreateTable", fields, vec![])
             }
             Drop(t) => {
-                let mut fields = with_cost(
-                    cost,
-                    btreemap! {
-                        "name" => Pretty::display(&t.object),
-                    },
-                );
+                let mut fields = btreemap! {
+                    "name" => Pretty::display(&t.object),
+                }
+                .with_cost(cost);
                 // TODO
                 named_record("Drop", fields, vec![])
             }
