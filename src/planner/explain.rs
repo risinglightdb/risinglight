@@ -257,7 +257,7 @@ impl<'a> Explain<'a> {
                 .with_cost(cost);
 
                 if !self.is_true(cond) {
-                    fields.entry("on").or_insert(self.expr(cond).pretty());
+                    fields.insert("on", self.expr(cond).pretty());
                 }
                 named_record(
                     "Join",

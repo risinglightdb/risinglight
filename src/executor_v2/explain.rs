@@ -21,8 +21,10 @@ impl ExplainExecutor {
             .with_catalog(&self.catalog);
         let explainer = binding.pretty();
         let mut explain = String::with_capacity(1000);
-        let mut config = PrettyConfig::default();
-        config.need_boundaries = false;
+        let config = PrettyConfig {
+            need_boundaries: false,
+            ..PrettyConfig::default()
+        };
         config.unicode(&mut explain, &explainer);
         let chunk =
             DataChunk::from_iter([ArrayImpl::new_utf8(Utf8Array::from_iter([Some(explain)]))]);

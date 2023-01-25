@@ -24,8 +24,10 @@ impl fmt::Display for CreateTable {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let explainer = named_record("CreateTable", self.pretty_table(), vec![]);
         let mut explain = String::with_capacity(1000);
-        let mut config = PrettyConfig::default();
-        config.need_boundaries = false;
+        let config = PrettyConfig {
+            need_boundaries: false,
+            ..PrettyConfig::default()
+        };
         config.unicode(&mut explain, &explainer);
         f.write_str(&explain)
     }
@@ -39,7 +41,7 @@ impl CreateTable {
             "schema_id" => Pretty::display(&self.schema_id),
             "name" => Pretty::display(&self.table_name),
             "columns" => Pretty::Array(self.columns.iter().map(|c| c.desc().pretty()).collect()),
-            "ordered_ids" => Pretty::Array(self.ordered_pk_ids.iter().map(|c| Pretty::display(c)).collect()),
+            "ordered_ids" => Pretty::Array(self.ordered_pk_ids.iter().map(Pretty::display).collect()),
         }
     }
 }
