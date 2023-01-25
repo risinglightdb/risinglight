@@ -1,9 +1,12 @@
 // Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use maplit::btreemap;
+use pretty_xmlish::Pretty;
 use serde::{Deserialize, Serialize};
 
 use super::ColumnId;
 use crate::types::DataType;
+use crate::utils::pretty::named_record;
 
 /// A descriptor of a column.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -44,6 +47,20 @@ impl ColumnDesc {
 
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn pretty<'a>(&self) -> Pretty<'a> {
+        let mut fields = btreemap! {
+            "name" => Pretty::display(&self.name),
+            "type" => Pretty::display(&self.datatype.kind),
+        };
+        if self.is_primary {
+            fields.insert("primary", Pretty::display(&self.is_primary));
+        }
+        if self.datatype.nullable {
+            fields.insert("nullable", Pretty::display(&self.datatype.nullable));
+        }
+        named_record("Column", fields, vec![])
     }
 }
 

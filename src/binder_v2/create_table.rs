@@ -38,7 +38,7 @@ impl CreateTable {
             "database_id" => Pretty::display(&self.database_id),
             "schema_id" => Pretty::display(&self.schema_id),
             "name" => Pretty::display(&self.table_name),
-            "columns" => Pretty::Array(self.columns.iter().map(|c| Pretty::display(&format!("{:?}", c))).collect()),
+            "columns" => Pretty::Array(self.columns.iter().map(|c| c.desc().pretty()).collect()),
             "ordered_ids" => Pretty::Array(self.ordered_pk_ids.iter().map(|c| Pretty::display(c)).collect()),
         }
     }
