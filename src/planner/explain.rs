@@ -299,29 +299,45 @@ impl<'a> Explain<'a> {
                 let fields = t.pretty_table().with_cost(cost);
                 named_record("Drop", fields, vec![])
             }
-            _ => todo!(),
-            // Insert([table, cols, child]) => write!(
-            //     f,
-            //     "{tab}Insert: {}{}{cost}\n{}",
-            //     self.expr(table),
-            //     self.expr(cols),
-            //     self.child(child)
-            // ),
-            // Delete([table, child]) => write!(
-            //     f,
-            //     "{tab}Delete: from={}{cost}\n{}",
-            //     self.expr(table),
-            //     self.child(child)
-            // ),
-            // CopyFrom([src, _]) => writeln!(f, "{tab}CopyFrom: {}{cost}", self.expr(src)),
-            // CopyTo([dst, child]) => write!(
-            //     f,
-            //     "{tab}CopyTo: {}{cost}\n{}",
-            //     self.expr(dst),
-            //     self.child(child)
-            // ),
-            // Explain(child) => write!(f, "{tab}Explain:{cost}\n{}", self.child(child)),
-            // Empty(_) => writeln!(f, "{tab}Empty:{cost}"),
+            Insert([table, cols, child]) => named_record(
+                "Insert",
+                btreemap! {
+                    "table" => self.expr(table).pretty(),
+                    "cols" => self.expr(cols).pretty(),
+                }
+                .with_cost(cost),
+                vec![self.child(child).pretty()],
+            ),
+            Delete([table, child]) => named_record(
+                "Delete",
+                btreemap! {
+                    "table" => self.expr(table).pretty(),
+                }
+                .with_cost(cost),
+                vec![self.child(child).pretty()],
+            ),
+            CopyFrom([src, _]) => named_record(
+                "CopyFrom",
+                btreemap! {
+                    "src" => self.expr(src).pretty(),
+                }
+                .with_cost(cost),
+                vec![],
+            ),
+            CopyTo([dst, child]) => named_record(
+                "CopyTo",
+                btreemap! {
+                    "dst" => self.expr(dst).pretty(),
+                }
+                .with_cost(cost),
+                vec![self.child(child).pretty()],
+            ),
+            Explain(child) => named_record(
+                "Explain",
+                btreemap! {}.with_cost(cost),
+                vec![self.child(child).pretty()],
+            ),
+            Empty(_) => named_record("Empty", btreemap! {}.with_cost(cost), vec![]),
         }
     }
 }
