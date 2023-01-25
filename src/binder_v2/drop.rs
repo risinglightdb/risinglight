@@ -1,4 +1,5 @@
-use std::{result::Result as RawResult, collections::BTreeMap};
+use std::collections::BTreeMap;
+use std::result::Result as RawResult;
 use std::str::FromStr;
 
 use maplit::btreemap;

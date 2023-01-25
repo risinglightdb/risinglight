@@ -3,7 +3,8 @@
 pub mod time;
 
 pub mod pretty {
-    use std::{borrow::Cow, collections::BTreeMap};
+    use std::borrow::Cow;
+    use std::collections::BTreeMap;
 
     use pretty_xmlish::{Pretty, XmlNode};
 
