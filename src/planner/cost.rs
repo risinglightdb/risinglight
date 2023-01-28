@@ -1,3 +1,5 @@
+// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! Cost functions to extract the best plan.
 
 use egg::Language;

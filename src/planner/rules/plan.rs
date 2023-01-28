@@ -1,3 +1,5 @@
+// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! Plan optimization rules.
 
 use super::schema::schema_is_eq;

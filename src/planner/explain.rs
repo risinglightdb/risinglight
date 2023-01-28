@@ -1,4 +1,7 @@
+// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use std::collections::BTreeMap;
+use std::fmt::{Display, Formatter, Result};
 
 use egg::Id;
 use maplit::btreemap;

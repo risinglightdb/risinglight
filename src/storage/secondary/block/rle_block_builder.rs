@@ -1,4 +1,4 @@
-// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::borrow::Borrow;
 
@@ -9,7 +9,7 @@ use risinglight_proto::rowset::BlockStatistics;
 use super::BlockBuilder;
 use crate::array::Array;
 
-// Copyright 2022 tokio. Licensed under Apache-2.0
+// Copyright 2023 tokio. Licensed under Apache-2.0
 /// encode u32 to multiple u8
 pub fn encode_32<B>(mut value: u32, buf: &mut B)
 where
@@ -82,7 +82,7 @@ pub fn decode_u32_slice(bytes: &[u8]) -> Result<(u32, usize), DecodeError> {
     };
     Err(DecodeError::new("invalid varint"))
 }
-// Copyright 2022 tokio. Licensed under Apache-2.0
+// Copyright 2023 tokio. Licensed under Apache-2.0
 
 /// Encodes fixed-width data into a block with run-length encoding. The layout is
 /// rle counts and data from other block builder
