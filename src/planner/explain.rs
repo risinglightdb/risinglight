@@ -271,7 +271,7 @@ impl<'a> Explain<'a> {
                     "lhs" => self.expr(lkeys).pretty(),
                     "rhs" => self.expr(rkeys).pretty(),
                 };
-                let eq = Pretty::childless_record("Equality", fields);
+                let eq = Pretty::childless_record("=", fields);
                 let fields = btreemap! {
                     "type" => self.expr(ty).pretty(),
                     "on" => eq,
