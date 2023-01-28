@@ -1,3 +1,5 @@
+// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! Optimization rules and related program analyses.
 //!
 //! Currently we have 6 kinds of analyses.

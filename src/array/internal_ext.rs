@@ -1,4 +1,4 @@
-// Copyright 2022 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
 //! Provide utilities to access the internal states of the [`Array`].
 
