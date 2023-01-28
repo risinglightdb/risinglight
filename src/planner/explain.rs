@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use egg::Id;
@@ -7,7 +6,6 @@ use pretty_xmlish::Pretty;
 
 use super::{Expr, RecExpr};
 use crate::catalog::RootCatalog;
-use crate::utils::pretty::named_record;
 
 trait Insertable<'a> {
     fn with_cost(self, value: Option<f32>) -> Self;

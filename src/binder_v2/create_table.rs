@@ -5,12 +5,11 @@ use std::str::FromStr;
 
 use maplit::btreemap;
 use pretty_xmlish::helper::delegate_fmt;
-use pretty_xmlish::{Pretty, PrettyConfig};
+use pretty_xmlish::Pretty;
 use serde::{Deserialize, Serialize};
 
 use super::*;
 use crate::catalog::{ColumnCatalog, ColumnId, DatabaseId, SchemaId};
-use crate::utils::pretty::named_record;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
 pub struct CreateTable {

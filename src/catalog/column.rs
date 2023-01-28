@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 
 use super::ColumnId;
 use crate::types::DataType;
-use crate::utils::pretty::named_record;
 
 /// A descriptor of a column.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
