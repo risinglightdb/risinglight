@@ -4,6 +4,7 @@ use std::result::Result as RawResult;
 use std::str::FromStr;
 
 use maplit::btreemap;
+use pretty_xmlish::helper::delegate_fmt;
 use pretty_xmlish::{Pretty, PrettyConfig};
 use serde::{Deserialize, Serialize};
 
@@ -22,14 +23,8 @@ pub struct CreateTable {
 
 impl fmt::Display for CreateTable {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let explainer = named_record("CreateTable", self.pretty_table(), vec![]);
-        let mut explain = String::with_capacity(1000);
-        let config = PrettyConfig {
-            need_boundaries: false,
-            ..PrettyConfig::default()
-        };
-        config.unicode(&mut explain, &explainer);
-        f.write_str(&explain)
+        let explainer = Pretty::childless_record("CreateTable", self.pretty_table());
+        delegate_fmt(&explainer, f, String::with_capacity(1000))
     }
 }
 

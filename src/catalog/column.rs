@@ -60,7 +60,7 @@ impl ColumnDesc {
         if self.datatype.nullable {
             fields.insert("nullable", Pretty::display(&self.datatype.nullable));
         }
-        named_record("Column", fields, vec![])
+        Pretty::childless_record("Column", fields)
     }
 }
 

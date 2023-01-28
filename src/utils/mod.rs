@@ -6,14 +6,13 @@ pub mod pretty {
     use std::borrow::Cow;
     use std::collections::BTreeMap;
 
-    use pretty_xmlish::{Pretty, XmlNode};
+    use pretty_xmlish::Pretty;
 
     pub fn named_record<'a>(
         name: impl Into<Cow<'a, str>>,
         fields: BTreeMap<&'a str, Pretty<'a>>,
         children: Vec<Pretty<'a>>,
     ) -> Pretty<'a> {
-        let fields = fields.into_iter().map(|(k, v)| (k.into(), v)).collect();
-        Pretty::Record(XmlNode::new(name.into(), fields, children))
+        Pretty::simple_record(name, fields, children)
     }
 }
