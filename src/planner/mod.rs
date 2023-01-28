@@ -1,3 +1,5 @@
+// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use egg::{define_language, CostFunction, Id, Symbol};
 
 use crate::binder_v2::copy::ExtSource;

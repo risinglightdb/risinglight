@@ -1,3 +1,5 @@
+// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! Analyze the output schema of plans.
 
 use super::*;

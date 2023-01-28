@@ -1,3 +1,5 @@
+// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+
 //! Array operations.
 
 use std::borrow::Borrow;
