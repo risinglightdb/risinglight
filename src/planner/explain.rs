@@ -91,7 +91,7 @@ impl<'a> Explain<'a> {
     fn is_true(&self, id: &Id) -> bool {
         self.expr[*id] == Expr::true_()
     }
-
+    /// Transforms the plan to `Pretty`, an intermediate representation for pretty printing. It will be printed to string later.
     pub fn pretty(&self) -> Pretty<'a> {
         use Expr::*;
         let enode = &self.expr[self.id];
