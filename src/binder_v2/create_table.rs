@@ -27,7 +27,6 @@ impl fmt::Display for CreateTable {
     }
 }
 
-// TODO: rewrite display with pretty_xmlish
 impl CreateTable {
     pub fn pretty_table<'a>(&self) -> BTreeMap<&'a str, Pretty<'a>> {
         btreemap! {

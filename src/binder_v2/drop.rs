@@ -3,6 +3,7 @@ use std::result::Result as RawResult;
 use std::str::FromStr;
 
 use maplit::btreemap;
+use pretty_xmlish::helper::delegate_fmt;
 use pretty_xmlish::Pretty;
 use serde::{Deserialize, Serialize};
 
@@ -22,15 +23,11 @@ pub enum Object {
 
 impl std::fmt::Display for BoundDrop {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "object: {}, exists: {}, cascade: {}",
-            self.object, self.if_exists, self.cascade,
-        )
+        let explainer = Pretty::childless_record("Drop", self.pretty_table());
+        delegate_fmt(&explainer, f, String::with_capacity(1000))
     }
 }
 
-// TODO: rewrite display with pretty_xmlish
 impl BoundDrop {
     pub fn pretty_table<'a>(&self) -> BTreeMap<&'a str, Pretty<'a>> {
         btreemap! {
