@@ -15,11 +15,11 @@ pub struct ExplainExecutor {
 
 impl ExplainExecutor {
     pub fn execute(self) -> BoxedExecutor {
-        let binding = costs(&self.plan);
-        let binding = Explain::of(&self.plan)
-            .with_costs(&binding)
+        let costs = costs(&self.plan);
+        let explain_obj = Explain::of(&self.plan)
+            .with_costs(&costs)
             .with_catalog(&self.catalog);
-        let explainer = binding.pretty();
+        let explainer = explain_obj.pretty();
         let mut explain = String::with_capacity(4096);
         let mut config = PrettyConfig {
             need_boundaries: false,
