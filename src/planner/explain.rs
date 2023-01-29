@@ -1,7 +1,6 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::collections::BTreeMap;
-use std::fmt::{Display, Formatter, Result};
 
 use egg::Id;
 use maplit::btreemap;
@@ -94,7 +93,8 @@ impl<'a> Explain<'a> {
     fn is_true(&self, id: &Id) -> bool {
         self.expr[*id] == Expr::true_()
     }
-    /// Transforms the plan to `Pretty`, an intermediate representation for pretty printing. It will be printed to string later.
+    /// Transforms the plan to `Pretty`, an intermediate representation for pretty printing. It will
+    /// be printed to string later.
     pub fn pretty(&self) -> Pretty<'a> {
         use Expr::*;
         let enode = &self.expr[self.id];
