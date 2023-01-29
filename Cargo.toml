@@ -67,8 +67,7 @@ tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "parking_lot"] }
 pyo3 = { version = "0.17.3", features = ["extension-module"] }
-pretty-xmlish = "0.1.0"
-maplit = "1.0.2"
+pretty-xmlish = "0.1"
 [dev-dependencies]
 criterion = { version = "0.4", features = ["async_tokio"] }
 tempfile = "3"

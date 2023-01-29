@@ -1,6 +1,5 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use maplit::btreemap;
 use pretty_xmlish::Pretty;
 use serde::{Deserialize, Serialize};
 
@@ -49,15 +48,15 @@ impl ColumnDesc {
     }
 
     pub fn pretty<'a>(&self) -> Pretty<'a> {
-        let mut fields = btreemap! {
-            "name" => Pretty::display(&self.name),
-            "type" => Pretty::display(&self.datatype.kind),
-        };
+        let mut fields = vec![
+            ("name", Pretty::display(&self.name)),
+            ("type", Pretty::display(&self.datatype.kind)),
+        ];
         if self.is_primary {
-            fields.insert("primary", Pretty::display(&self.is_primary));
+            fields.push(("primary", Pretty::display(&self.is_primary)));
         }
         if self.datatype.nullable {
-            fields.insert("nullable", Pretty::display(&self.datatype.nullable));
+            fields.push(("nullable", Pretty::display(&self.datatype.nullable)));
         }
         Pretty::childless_record("Column", fields)
     }

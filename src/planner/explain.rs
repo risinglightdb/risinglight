@@ -1,9 +1,6 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::collections::BTreeMap;
-
 use egg::Id;
-use maplit::btreemap;
 use pretty_xmlish::Pretty;
 
 use super::{Expr, RecExpr};
@@ -13,10 +10,10 @@ trait Insertable<'a> {
     fn with_cost(self, value: Option<f32>) -> Self;
 }
 
-impl<'a> Insertable<'a> for BTreeMap<&'a str, Pretty<'a>> {
+impl<'a> Insertable<'a> for Vec<(&'a str, Pretty<'a>)> {
     fn with_cost(mut self, value: Option<f32>) -> Self {
         if let Some(value) = value {
-            self.insert("cost", Pretty::display(&value));
+            self.push(("cost", Pretty::display(&value)));
         }
         self
     }
@@ -131,10 +128,10 @@ impl<'a> Explain<'a> {
             | Eq([a, b]) | NotEq([a, b]) | And([a, b]) | Or([a, b]) | Xor([a, b])
             | Like([a, b]) => Pretty::childless_record(
                 enode.to_string(),
-                btreemap! {
-                    "lhs" => self.expr(a).pretty(),
-                    "rhs" => self.expr(b).pretty(),
-                },
+                vec![
+                    ("lhs", self.expr(a).pretty()),
+                    ("rhs", self.expr(b).pretty()),
+                ],
             ),
 
             // unary operations
@@ -146,20 +143,20 @@ impl<'a> Explain<'a> {
 
             If([cond, then, else_]) => Pretty::childless_record(
                 "If",
-                btreemap! {
-                    "cond" => self.expr(cond).pretty(),
-                    "then" => self.expr(then).pretty(),
-                    "else" => self.expr(else_).pretty(),
-                },
+                vec![
+                    ("cond", self.expr(cond).pretty()),
+                    ("then", self.expr(then).pretty()),
+                    ("else", self.expr(else_).pretty()),
+                ],
             ),
 
             // functions
             Extract([field, e]) => Pretty::childless_record(
                 "Extract",
-                btreemap! {
-                    "from" => self.expr(e).pretty(),
-                    "field" => self.expr(field).pretty(),
-                },
+                vec![
+                    ("from", self.expr(e).pretty()),
+                    ("field", self.expr(field).pretty()),
+                ],
             ),
             Field(field) => Pretty::display(field),
 
@@ -177,57 +174,41 @@ impl<'a> Explain<'a> {
             }
             In([a, b]) => Pretty::simple_record(
                 "In",
-                btreemap! {
-                    "in" => self.expr(b).pretty(),
-                },
+                vec![("in", self.expr(b).pretty())],
                 vec![self.expr(a).pretty()],
             ),
             Cast([a, b]) => Pretty::simple_record(
                 "Cast",
-                btreemap! {
-                    "type" => self.expr(b).pretty(),
-                },
+                vec![("type", self.expr(b).pretty())],
                 vec![self.expr(a).pretty()],
             ),
 
             Scan([table, list]) | Internal([table, list]) => Pretty::childless_record(
                 "Scan",
-                btreemap! {
-                   "table" => self.expr(table).pretty(),
-                   "list" => self.expr(list).pretty()
-                }
+                vec![
+                    ("table", self.expr(table).pretty()),
+                    ("list", self.expr(list).pretty()),
+                ]
                 .with_cost(cost),
             ),
             Values(rows) => Pretty::simple_record(
                 "Values",
-                btreemap! {
-                    "rows" => Pretty::display(&rows.len()),
-                }
-                .with_cost(cost),
+                vec![("rows", Pretty::display(&rows.len()))].with_cost(cost),
                 rows.iter().map(|id| self.expr(id).pretty()).collect(),
             ),
             Proj([exprs, child]) => Pretty::simple_record(
                 "Projection",
-                btreemap! {
-                    "exprs" => self.expr(exprs).pretty(),
-                }
-                .with_cost(cost),
+                vec![("exprs", self.expr(exprs).pretty())].with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
             Filter([cond, child]) => Pretty::simple_record(
                 "Filter",
-                btreemap! {
-                    "cond" => self.expr(cond).pretty(),
-                }
-                .with_cost(cost),
+                vec![("cond", self.expr(cond).pretty())].with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
             Order([orderby, child]) => Pretty::simple_record(
                 "Order",
-                btreemap! {
-                    "by" => self.expr(orderby).pretty(),
-                }
-                .with_cost(cost),
+                vec![("by", self.expr(orderby).pretty())].with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
             Asc(a) | Desc(a) => {
@@ -237,59 +218,52 @@ impl<'a> Explain<'a> {
             }
             Limit([limit, offset, child]) => Pretty::simple_record(
                 "Limit",
-                btreemap! {
-                    "limit" => self.expr(limit).pretty(),
-                    "offset" => self.expr(offset).pretty(),
-                }
+                vec![
+                    ("limit", self.expr(limit).pretty()),
+                    ("offset", self.expr(offset).pretty()),
+                ]
                 .with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
             TopN([limit, offset, orderby, child]) => Pretty::simple_record(
                 "TopN",
-                btreemap! {
-                    "limit" => self.expr(limit).pretty(),
-                    "offset" => self.expr(offset).pretty(),
-                    "order_by" => self.expr(orderby).pretty(),
-                }
+                vec![
+                    ("limit", self.expr(limit).pretty()),
+                    ("offset", self.expr(offset).pretty()),
+                    ("order_by", self.expr(orderby).pretty()),
+                ]
                 .with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
             Join([ty, cond, left, right]) => {
-                let mut fields = btreemap! {
-                    "type" => self.expr(ty).pretty(),
-                }
-                .with_cost(cost);
+                let mut fields = vec![("type", self.expr(ty).pretty())];
 
                 if !self.is_true(cond) {
-                    fields.insert("on", self.expr(cond).pretty());
+                    fields.push(("on", self.expr(cond).pretty()));
                 }
                 Pretty::simple_record(
                     "Join",
-                    fields,
+                    fields.with_cost(cost),
                     vec![self.child(left).pretty(), self.child(right).pretty()],
                 )
             }
             HashJoin([ty, lkeys, rkeys, left, right]) => {
-                let fields = btreemap! {
-                    "lhs" => self.expr(lkeys).pretty(),
-                    "rhs" => self.expr(rkeys).pretty(),
-                };
+                let fields = vec![
+                    ("lhs", self.expr(lkeys).pretty()),
+                    ("rhs", self.expr(rkeys).pretty()),
+                ];
                 let eq = Pretty::childless_record("=", fields);
-                let fields = btreemap! {
-                    "type" => self.expr(ty).pretty(),
-                    "on" => eq,
-                }
-                .with_cost(cost);
+                let fields = vec![("type", self.expr(ty).pretty()), ("on", eq)].with_cost(cost);
                 let children = vec![self.child(left).pretty(), self.child(right).pretty()];
                 Pretty::simple_record("HashJoin", fields, children)
             }
             Inner | LeftOuter | RightOuter | FullOuter => Pretty::display(enode),
             Agg([aggs, group_keys, child]) => Pretty::simple_record(
                 "Aggregate",
-                btreemap! {
-                    "aggs" => self.expr(aggs).pretty(),
-                    "group_by" => self.expr(group_keys).pretty(),
-                }
+                vec![
+                    ("aggs", self.expr(aggs).pretty()),
+                    ("group_by", self.expr(group_keys).pretty()),
+                ]
                 .with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
@@ -303,42 +277,33 @@ impl<'a> Explain<'a> {
             }
             Insert([table, cols, child]) => Pretty::simple_record(
                 "Insert",
-                btreemap! {
-                    "table" => self.expr(table).pretty(),
-                    "cols" => self.expr(cols).pretty(),
-                }
+                vec![
+                    ("table", self.expr(table).pretty()),
+                    ("cols", self.expr(cols).pretty()),
+                ]
                 .with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
             Delete([table, child]) => Pretty::simple_record(
                 "Delete",
-                btreemap! {
-                    "table" => self.expr(table).pretty(),
-                }
-                .with_cost(cost),
+                vec![("table", self.expr(table).pretty())].with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
             CopyFrom([src, _]) => Pretty::childless_record(
                 "CopyFrom",
-                btreemap! {
-                    "src" => self.expr(src).pretty(),
-                }
-                .with_cost(cost),
+                vec![("src", self.expr(src).pretty())].with_cost(cost),
             ),
             CopyTo([dst, child]) => Pretty::simple_record(
                 "CopyTo",
-                btreemap! {
-                    "dst" => self.expr(dst).pretty(),
-                }
-                .with_cost(cost),
+                vec![("dst", self.expr(dst).pretty())].with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
             Explain(child) => Pretty::simple_record(
                 "Explain",
-                btreemap! {}.with_cost(cost),
+                vec![].with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
-            Empty(_) => Pretty::childless_record("Empty", btreemap! {}.with_cost(cost)),
+            Empty(_) => Pretty::childless_record("Empty", vec![].with_cost(cost)),
         }
     }
 }

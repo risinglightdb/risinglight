@@ -3,7 +3,6 @@ use std::fmt;
 use std::result::Result as RawResult;
 use std::str::FromStr;
 
-use maplit::btreemap;
 use pretty_xmlish::helper::delegate_fmt;
 use pretty_xmlish::Pretty;
 use serde::{Deserialize, Serialize};
@@ -28,13 +27,13 @@ impl fmt::Display for CreateTable {
 }
 
 impl CreateTable {
-    pub fn pretty_table<'a>(&self) -> BTreeMap<&'a str, Pretty<'a>> {
-        btreemap! {
-            "database_id" => Pretty::display(&self.database_id),
-            "schema_id" => Pretty::display(&self.schema_id),
-            "name" => Pretty::display(&self.table_name),
-            "columns" => Pretty::Array(self.columns.iter().map(|c| c.desc().pretty()).collect()),
-            "ordered_ids" => Pretty::Array(self.ordered_pk_ids.iter().map(Pretty::display).collect()),
+    pub fn pretty_table<'a>(&self) -> Vec<(&'a str, Pretty<'a>)> {
+        vec! {
+            ("database_id",Pretty::display(&self.database_id)),
+            ("schema_id",Pretty::display(&self.schema_id)),
+            ("name",Pretty::display(&self.table_name)),
+            ("columns",Pretty::Array(self.columns.iter().map(|c| c.desc().pretty()).collect())),
+            ("ordered_ids",Pretty::Array(self.ordered_pk_ids.iter().map(Pretty::display).collect())),
         }
     }
 }
