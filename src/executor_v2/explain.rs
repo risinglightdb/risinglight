@@ -20,8 +20,8 @@ impl ExplainExecutor {
             .with_costs(&binding)
             .with_catalog(&self.catalog);
         let explainer = binding.pretty();
-        let mut explain = String::with_capacity(1000);
-        let config = PrettyConfig {
+        let mut explain = String::with_capacity(4096);
+        let mut config = PrettyConfig {
             need_boundaries: false,
             ..PrettyConfig::default()
         };
