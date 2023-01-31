@@ -1,6 +1,9 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::fmt;
+
 use egg::Id;
+use pretty_xmlish::helper::delegate_fmt;
 use pretty_xmlish::Pretty;
 
 use super::{Expr, RecExpr};
@@ -305,5 +308,11 @@ impl<'a> Explain<'a> {
             ),
             Empty(_) => Pretty::childless_record("Empty", vec![].with_cost(cost)),
         }
+    }
+}
+
+impl<'a> fmt::Display for Explain<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        delegate_fmt(&self.pretty(), f, String::with_capacity(4096))
     }
 }
