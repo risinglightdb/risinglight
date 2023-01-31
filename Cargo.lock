@@ -2194,9 +2194,9 @@ checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 
 [[package]]
 name = "pretty-xmlish"
-version = "0.1.4"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b75d30f31370e31bbd1bbc9cbe90343e62883a11c24b2032ebf8ebfe8409e86"
+checksum = "4be7cc19f95f1d124072c2f15d9dc3129fe451315e545e0e5247471c57b47463"
 
 [[package]]
 name = "prettyplease"
@@ -3626,9 +3626,9 @@ dependencies = [
 
 [[package]]
 name = "unicode-segmentation"
-version = "1.10.0"
+version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fdbf052a0783de01e944a6ce7a8cb939e295b1e7be835a1112c3b9a7f047a5a"
+checksum = "1dd624098567895118886609431a7c3b8f516e41d30e0643f03d94592a147e36"
 
 [[package]]
 name = "unicode-width"

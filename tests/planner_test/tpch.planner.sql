@@ -124,15 +124,33 @@ Projection
 │   │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }                                              
 │   ├── sum                                                                                                             
 │   │   └── * { lhs: + { lhs: l_tax, rhs: 1 }, rhs: * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } } }    
-│   ├── / { lhs: sum, rhs: count }                                                                                      
+│   ├── /                                                                                                               
+│   │   ├── lhs: sum                                                                                                    
+│   │   │   └── l_quantity                                                                                              
+│   │   ├── rhs: count                                                                                                  
+│   │   │   └── l_quantity                                                                                              
                                                                                                                         
-│   ├── / { lhs: sum, rhs: count }                                                                                      
+│   ├── /                                                                                                               
+│   │   ├── lhs: sum                                                                                                    
+│   │   │   └── l_extendedprice                                                                                         
+│   │   ├── rhs: count                                                                                                  
+│   │   │   └── l_extendedprice                                                                                         
                                                                                                                         
-│   ├── / { lhs: sum, rhs: count }                                                                                      
+│   ├── /                                                                                                               
+│   │   ├── lhs: sum                                                                                                    
+│   │   │   └── l_discount                                                                                              
+│   │   ├── rhs: count                                                                                                  
+│   │   │   └── l_discount                                                                                              
                                                                                                                         
 │   └── rowcount                                                                                                        
 ├── cost: 39238.984                                                                                                     
-└── Order { by: [ asc, asc ], cost: 33158.984 }                                                                         
+└── Order                                                                                                               
+    ├── by:                                                                                                             
+    │   ┌── asc                                                                                                         
+    │   │   └── l_returnflag                                                                                            
+    │   └── asc                                                                                                         
+    │       └── l_linestatus                                                                                            
+    ├── cost: 33158.984                                                                                                 
     └── Aggregate                                                                                                       
         ├── aggs:                                                                                                       
         │   ┌── sum                                                                                                     
@@ -192,9 +210,30 @@ order by
 limit 10;
 
 /*
-Projection { exprs: [ l_orderkey, sum, o_orderdate, o_shippriority ], cost: 63701.88 }                            
-└── TopN { limit: 10, offset: 0, order_by: [ desc, asc ], cost: 63647.88 }                                        
-    └── Aggregate { aggs: [ sum ], group_by: [ l_orderkey, o_orderdate, o_shippriority ], cost: 62224.105 }       
+Projection                                                                                                        
+├── exprs:                                                                                                        
+│   ┌── l_orderkey                                                                                                
+│   ├── sum                                                                                                       
+│   │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }                                        
+│   ├── o_orderdate                                                                                               
+│   └── o_shippriority                                                                                            
+├── cost: 63701.88                                                                                                
+└── TopN                                                                                                          
+    ├── limit: 10                                                                                                 
+    ├── offset: 0                                                                                                 
+    ├── order_by:                                                                                                 
+    │   ┌── desc                                                                                                  
+    │   │   └── sum                                                                                               
+    │   │       └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }                                
+    │   └── asc                                                                                                   
+    │       └── o_orderdate                                                                                       
+    ├── cost: 63647.88                                                                                            
+    └── Aggregate                                                                                                 
+        ├── aggs:                                                                                                 
+        │   ┌── sum                                                                                               
+        │   │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }                                
+        ├── group_by: [ l_orderkey, o_orderdate, o_shippriority ]                                                 
+        ├── cost: 62224.105                                                                                       
         └── Projection                                                                                            
             ├── exprs: [ o_orderdate, o_shippriority, l_orderkey, l_extendedprice, l_discount ]                   
             ├── cost: 59744.105                                                                                   
@@ -244,9 +283,24 @@ order by
     revenue desc;
 
 /*
-Projection { exprs: [ n_name, sum ], cost: 163126.61 }                                                                 
-└── Order { by: [ desc ], cost: 161626.61 }                                                                            
-    └── Aggregate { aggs: [ sum ], group_by: [ n_name ], cost: 156142.28 }                                             
+Projection                                                                                                             
+├── exprs:                                                                                                             
+│   ┌── n_name                                                                                                         
+│   └── sum                                                                                                            
+│       └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }                                             
+├── cost: 163126.61                                                                                                    
+└── Order                                                                                                              
+    ├── by:                                                                                                            
+    │   ┌── desc                                                                                                       
+    │   │   └── sum                                                                                                    
+    │   │       └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }                                     
+    ├── cost: 161626.61                                                                                                
+    └── Aggregate                                                                                                      
+        ├── aggs:                                                                                                      
+        │   ┌── sum                                                                                                    
+        │   │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }                                     
+        ├── group_by: [ n_name ]                                                                                       
+        ├── cost: 156142.28                                                                                            
         └── Projection { exprs: [ n_name, l_extendedprice, l_discount ], cost: 154242.28 }                             
             └── HashJoin { type: inner, on: = { lhs: [ n_regionkey ], rhs: [ r_regionkey ] }, cost: 150842.28 }        
                 ├── Projection { exprs: [ n_name, n_regionkey, l_extendedprice, l_discount ], cost: 130941.61 }        
@@ -305,8 +359,17 @@ where
     and l_quantity < 24;
 
 /*
-Projection { exprs: [ sum ], cost: 8163.5923 }                                                                      
-└── Aggregate { aggs: [ sum ], group_by: [], cost: 8161.992 }                                                       
+Projection                                                                                                          
+├── exprs:                                                                                                          
+│   ┌── sum                                                                                                         
+│   │   └── * { lhs: l_discount, rhs: l_extendedprice }                                                             
+├── cost: 8163.5923                                                                                                 
+└── Aggregate                                                                                                       
+    ├── aggs:                                                                                                       
+    │   ┌── sum                                                                                                     
+    │   │   └── * { lhs: l_discount, rhs: l_extendedprice }                                                         
+    ├── group_by: []                                                                                                
+    ├── cost: 8161.992                                                                                              
     └── Projection { exprs: [ l_extendedprice, l_discount ], cost: 7964.3843 }                                      
         └── Filter                                                                                                  
             ├── cond: and                                                                                           
@@ -355,8 +418,26 @@ order by
 limit 20;
 
 /*
-Projection { exprs: [ c_custkey, c_name, sum, c_acctbal, n_name, c_address, c_phone, c_comment ], cost: 138073.53 } 
-└── TopN { limit: 20, offset: 0, order_by: [ desc ], cost: 137869.53 }                                              
+Projection                                                                                                          
+├── exprs:                                                                                                          
+│   ┌── c_custkey                                                                                                   
+│   ├── c_name                                                                                                      
+│   ├── sum                                                                                                         
+│   │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }                                          
+│   ├── c_acctbal                                                                                                   
+│   ├── n_name                                                                                                      
+│   ├── c_address                                                                                                   
+│   ├── c_phone                                                                                                     
+│   └── c_comment                                                                                                   
+├── cost: 138073.53                                                                                                 
+└── TopN                                                                                                            
+    ├── limit: 20                                                                                                   
+    ├── offset: 0                                                                                                   
+    ├── order_by:                                                                                                   
+    │   ┌── desc                                                                                                    
+    │   │   └── sum                                                                                                 
+    │   │       └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }                                  
+    ├── cost: 137869.53                                                                                             
     └── Aggregate                                                                                                   
         ├── aggs:                                                                                                   
         │   ┌── sum                                                                                                 
