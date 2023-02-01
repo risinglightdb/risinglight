@@ -48,7 +48,7 @@ struct Args {
     #[clap(long)]
     enable_tracing: bool,
 
-    /// Where to store the datbase files
+    /// Where to store the database files
     #[clap(short, long)]
     storage_path: Option<String>,
 

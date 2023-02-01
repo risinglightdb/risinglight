@@ -1,5 +1,6 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use pretty_xmlish::Pretty;
 use serde::{Deserialize, Serialize};
 
 use super::ColumnId;
@@ -45,6 +46,20 @@ impl ColumnDesc {
     pub fn name(&self) -> &str {
         &self.name
     }
+
+    pub fn pretty<'a>(&self) -> Pretty<'a> {
+        let mut fields = vec![
+            ("name", Pretty::display(&self.name)),
+            ("type", Pretty::display(&self.datatype.kind)),
+        ];
+        if self.is_primary {
+            fields.push(("primary", Pretty::display(&self.is_primary)));
+        }
+        if self.datatype.nullable {
+            fields.push(("nullable", Pretty::display(&self.datatype.nullable)));
+        }
+        Pretty::childless_record("Column", fields)
+    }
 }
 
 impl DataType {
@@ -79,6 +94,10 @@ impl ColumnCatalog {
 
     pub fn name(&self) -> &str {
         &self.desc.name
+    }
+
+    pub(crate) fn into_name(self) -> String {
+        self.desc.name
     }
 
     pub fn desc(&self) -> &ColumnDesc {

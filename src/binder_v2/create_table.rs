@@ -1,7 +1,10 @@
 use std::collections::HashSet;
+use std::fmt;
 use std::result::Result as RawResult;
 use std::str::FromStr;
 
+use pretty_xmlish::helper::delegate_fmt;
+use pretty_xmlish::Pretty;
 use serde::{Deserialize, Serialize};
 
 use super::*;
@@ -16,13 +19,24 @@ pub struct CreateTable {
     pub ordered_pk_ids: Vec<ColumnId>,
 }
 
-impl std::fmt::Display for CreateTable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "databaseId: {}, schemaId: {}, tableName: {}, columns: {:?}, orderedIds: {:?}",
-            self.database_id, self.schema_id, self.table_name, self.columns, self.ordered_pk_ids
-        )
+impl fmt::Display for CreateTable {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let explainer = Pretty::childless_record("CreateTable", self.pretty_table());
+        delegate_fmt(&explainer, f, String::with_capacity(1000))
+    }
+}
+
+impl CreateTable {
+    pub fn pretty_table<'a>(&self) -> Vec<(&'a str, Pretty<'a>)> {
+        let cols = Pretty::Array(self.columns.iter().map(|c| c.desc().pretty()).collect());
+        let ids = Pretty::Array(self.ordered_pk_ids.iter().map(Pretty::display).collect());
+        vec![
+            ("database_id", Pretty::display(&self.database_id)),
+            ("schema_id", Pretty::display(&self.schema_id)),
+            ("name", Pretty::display(&self.table_name)),
+            ("columns", cols),
+            ("ordered_ids", ids),
+        ]
     }
 }
 
