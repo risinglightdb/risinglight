@@ -33,8 +33,8 @@ impl SchemaCatalog {
     pub(super) fn add_table(
         &mut self,
         name: String,
+        type_: TableType,
         columns: Vec<ColumnCatalog>,
-        is_materialized_view: bool,
         ordered_pk_ids: Vec<ColumnId>,
     ) -> Result<TableId, CatalogError> {
         if self.table_idxs.contains_key(&name) {
@@ -45,8 +45,8 @@ impl SchemaCatalog {
         let table_catalog = Arc::new(TableCatalog::new(
             table_id,
             name.clone(),
+            type_,
             columns,
-            is_materialized_view,
             ordered_pk_ids,
         ));
         self.table_idxs.insert(name, table_id);

@@ -8,33 +8,40 @@ use super::*;
 pub struct TableCatalog {
     id: TableId,
     name: String,
+    type_: TableType,
     /// Mapping from column names to column ids
     column_idxs: HashMap<String, ColumnId>,
     columns: BTreeMap<ColumnId, ColumnCatalog>,
+    primary_keys: Vec<ColumnId>,
+}
 
-    #[allow(dead_code)]
-    is_materialized_view: bool,
-    next_column_id: ColumnId,
-    #[allow(dead_code)]
-    ordered_pk_ids: Vec<ColumnId>,
+/// The type of a table.
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum TableType {
+    /// Base table.
+    #[default]
+    Base,
+    /// System table.
+    System,
+    /// Materialized view.
+    MaterializedView,
 }
 
 impl TableCatalog {
     pub fn new(
         id: TableId,
         name: String,
+        type_: TableType,
         columns: Vec<ColumnCatalog>,
-        is_materialized_view: bool,
-        ordered_pk_ids: Vec<ColumnId>,
+        primary_keys: Vec<ColumnId>,
     ) -> TableCatalog {
         let mut table_catalog = TableCatalog {
             id,
             name,
+            type_,
             column_idxs: HashMap::new(),
             columns: BTreeMap::new(),
-            is_materialized_view,
-            next_column_id: 0,
-            ordered_pk_ids,
+            primary_keys,
         };
         table_catalog
             .add_column(ColumnCatalog::new(
@@ -56,7 +63,6 @@ impl TableCatalog {
                 col_catalog.name().into(),
             ));
         }
-        self.next_column_id += 1;
         let id = col_catalog.id();
         self.column_idxs
             .insert(col_catalog.name().to_string(), col_catalog.id());
@@ -102,7 +108,19 @@ impl TableCatalog {
     }
 
     pub fn primary_keys(&self) -> Vec<ColumnId> {
-        self.ordered_pk_ids.clone()
+        self.primary_keys.clone()
+    }
+
+    pub fn is_base(&self) -> bool {
+        self.type_ == TableType::Base
+    }
+
+    pub fn is_system(&self) -> bool {
+        self.type_ == TableType::System
+    }
+
+    pub fn is_materialized_view(&self) -> bool {
+        self.type_ == TableType::MaterializedView
     }
 }
 
@@ -116,7 +134,7 @@ mod tests {
         let col1 = ColumnCatalog::new(1, DataTypeKind::Bool.not_null().to_column("b".into()));
 
         let col_catalogs = vec![col0, col1];
-        let table_catalog = TableCatalog::new(0, "t".into(), col_catalogs, false, vec![]);
+        let table_catalog = TableCatalog::new(0, "t".into(), TableType::Base, col_catalogs, vec![]);
 
         assert!(!table_catalog.contains_column("c"));
         assert!(table_catalog.contains_column("a"));

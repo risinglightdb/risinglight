@@ -270,7 +270,7 @@ mod tests {
         let col_desc = DataTypeKind::Int32.not_null().to_column("a".into());
         let col_catalog = ColumnCatalog::new(0, col_desc);
         catalog
-            .add_table(0, "t".into(), vec![col_catalog], false, vec![])
+            .add_table(0, "t".into(), vec![col_catalog], vec![])
             .unwrap();
 
         let stmts = parse("select x.b from (select a as b from t) as x").unwrap();

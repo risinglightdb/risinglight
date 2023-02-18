@@ -77,12 +77,11 @@ impl RootCatalog {
         schema_id: SchemaId,
         name: String,
         columns: Vec<ColumnCatalog>,
-        is_materialized_view: bool,
         ordered_pk_ids: Vec<ColumnId>,
     ) -> Result<TableId, CatalogError> {
         let mut inner = self.inner.lock().unwrap();
         let schema = inner.schemas.get_mut(&schema_id).unwrap();
-        schema.add_table(name, columns, is_materialized_view, ordered_pk_ids)
+        schema.add_table(name, TableType::Base, columns, ordered_pk_ids)
     }
 
     pub fn drop_table(&self, table_ref_id: TableRefId) {
@@ -143,19 +142,17 @@ impl Inner {
 
     fn add_internals(&mut self) {
         let schema_id = self.add_schema(INTERNAL_SCHEMA_NAME.into()).unwrap();
-        let table_id = self
-            .schemas
-            .get_mut(&schema_id)
-            .unwrap()
+        let schema = self.schemas.get_mut(&schema_id).unwrap();
+        let table_id = schema
             .add_table(
                 CONTRIBUTORS_TABLE_NAME.to_string(),
+                TableType::System,
                 vec![ColumnCatalog::new(
                     0,
                     DataTypeKind::String
                         .not_null()
                         .to_column("github_id".into()),
                 )],
-                false,
                 vec![],
             )
             .unwrap();
