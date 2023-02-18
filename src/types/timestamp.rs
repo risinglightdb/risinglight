@@ -5,7 +5,7 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 
 use chrono::{DateTime, Datelike, FixedOffset, NaiveDateTime, Timelike};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// unix timestamp counts from 1970-01-01 00:00:00,
 ///
@@ -34,7 +34,9 @@ const TIMESTAMP_TZ_FORMATS: [&str; 5] = [
     "%Y-%m-%d %H:%M:%S BC %z", // 1991-01-08 04:05:06 BC +08:00
 ];
 
-#[derive(PartialOrd, Ord, PartialEq, Eq, Debug, Copy, Clone, Default, Hash, Serialize)]
+#[derive(
+    PartialOrd, Ord, PartialEq, Eq, Debug, Copy, Clone, Default, Hash, Serialize, Deserialize,
+)]
 pub struct Timestamp(i64);
 
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
@@ -77,7 +79,9 @@ impl FromStr for Timestamp {
     }
 }
 
-#[derive(PartialOrd, Ord, PartialEq, Eq, Debug, Copy, Clone, Default, Hash, Serialize)]
+#[derive(
+    PartialOrd, Ord, PartialEq, Eq, Debug, Copy, Clone, Default, Hash, Serialize, Deserialize,
+)]
 pub struct TimestampTz(i64);
 
 impl TimestampTz {

@@ -6,10 +6,12 @@ use std::num::ParseIntError;
 use std::ops::{Add, Neg, Sub};
 use std::str::FromStr;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Interval type
-#[derive(PartialOrd, Ord, PartialEq, Eq, Debug, Copy, Clone, Default, Hash, Serialize)]
+#[derive(
+    PartialOrd, Ord, PartialEq, Eq, Debug, Copy, Clone, Default, Hash, Serialize, Deserialize,
+)]
 pub struct Interval {
     months: i32,
     days: i32,

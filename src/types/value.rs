@@ -4,14 +4,14 @@ use num_traits::ToPrimitive;
 use ordered_float::OrderedFloat;
 use parse_display::Display;
 use rust_decimal::Decimal;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::*;
 use crate::array::ArrayImpl;
 use crate::for_all_variants_without_null;
 
 /// Primitive SQL value.
-#[derive(Debug, Display, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Debug, Display, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum DataValue {
     // NOTE: Null comes first.
     // => NULL is less than any non-NULL values
