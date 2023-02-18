@@ -92,7 +92,7 @@ mod tests {
     async fn simple() {
         let storage = create_table().await;
         let executor = InsertExecutor {
-            table_ref_id: TableRefId::new(0, 0, 0),
+            table_ref_id: TableRefId::new(0, 0),
             column_ids: vec![0, 1],
             storage: storage.as_in_memory_storage(),
             child: async_stream::try_stream! {
@@ -111,7 +111,6 @@ mod tests {
     async fn create_table() -> StorageImpl {
         let storage = StorageImpl::InMemoryStorage(Arc::new(InMemoryStorage::new()));
         let plan = PhysicalCreateTable::new(LogicalCreateTable::new(
-            0,
             0,
             "t".into(),
             vec![

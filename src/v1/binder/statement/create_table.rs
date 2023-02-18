@@ -2,14 +2,13 @@
 use sqlparser::ast::TableConstraint;
 
 use super::*;
-use crate::catalog::{ColumnCatalog, ColumnDesc, DatabaseId, SchemaId};
+use crate::catalog::{ColumnCatalog, ColumnDesc, SchemaId};
 use crate::parser::{ColumnDef, ColumnOption, Statement};
 use crate::types::DataType;
 
 /// A bound `create table` statement.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BoundCreateTable {
-    pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_name: String,
     pub columns: Vec<ColumnCatalog>,
@@ -26,12 +25,9 @@ impl Binder {
                 ..
             } => {
                 let name = &lower_case_name(name);
-                let (database_name, schema_name, table_name) = split_name(name)?;
-                let db = self
+                let (schema_name, table_name) = split_name(name)?;
+                let schema = self
                     .catalog
-                    .get_database_by_name(database_name)
-                    .ok_or_else(|| BindError::InvalidDatabase(database_name.into()))?;
-                let schema = db
                     .get_schema_by_name(schema_name)
                     .ok_or_else(|| BindError::InvalidSchema(schema_name.into()))?;
                 if schema.get_table_by_name(table_name).is_some() {
@@ -86,7 +82,6 @@ impl Binder {
                 }
 
                 Ok(BoundCreateTable {
-                    database_id: db.id(),
                     schema_id: schema.id(),
                     table_name: table_name.into(),
                     columns,
@@ -209,7 +204,6 @@ mod tests {
         assert_eq!(
             binder.bind_create_table(&stmts[0]).unwrap(),
             BoundCreateTable {
-                database_id: 0,
                 schema_id: 0,
                 table_name: "t1".into(),
                 columns: vec![
@@ -225,9 +219,8 @@ mod tests {
             Err(BindError::DuplicatedColumn("a".into()))
         );
 
-        let ref_id = TableRefId::new(0, 0, 0);
         catalog
-            .add_table(ref_id, "t3".into(), vec![], false, vec![])
+            .add_table(0, "t3".into(), vec![], false, vec![])
             .unwrap();
         assert_eq!(
             binder.bind_create_table(&stmts[2]),
@@ -237,7 +230,6 @@ mod tests {
         assert_eq!(
             binder.bind_create_table(&stmts[3]).unwrap(),
             BoundCreateTable {
-                database_id: 0,
                 schema_id: 0,
                 table_name: "t4".into(),
                 columns: vec![
@@ -262,7 +254,6 @@ mod tests {
         assert_eq!(
             binder.bind_create_table(&stmts[4]).unwrap(),
             BoundCreateTable {
-                database_id: 0,
                 schema_id: 0,
                 table_name: "t5".into(),
                 columns: vec![
@@ -292,7 +283,6 @@ mod tests {
         assert_eq!(
             binder.bind_create_table(&stmts[6]).unwrap(),
             BoundCreateTable {
-                database_id: 0,
                 schema_id: 0,
                 table_name: "t7".into(),
                 columns: vec![
@@ -311,7 +301,6 @@ mod tests {
         assert_eq!(
             binder.bind_create_table(&stmts[7]).unwrap(),
             BoundCreateTable {
-                database_id: 0,
                 schema_id: 0,
                 table_name: "t8".into(),
                 columns: vec![

@@ -33,7 +33,7 @@ pub use txn_iterator::*;
 use version_manager::*;
 
 use super::{Storage, StorageResult, TracedStorageError};
-use crate::catalog::{ColumnCatalog, ColumnId, DatabaseId, RootCatalogRef, SchemaId, TableRefId};
+use crate::catalog::{ColumnCatalog, ColumnId, RootCatalogRef, SchemaId, TableRefId};
 
 // public modules and structures
 mod options;
@@ -167,20 +167,13 @@ impl Storage for SecondaryStorage {
 
     async fn create_table(
         &self,
-        database_id: DatabaseId,
         schema_id: SchemaId,
         table_name: &str,
         column_descs: &[ColumnCatalog],
         ordered_pk_ids: &[ColumnId],
     ) -> StorageResult<()> {
-        self.create_table_inner(
-            database_id,
-            schema_id,
-            table_name,
-            column_descs,
-            ordered_pk_ids,
-        )
-        .await
+        self.create_table_inner(schema_id, table_name, column_descs, ordered_pk_ids)
+            .await
     }
 
     fn get_table(&self, table_id: TableRefId) -> StorageResult<SecondaryTable> {

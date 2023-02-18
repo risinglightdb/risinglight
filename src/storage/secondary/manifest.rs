@@ -18,11 +18,10 @@ use tracing::warn;
 
 use super::version_manager::EpochOp;
 use super::{SecondaryStorage, SecondaryTable, StorageResult, TracedStorageError};
-use crate::catalog::{ColumnCatalog, ColumnId, DatabaseId, SchemaId, TableRefId};
+use crate::catalog::{ColumnCatalog, ColumnId, SchemaId, TableRefId};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CreateTableEntry {
-    pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_name: String,
     pub column_descs: Vec<ColumnCatalog>,
@@ -187,28 +186,23 @@ impl Manifest {
 impl SecondaryStorage {
     pub(super) fn apply_create_table(&self, entry: &CreateTableEntry) -> StorageResult<()> {
         let CreateTableEntry {
-            database_id,
             schema_id,
             table_name,
             column_descs,
             ordered_pk_ids,
         } = entry.clone();
 
-        let db = self
+        let schema = self
             .catalog
-            .get_database_by_id(database_id)
-            .ok_or_else(|| TracedStorageError::not_found("database", database_id))?;
-        let schema = db
             .get_schema_by_id(schema_id)
             .ok_or_else(|| TracedStorageError::not_found("schema", schema_id))?;
         if schema.get_table_by_name(&table_name).is_some() {
             return Err(TracedStorageError::duplicated("table", table_name));
         }
-        let ref_id = TableRefId::new(database_id, schema_id, 0);
         let table_id = self
             .catalog
             .add_table(
-                ref_id,
+                schema_id,
                 table_name.clone(),
                 column_descs.to_vec(),
                 false,
@@ -217,7 +211,6 @@ impl SecondaryStorage {
             .map_err(|_| TracedStorageError::duplicated("table", table_name))?;
 
         let id = TableRefId {
-            database_id,
             schema_id,
             table_id,
         };
@@ -237,14 +230,12 @@ impl SecondaryStorage {
 
     pub(super) async fn create_table_inner(
         &self,
-        database_id: DatabaseId,
         schema_id: SchemaId,
         table_name: &str,
         column_descs: &[ColumnCatalog],
         ordered_pk_ids: &[ColumnId],
     ) -> StorageResult<()> {
         let entry = CreateTableEntry {
-            database_id,
             schema_id,
             table_name: table_name.to_string(),
             column_descs: column_descs.to_vec(),

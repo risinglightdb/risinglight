@@ -528,7 +528,7 @@ mod tests {
 
     fn build_column_ref(column_id: u32, column_name: String) -> BoundExpr {
         BoundExpr::ColumnRef(BoundColumnRef {
-            column_ref_id: ColumnRefId::new(0, 0, 0, column_id),
+            column_ref_id: ColumnRefId::new(0, 0, column_id),
             is_primary_key: false,
             desc: DataTypeKind::Int32.not_null().to_column(column_name),
         })

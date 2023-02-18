@@ -60,27 +60,19 @@ impl Database {
     }
 
     fn run_dt(&self) -> Result<Vec<Chunk>, Error> {
-        let mut db_id_vec = I32ArrayBuilder::new();
-        let mut db_vec = Utf8ArrayBuilder::new();
         let mut schema_id_vec = I32ArrayBuilder::new();
         let mut schema_vec = Utf8ArrayBuilder::new();
         let mut table_id_vec = I32ArrayBuilder::new();
         let mut table_vec = Utf8ArrayBuilder::new();
-        for (_, database) in self.catalog.all_databases() {
-            for (_, schema) in database.all_schemas() {
-                for (_, table) in schema.all_tables() {
-                    db_id_vec.push(Some(&(database.id() as i32)));
-                    db_vec.push(Some(&database.name()));
-                    schema_id_vec.push(Some(&(schema.id() as i32)));
-                    schema_vec.push(Some(&schema.name()));
-                    table_id_vec.push(Some(&(table.id() as i32)));
-                    table_vec.push(Some(&table.name()));
-                }
+        for (_, schema) in self.catalog.all_schemas() {
+            for (_, table) in schema.all_tables() {
+                schema_id_vec.push(Some(&(schema.id() as i32)));
+                schema_vec.push(Some(&schema.name()));
+                table_id_vec.push(Some(&(table.id() as i32)));
+                table_vec.push(Some(&table.name()));
             }
         }
         let vecs: Vec<ArrayBuilderImpl> = vec![
-            db_id_vec.into(),
-            db_vec.into(),
             schema_id_vec.into(),
             schema_vec.into(),
             table_id_vec.into(),
@@ -98,7 +90,7 @@ impl Database {
                     let (table, col) = arg.split_once(' ').expect("failed to parse command");
                     let table_id = self
                         .catalog
-                        .get_table_id_by_name("postgres", "postgres", table)
+                        .get_table_id_by_name("postgres", table)
                         .expect("table not found");
                     let col_id = self
                         .catalog

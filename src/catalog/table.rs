@@ -49,10 +49,7 @@ impl TableCatalog {
         table_catalog
     }
 
-    pub(in crate::catalog) fn add_column(
-        &mut self,
-        col_catalog: ColumnCatalog,
-    ) -> Result<ColumnId, CatalogError> {
+    fn add_column(&mut self, col_catalog: ColumnCatalog) -> Result<ColumnId, CatalogError> {
         if self.column_idxs.contains_key(col_catalog.name()) {
             return Err(CatalogError::Duplicated(
                 "column",

@@ -6,13 +6,12 @@ use itertools::Itertools;
 use serde::Serialize;
 
 use super::*;
-use crate::catalog::{ColumnCatalog, ColumnId, DatabaseId, SchemaId};
+use crate::catalog::{ColumnCatalog, ColumnId, SchemaId};
 use crate::types::DataTypeKind;
 
 /// The logical plan of `CREATE TABLE`.
 #[derive(Debug, Clone, Serialize)]
 pub struct LogicalCreateTable {
-    database_id: DatabaseId,
     schema_id: SchemaId,
     table_name: String,
     columns: Vec<ColumnCatalog>,
@@ -21,24 +20,17 @@ pub struct LogicalCreateTable {
 
 impl LogicalCreateTable {
     pub fn new(
-        database_id: DatabaseId,
         schema_id: SchemaId,
         table_name: String,
         columns: Vec<ColumnCatalog>,
         ordered_pk_ids: Vec<ColumnId>,
     ) -> Self {
         Self {
-            database_id,
             schema_id,
             table_name,
             columns,
             ordered_pk_ids,
         }
-    }
-
-    /// Get a reference to the logical create table's database id.
-    pub fn database_id(&self) -> u32 {
-        self.database_id
     }
 
     /// Get a reference to the logical create table's schema id.

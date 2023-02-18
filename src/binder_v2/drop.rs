@@ -63,10 +63,10 @@ impl Binder {
         match object_type {
             ObjectType::Table => {
                 let name = lower_case_name(&names[0]);
-                let (database_name, schema_name, table_name) = split_name(&name)?;
+                let (schema_name, table_name) = split_name(&name)?;
                 let table_ref_id = self
                     .catalog
-                    .get_table_id_by_name(database_name, schema_name, table_name)
+                    .get_table_id_by_name(schema_name, table_name)
                     .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
 
                 Ok(self.egraph.add(Node::Drop(BoundDrop {
@@ -84,17 +84,14 @@ impl Binder {
 mod tests {
     use std::sync::Arc;
 
-    use super::*;
     use crate::catalog::RootCatalog;
     use crate::parser::parse;
 
     #[test]
     fn bind_drop_table() {
         let catalog = Arc::new(RootCatalog::new());
-
-        let ref_id = TableRefId::new(0, 0, 0);
         catalog
-            .add_table(ref_id, "mytable".into(), vec![], false, vec![])
+            .add_table(0, "mytable".into(), vec![], false, vec![])
             .unwrap();
 
         let stmts = parse("drop table mytable").unwrap();

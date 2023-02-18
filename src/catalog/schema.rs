@@ -26,7 +26,7 @@ impl SchemaCatalog {
         }
     }
 
-    pub(in crate::catalog) fn add_table(
+    pub(super) fn add_table(
         &mut self,
         name: String,
         columns: Vec<ColumnCatalog>,
@@ -50,7 +50,7 @@ impl SchemaCatalog {
         Ok(table_id)
     }
 
-    pub(in crate::catalog) fn delete_table(&mut self, id: TableId) {
+    pub(super) fn delete_table(&mut self, id: TableId) {
         let catalog = self.tables.remove(&id).unwrap();
         self.table_idxs.remove(&catalog.name()).unwrap();
     }

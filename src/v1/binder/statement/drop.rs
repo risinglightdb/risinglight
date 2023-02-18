@@ -16,7 +16,6 @@ pub struct BoundDrop {
 /// Identifier of an object.
 #[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 pub enum Object {
-    // TODO: Database
     // TODO: Schema
     Table(TableRefId),
 }
@@ -32,10 +31,10 @@ impl Binder {
                 ..
             } if *object_type == ObjectType::Table => {
                 let name = &lower_case_name(&names[0]);
-                let (database_name, schema_name, table_name) = split_name(name)?;
+                let (schema_name, table_name) = split_name(name)?;
                 let table_ref_id = self
                     .catalog
-                    .get_table_id_by_name(database_name, schema_name, table_name)
+                    .get_table_id_by_name(schema_name, table_name)
                     .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
 
                 Ok(BoundDrop {
@@ -62,16 +61,15 @@ mod tests {
         let catalog = Arc::new(RootCatalog::new());
         let mut binder = Binder::new(catalog.clone());
 
-        let ref_id = TableRefId::new(0, 0, 0);
         catalog
-            .add_table(ref_id, "mytable".into(), vec![], false, vec![])
+            .add_table(0, "mytable".into(), vec![], false, vec![])
             .unwrap();
 
         let stmts = parse("drop table mytable").unwrap();
         assert_eq!(
             binder.bind_drop(&stmts[0]).unwrap(),
             BoundDrop {
-                object: Object::Table(TableRefId::new(0, 0, 0)),
+                object: Object::Table(TableRefId::new(0, 0)),
                 if_exists: false,
                 cascade: false,
             }

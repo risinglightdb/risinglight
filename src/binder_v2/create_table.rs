@@ -8,11 +8,10 @@ use pretty_xmlish::Pretty;
 use serde::{Deserialize, Serialize};
 
 use super::*;
-use crate::catalog::{ColumnCatalog, ColumnId, DatabaseId, SchemaId};
+use crate::catalog::{ColumnCatalog, ColumnId, SchemaId};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
 pub struct CreateTable {
-    pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_name: String,
     pub columns: Vec<ColumnCatalog>,
@@ -31,7 +30,6 @@ impl CreateTable {
         let cols = Pretty::Array(self.columns.iter().map(|c| c.desc().pretty()).collect());
         let ids = Pretty::Array(self.ordered_pk_ids.iter().map(Pretty::display).collect());
         vec![
-            ("database_id", Pretty::display(&self.database_id)),
             ("schema_id", Pretty::display(&self.schema_id)),
             ("name", Pretty::display(&self.table_name)),
             ("columns", cols),
@@ -56,12 +54,9 @@ impl Binder {
         constraints: &[TableConstraint],
     ) -> Result {
         let name = lower_case_name(&name);
-        let (database_name, schema_name, table_name) = split_name(&name)?;
-        let db = self
+        let (schema_name, table_name) = split_name(&name)?;
+        let schema = self
             .catalog
-            .get_database_by_name(database_name)
-            .ok_or_else(|| BindError::InvalidDatabase(database_name.into()))?;
-        let schema = db
             .get_schema_by_name(schema_name)
             .ok_or_else(|| BindError::InvalidSchema(schema_name.into()))?;
         if schema.get_table_by_name(table_name).is_some() {
@@ -115,7 +110,6 @@ impl Binder {
         }
 
         let create = self.egraph.add(Node::CreateTable(CreateTable {
-            database_id: db.id(),
             schema_id: schema.id(),
             table_name: table_name.into(),
             columns,

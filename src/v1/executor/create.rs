@@ -17,7 +17,6 @@ impl<S: Storage> CreateTableExecutor<S> {
     pub async fn execute(self) {
         self.storage
             .create_table(
-                self.plan.logical().database_id(),
                 self.plan.logical().schema_id(),
                 self.plan.logical().table_name(),
                 self.plan.logical().columns(),
@@ -35,7 +34,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::catalog::{ColumnCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME};
+    use crate::catalog::{ColumnCatalog, TableRefId, DEFAULT_SCHEMA_NAME};
     use crate::storage::InMemoryStorage;
     use crate::types::DataTypeKind;
     use crate::v1::optimizer::plan_nodes::PhysicalCreateTable;
@@ -46,7 +45,6 @@ mod tests {
             let storage = Arc::new(InMemoryStorage::new());
             let catalog = storage.catalog().clone();
             let plan = PhysicalCreateTable::new(LogicalCreateTable::new(
-                0,
                 0,
                 "t".into(),
                 vec![
@@ -59,12 +57,11 @@ mod tests {
             executor.next().await.unwrap().unwrap();
 
             let id = TableRefId {
-                database_id: 0,
                 schema_id: 0,
                 table_id: 0,
             };
             assert_eq!(
-                catalog.get_table_id_by_name(DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME, "t"),
+                catalog.get_table_id_by_name(DEFAULT_SCHEMA_NAME, "t"),
                 Some(id)
             );
 
@@ -83,7 +80,6 @@ mod tests {
             let catalog = storage.catalog().clone();
             let plan = PhysicalCreateTable::new(LogicalCreateTable::new(
                 0,
-                0,
                 "t".into(),
                 vec![
                     ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("v1".into())),
@@ -95,7 +91,6 @@ mod tests {
             let mut executor = CreateTableExecutor { plan, storage }.execute().boxed();
             executor.next().await.unwrap().unwrap();
             let table_id = TableRefId {
-                database_id: 0,
                 schema_id: 0,
                 table_id: 0,
             };
@@ -106,7 +101,6 @@ mod tests {
             let storage = Arc::new(InMemoryStorage::new());
             let catalog = storage.catalog().clone();
             let plan = PhysicalCreateTable::new(LogicalCreateTable::new(
-                0,
                 0,
                 "t".into(),
                 vec![
@@ -119,7 +113,6 @@ mod tests {
             let mut executor = CreateTableExecutor { plan, storage }.execute().boxed();
             executor.next().await.unwrap().unwrap();
             let table_id = TableRefId {
-                database_id: 0,
                 schema_id: 0,
                 table_id: 0,
             };

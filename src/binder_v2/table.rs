@@ -137,10 +137,10 @@ impl Binder {
         with_rowid: bool,
     ) -> Result {
         let name = lower_case_name(name);
-        let (database_name, schema_name, table_name) = split_name(&name)?;
+        let (schema_name, table_name) = split_name(&name)?;
         let ref_id = self
             .catalog
-            .get_table_id_by_name(database_name, schema_name, table_name)
+            .get_table_id_by_name(schema_name, table_name)
             .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
 
         let table_alias = match &alias {
@@ -187,11 +187,11 @@ impl Binder {
         columns: &[Ident],
     ) -> Result {
         let name = lower_case_name(table_name);
-        let (database_name, schema_name, table_name) = split_name(&name)?;
+        let (schema_name, table_name) = split_name(&name)?;
 
         let table_ref_id = self
             .catalog
-            .get_table_id_by_name(database_name, schema_name, table_name)
+            .get_table_id_by_name(schema_name, table_name)
             .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
 
         let table = self.catalog.get_table(&table_ref_id).unwrap();
@@ -226,11 +226,11 @@ impl Binder {
     /// - `bind_table_id(t)` => `$1`
     pub(super) fn bind_table_id(&mut self, table_name: &ObjectName) -> Result<(Id, bool)> {
         let name = lower_case_name(table_name);
-        let (database_name, schema_name, table_name) = split_name(&name)?;
+        let (schema_name, table_name) = split_name(&name)?;
 
         let table_ref_id = self
             .catalog
-            .get_table_id_by_name(database_name, schema_name, table_name)
+            .get_table_id_by_name(schema_name, table_name)
             .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
         let id = self.egraph.add(Node::Table(table_ref_id));
         Ok((id, schema_name == INTERNAL_SCHEMA_NAME))
@@ -250,9 +250,8 @@ mod tests {
         let catalog = Arc::new(RootCatalog::new());
         let col_desc = DataTypeKind::Int32.not_null().to_column("a".into());
         let col_catalog = ColumnCatalog::new(0, col_desc);
-        let ref_id = TableRefId::new(0, 0, 0);
         catalog
-            .add_table(ref_id, "t".into(), vec![col_catalog], false, vec![])
+            .add_table(0, "t".into(), vec![col_catalog], false, vec![])
             .unwrap();
 
         let stmts = parse("select x.b from (select a as b from t) as x").unwrap();
