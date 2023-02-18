@@ -78,10 +78,14 @@ impl RootCatalog {
         name: String,
         columns: Vec<ColumnCatalog>,
         ordered_pk_ids: Vec<ColumnId>,
-    ) -> Result<TableId, CatalogError> {
+    ) -> Result<TableRefId, CatalogError> {
         let mut inner = self.inner.lock().unwrap();
         let schema = inner.schemas.get_mut(&schema_id).unwrap();
-        schema.add_table(name, TableType::Base, columns, ordered_pk_ids)
+        let table_id = schema.add_table(name, TableType::Base, columns, ordered_pk_ids)?;
+        Ok(TableRefId {
+            schema_id,
+            table_id,
+        })
     }
 
     pub fn drop_table(&self, table_ref_id: TableRefId) {

@@ -78,7 +78,7 @@ impl Storage for InMemoryStorage {
         if schema.get_table_by_name(table_name).is_some() {
             return Err(TracedStorageError::duplicated("table", table_name));
         }
-        let table_id = self
+        let id = self
             .catalog
             .add_table(
                 schema_id,
@@ -88,10 +88,6 @@ impl Storage for InMemoryStorage {
             )
             .map_err(|_| StorageError::Duplicated("table", table_name.into()))?;
 
-        let id = TableRefId {
-            schema_id,
-            table_id,
-        };
         let table = InMemoryTable::new(id, column_descs);
         self.tables.lock().unwrap().insert(id, table);
         Ok(())

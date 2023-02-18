@@ -199,7 +199,7 @@ impl SecondaryStorage {
         if schema.get_table_by_name(&table_name).is_some() {
             return Err(TracedStorageError::duplicated("table", table_name));
         }
-        let table_id = self
+        let id = self
             .catalog
             .add_table(
                 schema_id,
@@ -209,10 +209,6 @@ impl SecondaryStorage {
             )
             .map_err(|_| TracedStorageError::duplicated("table", table_name))?;
 
-        let id = TableRefId {
-            schema_id,
-            table_id,
-        };
         let table = SecondaryTable::new(
             self.options.clone(),
             id,
