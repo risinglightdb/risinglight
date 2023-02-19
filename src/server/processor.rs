@@ -2,9 +2,8 @@ use std::io;
 
 use async_trait::async_trait;
 use futures::stream;
-use pgwire::api::portal::Portal;
-use pgwire::api::query::{ExtendedQueryHandler, SimpleQueryHandler};
-use pgwire::api::results::{text_query_response, FieldInfo, Response, Tag, TextDataRowEncoder};
+use pgwire::api::query::SimpleQueryHandler;
+use pgwire::api::results::{query_response, DataRowEncoder, FieldFormat, FieldInfo, Response, Tag};
 use pgwire::api::{ClientInfo, Type};
 use pgwire::error::{PgWireError, PgWireResult};
 use tokio::{select, signal};
@@ -48,39 +47,24 @@ impl SimpleQueryHandler for Processor {
                         for data_chunk in chunk.data_chunks() {
                             for i in 0..data_chunk.cardinality() {
                                 col_num = data_chunk.arrays().len();
-                                let mut encoder = TextDataRowEncoder::new(col_num);
+                                let mut encoder = DataRowEncoder::new(col_num);
                                 data_chunk.arrays().iter().for_each(|a| {
                                     let field = a.get_to_string(i);
-                                    encoder.append_field(Some(&field)).unwrap();
+                                    encoder.encode_text_format_field(Some(&field)).unwrap();
                                 });
                                 results.push(encoder.finish());
                             }
                         }
                     }
                     let headers = vec![
-                        FieldInfo::new("++".into(), None, None, Type::CHAR);col_num
+                        FieldInfo::new("++".into(), None, None, Type::CHAR, FieldFormat::Text);col_num
                     ];
-                    vec![Response::Query(text_query_response(
-                        headers,
+                    vec![Response::Query(query_response(
+                        Some(headers),
                         stream::iter(results.into_iter()),
                     ))]
                 }).map_err(|e| PgWireError::ApiError(Box::new(e)))
             }
         }
-    }
-}
-
-#[async_trait]
-impl ExtendedQueryHandler for Processor {
-    async fn do_query<C>(
-        &self,
-        _client: &mut C,
-        _portal: &Portal,
-        _max_rows: usize,
-    ) -> PgWireResult<Response>
-    where
-        C: ClientInfo + Unpin + Send + Sync,
-    {
-        todo!()
     }
 }

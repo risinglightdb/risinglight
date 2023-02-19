@@ -359,27 +359,29 @@ where
     and l_quantity < 24;
 
 /*
-Projection                                                                                                          
-├── exprs:                                                                                                          
-│   ┌── sum                                                                                                         
-│   │   └── * { lhs: l_discount, rhs: l_extendedprice }                                                             
-├── cost: 8163.5923                                                                                                 
-└── Aggregate                                                                                                       
-    ├── aggs:                                                                                                       
-    │   ┌── sum                                                                                                     
-    │   │   └── * { lhs: l_discount, rhs: l_extendedprice }                                                         
-    ├── group_by: []                                                                                                
-    ├── cost: 8161.992                                                                                              
-    └── Projection { exprs: [ l_extendedprice, l_discount ], cost: 7964.3843 }                                      
-        └── Filter                                                                                                  
-            ├── cond: and                                                                                           
-            │   ├── lhs: >= { lhs: l_shipdate, rhs: 1994-01-01 }                                                    
-            │   └── rhs: and                                                                                        
-            │       ├── lhs: > { lhs: 1995-01-01, rhs: l_shipdate }                                                 
-            │       └── rhs: and                                                                                    
-            │           ├── lhs: >= { lhs: 0.09, rhs: l_discount }                                                  
-            │           └── rhs: and { lhs: > { lhs: 24, rhs: l_quantity }, rhs: >= { lhs: l_discount, rhs: 0.07 } }
-            ├── cost: 7210.72                                                                                       
+Projection                                                                                                         
+├── exprs:                                                                                                         
+│   ┌── sum                                                                                                        
+│   │   └── * { lhs: l_discount, rhs: l_extendedprice }                                                            
+├── cost: 8163.5923                                                                                                
+└── Aggregate                                                                                                      
+    ├── aggs:                                                                                                      
+    │   ┌── sum                                                                                                    
+    │   │   └── * { lhs: l_discount, rhs: l_extendedprice }                                                        
+    ├── group_by: []                                                                                               
+    ├── cost: 8161.992                                                                                             
+    └── Projection { exprs: [ l_extendedprice, l_discount ], cost: 7964.3843 }                                     
+        └── Filter                                                                                                 
+            ├── cond: and                                                                                          
+            │   ├── lhs: > { lhs: 24, rhs: l_quantity }                                                            
+            │   └── rhs: and                                                                                       
+            │       ├── lhs: >= { lhs: l_shipdate, rhs: 1994-01-01 }                                               
+            │       └── rhs: and                                                                                   
+            │           ├── lhs: >= { lhs: 0.09, rhs: l_discount }                                                 
+            │           └── rhs: and                                                                               
+            │               ├── lhs: > { lhs: 1995-01-01, rhs: l_shipdate }                                        
+            │               └── rhs: >= { lhs: l_discount, rhs: 0.07 }                                             
+            ├── cost: 7210.72                                                                                      
             └── Scan { table: lineitem, list: [ l_quantity, l_extendedprice, l_discount, l_shipdate ], cost: 4000 }
 */
 
