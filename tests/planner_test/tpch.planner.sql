@@ -375,12 +375,12 @@ Projection
             ├── cond: and                                                                                          
             │   ├── lhs: > { lhs: 24, rhs: l_quantity }                                                            
             │   └── rhs: and                                                                                       
-            │       ├── lhs: >= { lhs: l_shipdate, rhs: 1994-01-01 }                                               
+            │       ├── lhs: >= { lhs: 0.09, rhs: l_discount }                                                     
             │       └── rhs: and                                                                                   
-            │           ├── lhs: >= { lhs: 0.09, rhs: l_discount }                                                 
+            │           ├── lhs: >= { lhs: l_discount, rhs: 0.07 }                                                 
             │           └── rhs: and                                                                               
             │               ├── lhs: > { lhs: 1995-01-01, rhs: l_shipdate }                                        
-            │               └── rhs: >= { lhs: l_discount, rhs: 0.07 }                                             
+            │               └── rhs: >= { lhs: l_shipdate, rhs: 1994-01-01 }                                       
             ├── cost: 7210.72                                                                                      
             └── Scan { table: lineitem, list: [ l_quantity, l_extendedprice, l_discount, l_shipdate ], cost: 4000 }
 */

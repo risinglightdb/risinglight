@@ -68,6 +68,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "parking_lot"] }
 pyo3 = { version = "0.18.1", features = ["extension-module"] }
 pretty-xmlish = "0.1"
+
 [dev-dependencies]
 criterion = { version = "0.4", features = ["async_tokio"] }
 tempfile = "3"
@@ -97,6 +98,7 @@ members = [
 
 [patch.crates-io]
 risinglight_proto = { path = "proto" }
+egg = { git = "https://github.com/risinglightdb/egg", rev = "ec16399f7e331c4fdfe128bc4cfe174d53b7702d" }
 
 [lib]
 name = "risinglight"
