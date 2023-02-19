@@ -3,6 +3,8 @@ mod processor;
 use std::sync::Arc;
 
 use pgwire::api::auth::noop::NoopStartupHandler;
+use pgwire::api::query::PlaceholderExtendedQueryHandler;
+use pgwire::api::{MakeHandler, StatelessMakeHandler};
 use pgwire::tokio::process_socket;
 use tokio::net::TcpListener;
 use tracing::log::info;
@@ -24,13 +26,16 @@ pub async fn run_server(host: Option<String>, port: Option<u16>, db: Database) {
         let incoming_socket = listener.accept().await.unwrap();
         let authenticator_ref = authenticator.clone();
         let processor_ref = processor.clone();
+        let placeholder = Arc::new(StatelessMakeHandler::new(Arc::new(
+            PlaceholderExtendedQueryHandler,
+        )));
         tokio::spawn(async move {
             process_socket(
                 incoming_socket.0,
                 None,
                 authenticator_ref,
                 processor_ref.clone(),
-                processor_ref,
+                placeholder.make(),
             )
             .await
         });

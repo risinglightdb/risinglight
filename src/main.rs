@@ -22,6 +22,7 @@ use risinglight::utils::time::RoundingDuration;
 use risinglight::Database;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
+use sqllogictest::DefaultColumnType;
 use tokio::{select, signal};
 use tracing::{info, warn, Level};
 use tracing_subscriber::prelude::*;
@@ -283,9 +284,13 @@ struct DatabaseWrapper {
 
 #[async_trait]
 impl sqllogictest::AsyncDB for DatabaseWrapper {
+    type ColumnType = DefaultColumnType;
     type Error = risinglight::Error;
-    async fn run(&mut self, sql: &str) -> Result<sqllogictest::DBOutput, Self::Error> {
-        use sqllogictest::{ColumnType, DBOutput};
+    async fn run(
+        &mut self,
+        sql: &str,
+    ) -> Result<sqllogictest::DBOutput<DefaultColumnType>, Self::Error> {
+        use sqllogictest::DBOutput;
 
         let is_query_sql = {
             let lower_sql = sql.trim_start().to_ascii_lowercase();
@@ -321,7 +326,7 @@ impl sqllogictest::AsyncDB for DatabaseWrapper {
                 return Ok(DBOutput::StatementComplete(0));
             }
         }
-        let types = vec![ColumnType::Any; chunks[0].get_first_data_chunk().column_count()];
+        let types = vec![DefaultColumnType::Any; chunks[0].get_first_data_chunk().column_count()];
         let rows = chunks
             .iter()
             .flat_map(datachunk_to_sqllogictest_string)
