@@ -6,13 +6,11 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 pub use self::column::*;
-pub use self::database::*;
 pub use self::root::*;
 pub use self::schema::*;
 pub use self::table::*;
 use crate::types::*;
 
-pub static DEFAULT_DATABASE_NAME: &str = "postgres";
 pub static DEFAULT_SCHEMA_NAME: &str = "postgres";
 pub static INTERNAL_SCHEMA_NAME: &str = "pg_catalog";
 
@@ -20,12 +18,10 @@ static CONTRIBUTORS_TABLE_NAME: &str = "contributors";
 pub const CONTRIBUTORS_TABLE_ID: TableId = 0;
 
 mod column;
-mod database;
 mod root;
 mod schema;
 mod table;
 
-pub type DatabaseId = u32;
 pub type SchemaId = u32;
 pub type TableId = u32;
 pub type ColumnId = u32;
@@ -35,7 +31,6 @@ pub type RootCatalogRef = Arc<RootCatalog>;
 /// The reference ID of a table.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize, Deserialize)]
 pub struct TableRefId {
-    pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_id: TableId,
 }
@@ -72,9 +67,7 @@ impl FromStr for TableRefId {
         let mut parts = body.rsplit('.');
         let table_id = parts.next().ok_or(Self::Err::InvalidTable)?.parse()?;
         let schema_id = parts.next().map_or(Ok(0), |s| s.parse())?;
-        let database_id = parts.next().map_or(Ok(0), |s| s.parse())?;
         Ok(TableRefId {
-            database_id,
             schema_id,
             table_id,
         })
@@ -82,9 +75,8 @@ impl FromStr for TableRefId {
 }
 
 impl TableRefId {
-    pub const fn new(database_id: DatabaseId, schema_id: SchemaId, table_id: TableId) -> Self {
+    pub const fn new(schema_id: SchemaId, table_id: TableId) -> Self {
         TableRefId {
-            database_id,
             schema_id,
             table_id,
         }
@@ -94,7 +86,6 @@ impl TableRefId {
 /// The reference ID of a column.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize)]
 pub struct ColumnRefId {
-    pub database_id: DatabaseId,
     pub schema_id: SchemaId,
     pub table_id: TableId,
     pub column_id: ColumnId,
@@ -103,21 +94,14 @@ pub struct ColumnRefId {
 impl ColumnRefId {
     pub const fn from_table(table: TableRefId, column_id: ColumnId) -> Self {
         ColumnRefId {
-            database_id: table.database_id,
             schema_id: table.schema_id,
             table_id: table.table_id,
             column_id,
         }
     }
 
-    pub const fn new(
-        database_id: DatabaseId,
-        schema_id: SchemaId,
-        table_id: TableId,
-        column_id: ColumnId,
-    ) -> Self {
+    pub const fn new(schema_id: SchemaId, table_id: TableId, column_id: ColumnId) -> Self {
         ColumnRefId {
-            database_id,
             schema_id,
             table_id,
             column_id,
@@ -126,7 +110,6 @@ impl ColumnRefId {
 
     pub const fn table(&self) -> TableRefId {
         TableRefId {
-            database_id: self.database_id,
             schema_id: self.schema_id,
             table_id: self.table_id,
         }
@@ -168,9 +151,7 @@ impl FromStr for ColumnRefId {
         let column_id = parts.next().ok_or(Self::Err::InvalidColumn)?.parse()?;
         let table_id = parts.next().ok_or(Self::Err::InvalidTable)?.parse()?;
         let schema_id = parts.next().map_or(Ok(0), |s| s.parse())?;
-        let database_id = parts.next().map_or(Ok(0), |s| s.parse())?;
         Ok(ColumnRefId {
-            database_id,
             schema_id,
             table_id,
             column_id,

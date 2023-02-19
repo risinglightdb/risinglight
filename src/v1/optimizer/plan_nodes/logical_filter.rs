@@ -122,7 +122,6 @@ mod tests {
         ];
         let table_scan = LogicalTableScan::new(
             crate::catalog::TableRefId {
-                database_id: 0,
                 schema_id: 0,
                 table_id: 0,
             },
@@ -188,7 +187,6 @@ mod tests {
         ];
         let table_scan = LogicalTableScan::new(
             crate::catalog::TableRefId {
-                database_id: 0,
                 schema_id: 0,
                 table_id: 0,
             },

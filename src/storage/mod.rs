@@ -19,7 +19,7 @@ pub use chunk::*;
 use enum_dispatch::enum_dispatch;
 
 use crate::array::{ArrayImpl, DataChunk};
-use crate::catalog::{ColumnCatalog, ColumnId, DatabaseId, SchemaId, TableRefId};
+use crate::catalog::{ColumnCatalog, ColumnId, SchemaId, TableRefId};
 use crate::types::DataValue;
 use crate::v1::binder::BoundExpr;
 
@@ -62,7 +62,6 @@ pub trait Storage: Sync + Send + 'static {
 
     fn create_table<'a>(
         &'a self,
-        database_id: DatabaseId,
         schema_id: SchemaId,
         table_name: &'a str,
         column_descs: &'a [ColumnCatalog],

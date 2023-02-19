@@ -21,9 +21,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use super::{Storage, StorageError, StorageResult, TracedStorageError};
-use crate::catalog::{
-    ColumnCatalog, ColumnId, DatabaseId, RootCatalog, RootCatalogRef, SchemaId, TableRefId,
-};
+use crate::catalog::{ColumnCatalog, ColumnId, RootCatalog, RootCatalogRef, SchemaId, TableRefId};
 
 mod table;
 pub use table::InMemoryTable;
@@ -68,27 +66,22 @@ impl Storage for InMemoryStorage {
 
     async fn create_table(
         &self,
-        database_id: DatabaseId,
         schema_id: SchemaId,
         table_name: &str,
         column_descs: &[ColumnCatalog],
         ordered_pk_ids: &[ColumnId],
     ) -> StorageResult<()> {
-        let db = self
+        let schema = self
             .catalog
-            .get_database_by_id(database_id)
-            .ok_or_else(|| TracedStorageError::not_found("database", database_id))?;
-        let schema = db
             .get_schema_by_id(schema_id)
             .ok_or_else(|| TracedStorageError::not_found("schema", schema_id))?;
         if schema.get_table_by_name(table_name).is_some() {
             return Err(TracedStorageError::duplicated("table", table_name));
         }
-        let ref_id = TableRefId::new(database_id, schema_id, 0);
         let table_id = self
             .catalog
             .add_table(
-                ref_id,
+                schema_id,
                 table_name.into(),
                 column_descs.to_vec(),
                 false,
@@ -97,7 +90,6 @@ impl Storage for InMemoryStorage {
             .map_err(|_| StorageError::Duplicated("table", table_name.into()))?;
 
         let id = TableRefId {
-            database_id,
             schema_id,
             table_id,
         };

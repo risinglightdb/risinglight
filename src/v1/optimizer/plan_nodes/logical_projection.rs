@@ -145,7 +145,7 @@ mod tests {
         let plan = LogicalProjection::new(
             vec![
                 BoundExpr::ColumnRef(BoundColumnRef {
-                    column_ref_id: ColumnRefId::new(0, 0, 0, 0),
+                    column_ref_id: ColumnRefId::new(0, 0, 0),
                     is_primary_key: false,
                     desc: DataTypeKind::Int32.not_null().to_column("v1".into()),
                 }),
@@ -174,7 +174,7 @@ mod tests {
         let inner = LogicalProjection::new(
             vec![
                 BoundExpr::ColumnRef(BoundColumnRef {
-                    column_ref_id: ColumnRefId::new(0, 0, 0, 0),
+                    column_ref_id: ColumnRefId::new(0, 0, 0),
                     is_primary_key: false,
                     desc: DataTypeKind::Int32.not_null().to_column("v1".into()),
                 }),
@@ -229,7 +229,6 @@ mod tests {
         ];
         let table_scan = LogicalTableScan::new(
             crate::catalog::TableRefId {
-                database_id: 0,
                 schema_id: 0,
                 table_id: 0,
             },

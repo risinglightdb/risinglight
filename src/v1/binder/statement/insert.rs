@@ -181,11 +181,9 @@ impl Binder {
         columns: &[Ident],
     ) -> Result<(TableRefId, Arc<TableCatalog>, Vec<ColumnCatalog>), BindError> {
         let table_name = &lower_case_name(table_name);
-        let (database_name, schema_name, table_name) = split_name(table_name)?;
+        let (schema_name, table_name) = split_name(table_name)?;
         let table = self
             .catalog
-            .get_database_by_name(database_name)
-            .ok_or_else(|| BindError::InvalidDatabase(database_name.into()))?
             .get_schema_by_name(schema_name)
             .ok_or_else(|| BindError::InvalidSchema(schema_name.into()))?
             .get_table_by_name(table_name)
@@ -193,7 +191,7 @@ impl Binder {
 
         let table_ref_id = self
             .catalog
-            .get_table_id_by_name(database_name, schema_name, &table.name())
+            .get_table_id_by_name(schema_name, &table.name())
             .unwrap();
 
         let columns = if columns.is_empty() {
@@ -229,10 +227,9 @@ mod tests {
         let catalog = Arc::new(RootCatalog::new());
         let mut binder = Binder::new(catalog.clone());
 
-        let ref_id = TableRefId::new(0, 0, 0);
         catalog
             .add_table(
-                ref_id,
+                0,
                 "t".into(),
                 vec![
                     ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("a".into())),

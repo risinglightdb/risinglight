@@ -4,9 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::vec::Vec;
 
-use crate::catalog::{
-    ColumnDesc, ColumnId, RootCatalog, TableRefId, DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME,
-};
+use crate::catalog::{ColumnDesc, ColumnId, RootCatalog, TableRefId, DEFAULT_SCHEMA_NAME};
 use crate::parser::{Ident, ObjectName, Statement};
 use crate::types::{DataTypeKind, DataValue};
 
@@ -135,12 +133,11 @@ impl Binder {
     }
 }
 
-/// Split an object name into `(database name, schema name, table name)`.
-fn split_name(name: &ObjectName) -> Result<(&str, &str, &str), BindError> {
+/// Split an object name into `(schema name, table name)`.
+fn split_name(name: &ObjectName) -> Result<(&str, &str), BindError> {
     Ok(match name.0.as_slice() {
-        [table] => (DEFAULT_DATABASE_NAME, DEFAULT_SCHEMA_NAME, &table.value),
-        [schema, table] => (DEFAULT_DATABASE_NAME, &schema.value, &table.value),
-        [db, schema, table] => (&db.value, &schema.value, &table.value),
+        [table] => (DEFAULT_SCHEMA_NAME, &table.value),
+        [schema, table] => (&schema.value, &table.value),
         _ => return Err(BindError::InvalidTableName(name.0.clone())),
     })
 }

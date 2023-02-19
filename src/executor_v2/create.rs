@@ -17,7 +17,6 @@ impl<S: Storage> CreateTableExecutor<S> {
     pub async fn execute(self) {
         self.storage
             .create_table(
-                self.plan.database_id,
                 self.plan.schema_id,
                 &self.plan.table_name,
                 &self.plan.columns,

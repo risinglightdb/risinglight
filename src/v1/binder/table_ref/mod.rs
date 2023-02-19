@@ -115,7 +115,6 @@ impl Binder {
 
     pub fn bind_table_ref_with_name(
         &mut self,
-        database_name: &str,
         schema_name: &str,
         table_name: &str,
     ) -> Result<BoundTableRef, BindError> {
@@ -125,7 +124,7 @@ impl Binder {
 
         let ref_id = self
             .catalog
-            .get_table_id_by_name(database_name, schema_name, table_name)
+            .get_table_id_by_name(schema_name, table_name)
             .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
         self.context
             .regular_tables
@@ -154,11 +153,11 @@ impl Binder {
         match table {
             TableFactor::Table { name, alias, .. } => {
                 let name = &lower_case_name(name);
-                let (database_name, schema_name, mut table_name) = split_name(name)?;
+                let (schema_name, mut table_name) = split_name(name)?;
                 if let Some(alias) = alias {
                     table_name = &alias.name.value;
                 }
-                self.bind_table_ref_with_name(database_name, schema_name, table_name)
+                self.bind_table_ref_with_name(schema_name, table_name)
             }
             _ => panic!("bind table ref"),
         }
