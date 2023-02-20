@@ -273,8 +273,9 @@ impl Binder {
                 name,
                 columns,
                 constraints,
+                with_options,
                 ..
-            } => self.bind_create_table(name, &columns, &constraints),
+            } => self.bind_create_table(name, columns, constraints, with_options),
             Statement::CreateFunction {
                 name,
                 args,

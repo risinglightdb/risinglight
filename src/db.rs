@@ -46,14 +46,14 @@ impl Database {
         }
     }
 
-    pub async fn shutdown(&self) -> Result<(), Error> {
+    pub async fn shutdown(&self) -> Result<()> {
         if let StorageImpl::SecondaryStorage(storage) = &self.storage {
             storage.shutdown().await?;
         }
         Ok(())
     }
 
-    fn run_desc(&self, table_name: &str) -> Result<Vec<Chunk>, Error> {
+    fn run_desc(&self, table_name: &str) -> Result<Vec<Chunk>> {
         let mut column_id = I32ArrayBuilder::new();
         let mut column_name = StringArrayBuilder::new();
         let mut column_type = StringArrayBuilder::new();
@@ -95,7 +95,7 @@ impl Database {
         )])])
     }
 
-    fn run_dt(&self) -> Result<Vec<Chunk>, Error> {
+    fn run_dt(&self) -> Result<Vec<Chunk>> {
         let mut schema_id_vec = I32ArrayBuilder::new();
         let mut schema_vec = StringArrayBuilder::new();
         let mut table_id_vec = I32ArrayBuilder::new();
@@ -119,7 +119,7 @@ impl Database {
         )])])
     }
 
-    async fn run_internal(&self, cmd: &str) -> Result<Vec<Chunk>, Error> {
+    async fn run_internal(&self, cmd: &str) -> Result<Vec<Chunk>> {
         if let Some((cmd, arg)) = cmd.split_once(' ') {
             if cmd == "stat" {
                 if let StorageImpl::SecondaryStorage(ref storage) = self.storage {
@@ -191,7 +191,7 @@ impl Database {
     }
 
     /// Run SQL queries and return the outputs.
-    pub async fn run(&self, sql: &str) -> Result<Vec<Chunk>, Error> {
+    pub async fn run(&self, sql: &str) -> Result<Vec<Chunk>> {
         if let Some(cmdline) = sql.trim().strip_prefix('\\') {
             return self.run_internal(cmdline).await;
         }
@@ -231,7 +231,7 @@ impl Database {
         Ok(outputs)
     }
 
-    async fn get_storage_statistics(&self) -> Result<Statistics, Error> {
+    async fn get_storage_statistics(&self) -> Result<Statistics> {
         if let Some(mock) = &*self.mock_stat.lock().unwrap() {
             return Ok(mock.clone());
         }
@@ -260,7 +260,7 @@ impl Database {
     }
 
     /// Mock the row count of a table for planner test.
-    fn handle_set(&self, stmt: &Statement) -> Result<bool, Error> {
+    fn handle_set(&self, stmt: &Statement) -> Result<bool> {
         let Statement::SetVariable {
             variable, value, ..
         } = stmt
@@ -286,6 +286,9 @@ impl Database {
         Ok(true)
     }
 }
+
+/// The result type of database operations.
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// The error type of database operations.
 #[derive(thiserror::Error, Debug)]

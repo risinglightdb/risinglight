@@ -18,21 +18,19 @@ use crate::types::{
 mod bytes_array;
 mod data_chunk;
 mod data_chunk_builder;
+mod internal_ext;
 pub mod ops;
 mod primitive_array;
+mod shuffle_ext;
+mod stream_chunk;
 
 pub use self::bytes_array::*;
 pub use self::data_chunk::*;
 pub use self::data_chunk_builder::*;
+pub use self::internal_ext::*;
 pub use self::primitive_array::*;
-
-mod internal_ext;
-
-pub use internal_ext::*;
-
-mod shuffle_ext;
-
-pub use shuffle_ext::*;
+pub use self::shuffle_ext::*;
+pub use self::stream_chunk::*;
 
 /// A trait over all array builders.
 ///

@@ -37,6 +37,9 @@ pub mod planner;
 /// Execute the queries.
 pub mod executor;
 
+/// Stream processing.
+pub mod streaming;
+
 /// In-memory representations of a column values.
 pub mod array;
 /// Metadata of database objects.
