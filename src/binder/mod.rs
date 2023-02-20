@@ -88,6 +88,8 @@ pub enum BindError {
     UnsupportedObjectName(ObjectType),
     #[error("not supported yet: {0}")]
     Todo(String),
+    #[error("invalid argument: {0}")]
+    InvalidArgument(String),
 }
 
 /// The binder resolves all expressions referring to schema objects such as

@@ -176,7 +176,7 @@ impl FromStr for ColumnRefId {
 }
 
 /// The error type of catalog operations.
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub enum CatalogError {
     #[error("{0} not found: {1}")]
     NotFound(&'static str, String),

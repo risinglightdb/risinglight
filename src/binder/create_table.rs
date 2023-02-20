@@ -18,7 +18,7 @@ pub struct CreateTable {
     pub table_name: String,
     pub columns: Vec<ColumnCatalog>,
     pub ordered_pk_ids: Vec<ColumnId>,
-    pub with: BTreeMap<String, DataValue>,
+    pub with: BTreeMap<String, String>,
 }
 
 impl fmt::Display for CreateTable {
@@ -123,10 +123,13 @@ impl Binder {
             columns[index as usize].set_nullable(false);
         }
 
-        let with = with_options
-            .into_iter()
-            .map(|opt| (opt.name.value, opt.value.into()))
-            .collect();
+        let mut with = BTreeMap::new();
+        for opt in with_options {
+            let DataValue::String(value) = DataValue::from(opt.value) else {
+                return Err(BindError::InvalidArgument("option value should be string".into()));
+            };
+            with.insert(opt.name.value, value);
+        }
 
         let create = self.egraph.add(Node::CreateTable(CreateTable {
             schema_id: schema.id(),
