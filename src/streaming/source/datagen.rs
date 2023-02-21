@@ -13,7 +13,7 @@ use crate::types::{DataTypeKind, DataValue};
 pub async fn build(
     options: &BTreeMap<String, String>,
     catalog: &TableCatalog,
-) -> Result<BoxSourceStream> {
+) -> Result<BoxDataStream> {
     let rows_per_second = options
         .get("rows.per.second")
         .map(|s| {

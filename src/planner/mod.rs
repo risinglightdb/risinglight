@@ -191,6 +191,11 @@ impl Expr {
         v.clone()
     }
 
+    pub fn as_create_mview(&self) -> CreateMView {
+        let Self::CreateMViewArgs(v) = self else { panic!("not a create mview: {self}") };
+        v.clone()
+    }
+
     pub const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {
         use BinaryOperator as Op;
         #[allow(clippy::match_ref_pats)]

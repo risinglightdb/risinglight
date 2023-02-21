@@ -25,7 +25,7 @@ use self::copy_to_file::*;
 use self::create::*;
 use self::delete::*;
 use self::drop::*;
-use self::evaluator::*;
+pub(crate) use self::evaluator::*;
 use self::explain::*;
 use self::filter::*;
 use self::hash_agg::*;
@@ -321,6 +321,15 @@ impl<S: Storage> Builder<S> {
             }
             .execute(),
 
+            CreateMView([args, child]) => CreateMViewExecutor {
+                args: self.node(args).as_create_mview(),
+                column_types: self.plan_types(child).to_vec(),
+                query: self.recexpr(child),
+                stream: self.stream.clone(),
+                storage: self.storage.clone(),
+            }
+            .execute(),
+
             Drop(plan) => DropExecutor {
                 plan,
                 storage: self.storage.clone(),
@@ -363,7 +372,7 @@ impl<S: Storage> Builder<S> {
 
             node => panic!("not a plan: {node:?}"),
         };
-        spawn(&self.node(id).to_string(), stream)
+        spawn_stream(&self.node(id).to_string(), stream)
     }
 
     fn build_hashjoin<const T: JoinType>(&self, args: [Id; 5]) -> BoxedExecutor {
@@ -390,7 +399,10 @@ impl<S: Storage> Builder<S> {
 }
 
 /// Spawn a new task to execute the given stream.
-fn spawn(name: &str, mut stream: BoxedExecutor) -> BoxedExecutor {
+pub(crate) fn spawn_stream<T: Send + 'static>(
+    name: &str,
+    mut stream: BoxStream<'static, T>,
+) -> BoxStream<'static, T> {
     let (tx, rx) = tokio::sync::mpsc::channel(16);
     let handle = tokio::task::Builder::default()
         .name(name)
@@ -404,17 +416,17 @@ fn spawn(name: &str, mut stream: BoxedExecutor) -> BoxedExecutor {
         .expect("failed to spawn task");
     use std::pin::Pin;
     use std::task::{Context, Poll};
-    struct SpawnedStream {
-        rx: tokio::sync::mpsc::Receiver<Result<DataChunk, ExecutorError>>,
+    struct SpawnedStream<T> {
+        rx: tokio::sync::mpsc::Receiver<T>,
         handle: tokio::task::JoinHandle<()>,
     }
-    impl Stream for SpawnedStream {
-        type Item = Result<DataChunk, ExecutorError>;
+    impl<T> Stream for SpawnedStream<T> {
+        type Item = T;
         fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             self.rx.poll_recv(cx)
         }
     }
-    impl Drop for SpawnedStream {
+    impl<T> Drop for SpawnedStream<T> {
         fn drop(&mut self) {
             self.handle.abort();
         }

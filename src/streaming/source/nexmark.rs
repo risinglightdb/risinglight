@@ -13,7 +13,7 @@ use crate::types::{DataTypeKind as K, DataValue};
 pub async fn build(
     options: &BTreeMap<String, String>,
     catalog: &TableCatalog,
-) -> Result<BoxSourceStream> {
+) -> Result<BoxDataStream> {
     let type_ = options.get("type").ok_or(Error::MissingField("type"))?;
     let event_rate = options
         .get("event.rate")

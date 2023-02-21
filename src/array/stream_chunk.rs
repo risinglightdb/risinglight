@@ -39,6 +39,21 @@ impl StreamChunk {
     pub fn cardinality(&self) -> usize {
         self.data.cardinality()
     }
+
+    pub fn ops(&self) -> &[Op] {
+        &self.ops
+    }
+
+    pub fn data(&self) -> &DataChunk {
+        &self.data
+    }
+}
+
+impl From<DataChunk> for StreamChunk {
+    fn from(data: DataChunk) -> Self {
+        let ops = vec![Op::Insert; data.cardinality()];
+        StreamChunk { ops, data }
+    }
 }
 
 /// Print the stream chunk as a pretty table.
