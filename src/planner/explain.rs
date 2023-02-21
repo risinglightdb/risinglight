@@ -349,6 +349,15 @@ impl<'a> Explain<'a> {
                 let fields = t.pretty_table().with(cost, rows);
                 Pretty::childless_record("Drop", fields)
             }
+            CreateMViewArgs(t) => {
+                let fields = t.pretty_table().with(cost, rows);
+                Pretty::childless_record("CreateMView", fields)
+            }
+            CreateMView([create_table, child]) => Pretty::simple_record(
+                "CreateMView",
+                vec![("args", self.expr(create_table).pretty())],
+                vec![self.child(child).pretty()],
+            ),
             Insert([table, cols, child]) => Pretty::simple_record(
                 "Insert",
                 vec![

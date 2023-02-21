@@ -16,11 +16,13 @@ use crate::storage::{
     InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
     StorageImpl, Table,
 };
+use crate::streaming::StreamManager;
 
 /// The database instance.
 pub struct Database {
     catalog: RootCatalogRef,
     storage: StorageImpl,
+    stream: Arc<StreamManager>,
     mock_stat: Mutex<Option<Statistics>>,
 }
 
@@ -30,6 +32,7 @@ impl Database {
         let storage = InMemoryStorage::new();
         Database {
             catalog: storage.catalog().clone(),
+            stream: Arc::new(StreamManager::new(storage.catalog().clone())),
             storage: StorageImpl::InMemoryStorage(Arc::new(storage)),
             mock_stat: Default::default(),
         }
@@ -41,6 +44,7 @@ impl Database {
         storage.spawn_compactor().await;
         Database {
             catalog: storage.catalog().clone(),
+            stream: Arc::new(StreamManager::new(storage.catalog().clone())),
             storage: StorageImpl::SecondaryStorage(storage),
             mock_stat: Default::default(),
         }
@@ -215,12 +219,13 @@ impl Database {
             let mut binder = crate::binder::Binder::new(self.catalog.clone());
             let bound = binder.bind(stmt.clone())?;
             let optimized = optimizer.optimize(&bound);
+            let stream = self.stream.clone();
             let executor = match self.storage.clone() {
                 StorageImpl::InMemoryStorage(s) => {
-                    crate::executor::build(optimizer.clone(), s, &optimized)
+                    crate::executor::build(optimizer.clone(), s, stream, &optimized)
                 }
                 StorageImpl::SecondaryStorage(s) => {
-                    crate::executor::build(optimizer.clone(), s, &optimized)
+                    crate::executor::build(optimizer.clone(), s, stream, &optimized)
                 }
             };
             let output = executor.try_collect().await?;

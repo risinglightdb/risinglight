@@ -171,7 +171,7 @@ impl Storage for SecondaryStorage {
         table_name: &str,
         column_descs: &[ColumnCatalog],
         ordered_pk_ids: &[ColumnId],
-    ) -> StorageResult<()> {
+    ) -> StorageResult<TableRefId> {
         self.create_table_inner(schema_id, table_name, column_descs, ordered_pk_ids)
             .await
     }

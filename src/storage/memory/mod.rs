@@ -70,7 +70,7 @@ impl Storage for InMemoryStorage {
         table_name: &str,
         column_descs: &[ColumnCatalog],
         ordered_pk_ids: &[ColumnId],
-    ) -> StorageResult<()> {
+    ) -> StorageResult<TableRefId> {
         let schema = self
             .catalog
             .get_schema_by_id(schema_id)
@@ -90,7 +90,7 @@ impl Storage for InMemoryStorage {
 
         let table = InMemoryTable::new(id, column_descs);
         self.tables.lock().unwrap().insert(id, table);
-        Ok(())
+        Ok(id)
     }
 
     fn get_table(&self, table_id: TableRefId) -> StorageResult<InMemoryTable> {

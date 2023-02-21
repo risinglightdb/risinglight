@@ -49,6 +49,7 @@ use crate::array::DataChunk;
 use crate::executor::create_function::CreateFunctionExecutor;
 use crate::planner::{Expr, ExprAnalysis, Optimizer, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, TracedStorageError};
+use crate::streaming::StreamManager;
 use crate::types::{ColumnIndex, ConvertError, DataType};
 
 mod copy_from_file;
@@ -89,6 +90,8 @@ pub enum ExecutorError {
     ),
     #[error("conversion error: {0}")]
     Convert(#[from] ConvertError),
+    #[error("streaming error: {0}")]
+    Streaming(#[from] crate::streaming::Error),
     #[error("tuple length mismatch: expected {expected} but got {actual}")]
     LengthMismatch { expected: usize, actual: usize },
     #[error("io error")]
@@ -122,21 +125,27 @@ const PROCESSING_WINDOW_SIZE: usize = 1024;
 /// and produces a stream to its parent.
 pub type BoxedExecutor = BoxStream<'static, Result<DataChunk, ExecutorError>>;
 
-pub fn build(optimizer: Optimizer, storage: Arc<impl Storage>, plan: &RecExpr) -> BoxedExecutor {
-    Builder::new(optimizer, storage, plan).build()
+pub fn build(optimizer: Optimizer, storage: Arc<impl Storage>, stream: Arc<StreamManager>, plan: &RecExpr) -> BoxedExecutor {
+    Builder::new(optimizer, storage, stream, plan).build()
 }
 
 /// The builder of executor.
 struct Builder<S: Storage> {
     storage: Arc<S>,
     optimizer: Optimizer,
+    stream: Arc<StreamManager>,
     egraph: egg::EGraph<Expr, TypeSchemaAnalysis>,
     root: Id,
 }
 
 impl<S: Storage> Builder<S> {
     /// Create a new executor builder.
-    fn new(optimizer: Optimizer, storage: Arc<S>, plan: &RecExpr) -> Self {
+    fn new(
+        optimizer: Optimizer,
+        storage: Arc<S>,
+        stream: Arc<StreamManager>,
+        plan: &RecExpr,
+    ) -> Self {
         let mut egraph = egg::EGraph::new(TypeSchemaAnalysis {
             catalog: optimizer.catalog().clone(),
         });
@@ -144,6 +153,7 @@ impl<S: Storage> Builder<S> {
         Builder {
             storage,
             optimizer,
+            stream,
             egraph,
             root,
         }
@@ -301,6 +311,7 @@ impl<S: Storage> Builder<S> {
             CreateTable(plan) => CreateTableExecutor {
                 plan,
                 storage: self.storage.clone(),
+                stream: self.stream.clone(),
             }
             .execute(),
 

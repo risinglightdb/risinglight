@@ -1,5 +1,5 @@
-use std::collections::HashMap;
-use std::sync::Mutex;
+use std::collections::{BTreeMap, HashMap};
+use std::sync::{Arc, Mutex};
 
 use futures::StreamExt;
 use tokio::sync::broadcast;
@@ -11,7 +11,7 @@ use crate::catalog::{CatalogError, RootCatalogRef, TableRefId};
 mod builder;
 mod source;
 
-struct StreamManager {
+pub struct StreamManager {
     catalog: RootCatalogRef,
     tables: Mutex<HashMap<TableRefId, Source>>,
 }
@@ -22,16 +22,21 @@ struct Source {
 }
 
 impl StreamManager {
-    pub async fn create_source(&self, stmt: CreateTable) -> Result<()> {
-        let id = self.catalog.add_table(
-            stmt.schema_id,
-            stmt.table_name,
-            stmt.columns,
-            stmt.ordered_pk_ids,
-        )?;
+    pub fn new(catalog: RootCatalogRef) -> Self {
+        Self {
+            catalog,
+            tables: Mutex::new(HashMap::new()),
+        }
+    }
+
+    pub async fn create_source(
+        &self,
+        id: TableRefId,
+        options: &BTreeMap<String, String>,
+    ) -> Result<()> {
         let catalog = self.catalog.get_table(&id).unwrap();
 
-        let mut stream = source::build(&stmt.with, &catalog).await?;
+        let mut stream = source::build(options, &catalog).await?;
 
         let (sender, _) = broadcast::channel::<Result<DataChunk>>(16);
         let sender0 = sender.clone();
@@ -48,7 +53,6 @@ impl StreamManager {
     }
 
     pub fn drop_source(&self, id: TableRefId) -> Result<()> {
-        self.catalog.drop_table(id);
         self.tables.lock().unwrap().remove(&id);
         Ok(())
     }
