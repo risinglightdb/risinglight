@@ -42,7 +42,7 @@ impl StreamManager {
         let sender0 = sender.clone();
         let task = tokio::spawn(async move {
             while let Some(value) = stream.next().await {
-                sender0.send(value).expect("failed to send");
+                _ = sender0.send(value);
             }
         });
         self.tables

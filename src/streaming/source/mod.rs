@@ -6,6 +6,7 @@ use super::*;
 use crate::array::DataChunk;
 use crate::catalog::TableCatalog;
 
+pub mod datagen;
 pub mod nexmark;
 
 pub type BoxSourceStream = BoxStream<'static, Result<DataChunk>>;
@@ -17,6 +18,7 @@ pub async fn build(
 ) -> Result<BoxSourceStream> {
     let connector = (options.get("connector")).ok_or(Error::MissingField("connector"))?;
     Ok(match connector.as_str() {
+        "datagen" => self::datagen::build(options, catalog).await?,
         "nexmark" => self::nexmark::build(options, catalog).await?,
         _ => return Err(Error::UnsupportedConnector(connector.clone())),
     })
