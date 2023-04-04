@@ -59,6 +59,13 @@ impl RootCatalog {
         schema.get_table_by_id(table_ref_id.table_id)
     }
 
+    pub fn get_table_by_name(&self, name: &str) -> Option<Arc<TableCatalog>> {
+        let name = name.to_lowercase();
+        let (schema_name, table_name) = split_name(&name)?;
+        let ref_id = self.get_table_id_by_name(schema_name, table_name)?;
+        self.get_table(&ref_id)
+    }
+
     pub fn get_column(&self, column_ref_id: &ColumnRefId) -> Option<ColumnCatalog> {
         self.get_table(&column_ref_id.table())?
             .get_column_by_id(column_ref_id.column_id)
@@ -126,5 +133,13 @@ impl Inner {
             )
             .unwrap();
         assert_eq!(table_id, CONTRIBUTORS_TABLE_ID);
+    }
+}
+
+fn split_name(name: &str) -> Option<(&str, &str)> {
+    match name.split('.').collect::<Vec<&str>>()[..] {
+        [table] => Some((DEFAULT_SCHEMA_NAME, table)),
+        [schema, table] => Some((schema, table)),
+        _ => None,
     }
 }
