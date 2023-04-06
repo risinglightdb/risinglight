@@ -85,6 +85,22 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("if-not";    "(if (not ?cond) ?then ?else)" => "(if ?cond ?else ?then)"),
 
     rw!("avg";       "(avg ?a)" => "(/ (sum ?a) (count ?a))"),
+
+    // Extract Common Predicate
+    // example:
+    //            OR
+    //          /    \
+    //      AND         AND
+    //     /   \       /  \
+    // a = b   c = 1  a = b  d = 2
+    //
+    // After rule:
+    //             AND
+    //            /   \
+    //         a = b   OR
+    //                /  \
+    //            c = 1  d = 2
+    rw!("add-or-distri"; "(or (and ?a ?b) (and ?a ?c)))" => "(and ?a (or ?b ?c))"),
 ]}
 
 /// The data type of constant analysis.
