@@ -59,6 +59,48 @@ impl Database {
         Ok(())
     }
 
+    fn run_desc(&self, table_name: &str) -> Result<Vec<Chunk>, Error> {
+        let mut column_id = I32ArrayBuilder::new();
+        let mut column_name = Utf8ArrayBuilder::new();
+        let mut column_type = Utf8ArrayBuilder::new();
+        let mut column_is_null = Utf8ArrayBuilder::new();
+        let mut column_is_primary = Utf8ArrayBuilder::new();
+        let table_catalog = self.catalog.get_table_by_name(table_name).unwrap();
+
+        let all_columns = table_catalog.all_columns();
+        for (id, column) in &all_columns {
+            let name = column.name();
+            let data_type = column.datatype().kind().to_string().to_ascii_lowercase();
+            let is_null = column.is_nullable();
+            let is_primary = column.is_primary();
+
+            column_id.push(Some(&(*id as i32)));
+            column_name.push(Some(name));
+            column_type.push(Some(&data_type));
+            if is_null {
+                column_is_null.push(Some("nullable"));
+            } else {
+                column_is_null.push(Some("not null"));
+            }
+
+            if is_primary {
+                column_is_primary.push(Some("primary"));
+            } else {
+                column_is_primary.push(None);
+            }
+        }
+        let vecs: Vec<ArrayBuilderImpl> = vec![
+            column_id.into(),
+            column_name.into(),
+            column_type.into(),
+            column_is_null.into(),
+            column_is_primary.into(),
+        ];
+        Ok(vec![Chunk::new(vec![DataChunk::from_iter(
+            vecs.into_iter(),
+        )])])
+    }
+
     fn run_dt(&self) -> Result<Vec<Chunk>, Error> {
         let mut schema_id_vec = I32ArrayBuilder::new();
         let mut schema_vec = Utf8ArrayBuilder::new();
@@ -142,6 +184,8 @@ impl Database {
                         "this storage engine doesn't support statistics".to_string(),
                     ))
                 }
+            } else if cmd == "d" {
+                self.run_desc(arg)
             } else {
                 Err(Error::InternalError("unsupported command".to_string()))
             }
