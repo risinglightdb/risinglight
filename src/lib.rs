@@ -19,7 +19,7 @@
 #![feature(core_intrinsics)]
 #![feature(trusted_len)]
 #![feature(adt_const_params)]
-#![feature(once_cell)]
+#![feature(lazy_cell)]
 #![feature(array_methods)]
 #![feature(iterator_try_collect)]
 #![feature(async_fn_in_trait)]

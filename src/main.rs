@@ -21,7 +21,7 @@ use risinglight::storage::SecondaryStorageOptions;
 use risinglight::utils::time::RoundingDuration;
 use risinglight::Database;
 use rustyline::error::ReadlineError;
-use rustyline::Editor;
+use rustyline::DefaultEditor;
 use sqllogictest::DefaultColumnType;
 use tokio::{select, signal};
 use tracing::{info, warn, Level};
@@ -166,7 +166,7 @@ async fn run_query_in_background(
 ///
 /// Note that `;` in string literals will also be treated as a terminator
 /// as long as it is at the end of a line.
-fn read_sql(rl: &mut Editor<()>) -> Result<String, ReadlineError> {
+fn read_sql(rl: &mut DefaultEditor) -> Result<String, ReadlineError> {
     let mut sql = String::new();
     loop {
         let prompt = if sql.is_empty() { "> " } else { "? " };
@@ -195,7 +195,7 @@ async fn interactive(
     output_format: Option<String>,
     enable_tracing: bool,
 ) -> Result<()> {
-    let mut rl = Editor::<()>::new()?;
+    let mut rl = DefaultEditor::new()?;
     let history_path = dirs::cache_dir().map(|p| {
         let cache_dir = p.join("risinglight");
         std::fs::create_dir_all(cache_dir.as_path()).ok();
@@ -219,7 +219,7 @@ async fn interactive(
         match read_sql {
             Ok(sql) => {
                 if !sql.trim().is_empty() {
-                    rl.add_history_entry(sql.as_str());
+                    rl.add_history_entry(sql.as_str())?;
                     run_query_in_background(db.clone(), sql, output_format.clone(), enable_tracing)
                         .await;
                 }
