@@ -150,7 +150,6 @@ impl PlanNode for LogicalTableScan {
 
         if need_rewrite {
             let project_expressions = (0..required_cols.len())
-                .into_iter()
                 .map(|index| {
                     BoundExpr::InputRef(BoundInputRef {
                         index,

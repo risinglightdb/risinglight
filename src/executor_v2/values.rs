@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::array::{DataChunk, DataChunkBuilder};
-use crate::types::{DataType, DataTypeKind};
+use crate::types::DataType;
 
 /// The executor of `values`.
 pub struct ValuesExecutor {
@@ -15,7 +15,6 @@ pub struct ValuesExecutor {
 impl ValuesExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
-        type Type = DataTypeKind;
         let mut builder = DataChunkBuilder::new(self.column_types.iter(), PROCESSING_WINDOW_SIZE);
         let dummy = DataChunk::single(0);
         for row in self.values {

@@ -68,7 +68,7 @@ impl PlanTreeNodeUnary for LogicalCopyToFile {
 impl_plan_tree_node_for_unary!(LogicalCopyToFile);
 impl PlanNode for LogicalCopyToFile {
     fn prune_col(&self, _required_cols: BitSet) -> PlanRef {
-        let input_cols = (0..self.child().out_types().len()).into_iter().collect();
+        let input_cols = (0..self.child().out_types().len()).collect();
         self.clone_with_child(self.child.prune_col(input_cols))
             .into_plan_ref()
     }
