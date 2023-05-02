@@ -7,7 +7,7 @@ use pgwire::api::query::PlaceholderExtendedQueryHandler;
 use pgwire::api::{MakeHandler, StatelessMakeHandler};
 use pgwire::tokio::process_socket;
 use tokio::net::TcpListener;
-use tracing::log::info;
+use tracing::info;
 
 use crate::server::processor::Processor;
 use crate::Database;

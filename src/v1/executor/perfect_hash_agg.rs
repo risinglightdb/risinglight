@@ -220,9 +220,7 @@ impl PerfectHashAggExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         let mut states = Vec::with_capacity(self.groups_num);
-        (0..self.groups_num)
-            .into_iter()
-            .for_each(|_| states.push(None));
+        (0..self.groups_num).for_each(|_| states.push(None));
         #[for_await]
         for chunk in self.child {
             let chunk = chunk?;

@@ -1,13 +1,12 @@
-use std::io;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use futures::stream;
 use pgwire::api::query::SimpleQueryHandler;
-use pgwire::api::results::{query_response, DataRowEncoder, FieldFormat, FieldInfo, Response, Tag};
+use pgwire::api::results::{DataRowEncoder, FieldFormat, FieldInfo, QueryResponse, Response, Tag};
 use pgwire::api::{ClientInfo, Type};
 use pgwire::error::{PgWireError, PgWireResult};
-use tokio::{select, signal};
-use tracing::log::info;
+use tracing::info;
 
 use crate::Database;
 
@@ -23,48 +22,55 @@ impl Processor {
 
 #[async_trait]
 impl SimpleQueryHandler for Processor {
-    async fn do_query<C>(&self, _client: &C, query: &str) -> PgWireResult<Vec<Response>>
+    async fn do_query<'a, 'b: 'a, C>(
+        &'b self,
+        _client: &C,
+        query: &'a str,
+    ) -> PgWireResult<Vec<Response<'a>>>
     where
         C: ClientInfo + Unpin + Send + Sync,
     {
         info!("query:{query:?}");
-        let task = async move { self.db.run(query).await };
+        let chunks = self
+            .db
+            .run(query)
+            .await
+            .map_err(|e| PgWireError::ApiError(Box::new(e)))?;
 
-        select! {
-            _ = signal::ctrl_c() => {
-                // we simply drop the future `task` to cancel the query.
-                info!("Interrupted");
-                return Err(io::Error::new(io::ErrorKind::Interrupted, "Interrupted").into());
-            }
-            ret = task => {
-                ret.map(|chunks|{
-                    if !query.to_uppercase().starts_with("SELECT"){
-                        return vec![Response::Execution(Tag::new_for_execution("OK", None))];
-                    }
-                    let mut results = Vec::new();
-                    let mut col_num = 0;
-                    for chunk in chunks {
-                        for data_chunk in chunk.data_chunks() {
-                            for i in 0..data_chunk.cardinality() {
-                                col_num = data_chunk.arrays().len();
-                                let mut encoder = DataRowEncoder::new(col_num);
-                                data_chunk.arrays().iter().for_each(|a| {
-                                    let field = a.get_to_string(i);
-                                    encoder.encode_text_format_field(Some(&field)).unwrap();
-                                });
-                                results.push(encoder.finish());
-                            }
-                        }
-                    }
-                    let headers = vec![
-                        FieldInfo::new("++".into(), None, None, Type::CHAR, FieldFormat::Text);col_num
-                    ];
-                    vec![Response::Query(query_response(
-                        Some(headers),
-                        stream::iter(results.into_iter()),
-                    ))]
-                }).map_err(|e| PgWireError::ApiError(Box::new(e)))
+        if !query.to_uppercase().starts_with("SELECT") {
+            return Ok(vec![Response::Execution(Tag::new_for_execution(
+                "OK", None,
+            ))]);
+        }
+        let mut results = Vec::new();
+        let mut headers = None;
+        for chunk in chunks {
+            for data_chunk in chunk.data_chunks() {
+                for i in 0..data_chunk.cardinality() {
+                    let headers = headers.get_or_insert_with(|| {
+                        Arc::new(vec![
+                            FieldInfo::new(
+                                "++".into(),
+                                None,
+                                None,
+                                Type::CHAR,
+                                FieldFormat::Text
+                            );
+                            data_chunk.arrays().len()
+                        ])
+                    });
+                    let mut encoder = DataRowEncoder::new(headers.clone());
+                    data_chunk.arrays().iter().for_each(|a| {
+                        let field = a.get_to_string(i);
+                        encoder.encode_field(&field).unwrap();
+                    });
+                    results.push(encoder.finish());
+                }
             }
         }
+        Ok(vec![Response::Query(QueryResponse::new(
+            headers.expect("fixme: db should return schema even if no output data"),
+            stream::iter(results.into_iter()),
+        ))])
     }
 }
