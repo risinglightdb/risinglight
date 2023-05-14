@@ -91,6 +91,20 @@ impl<'a> Evaluator<'a> {
                 (0..chunk.cardinality()).map(|_| ()).collect(),
             )),
             Count(a) | Sum(a) | Min(a) | Max(a) | First(a) | Last(a) => self.next(*a).eval(chunk),
+            Replace([a, from, to]) => {
+                let a = self.next(*a).eval(chunk)?;
+                let from = self.next(*from);
+                let from = match from.node() {
+                    Expr::Constant(DataValue::String(s)) => s,
+                    _ => panic!("replace from must be a string constant"),
+                };
+                let to = self.next(*to);
+                let to = match to.node() {
+                    Expr::Constant(DataValue::String(s)) => s,
+                    _ => panic!("replace to must be a string constant"),
+                };
+                a.replace(&from, &to)
+            }
             e => {
                 if let Some((op, a, b)) = e.binary_op() {
                     let left = self.next(a).eval(chunk)?;

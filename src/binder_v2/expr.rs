@@ -190,7 +190,6 @@ impl Binder {
     }
 
     fn bind_function(&mut self, func: Function) -> Result {
-        // TODO: Support scalar function
         let mut args = vec![];
         for arg in func.args {
             // ignore argument name
@@ -221,6 +220,7 @@ impl Binder {
             }
             "first" => Node::First(args[0]),
             "last" => Node::Last(args[0]),
+            "replace" => Node::Replace([args[0], args[1], args[2]]),
             name => todo!("Unsupported function: {}", name),
         };
         Ok(self.egraph.add(node))

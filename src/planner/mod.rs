@@ -76,6 +76,8 @@ define_language! {
         "first" = First(Id),
         "last" = Last(Id),
 
+        "replace" = Replace([Id; 3]),
+
         // subquery related
         "exists" = Exists(Id),
         "in" = In([Id; 2]),
