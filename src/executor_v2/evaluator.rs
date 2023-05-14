@@ -103,7 +103,7 @@ impl<'a> Evaluator<'a> {
                     Expr::Constant(DataValue::String(s)) => s,
                     _ => panic!("replace to must be a string constant"),
                 };
-                a.replace(&from, &to)
+                a.replace(from, to)
             }
             e => {
                 if let Some((op, a, b)) = e.binary_op() {
