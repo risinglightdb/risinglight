@@ -109,6 +109,12 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         RowCount | Count(_) => Ok(Kind::Int32.not_null()),
         First(a) | Last(a) => x(a),
 
+        // scalar functions
+        Replace([a, from, to]) => merge(enode, [x(a)?, x(from)?, x(to)?], |[a, from, to]| {
+            (a == Kind::String && from == Kind::String && to == Kind::String)
+                .then_some(Kind::String)
+        }),
+
         // equal to child
         Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(c),
 

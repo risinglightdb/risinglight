@@ -510,6 +510,13 @@ impl ArrayImpl {
     pub fn count(&self) -> usize {
         self.get_valid_bitmap().count_ones()
     }
+
+    pub fn replace(&self, from: &str, to: &str) -> Result<Self, ConvertError> {
+        let A::Utf8(a) = self else {
+            return Err(ConvertError::NoUnaryOp("replace".into(), self.type_string()));
+        };
+        Ok(A::new_utf8(unary_op(a.as_ref(), |s| s.replace(from, to))))
+    }
 }
 
 /// Implement aggregation functions.

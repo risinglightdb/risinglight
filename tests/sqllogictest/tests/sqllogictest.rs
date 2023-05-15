@@ -14,7 +14,7 @@ fn main() {
     const PATTERN: &str = "tests/sql/**/[!_]*.slt"; // ignore files start with '_'
     const MEM_BLOCKLIST: &[&str] = &["statistics.slt"];
     const DISK_BLOCKLIST: &[&str] = &[];
-    const V1_BLOCKLIST: &[&str] = &["subquery.slt", "tpch.slt"];
+    const V1_BLOCKLIST: &[&str] = &["subquery.slt", "tpch.slt", "replace.slt"];
 
     let mut tests = vec![];
 

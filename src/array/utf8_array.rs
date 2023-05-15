@@ -100,7 +100,8 @@ impl<T: ValueRef + ?Sized> ArrayEstimateExt for BytesArray<T> {
 impl<T: ValueRef + ?Sized> ArrayFromDataExt for BytesArray<T> {
     fn from_data(data_iter: impl Iterator<Item = impl Borrow<Self::Item>>, valid: BitVec) -> Self {
         let mut data = Vec::with_capacity(valid.len());
-        let mut offset = Vec::with_capacity(valid.len());
+        let mut offset = Vec::with_capacity(valid.len() + 1);
+        offset.push(0);
         for raw in data_iter {
             data.extend_from_slice(raw.borrow().as_ref());
             offset.push(data.len());

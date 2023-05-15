@@ -171,6 +171,15 @@ impl<'a> Explain<'a> {
                 Pretty::fieldless_record(name, v)
             }
 
+            Replace([a, b, c]) => Pretty::childless_record(
+                "Replace",
+                vec![
+                    ("in", self.expr(a).pretty()),
+                    ("from", self.expr(b).pretty()),
+                    ("to", self.expr(c).pretty()),
+                ],
+            ),
+
             Exists(a) => {
                 let v = vec![self.expr(a).pretty()];
                 Pretty::fieldless_record("Exists", v)
