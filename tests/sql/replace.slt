@@ -1,0 +1,29 @@
+statement ok
+create table t(v varchar(20))
+
+statement ok
+insert into t values ('test1'), ('test2'), ('test3'), ('test4'), ('test5'), ('test6'), ('test7'), ('test8')
+
+query I
+select replace(v, '', '') from t
+----
+test1
+test2
+test3
+test4
+test5
+test6
+test7
+test8
+
+query I
+select replace(v, 'test', 'replace') from t
+----
+replace1
+replace2
+replace3
+replace4
+replace5
+replace6
+replace7
+replace8
