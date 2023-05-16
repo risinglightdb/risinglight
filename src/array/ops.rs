@@ -206,6 +206,16 @@ impl ArrayImpl {
         }))))
     }
 
+    pub fn concat(&self, other: &Self) -> Result<Self, ConvertError> {
+        let (A::Utf8(a), A::Utf8(b)) = (self, other) else {
+            return Err(ConvertError::NoBinaryOp("||".into(), self.type_string(), other.type_string()));
+        };
+
+        Ok(A::new_utf8(binary_op(a.as_ref(), b.as_ref(), |a, b| {
+            format!("{a}{b}")
+        })))
+    }
+
     pub fn extract(&self, field: DateTimeField) -> Result<Self, ConvertError> {
         Ok(match self {
             A::Date(a) => match field.0 {
@@ -245,6 +255,7 @@ impl ArrayImpl {
             LtEq => self.le(other),
             And => self.and(other),
             Or => self.or(other),
+            StringConcat => self.concat(other),
             _ => Err(ConvertError::NoBinaryOp(
                 op.to_string(),
                 self.type_string(),
@@ -561,7 +572,6 @@ where
     A: ArrayValidExt,
     B: ArrayValidExt,
     O: ArrayFromDataExt,
-    O::Item: Sized,
     F: Fn(&A::Item, &B::Item) -> <O::Item as ToOwned>::Owned,
 {
     assert_eq!(a.len(), b.len());

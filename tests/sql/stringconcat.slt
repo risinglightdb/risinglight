@@ -1,0 +1,35 @@
+statement ok
+create table t(v varchar(20))
+
+statement ok
+insert into t values ('test1'), ('test2'), ('test3'), ('test4'), ('test5'), ('test6'), ('test7'), ('test8')
+
+statement ok
+create table t2(v varchar(20))
+
+statement ok
+insert into t2 values ('done')
+
+query I
+select v || 'test' from t
+----
+test1test
+test2test
+test3test
+test4test
+test5test
+test6test
+test7test
+test8test
+
+query II
+select t.v || t2.v from t join t2
+----
+test1done
+test2done
+test3done
+test4done
+test5done
+test6done
+test7done
+test8done
