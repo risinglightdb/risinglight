@@ -195,8 +195,17 @@ impl<'a> Explain<'a> {
                 vec![self.expr(a).pretty()],
             ),
 
-            Scan([table, list]) | Internal([table, list]) => Pretty::childless_record(
+            Scan([table, list, filter]) => Pretty::childless_record(
                 "Scan",
+                vec![
+                    ("table", self.expr(table).pretty()),
+                    ("list", self.expr(list).pretty()),
+                    ("filter", self.expr(filter).pretty()),
+                ]
+                .with_cost(cost),
+            ),
+            Internal([table, list]) => Pretty::childless_record(
+                "Internal",
                 vec![
                     ("table", self.expr(table).pretty()),
                     ("list", self.expr(list).pretty()),

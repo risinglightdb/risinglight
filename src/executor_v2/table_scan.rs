@@ -5,12 +5,15 @@ use std::sync::Arc;
 use super::*;
 use crate::array::DataChunk;
 use crate::catalog::{ColumnRefId, TableRefId};
-use crate::storage::{ScanOptions, Storage, StorageColumnRef, Table, Transaction, TxnIterator};
+use crate::storage::{
+    KeyRange, ScanOptions, Storage, StorageColumnRef, Table, Transaction, TxnIterator,
+};
 
 /// The executor of table scan operation.
 pub struct TableScanExecutor<S: Storage> {
     pub table_id: TableRefId,
     pub columns: Vec<ColumnRefId>,
+    pub filter: Option<KeyRange>,
     pub storage: Arc<S>,
 }
 
@@ -35,7 +38,12 @@ impl<S: Storage> TableScanExecutor<S> {
 
         let txn = table.read().await?;
 
-        let mut it = txn.scan(&col_idx, ScanOptions::default()).await?;
+        let mut it = txn
+            .scan(
+                &col_idx,
+                ScanOptions::default().with_filter_opt(self.filter),
+            )
+            .await?;
 
         while let Some(mut x) = it.next_batch(None).await? {
             if self.columns.is_empty() {

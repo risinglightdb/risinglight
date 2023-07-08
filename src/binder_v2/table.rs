@@ -65,7 +65,8 @@ impl Binder {
                 let id = if is_internal {
                     self.egraph.add(Node::Internal([table_id, cols]))
                 } else {
-                    self.egraph.add(Node::Scan([table_id, cols]))
+                    let true_ = self.egraph.add(Node::true_());
+                    self.egraph.add(Node::Scan([table_id, cols, true_]))
                 };
                 Ok(id)
             }

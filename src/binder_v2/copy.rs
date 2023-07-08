@@ -71,7 +71,8 @@ impl Binder {
             let scan = if is_internal {
                 self.egraph.add(Node::Internal([table, cols]))
             } else {
-                self.egraph.add(Node::Scan([table, cols]))
+                let true_ = self.egraph.add(Node::true_());
+                self.egraph.add(Node::Scan([table, cols, true_]))
             };
             self.egraph.add(Node::CopyTo([ext_source, scan]))
         } else {

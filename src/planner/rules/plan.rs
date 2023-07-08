@@ -165,9 +165,9 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
     ),
     // column pruning
     rw!("pushdown-proj-scan";
-        "(proj ?exprs (scan ?table ?columns))" =>
+        "(proj ?exprs (scan ?table ?columns ?filter))" =>
         { ColumnPrune {
-            pattern: pattern("(proj ?exprs (scan ?table ?columns))"),
+            pattern: pattern("(proj ?exprs (scan ?table ?columns ?filter))"),
             used: var("?exprs"),
             columns: var("?columns"),
         }}
@@ -335,14 +335,14 @@ mod tests {
         (proj (list $1.2 $2.2)
         (filter (and (= $1.1 $2.1) (= $2.3 'A'))
         (join inner true
-            (scan $1 (list $1.1 $1.2))
-            (scan $2 (list $2.1 $2.2 $2.3))
+            (scan $1 (list $1.1 $1.2) true)
+            (scan $2 (list $2.1 $2.2 $2.3) true)
         )))" => "
         (proj (list $1.2 $2.2)
         (join inner (= $1.1 $2.1)
-            (scan $1 (list $1.1 $1.2))
+            (scan $1 (list $1.1 $1.2) true)
             (filter (= $2.3 'A')
-                (scan $2 (list $2.1 $2.2 $2.3))
+                (scan $2 (list $2.1 $2.2 $2.3) true)
             )
         ))"
     }
@@ -356,16 +356,16 @@ mod tests {
         (filter (and (= $1.1 $2.1) (= $3.1 $2.1))
         (join inner true
             (join inner true
-                (scan $1 (list $1.1 $1.2))
-                (scan $2 (list $2.1 $2.2))
+                (scan $1 (list $1.1 $1.2) true)
+                (scan $2 (list $2.1 $2.2) true)
             )
-            (scan $3 (list $3.1 $3.2))
+            (scan $3 (list $3.1 $3.2) true)
         ))" => "
         (join inner (= $1.1 $2.1)
-            (scan $1 (list $1.1 $1.2))
+            (scan $1 (list $1.1 $1.2) true)
             (join inner (= $2.1 $3.1)
-                (scan $2 (list $2.1 $2.2))
-                (scan $3 (list $3.1 $3.2))
+                (scan $2 (list $2.1 $2.2) true)
+                (scan $3 (list $3.1 $3.2) true)
             )
         )"
     }
@@ -378,14 +378,14 @@ mod tests {
         "
         (filter (and (= $1.1 $2.1) (> $1.2 2))
         (join inner true
-            (scan $1 (list $1.1 $1.2))
-            (scan $2 (list $2.1 $2.2))
+            (scan $1 (list $1.1 $1.2) true)
+            (scan $2 (list $2.1 $2.2) true)
         ))" => "
         (hashjoin inner (list $1.1) (list $2.1)
             (filter (> $1.2 2)
-                (scan $1 (list $1.1 $1.2))
+                (scan $1 (list $1.1 $1.2) true)
             )
-            (scan $2 (list $2.1 $2.2))
+            (scan $2 (list $2.1 $2.2) true)
         )"
     }
 
@@ -397,15 +397,15 @@ mod tests {
         (proj (list $1.2)
         (filter (> (+ $1.2 $2.2) 1)
         (join inner (= $1.1 $2.1)
-            (scan $1 (list $1.1 $1.2 $1.3))
-            (scan $2 (list $2.1 $2.2 $2.3))
+            (scan $1 (list $1.1 $1.2 $1.3) true)
+            (scan $2 (list $2.1 $2.2 $2.3) true)
         )))" => "
         (proj (list $1.2)
         (filter (> (+ $1.2 $2.2) 1)
         (proj (list $1.2 $2.2)
         (join inner (= $1.1 $2.1)
-            (scan $1 (list $1.1 $1.2))
-            (scan $2 (list $2.1 $2.2))
+            (scan $1 (list $1.1 $1.2) true)
+            (scan $2 (list $2.1 $2.2) true)
         ))))"
     }
 }

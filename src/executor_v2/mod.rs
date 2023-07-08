@@ -205,11 +205,12 @@ impl<S: Storage> Builder<S> {
     fn build_id(&self, id: Id) -> BoxedExecutor {
         use Expr::*;
         let stream = match self.node(id).clone() {
-            Scan([table, list]) => TableScanExecutor {
+            Scan([table, list, _filter]) => TableScanExecutor {
                 table_id: self.node(table).as_table(),
                 columns: (self.node(list).as_list().iter())
                     .map(|id| self.node(*id).as_column())
                     .collect(),
+                filter: None,
                 storage: self.storage.clone(),
             }
             .execute(),
