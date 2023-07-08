@@ -204,20 +204,20 @@ impl RowSetIterator {
                 let len = array.len();
                 let start_row_id = match &range.start {
                     Bound::Included(key) => {
-                        (0..array.len()).position(|idx| &array.get(idx) >= &key[0])
+                        (0..array.len()).position(|idx| &array.get(idx) >= key)
                     }
                     Bound::Excluded(key) => {
-                        (0..array.len()).position(|idx| &array.get(idx) > &key[0])
+                        (0..array.len()).position(|idx| &array.get(idx) > key)
                     }
                     Bound::Unbounded => Some(0),
                 }
                 .unwrap_or(len);
                 let end_row_id = match &range.end {
                     Bound::Included(key) => {
-                        (0..array.len()).position(|idx| &array.get(idx) > &key[0])
+                        (0..array.len()).position(|idx| &array.get(idx) > key)
                     }
                     Bound::Excluded(key) => {
-                        (0..array.len()).position(|idx| &array.get(idx) >= &key[0])
+                        (0..array.len()).position(|idx| &array.get(idx) >= key)
                     }
                     Bound::Unbounded => None,
                 }
@@ -333,7 +333,7 @@ mod tests {
                 vec![],
                 ColumnSeekPosition::RowId(1000),
                 Some(KeyRange {
-                    start: Bound::Excluded(vec![DataValue::Int32(2)]),
+                    start: Bound::Excluded(DataValue::Int32(2)),
                     end: Bound::Unbounded,
                 }),
             )
@@ -391,8 +391,8 @@ mod tests {
                     vec![],
                     ColumnSeekPosition::RowId(168),
                     Some(KeyRange {
-                        start: Bound::Included(vec![DataValue::Int32(180)]),
-                        end: Bound::Included(vec![DataValue::Int32(195)]),
+                        start: Bound::Included(DataValue::Int32(180)),
+                        end: Bound::Included(DataValue::Int32(195)),
                     }),
                 )
                 .await
@@ -478,7 +478,7 @@ mod tests {
                     vec![],
                     ColumnSeekPosition::RowId(168),
                     Some(KeyRange {
-                        start: Bound::Included(vec![DataValue::Int32(180)]),
+                        start: Bound::Included(DataValue::Int32(180)),
                         end: Bound::Unbounded,
                     }),
                 )
@@ -523,7 +523,7 @@ mod tests {
                     vec![],
                     ColumnSeekPosition::RowId(252),
                     Some(KeyRange {
-                        start: Bound::Included(vec![DataValue::Int32(1800)]),
+                        start: Bound::Included(DataValue::Int32(1800)),
                         end: Bound::Unbounded,
                     }),
                 )
@@ -569,7 +569,7 @@ mod tests {
                     ColumnSeekPosition::RowId(0),
                     Some(KeyRange {
                         start: Bound::Unbounded,
-                        end: Bound::Included(vec![DataValue::Int32(195)]),
+                        end: Bound::Included(DataValue::Int32(195)),
                     }),
                 )
                 .await
@@ -614,7 +614,7 @@ mod tests {
                     ColumnSeekPosition::RowId(0),
                     Some(KeyRange {
                         start: Bound::Unbounded,
-                        end: Bound::Included(vec![DataValue::Int32(19500)]),
+                        end: Bound::Included(DataValue::Int32(19500)),
                     }),
                 )
                 .await

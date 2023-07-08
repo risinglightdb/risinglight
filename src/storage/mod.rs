@@ -178,38 +178,38 @@ impl ScanOptions {
 /// ```text
 /// // key > 1
 /// KeyRange {
-///     start: Bound::Excluded(vec![DataValue::Int64(Some(1))]),
+///     start: Bound::Excluded(DataValue::Int64(Some(1))),
 ///     end: Bound::Unbounded,
 /// }
 ///
 /// // key = 0
 /// KeyRange {
-///     start: Bound::Included(vec![DataValue::Int64(Some(0))]),
-///     end: Bound::Included(vec![DataValue::Int64(Some(0))]),
+///     start: Bound::Included(DataValue::Int64(Some(0))),
+///     end: Bound::Included(DataValue::Int64(Some(0))),
 /// }
 /// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct KeyRange {
     /// Start bound.
-    pub start: Bound<Vec<DataValue>>,
+    pub start: Bound<DataValue>,
     /// End bound.
-    pub end: Bound<Vec<DataValue>>,
+    pub end: Bound<DataValue>,
 }
 
-impl RangeBounds<[DataValue]> for KeyRange {
-    fn start_bound(&self) -> Bound<&[DataValue]> {
+impl RangeBounds<DataValue> for KeyRange {
+    fn start_bound(&self) -> Bound<&DataValue> {
         match &self.start {
             Bound::Unbounded => Bound::Unbounded,
-            Bound::Included(v) => Bound::Included(v.as_slice()),
-            Bound::Excluded(v) => Bound::Excluded(v.as_slice()),
+            Bound::Included(v) => Bound::Included(v),
+            Bound::Excluded(v) => Bound::Excluded(v),
         }
     }
 
-    fn end_bound(&self) -> Bound<&[DataValue]> {
+    fn end_bound(&self) -> Bound<&DataValue> {
         match &self.end {
             Bound::Unbounded => Bound::Unbounded,
-            Bound::Included(v) => Bound::Included(v.as_slice()),
-            Bound::Excluded(v) => Bound::Excluded(v.as_slice()),
+            Bound::Included(v) => Bound::Included(v),
+            Bound::Excluded(v) => Bound::Excluded(v),
         }
     }
 }

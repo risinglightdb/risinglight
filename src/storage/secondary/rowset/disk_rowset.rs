@@ -1,6 +1,5 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::borrow::Borrow;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -147,14 +146,12 @@ impl DiskRowset {
     /// If `begin_key` is greater than all blocks' `first_key`, we return the `first_key` of the
     /// last block.
     /// Todo: support multi sort-keys range filter
-    pub async fn start_rowid(&self, begin_keys: Option<&[DataValue]>) -> ColumnSeekPosition {
-        let Some(begin_keys) = begin_keys else {
+    pub async fn start_rowid(&self, begin_key: Option<&DataValue>) -> ColumnSeekPosition {
+        let Some(begin_key) = begin_key else {
             return ColumnSeekPosition::RowId(0);
         };
 
-        // for now, we only use the first column to get the start row id, which means the length
-        // of `begin_keys` can only be 0 or 1.
-        let begin_key = begin_keys[0].borrow();
+        // for now, we only use the first column to get the start row id
         let column = self.column(0);
         let column_index = column.index();
 
@@ -415,18 +412,16 @@ pub mod tests {
     async fn test_get_start_id() {
         let tempdir = tempfile::tempdir().unwrap();
         let rowset = helper_build_rowset_with_first_key_recorded(&tempdir).await;
-        let start_keys = vec![DataValue::Int32(222)];
 
         {
-            let start_rid = match rowset.start_rowid(Some(&start_keys)).await {
+            let start_rid = match rowset.start_rowid(Some(&DataValue::Int32(222))).await {
                 ColumnSeekPosition::RowId(x) => x,
                 _ => panic!("Unable to reach the branch"),
             };
             assert_eq!(start_rid, 196_u32);
         }
         {
-            let start_keys = vec![DataValue::Int32(10000)];
-            let start_rid = match rowset.start_rowid(Some(&start_keys)).await {
+            let start_rid = match rowset.start_rowid(Some(&DataValue::Int32(10000))).await {
                 ColumnSeekPosition::RowId(x) => x,
                 _ => panic!("Unable to reach the branch"),
             };

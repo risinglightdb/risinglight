@@ -242,7 +242,7 @@ impl SecondaryTransaction {
 
                 let begin_keys = match &opts.filter {
                     Some(range) => match &range.start {
-                        Bound::Included(k) | Bound::Excluded(k) => Some(k.as_slice()),
+                        Bound::Included(k) | Bound::Excluded(k) => Some(k),
                         _ => None,
                     },
                     _ => None,
