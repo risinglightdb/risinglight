@@ -90,8 +90,18 @@ impl Binder {
                     return Err(BindError::InvalidColumn(name.clone()));
                 }
             }
-            ordered_pk_ids =
-                Binder::ordered_pks_from_constraint(&pks_name_from_constraints, columns);
+            // We have used `pks_name_from_constraints` to get the primary keys' name sorted by
+            // declaration order in "primary key(c1, c2..)" syntax. Now we transfer the name to id
+            // to get the sorted ID
+            ordered_pk_ids = pks_name_from_constraints
+                .iter()
+                .map(|name| {
+                    columns
+                        .iter()
+                        .position(|c| c.name.value.eq_ignore_ascii_case(name))
+                        .unwrap() as ColumnId
+                })
+                .collect();
         }
 
         let mut columns: Vec<ColumnCatalog> = columns
@@ -138,26 +148,6 @@ impl Binder {
         ordered_pks
     }
 
-    /// We have used `pks_name_from_constraints` to get the primary keys' name sorted by declaration
-    /// order in "primary key(c1, c2..)" syntax. Now we transfer the name to id to get the sorted
-    /// ID
-    fn ordered_pks_from_constraint(pks_name: &[String], columns: &[ColumnDef]) -> Vec<ColumnId> {
-        let mut ordered_pks = vec![0; pks_name.len()];
-        let mut pos_in_ordered_pk = HashMap::new(); // used to get pos from column name
-        pks_name.iter().enumerate().for_each(|(pos, name)| {
-            pos_in_ordered_pk.insert(name, pos);
-        });
-
-        columns.iter().enumerate().for_each(|(index, colum_desc)| {
-            let column_name = &colum_desc.name.value;
-            if pos_in_ordered_pk.contains_key(column_name) {
-                let id = index as ColumnId;
-                let pos = *(pos_in_ordered_pk.get(column_name).unwrap());
-                ordered_pks[pos] = id;
-            }
-        });
-        ordered_pks
-    }
     /// get the primary keys' name sorted by declaration order in "primary key(c1, c2..)" syntax.
     fn pks_name_from_constraints(constraints: &[TableConstraint]) -> Vec<String> {
         let mut pks_name_from_constraints = vec![];
@@ -169,7 +159,7 @@ impl Binder {
                     columns,
                     ..
                 } if *is_primary => columns.iter().for_each(|ident| {
-                    pks_name_from_constraints.push(ident.value.clone());
+                    pks_name_from_constraints.push(ident.value.to_lowercase());
                 }),
                 _ => continue,
             }
