@@ -261,7 +261,7 @@ mod tests {
             let result = binder.bind(stmt);
             println!("{}", result.as_ref().unwrap().pretty(10));
 
-            let optimized = crate::planner::optimize(&result.unwrap());
+            let optimized = crate::planner::optimize(catalog.clone(), &result.unwrap());
 
             let mut egraph = egg::EGraph::new(TypeSchemaAnalysis {
                 catalog: catalog.clone(),

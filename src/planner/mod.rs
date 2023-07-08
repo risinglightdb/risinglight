@@ -4,7 +4,7 @@ use egg::{define_language, CostFunction, Id, Symbol};
 
 use crate::binder_v2::copy::ExtSource;
 use crate::binder_v2::{BoundDrop, CreateTable};
-use crate::catalog::{ColumnRefId, TableRefId};
+use crate::catalog::{ColumnRefId, RootCatalogRef, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue, DateTimeField};
 
@@ -214,17 +214,19 @@ impl<D> ExprExt for egg::EClass<Expr, D> {
 }
 
 /// Optimize the given expression.
-pub fn optimize(expr: &RecExpr) -> RecExpr {
+pub fn optimize(catalog: RootCatalogRef, expr: &RecExpr) -> RecExpr {
     let mut expr = expr.clone();
 
     // 1. pushdown
     let mut best_cost = f32::MAX;
     // to prune costy nodes, we iterate multiple times and only keep the best one for each run.
     for _ in 0..3 {
-        let runner = egg::Runner::default()
-            .with_expr(&expr)
-            .with_iter_limit(6)
-            .run(&*rules::STAGE1_RULES);
+        let runner = egg::Runner::<_, _, ()>::new(ExprAnalysis {
+            catalog: catalog.clone(),
+        })
+        .with_expr(&expr)
+        .with_iter_limit(6)
+        .run(&*rules::STAGE1_RULES);
         let cost_fn = cost::CostFn {
             egraph: &runner.egraph,
         };
@@ -242,9 +244,11 @@ pub fn optimize(expr: &RecExpr) -> RecExpr {
     }
 
     // 2. join reorder and hashjoin
-    let runner = egg::Runner::default()
-        .with_expr(&expr)
-        .run(&*rules::STAGE2_RULES);
+    let runner = egg::Runner::<_, _, ()>::new(ExprAnalysis {
+        catalog: catalog.clone(),
+    })
+    .with_expr(&expr)
+    .run(&*rules::STAGE2_RULES);
     let cost_fn = cost::CostFn {
         egraph: &runner.egraph,
     };

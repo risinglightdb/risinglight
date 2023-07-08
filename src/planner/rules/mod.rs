@@ -5,19 +5,21 @@
 //! Currently we have 6 kinds of analyses.
 //! Each of them is defined in a sub-module:
 //!
-//! |   module   |         rules         |            analysis           | analysis data  |
-//! |------------|-----------------------|-------------------------------|----------------|
-//! | [`expr`]   | expr simplification   | constant value                | [`ConstValue`] |
-//! | [`plan`]   | plan optimization     | use and defination of columns | [`ColumnSet`]  |
-//! | [`agg`]    | agg extraction        | aggregations in an expr       | [`AggSet`]     |
-//! | [`schema`] | column id to index    | output schema of a plan       | [`Schema`]     |
-//! | [`type_`]  |                       | data type                     | [`Type`]       |
-//! | [`rows`]   |                       | estimated rows                | [`Rows`]       |
+//! |   module   |         rules         |            analysis           | analysis data      |
+//! |------------|-----------------------|-------------------------------|--------------------|
+//! | [`expr`]   | expr simplification   | constant value                | [`ConstValue`]     |
+//! | [`range`]  | filter scan rule      | range condition               | [`RangeCondition`] |
+//! | [`plan`]   | plan optimization     | use and defination of columns | [`ColumnSet`]      |
+//! | [`agg`]    | agg extraction        | aggregations in an expr       | [`AggSet`]         |
+//! | [`schema`] | column id to index    | output schema of a plan       | [`Schema`]         |
+//! | [`type_`]  |                       | data type                     | [`Type`]           |
+//! | [`rows`]   |                       | estimated rows                | [`Rows`]           |
 //!
 //! It would be best if you have a background in program analysis.
 //! Here is a recommended course: <https://pascal-group.bitbucket.io/teaching.html>.
 //!
 //! [`ConstValue`]: expr::ConstValue
+//! [`RangeCondition`]: range::RangeCondition
 //! [`ColumnSet`]: plan::ColumnSet
 //! [`AggSet`]: agg::AggSet
 //! [`Schema`]: schema::Schema
@@ -37,6 +39,7 @@ use crate::types::F32;
 mod agg;
 mod expr;
 mod plan;
+mod range;
 mod rows;
 mod schema;
 mod type_;
@@ -48,6 +51,7 @@ pub static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     let mut rules = vec![];
     rules.append(&mut expr::rules());
     rules.append(&mut plan::always_better_rules());
+    rules.append(&mut range::filter_scan_rule());
     rules
 });
 
@@ -61,7 +65,9 @@ pub static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
 
 /// The unified analysis for all rules.
 #[derive(Default)]
-pub struct ExprAnalysis;
+pub struct ExprAnalysis {
+    pub catalog: RootCatalogRef,
+}
 
 /// The analysis data associated with each eclass.
 ///
@@ -70,6 +76,9 @@ pub struct ExprAnalysis;
 pub struct Data {
     /// Some if the expression is a constant.
     pub constant: expr::ConstValue,
+
+    /// Some if the expression is a range condition.
+    pub range: range::RangeCondition,
 
     /// For expression node, it is the set of columns used in the expression.
     /// For plan node, it is the set of columns produced by the plan.
@@ -88,6 +97,7 @@ impl Analysis<Expr> for ExprAnalysis {
     fn make(egraph: &EGraph, enode: &Expr) -> Self::Data {
         Data {
             constant: expr::eval_constant(egraph, enode),
+            range: range::analyze_range(egraph, enode),
             columns: plan::analyze_columns(egraph, enode),
             schema: schema::analyze_schema(enode, |i| egraph[*i].data.schema.clone()),
             rows: rows::analyze_rows(egraph, enode),
@@ -104,13 +114,16 @@ impl Analysis<Expr> for ExprAnalysis {
     /// new result `Some(1)` with the previous `None` and keep `Some(1)` as the final result.
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         let merge_const = egg::merge_max(&mut to.constant, from.constant);
+        // if both are Some, choose arbitrary one. not sure whether it is safe.
+        let merge_range =
+            egg::merge_option(&mut to.range, from.range, |_, _| DidMerge(false, true));
         let merge_columns = merge_small_set(&mut to.columns, from.columns);
         let merge_schema = egg::merge_max(&mut to.schema, from.schema);
         let merge_rows = egg::merge_min(
             unsafe { std::mem::transmute(&mut to.rows) },
             F32::from(from.rows),
         );
-        merge_const | merge_columns | merge_schema | merge_rows
+        merge_const | merge_range | merge_columns | merge_schema | merge_rows
     }
 
     /// Modify the graph after analyzing a node.

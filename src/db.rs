@@ -214,7 +214,7 @@ impl Database {
         for stmt in stmts {
             let mut binder = crate::binder_v2::Binder::new(self.catalog.clone());
             let bound = binder.bind(stmt)?;
-            let optimized = crate::planner::optimize(&bound);
+            let optimized = crate::planner::optimize(self.catalog.clone(), &bound);
             let executor = match self.storage.clone() {
                 StorageImpl::InMemoryStorage(s) => {
                     crate::executor_v2::build(self.catalog.clone(), s, &optimized)
