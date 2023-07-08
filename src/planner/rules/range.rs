@@ -32,9 +32,23 @@ pub fn analyze_range(egraph: &EGraph, enode: &Expr) -> RangeCondition {
     let range = |i: &Id| egraph[*i].data.range.as_ref();
     let constant = |i: &Id| egraph[*i].data.constant.as_ref();
     match enode {
-        Eq([k, v]) | Gt([k, v]) | GtEq([k, v]) | Lt([k, v]) | LtEq([k, v]) => {
-            let k = column(k)?;
-            let v = constant(v)?;
+        Eq([a, b]) | Gt([a, b]) | GtEq([a, b]) | Lt([a, b]) | LtEq([a, b]) => {
+            // normalize `v op k` to `k op v`
+            let (k, v, enode) = if let (Some(v), Some(k)) = (constant(a), column(b)) {
+                let revnode = match enode {
+                    Eq(_) => Eq([*b, *a]),
+                    Gt(_) => Lt([*b, *a]),
+                    GtEq(_) => LtEq([*b, *a]),
+                    Lt(_) => Gt([*b, *a]),
+                    LtEq(_) => GtEq([*b, *a]),
+                    _ => unreachable!(),
+                };
+                (k, v, revnode)
+            } else if let (Some(k), Some(v)) = (column(a), constant(b)) {
+                (k, v, enode.clone())
+            } else {
+                return None;
+            };
             let start = match enode {
                 Eq(_) | GtEq(_) => Bound::Included(v.clone()),
                 Gt(_) => Bound::Excluded(v.clone()),

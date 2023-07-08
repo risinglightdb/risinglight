@@ -83,7 +83,8 @@ impl StorageOptions {
             },
             checksum_type: ChecksumType::Crc32,
             encode_type: EncodeType::Plain,
-            record_first_key: false,
+            // required by range-filter scan rule
+            record_first_key: true,
             disable_all_disk_operation: false,
         }
     }
