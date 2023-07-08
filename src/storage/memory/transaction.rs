@@ -107,14 +107,6 @@ impl Transaction for InMemoryTransaction {
     ) -> StorageResult<InMemoryTxnIterator> {
         assert!(opts.filter.is_none(), "MemTxn doesn't support filter scan");
         assert!(!opts.reversed, "reverse iterator is not supported for now");
-        assert!(
-            opts.begin_sort_key.is_empty(),
-            "sort_key is not supported in InMemoryEngine for now"
-        );
-        assert!(
-            opts.end_sort_key.is_empty(),
-            "sort_key is not supported in InMemoryEngine for now"
-        );
 
         let snapshot = if opts.is_sorted {
             sort_datachunk_by_pk(&self.snapshot, &self.column_infos)

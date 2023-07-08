@@ -1,6 +1,5 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use bitvec::prelude::BitVec;
 use serde::Serialize;
 
 use super::*;
@@ -56,22 +55,6 @@ impl BoundExpr {
             Self::ExprWithAlias(expr) => expr.expr.return_type(),
             Self::Alias(expr) => expr.expr.return_type(),
         }
-    }
-
-    fn get_filter_column_inner(&self, filter_column: &mut BitVec) {
-        struct Visitor<'a>(&'a mut BitVec);
-        impl<'a> ExprVisitor for Visitor<'a> {
-            fn visit_input_ref(&mut self, expr: &BoundInputRef) {
-                self.0.set(expr.index, true)
-            }
-        }
-        Visitor(filter_column).visit_expr(self);
-    }
-
-    pub fn get_filter_column(&self, len: usize) -> BitVec {
-        let mut filter_column = BitVec::repeat(false, len);
-        self.get_filter_column_inner(&mut filter_column);
-        filter_column
     }
 
     pub fn contains_column_ref(&self) -> bool {

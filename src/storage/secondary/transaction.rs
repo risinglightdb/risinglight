@@ -1,6 +1,7 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::collections::HashMap;
+use std::ops::Bound;
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -239,17 +240,17 @@ impl SecondaryTransaction {
                     })
                     .unwrap_or_default();
 
-                let start_rowid = rowset.start_rowid(&opts.begin_sort_key).await;
+                let begin_keys = match &opts.filter {
+                    Some(range) => match &range.start {
+                        Bound::Included(k) | Bound::Excluded(k) => Some(k.as_slice()),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                let start_rowid = rowset.start_rowid(begin_keys).await;
                 iters.push(
                     rowset
-                        .iter(
-                            col_idx.into(),
-                            dvs,
-                            start_rowid,
-                            opts.filter.clone(),
-                            &opts.begin_sort_key,
-                            &opts.end_sort_key,
-                        )
+                        .iter(col_idx.into(), dvs, start_rowid, opts.filter.clone())
                         .await?,
                 )
             }

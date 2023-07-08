@@ -5,13 +5,11 @@ use std::sync::Arc;
 use super::*;
 use crate::array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I64ArrayBuilder};
 use crate::storage::{ScanOptions, Storage, StorageColumnRef, Table, Transaction, TxnIterator};
-use crate::v1::binder::BoundExpr;
 use crate::v1::optimizer::plan_nodes::PhysicalTableScan;
 
 /// The executor of table scan operation.
 pub struct TableScanExecutor<S: Storage> {
     pub plan: PhysicalTableScan,
-    pub expr: Option<BoundExpr>,
     pub storage: Arc<S>,
 }
 
@@ -78,7 +76,7 @@ impl<S: Storage> TableScanExecutor<S> {
             .scan(
                 &col_idx,
                 ScanOptions::default()
-                    .with_filter_opt(self.expr)
+                    .with_filter_opt(self.plan.logical().filter().clone())
                     .with_sorted(self.plan.logical().is_sorted()),
             )
             .await?;

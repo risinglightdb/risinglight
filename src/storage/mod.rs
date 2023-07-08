@@ -10,9 +10,11 @@ pub use secondary::{SecondaryStorage, StorageOptions as SecondaryStorageOptions}
 
 mod error;
 pub use error::{StorageError, StorageResult, TracedStorageError};
+use serde::Serialize;
 
 mod chunk;
 use std::future::Future;
+use std::ops::{Bound, RangeBounds};
 use std::sync::Arc;
 
 pub use chunk::*;
@@ -21,7 +23,6 @@ use enum_dispatch::enum_dispatch;
 use crate::array::{ArrayImpl, DataChunk};
 use crate::catalog::{ColumnCatalog, ColumnId, SchemaId, TableRefId};
 use crate::types::DataValue;
-use crate::v1::binder::BoundExpr;
 
 #[enum_dispatch(StorageDispatch)]
 #[derive(Clone)]
@@ -153,16 +154,14 @@ pub trait Transaction: Sync + Send + 'static {
 /// Options for scanning.
 #[derive(Debug, Default)]
 pub struct ScanOptions {
-    begin_sort_key: Vec<DataValue>,
-    end_sort_key: Vec<DataValue>,
     is_sorted: bool,
     reversed: bool,
-    filter: Option<BoundExpr>,
+    filter: Option<KeyRange>,
 }
 
 impl ScanOptions {
-    /// Scan with optional filter.
-    pub fn with_filter_opt(mut self, filter: Option<BoundExpr>) -> Self {
+    /// Scan with filter.
+    pub fn with_filter_opt(mut self, filter: Option<KeyRange>) -> Self {
         self.filter = filter;
         self
     }
@@ -170,6 +169,48 @@ impl ScanOptions {
     pub fn with_sorted(mut self, sorted: bool) -> Self {
         self.is_sorted = sorted;
         self
+    }
+}
+
+/// A range of keys.
+///
+/// # Example
+/// ```text
+/// // key > 1
+/// KeyRange {
+///     start: Bound::Excluded(vec![DataValue::Int64(Some(1))]),
+///     end: Bound::Unbounded,
+/// }
+///
+/// // key = 0
+/// KeyRange {
+///     start: Bound::Included(vec![DataValue::Int64(Some(0))]),
+///     end: Bound::Included(vec![DataValue::Int64(Some(0))]),
+/// }
+/// ```
+#[derive(Debug, Clone, Serialize)]
+pub struct KeyRange {
+    /// Start bound.
+    pub start: Bound<Vec<DataValue>>,
+    /// End bound.
+    pub end: Bound<Vec<DataValue>>,
+}
+
+impl RangeBounds<[DataValue]> for KeyRange {
+    fn start_bound(&self) -> Bound<&[DataValue]> {
+        match &self.start {
+            Bound::Unbounded => Bound::Unbounded,
+            Bound::Included(v) => Bound::Included(v.as_slice()),
+            Bound::Excluded(v) => Bound::Excluded(v.as_slice()),
+        }
+    }
+
+    fn end_bound(&self) -> Bound<&[DataValue]> {
+        match &self.end {
+            Bound::Unbounded => Bound::Unbounded,
+            Bound::Included(v) => Bound::Included(v.as_slice()),
+            Bound::Excluded(v) => Bound::Excluded(v.as_slice()),
+        }
     }
 }
 
