@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use super::*;
 use crate::array::{ArrayBuilder, ArrayBuilderImpl, DataChunk, I64ArrayBuilder};
-use crate::storage::{Storage, StorageColumnRef, Table, Transaction, TxnIterator};
+use crate::storage::{ScanOptions, Storage, StorageColumnRef, Table, Transaction, TxnIterator};
 use crate::v1::binder::BoundExpr;
 use crate::v1::optimizer::plan_nodes::PhysicalTableScan;
 
@@ -76,12 +76,10 @@ impl<S: Storage> TableScanExecutor<S> {
 
         let mut it = txn
             .scan(
-                &[],
-                &[],
                 &col_idx,
-                self.plan.logical().is_sorted(),
-                false,
-                self.expr,
+                ScanOptions::default()
+                    .with_filter_opt(self.expr)
+                    .with_sorted(self.plan.logical().is_sorted()),
             )
             .await?;
 

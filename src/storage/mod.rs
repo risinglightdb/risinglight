@@ -128,12 +128,8 @@ pub trait Transaction: Sync + Send + 'static {
     /// Scan one or multiple columns.
     fn scan<'a>(
         &'a self,
-        begin_sort_key: &'a [DataValue],
-        end_sort_key: &'a [DataValue],
         col_idx: &'a [StorageColumnRef],
-        is_sorted: bool,
-        reversed: bool,
-        expr: Option<BoundExpr>,
+        options: ScanOptions,
     ) -> impl Future<Output = StorageResult<Self::TxnIteratorType>> + Send + 'a;
 
     /// Append data to the table. Generally, `columns` should be in the same order as
@@ -152,6 +148,29 @@ pub trait Transaction: Sync + Send + 'static {
 
     /// Abort a transaction.
     fn abort(self) -> impl Future<Output = StorageResult<()>> + Send;
+}
+
+/// Options for scanning.
+#[derive(Debug, Default)]
+pub struct ScanOptions {
+    begin_sort_key: Vec<DataValue>,
+    end_sort_key: Vec<DataValue>,
+    is_sorted: bool,
+    reversed: bool,
+    filter: Option<BoundExpr>,
+}
+
+impl ScanOptions {
+    /// Scan with optional filter.
+    pub fn with_filter_opt(mut self, filter: Option<BoundExpr>) -> Self {
+        self.filter = filter;
+        self
+    }
+
+    pub fn with_sorted(mut self, sorted: bool) -> Self {
+        self.is_sorted = sorted;
+        self
+    }
 }
 
 /// An iterator over table in a transaction.

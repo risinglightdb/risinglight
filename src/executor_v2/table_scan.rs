@@ -5,7 +5,7 @@ use std::sync::Arc;
 use super::*;
 use crate::array::DataChunk;
 use crate::catalog::{ColumnRefId, TableRefId};
-use crate::storage::{Storage, StorageColumnRef, Table, Transaction, TxnIterator};
+use crate::storage::{ScanOptions, Storage, StorageColumnRef, Table, Transaction, TxnIterator};
 
 /// The executor of table scan operation.
 pub struct TableScanExecutor<S: Storage> {
@@ -35,16 +35,7 @@ impl<S: Storage> TableScanExecutor<S> {
 
         let txn = table.read().await?;
 
-        let mut it = txn
-            .scan(
-                &[],
-                &[],
-                &col_idx,
-                false, // TODO: is_sorted
-                false,
-                None, // TODO: support filter scan
-            )
-            .await?;
+        let mut it = txn.scan(&col_idx, ScanOptions::default()).await?;
 
         while let Some(mut x) = it.next_batch(None).await? {
             if self.columns.is_empty() {
