@@ -12,6 +12,9 @@ pub fn analyze_aggs(enode: &Expr, x: impl Fn(&Id) -> AggSet) -> AggSet {
     if enode.is_aggregate_function() {
         return vec![enode.clone()];
     }
+    if let Expr::Over(_) = enode {
+        return vec![];
+    }
     // merge the set from all children
     // TODO: ignore plan nodes
     enode.children().iter().flat_map(x).collect()
