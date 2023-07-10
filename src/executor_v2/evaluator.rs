@@ -131,7 +131,8 @@ impl<'a> Evaluator<'a> {
     fn init_agg_state(&self) -> DataValue {
         use Expr::*;
         match self.node() {
-            RowCount | Count(_) => DataValue::Int32(0),
+            Over([window, _, _]) => self.next(*window).init_agg_state(),
+            RowCount | RowNumber | Count(_) => DataValue::Int32(0),
             Sum(_) | Min(_) | Max(_) | First(_) | Last(_) => DataValue::Null,
             t => panic!("not aggregation: {t}"),
         }
@@ -197,7 +198,8 @@ impl<'a> Evaluator<'a> {
     fn agg_append(&self, state: DataValue, value: DataValue) -> DataValue {
         use Expr::*;
         match self.node() {
-            RowCount => state.add(DataValue::Int32(1)),
+            Over([window, _, _]) => self.next(*window).agg_append(state, value),
+            RowCount | RowNumber => state.add(DataValue::Int32(1)),
             Count(_) => state.add(DataValue::Int32(!value.is_null() as _)),
             Sum(_) => state.add(value),
             Min(_) => state.min(value),

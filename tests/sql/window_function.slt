@@ -1,0 +1,19 @@
+statement ok
+CREATE TABLE t (a INT);
+
+statement ok
+INSERT INTO t(a) VALUES (1), (2), (3);
+
+query II
+SELECT a, row_number() OVER () FROM t;
+----
+1 1
+2 2
+3 3
+
+query I
+SELECT a - row_number() OVER () FROM t;
+----
+0
+0
+0

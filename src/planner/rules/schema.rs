@@ -26,6 +26,7 @@ pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
         Values(vs) => x(&vs[0]),
         Proj([exprs, _]) => x(exprs),
         Agg([exprs, group_keys, _]) => concat(x(exprs), x(group_keys)),
+        Window([exprs, child]) => concat(x(child), x(exprs)),
         Empty(ids) => {
             let mut s = vec![];
             for id in ids.iter() {

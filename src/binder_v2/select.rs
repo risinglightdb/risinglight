@@ -46,6 +46,7 @@ impl Binder {
         plan = self.plan_agg(&mut to_rewrite, groupby, plan)?;
         let [mut projection, distinct, having, orderby] = to_rewrite;
         plan = self.egraph.add(Node::Filter([having, plan]));
+        plan = self.plan_window(projection, distinct, orderby, plan)?;
         plan = self.plan_distinct(distinct, orderby, &mut projection, plan)?;
         plan = self.egraph.add(Node::Order([orderby, plan]));
         plan = self.egraph.add(Node::Proj([projection, plan]));
@@ -110,10 +111,7 @@ impl Binder {
     ///
     /// There should be no aggregation in the expressions, otherwise an error will be returned.
     fn bind_groupby(&mut self, group_by: Vec<Expr>) -> Result {
-        let list = (group_by.into_iter())
-            .map(|key| self.bind_expr(key))
-            .try_collect()?;
-        let id = self.egraph.add(Node::List(list));
+        let id = self.bind_exprs(group_by)?;
         if !self.aggs(id).is_empty() {
             return Err(BindError::AggInGroupBy);
         }
@@ -121,7 +119,7 @@ impl Binder {
     }
 
     /// Binds the ORDER BY clause. Returns a list of expressions.
-    fn bind_orderby(&mut self, order_by: Vec<OrderByExpr>) -> Result {
+    pub(super) fn bind_orderby(&mut self, order_by: Vec<OrderByExpr>) -> Result {
         let mut orderby = Vec::with_capacity(order_by.len());
         for e in order_by {
             let expr = self.bind_expr(e.expr)?;
@@ -149,11 +147,7 @@ impl Binder {
                     "VALUES lists must all be the same length".into(),
                 ));
             }
-            let mut bound_row = Vec::with_capacity(column_len);
-            for expr in row {
-                bound_row.push(self.bind_expr(expr)?);
-            }
-            bound_values.push(self.egraph.add(Node::List(bound_row.into())));
+            bound_values.push(self.bind_exprs(row)?);
         }
         let id = self.egraph.add(Node::Values(bound_values.into()));
         self.check_type(id)?;
@@ -264,5 +258,34 @@ impl Binder {
         let aggs = self.egraph.add(Node::List(aggs.into()));
         *projection = self.egraph.add(Node::List(projs.into()));
         Ok(self.egraph.add(Node::Agg([aggs, distinct, plan])))
+    }
+
+    /// Extracts all over nodes from `projection`, `distinct` and `orderby`.
+    /// Generates an [`Window`](Node::Window) plan if any over node is found.
+    /// Otherwise returns the original `plan`.
+    fn plan_window(&mut self, projection: Id, distinct: Id, orderby: Id, plan: Id) -> Result {
+        let mut overs = vec![];
+        self.collect_overs(projection, &mut overs);
+        self.collect_overs(distinct, &mut overs);
+        self.collect_overs(orderby, &mut overs);
+        overs.sort_unstable();
+        overs.dedup();
+
+        if overs.is_empty() {
+            return Ok(plan);
+        }
+        let overs = self.egraph.add(Node::List(overs.into()));
+        Ok(self.egraph.add(Node::Window([overs, plan])))
+    }
+
+    /// Collects all [`Over`](Node::Over) nodes from `id` and its children.
+    fn collect_overs(&self, id: Id, overs: &mut Vec<Id>) {
+        let node = self.node(id);
+        if let Node::Over(_) = node {
+            overs.push(id);
+        }
+        for child in node.children() {
+            self.collect_overs(*child, overs);
+        }
     }
 }

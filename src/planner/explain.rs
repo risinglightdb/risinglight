@@ -162,15 +162,6 @@ impl<'a> Explain<'a> {
                 ],
             ),
             Field(field) => Pretty::display(field),
-
-            // aggregations
-            RowCount => "rowcount".into(),
-            Max(a) | Min(a) | Sum(a) | Avg(a) | Count(a) | First(a) | Last(a) => {
-                let name = enode.to_string();
-                let v = vec![self.expr(a).pretty()];
-                Pretty::fieldless_record(name, v)
-            }
-
             Replace([a, b, c]) => Pretty::childless_record(
                 "Replace",
                 vec![
@@ -178,6 +169,22 @@ impl<'a> Explain<'a> {
                     ("from", self.expr(b).pretty()),
                     ("to", self.expr(c).pretty()),
                 ],
+            ),
+
+            // aggregations
+            RowCount | RowNumber => enode.to_string().into(),
+            Max(a) | Min(a) | Sum(a) | Avg(a) | Count(a) | First(a) | Last(a) => {
+                let name = enode.to_string();
+                let v = vec![self.expr(a).pretty()];
+                Pretty::fieldless_record(name, v)
+            }
+            Over([f, orderby, partitionby]) => Pretty::simple_record(
+                "Over",
+                vec![
+                    ("order_by", self.expr(orderby).pretty()),
+                    ("partition_by", self.expr(partitionby).pretty()),
+                ],
+                vec![self.expr(f).pretty()],
             ),
 
             Exists(a) => {
@@ -277,6 +284,11 @@ impl<'a> Explain<'a> {
                     ("group_by", self.expr(group_keys).pretty()),
                 ]
                 .with_cost(cost),
+                vec![self.child(child).pretty()],
+            ),
+            Window([windows, child]) => Pretty::simple_record(
+                "Window",
+                vec![("windows", self.expr(windows).pretty())].with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
             CreateTable(t) => {

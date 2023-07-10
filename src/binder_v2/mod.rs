@@ -79,6 +79,8 @@ pub enum BindError {
     OrderKeyNotInDistinct,
     #[error("operation on internal table is not supported")]
     NotSupportedOnInternalTable,
+    #[error("{0} is not an aggregate function")]
+    NotAgg(String),
 }
 
 /// The binder resolves all expressions referring to schema objects such as

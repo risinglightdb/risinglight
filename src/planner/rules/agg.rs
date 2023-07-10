@@ -9,8 +9,7 @@ pub type AggSet = Vec<Expr>;
 ///
 /// Note: if there is an agg over agg, e.g. `sum(count(a))`, only the upper one will be returned.
 pub fn analyze_aggs(enode: &Expr, x: impl Fn(&Id) -> AggSet) -> AggSet {
-    use Expr::*;
-    if let RowCount | Max(_) | Min(_) | Sum(_) | Avg(_) | Count(_) | First(_) | Last(_) = enode {
+    if enode.is_aggregate_function() {
         return vec![enode.clone()];
     }
     // merge the set from all children
