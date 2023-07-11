@@ -233,7 +233,7 @@ impl Binder {
             "row_number" => Node::RowNumber,
             name => todo!("Unsupported function: {}", name),
         };
-        let mut id = self.egraph.add(node.clone());
+        let mut id = self.egraph.add(node);
         if let Some(window) = func.over {
             id = self.bind_window_function(id, window)?;
         }
