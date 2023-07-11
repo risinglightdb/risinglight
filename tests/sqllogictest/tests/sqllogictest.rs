@@ -19,6 +19,7 @@ fn main() {
         "tpch.slt",
         "replace.slt",
         "stringconcat.slt",
+        "window_function.slt",
     ];
 
     let mut tests = vec![];
