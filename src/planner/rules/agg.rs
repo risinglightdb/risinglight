@@ -19,3 +19,16 @@ pub fn analyze_aggs(enode: &Expr, x: impl Fn(&Id) -> AggSet) -> AggSet {
     // TODO: ignore plan nodes
     enode.children().iter().flat_map(x).collect()
 }
+
+/// The data type of over analysis.
+pub type OverSet = Vec<Expr>;
+
+/// Returns all over nodes in the tree.
+pub fn analyze_overs(enode: &Expr, x: impl Fn(&Id) -> OverSet) -> OverSet {
+    if let Expr::Over(_) = enode {
+        return vec![enode.clone()];
+    }
+    // merge the set from all children
+    // TODO: ignore plan nodes
+    enode.children().iter().flat_map(x).collect()
+}

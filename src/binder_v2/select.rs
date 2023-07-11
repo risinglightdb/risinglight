@@ -92,15 +92,27 @@ impl Binder {
     ///
     /// There should be no aggregation in the expression, otherwise an error will be returned.
     pub(super) fn bind_where(&mut self, selection: Option<Expr>) -> Result {
-        let id = self.bind_having(selection)?;
+        let id = self.bind_selection(selection)?;
         if !self.aggs(id).is_empty() {
             return Err(BindError::AggInWhere);
+        }
+        if !self.overs(id).is_empty() {
+            return Err(BindError::WindowInWhere);
         }
         Ok(id)
     }
 
     /// Binds the HAVING clause. Returns an expression for condition.
     fn bind_having(&mut self, selection: Option<Expr>) -> Result {
+        let id = self.bind_selection(selection)?;
+        if !self.overs(id).is_empty() {
+            return Err(BindError::WindowInHaving);
+        }
+        Ok(id)
+    }
+
+    /// Binds a selection. Returns a `true` node if no selection.
+    fn bind_selection(&mut self, selection: Option<Expr>) -> Result {
         Ok(match selection {
             Some(expr) => self.bind_expr(expr)?,
             None => self.egraph.add(Node::true_()),
@@ -265,27 +277,20 @@ impl Binder {
     /// Otherwise returns the original `plan`.
     fn plan_window(&mut self, projection: Id, distinct: Id, orderby: Id, plan: Id) -> Result {
         let mut overs = vec![];
-        self.collect_overs(projection, &mut overs);
-        self.collect_overs(distinct, &mut overs);
-        self.collect_overs(orderby, &mut overs);
-        overs.sort_unstable();
-        overs.dedup();
+        overs.extend_from_slice(self.overs(projection));
+        overs.extend_from_slice(self.overs(distinct));
+        overs.extend_from_slice(self.overs(orderby));
 
         if overs.is_empty() {
             return Ok(plan);
         }
-        let overs = self.egraph.add(Node::List(overs.into()));
+        let mut list: Vec<_> = overs
+            .into_iter()
+            .map(|over| self.egraph.add(over))
+            .collect();
+        list.sort();
+        list.dedup();
+        let overs = self.egraph.add(Node::List(list.into()));
         Ok(self.egraph.add(Node::Window([overs, plan])))
-    }
-
-    /// Collects all [`Over`](Node::Over) nodes from `id` and its children.
-    fn collect_overs(&self, id: Id, overs: &mut Vec<Id>) {
-        let node = self.node(id);
-        if let Node::Over(_) = node {
-            overs.push(id);
-        }
-        for child in node.children() {
-            self.collect_overs(*child, overs);
-        }
     }
 }

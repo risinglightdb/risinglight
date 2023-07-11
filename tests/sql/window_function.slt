@@ -24,3 +24,9 @@ SELECT sum(a) OVER () FROM t;
 1
 3
 6
+
+statement error WHERE clause cannot contain window functions
+SELECT a FROM t WHERE sum(a) OVER () > 0;
+
+statement error HAVING clause cannot contain window functions
+SELECT a FROM t HAVING sum(a) OVER () > 0;
