@@ -106,8 +106,9 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         Avg(a) => check(enode, x(a)?, |a| a.is_number()),
 
         // agg
-        RowCount | Count(_) => Ok(Kind::Int32.not_null()),
+        RowCount | RowNumber | Count(_) => Ok(Kind::Int32.not_null()),
         First(a) | Last(a) => x(a),
+        Over([f, _, _]) => x(f),
 
         // scalar functions
         Replace([a, from, to]) => merge(enode, [x(a)?, x(from)?, x(to)?], |[a, from, to]| {

@@ -65,6 +65,7 @@ define_language! {
         // functions
         "extract" = Extract([Id; 2]),           // (extract field expr)
             Field(DateTimeField),
+        "replace" = Replace([Id; 3]),           // (replace expr pattern replacement)
 
         // aggregations
         "max" = Max(Id),
@@ -75,8 +76,11 @@ define_language! {
         "rowcount" = RowCount,
         "first" = First(Id),
         "last" = Last(Id),
-
-        "replace" = Replace([Id; 3]),
+        // window functions
+        "over" = Over([Id; 3]),                 // (over window_function [partition_key..] [order_key..])
+        // TODO: support frame clause
+            // "range" = Range([Id; 2]),               // (range start end)
+        "row_number" = RowNumber,
 
         // subquery related
         "exists" = Exists(Id),
@@ -102,8 +106,10 @@ define_language! {
             "right_outer" = RightOuter,
             "full_outer" = FullOuter,
         "agg" = Agg([Id; 3]),                   // (agg aggs=[expr..] group_keys=[expr..] child)
-                                                    // expressions must be agg
+                                                    // expressions must be aggregate functions
                                                     // output = aggs || group_keys
+        "window" = Window([Id; 2]),             // (window [over..] child)
+                                                    // output = child || exprs
         CreateTable(CreateTable),
         Drop(BoundDrop),
         "insert" = Insert([Id; 3]),             // (insert table [column..] child)
@@ -195,6 +201,19 @@ impl Expr {
             &Self::Not(a) => (Op::Not, a),
             _ => return None,
         })
+    }
+
+    pub const fn is_aggregate_function(&self) -> bool {
+        use Expr::*;
+        matches!(
+            self,
+            RowCount | Max(_) | Min(_) | Sum(_) | Avg(_) | Count(_) | First(_) | Last(_)
+        )
+    }
+
+    pub const fn is_window_function(&self) -> bool {
+        use Expr::*;
+        matches!(self, RowNumber) || self.is_aggregate_function()
     }
 }
 

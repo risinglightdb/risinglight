@@ -46,6 +46,7 @@ use self::simple_agg::*;
 use self::table_scan::*;
 use self::top_n::TopNExecutor;
 use self::values::*;
+use self::window::*;
 use crate::array::DataChunk;
 use crate::catalog::RootCatalogRef;
 use crate::planner::{Expr, RecExpr, TypeSchemaAnalysis};
@@ -75,6 +76,7 @@ mod simple_agg;
 mod table_scan;
 mod top_n;
 mod values;
+mod window;
 
 /// Join types for generating join code during the compilation.
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -297,6 +299,11 @@ impl<S: Storage> Builder<S> {
                     .execute(self.build_id(child))
                 }
             }
+            Window([exprs, child]) => WindowExecutor {
+                exprs: self.resolve_column_index(exprs, child),
+                types: self.plan_types(exprs).to_vec(),
+            }
+            .execute(self.build_id(child)),
 
             CreateTable(plan) => CreateTableExecutor {
                 plan,

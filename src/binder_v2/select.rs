@@ -46,6 +46,7 @@ impl Binder {
         plan = self.plan_agg(&mut to_rewrite, groupby, plan)?;
         let [mut projection, distinct, having, orderby] = to_rewrite;
         plan = self.egraph.add(Node::Filter([having, plan]));
+        plan = self.plan_window(projection, distinct, orderby, plan)?;
         plan = self.plan_distinct(distinct, orderby, &mut projection, plan)?;
         plan = self.egraph.add(Node::Order([orderby, plan]));
         plan = self.egraph.add(Node::Proj([projection, plan]));
@@ -91,15 +92,27 @@ impl Binder {
     ///
     /// There should be no aggregation in the expression, otherwise an error will be returned.
     pub(super) fn bind_where(&mut self, selection: Option<Expr>) -> Result {
-        let id = self.bind_having(selection)?;
+        let id = self.bind_selection(selection)?;
         if !self.aggs(id).is_empty() {
             return Err(BindError::AggInWhere);
+        }
+        if !self.overs(id).is_empty() {
+            return Err(BindError::WindowInWhere);
         }
         Ok(id)
     }
 
     /// Binds the HAVING clause. Returns an expression for condition.
     fn bind_having(&mut self, selection: Option<Expr>) -> Result {
+        let id = self.bind_selection(selection)?;
+        if !self.overs(id).is_empty() {
+            return Err(BindError::WindowInHaving);
+        }
+        Ok(id)
+    }
+
+    /// Binds a selection. Returns a `true` node if no selection.
+    fn bind_selection(&mut self, selection: Option<Expr>) -> Result {
         Ok(match selection {
             Some(expr) => self.bind_expr(expr)?,
             None => self.egraph.add(Node::true_()),
@@ -110,10 +123,7 @@ impl Binder {
     ///
     /// There should be no aggregation in the expressions, otherwise an error will be returned.
     fn bind_groupby(&mut self, group_by: Vec<Expr>) -> Result {
-        let list = (group_by.into_iter())
-            .map(|key| self.bind_expr(key))
-            .try_collect()?;
-        let id = self.egraph.add(Node::List(list));
+        let id = self.bind_exprs(group_by)?;
         if !self.aggs(id).is_empty() {
             return Err(BindError::AggInGroupBy);
         }
@@ -121,7 +131,7 @@ impl Binder {
     }
 
     /// Binds the ORDER BY clause. Returns a list of expressions.
-    fn bind_orderby(&mut self, order_by: Vec<OrderByExpr>) -> Result {
+    pub(super) fn bind_orderby(&mut self, order_by: Vec<OrderByExpr>) -> Result {
         let mut orderby = Vec::with_capacity(order_by.len());
         for e in order_by {
             let expr = self.bind_expr(e.expr)?;
@@ -149,11 +159,7 @@ impl Binder {
                     "VALUES lists must all be the same length".into(),
                 ));
             }
-            let mut bound_row = Vec::with_capacity(column_len);
-            for expr in row {
-                bound_row.push(self.bind_expr(expr)?);
-            }
-            bound_values.push(self.egraph.add(Node::List(bound_row.into())));
+            bound_values.push(self.bind_exprs(row)?);
         }
         let id = self.egraph.add(Node::Values(bound_values.into()));
         self.check_type(id)?;
@@ -264,5 +270,27 @@ impl Binder {
         let aggs = self.egraph.add(Node::List(aggs.into()));
         *projection = self.egraph.add(Node::List(projs.into()));
         Ok(self.egraph.add(Node::Agg([aggs, distinct, plan])))
+    }
+
+    /// Extracts all over nodes from `projection`, `distinct` and `orderby`.
+    /// Generates an [`Window`](Node::Window) plan if any over node is found.
+    /// Otherwise returns the original `plan`.
+    fn plan_window(&mut self, projection: Id, distinct: Id, orderby: Id, plan: Id) -> Result {
+        let mut overs = vec![];
+        overs.extend_from_slice(self.overs(projection));
+        overs.extend_from_slice(self.overs(distinct));
+        overs.extend_from_slice(self.overs(orderby));
+
+        if overs.is_empty() {
+            return Ok(plan);
+        }
+        let mut list: Vec<_> = overs
+            .into_iter()
+            .map(|over| self.egraph.add(over))
+            .collect();
+        list.sort();
+        list.dedup();
+        let overs = self.egraph.add(Node::List(list.into()));
+        Ok(self.egraph.add(Node::Window([overs, plan])))
     }
 }

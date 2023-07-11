@@ -51,6 +51,15 @@ impl Binder {
         Ok(id)
     }
 
+    /// Bind a list of expressions.
+    pub fn bind_exprs(&mut self, exprs: Vec<Expr>) -> Result {
+        let list = exprs
+            .into_iter()
+            .map(|expr| self.bind_expr(expr))
+            .try_collect()?;
+        Ok(self.egraph.add(Node::List(list)))
+    }
+
     fn bind_ident(&mut self, idents: impl IntoIterator<Item = Ident>) -> Result {
         let idents = idents
             .into_iter()
@@ -221,9 +230,29 @@ impl Binder {
             "first" => Node::First(args[0]),
             "last" => Node::Last(args[0]),
             "replace" => Node::Replace([args[0], args[1], args[2]]),
+            "row_number" => Node::RowNumber,
             name => todo!("Unsupported function: {}", name),
         };
-        Ok(self.egraph.add(node))
+        let mut id = self.egraph.add(node);
+        if let Some(window) = func.over {
+            id = self.bind_window_function(id, window)?;
+        }
+        Ok(id)
+    }
+
+    fn bind_window_function(&mut self, func: Id, window: WindowSpec) -> Result {
+        if !self.node(func).is_window_function() {
+            return Err(BindError::NotAgg(self.node(func).to_string()));
+        }
+        if !self.overs(func).is_empty() {
+            return Err(BindError::NestedWindow);
+        }
+        let partitionby = self.bind_exprs(window.partition_by)?;
+        let orderby = self.bind_orderby(window.order_by)?;
+        if window.window_frame.is_some() {
+            todo!("support window frame");
+        }
+        Ok(self.egraph.add(Node::Over([func, partitionby, orderby])))
     }
 }
 

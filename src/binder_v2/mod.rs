@@ -73,12 +73,20 @@ pub enum BindError {
     AggInWhere,
     #[error("GROUP BY clause cannot contain aggregates")]
     AggInGroupBy,
+    #[error("window function calls cannot be nested")]
+    NestedWindow,
+    #[error("WHERE clause cannot contain window functions")]
+    WindowInWhere,
+    #[error("HAVING clause cannot contain window functions")]
+    WindowInHaving,
     #[error("column {0} must appear in the GROUP BY clause or be used in an aggregate function")]
     ColumnNotInAgg(String),
     #[error("ORDER BY items must appear in the select list if DISTINCT is specified")]
     OrderKeyNotInDistinct,
     #[error("operation on internal table is not supported")]
     NotSupportedOnInternalTable,
+    #[error("{0} is not an aggregate function")]
+    NotAgg(String),
 }
 
 /// The binder resolves all expressions referring to schema objects such as
@@ -192,6 +200,10 @@ impl Binder {
 
     fn aggs(&self, id: Id) -> &[Node] {
         &self.egraph[id].data.aggs
+    }
+
+    fn overs(&self, id: Id) -> &[Node] {
+        &self.egraph[id].data.overs
     }
 
     fn node(&self, id: Id) -> &Node {

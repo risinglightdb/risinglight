@@ -77,6 +77,7 @@ pub struct Data {
 
     /// A list of expressions produced by plan node.
     pub schema: schema::Schema,
+
     /// Estimate rows.
     pub rows: rows::Rows,
 }
@@ -138,6 +139,9 @@ pub struct TypeSchema {
 
     /// All aggragations in the tree.
     pub aggs: agg::AggSet,
+
+    /// All over nodes in the tree.
+    pub overs: agg::OverSet,
 }
 
 impl Analysis<Expr> for TypeSchemaAnalysis {
@@ -152,6 +156,7 @@ impl Analysis<Expr> for TypeSchemaAnalysis {
             ),
             schema: schema::analyze_schema(enode, |i| egraph[*i].data.schema.clone()),
             aggs: agg::analyze_aggs(enode, |i| egraph[*i].data.aggs.clone()),
+            overs: agg::analyze_overs(enode, |i| egraph[*i].data.overs.clone()),
         }
     }
 
@@ -159,7 +164,8 @@ impl Analysis<Expr> for TypeSchemaAnalysis {
         let merge_type = egg::merge_max(&mut to.type_, from.type_);
         let merge_schema = egg::merge_max(&mut to.schema, from.schema);
         let merge_aggs = egg::merge_max(&mut to.aggs, from.aggs);
-        merge_type | merge_schema | merge_aggs
+        let merge_overs = egg::merge_max(&mut to.overs, from.overs);
+        merge_type | merge_schema | merge_aggs | merge_overs
     }
 }
 
