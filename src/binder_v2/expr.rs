@@ -235,15 +235,18 @@ impl Binder {
         };
         let mut id = self.egraph.add(node.clone());
         if let Some(window) = func.over {
-            if !node.is_window_function() {
-                return Err(BindError::NotAgg(node.to_string()));
-            }
             id = self.bind_window_function(id, window)?;
         }
         Ok(id)
     }
 
     fn bind_window_function(&mut self, func: Id, window: WindowSpec) -> Result {
+        if !self.node(func).is_window_function() {
+            return Err(BindError::NotAgg(self.node(func).to_string()));
+        }
+        if !self.overs(func).is_empty() {
+            return Err(BindError::NestedWindow);
+        }
         let partitionby = self.bind_exprs(window.partition_by)?;
         let orderby = self.bind_orderby(window.order_by)?;
         if window.window_frame.is_some() {

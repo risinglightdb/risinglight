@@ -73,6 +73,8 @@ pub enum BindError {
     AggInWhere,
     #[error("GROUP BY clause cannot contain aggregates")]
     AggInGroupBy,
+    #[error("window function calls cannot be nested")]
+    NestedWindow,
     #[error("WHERE clause cannot contain window functions")]
     WindowInWhere,
     #[error("HAVING clause cannot contain window functions")]
