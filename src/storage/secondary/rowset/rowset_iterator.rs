@@ -200,14 +200,14 @@ impl RowSetIterator {
         for (id, _) in self.column_refs.iter().enumerate() {
             let Some((row_id, array)) = self.column_iterators[id]
                 .next_batch(Some(fetch_size))
-                .await? 
+                .await?
             else {
                 self.end = true;
                 return Ok(None);
             };
 
             // check chunk range
-            let current_range = row_id..row_id+array.len() as u32;
+            let current_range = row_id..row_id + array.len() as u32;
             if let Some(common_range) = &common_chunk_range {
                 if common_range != &current_range {
                     panic!(
