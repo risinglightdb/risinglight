@@ -90,7 +90,22 @@ impl RowSetIterator {
         })
     }
 
+    /// Reads the next batch.
     pub async fn next_batch(
+        &mut self,
+        expected_size: Option<usize>,
+    ) -> StorageResult<Option<StorageChunk>> {
+        while !self.end {
+            if let Some(batch) = self.next_batch_inner(expected_size).await? {
+                return Ok(Some(batch));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Reads the next batch. This function may return `None` if the next batch is empty, but it
+    /// doesn't mean that the iterator has reached the end.
+    async fn next_batch_inner(
         &mut self,
         expected_size: Option<usize>,
     ) -> StorageResult<Option<StorageChunk>> {
@@ -136,9 +151,6 @@ impl RowSetIterator {
             fetch_size = if x > fetch_size { fetch_size } else { x }
         }
 
-        let mut arrays: PackedVec<ArrayImpl> = smallvec![];
-        let mut common_chunk_range = None;
-
         // TODO: parallel fetch
         // TODO: align unmatched rows
 
@@ -176,31 +188,39 @@ impl RowSetIterator {
             visibility_map = Some(visi);
         }
 
+        let mut arrays: PackedVec<ArrayImpl> = smallvec![];
+        // to make sure all columns have the same chunk range
+        let mut common_chunk_range = None;
+
         // At this stage, we know that some rows survived from the filter scan if happend, so
         // just fetch the next batch for every other columns, and we have `visibility_map` to
         // indicate the visibility of its rows
         // TODO: Implement the skip interface for column_iterator and call it here.
         // For those already fetched columns, they also need to delete corrensponding blocks.
         for (id, _) in self.column_refs.iter().enumerate() {
-            if let Some((row_id, array)) = self.column_iterators[id]
+            let Some((row_id, array)) = self.column_iterators[id]
                 .next_batch(Some(fetch_size))
-                .await?
-            {
-                if let Some(x) = common_chunk_range {
-                    let current_data = (row_id, array.len());
-                    if x != current_data {
-                        panic!(
-                            "unmatched rowid from column iterator: {:?} of [{:?}], {:?} != {:?}",
-                            self.column_refs[id], self.column_refs, x, current_data
-                        );
-                    }
+                .await? 
+            else {
+                self.end = true;
+                return Ok(None);
+            };
+
+            // check chunk range
+            let current_range = row_id..row_id+array.len() as u32;
+            if let Some(common_range) = &common_chunk_range {
+                if common_range != &current_range {
+                    panic!(
+                        "unmatched row range from column iterator: {:?} of [{:?}], {:?} != {:?}",
+                        self.column_refs[id], self.column_refs, common_range, current_range
+                    );
                 }
-                common_chunk_range = Some((row_id, array.len()));
-                arrays.push(array);
+            } else {
+                common_chunk_range = Some(current_range);
             }
+
             // For now, we only support range-filter scan by first column.
             if let Some(range) = &self.filter && id == 0 {
-                let array = &arrays[0];
                 let len = array.len();
                 let start_row_id = match &range.start {
                     Bound::Included(key) => {
@@ -234,11 +254,9 @@ impl RowSetIterator {
                     self.end = true;
                 }
             }
-        }
 
-        if common_chunk_range.is_none() {
-            return Ok(None);
-        };
+            arrays.push(array);
+        }
 
         Ok(StorageChunk::construct(visibility_map, arrays))
     }
