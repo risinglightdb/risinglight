@@ -244,11 +244,9 @@ pub fn optimize(catalog: RootCatalogRef, expr: &RecExpr) -> RecExpr {
     }
 
     // 2. join reorder and hashjoin
-    let runner = egg::Runner::<_, _, ()>::new(ExprAnalysis {
-        catalog: catalog.clone(),
-    })
-    .with_expr(&expr)
-    .run(&*rules::STAGE2_RULES);
+    let runner = egg::Runner::<_, _, ()>::new(ExprAnalysis { catalog })
+        .with_expr(&expr)
+        .run(&*rules::STAGE2_RULES);
     let cost_fn = cost::CostFn {
         egraph: &runner.egraph,
     };

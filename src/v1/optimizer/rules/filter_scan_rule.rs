@@ -12,13 +12,14 @@ impl Rule for FilterScanRule {
         let filter = plan.as_logical_filter()?;
         let child = filter.child();
         let scan = child.as_logical_table_scan()?.clone();
+        #[allow(unreachable_code)]
         Ok(Arc::new(LogicalTableScan::new(
             scan.table_ref_id(),
             scan.column_ids().to_vec(),
             scan.column_descs().to_vec(),
             scan.with_row_handler(),
             scan.is_sorted(),
-            todo!("filter scan rule"),
+            todo!("extract range filter"),
         )))
     }
 }
