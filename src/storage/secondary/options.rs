@@ -98,7 +98,8 @@ impl StorageOptions {
             io_backend: IOBackend::in_memory(),
             checksum_type: ChecksumType::None,
             encode_type: EncodeType::Plain,
-            record_first_key: false,
+            // required by range-filter scan rule
+            record_first_key: true,
             disable_all_disk_operation: true,
         }
     }
