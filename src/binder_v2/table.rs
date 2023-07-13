@@ -245,6 +245,7 @@ mod tests {
     use super::*;
     use crate::catalog::{ColumnCatalog, RootCatalog};
     use crate::parser::parse;
+    use crate::planner::Optimizer;
 
     #[test]
     fn bind_test_subquery() {
@@ -257,11 +258,12 @@ mod tests {
 
         let stmts = parse("select x.b from (select a as b from t) as x").unwrap();
         let mut binder = Binder::new(catalog.clone());
+        let optimizer = Optimizer::new(catalog.clone());
         for stmt in stmts {
-            let result = binder.bind(stmt);
-            println!("{}", result.as_ref().unwrap().pretty(10));
+            let plan = binder.bind(stmt).unwrap();
+            println!("{}", plan.pretty(10));
 
-            let optimized = crate::planner::optimize(catalog.clone(), &result.unwrap());
+            let optimized = optimizer.optimize(&plan);
 
             let mut egraph = egg::EGraph::new(TypeSchemaAnalysis {
                 catalog: catalog.clone(),

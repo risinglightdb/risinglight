@@ -45,7 +45,8 @@ impl StorageImpl {
 }
 
 impl StorageImpl {
-    pub fn enable_filter_scan(&self) -> bool {
+    /// Returns true if the storage engine supports range filter scan.
+    pub fn support_range_filter_scan(&self) -> bool {
         match self {
             Self::SecondaryStorage(_) => true,
             Self::InMemoryStorage(_) => false,

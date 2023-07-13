@@ -1,5 +1,7 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::collections::HashSet;
+
 use egg::{define_language, CostFunction, Id, Symbol};
 
 use crate::binder_v2::copy::ExtSource;
@@ -213,59 +215,88 @@ impl<D> ExprExt for egg::EClass<Expr, D> {
     }
 }
 
-/// Optimize the given expression.
-pub fn optimize(catalog: RootCatalogRef, expr: &RecExpr) -> RecExpr {
-    let mut expr = expr.clone();
+/// Plan optimizer.
+pub struct Optimizer {
+    catalog: RootCatalogRef,
+    disabled_rules: HashSet<String>,
+}
 
-    // 1. pushdown
-    let mut best_cost = f32::MAX;
-    // to prune costy nodes, we iterate multiple times and only keep the best one for each run.
-    for _ in 0..3 {
+impl Optimizer {
+    /// Creates a new optimizer.
+    pub fn new(catalog: RootCatalogRef) -> Self {
+        Self {
+            catalog,
+            disabled_rules: HashSet::default(),
+        }
+    }
+
+    /// Disable rules that match the given pattern.
+    pub fn disable_rules(&mut self, pattern: &str) {
+        tracing::info!("disable rules: {pattern}");
+        self.disabled_rules.insert(pattern.to_owned());
+    }
+
+    /// Optimize the given expression.
+    pub fn optimize(&self, expr: &RecExpr) -> RecExpr {
+        let mut expr = expr.clone();
+
+        // 1. pushdown
+        let mut best_cost = f32::MAX;
+        // to prune costy nodes, we iterate multiple times and only keep the best one for each run.
+        for _ in 0..3 {
+            let runner = egg::Runner::<_, _, ()>::new(ExprAnalysis {
+                catalog: self.catalog.clone(),
+            })
+            .with_expr(&expr)
+            .with_iter_limit(6)
+            .run(rules::STAGE1_RULES.iter().filter(|rule| {
+                !self
+                    .disabled_rules
+                    .iter()
+                    .any(|name| rule.name.as_str().contains(name))
+            }));
+            let cost_fn = cost::CostFn {
+                egraph: &runner.egraph,
+            };
+            let extractor = egg::Extractor::new(&runner.egraph, cost_fn);
+            let cost;
+            (cost, expr) = extractor.find_best(runner.roots[0]);
+            if cost >= best_cost {
+                break;
+            }
+            best_cost = cost;
+            // println!(
+            //     "{}",
+            //     crate::planner::Explain::of(&expr).with_costs(&costs(&expr))
+            // );
+        }
+
+        // 2. join reorder and hashjoin
         let runner = egg::Runner::<_, _, ()>::new(ExprAnalysis {
-            catalog: catalog.clone(),
+            catalog: self.catalog.clone(),
         })
         .with_expr(&expr)
-        .with_iter_limit(6)
-        .run(&*rules::STAGE1_RULES);
+        .run(&*rules::STAGE2_RULES);
         let cost_fn = cost::CostFn {
             egraph: &runner.egraph,
         };
         let extractor = egg::Extractor::new(&runner.egraph, cost_fn);
-        let cost;
-        (cost, expr) = extractor.find_best(runner.roots[0]);
-        if cost >= best_cost {
-            break;
+        (_, expr) = extractor.find_best(runner.roots[0]);
+
+        expr
+    }
+
+    /// Returns the cost for each node in the expression.
+    pub fn costs(&self, expr: &RecExpr) -> Vec<f32> {
+        let mut egraph = EGraph::default();
+        // NOTE: we assume Expr node has the same Id in both EGraph and RecExpr.
+        egraph.add_expr(expr);
+        let mut cost_fn = cost::CostFn { egraph: &egraph };
+        let mut costs = vec![0.0; expr.as_ref().len()];
+        for (i, node) in expr.as_ref().iter().enumerate() {
+            let cost = cost_fn.cost(node, |i| costs[usize::from(i)]);
+            costs[i] = cost;
         }
-        best_cost = cost;
-        // println!(
-        //     "{}",
-        //     crate::planner::Explain::of(&expr).with_costs(&costs(&expr))
-        // );
+        costs
     }
-
-    // 2. join reorder and hashjoin
-    let runner = egg::Runner::<_, _, ()>::new(ExprAnalysis { catalog })
-        .with_expr(&expr)
-        .run(&*rules::STAGE2_RULES);
-    let cost_fn = cost::CostFn {
-        egraph: &runner.egraph,
-    };
-    let extractor = egg::Extractor::new(&runner.egraph, cost_fn);
-    (_, expr) = extractor.find_best(runner.roots[0]);
-
-    expr
-}
-
-/// Returns the cost for each node in the expression.
-pub fn costs(expr: &RecExpr) -> Vec<f32> {
-    let mut egraph = EGraph::default();
-    // NOTE: we assume Expr node has the same Id in both EGraph and RecExpr.
-    egraph.add_expr(expr);
-    let mut cost_fn = cost::CostFn { egraph: &egraph };
-    let mut costs = vec![0.0; expr.as_ref().len()];
-    for (i, node) in expr.as_ref().iter().enumerate() {
-        let cost = cost_fn.cost(node, |i| costs[usize::from(i)]);
-        costs[i] = cost;
-    }
-    costs
 }
