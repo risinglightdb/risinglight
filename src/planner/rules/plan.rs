@@ -168,7 +168,7 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
         "(proj ?exprs (scan ?table ?columns ?filter))" =>
         { ColumnPrune {
             pattern: pattern("(proj ?exprs (scan ?table ?columns ?filter))"),
-            used: var("?exprs"),
+            used: [var("?exprs"), var("?filter")],
             columns: var("?columns"),
         }}
     ),
@@ -287,7 +287,7 @@ impl Applier<Expr, ExprAnalysis> for ProjectionPushdown {
 /// Remove element from `columns` whose column set is not a subset of `used`
 struct ColumnPrune {
     pattern: Pattern,
-    used: Var,
+    used: [Var; 2],
     columns: Var,
 }
 
@@ -300,10 +300,12 @@ impl Applier<Expr, ExprAnalysis> for ColumnPrune {
         searcher_ast: Option<&PatternAst<Expr>>,
         rule_name: Symbol,
     ) -> Vec<Id> {
-        let used = &egraph[subst[self.used]].data.columns;
+        let used1 = &egraph[subst[self.used[0]]].data.columns;
+        let used2 = &egraph[subst[self.used[1]]].data.columns;
+        let used = used1.union(used2).cloned().collect();
         let columns = egraph[subst[self.columns]].as_list();
         let filtered = (columns.iter().cloned())
-            .filter(|id| egraph[*id].data.columns.is_subset(used))
+            .filter(|id| egraph[*id].data.columns.is_subset(&used))
             .collect();
         let id = egraph.add(Expr::List(filtered));
 
