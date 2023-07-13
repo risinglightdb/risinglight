@@ -22,7 +22,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         // for plan nodes, the result represents estimated rows
         Values(v) => v.len() as f32,
         Scan(_) => 1000.0, // TODO: get from table
-        Proj([_, c]) | Order([_, c]) => x(c),
+        Proj([_, c]) | Order([_, c]) | Window([_, c]) => x(c),
         Agg([_, groupby, c]) => {
             if egraph[*groupby].as_list().is_empty() {
                 1.0

@@ -140,6 +140,7 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         }
         Proj([exprs, _]) => x(exprs),
         Agg([exprs, group_keys, _]) => concat_struct(x(exprs)?, x(group_keys)?),
+        Window([exprs, c]) => concat_struct(x(c)?, x(exprs)?),
         Empty(ids) => {
             let mut types = vec![];
             for id in ids.iter() {

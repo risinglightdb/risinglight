@@ -23,9 +23,11 @@ fn cancel_rules() -> Vec<Rewrite> { vec![
     rw!("order-null";       "(order (list) ?child)"     => "?child"),
     rw!("filter-true";      "(filter true ?child)"      => "?child"),
     rw!("filter-false";     "(filter false ?child)"     => "(empty ?child)"),
+    rw!("window-null";      "(window (list) ?child)"    => "?child"),
     rw!("inner-join-false"; "(join inner false ?l ?r)"  => "(empty ?l ?r)"),
 
     rw!("proj-on-empty";    "(proj ?exprs (empty ?c))"                  => "(empty ?c)"),
+    rw!("window-on-empty";  "(window ?exprs (empty ?c))"                => "(empty ?c)"),
     // TODO: only valid when aggs don't contain `count`
     // rw!("agg-on-empty";     "(agg ?aggs ?groupby (empty ?c))"           => "(empty ?c)"),
     rw!("filter-on-empty";  "(filter ?cond (empty ?c))"                 => "(empty ?c)"),

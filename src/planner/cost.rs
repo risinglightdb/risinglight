@@ -30,7 +30,8 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
         let c = match enode {
             Scan(_) | Values(_) => out(),
             Order([_, c]) => nlogn(rows(c)) + out() + costs(c),
-            Proj([exprs, c]) | Filter([exprs, c]) => costs(exprs) * rows(c) + out() + costs(c),
+            Filter([exprs, c]) => costs(exprs) * rows(c) + out() + costs(c),
+            Proj([exprs, c]) | Window([exprs, c]) => costs(exprs) * rows(c) + costs(c),
             Agg([exprs, groupby, c]) => {
                 (costs(exprs) + costs(groupby)) * rows(c) + out() + costs(c)
             }
