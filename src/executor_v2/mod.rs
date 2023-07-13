@@ -78,27 +78,6 @@ mod top_n;
 mod values;
 mod window;
 
-/// Join types for generating join code during the compilation.
-#[derive(Copy, Clone, Eq, PartialEq)]
-pub enum JoinType {
-    Inner,
-    LeftOuter,
-    RightOuter,
-    FullOuter,
-}
-
-macro_rules! hash_join_operator {
-    ($self:ident, $join_type:expr, $op:expr, $lkeys:expr, $rkeys:expr, $left:expr, $right:expr) => {
-        HashJoinExecutor::<{ $join_type }> {
-            op: $self.node($op).clone(),
-            left_keys: $self.resolve_column_index($lkeys, $left),
-            right_keys: $self.resolve_column_index($rkeys, $right),
-            left_types: $self.plan_types($left).to_vec(),
-            right_types: $self.plan_types($right).to_vec(),
-        }
-        .execute($self.build_id($left), $self.build_id($right))
-    };
-}
 /// The error type of execution.
 #[derive(thiserror::Error, Debug)]
 pub enum ExecutorError {
@@ -272,19 +251,15 @@ impl<S: Storage> Builder<S> {
                 right_types: self.plan_types(right).to_vec(),
             }
             .execute(self.build_id(left), self.build_id(right)),
-            HashJoin([op, lkeys, rkeys, left, right]) => {
-                if matches!(self.node(op), Expr::Inner) {
-                    hash_join_operator!(self, JoinType::Inner, op, lkeys, rkeys, left, right)
-                } else if matches!(self.node(op), Expr::LeftOuter) {
-                    hash_join_operator!(self, JoinType::LeftOuter, op, lkeys, rkeys, left, right)
-                } else if matches!(self.node(op), Expr::RightOuter) {
-                    hash_join_operator!(self, JoinType::RightOuter, op, lkeys, rkeys, left, right)
-                } else if matches!(self.node(op), Expr::FullOuter) {
-                    hash_join_operator!(self, JoinType::FullOuter, op, lkeys, rkeys, left, right)
-                } else {
-                    unimplemented!()
-                }
-            }
+
+            HashJoin(args @ [op, ..]) => match self.node(op) {
+                Inner => self.build_hashjoin::<{ JoinType::Inner }>(args),
+                LeftOuter => self.build_hashjoin::<{ JoinType::LeftOuter }>(args),
+                RightOuter => self.build_hashjoin::<{ JoinType::RightOuter }>(args),
+                FullOuter => self.build_hashjoin::<{ JoinType::FullOuter }>(args),
+                t => panic!("invalid join type: {t:?}"),
+            },
+
             Agg([aggs, group_keys, child]) => {
                 let aggs = self.resolve_column_index(aggs, child);
                 let group_keys = self.resolve_column_index(group_keys, child);
@@ -299,6 +274,7 @@ impl<S: Storage> Builder<S> {
                     .execute(self.build_id(child))
                 }
             }
+
             Window([exprs, child]) => WindowExecutor {
                 exprs: self.resolve_column_index(exprs, child),
                 types: self.plan_types(exprs).to_vec(),
@@ -354,6 +330,17 @@ impl<S: Storage> Builder<S> {
             node => panic!("not a plan: {node:?}"),
         };
         spawn(&self.node(id).to_string(), stream)
+    }
+
+    fn build_hashjoin<const T: JoinType>(&self, args: [Id; 5]) -> BoxedExecutor {
+        let [_, lkeys, rkeys, left, right] = args;
+        HashJoinExecutor::<T> {
+            left_keys: self.resolve_column_index(lkeys, left),
+            right_keys: self.resolve_column_index(rkeys, right),
+            left_types: self.plan_types(left).to_vec(),
+            right_types: self.plan_types(right).to_vec(),
+        }
+        .execute(self.build_id(left), self.build_id(right))
     }
 }
 
