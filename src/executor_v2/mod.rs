@@ -39,8 +39,7 @@ use self::order::*;
 // use self::perfect_hash_agg::*;
 use self::projection::*;
 use self::simple_agg::*;
-// #[allow(unused_imports)]
-// use self::sort_agg::*;
+use self::sort_agg::*;
 // #[allow(unused_imports)]
 // use self::sort_merge_join::*;
 use self::table_scan::*;
@@ -71,7 +70,7 @@ mod order;
 // mod perfect_hash_agg;
 mod projection;
 mod simple_agg;
-// mod sort_agg;
+mod sort_agg;
 // mod sort_merge_join;
 mod table_scan;
 mod top_n;
@@ -274,6 +273,13 @@ impl<S: Storage> Builder<S> {
                     .execute(self.build_id(child))
                 }
             }
+
+            SortAgg([aggs, group_keys, child]) => SortAggExecutor {
+                aggs: self.resolve_column_index(aggs, child),
+                group_keys: self.resolve_column_index(group_keys, child),
+                types: self.plan_types(id).to_vec(),
+            }
+            .execute(self.build_id(child)),
 
             Window([exprs, child]) => WindowExecutor {
                 exprs: self.resolve_column_index(exprs, child),

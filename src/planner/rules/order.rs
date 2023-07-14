@@ -52,6 +52,11 @@ pub fn order_rules() -> Vec<Rewrite> { vec![
             (order (list (asc ?kr)) ?right)
         )"
     ),
+    rw!("sort-agg";
+        "(agg ?aggs (list ?k) ?child)" =>
+        "(sortagg ?aggs (list ?k)
+            (order (list (asc ?k)) ?child))"
+    ),
 ]}
 
 /// Returns true if the plan is ordered by the keys.

@@ -302,4 +302,16 @@ impl RowRef<'_> {
     pub fn to_owned(&self) -> Row {
         self.values().collect()
     }
+
+    pub fn eq<'a>(&self, values: impl ExactSizeIterator<Item = &'a DataValue>) -> bool {
+        if values.len() != self.chunk.column_count() {
+            return false;
+        }
+        for (a, b) in self.values().zip(values) {
+            if &a != b {
+                return false;
+            }
+        }
+        true
+    }
 }
