@@ -23,7 +23,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         Values(v) => v.len() as f32,
         Scan(_) => 1000.0, // TODO: get from table
         Proj([_, c]) | Order([_, c]) | Window([_, c]) => x(c),
-        Agg([_, groupby, c]) => {
+        Agg([_, groupby, c]) | SortAgg([_, groupby, c]) => {
             if egraph[*groupby].as_list().is_empty() {
                 1.0
             } else {
@@ -33,7 +33,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         Filter([cond, c]) => x(c) * x(cond),
         Limit([limit, _, c]) | TopN([limit, _, _, c]) => x(c).min(get_limit_num(limit)),
         Join([_, on, l, r]) => x(l) * x(r) * x(on),
-        HashJoin([_, _, _, l, r]) => x(l).max(x(r)),
+        HashJoin([_, _, _, l, r]) | MergeJoin([_, _, _, l, r]) => x(l).max(x(r)),
         Empty(_) => 0.0,
 
         // for expressions, the result represents selectivity

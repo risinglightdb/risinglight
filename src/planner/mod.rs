@@ -101,6 +101,7 @@ define_language! {
         "topn" = TopN([Id; 4]),                 // (topn limit offset [order_key..] child)
         "join" = Join([Id; 4]),                 // (join join_type expr left right)
         "hashjoin" = HashJoin([Id; 5]),         // (hashjoin join_type [left_expr..] [right_expr..] left right)
+        "mergejoin" = MergeJoin([Id; 5]),       // (mergejoin join_type [left_expr..] [right_expr..] left right)
             "inner" = Inner,
             "left_outer" = LeftOuter,
             "right_outer" = RightOuter,
@@ -108,6 +109,8 @@ define_language! {
         "agg" = Agg([Id; 3]),                   // (agg aggs=[expr..] group_keys=[expr..] child)
                                                     // expressions must be aggregate functions
                                                     // output = aggs || group_keys
+        "sortagg" = SortAgg([Id; 3]),           // (sortagg aggs=[expr..] group_keys=[expr..] child)
+                                                    // child must be ordered by group_keys
         "window" = Window([Id; 2]),             // (window [over..] child)
                                                     // output = child || exprs
         CreateTable(CreateTable),

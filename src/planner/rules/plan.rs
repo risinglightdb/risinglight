@@ -228,7 +228,9 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
         Ref(c) => [egraph[*c].nodes[0].clone()].into_iter().collect(),
 
         Proj([exprs, _]) => output(exprs),
-        Agg([exprs, group_keys, _]) => output(exprs).union(&output(group_keys)).cloned().collect(),
+        Agg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
+            output(exprs).union(&output(group_keys)).cloned().collect()
+        }
 
         // expressions: merge from all children
         _ => (enode.children().iter())

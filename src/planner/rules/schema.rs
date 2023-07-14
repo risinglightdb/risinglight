@@ -16,7 +16,9 @@ pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
         Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(c),
 
         // concat 2 children
-        Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) => concat(x(l), x(r)),
+        Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) | MergeJoin([_, _, _, l, r]) => {
+            concat(x(l), x(r))
+        }
 
         // list is the source for the following nodes
         List(ids) => ids.to_vec(),
@@ -25,8 +27,10 @@ pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
         Scan([_, columns]) | Internal([_, columns]) => x(columns),
         Values(vs) => x(&vs[0]),
         Proj([exprs, _]) => x(exprs),
-        Agg([exprs, group_keys, _]) => concat(x(exprs), x(group_keys)),
         Window([exprs, child]) => concat(x(child), x(exprs)),
+        Agg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
+            concat(x(exprs), x(group_keys))
+        }
         Empty(ids) => {
             let mut s = vec![];
             for id in ids.iter() {

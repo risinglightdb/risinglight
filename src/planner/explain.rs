@@ -266,7 +266,13 @@ impl<'a> Explain<'a> {
                     vec![self.child(left).pretty(), self.child(right).pretty()],
                 )
             }
-            HashJoin([ty, lkeys, rkeys, left, right]) => {
+            HashJoin([ty, lkeys, rkeys, left, right])
+            | MergeJoin([ty, lkeys, rkeys, left, right]) => {
+                let name = match enode {
+                    HashJoin(_) => "HashJoin",
+                    MergeJoin(_) => "MergeJoin",
+                    _ => unreachable!(),
+                };
                 let fields = vec![
                     ("lhs", self.expr(lkeys).pretty()),
                     ("rhs", self.expr(rkeys).pretty()),
@@ -274,18 +280,24 @@ impl<'a> Explain<'a> {
                 let eq = Pretty::childless_record("=", fields);
                 let fields = vec![("type", self.expr(ty).pretty()), ("on", eq)].with_cost(cost);
                 let children = vec![self.child(left).pretty(), self.child(right).pretty()];
-                Pretty::simple_record("HashJoin", fields, children)
+                Pretty::simple_record(name, fields, children)
             }
             Inner | LeftOuter | RightOuter | FullOuter => Pretty::display(enode),
-            Agg([aggs, group_keys, child]) => Pretty::simple_record(
-                "Aggregate",
-                vec![
-                    ("aggs", self.expr(aggs).pretty()),
-                    ("group_by", self.expr(group_keys).pretty()),
-                ]
-                .with_cost(cost),
-                vec![self.child(child).pretty()],
-            ),
+            Agg([aggs, group_keys, child]) | SortAgg([aggs, group_keys, child]) => {
+                Pretty::simple_record(
+                    match enode {
+                        Agg(_) => "Aggregate",
+                        SortAgg(_) => "SortAgg",
+                        _ => unreachable!(),
+                    },
+                    vec![
+                        ("aggs", self.expr(aggs).pretty()),
+                        ("group_by", self.expr(group_keys).pretty()),
+                    ]
+                    .with_cost(cost),
+                    vec![self.child(child).pretty()],
+                )
+            }
             Window([windows, child]) => Pretty::simple_record(
                 "Window",
                 vec![("windows", self.expr(windows).pretty())].with_cost(cost),

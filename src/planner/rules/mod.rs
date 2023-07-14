@@ -13,6 +13,7 @@
 //! | [`schema`] | column id to index    | output schema of a plan       | [`Schema`]     |
 //! | [`type_`]  |                       | data type                     | [`Type`]       |
 //! | [`rows`]   |                       | estimated rows                | [`Rows`]       |
+//! | [`order`]  | merge join            | ordered keys                  | [`OrderKey`]   |
 //!
 //! It would be best if you have a background in program analysis.
 //! Here is a recommended course: <https://pascal-group.bitbucket.io/teaching.html>.
@@ -23,6 +24,7 @@
 //! [`Schema`]: schema::Schema
 //! [`Type`]: type_::Type
 //! [`Rows`]: rows::Rows
+//! [`OrderKey`]: order::OrderKey
 
 use std::collections::HashSet;
 use std::hash::Hash;
@@ -36,6 +38,7 @@ use crate::types::F32;
 
 mod agg;
 mod expr;
+mod order;
 mod plan;
 mod rows;
 mod schema;
@@ -48,6 +51,7 @@ pub static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     let mut rules = vec![];
     rules.append(&mut expr::rules());
     rules.append(&mut plan::always_better_rules());
+    rules.append(&mut order::order_rules());
     rules
 });
 
@@ -56,6 +60,7 @@ pub static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     let mut rules = vec![];
     rules.append(&mut expr::rules());
     rules.append(&mut plan::join_rules());
+    rules.append(&mut order::order_rules());
     rules
 });
 
@@ -80,6 +85,9 @@ pub struct Data {
 
     /// Estimate rows.
     pub rows: rows::Rows,
+
+    /// Order key for plan node.
+    pub orderby: order::OrderKey,
 }
 
 impl Analysis<Expr> for ExprAnalysis {
@@ -92,6 +100,7 @@ impl Analysis<Expr> for ExprAnalysis {
             columns: plan::analyze_columns(egraph, enode),
             schema: schema::analyze_schema(enode, |i| egraph[*i].data.schema.clone()),
             rows: rows::analyze_rows(egraph, enode),
+            orderby: order::analyze_order(enode, |i| egraph[*i].data.orderby),
         }
     }
 
@@ -111,7 +120,8 @@ impl Analysis<Expr> for ExprAnalysis {
             unsafe { std::mem::transmute(&mut to.rows) },
             F32::from(from.rows),
         );
-        merge_const | merge_columns | merge_schema | merge_rows
+        let merge_order = egg::merge_max(&mut to.orderby, from.orderby);
+        merge_const | merge_columns | merge_schema | merge_rows | merge_order
     }
 
     /// Modify the graph after analyzing a node.

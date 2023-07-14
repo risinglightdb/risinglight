@@ -35,12 +35,16 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             Agg([exprs, groupby, c]) => {
                 (costs(exprs) + costs(groupby)) * rows(c) + out() + costs(c)
             }
+            SortAgg([exprs, groupby, c]) => {
+                (costs(exprs) + costs(groupby)) * rows(c) + out() + costs(c)
+            }
             Limit([_, _, c]) => out() + costs(c),
             TopN([_, _, _, c]) => (rows(id) + 1.0).log2() * rows(c) + out() + costs(c),
             Join([_, on, l, r]) => costs(on) * rows(l) * rows(r) + out() + costs(l) + costs(r),
             HashJoin([_, _, _, l, r]) => {
                 (rows(l) + 1.0).log2() * (rows(l) + rows(r)) + out() + costs(l) + costs(r)
             }
+            MergeJoin([_, _, _, l, r]) => out() + costs(l) + costs(r),
             Insert([_, _, c]) | CopyTo([_, c]) => rows(c) * cols(c) + costs(c),
             Empty(_) => 0.0,
             // for expressions, the cost is 0.1x AST size
