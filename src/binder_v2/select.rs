@@ -60,7 +60,7 @@ impl Binder {
             match item {
                 SelectItem::UnnamedExpr(expr) => {
                     let ident = if let Expr::Identifier(ident) = &expr {
-                        Some(ident.value.clone())
+                        Some(ident.value.to_lowercase())
                     } else {
                         None
                     };
@@ -73,7 +73,7 @@ impl Binder {
                 SelectItem::ExprWithAlias { expr, alias } => {
                     let id = self.bind_expr(expr)?;
                     let ref_id = self.egraph.add(Node::Ref(id));
-                    self.add_alias(alias.value.clone(), "".into(), id);
+                    self.add_alias(alias.value.to_lowercase(), "".into(), id);
                     self.current_ctx_mut()
                         .output_aliases
                         .insert(alias.value, ref_id);
