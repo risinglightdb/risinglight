@@ -337,14 +337,14 @@ mod tests {
         (proj (list $1.2 $2.2)
         (filter (and (= $1.1 $2.1) (= $2.3 'A'))
         (join inner true
-            (scan $1 (list $1.1 $1.2) true)
-            (scan $2 (list $2.1 $2.2 $2.3) true)
+            (scan $1 (list $1.1 $1.2) null)
+            (scan $2 (list $2.1 $2.2 $2.3) null)
         )))" => "
         (proj (list $1.2 $2.2)
         (join inner (= $1.1 $2.1)
-            (scan $1 (list $1.1 $1.2) true)
+            (scan $1 (list $1.1 $1.2) null)
             (filter (= $2.3 'A')
-                (scan $2 (list $2.1 $2.2 $2.3) true)
+                (scan $2 (list $2.1 $2.2 $2.3) null)
             )
         ))"
     }
@@ -358,16 +358,16 @@ mod tests {
         (filter (and (= $1.1 $2.1) (= $3.1 $2.1))
         (join inner true
             (join inner true
-                (scan $1 (list $1.1 $1.2) true)
-                (scan $2 (list $2.1 $2.2) true)
+                (scan $1 (list $1.1 $1.2) null)
+                (scan $2 (list $2.1 $2.2) null)
             )
-            (scan $3 (list $3.1 $3.2) true)
+            (scan $3 (list $3.1 $3.2) null)
         ))" => "
         (join inner (= $1.1 $2.1)
-            (scan $1 (list $1.1 $1.2) true)
+            (scan $1 (list $1.1 $1.2) null)
             (join inner (= $2.1 $3.1)
-                (scan $2 (list $2.1 $2.2) true)
-                (scan $3 (list $3.1 $3.2) true)
+                (scan $2 (list $2.1 $2.2) null)
+                (scan $3 (list $3.1 $3.2) null)
             )
         )"
     }
@@ -380,14 +380,14 @@ mod tests {
         "
         (filter (and (= $1.1 $2.1) (> $1.2 2))
         (join inner true
-            (scan $1 (list $1.1 $1.2) true)
-            (scan $2 (list $2.1 $2.2) true)
+            (scan $1 (list $1.1 $1.2) null)
+            (scan $2 (list $2.1 $2.2) null)
         ))" => "
         (hashjoin inner (list $1.1) (list $2.1)
             (filter (> $1.2 2)
-                (scan $1 (list $1.1 $1.2) true)
+                (scan $1 (list $1.1 $1.2) null)
             )
-            (scan $2 (list $2.1 $2.2) true)
+            (scan $2 (list $2.1 $2.2) null)
         )"
     }
 
@@ -399,15 +399,15 @@ mod tests {
         (proj (list $1.2)
         (filter (> (+ $1.2 $2.2) 1)
         (join inner (= $1.1 $2.1)
-            (scan $1 (list $1.1 $1.2 $1.3) true)
-            (scan $2 (list $2.1 $2.2 $2.3) true)
+            (scan $1 (list $1.1 $1.2 $1.3) null)
+            (scan $2 (list $2.1 $2.2 $2.3) null)
         )))" => "
         (proj (list $1.2)
         (filter (> (+ $1.2 $2.2) 1)
         (proj (list $1.2 $2.2)
         (join inner (= $1.1 $2.1)
-            (scan $1 (list $1.1 $1.2) true)
-            (scan $2 (list $2.1 $2.2) true)
+            (scan $1 (list $1.1 $1.2) null)
+            (scan $2 (list $2.1 $2.2) null)
         ))))"
     }
 }
