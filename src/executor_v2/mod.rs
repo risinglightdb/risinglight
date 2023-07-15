@@ -49,7 +49,7 @@ use self::values::*;
 use self::window::*;
 use crate::array::DataChunk;
 use crate::catalog::RootCatalogRef;
-use crate::planner::{Expr, RecExpr, TypeSchemaAnalysis};
+use crate::planner::{Expr, ExprAnalysis, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, TracedStorageError};
 use crate::types::{ColumnIndex, ConvertError, DataType};
 
@@ -207,11 +207,19 @@ impl<S: Storage> Builder<S> {
     fn build_id(&self, id: Id) -> BoxedExecutor {
         use Expr::*;
         let stream = match self.node(id).clone() {
-            Scan([table, list]) => TableScanExecutor {
+            Scan([table, list, filter]) => TableScanExecutor {
                 table_id: self.node(table).as_table(),
                 columns: (self.node(list).as_list().iter())
                     .map(|id| self.node(*id).as_column())
                     .collect(),
+                filter: {
+                    // analyze range for the filter
+                    let mut egraph = egg::EGraph::new(ExprAnalysis {
+                        catalog: self.catalog.clone(),
+                    });
+                    let root = egraph.add_expr(&self.recexpr(filter));
+                    egraph[root].data.range.clone().map(|(_, r)| r)
+                },
                 storage: self.storage.clone(),
             }
             .execute(),

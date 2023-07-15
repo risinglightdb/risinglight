@@ -214,7 +214,11 @@ impl Database {
         for stmt in stmts {
             let mut binder = crate::binder_v2::Binder::new(self.catalog.clone());
             let bound = binder.bind(stmt)?;
-            let optimized = crate::planner::optimize(&bound);
+            let mut optimizer = crate::planner::Optimizer::new(self.catalog.clone());
+            if !self.storage.support_range_filter_scan() {
+                optimizer.disable_rules("filter-scan");
+            }
+            let optimized = optimizer.optimize(&bound);
             let executor = match self.storage.clone() {
                 StorageImpl::InMemoryStorage(s) => {
                     crate::executor_v2::build(self.catalog.clone(), s, &optimized)
@@ -237,7 +241,7 @@ impl Database {
         let mut binder = Binder::new(self.catalog.clone());
         let logical_planner = LogicalPlaner::default();
         let mut optimizer = Optimizer {
-            enable_filter_scan: self.storage.enable_filter_scan(),
+            enable_filter_scan: self.storage.support_range_filter_scan(),
         };
         // TODO: parallelize
         let mut outputs: Vec<Chunk> = vec![];
@@ -276,7 +280,7 @@ impl Database {
         let mut binder = Binder::new(self.catalog.clone());
         let logical_planner = LogicalPlaner::default();
         let mut optimizer = Optimizer {
-            enable_filter_scan: self.storage.enable_filter_scan(),
+            enable_filter_scan: self.storage.support_range_filter_scan(),
         };
         let mut plans = vec![];
         for stmt in stmts {

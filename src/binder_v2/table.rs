@@ -36,10 +36,10 @@ impl Binder {
     /// ```ignore
     /// (join inner true
     ///     (join inner (= $1.1 $2.1)
-    ///        (scan $1 (list $1.1 $1.2))
-    ///        (scan $2 (list $2.1))
+    ///        (scan $1 (list $1.1 $1.2) null)
+    ///        (scan $2 (list $2.1) null)
     ///     )
-    ///     (scan $3 (list $3.1 $3.2))
+    ///     (scan $3 (list $3.1 $3.2) null)
     /// )
     /// ```
     fn bind_table_with_joins(&mut self, tables: TableWithJoins) -> Result {
@@ -55,7 +55,7 @@ impl Binder {
     /// Returns a `Scan` plan of table or a plan of subquery.
     ///
     /// # Example
-    /// - `bind_table_factor(t)` => `(scan $1 (list $1.1 $1.2 $1.3))`
+    /// - `bind_table_factor(t)` => `(scan $1 (list $1.1 $1.2 $1.3) null)`
     /// - `bind_table_factor(select 1)` => `(values (1))`
     fn bind_table_factor(&mut self, table: TableFactor) -> Result {
         match table {
@@ -65,7 +65,8 @@ impl Binder {
                 let id = if is_internal {
                     self.egraph.add(Node::Internal([table_id, cols]))
                 } else {
-                    self.egraph.add(Node::Scan([table_id, cols]))
+                    let true_ = self.egraph.add(Node::null());
+                    self.egraph.add(Node::Scan([table_id, cols, true_]))
                 };
                 Ok(id)
             }
@@ -244,6 +245,7 @@ mod tests {
     use super::*;
     use crate::catalog::{ColumnCatalog, RootCatalog};
     use crate::parser::parse;
+    use crate::planner::Optimizer;
 
     #[test]
     fn bind_test_subquery() {
@@ -256,11 +258,12 @@ mod tests {
 
         let stmts = parse("select x.b from (select a as b from t) as x").unwrap();
         let mut binder = Binder::new(catalog.clone());
+        let optimizer = Optimizer::new(catalog.clone());
         for stmt in stmts {
-            let result = binder.bind(stmt);
-            println!("{}", result.as_ref().unwrap().pretty(10));
+            let plan = binder.bind(stmt).unwrap();
+            println!("{}", plan.pretty(10));
 
-            let optimized = crate::planner::optimize(&result.unwrap());
+            let optimized = optimizer.optimize(&plan);
 
             let mut egraph = egg::EGraph::new(TypeSchemaAnalysis {
                 catalog: catalog.clone(),

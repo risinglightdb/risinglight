@@ -5,7 +5,7 @@ use pretty_xmlish::PrettyConfig;
 
 use super::*;
 use crate::array::{ArrayImpl, Utf8Array};
-use crate::planner::{costs, Explain};
+use crate::planner::{Explain, Optimizer};
 
 /// The executor of `explain` statement.
 pub struct ExplainExecutor {
@@ -15,7 +15,7 @@ pub struct ExplainExecutor {
 
 impl ExplainExecutor {
     pub fn execute(self) -> BoxedExecutor {
-        let costs = costs(&self.plan);
+        let costs = Optimizer::new(self.catalog.clone()).costs(&self.plan);
         let explain_obj = Explain::of(&self.plan)
             .with_costs(&costs)
             .with_catalog(&self.catalog);

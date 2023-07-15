@@ -22,7 +22,7 @@ pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
         List(ids) => ids.to_vec(),
 
         // plans that change schema
-        Scan([_, columns]) | Internal([_, columns]) => x(columns),
+        Scan([_, columns, _]) | Internal([_, columns]) => x(columns),
         Values(vs) => x(&vs[0]),
         Proj([exprs, _]) => x(exprs),
         Agg([exprs, group_keys, _]) => concat(x(exprs), x(group_keys)),

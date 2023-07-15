@@ -1,5 +1,6 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::ops::Bound;
 use std::sync::Arc;
 
 use bitvec::prelude::BitVec;
@@ -7,11 +8,9 @@ use smallvec::smallvec;
 
 use super::super::{ColumnIteratorImpl, ColumnSeekPosition, SecondaryIteratorImpl};
 use super::DiskRowset;
-use crate::array::{Array, ArrayImpl};
+use crate::array::ArrayImpl;
 use crate::storage::secondary::DeleteVector;
-use crate::storage::{PackedVec, StorageChunk, StorageColumnRef, StorageResult};
-use crate::types::DataValue;
-use crate::v1::binder::BoundExpr;
+use crate::storage::{KeyRange, PackedVec, StorageChunk, StorageColumnRef, StorageResult};
 
 /// When `expected_size` is not specified, we should limit the maximum size of the chunk.
 const ROWSET_MAX_OUTPUT: usize = 2048;
@@ -21,21 +20,19 @@ pub struct RowSetIterator {
     column_refs: Arc<[StorageColumnRef]>,
     dvs: Vec<Arc<DeleteVector>>,
     column_iterators: Vec<ColumnIteratorImpl>,
-    filter_expr: Option<(BoundExpr, BitVec)>,
-    start_keys: Vec<DataValue>,
-    end_keys: Vec<DataValue>,
-    meet_start_key_before: bool,
-    meet_end_key_before: bool, // Indicate whether we have met `end_keys` in pre batch.
+    /// An optional filter for the first column.
+    filter: Option<KeyRange>,
+    /// Indicate whether the iterator has reached the end.
+    end: bool,
 }
+
 impl RowSetIterator {
     pub async fn new(
         rowset: Arc<DiskRowset>,
         column_refs: Arc<[StorageColumnRef]>,
         dvs: Vec<Arc<DeleteVector>>,
         seek_pos: ColumnSeekPosition,
-        expr: Option<BoundExpr>,
-        start_keys: &[DataValue],
-        end_keys: &[DataValue],
+        filter: Option<KeyRange>,
     ) -> StorageResult<Self> {
         let start_row_id = match seek_pos {
             ColumnSeekPosition::RowId(row_id) => row_id,
@@ -84,68 +81,66 @@ impl RowSetIterator {
             };
         }
 
-        let filter_expr = if let Some(expr) = expr {
-            let filter_column = expr.get_filter_column(column_refs.len());
-            // assert filter column is not all false
-            assert!(
-                filter_column.any(),
-                "There should be at least 1 filter column"
-            );
-            Some((expr, filter_column))
-        } else {
-            None
-        };
-
         Ok(Self {
             column_refs,
             dvs,
             column_iterators,
-            filter_expr,
-            start_keys: start_keys.to_vec(),
-            end_keys: end_keys.to_vec(),
-            meet_end_key_before: false,
-            meet_start_key_before: false,
+            filter,
+            end: false,
         })
     }
 
-    pub async fn next_batch_inner(
+    /// Reads the next batch.
+    pub async fn next_batch(
         &mut self,
         expected_size: Option<usize>,
-    ) -> StorageResult<(bool, Option<StorageChunk>)> {
-        // We have met end key in pre `StorageChunk`
-        // so we can finish cur scan.
-        if self.meet_end_key_before {
-            return Ok((true, None));
+    ) -> StorageResult<Option<StorageChunk>> {
+        while !self.end {
+            if let Some(batch) = self.next_batch_inner(expected_size).await? {
+                return Ok(Some(batch));
+            }
         }
-        let filter_context = self.filter_expr.as_ref();
+        Ok(None)
+    }
+
+    /// Reads the next batch. This function may return `None` if the next batch is empty, but it
+    /// doesn't mean that the iterator has reached the end.
+    async fn next_batch_inner(
+        &mut self,
+        expected_size: Option<usize>,
+    ) -> StorageResult<Option<StorageChunk>> {
+        if self.end {
+            return Ok(None);
+        }
         // It's guaranteed that `expected_size` <= the number of items left
         // in the current block, if provided
         let mut fetch_size = {
             // We find the minimum fetch hints from the column iterators first
-            let mut min = None;
+            let mut min: Option<usize> = None;
             let mut is_finished = true;
             for it in &self.column_iterators {
                 let (hint, finished) = it.fetch_hint();
                 if !finished {
-                    is_finished = false
+                    is_finished = false;
                 }
                 if hint != 0 {
-                    if min.is_none() {
-                        min = Some(hint);
+                    if let Some(v) = min {
+                        min = Some(v.min(hint));
                     } else {
-                        min = Some(min.unwrap().min(hint));
+                        min = Some(hint);
                     }
                 }
             }
 
-            if min.is_some() {
-                min.unwrap().min(ROWSET_MAX_OUTPUT)
+            if let Some(min) = min {
+                min.min(ROWSET_MAX_OUTPUT)
             } else {
                 // Fast return: when all columns size is `0`, only has tow case:
                 // 1. index of current block is no data can fetch (use `ROWSET_MAX_OUTPUT`).
                 // 2. all columns is finished (return directly).
                 if is_finished {
-                    return Ok((true, None));
+                    self.end = true;
+                    return Ok(None);
                 }
                 ROWSET_MAX_OUTPUT
             }
@@ -155,9 +150,6 @@ impl RowSetIterator {
             // be the min(fetch_size, expected_size)
             fetch_size = if x > fetch_size { fetch_size } else { x }
         }
-
-        let mut arrays: PackedVec<Option<ArrayImpl>> = smallvec![];
-        let mut common_chunk_range = None;
 
         // TODO: parallel fetch
         // TODO: align unmatched rows
@@ -189,212 +181,84 @@ impl RowSetIterator {
                 for (id, _) in self.column_refs.iter().enumerate() {
                     self.column_iterators[id].skip(visi.len());
                 }
-                return Ok((false, None));
+                return Ok(None);
             }
 
             // Switch visibility_map
             visibility_map = Some(visi);
         }
 
-        // Here, we scan the columns in filter condition if needed, if there are no
-        // filter conditions, we don't do any modification to the `visibility_map`,
-        // otherwise we apply the filtered result to it and get a new visibility map
-        if let Some((expr, filter_columns)) = filter_context {
-            for id in 0..filter_columns.len() {
-                if filter_columns[id] {
-                    if let Some((row_id, array)) = self.column_iterators[id]
-                        .next_batch(Some(fetch_size))
-                        .await?
-                    {
-                        if let Some(x) = common_chunk_range {
-                            if x != (row_id, array.len()) {
-                                panic!("unmatched rowid from column iterator");
-                            }
-                        }
-                        common_chunk_range = Some((row_id, array.len()));
-                        arrays.push(Some(array));
-                    } else {
-                        arrays.push(None);
-                    }
-                } else {
-                    arrays.push(None);
-                }
-            }
+        let mut arrays: PackedVec<ArrayImpl> = smallvec![];
+        // to make sure all columns have the same chunk range
+        let mut common_chunk_range = None;
 
-            // This check is necessary
-            let common_chunk_range = if let Some(common_chunk_range) = common_chunk_range {
-                common_chunk_range
-            } else {
-                return Ok((true, None));
-            };
-
-            // Need to optimize
-            let bool_array = match expr
-                .eval_array_in_storage(&arrays, common_chunk_range.1)
-                .unwrap()
-            {
-                ArrayImpl::Bool(a) => a,
-                _ => panic!("filters can only accept bool array"),
-            };
-
-            let mut filter_bitmap = BitVec::with_capacity(bool_array.len());
-            for (idx, e) in bool_array.iter().enumerate() {
-                if let Some(visi) = visibility_map.as_ref() {
-                    if !visi[idx] {
-                        filter_bitmap.push(false);
-                        continue;
-                    }
-                }
-                if let Some(e) = e {
-                    filter_bitmap.push(*e);
-                } else {
-                    filter_bitmap.push(false);
-                }
-            }
-
-            // No rows left from the filter scan, skip columns which are not
-            // in filter conditions
-            if filter_bitmap.not_any() {
-                for (id, _) in self.column_refs.iter().enumerate() {
-                    if !filter_columns[id] {
-                        self.column_iterators[id].skip(filter_bitmap.len());
-                    }
-                }
-                return Ok((false, None));
-            }
-            visibility_map = Some(filter_bitmap);
-        }
-        // whether we have meet end key in cur scan.
-        let mut meet_end_key = false;
         // At this stage, we know that some rows survived from the filter scan if happend, so
         // just fetch the next batch for every other columns, and we have `visibility_map` to
         // indicate the visibility of its rows
         // TODO: Implement the skip interface for column_iterator and call it here.
         // For those already fetched columns, they also need to delete corrensponding blocks.
         for (id, _) in self.column_refs.iter().enumerate() {
-            if filter_context.is_none() {
-                // If no filter, the `arrays` should be initialized here
-                // manually by push a `None`
-                arrays.push(None);
-            }
-            if arrays[id].is_none() {
-                if let Some((row_id, array)) = self.column_iterators[id]
-                    .next_batch(Some(fetch_size))
-                    .await?
-                {
-                    if let Some(x) = common_chunk_range {
-                        let current_data = (row_id, array.len());
-                        if x != current_data {
-                            panic!(
-                                "unmatched rowid from column iterator: {:?} of [{:?}], {:?} != {:?}",
-                                self.column_refs[id], self.column_refs, x, current_data
-                            );
-                        }
-                    }
-                    common_chunk_range = Some((row_id, array.len()));
-                    arrays[id] = Some(array);
-                }
-            }
-            // For now, we only support range-filter scan by first column.
-            if id == 0 {
-                if !self.start_keys.is_empty() && !self.meet_start_key_before {
-                    // find the first row in range to begin with
-                    self.meet_start_key_before = true;
-                    let array = arrays[0].as_ref().unwrap();
-                    let len = array.len();
-                    let start_key = &self.start_keys[0];
-                    let start_row_id =
-                        (0..len).position(|idx| start_key - &array.get(idx) <= DataValue::Int32(0));
-                    if start_row_id.is_none() {
-                        // the `begin_key` is greater than all of the data, so on item survives in
-                        // this scan
-                        return Ok((true, None));
-                    }
-                    let start_row_id = start_row_id.unwrap();
-                    let new_bitmap =
-                        Self::mark_inaccessible(visibility_map.as_ref(), 0, start_row_id, len)
-                            .await;
-                    visibility_map = Some(new_bitmap);
-                }
-
-                if !self.end_keys.is_empty() && arrays[0].is_some() {
-                    let array = arrays[0].as_ref().unwrap();
-                    let len = array.len();
-                    let end_key = &self.end_keys[0];
-                    if end_key - &array.get(len - 1) < DataValue::Int32(0) {
-                        // this block's last key is greater than the `end_key`,
-                        // so we will finish scan after scan this block
-                        meet_end_key = true;
-                        let end_row_id = (0..len)
-                            .position(|idx| end_key - &array.get(idx) < DataValue::Int32(0))
-                            .unwrap();
-                        let new_bitmap =
-                            Self::mark_inaccessible(visibility_map.as_ref(), end_row_id, len, len)
-                                .await;
-                        visibility_map = Some(new_bitmap);
-                    }
-                }
-            }
-        }
-
-        if common_chunk_range.is_none() {
-            return Ok((true, None));
-        };
-
-        Ok((
-            meet_end_key,
-            StorageChunk::construct(
-                visibility_map,
-                arrays.into_iter().map(Option::unwrap).collect(),
-            ),
-        ))
-    }
-
-    pub async fn next_batch(
-        &mut self,
-        expected_size: Option<usize>,
-    ) -> StorageResult<Option<StorageChunk>> {
-        loop {
-            let (finished, batch) = self.next_batch_inner(expected_size).await?;
-            if finished {
-                if batch.is_some() {
-                    // we have met end key in cur batch, so we just return those data in the range.
-                    self.meet_end_key_before = true;
-                    return Ok(batch);
-                }
+            let Some((row_id, array)) = self.column_iterators[id]
+                .next_batch(Some(fetch_size))
+                .await?
+            else {
+                self.end = true;
                 return Ok(None);
-            } else if let Some(batch) = batch {
-                return Ok(Some(batch));
-            }
-        }
-    }
+            };
 
-    /// mark all positions between `start_id`(include) and `end_id`(not include) false in a new
-    /// `BitVec`, the len of this `BitVec` is `len`, and if a position is marked false in
-    /// `bitmap`, we just keep in false in the new `Bitvec`
-    pub async fn mark_inaccessible(
-        bitmap: Option<&BitVec>,
-        start_id: usize,
-        end_id: usize,
-        len: usize,
-    ) -> BitVec {
-        let mut filter_bitmap = BitVec::with_capacity(len);
-        for idx in 0..len {
-            if let Some(visi) = bitmap {
-                if !visi[idx] {
-                    // Cur row was previously marked inaccessible,
-                    // so we'll just keep it.
-                    filter_bitmap.push(false);
-                    continue;
+            // check chunk range
+            let current_range = row_id..row_id + array.len() as u32;
+            if let Some(common_range) = &common_chunk_range {
+                if common_range != &current_range {
+                    panic!(
+                        "unmatched row range from column iterator: {:?} of [{:?}], {:?} != {:?}",
+                        self.column_refs[id], self.column_refs, common_range, current_range
+                    );
+                }
+            } else {
+                common_chunk_range = Some(current_range);
+            }
+
+            // For now, we only support range-filter scan by first column.
+            if let Some(range) = &self.filter && id == 0 {
+                let len = array.len();
+                let start_row_id = match &range.start {
+                    Bound::Included(key) => {
+                        (0..array.len()).position(|idx| &array.get(idx) >= key)
+                    }
+                    Bound::Excluded(key) => {
+                        (0..array.len()).position(|idx| &array.get(idx) > key)
+                    }
+                    Bound::Unbounded => Some(0),
+                }
+                .unwrap_or(len);
+                let end_row_id = match &range.end {
+                    Bound::Included(key) => {
+                        (0..array.len()).position(|idx| &array.get(idx) > key)
+                    }
+                    Bound::Excluded(key) => {
+                        (0..array.len()).position(|idx| &array.get(idx) >= key)
+                    }
+                    Bound::Unbounded => None,
+                }
+                .unwrap_or(len);
+                if (start_row_id..end_row_id) != (0..len) {
+                    let bitmap = (0..len).map(|i| (start_row_id..end_row_id).contains(&i)).collect();
+                    if let Some(ref mut vis) = visibility_map {
+                        *vis &= bitmap;
+                    } else {
+                        visibility_map = Some(bitmap);
+                    }
+                }
+                if end_row_id == 0 {
+                    self.end = true;
                 }
             }
-            if idx < end_id && idx >= start_id {
-                filter_bitmap.push(false);
-            } else {
-                filter_bitmap.push(true);
-            }
+
+            arrays.push(array);
         }
-        filter_bitmap
+
+        Ok(StorageChunk::construct(visibility_map, arrays))
     }
 }
 
@@ -402,8 +266,9 @@ impl SecondaryIteratorImpl for RowSetIterator {}
 
 #[cfg(test)]
 mod tests {
+    use std::ops::Bound;
+
     use itertools::Itertools;
-    use sqlparser::ast::BinaryOperator;
 
     use super::*;
     use crate::array::{Array, ArrayToVecExt};
@@ -411,8 +276,7 @@ mod tests {
         helper_build_rowset, helper_build_rowset_with_first_key_recorded,
     };
     use crate::storage::secondary::SecondaryRowHandler;
-    use crate::types::{DataTypeKind, DataValue};
-    use crate::v1::binder::{BoundBinaryOp, BoundInputRef};
+    use crate::types::DataValue;
 
     #[tokio::test]
     async fn test_rowset_iterator() {
@@ -429,8 +293,6 @@ mod tests {
                 vec![],
                 ColumnSeekPosition::RowId(1000),
                 None,
-                &[],
-                &[],
             )
             .await
             .unwrap();
@@ -445,7 +307,6 @@ mod tests {
                 .take(20)
                 .map(Some)
                 .collect_vec();
-            assert_eq!(left.len(), right.len());
             assert_eq!(left, right);
         } else {
             unreachable!()
@@ -460,7 +321,6 @@ mod tests {
                 .take(20)
                 .map(Some)
                 .collect_vec();
-            assert_eq!(left.len(), right.len());
             assert_eq!(left, right);
         } else {
             unreachable!()
@@ -480,21 +340,6 @@ mod tests {
 
         // v3 > 4: it.next_batch will return none, because StorageChunk::construct always return
         // none. v3 > 2: all blocks will be fetched.
-        let op = BinaryOperator::Gt;
-
-        let left_expr = Box::new(BoundExpr::InputRef(BoundInputRef {
-            index: 2,
-            return_type: DataTypeKind::Int32.nullable(),
-        }));
-
-        let right_expr = Box::new(BoundExpr::Constant(DataValue::Int32(2)));
-
-        let expr = BoundExpr::BinaryOp(BoundBinaryOp {
-            op,
-            left_expr,
-            right_expr,
-            return_type: DataTypeKind::Bool.nullable(),
-        });
         let mut it = rowset
             .iter(
                 vec![
@@ -505,9 +350,10 @@ mod tests {
                 .into(),
                 vec![],
                 ColumnSeekPosition::RowId(1000),
-                Some(expr),
-                &[],
-                &[],
+                Some(KeyRange {
+                    start: Bound::Excluded(DataValue::Int32(2)),
+                    end: Bound::Unbounded,
+                }),
             )
             .await
             .unwrap();
@@ -521,7 +367,6 @@ mod tests {
                 .take(20)
                 .map(Some)
                 .collect_vec();
-            assert_eq!(left.len(), right.len());
             assert_eq!(left, right);
         } else {
             unreachable!()
@@ -536,7 +381,6 @@ mod tests {
                 .take(20)
                 .map(Some)
                 .collect_vec();
-            assert_eq!(left.len(), right.len());
             assert_eq!(left, right);
         } else {
             unreachable!()
@@ -554,8 +398,6 @@ mod tests {
         {
             let tempdir = tempfile::tempdir().unwrap();
             let rowset = Arc::new(helper_build_rowset_with_first_key_recorded(&tempdir).await);
-            let start_keys = vec![DataValue::Int32(180)];
-            let end_keys = vec![DataValue::Int32(195)];
             let mut it = rowset
                 .iter(
                     vec![
@@ -566,9 +408,10 @@ mod tests {
                     .into(),
                     vec![],
                     ColumnSeekPosition::RowId(168),
-                    None,
-                    &start_keys,
-                    &end_keys,
+                    Some(KeyRange {
+                        start: Bound::Included(DataValue::Int32(180)),
+                        end: Bound::Included(DataValue::Int32(195)),
+                    }),
                 )
                 .await
                 .unwrap();
@@ -611,8 +454,6 @@ mod tests {
                     vec![],
                     ColumnSeekPosition::RowId(0),
                     None,
-                    &[],
-                    &[],
                 )
                 .await
                 .unwrap();
@@ -644,7 +485,6 @@ mod tests {
             // test only setting `start_keys`
             let tempdir = tempfile::tempdir().unwrap();
             let rowset = Arc::new(helper_build_rowset_with_first_key_recorded(&tempdir).await);
-            let start_keys = vec![DataValue::Int32(180)];
             let mut it = rowset
                 .iter(
                     vec![
@@ -655,9 +495,10 @@ mod tests {
                     .into(),
                     vec![],
                     ColumnSeekPosition::RowId(168),
-                    None,
-                    &start_keys,
-                    &[],
+                    Some(KeyRange {
+                        start: Bound::Included(DataValue::Int32(180)),
+                        end: Bound::Unbounded,
+                    }),
                 )
                 .await
                 .unwrap();
@@ -689,7 +530,6 @@ mod tests {
             // test only set `start_keys` but no data satisfied.
             let tempdir = tempfile::tempdir().unwrap();
             let rowset = Arc::new(helper_build_rowset_with_first_key_recorded(&tempdir).await);
-            let start_keys = vec![DataValue::Int32(1800)];
             let mut it = rowset
                 .iter(
                     vec![
@@ -700,9 +540,10 @@ mod tests {
                     .into(),
                     vec![],
                     ColumnSeekPosition::RowId(252),
-                    None,
-                    &start_keys,
-                    &[],
+                    Some(KeyRange {
+                        start: Bound::Included(DataValue::Int32(1800)),
+                        end: Bound::Unbounded,
+                    }),
                 )
                 .await
                 .unwrap();
@@ -734,7 +575,6 @@ mod tests {
             // test only set `end_keys
             let tempdir = tempfile::tempdir().unwrap();
             let rowset = Arc::new(helper_build_rowset_with_first_key_recorded(&tempdir).await);
-            let end_keys = vec![DataValue::Int32(195)];
             let mut it = rowset
                 .iter(
                     vec![
@@ -745,9 +585,10 @@ mod tests {
                     .into(),
                     vec![],
                     ColumnSeekPosition::RowId(0),
-                    None,
-                    &[],
-                    &end_keys,
+                    Some(KeyRange {
+                        start: Bound::Unbounded,
+                        end: Bound::Included(DataValue::Int32(195)),
+                    }),
                 )
                 .await
                 .unwrap();
@@ -779,7 +620,6 @@ mod tests {
             // test only set `end_keys` but all data satisfied.
             let tempdir = tempfile::tempdir().unwrap();
             let rowset = Arc::new(helper_build_rowset_with_first_key_recorded(&tempdir).await);
-            let end_keys = vec![DataValue::Int32(19500)];
             let mut it = rowset
                 .iter(
                     vec![
@@ -790,9 +630,10 @@ mod tests {
                     .into(),
                     vec![],
                     ColumnSeekPosition::RowId(0),
-                    None,
-                    &[],
-                    &end_keys,
+                    Some(KeyRange {
+                        start: Bound::Unbounded,
+                        end: Bound::Included(DataValue::Int32(19500)),
+                    }),
                 )
                 .await
                 .unwrap();

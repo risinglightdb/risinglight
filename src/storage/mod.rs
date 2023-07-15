@@ -10,9 +10,11 @@ pub use secondary::{SecondaryStorage, StorageOptions as SecondaryStorageOptions}
 
 mod error;
 pub use error::{StorageError, StorageResult, TracedStorageError};
+use serde::Serialize;
 
 mod chunk;
 use std::future::Future;
+use std::ops::{Bound, RangeBounds};
 use std::sync::Arc;
 
 pub use chunk::*;
@@ -21,7 +23,6 @@ use enum_dispatch::enum_dispatch;
 use crate::array::{ArrayImpl, DataChunk};
 use crate::catalog::{ColumnCatalog, ColumnId, SchemaId, TableRefId};
 use crate::types::DataValue;
-use crate::v1::binder::BoundExpr;
 
 #[enum_dispatch(StorageDispatch)]
 #[derive(Clone)]
@@ -44,7 +45,8 @@ impl StorageImpl {
 }
 
 impl StorageImpl {
-    pub fn enable_filter_scan(&self) -> bool {
+    /// Returns true if the storage engine supports range filter scan.
+    pub fn support_range_filter_scan(&self) -> bool {
         match self {
             Self::SecondaryStorage(_) => true,
             Self::InMemoryStorage(_) => false,
@@ -128,12 +130,8 @@ pub trait Transaction: Sync + Send + 'static {
     /// Scan one or multiple columns.
     fn scan<'a>(
         &'a self,
-        begin_sort_key: &'a [DataValue],
-        end_sort_key: &'a [DataValue],
         col_idx: &'a [StorageColumnRef],
-        is_sorted: bool,
-        reversed: bool,
-        expr: Option<BoundExpr>,
+        options: ScanOptions,
     ) -> impl Future<Output = StorageResult<Self::TxnIteratorType>> + Send + 'a;
 
     /// Append data to the table. Generally, `columns` should be in the same order as
@@ -152,6 +150,69 @@ pub trait Transaction: Sync + Send + 'static {
 
     /// Abort a transaction.
     fn abort(self) -> impl Future<Output = StorageResult<()>> + Send;
+}
+
+/// Options for scanning.
+#[derive(Debug, Default)]
+pub struct ScanOptions {
+    is_sorted: bool,
+    reversed: bool,
+    filter: Option<KeyRange>,
+}
+
+impl ScanOptions {
+    /// Scan with filter.
+    pub fn with_filter_opt(mut self, filter: Option<KeyRange>) -> Self {
+        self.filter = filter;
+        self
+    }
+
+    pub fn with_sorted(mut self, sorted: bool) -> Self {
+        self.is_sorted = sorted;
+        self
+    }
+}
+
+/// A range of keys.
+///
+/// # Example
+/// ```text
+/// // key > 1
+/// KeyRange {
+///     start: Bound::Excluded(DataValue::Int64(Some(1))),
+///     end: Bound::Unbounded,
+/// }
+///
+/// // key = 0
+/// KeyRange {
+///     start: Bound::Included(DataValue::Int64(Some(0))),
+///     end: Bound::Included(DataValue::Int64(Some(0))),
+/// }
+/// ```
+#[derive(Debug, Clone, Serialize)]
+pub struct KeyRange {
+    /// Start bound.
+    pub start: Bound<DataValue>,
+    /// End bound.
+    pub end: Bound<DataValue>,
+}
+
+impl RangeBounds<DataValue> for KeyRange {
+    fn start_bound(&self) -> Bound<&DataValue> {
+        match &self.start {
+            Bound::Unbounded => Bound::Unbounded,
+            Bound::Included(v) => Bound::Included(v),
+            Bound::Excluded(v) => Bound::Excluded(v),
+        }
+    }
+
+    fn end_bound(&self) -> Bound<&DataValue> {
+        match &self.end {
+            Bound::Unbounded => Bound::Unbounded,
+            Bound::Included(v) => Bound::Included(v),
+            Bound::Excluded(v) => Bound::Excluded(v),
+        }
+    }
 }
 
 /// An iterator over table in a transaction.

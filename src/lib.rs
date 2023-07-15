@@ -24,6 +24,7 @@
 #![feature(iterator_try_collect)]
 #![feature(async_fn_in_trait)]
 #![feature(return_position_impl_trait_in_trait)]
+#![feature(let_chains)]
 #![allow(incomplete_features)]
 
 /// Top-level structure of the database.

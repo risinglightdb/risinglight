@@ -1,6 +1,7 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::collections::HashMap;
+use std::ops::Bound;
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -18,9 +19,8 @@ use super::{
 use crate::array::DataChunk;
 use crate::catalog::find_sort_key_id;
 use crate::storage::secondary::statistics::create_statistics_global_aggregator;
-use crate::storage::{StorageColumnRef, StorageResult, Transaction};
+use crate::storage::{ScanOptions, StorageColumnRef, StorageResult, Transaction};
 use crate::types::DataValue;
-use crate::v1::binder::BoundExpr;
 
 /// A transaction running on `SecondaryStorage`.
 pub struct SecondaryTransaction {
@@ -218,14 +218,10 @@ impl SecondaryTransaction {
 
     async fn scan_inner(
         &self,
-        begin_keys: &[DataValue],
-        end_keys: &[DataValue],
         col_idx: &[StorageColumnRef],
-        is_sorted: bool,
-        reversed: bool,
-        expr: Option<BoundExpr>,
+        opts: ScanOptions,
     ) -> StorageResult<SecondaryTableTxnIterator> {
-        assert!(!reversed, "reverse iterator is not supported for now");
+        assert!(!opts.reversed, "reverse iterator is not supported for now");
 
         let mut iters: Vec<RowSetIterator> = vec![];
 
@@ -244,17 +240,17 @@ impl SecondaryTransaction {
                     })
                     .unwrap_or_default();
 
+                let begin_keys = match &opts.filter {
+                    Some(range) => match &range.start {
+                        Bound::Included(k) | Bound::Excluded(k) => Some(k),
+                        _ => None,
+                    },
+                    _ => None,
+                };
                 let start_rowid = rowset.start_rowid(begin_keys).await;
                 iters.push(
                     rowset
-                        .iter(
-                            col_idx.into(),
-                            dvs,
-                            start_rowid,
-                            expr.clone(),
-                            begin_keys,
-                            end_keys,
-                        )
+                        .iter(col_idx.into(), dvs, start_rowid, opts.filter.clone())
                         .await?,
                 )
             }
@@ -262,7 +258,7 @@ impl SecondaryTransaction {
 
         let final_iter = if iters.len() == 1 {
             iters.pop().unwrap().into()
-        } else if is_sorted {
+        } else if opts.is_sorted {
             let sort_key = find_sort_key_id(&self.table.columns);
             if let Some(sort_key) = sort_key {
                 let real_col_idx = col_idx.iter().position(|x| match x {
@@ -353,22 +349,10 @@ impl Transaction for SecondaryTransaction {
 
     async fn scan(
         &self,
-        begin_sort_key: &[DataValue],
-        end_sort_key: &[DataValue],
         col_idx: &[StorageColumnRef],
-        is_sorted: bool,
-        reversed: bool,
-        expr: Option<BoundExpr>,
+        options: ScanOptions,
     ) -> StorageResult<SecondaryTableTxnIterator> {
-        self.scan_inner(
-            begin_sort_key,
-            end_sort_key,
-            col_idx,
-            is_sorted,
-            reversed,
-            expr,
-        )
-        .await
+        self.scan_inner(col_idx, options).await
     }
 
     async fn append(&mut self, columns: DataChunk) -> StorageResult<()> {
