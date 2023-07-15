@@ -53,7 +53,7 @@ pub fn order_rules() -> Vec<Rewrite> { vec![
         )"
     ),
     rw!("sort-agg";
-        "(agg ?aggs ?group_keys ?child)" =>
+        "(hashagg ?aggs ?group_keys ?child)" =>
         "(sortagg ?aggs ?group_keys (order ?group_keys ?child))"
     ),
 ]}

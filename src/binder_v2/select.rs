@@ -242,7 +242,7 @@ impl Binder {
     /// ```ignore
     /// distinct=(list a b)
     /// projection=(list b c)
-    /// output=(agg (list b (first c)) (list a b) plan)
+    /// output=(hashagg (list b (first c)) (list a b) plan)
     /// ```
     fn plan_distinct(
         &mut self,

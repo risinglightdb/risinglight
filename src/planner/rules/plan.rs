@@ -28,8 +28,8 @@ fn cancel_rules() -> Vec<Rewrite> { vec![
 
     rw!("proj-on-empty";    "(proj ?exprs (empty ?c))"                  => "(empty ?c)"),
     rw!("window-on-empty";  "(window ?exprs (empty ?c))"                => "(empty ?c)"),
-    // TODO: only valid when aggs don't contain `count`
-    // rw!("agg-on-empty";     "(agg ?aggs ?groupby (empty ?c))"           => "(empty ?c)"),
+    rw!("hashagg-on-empty"; "(hashagg ?aggs ?groupby (empty ?c))"       => "(empty ?c)"),
+    rw!("sortagg-on-empty"; "(sortagg ?aggs ?groupby (empty ?c))"       => "(empty ?c)"),
     rw!("filter-on-empty";  "(filter ?cond (empty ?c))"                 => "(empty ?c)"),
     rw!("order-on-empty";   "(order ?keys (empty ?c))"                  => "(empty ?c)"),
     rw!("limit-on-empty";   "(limit ?limit ?offset (empty ?c))"         => "(empty ?c)"),
@@ -129,7 +129,7 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
         "(proj ?exprs (order ?keys ?child))" =>
         { ProjectionPushdown {
             pattern: pattern("(proj ?exprs (order ?keys ?child))"),
-            used: [var("?exprs"), var("?keys")],
+            used: vec![var("?exprs"), var("?keys")],
             children: vec![var("?child")],
         }}
     ),
@@ -137,7 +137,7 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
         "(proj ?exprs (topn ?limit ?offset ?keys ?child))" =>
         { ProjectionPushdown {
             pattern: pattern("(proj ?exprs (topn ?limit ?offset ?keys ?child))"),
-            used: [var("?exprs"), var("?keys")],
+            used: vec![var("?exprs"), var("?keys")],
             children: vec![var("?child")],
         }}
     ),
@@ -145,15 +145,23 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
         "(proj ?exprs (filter ?cond ?child))" =>
         { ProjectionPushdown {
             pattern: pattern("(proj ?exprs (filter ?cond ?child))"),
-            used: [var("?exprs"), var("?cond")],
+            used: vec![var("?exprs"), var("?cond")],
             children: vec![var("?child")],
         }}
     ),
     rw!("pushdown-proj-agg";
-        "(agg ?aggs ?groupby ?child)" =>
+        "(agg ?aggs ?child)" =>
         { ProjectionPushdown {
-            pattern: pattern("(agg ?aggs ?groupby ?child)"),
-            used: [var("?aggs"), var("?groupby")],
+            pattern: pattern("(agg ?aggs ?child)"),
+            used: vec![var("?aggs")],
+            children: vec![var("?child")],
+        }}
+    ),
+    rw!("pushdown-proj-hashagg";
+        "(hashagg ?aggs ?groupby ?child)" =>
+        { ProjectionPushdown {
+            pattern: pattern("(hashagg ?aggs ?groupby ?child)"),
+            used: vec![var("?aggs"), var("?groupby")],
             children: vec![var("?child")],
         }}
     ),
@@ -161,7 +169,7 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
         "(proj ?exprs (join ?type ?on ?left ?right))" =>
         { ProjectionPushdown {
             pattern: pattern("(proj ?exprs (join ?type ?on ?left ?right))"),
-            used: [var("?exprs"), var("?on")],
+            used: vec![var("?exprs"), var("?on")],
             children: vec![var("?left"), var("?right")],
         }}
     ),
@@ -242,7 +250,7 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
 /// Generate a projection node over each children.
 struct ProjectionPushdown {
     pattern: Pattern,
-    used: [Var; 2],
+    used: Vec<Var>,
     children: Vec<Var>,
 }
 
@@ -255,10 +263,11 @@ impl Applier<Expr, ExprAnalysis> for ProjectionPushdown {
         searcher_ast: Option<&PatternAst<Expr>>,
         rule_name: Symbol,
     ) -> Vec<Id> {
-        let used1 = &egraph[subst[self.used[0]]].data.columns;
-        let used2 = &egraph[subst[self.used[1]]].data.columns;
-        let mut used: Vec<&Expr> = used1.union(used2).collect();
+        let mut used = (self.used.iter())
+            .flat_map(|v| &egraph[subst[*v]].data.columns)
+            .collect::<Vec<&Expr>>();
         used.sort_unstable();
+        used.dedup();
         let used = used
             .into_iter()
             .map(|col| egraph.lookup(col.clone()).unwrap())
