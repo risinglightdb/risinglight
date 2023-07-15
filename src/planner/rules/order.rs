@@ -7,7 +7,7 @@ use super::*;
 /// The data type of order analysis.
 ///
 /// If the table is unordered, the value is `None`.
-/// Otherwise, the value is an Id of order key node. e.g. `(list (asc a) (desc b))`
+/// Otherwise, the value is an Id of order key node. e.g. `(list a (desc b))`
 pub type OrderKey = Option<Id>;
 
 /// Returns the order key for plan node.
@@ -46,16 +46,15 @@ pub fn order_rules() -> Vec<Rewrite> { vec![
         if is_orderby("?keys", "?child")
     ),
     rw!("merge-join";
-        "(hashjoin ?type (list ?kl) (list ?kr) ?left ?right)" =>
-        "(mergejoin ?type (list ?kl) (list ?kr)
-            (order (list (asc ?kl)) ?left)
-            (order (list (asc ?kr)) ?right)
+        "(hashjoin ?type ?lkey ?rkey ?left ?right)" =>
+        "(mergejoin ?type ?lkey ?rkey
+            (order ?lkey ?left)
+            (order ?rkey ?right)
         )"
     ),
     rw!("sort-agg";
-        "(agg ?aggs (list ?k) ?child)" =>
-        "(sortagg ?aggs (list ?k)
-            (order (list (asc ?k)) ?child))"
+        "(agg ?aggs ?group_keys ?child)" =>
+        "(sortagg ?aggs ?group_keys (order ?group_keys ?child))"
     ),
 ]}
 

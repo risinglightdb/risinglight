@@ -135,10 +135,10 @@ impl Binder {
         let mut orderby = Vec::with_capacity(order_by.len());
         for e in order_by {
             let expr = self.bind_expr(e.expr)?;
-            let key = self.egraph.add(match e.asc {
-                Some(true) | None => Node::Asc(expr),
-                Some(false) => Node::Desc(expr),
-            });
+            let key = match e.asc {
+                Some(true) | None => expr,
+                Some(false) => self.egraph.add(Node::Desc(expr)),
+            };
             orderby.push(key);
         }
         Ok(self.egraph.add(Node::List(orderby.into())))
@@ -251,8 +251,11 @@ impl Binder {
         }
         // make sure all ORDER BY items are in DISTINCT list.
         for id in self.node(orderby).as_list() {
-            // id = (asc key) or (desc key)
-            let key = self.node(*id).children()[0];
+            // id = key or (desc key)
+            let key = match self.node(*id) {
+                Node::Desc(id) => id,
+                _ => id,
+            };
             if !distinct_on.contains(&key) {
                 return Err(BindError::OrderKeyNotInDistinct);
             }

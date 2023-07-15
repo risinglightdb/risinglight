@@ -95,7 +95,6 @@ define_language! {
         "proj" = Proj([Id; 2]),                 // (proj [expr..] child)
         "filter" = Filter([Id; 2]),             // (filter expr child)
         "order" = Order([Id; 2]),               // (order [order_key..] child)
-            "asc" = Asc(Id),                        // (asc key)
             "desc" = Desc(Id),                      // (desc key)
         "limit" = Limit([Id; 3]),               // (limit limit offset child)
         "topn" = TopN([Id; 4]),                 // (topn limit offset [order_key..] child)

@@ -230,10 +230,9 @@ impl<'a> Explain<'a> {
                 vec![("by", self.expr(orderby).pretty())].with_cost(cost),
                 vec![self.child(child).pretty()],
             ),
-            Asc(a) | Desc(a) => {
-                let name = enode.to_string();
+            Desc(a) => {
                 let v = vec![self.expr(a).pretty()];
-                Pretty::fieldless_record(name, v)
+                Pretty::fieldless_record("desc", v)
             }
             Limit([limit, offset, child]) => Pretty::simple_record(
                 "Limit",
