@@ -209,15 +209,19 @@ impl Database {
             return self.run_v1(sql).await;
         }
 
+        let optimizer = crate::planner::Optimizer::new(
+            self.catalog.clone(),
+            crate::planner::Config {
+                enable_range_filter_scan: self.storage.support_range_filter_scan(),
+                table_is_sorted_by_primary_key: self.storage.table_is_sorted_by_primary_key(),
+            },
+        );
+
         let stmts = parse(sql)?;
         let mut outputs: Vec<Chunk> = vec![];
         for stmt in stmts {
             let mut binder = crate::binder_v2::Binder::new(self.catalog.clone());
             let bound = binder.bind(stmt)?;
-            let mut optimizer = crate::planner::Optimizer::new(self.catalog.clone());
-            if !self.storage.support_range_filter_scan() {
-                optimizer.disable_rules("filter-scan");
-            }
             let optimized = optimizer.optimize(&bound);
             let executor = match self.storage.clone() {
                 StorageImpl::InMemoryStorage(s) => {

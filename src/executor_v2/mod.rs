@@ -191,9 +191,7 @@ impl<S: Storage> Builder<S> {
                     .collect(),
                 filter: {
                     // analyze range for the filter
-                    let mut egraph = egg::EGraph::new(ExprAnalysis {
-                        catalog: self.catalog.clone(),
-                    });
+                    let mut egraph = egg::EGraph::new(ExprAnalysis::default());
                     let root = egraph.add_expr(&self.recexpr(filter));
                     egraph[root].data.range.clone().map(|(_, r)| r)
                 },

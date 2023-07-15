@@ -1,7 +1,5 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::collections::HashSet;
-
 use egg::{define_language, CostFunction, Id, Symbol};
 
 use crate::binder_v2::copy::ExtSource;
@@ -224,6 +222,7 @@ impl Expr {
 
 trait ExprExt {
     fn as_list(&self) -> &[Id];
+    fn as_column(&self) -> ColumnRefId;
 }
 
 impl<D> ExprExt for egg::EClass<Expr, D> {
@@ -233,34 +232,47 @@ impl<D> ExprExt for egg::EClass<Expr, D> {
                 Expr::List(list) => Some(list),
                 _ => None,
             })
-            .expect("not list")
+            .expect("not a list")
+    }
+
+    fn as_column(&self) -> ColumnRefId {
+        self.iter()
+            .find_map(|e| match e {
+                Expr::Column(cid) => Some(*cid),
+                _ => None,
+            })
+            .expect("not a column")
     }
 }
 
 /// Plan optimizer.
 pub struct Optimizer {
     catalog: RootCatalogRef,
-    disabled_rules: HashSet<String>,
+    config: Config,
+}
+
+/// Optimizer configurations.
+#[derive(Debug, Clone, Default)]
+pub struct Config {
+    pub enable_range_filter_scan: bool,
+    pub table_is_sorted_by_primary_key: bool,
 }
 
 impl Optimizer {
     /// Creates a new optimizer.
-    pub fn new(catalog: RootCatalogRef) -> Self {
-        Self {
-            catalog,
-            disabled_rules: HashSet::default(),
-        }
-    }
-
-    /// Disable rules that match the given pattern.
-    pub fn disable_rules(&mut self, pattern: &str) {
-        tracing::info!("disable rules: {pattern}");
-        self.disabled_rules.insert(pattern.to_owned());
+    pub fn new(catalog: RootCatalogRef, config: Config) -> Self {
+        Self { catalog, config }
     }
 
     /// Optimize the given expression.
     pub fn optimize(&self, expr: &RecExpr) -> RecExpr {
         let mut expr = expr.clone();
+
+        // define extra rules for some configurations
+        let mut extra_rules = vec![];
+        if self.config.enable_range_filter_scan {
+            extra_rules.append(&mut rules::filter_scan_rule());
+        }
 
         // 1. pushdown
         let mut best_cost = f32::MAX;
@@ -268,15 +280,11 @@ impl Optimizer {
         for _ in 0..3 {
             let runner = egg::Runner::<_, _, ()>::new(ExprAnalysis {
                 catalog: self.catalog.clone(),
+                config: self.config.clone(),
             })
             .with_expr(&expr)
             .with_iter_limit(6)
-            .run(rules::STAGE1_RULES.iter().filter(|rule| {
-                !self
-                    .disabled_rules
-                    .iter()
-                    .any(|name| rule.name.as_str().contains(name))
-            }));
+            .run(rules::STAGE1_RULES.iter().chain(&extra_rules));
             let cost_fn = cost::CostFn {
                 egraph: &runner.egraph,
             };
@@ -296,6 +304,7 @@ impl Optimizer {
         // 2. join reorder and hashjoin
         let runner = egg::Runner::<_, _, ()>::new(ExprAnalysis {
             catalog: self.catalog.clone(),
+            config: self.config.clone(),
         })
         .with_expr(&expr)
         .run(&*rules::STAGE2_RULES);

@@ -34,7 +34,7 @@ use std::sync::LazyLock;
 
 use egg::{rewrite as rw, *};
 
-use super::{EGraph, Expr, Pattern, Rewrite};
+use super::{Config, EGraph, Expr, ExprExt, Pattern, Rewrite};
 use crate::catalog::RootCatalogRef;
 use crate::types::F32;
 
@@ -47,6 +47,8 @@ mod rows;
 mod schema;
 mod type_;
 
+pub use range::filter_scan_rule;
+
 pub use self::type_::TypeError;
 
 /// Stage1 rules in the optimizer.
@@ -55,7 +57,6 @@ pub static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     rules.append(&mut expr::rules());
     rules.append(&mut plan::always_better_rules());
     rules.append(&mut order::order_rules());
-    rules.append(&mut range::filter_scan_rule());
     rules
 });
 
@@ -72,6 +73,7 @@ pub static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
 #[derive(Default)]
 pub struct ExprAnalysis {
     pub catalog: RootCatalogRef,
+    pub config: Config,
 }
 
 /// The analysis data associated with each eclass.
@@ -108,9 +110,9 @@ impl Analysis<Expr> for ExprAnalysis {
             constant: expr::eval_constant(egraph, enode),
             range: range::analyze_range(egraph, enode),
             columns: plan::analyze_columns(egraph, enode),
-            schema: schema::analyze_schema(enode, |i| egraph[*i].data.schema.clone()),
+            schema: schema::analyze_schema(enode, |id| egraph[*id].data.schema.clone()),
             rows: rows::analyze_rows(egraph, enode),
-            orderby: order::analyze_order(enode, |i| egraph[*i].data.orderby),
+            orderby: order::analyze_order(egraph, enode),
         }
     }
 
