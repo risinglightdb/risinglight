@@ -15,7 +15,7 @@ pub fn analyze_order(enode: &Expr, x: impl Fn(&Id) -> OrderKey) -> OrderKey {
     use Expr::*;
     match enode {
         // TODO: scanned table is ordered by primary key in secondary storage
-        Scan([_, _columns]) => None,
+        Scan([_, _columns, _]) => None,
         // plans that sort rows
         Order([keys, _]) | TopN([_, _, keys, _]) => Some(*keys),
         // plans that preserve order

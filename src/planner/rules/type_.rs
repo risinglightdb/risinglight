@@ -125,7 +125,7 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         }
 
         // plans that change schema
-        Scan([_, columns]) => x(columns),
+        Scan([_, columns, _]) => x(columns),
         Values(rows) => {
             if rows.is_empty() {
                 return Ok(Kind::Null.not_null());

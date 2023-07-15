@@ -8,9 +8,9 @@ use serde::Serialize;
 
 use super::*;
 use crate::catalog::{ColumnDesc, ColumnId, TableRefId};
+use crate::storage::KeyRange;
 use crate::types::DataTypeKind;
-use crate::v1::binder::ExprVisitor;
-use crate::v1::optimizer::logical_plan_rewriter::ExprRewriter;
+
 /// The logical plan of sequential scan operation.
 #[derive(Debug, Clone, Serialize)]
 pub struct LogicalTableScan {
@@ -19,7 +19,7 @@ pub struct LogicalTableScan {
     column_descs: Vec<ColumnDesc>,
     with_row_handler: bool,
     is_sorted: bool,
-    expr: Option<BoundExpr>,
+    filter: Option<KeyRange>,
 }
 
 impl LogicalTableScan {
@@ -29,7 +29,7 @@ impl LogicalTableScan {
         column_descs: Vec<ColumnDesc>,
         with_row_handler: bool,
         is_sorted: bool,
-        expr: Option<BoundExpr>,
+        filter: Option<KeyRange>,
     ) -> Self {
         Self {
             table_ref_id,
@@ -37,7 +37,7 @@ impl LogicalTableScan {
             column_descs,
             with_row_handler,
             is_sorted,
-            expr,
+            filter,
         }
     }
 
@@ -67,8 +67,8 @@ impl LogicalTableScan {
     }
 
     /// Get a reference to the logical table scan's expr.
-    pub fn expr(&self) -> Option<&BoundExpr> {
-        self.expr.as_ref()
+    pub fn filter(&self) -> &Option<KeyRange> {
+        &self.filter
     }
 }
 impl PlanTreeNodeLeaf for LogicalTableScan {}
@@ -93,11 +93,15 @@ impl PlanNode for LogicalTableScan {
     }
 
     fn prune_col(&self, required_cols: BitSet) -> PlanRef {
-        let mut visitor = CollectRequiredCols(BitSet::new());
-        if self.expr.is_some() {
-            visitor.visit_expr(self.expr.as_ref().unwrap());
+        let mut filter_cols = BitSet::new();
+        if self.filter.is_some() {
+            // keep the primary key
+            for (idx, col) in self.column_descs.iter().enumerate() {
+                if col.is_primary() {
+                    filter_cols.insert(idx);
+                }
+            }
         }
-        let filter_cols = visitor.0;
 
         let mut need_rewrite = false;
 
@@ -110,7 +114,7 @@ impl PlanNode for LogicalTableScan {
         }
 
         let mut idx_table = HashMap::new();
-        let (mut column_ids, mut column_descs): (Vec<_>, Vec<_>) = required_cols
+        let (column_ids, column_descs): (Vec<_>, Vec<_>) = required_cols
             .iter()
             .filter(|&id| id < self.column_ids.len())
             .map(|id| {
@@ -119,32 +123,13 @@ impl PlanNode for LogicalTableScan {
             })
             .unzip();
 
-        let mut offset = column_ids.len();
-        let mut expr = self.expr.clone();
-        if need_rewrite {
-            let (f_column_ids, f_column_descs): (Vec<_>, Vec<_>) = filter_cols
-                .iter()
-                .filter(|&id| id < self.column_ids.len() && !required_cols.contains(id))
-                .map(|id| {
-                    idx_table.insert(id, offset);
-                    offset += 1;
-                    (self.column_ids[id], self.column_descs[id].clone())
-                })
-                .unzip();
-
-            column_ids.extend(f_column_ids.into_iter());
-            column_descs.extend(f_column_descs.into_iter());
-
-            Mapper(idx_table).rewrite_expr(expr.as_mut().unwrap());
-        }
-
         let new_scan = Self {
             table_ref_id: self.table_ref_id,
             column_ids,
             column_descs: column_descs.clone(),
             with_row_handler: self.with_row_handler,
             is_sorted: self.is_sorted,
-            expr,
+            filter: self.filter.clone(),
         }
         .into_plan_ref();
 
@@ -167,12 +152,12 @@ impl fmt::Display for LogicalTableScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
                 f,
-                "LogicalTableScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}, expr: {}",
+                "LogicalTableScan: table #{}, columns [{}], with_row_handler: {}, is_sorted: {}, filter: {}",
                 self.table_ref_id.table_id,
                 self.column_ids.iter().map(ToString::to_string).join(", "),
                 self.with_row_handler,
                 self.is_sorted,
-                self.expr.clone().map_or_else(|| "None".to_string(), |expr| format!("{:?}", expr))
+                self.filter.clone().map_or_else(|| "None".to_string(), |expr| format!("{:?}", expr))
             )
     }
 }

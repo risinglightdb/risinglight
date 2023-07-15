@@ -47,7 +47,7 @@ impl fmt::Display for PhysicalTableScan {
 			  columns [{}],
 			  with_row_handler: {},
 			  is_sorted: {},
-			  expr: {}"},
+			  filter: {}"},
             self.logical().table_ref_id().table_id,
             self.logical()
                 .column_ids()
@@ -57,7 +57,8 @@ impl fmt::Display for PhysicalTableScan {
             self.logical().with_row_handler(),
             self.logical().is_sorted(),
             self.logical()
-                .expr()
+                .filter()
+                .as_ref()
                 .map_or_else(|| "None".to_string(), |expr| format!("{:?}", expr))
         )
     }

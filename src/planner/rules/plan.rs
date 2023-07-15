@@ -167,10 +167,10 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
     ),
     // column pruning
     rw!("pushdown-proj-scan";
-        "(proj ?exprs (scan ?table ?columns))" =>
+        "(proj ?exprs (scan ?table ?columns ?filter))" =>
         { ColumnPrune {
-            pattern: pattern("(proj ?exprs (scan ?table ?columns))"),
-            used: var("?exprs"),
+            pattern: pattern("(proj ?exprs (scan ?table ?columns ?filter))"),
+            used: [var("?exprs"), var("?filter")],
             columns: var("?columns"),
         }}
     ),
@@ -291,7 +291,7 @@ impl Applier<Expr, ExprAnalysis> for ProjectionPushdown {
 /// Remove element from `columns` whose column set is not a subset of `used`
 struct ColumnPrune {
     pattern: Pattern,
-    used: Var,
+    used: [Var; 2],
     columns: Var,
 }
 
@@ -304,10 +304,12 @@ impl Applier<Expr, ExprAnalysis> for ColumnPrune {
         searcher_ast: Option<&PatternAst<Expr>>,
         rule_name: Symbol,
     ) -> Vec<Id> {
-        let used = &egraph[subst[self.used]].data.columns;
+        let used1 = &egraph[subst[self.used[0]]].data.columns;
+        let used2 = &egraph[subst[self.used[1]]].data.columns;
+        let used = used1.union(used2).cloned().collect();
         let columns = egraph[subst[self.columns]].as_list();
         let filtered = (columns.iter().cloned())
-            .filter(|id| egraph[*id].data.columns.is_subset(used))
+            .filter(|id| egraph[*id].data.columns.is_subset(&used))
             .collect();
         let id = egraph.add(Expr::List(filtered));
 
@@ -339,14 +341,14 @@ mod tests {
         (proj (list $1.2 $2.2)
         (filter (and (= $1.1 $2.1) (= $2.3 'A'))
         (join inner true
-            (scan $1 (list $1.1 $1.2))
-            (scan $2 (list $2.1 $2.2 $2.3))
+            (scan $1 (list $1.1 $1.2) null)
+            (scan $2 (list $2.1 $2.2 $2.3) null)
         )))" => "
         (proj (list $1.2 $2.2)
         (join inner (= $1.1 $2.1)
-            (scan $1 (list $1.1 $1.2))
+            (scan $1 (list $1.1 $1.2) null)
             (filter (= $2.3 'A')
-                (scan $2 (list $2.1 $2.2 $2.3))
+                (scan $2 (list $2.1 $2.2 $2.3) null)
             )
         ))"
     }
@@ -360,16 +362,16 @@ mod tests {
         (filter (and (= $1.1 $2.1) (= $3.1 $2.1))
         (join inner true
             (join inner true
-                (scan $1 (list $1.1 $1.2))
-                (scan $2 (list $2.1 $2.2))
+                (scan $1 (list $1.1 $1.2) null)
+                (scan $2 (list $2.1 $2.2) null)
             )
-            (scan $3 (list $3.1 $3.2))
+            (scan $3 (list $3.1 $3.2) null)
         ))" => "
         (join inner (= $1.1 $2.1)
-            (scan $1 (list $1.1 $1.2))
+            (scan $1 (list $1.1 $1.2) null)
             (join inner (= $2.1 $3.1)
-                (scan $2 (list $2.1 $2.2))
-                (scan $3 (list $3.1 $3.2))
+                (scan $2 (list $2.1 $2.2) null)
+                (scan $3 (list $3.1 $3.2) null)
             )
         )"
     }
@@ -382,14 +384,14 @@ mod tests {
         "
         (filter (and (= $1.1 $2.1) (> $1.2 2))
         (join inner true
-            (scan $1 (list $1.1 $1.2))
-            (scan $2 (list $2.1 $2.2))
+            (scan $1 (list $1.1 $1.2) null)
+            (scan $2 (list $2.1 $2.2) null)
         ))" => "
         (hashjoin inner (list $1.1) (list $2.1)
             (filter (> $1.2 2)
-                (scan $1 (list $1.1 $1.2))
+                (scan $1 (list $1.1 $1.2) null)
             )
-            (scan $2 (list $2.1 $2.2))
+            (scan $2 (list $2.1 $2.2) null)
         )"
     }
 
@@ -401,15 +403,15 @@ mod tests {
         (proj (list $1.2)
         (filter (> (+ $1.2 $2.2) 1)
         (join inner (= $1.1 $2.1)
-            (scan $1 (list $1.1 $1.2 $1.3))
-            (scan $2 (list $2.1 $2.2 $2.3))
+            (scan $1 (list $1.1 $1.2 $1.3) null)
+            (scan $2 (list $2.1 $2.2 $2.3) null)
         )))" => "
         (proj (list $1.2)
         (filter (> (+ $1.2 $2.2) 1)
         (proj (list $1.2 $2.2)
         (join inner (= $1.1 $2.1)
-            (scan $1 (list $1.1 $1.2))
-            (scan $2 (list $2.1 $2.2))
+            (scan $1 (list $1.1 $1.2) null)
+            (scan $2 (list $2.1 $2.2) null)
         ))))"
     }
 }

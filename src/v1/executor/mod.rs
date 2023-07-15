@@ -263,13 +263,11 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
             match &self.storage {
                 StorageImpl::InMemoryStorage(storage) => TableScanExecutor {
                     plan: plan.clone(),
-                    expr: None,
                     storage: storage.clone(),
                 }
                 .execute(),
                 StorageImpl::SecondaryStorage(storage) => TableScanExecutor {
                     plan: plan.clone(),
-                    expr: plan.logical().expr().cloned(),
                     storage: storage.clone(),
                 }
                 .execute(),

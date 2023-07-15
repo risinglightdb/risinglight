@@ -38,14 +38,15 @@ impl Optimizer {
         plan = arith_expr_simplification_rule.rewrite(plan);
         plan = bool_expr_simplification_rule.rewrite(plan);
         plan = constant_moving_rule.rewrite(plan);
-        let mut rules: Vec<Box<(dyn rules::Rule + 'static)>> = vec![
+        let rules: Vec<Box<(dyn rules::Rule + 'static)>> = vec![
             Box::new(FilterAggRule {}),
             Box::new(FilterJoinRule {}),
             Box::new(LimitOrderRule {}),
         ];
-        if self.enable_filter_scan {
-            rules.push(Box::new(FilterScanRule {}));
-        }
+        // the filter-scan rule is not complete yet
+        // if self.enable_filter_scan {
+        //     rules.push(Box::new(FilterScanRule {}));
+        // }
         let hep_optimizer = HeuristicOptimizer { rules };
         plan = hep_optimizer.optimize(plan);
         let out_types_num = plan.out_types().len();
