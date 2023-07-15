@@ -33,6 +33,7 @@ use self::hash_join::*;
 use self::insert::*;
 use self::internal::*;
 use self::limit::*;
+use self::merge_join::*;
 use self::nested_loop_join::*;
 use self::order::*;
 // #[allow(unused_imports)]
@@ -40,8 +41,6 @@ use self::order::*;
 use self::projection::*;
 use self::simple_agg::*;
 use self::sort_agg::*;
-// #[allow(unused_imports)]
-// use self::sort_merge_join::*;
 use self::table_scan::*;
 use self::top_n::TopNExecutor;
 use self::values::*;
@@ -68,10 +67,10 @@ mod limit;
 mod nested_loop_join;
 mod order;
 // mod perfect_hash_agg;
+mod merge_join;
 mod projection;
 mod simple_agg;
 mod sort_agg;
-// mod sort_merge_join;
 mod table_scan;
 mod top_n;
 mod values;
@@ -259,6 +258,14 @@ impl<S: Storage> Builder<S> {
                 t => panic!("invalid join type: {t:?}"),
             },
 
+            MergeJoin(args @ [op, ..]) => match self.node(op) {
+                Inner => self.build_mergejoin::<{ JoinType::Inner }>(args),
+                LeftOuter => self.build_mergejoin::<{ JoinType::LeftOuter }>(args),
+                RightOuter => self.build_mergejoin::<{ JoinType::RightOuter }>(args),
+                FullOuter => self.build_mergejoin::<{ JoinType::FullOuter }>(args),
+                t => panic!("invalid join type: {t:?}"),
+            },
+
             Agg([aggs, group_keys, child]) => {
                 let aggs = self.resolve_column_index(aggs, child);
                 let group_keys = self.resolve_column_index(group_keys, child);
@@ -341,6 +348,17 @@ impl<S: Storage> Builder<S> {
     fn build_hashjoin<const T: JoinType>(&self, args: [Id; 5]) -> BoxedExecutor {
         let [_, lkeys, rkeys, left, right] = args;
         HashJoinExecutor::<T> {
+            left_keys: self.resolve_column_index(lkeys, left),
+            right_keys: self.resolve_column_index(rkeys, right),
+            left_types: self.plan_types(left).to_vec(),
+            right_types: self.plan_types(right).to_vec(),
+        }
+        .execute(self.build_id(left), self.build_id(right))
+    }
+
+    fn build_mergejoin<const T: JoinType>(&self, args: [Id; 5]) -> BoxedExecutor {
+        let [_, lkeys, rkeys, left, right] = args;
+        MergeJoinExecutor::<T> {
             left_keys: self.resolve_column_index(lkeys, left),
             right_keys: self.resolve_column_index(rkeys, right),
             left_types: self.plan_types(left).to_vec(),
