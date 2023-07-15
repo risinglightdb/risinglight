@@ -49,14 +49,14 @@ pub fn order_rules() -> Vec<Rewrite> { vec![
     ),
     rw!("merge-join";
         "(hashjoin ?type ?lkey ?rkey ?left ?right)" =>
-        "(mergejoin ?type ?lkey ?rkey
-            (order ?lkey ?left)
-            (order ?rkey ?right)
-        )"
+        "(mergejoin ?type ?lkey ?rkey ?left ?right)"
+        if is_orderby("?lkey", "?left")
+        if is_orderby("?rkey", "?right")
     ),
     rw!("sort-agg";
         "(hashagg ?aggs ?group_keys ?child)" =>
-        "(sortagg ?aggs ?group_keys (order ?group_keys ?child))"
+        "(sortagg ?aggs ?group_keys ?child)"
+        if is_orderby("?group_keys", "?child")
     ),
 ]}
 

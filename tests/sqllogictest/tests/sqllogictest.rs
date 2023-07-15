@@ -20,6 +20,7 @@ fn main() {
         "replace.slt",
         "stringconcat.slt",
         "window_function.slt",
+        "merge_join.slt",
     ];
 
     let mut tests = vec![];
