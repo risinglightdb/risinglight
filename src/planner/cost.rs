@@ -32,14 +32,11 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             Order([_, c]) => nlogn(rows(c)) + out() + costs(c),
             Filter([exprs, c]) => costs(exprs) * rows(c) + out() + costs(c),
             Proj([exprs, c]) | Window([exprs, c]) => costs(exprs) * rows(c) + costs(c),
-            Agg([exprs, groupby, c]) => {
-                if self.egraph[*groupby].as_list().is_empty() {
-                    (costs(exprs) + costs(groupby)) * rows(c) + out() + costs(c)
-                } else {
-                    ((rows(id) + 1.0).log2() + costs(exprs) + costs(groupby)) * rows(c)
-                        + out()
-                        + costs(c)
-                }
+            Agg([exprs, c]) => costs(exprs) * rows(c) + out() + costs(c),
+            HashAgg([exprs, groupby, c]) => {
+                ((rows(id) + 1.0).log2() + costs(exprs) + costs(groupby)) * rows(c)
+                    + out()
+                    + costs(c)
             }
             SortAgg([exprs, groupby, c]) => {
                 (costs(exprs) + costs(groupby)) * rows(c) + out() + costs(c)

@@ -105,8 +105,9 @@ define_language! {
             "left_outer" = LeftOuter,
             "right_outer" = RightOuter,
             "full_outer" = FullOuter,
-        "agg" = Agg([Id; 3]),                   // (agg aggs=[expr..] group_keys=[expr..] child)
+        "agg" = Agg([Id; 2]),                   // (agg aggs=[expr..] child)
                                                     // expressions must be aggregate functions
+        "hashagg" = HashAgg([Id; 3]),           // (hashagg aggs=[expr..] group_keys=[expr..] child)
                                                     // output = aggs || group_keys
         "sortagg" = SortAgg([Id; 3]),           // (sortagg aggs=[expr..] group_keys=[expr..] child)
                                                     // child must be ordered by group_keys

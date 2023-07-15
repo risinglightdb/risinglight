@@ -26,9 +26,9 @@ pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
         // plans that change schema
         Scan([_, columns]) | Internal([_, columns]) => x(columns),
         Values(vs) => x(&vs[0]),
-        Proj([exprs, _]) => x(exprs),
+        Proj([exprs, _]) | Agg([exprs, _]) => x(exprs),
         Window([exprs, child]) => concat(x(child), x(exprs)),
-        Agg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
+        HashAgg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
             concat(x(exprs), x(group_keys))
         }
         Empty(ids) => {

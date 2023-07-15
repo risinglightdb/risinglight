@@ -140,9 +140,9 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
             }
             Ok(type_)
         }
-        Proj([exprs, _]) => x(exprs),
+        Proj([exprs, _]) | Agg([exprs, _]) => x(exprs),
         Window([exprs, c]) => concat_struct(x(c)?, x(exprs)?),
-        Agg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
+        HashAgg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
             concat_struct(x(exprs)?, x(group_keys)?)
         }
         Empty(ids) => {

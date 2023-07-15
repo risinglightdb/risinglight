@@ -227,8 +227,8 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
         Column(_) => [enode.clone()].into_iter().collect(),
         Ref(c) => [egraph[*c].nodes[0].clone()].into_iter().collect(),
 
-        Proj([exprs, _]) => output(exprs),
-        Agg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
+        Proj([exprs, _]) | Agg([exprs, _]) => output(exprs),
+        HashAgg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
             output(exprs).union(&output(group_keys)).cloned().collect()
         }
 

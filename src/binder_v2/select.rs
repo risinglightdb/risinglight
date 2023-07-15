@@ -32,7 +32,10 @@ impl Binder {
         let from = self.bind_from(select.from)?;
         let projection = self.bind_projection(select.projection, from)?;
         let where_ = self.bind_where(select.selection)?;
-        let groupby = self.bind_groupby(select.group_by)?;
+        let groupby = match select.group_by {
+            group_by if group_by.is_empty() => None,
+            group_by => Some(self.bind_groupby(group_by)?),
+        };
         let having = self.bind_having(select.having)?;
         let orderby = self.bind_orderby(order_by)?;
         let distinct = match select.distinct {
@@ -168,10 +171,10 @@ impl Binder {
 
     /// Extracts all aggregations from `exprs` and generates an [`Agg`](Node::Agg) plan.
     /// If no aggregation is found and no `groupby` keys, returns the original `plan`.
-    fn plan_agg(&mut self, exprs: &mut [Id], groupby: Id, plan: Id) -> Result {
+    fn plan_agg(&mut self, exprs: &mut [Id], groupby: Option<Id>, plan: Id) -> Result {
         let expr_list = self.egraph.add(Node::List(exprs.to_vec().into()));
         let aggs = self.aggs(expr_list).to_vec();
-        if aggs.is_empty() && self.node(groupby).as_list().is_empty() {
+        if aggs.is_empty() && groupby.is_none() {
             return Ok(plan);
         }
         // check nested agg
@@ -185,7 +188,10 @@ impl Binder {
         list.sort();
         list.dedup();
         let aggs = self.egraph.add(Node::List(list.into()));
-        let plan = self.egraph.add(Node::Agg([aggs, groupby, plan]));
+        let plan = self.egraph.add(match groupby {
+            Some(groupby) => Node::HashAgg([aggs, groupby, plan]),
+            None => Node::Agg([aggs, plan]),
+        });
         // check for not aggregated columns
         // rewrite the expressions with a wrapper over agg or group keys
         let schema = self.schema(plan);
@@ -272,7 +278,7 @@ impl Binder {
         }
         let aggs = self.egraph.add(Node::List(aggs.into()));
         *projection = self.egraph.add(Node::List(projs.into()));
-        Ok(self.egraph.add(Node::Agg([aggs, distinct, plan])))
+        Ok(self.egraph.add(Node::HashAgg([aggs, distinct, plan])))
     }
 
     /// Extracts all over nodes from `projection`, `distinct` and `orderby`.

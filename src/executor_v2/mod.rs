@@ -266,20 +266,17 @@ impl<S: Storage> Builder<S> {
                 t => panic!("invalid join type: {t:?}"),
             },
 
-            Agg([aggs, group_keys, child]) => {
-                let aggs = self.resolve_column_index(aggs, child);
-                let group_keys = self.resolve_column_index(group_keys, child);
-                if group_keys.as_ref().last().unwrap().as_list().is_empty() {
-                    SimpleAggExecutor { aggs }.execute(self.build_id(child))
-                } else {
-                    HashAggExecutor {
-                        aggs,
-                        group_keys,
-                        types: self.plan_types(id).to_vec(),
-                    }
-                    .execute(self.build_id(child))
-                }
+            Agg([aggs, child]) => SimpleAggExecutor {
+                aggs: self.resolve_column_index(aggs, child),
             }
+            .execute(self.build_id(child)),
+
+            HashAgg([aggs, group_keys, child]) => HashAggExecutor {
+                aggs: self.resolve_column_index(aggs, child),
+                group_keys: self.resolve_column_index(group_keys, child),
+                types: self.plan_types(id).to_vec(),
+            }
+            .execute(self.build_id(child)),
 
             SortAgg([aggs, group_keys, child]) => SortAggExecutor {
                 aggs: self.resolve_column_index(aggs, child),

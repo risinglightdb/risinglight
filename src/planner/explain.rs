@@ -282,10 +282,15 @@ impl<'a> Explain<'a> {
                 Pretty::simple_record(name, fields, children)
             }
             Inner | LeftOuter | RightOuter | FullOuter => Pretty::display(enode),
-            Agg([aggs, group_keys, child]) | SortAgg([aggs, group_keys, child]) => {
+            Agg([aggs, child]) => Pretty::simple_record(
+                "Agg",
+                vec![("aggs", self.expr(aggs).pretty())].with_cost(cost),
+                vec![self.child(child).pretty()],
+            ),
+            HashAgg([aggs, group_keys, child]) | SortAgg([aggs, group_keys, child]) => {
                 Pretty::simple_record(
                     match enode {
-                        Agg(_) => "Aggregate",
+                        HashAgg(_) => "HashAgg",
                         SortAgg(_) => "SortAgg",
                         _ => unreachable!(),
                     },

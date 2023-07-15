@@ -1,7 +1,6 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use super::*;
-use crate::planner::ExprExt;
 use crate::types::DataValue;
 
 /// The data type of row number analysis.
@@ -23,12 +22,9 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         Values(v) => v.len() as f32,
         Scan(_) => 1000.0, // TODO: get from table
         Proj([_, c]) | Order([_, c]) | Window([_, c]) => x(c),
-        Agg([_, groupby, c]) | SortAgg([_, groupby, c]) => {
-            if egraph[*groupby].as_list().is_empty() {
-                1.0
-            } else {
-                x(c) / 2.0 // TODO: group by cardinality
-            }
+        Agg(_) => 1.0,
+        HashAgg([_, _, c]) | SortAgg([_, _, c]) => {
+            x(c) / 2.0 // TODO: group by cardinality
         }
         Filter([cond, c]) => x(c) * x(cond),
         Limit([limit, _, c]) | TopN([limit, _, _, c]) => x(c).min(get_limit_num(limit)),
