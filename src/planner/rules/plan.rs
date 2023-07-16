@@ -216,33 +216,41 @@ fn columns_is(
 
 /// The data type of column analysis.
 ///
-/// The elements of the set are either `Column` or child of `Ref`.
+/// For expr node, it is the set of columns used in the expression.
+/// For plan node, it is the set of columns produced by the plan.
+/// The elements of the set are either `Column` or `Ref`.
 pub type ColumnSet = HashSet<Expr>;
 
 /// Returns all columns involved in the node.
 pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
     use Expr::*;
-    let x = |i: &Id| &egraph[*i].data.columns;
-    let output = |i: &Id| {
-        egraph[*i]
-            .as_list()
-            .iter()
-            .map(|id| egraph[*id].nodes[0].clone())
-            .collect::<ColumnSet>()
+    let columns = |i: &Id| &egraph[*i].data.columns;
+    // Returns the columns produced by the list.
+    // If an element is not a column unit (`Column` or `Ref`), it will be wrapped in a `Ref`.
+    // # Example
+    // input:  (list $1.1 (ref (- $1.2)) (- $1.3))
+    // output: [$1.1, (ref (- $1.2)), (ref (- $1.3))]
+    let produced = |i: &Id| {
+        egraph[*i].as_list().iter().map(|id| {
+            egraph[*id]
+                .iter()
+                .find(|e| matches!(e, Column(_) | Ref(_)))
+                .cloned()
+                .unwrap_or(Expr::Ref(*id))
+        })
     };
     match enode {
-        // source
-        Column(_) => [enode.clone()].into_iter().collect(),
-        Ref(c) => [egraph[*c].nodes[0].clone()].into_iter().collect(),
+        // column unit
+        Column(_) | Ref(_) => [enode.clone()].into_iter().collect(),
 
-        Proj([exprs, _]) | Agg([exprs, _]) => output(exprs),
+        Proj([exprs, _]) | Agg([exprs, _]) => produced(exprs).collect(),
         HashAgg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
-            output(exprs).union(&output(group_keys)).cloned().collect()
+            produced(exprs).chain(produced(group_keys)).collect()
         }
 
         // expressions: merge from all children
         _ => (enode.children().iter())
-            .flat_map(|id| x(id).iter().cloned())
+            .flat_map(|id| columns(id).iter().cloned())
             .collect(),
     }
 }

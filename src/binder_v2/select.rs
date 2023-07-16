@@ -75,11 +75,9 @@ impl Binder {
                 }
                 SelectItem::ExprWithAlias { expr, alias } => {
                     let id = self.bind_expr(expr)?;
-                    let ref_id = self.egraph.add(Node::Ref(id));
-                    self.add_alias(alias.value.to_lowercase(), "".into(), id);
-                    self.current_ctx_mut()
-                        .output_aliases
-                        .insert(alias.value, ref_id);
+                    let name = alias.value.to_lowercase();
+                    self.add_alias(name.clone(), "".into(), id);
+                    self.current_ctx_mut().output_aliases.insert(name, id);
                     select_list.push(id);
                 }
                 SelectItem::Wildcard(_) => {

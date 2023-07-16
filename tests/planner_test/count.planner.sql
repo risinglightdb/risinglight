@@ -2,7 +2,7 @@
 explain select count(*) from t
 
 /*
-Projection { exprs: [ rowcount ], cost: 201.3 }
+Projection { exprs: [ rowcount ], cost: 201.11 }
 └── Agg { aggs: [ rowcount ], cost: 201 }
     └──  Scan { table: t, list: [], filter: null, cost: 0 }
 */
@@ -11,7 +11,7 @@ Projection { exprs: [ rowcount ], cost: 201.3 }
 explain select count(*) + 1 from t
 
 /*
-Projection { exprs: [ + { lhs: 1, rhs: rowcount } ], cost: 201.5 }
+Projection { exprs: [ + { lhs: 1, rhs: rowcount } ], cost: 201.31 }
 └── Agg { aggs: [ rowcount ], cost: 201 }
     └──  Scan { table: t, list: [], filter: null, cost: 0 }
 */

@@ -51,6 +51,7 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             Insert([_, _, c]) | CopyTo([_, c]) => rows(c) * cols(c) + costs(c),
             Empty(_) => 0.0,
             // for expressions, the cost is 0.1x AST size
+            Column(_) | Ref(_) => 0.01,
             _ => enode.fold(0.1, |sum, id| sum + costs(&id)),
         };
         debug!(
