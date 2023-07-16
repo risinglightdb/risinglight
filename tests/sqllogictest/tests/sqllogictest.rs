@@ -21,6 +21,7 @@ fn main() {
         "stringconcat.slt",
         "window_function.slt",
         "merge_join.slt",
+        "sort_agg.slt",
     ];
 
     let mut tests = vec![];
