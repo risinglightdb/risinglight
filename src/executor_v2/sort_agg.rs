@@ -24,7 +24,7 @@ impl SortAggExecutor {
 
             for i in 0..chunk.cardinality() {
                 let keys = keys_chunk.row(i);
-                if !matches!(&last_keys, Some(last_keys) if keys.eq(last_keys.iter())) {
+                if !matches!(&last_keys, Some(last_keys) if keys == last_keys) {
                     if let Some(keys) = last_keys.take() {
                         if let Some(chunk) = builder.push_row(states.drain(..).chain(keys)) {
                             yield chunk;

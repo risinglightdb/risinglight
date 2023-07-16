@@ -260,7 +260,7 @@ mod tests {
             .unwrap();
 
         let stmts = parse("select x.b from (select a as b from t) as x").unwrap();
-        let mut binder = Binder::new(catalog.clone());
+        let mut binder = Binder::new(catalog);
         for stmt in stmts {
             let plan = binder.bind(stmt).unwrap();
             println!("{}", plan.pretty(10));

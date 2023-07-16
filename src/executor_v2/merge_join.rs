@@ -92,7 +92,7 @@ async fn group_by_keys(stream: BoxedExecutor, keys_expr: RecExpr) {
         let input = input?;
         let keys = Evaluator::new(&keys_expr).eval_list(&input)?;
         for (row, keys) in input.rows().zip(keys.rows()) {
-            if !keys.eq(current_key.iter()) {
+            if keys != &current_key {
                 let output_keys = std::mem::replace(&mut current_key, keys.to_owned());
                 let output_rows = std::mem::take(&mut output_rows);
                 if !output_keys.is_empty() {

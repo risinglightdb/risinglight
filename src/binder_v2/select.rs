@@ -260,7 +260,7 @@ impl Binder {
                 Node::Desc(id) => id,
                 _ => id,
             };
-            if !distinct_on.contains(&key) {
+            if !distinct_on.contains(key) {
                 return Err(BindError::OrderKeyNotInDistinct);
             }
         }
