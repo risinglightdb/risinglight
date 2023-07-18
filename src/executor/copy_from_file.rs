@@ -8,7 +8,7 @@ use tokio::sync::mpsc::Sender;
 
 use super::*;
 use crate::array::{ArrayImpl, DataChunkBuilder};
-use crate::binder_v2::copy::{ExtSource, FileFormat};
+use crate::binder::copy::{ExtSource, FileFormat};
 use crate::types::DataTypeKind;
 
 /// The executor of loading file data.

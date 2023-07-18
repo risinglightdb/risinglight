@@ -34,13 +34,13 @@ pub mod db;
 pub mod parser;
 
 /// Convert the parser AST to planner AST.
-pub mod binder_v2;
+pub mod binder;
 
 /// Egg-based planner and optimizer.
 pub mod planner;
 
 /// Execute the queries.
-pub mod executor_v2;
+pub mod executor;
 
 /// The legacy query engine.
 pub mod v1 {

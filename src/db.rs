@@ -212,7 +212,7 @@ impl Database {
         let stmts = parse(sql)?;
         let mut outputs: Vec<Chunk> = vec![];
         for stmt in stmts {
-            let mut binder = crate::binder_v2::Binder::new(self.catalog.clone());
+            let mut binder = crate::binder::Binder::new(self.catalog.clone());
             let bound = binder.bind(stmt)?;
             let mut optimizer = crate::planner::Optimizer::new(self.catalog.clone());
             if !self.storage.support_range_filter_scan() {
@@ -221,10 +221,10 @@ impl Database {
             let optimized = optimizer.optimize(&bound);
             let executor = match self.storage.clone() {
                 StorageImpl::InMemoryStorage(s) => {
-                    crate::executor_v2::build(self.catalog.clone(), s, &optimized)
+                    crate::executor::build(self.catalog.clone(), s, &optimized)
                 }
                 StorageImpl::SecondaryStorage(s) => {
-                    crate::executor_v2::build(self.catalog.clone(), s, &optimized)
+                    crate::executor::build(self.catalog.clone(), s, &optimized)
                 }
             };
             let output = executor.try_collect().await?;
@@ -319,7 +319,7 @@ pub enum Error {
     BindV2(
         #[source]
         #[from]
-        crate::binder_v2::BindError,
+        crate::binder::BindError,
     ),
     #[error("logical plan error: {0}")]
     PlanV1(
@@ -337,7 +337,7 @@ pub enum Error {
     ExecuteV2(
         #[source]
         #[from]
-        crate::executor_v2::ExecutorError,
+        crate::executor::ExecutorError,
     ),
     #[error("Storage error: {0}")]
     StorageError(

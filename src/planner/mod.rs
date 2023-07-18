@@ -4,8 +4,8 @@ use std::collections::HashSet;
 
 use egg::{define_language, CostFunction, Id, Symbol};
 
-use crate::binder_v2::copy::ExtSource;
-use crate::binder_v2::{BoundDrop, CreateTable};
+use crate::binder::copy::ExtSource;
+use crate::binder::{BoundDrop, CreateTable};
 use crate::catalog::{ColumnRefId, RootCatalogRef, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue, DateTimeField};

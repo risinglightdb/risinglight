@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::binder_v2::{BoundDrop, Object};
+use crate::binder::{BoundDrop, Object};
 use crate::storage::Storage;
 
 /// The executor of `drop` statement.
