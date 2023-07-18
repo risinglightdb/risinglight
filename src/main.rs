@@ -374,8 +374,6 @@ async fn main() -> Result<()> {
             .init();
     }
 
-    info!("using query engine v2. type '\\v1' to use the legacy engine");
-
     let db = if args.memory {
         info!("using memory engine");
         Database::new_in_memory()

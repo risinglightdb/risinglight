@@ -1,11 +1,9 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use futures::TryStreamExt;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
-use tracing::debug;
 
 use crate::array::{
     ArrayBuilder, ArrayBuilderImpl, Chunk, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder,
@@ -16,18 +14,11 @@ use crate::storage::{
     InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
     StorageImpl, Table,
 };
-use crate::v1::binder::Binder;
-use crate::v1::executor::ExecutorBuilder;
-use crate::v1::logical_planner::LogicalPlaner;
-use crate::v1::optimizer::logical_plan_rewriter::{InputRefResolver, PlanRewriter};
-use crate::v1::optimizer::plan_nodes::PlanRef;
-use crate::v1::optimizer::Optimizer;
 
 /// The database instance.
 pub struct Database {
     catalog: RootCatalogRef,
     storage: StorageImpl,
-    use_v1: AtomicBool,
 }
 
 impl Database {
@@ -37,7 +28,6 @@ impl Database {
         Database {
             catalog: storage.catalog().clone(),
             storage: StorageImpl::InMemoryStorage(Arc::new(storage)),
-            use_v1: AtomicBool::new(false),
         }
     }
 
@@ -48,7 +38,6 @@ impl Database {
         Database {
             catalog: storage.catalog().clone(),
             storage: StorageImpl::SecondaryStorage(storage),
-            use_v1: AtomicBool::new(false),
         }
     }
 
@@ -180,23 +169,19 @@ impl Database {
                         ArrayBuilderImpl::from(stat_value),
                     ])])])
                 } else {
-                    Err(Error::InternalError(
+                    Err(Error::Internal(
                         "this storage engine doesn't support statistics".to_string(),
                     ))
                 }
             } else if cmd == "d" {
                 self.run_desc(arg)
             } else {
-                Err(Error::InternalError("unsupported command".to_string()))
+                Err(Error::Internal("unsupported command".to_string()))
             }
         } else if cmd == "dt" {
             self.run_dt()
-        } else if cmd == "v1" || cmd == "v2" {
-            self.use_v1.store(cmd == "v1", Ordering::Relaxed);
-            println!("switched to query engine {cmd}");
-            Ok(vec![])
         } else {
-            Err(Error::InternalError("unsupported command".to_string()))
+            Err(Error::Internal("unsupported command".to_string()))
         }
     }
 
@@ -204,9 +189,6 @@ impl Database {
     pub async fn run(&self, sql: &str) -> Result<Vec<Chunk>, Error> {
         if let Some(cmdline) = sql.trim().strip_prefix('\\') {
             return self.run_internal(cmdline).await;
-        }
-        if self.use_v1.load(Ordering::Relaxed) {
-            return self.run_v1(sql).await;
         }
 
         let stmts = parse(sql)?;
@@ -234,70 +216,6 @@ impl Database {
         }
         Ok(outputs)
     }
-
-    /// Run SQL queries using query engine v1.
-    async fn run_v1(&self, sql: &str) -> Result<Vec<Chunk>, Error> {
-        let stmts = parse(sql)?;
-        let mut binder = Binder::new(self.catalog.clone());
-        let logical_planner = LogicalPlaner::default();
-        let mut optimizer = Optimizer {
-            enable_filter_scan: self.storage.support_range_filter_scan(),
-        };
-        // TODO: parallelize
-        let mut outputs: Vec<Chunk> = vec![];
-        for stmt in stmts {
-            debug!("{:#?}", stmt);
-            let stmt = binder.bind(&stmt)?;
-            debug!("{:#?}", stmt);
-            let logical_plan = logical_planner.plan(stmt)?;
-            debug!("{:#?}", logical_plan);
-            // Resolve input reference
-            let mut input_ref_resolver = InputRefResolver::default();
-            let logical_plan = input_ref_resolver.rewrite(logical_plan);
-            let column_names = logical_plan.out_names();
-            debug!("{:#?}", logical_plan);
-            let optimized_plan = optimizer.optimize(logical_plan);
-            debug!("{:#?}", optimized_plan);
-
-            let mut executor_builder = ExecutorBuilder::new(self.storage.clone());
-            let executor = executor_builder.build(optimized_plan);
-
-            let output = executor.try_collect().await?;
-
-            let mut chunk = Chunk::new(output);
-            if !column_names.is_empty() && !chunk.data_chunks().is_empty() {
-                chunk.set_header(column_names);
-            }
-            outputs.push(chunk);
-        }
-        Ok(outputs)
-    }
-
-    // Generate the execution plans for SQL queries.
-    pub fn generate_execution_plan(&self, sql: &str) -> Result<Vec<PlanRef>, Error> {
-        let stmts = parse(sql)?;
-
-        let mut binder = Binder::new(self.catalog.clone());
-        let logical_planner = LogicalPlaner::default();
-        let mut optimizer = Optimizer {
-            enable_filter_scan: self.storage.support_range_filter_scan(),
-        };
-        let mut plans = vec![];
-        for stmt in stmts {
-            let stmt = binder.bind(&stmt)?;
-            debug!("{:#?}", stmt);
-            let logical_plan = logical_planner.plan(stmt)?;
-            debug!("{:#?}", logical_plan);
-            // Resolve input reference
-            let mut input_ref_resolver = InputRefResolver::default();
-            let logical_plan = input_ref_resolver.rewrite(logical_plan);
-            debug!("{:#?}", logical_plan);
-            let optimized_plan = optimizer.optimize(logical_plan);
-            debug!("{:#?}", optimized_plan);
-            plans.push(optimized_plan);
-        }
-        Ok(plans)
-    }
 }
 
 /// The error type of database operations.
@@ -310,42 +228,24 @@ pub enum Error {
         ParserError,
     ),
     #[error("bind error: {0}")]
-    BindV1(
-        #[source]
-        #[from]
-        crate::v1::binder::BindError,
-    ),
-    #[error("bind error: {0}")]
-    BindV2(
+    Bind(
         #[source]
         #[from]
         crate::binder::BindError,
     ),
-    #[error("logical plan error: {0}")]
-    PlanV1(
-        #[source]
-        #[from]
-        crate::v1::logical_planner::LogicalPlanError,
-    ),
     #[error("execute error: {0}")]
-    ExecuteV1(
-        #[source]
-        #[from]
-        crate::v1::executor::ExecutorError,
-    ),
-    #[error("execute error: {0}")]
-    ExecuteV2(
+    Execute(
         #[source]
         #[from]
         crate::executor::ExecutorError,
     ),
     #[error("Storage error: {0}")]
-    StorageError(
+    Storage(
         #[source]
         #[from]
         #[backtrace]
         crate::storage::TracedStorageError,
     ),
     #[error("Internal error: {0}")]
-    InternalError(String),
+    Internal(String),
 }

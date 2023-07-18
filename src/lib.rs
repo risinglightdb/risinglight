@@ -42,24 +42,6 @@ pub mod planner;
 /// Execute the queries.
 pub mod executor;
 
-/// The legacy query engine.
-pub mod v1 {
-    /// Resolve all expressions referring with their names.
-    pub mod binder;
-
-    /// Transform the parse tree into a logical operations tree.
-    pub mod logical_planner;
-
-    /// Do query optimization.
-    pub mod optimizer;
-
-    /// Execute the queries.
-    pub mod executor;
-
-    /// Functions
-    pub mod function;
-}
-
 /// In-memory representations of a column values.
 pub mod array;
 /// Metadata of database objects.
