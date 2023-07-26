@@ -85,7 +85,7 @@ impl<'a> Evaluator<'a> {
                 let Expr::Field(field) = self.expr[*field] else { panic!("not a field") };
                 a.extract(field)
             }
-            Asc(a) | Desc(a) | Ref(a) => self.next(*a).eval(chunk),
+            Desc(a) | Ref(a) => self.next(*a).eval(chunk),
             // for aggs, evaluate its children
             RowCount => Ok(ArrayImpl::new_null(
                 (0..chunk.cardinality()).map(|_| ()).collect(),
@@ -215,11 +215,7 @@ impl<'a> Evaluator<'a> {
     /// The bool is false if the order is ascending, true if the order is descending.
     pub fn orders(&self) -> Vec<bool> {
         (self.node().as_list().iter())
-            .map(|id| match self.next(*id).node() {
-                Expr::Asc(_) => false,
-                Expr::Desc(_) => true,
-                _ => panic!("not order"),
-            })
+            .map(|id| matches!(self.next(*id).node(), Expr::Desc(_)))
             .collect()
     }
 }

@@ -120,7 +120,9 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(c),
 
         // concat 2 children
-        Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) => concat_struct(x(l)?, x(r)?),
+        Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) | MergeJoin([_, _, _, l, r]) => {
+            concat_struct(x(l)?, x(r)?)
+        }
 
         // plans that change schema
         Scan([_, columns, _]) => x(columns),
@@ -138,8 +140,11 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
             }
             Ok(type_)
         }
-        Proj([exprs, _]) => x(exprs),
-        Agg([exprs, group_keys, _]) => concat_struct(x(exprs)?, x(group_keys)?),
+        Proj([exprs, _]) | Agg([exprs, _]) => x(exprs),
+        Window([exprs, c]) => concat_struct(x(c)?, x(exprs)?),
+        HashAgg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
+            concat_struct(x(exprs)?, x(group_keys)?)
+        }
         Empty(ids) => {
             let mut types = vec![];
             for id in ids.iter() {

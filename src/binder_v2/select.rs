@@ -32,7 +32,10 @@ impl Binder {
         let from = self.bind_from(select.from)?;
         let projection = self.bind_projection(select.projection, from)?;
         let where_ = self.bind_where(select.selection)?;
-        let groupby = self.bind_groupby(select.group_by)?;
+        let groupby = match select.group_by {
+            group_by if group_by.is_empty() => None,
+            group_by => Some(self.bind_groupby(group_by)?),
+        };
         let having = self.bind_having(select.having)?;
         let orderby = self.bind_orderby(order_by)?;
         let distinct = match select.distinct {
@@ -60,7 +63,7 @@ impl Binder {
             match item {
                 SelectItem::UnnamedExpr(expr) => {
                     let ident = if let Expr::Identifier(ident) = &expr {
-                        Some(ident.value.clone())
+                        Some(ident.value.to_lowercase())
                     } else {
                         None
                     };
@@ -72,11 +75,9 @@ impl Binder {
                 }
                 SelectItem::ExprWithAlias { expr, alias } => {
                     let id = self.bind_expr(expr)?;
-                    let ref_id = self.egraph.add(Node::Ref(id));
-                    self.add_alias(alias.value.clone(), "".into(), id);
-                    self.current_ctx_mut()
-                        .output_aliases
-                        .insert(alias.value, ref_id);
+                    let name = alias.value.to_lowercase();
+                    self.add_alias(name.clone(), "".into(), id);
+                    self.current_ctx_mut().output_aliases.insert(name, id);
                     select_list.push(id);
                 }
                 SelectItem::Wildcard(_) => {
@@ -135,10 +136,10 @@ impl Binder {
         let mut orderby = Vec::with_capacity(order_by.len());
         for e in order_by {
             let expr = self.bind_expr(e.expr)?;
-            let key = self.egraph.add(match e.asc {
-                Some(true) | None => Node::Asc(expr),
-                Some(false) => Node::Desc(expr),
-            });
+            let key = match e.asc {
+                Some(true) | None => expr,
+                Some(false) => self.egraph.add(Node::Desc(expr)),
+            };
             orderby.push(key);
         }
         Ok(self.egraph.add(Node::List(orderby.into())))
@@ -168,10 +169,10 @@ impl Binder {
 
     /// Extracts all aggregations from `exprs` and generates an [`Agg`](Node::Agg) plan.
     /// If no aggregation is found and no `groupby` keys, returns the original `plan`.
-    fn plan_agg(&mut self, exprs: &mut [Id], groupby: Id, plan: Id) -> Result {
+    fn plan_agg(&mut self, exprs: &mut [Id], groupby: Option<Id>, plan: Id) -> Result {
         let expr_list = self.egraph.add(Node::List(exprs.to_vec().into()));
         let aggs = self.aggs(expr_list).to_vec();
-        if aggs.is_empty() && self.node(groupby).as_list().is_empty() {
+        if aggs.is_empty() && groupby.is_none() {
             return Ok(plan);
         }
         // check nested agg
@@ -185,7 +186,10 @@ impl Binder {
         list.sort();
         list.dedup();
         let aggs = self.egraph.add(Node::List(list.into()));
-        let plan = self.egraph.add(Node::Agg([aggs, groupby, plan]));
+        let plan = self.egraph.add(match groupby {
+            Some(groupby) => Node::HashAgg([aggs, groupby, plan]),
+            None => Node::Agg([aggs, plan]),
+        });
         // check for not aggregated columns
         // rewrite the expressions with a wrapper over agg or group keys
         let schema = self.schema(plan);
@@ -236,7 +240,7 @@ impl Binder {
     /// ```ignore
     /// distinct=(list a b)
     /// projection=(list b c)
-    /// output=(agg (list b (first c)) (list a b) plan)
+    /// output=(hashagg (list b (first c)) (list a b) plan)
     /// ```
     fn plan_distinct(
         &mut self,
@@ -251,9 +255,12 @@ impl Binder {
         }
         // make sure all ORDER BY items are in DISTINCT list.
         for id in self.node(orderby).as_list() {
-            // id = (asc key) or (desc key)
-            let key = self.node(*id).children()[0];
-            if !distinct_on.contains(&key) {
+            // id = key or (desc key)
+            let key = match self.node(*id) {
+                Node::Desc(id) => id,
+                _ => id,
+            };
+            if !distinct_on.contains(key) {
                 return Err(BindError::OrderKeyNotInDistinct);
             }
         }
@@ -269,7 +276,7 @@ impl Binder {
         }
         let aggs = self.egraph.add(Node::List(aggs.into()));
         *projection = self.egraph.add(Node::List(projs.into()));
-        Ok(self.egraph.add(Node::Agg([aggs, distinct, plan])))
+        Ok(self.egraph.add(Node::HashAgg([aggs, distinct, plan])))
     }
 
     /// Extracts all over nodes from `projection`, `distinct` and `orderby`.

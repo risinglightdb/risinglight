@@ -65,8 +65,8 @@ impl Binder {
                 let id = if is_internal {
                     self.egraph.add(Node::Internal([table_id, cols]))
                 } else {
-                    let true_ = self.egraph.add(Node::null());
-                    self.egraph.add(Node::Scan([table_id, cols, true_]))
+                    let null = self.egraph.add(Node::null());
+                    self.egraph.add(Node::Scan([table_id, cols, null]))
                 };
                 Ok(id)
             }
@@ -76,7 +76,11 @@ impl Binder {
                 let (id, ctx) = self.bind_query(*subquery)?;
                 // move `output_aliases` to current context
                 let table_name = alias.map_or("".into(), |alias| alias.name.value);
-                for (name, id) in ctx.output_aliases {
+                for (name, mut id) in ctx.output_aliases {
+                    // wrap with `Ref` if the node is not a column unit.
+                    if !matches!(self.node(id), Node::Column(_) | Node::Ref(_)) {
+                        id = self.egraph.add(Node::Ref(id));
+                    }
                     self.add_alias(name, table_name.clone(), id);
                 }
                 Ok(id)
@@ -245,7 +249,6 @@ mod tests {
     use super::*;
     use crate::catalog::{ColumnCatalog, RootCatalog};
     use crate::parser::parse;
-    use crate::planner::Optimizer;
 
     #[test]
     fn bind_test_subquery() {
@@ -257,20 +260,10 @@ mod tests {
             .unwrap();
 
         let stmts = parse("select x.b from (select a as b from t) as x").unwrap();
-        let mut binder = Binder::new(catalog.clone());
-        let optimizer = Optimizer::new(catalog.clone());
+        let mut binder = Binder::new(catalog);
         for stmt in stmts {
             let plan = binder.bind(stmt).unwrap();
             println!("{}", plan.pretty(10));
-
-            let optimized = optimizer.optimize(&plan);
-
-            let mut egraph = egg::EGraph::new(TypeSchemaAnalysis {
-                catalog: catalog.clone(),
-            });
-            println!("{}", optimized.pretty(10));
-            egraph.add_expr(&optimized);
-            println!("{:?}", egraph[0.into()]);
         }
     }
 }

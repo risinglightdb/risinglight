@@ -10,7 +10,7 @@ use crate::types::DataType;
 pub struct OrderExecutor {
     /// A list of expressions to order by.
     ///
-    /// e.g. `(list (asc (+ #0 #1)) (desc #0))`
+    /// e.g. `(list (+ #0 #1) (desc #0))`
     pub order_keys: RecExpr,
     pub types: Vec<DataType>,
 }

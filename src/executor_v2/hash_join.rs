@@ -12,11 +12,19 @@ use crate::types::{DataType, DataValue};
 
 /// The executor for hash join
 pub struct HashJoinExecutor<const T: JoinType> {
-    pub op: Expr,
     pub left_keys: RecExpr,
     pub right_keys: RecExpr,
     pub left_types: Vec<DataType>,
     pub right_types: Vec<DataType>,
+}
+
+/// Join types for generating join code during the compilation.
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum JoinType {
+    Inner,
+    LeftOuter,
+    RightOuter,
+    FullOuter,
 }
 
 pub type JoinKeys = SmallVec<[DataValue; 2]>;
