@@ -47,7 +47,7 @@ pub mod array;
 /// Metadata of database objects.
 pub mod catalog;
 /// Python Extension
-pub mod python_extension;
+pub mod python;
 /// Postgres wire protocol.
 pub mod server;
 /// Persistent storage engine.
@@ -57,7 +57,7 @@ pub mod types;
 /// Utilities.
 pub mod utils;
 
-use python_extension::open;
+use python::open;
 #[cfg(feature = "jemalloc")]
 use tikv_jemallocator::Jemalloc;
 
