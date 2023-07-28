@@ -97,6 +97,10 @@ name = "e2e"
 harness = false
 name = "array"
 
+[[bench]]
+harness = false
+name = "tpch"
+
 [profile.bench]
 codegen-units = 1
 lto = 'thin'
