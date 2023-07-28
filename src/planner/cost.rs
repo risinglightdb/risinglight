@@ -30,8 +30,15 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
         let c = match enode {
             Scan(_) | Values(_) => out(),
             Order([_, c]) => nlogn(rows(c)) + out() + costs(c),
-            Proj([exprs, c]) | Filter([exprs, c]) => costs(exprs) * rows(c) + out() + costs(c),
-            Agg([exprs, groupby, c]) => {
+            Filter([exprs, c]) => costs(exprs) * rows(c) + out() + costs(c),
+            Proj([exprs, c]) | Window([exprs, c]) => costs(exprs) * rows(c) + costs(c),
+            Agg([exprs, c]) => costs(exprs) * rows(c) + out() + costs(c),
+            HashAgg([exprs, groupby, c]) => {
+                ((rows(id) + 1.0).log2() + costs(exprs) + costs(groupby)) * rows(c)
+                    + out()
+                    + costs(c)
+            }
+            SortAgg([exprs, groupby, c]) => {
                 (costs(exprs) + costs(groupby)) * rows(c) + out() + costs(c)
             }
             Limit([_, _, c]) => out() + costs(c),
@@ -40,9 +47,11 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             HashJoin([_, _, _, l, r]) => {
                 (rows(l) + 1.0).log2() * (rows(l) + rows(r)) + out() + costs(l) + costs(r)
             }
+            MergeJoin([_, _, _, l, r]) => out() + costs(l) + costs(r),
             Insert([_, _, c]) | CopyTo([_, c]) => rows(c) * cols(c) + costs(c),
             Empty(_) => 0.0,
             // for expressions, the cost is 0.1x AST size
+            Column(_) | Ref(_) => 0.01,
             _ => enode.fold(0.1, |sum, id| sum + costs(&id)),
         };
         debug!(

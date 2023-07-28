@@ -15,7 +15,7 @@ pub struct ExplainExecutor {
 
 impl ExplainExecutor {
     pub fn execute(self) -> BoxedExecutor {
-        let costs = Optimizer::new(self.catalog.clone()).costs(&self.plan);
+        let costs = Optimizer::new(self.catalog.clone(), Default::default()).costs(&self.plan);
         let explain_obj = Explain::of(&self.plan)
             .with_costs(&costs)
             .with_catalog(&self.catalog);

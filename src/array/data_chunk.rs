@@ -303,3 +303,12 @@ impl RowRef<'_> {
         self.values().collect()
     }
 }
+
+impl PartialEq<&[DataValue]> for RowRef<'_> {
+    fn eq(&self, other: &&[DataValue]) -> bool {
+        if other.len() != self.chunk.column_count() {
+            return false;
+        }
+        self.values().zip(other.iter()).all(|(a, b)| &a == b)
+    }
+}

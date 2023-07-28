@@ -52,6 +52,14 @@ impl StorageImpl {
             Self::InMemoryStorage(_) => false,
         }
     }
+
+    /// Returns true if scanned table is sorted by primary key.
+    pub fn table_is_sorted_by_primary_key(&self) -> bool {
+        match self {
+            Self::SecondaryStorage(_) => true,
+            Self::InMemoryStorage(_) => false,
+        }
+    }
 }
 
 /// Represents a storage engine.
