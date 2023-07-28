@@ -77,11 +77,17 @@ tracing-subscriber = { version = "0.3", features = [
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_tokio"] }
+glob = "0.3"
+libtest-mimic = "0.7"
 tempfile = "3"
 test-case = "3"
 
 [build-dependencies]
 pyo3-build-config = { version = "0.20", optional = true }
+
+[[test]]
+name = "sqllogictest"
+harness = false
 
 [[bench]]
 harness = false
@@ -96,7 +102,7 @@ codegen-units = 1
 lto = 'thin'
 
 [workspace]
-members = ["proto", "tests/sqllogictest", "tests/sqlplannertest"]
+members = ["proto"]
 
 [patch.crates-io]
 risinglight_proto = { path = "proto" }
