@@ -48,15 +48,21 @@ impl FromStr for ExtSource {
 impl Binder {
     pub(super) fn bind_copy(
         &mut self,
-        table_name: ObjectName,
-        columns: &[Ident],
+        source: CopySource,
         to: bool,
         target: CopyTarget,
         options: &[CopyOption],
     ) -> Result {
+        let (table_name, columns) = match source {
+            CopySource::Table {
+                table_name,
+                columns,
+            } => (table_name, columns),
+            CopySource::Query(_) => return Err(BindError::Todo("copy from query".into())),
+        };
         let (table, is_internal) = self.bind_table_id(&table_name)?;
 
-        let cols = self.bind_table_columns(&table_name, columns)?;
+        let cols = self.bind_table_columns(&table_name, &columns)?;
 
         let ext_source = self.egraph.add(Node::ExtSource(ExtSource {
             path: match target {

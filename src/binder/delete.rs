@@ -3,12 +3,13 @@ use super::*;
 impl Binder {
     pub(super) fn bind_delete(
         &mut self,
-        table_name: TableFactor,
+        tables: Vec<ObjectName>,
         selection: Option<Expr>,
     ) -> Result {
-        let TableFactor::Table { name, .. } = &table_name else {
-            todo!("unsupported delete target: {:?}", table_name);
-        };
+        if tables.len() != 1 {
+            return Err(BindError::Todo("delete from multiple tables".into()));
+        }
+        let name = &tables[0];
         let (table_id, is_internal) = self.bind_table_id(name)?;
         if is_internal {
             return Err(BindError::NotSupportedOnInternalTable);

@@ -39,9 +39,9 @@ impl Binder {
         let having = self.bind_having(select.having)?;
         let orderby = self.bind_orderby(order_by)?;
         let distinct = match select.distinct {
-            // TODO: distinct on
-            true => projection,
-            false => self.egraph.add(Node::List([].into())),
+            None => self.egraph.add(Node::List([].into())),
+            Some(Distinct::Distinct) => projection,
+            Some(Distinct::On(exprs)) => self.bind_exprs(exprs)?,
         };
 
         let mut plan = self.egraph.add(Node::Filter([where_, from]));
