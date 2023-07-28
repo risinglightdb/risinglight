@@ -36,7 +36,7 @@ pub async fn test(filename: impl AsRef<Path>, engine: Engine) -> Result<()> {
     tester.enable_testdir();
 
     // Uncomment the following lines to update the test files.
-    // if engine == Engine::Disk && !v1 {
+    // if engine == Engine::Disk {
     //     // Only use one engine to update to avoid conflicts.
     //     sqllogictest::update_test_file(filename, tester, "\t", sqllogictest::default_validator)
     //         .await?;
