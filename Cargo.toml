@@ -77,6 +77,7 @@ tracing-subscriber = { version = "0.3", features = [
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_tokio"] }
+glob = "0.3"
 tempfile = "3"
 test-case = "3"
 
@@ -90,6 +91,10 @@ name = "e2e"
 [[bench]]
 harness = false
 name = "array"
+
+[[bench]]
+harness = false
+name = "tpch"
 
 [profile.bench]
 codegen-units = 1
