@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use tokio::sync::mpsc;
 
 use super::*;
-use crate::binder_v2::copy::{ExtSource, FileFormat};
+use crate::binder::copy::{ExtSource, FileFormat};
 
 /// The executor of saving data to file.
 pub struct CopyToFileExecutor {

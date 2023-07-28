@@ -4,18 +4,17 @@ use std::fs::File;
 use std::io::BufReader;
 
 use indicatif::{ProgressBar, ProgressStyle};
-use itertools::izip;
 use tokio::sync::mpsc::Sender;
 
 use super::*;
 use crate::array::{ArrayImpl, DataChunkBuilder};
+use crate::binder::copy::{ExtSource, FileFormat};
 use crate::types::DataTypeKind;
-use crate::v1::binder::FileFormat;
-use crate::v1::optimizer::plan_nodes::PhysicalCopyFromFile;
 
 /// The executor of loading file data.
 pub struct CopyFromFileExecutor {
-    pub plan: PhysicalCopyFromFile,
+    pub source: ExtSource,
+    pub types: Vec<DataType>,
 }
 
 /// When the source file size is above the limit, we show a progress bar on the screen.
@@ -24,7 +23,7 @@ const IMPORT_PROGRESS_BAR_LIMIT: u64 = 1024 * 1024;
 impl CopyFromFileExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
-        let types = self.plan.logical().column_types().to_vec();
+        let types = self.types.clone();
         let (tx, mut rx) = tokio::sync::mpsc::channel(1);
         // # Cancellation
         // When this stream is dropped, the `rx` is dropped, the spawned task will fail to send to
@@ -48,10 +47,10 @@ impl CopyFromFileExecutor {
     ///
     /// The read data chunks will be sent through `tx`.
     fn read_file_blocking(self, tx: Sender<DataChunk>) -> Result<(), ExecutorError> {
-        let file = File::open(self.plan.logical().path())?;
+        let file = File::open(self.source.path)?;
         let file_size = file.metadata()?.len();
         let mut buf_reader = BufReader::new(file);
-        let mut reader = match self.plan.logical().format().clone() {
+        let mut reader = match self.source.format {
             FileFormat::Csv {
                 delimiter,
                 quote,
@@ -79,11 +78,10 @@ impl CopyFromFileExecutor {
             bar
         };
 
-        let column_count = self.plan.logical().column_types().len();
+        let column_count = self.types.len();
 
         // create chunk builder
-        let mut chunk_builder =
-            DataChunkBuilder::new(self.plan.logical().column_types(), PROCESSING_WINDOW_SIZE);
+        let mut chunk_builder = DataChunkBuilder::new(&self.types, PROCESSING_WINDOW_SIZE);
         let mut size_count = 0;
 
         for record in reader.records() {
@@ -99,19 +97,15 @@ impl CopyFromFileExecutor {
                 });
             }
 
-            let str_row_data: Result<Vec<&str>, _> =
-                izip!(record.iter(), self.plan.logical().column_types())
-                    .map(|(v, ty)| {
-                        if !ty.nullable && v.is_empty() {
-                            return Err(ExecutorError::NotNullable);
-                        }
-                        Ok(v)
-                    })
-                    .collect();
+            for (v, ty) in record.iter().zip(&self.types) {
+                if !ty.nullable && v.is_empty() {
+                    return Err(ExecutorError::NotNullable);
+                }
+            }
             size_count += record.as_slice().as_bytes().len();
 
             // push a raw str row and send it if necessary
-            if let Some(chunk) = chunk_builder.push_str_row(str_row_data?)? {
+            if let Some(chunk) = chunk_builder.push_str_row(record.iter())? {
                 bar.set_position(size_count as u64);
                 tx.blocking_send(chunk).map_err(|_| ExecutorError::Abort)?;
             }
@@ -141,25 +135,20 @@ mod tests {
         write!(file, "{}", csv).expect("failed to write file");
 
         let executor = CopyFromFileExecutor {
-            plan: PhysicalCopyFromFile::new(LogicalCopyFromFile::new(
-                file.path().into(),
-                FileFormat::Csv {
+            source: ExtSource {
+                path: file.path().into(),
+                format: FileFormat::Csv {
                     delimiter: ',',
                     quote: '"',
                     escape: None,
                     header: false,
                 },
-                vec![
-                    DataTypeKind::Int32.not_null(),
-                    DataTypeKind::Float64.not_null(),
-                    DataTypeKind::String.not_null(),
-                ],
-                vec![
-                    DataTypeKind::Int32.not_null().to_column("v1".into()),
-                    DataTypeKind::Float64.not_null().to_column("v2".into()),
-                    DataTypeKind::String.not_null().to_column("v3".into()),
-                ],
-            )),
+            },
+            types: vec![
+                DataTypeKind::Int32.not_null(),
+                DataTypeKind::Float64.not_null(),
+                DataTypeKind::String.not_null(),
+            ],
         };
         let actual = executor.execute().next().await.unwrap().unwrap();
 

@@ -25,21 +25,18 @@ impl Display for Engine {
     }
 }
 
-pub async fn test(filename: impl AsRef<Path>, engine: Engine, v1: bool) -> Result<()> {
+pub async fn test(filename: impl AsRef<Path>, engine: Engine) -> Result<()> {
     let db = match engine {
         Engine::Disk => Database::new_on_disk(SecondaryStorageOptions::default_for_test()).await,
         Engine::Mem => Database::new_in_memory(),
     };
-    if v1 {
-        db.run_internal("v1").await.unwrap();
-    }
 
     let db = DatabaseWrapper(db);
     let mut tester = sqllogictest::Runner::new(&db);
     tester.enable_testdir();
 
     // Uncomment the following lines to update the test files.
-    // if engine == Engine::Disk && !v1 {
+    // if engine == Engine::Disk {
     //     // Only use one engine to update to avoid conflicts.
     //     sqllogictest::update_test_file(filename, tester, "\t", sqllogictest::default_validator)
     //         .await?;

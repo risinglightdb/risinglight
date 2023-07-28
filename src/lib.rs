@@ -34,38 +34,20 @@ pub mod db;
 pub mod parser;
 
 /// Convert the parser AST to planner AST.
-pub mod binder_v2;
+pub mod binder;
 
 /// Egg-based planner and optimizer.
 pub mod planner;
 
 /// Execute the queries.
-pub mod executor_v2;
-
-/// The legacy query engine.
-pub mod v1 {
-    /// Resolve all expressions referring with their names.
-    pub mod binder;
-
-    /// Transform the parse tree into a logical operations tree.
-    pub mod logical_planner;
-
-    /// Do query optimization.
-    pub mod optimizer;
-
-    /// Execute the queries.
-    pub mod executor;
-
-    /// Functions
-    pub mod function;
-}
+pub mod executor;
 
 /// In-memory representations of a column values.
 pub mod array;
 /// Metadata of database objects.
 pub mod catalog;
 /// Python Extension
-pub mod python_extension;
+pub mod python;
 /// Postgres wire protocol.
 pub mod server;
 /// Persistent storage engine.
@@ -75,7 +57,7 @@ pub mod types;
 /// Utilities.
 pub mod utils;
 
-use python_extension::open;
+use python::open;
 #[cfg(feature = "jemalloc")]
 use tikv_jemallocator::Jemalloc;
 

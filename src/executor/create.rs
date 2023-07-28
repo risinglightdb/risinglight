@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::binder_v2::CreateTable;
+use crate::binder::CreateTable;
 use crate::storage::Storage;
 
 /// The executor of `create table` statement.

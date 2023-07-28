@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::fmt;
-use std::result::Result as RawResult;
 use std::str::FromStr;
 
 use pretty_xmlish::helper::delegate_fmt;
@@ -8,7 +7,8 @@ use pretty_xmlish::Pretty;
 use serde::{Deserialize, Serialize};
 
 use super::*;
-use crate::catalog::{ColumnCatalog, ColumnId, SchemaId};
+use crate::catalog::{ColumnCatalog, ColumnDesc, ColumnId, SchemaId};
+use crate::types::DataType;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
 pub struct CreateTable {
@@ -41,7 +41,7 @@ impl CreateTable {
 impl FromStr for CreateTable {
     type Err = ();
 
-    fn from_str(_s: &str) -> RawResult<Self, Self::Err> {
+    fn from_str(_s: &str) -> std::result::Result<Self, Self::Err> {
         Err(())
     }
 }
@@ -165,5 +165,28 @@ impl Binder {
             }
         }
         pks_name_from_constraints
+    }
+}
+
+impl From<&ColumnDef> for ColumnCatalog {
+    fn from(cdef: &ColumnDef) -> Self {
+        let mut is_nullable = true;
+        let mut is_primary_ = false;
+        for opt in &cdef.options {
+            match opt.option {
+                ColumnOption::Null => is_nullable = true,
+                ColumnOption::NotNull => is_nullable = false,
+                ColumnOption::Unique { is_primary } => is_primary_ = is_primary,
+                _ => todo!("column options"),
+            }
+        }
+        ColumnCatalog::new(
+            0,
+            ColumnDesc::new(
+                DataType::new((&cdef.data_type).into(), is_nullable),
+                cdef.name.value.to_lowercase(),
+                is_primary_,
+            ),
+        )
     }
 }

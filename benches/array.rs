@@ -8,7 +8,6 @@ use risinglight::array::{
 };
 use risinglight::parser::BinaryOperator;
 use risinglight::types::DataTypeKind;
-use risinglight::v1::function::FunctionCtx;
 use rust_decimal::Decimal;
 
 fn ops(c: &mut Criterion) {
@@ -111,70 +110,6 @@ fn filter(c: &mut Criterion) {
     });
 }
 
-fn function(c: &mut Criterion) {
-    for_all_size(c, "array mul function (standard)", |b, &size| {
-        use risinglight::v1::function::BinaryExecutor;
-        let a1 = make_i32_array(size);
-        let a2 = make_i32_array(size);
-        let f = |x: &i32, y: &i32, _: &mut FunctionCtx| (*x) * (*y);
-        b.iter(|| {
-            let _ =
-                BinaryExecutor::eval_batch_standard::<I32Array, I32Array, I32Array, _>(&a1, &a2, f);
-        });
-    });
-
-    for_all_size(
-        c,
-        "array mul function (standard + never inline)",
-        |b, &size| {
-            use risinglight::v1::function::BinaryExecutor;
-            let a1 = make_i32_array(size);
-            let a2 = make_i32_array(size);
-            b.iter(|| {
-                let _ = BinaryExecutor::eval_batch_standard::<I32Array, I32Array, I32Array, _>(
-                    &a1,
-                    &a2,
-                    never_inline_mul,
-                );
-            });
-        },
-    );
-
-    for_all_size(c, "array mul function (lazy select)", |b, &size| {
-        use risinglight::v1::function::BinaryExecutor;
-        let a1 = make_i32_array(size);
-        let a2 = make_i32_array(size);
-        let f = |x: &i32, y: &i32, _: &mut FunctionCtx| (*x) * (*y);
-        b.iter(|| {
-            let _ = BinaryExecutor::eval_batch_lazy_select::<I32Array, I32Array, I32Array, _>(
-                &a1, &a2, f,
-            );
-        });
-    });
-
-    for_all_size(
-        c,
-        "array mul function (lazy select + never inline)",
-        |b, &size| {
-            use risinglight::v1::function::BinaryExecutor;
-            let a1 = make_i32_array(size);
-            let a2 = make_i32_array(size);
-            b.iter(|| {
-                let _ = BinaryExecutor::eval_batch_lazy_select::<I32Array, I32Array, I32Array, _>(
-                    &a1,
-                    &a2,
-                    never_inline_mul,
-                );
-            });
-        },
-    );
-
-    #[inline(never)]
-    fn never_inline_mul(a: &i32, b: &i32, _: &mut FunctionCtx) -> i32 {
-        *a * *b
-    }
-}
-
 fn make_bool_array(size: usize) -> ArrayImpl {
     let mask = make_valid_bitmap(size);
     let iter = (0..size as i32)
@@ -233,5 +168,5 @@ fn for_all_size(
     group.finish();
 }
 
-criterion_group!(benches, function, ops, agg, cast, filter);
+criterion_group!(benches, ops, agg, cast, filter);
 criterion_main!(benches);
