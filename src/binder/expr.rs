@@ -41,6 +41,12 @@ impl Binder {
             } => self.bind_between(*expr, negated, *low, *high),
             Expr::Interval(interval) => self.bind_interval(interval),
             Expr::Extract { field, expr } => self.bind_extract(field, *expr),
+            Expr::Case {
+                operand,
+                conditions,
+                results,
+                else_result,
+            } => self.bind_case(operand, conditions, results, else_result),
             _ => todo!("bind expression: {:?}", expr),
         }?;
         self.check_type(id)?;
@@ -196,6 +202,29 @@ impl Binder {
         let expr = self.bind_expr(expr)?;
         let field = self.egraph.add(Node::Field(field.into()));
         Ok(self.egraph.add(Node::Extract([field, expr])))
+    }
+
+    fn bind_case(
+        &mut self,
+        operand: Option<Box<Expr>>,
+        conditions: Vec<Expr>,
+        results: Vec<Expr>,
+        else_result: Option<Box<Expr>>,
+    ) -> Result {
+        let operand = operand.map(|expr| self.bind_expr(*expr)).transpose()?;
+        let mut case = match else_result {
+            Some(expr) => self.bind_expr(*expr)?,
+            None => self.egraph.add(Node::null()),
+        };
+        for (cond, result) in conditions.into_iter().rev().zip(results.into_iter().rev()) {
+            let mut cond = self.bind_expr(cond)?;
+            if let Some(operand) = operand {
+                cond = self.egraph.add(Node::Eq([operand, cond]));
+            }
+            let result = self.bind_expr(result)?;
+            case = self.egraph.add(Node::If([cond, result, case]));
+        }
+        Ok(case)
     }
 
     fn bind_function(&mut self, func: Function) -> Result {
