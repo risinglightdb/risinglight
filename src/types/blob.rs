@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 /// Binary large object.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize, Default)]
-pub struct Blob(Vec<u8>);
+pub struct Blob(Box<[u8]>);
 
 impl From<&[u8]> for Blob {
     fn from(bytes: &[u8]) -> Self {
@@ -20,7 +20,7 @@ impl From<&[u8]> for Blob {
 
 impl From<Vec<u8>> for Blob {
     fn from(vec: Vec<u8>) -> Self {
-        Blob(vec)
+        Blob(vec.into())
     }
 }
 
@@ -84,7 +84,7 @@ impl FromStr for Blob {
                 s = &s[1..];
             }
         }
-        Ok(Blob(v))
+        Ok(v.into())
     }
 }
 
