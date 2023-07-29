@@ -17,6 +17,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
             .unwrap()
             .map_or(f32::MAX, |x| x as f32)
     };
+    let list_len = |id: &Id| egraph[*id].as_list().len();
     match enode {
         // for plan nodes, the result represents estimated rows
         Values(v) => v.len() as f32,
@@ -40,6 +41,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         Or([a, b]) => x(a) + x(b) - x(a) * x(b), // TODO: consider dependency
         Not(a) => 1.0 - x(a),
         Gt(_) | Lt(_) | GtEq(_) | LtEq(_) | Eq(_) | NotEq(_) => 0.5,
+        In([_, b]) => 1.0 - 1.0 / (list_len(b) as f32 + 1.0),
 
         _ => 1.0,
     }

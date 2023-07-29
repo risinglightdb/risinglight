@@ -57,7 +57,9 @@ impl Optimizer {
             best_cost = cost;
             // println!(
             //     "{}",
-            //     crate::planner::Explain::of(&expr).with_costs(&costs(&expr))
+            //     Explain::of(&expr)
+            //         .with_costs(&self.costs(&expr))
+            //         .with_rows(&self.rows(&expr))
             // );
         }
 
@@ -89,5 +91,15 @@ impl Optimizer {
             costs[i] = cost;
         }
         costs
+    }
+
+    /// Returns the estimated row for each node in the expression.
+    pub fn rows(&self, expr: &RecExpr) -> Vec<f32> {
+        let mut egraph = EGraph::default();
+        // NOTE: we assume Expr node has the same Id in both EGraph and RecExpr.
+        egraph.add_expr(expr);
+        (0..expr.as_ref().len())
+            .map(|i| egraph[i.into()].data.rows)
+            .collect()
     }
 }

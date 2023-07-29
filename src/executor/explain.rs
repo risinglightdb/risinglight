@@ -15,9 +15,12 @@ pub struct ExplainExecutor {
 
 impl ExplainExecutor {
     pub fn execute(self) -> BoxedExecutor {
-        let costs = Optimizer::new(self.catalog.clone(), Default::default()).costs(&self.plan);
+        let optimizer = Optimizer::new(self.catalog.clone(), Default::default());
+        let costs = optimizer.costs(&self.plan);
+        let rows = optimizer.rows(&self.plan);
         let explain_obj = Explain::of(&self.plan)
             .with_costs(&costs)
+            .with_rows(&rows)
             .with_catalog(&self.catalog);
         let explainer = explain_obj.pretty();
         let mut explain = String::with_capacity(4096);

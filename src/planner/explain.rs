@@ -10,13 +10,16 @@ use super::{Expr, RecExpr};
 use crate::catalog::RootCatalog;
 
 trait Insertable<'a> {
-    fn with_cost(self, value: Option<f32>) -> Self;
+    fn with(self, cost: Option<f32>, rows: Option<f32>) -> Self;
 }
 
 impl<'a> Insertable<'a> for Vec<(&'a str, Pretty<'a>)> {
-    fn with_cost(mut self, value: Option<f32>) -> Self {
-        if let Some(value) = value {
+    fn with(mut self, cost: Option<f32>, rows: Option<f32>) -> Self {
+        if let Some(value) = cost {
             self.push(("cost", Pretty::display(&value)));
+        }
+        if let Some(value) = rows {
+            self.push(("rows", Pretty::display(&value)));
         }
         self
     }
@@ -33,6 +36,7 @@ impl<'a> Insertable<'a> for Vec<(&'a str, Pretty<'a>)> {
 pub struct Explain<'a> {
     expr: &'a RecExpr,
     costs: Option<&'a [f32]>,
+    rows: Option<&'a [f32]>,
     catalog: Option<&'a RootCatalog>,
     id: Id,
 }
@@ -43,6 +47,7 @@ impl<'a> Explain<'a> {
         Self {
             expr,
             costs: None,
+            rows: None,
             catalog: None,
             id: Id::from(expr.as_ref().len() - 1),
         }
@@ -51,6 +56,12 @@ impl<'a> Explain<'a> {
     /// Explain with costs.
     pub fn with_costs(mut self, costs: &'a [f32]) -> Self {
         self.costs = Some(costs);
+        self
+    }
+
+    /// Explain with rows.
+    pub fn with_rows(mut self, rows: &'a [f32]) -> Self {
+        self.rows = Some(rows);
         self
     }
 
@@ -66,6 +77,7 @@ impl<'a> Explain<'a> {
         Explain {
             expr: self.expr,
             costs: self.costs,
+            rows: self.rows,
             catalog: self.catalog,
             id: *id,
         }
@@ -77,15 +89,10 @@ impl<'a> Explain<'a> {
         Explain {
             expr: self.expr,
             costs: self.costs,
+            rows: self.rows,
             catalog: self.catalog,
             id: *id,
         }
-    }
-
-    /// Returns a struct displaying the cost.
-    #[inline]
-    fn cost(&self) -> Option<f32> {
-        self.costs.map(|cs| cs[usize::from(self.id)])
     }
 
     /// Returns whether the expression is `true`.
@@ -93,12 +100,14 @@ impl<'a> Explain<'a> {
     fn is_true(&self, id: &Id) -> bool {
         self.expr[*id] == Expr::true_()
     }
+
     /// Transforms the plan to `Pretty`, an intermediate representation for pretty printing. It will
     /// be printed to string later.
     pub fn pretty(&self) -> Pretty<'a> {
         use Expr::*;
         let enode = &self.expr[self.id];
-        let cost = self.cost();
+        let cost = self.costs.map(|cs| cs[usize::from(self.id)]);
+        let rows = self.rows.map(|cs| cs[usize::from(self.id)]);
         match enode {
             Constant(v) => Pretty::display(v),
             Type(t) => Pretty::display(t),
@@ -213,7 +222,7 @@ impl<'a> Explain<'a> {
                     ("list", self.expr(list).pretty()),
                     ("filter", self.expr(filter).pretty()),
                 ]
-                .with_cost(cost),
+                .with(cost, rows),
             ),
             Internal([table, list]) => Pretty::childless_record(
                 "Internal",
@@ -221,26 +230,26 @@ impl<'a> Explain<'a> {
                     ("table", self.expr(table).pretty()),
                     ("list", self.expr(list).pretty()),
                 ]
-                .with_cost(cost),
+                .with(cost, rows),
             ),
-            Values(rows) => Pretty::simple_record(
+            Values(values) => Pretty::simple_record(
                 "Values",
-                vec![("rows", Pretty::display(&rows.len()))].with_cost(cost),
-                rows.iter().map(|id| self.expr(id).pretty()).collect(),
+                vec![("rows", Pretty::display(&values.len()))].with(cost, rows),
+                values.iter().map(|id| self.expr(id).pretty()).collect(),
             ),
             Proj([exprs, child]) => Pretty::simple_record(
                 "Projection",
-                vec![("exprs", self.expr(exprs).pretty())].with_cost(cost),
+                vec![("exprs", self.expr(exprs).pretty())].with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
             Filter([cond, child]) => Pretty::simple_record(
                 "Filter",
-                vec![("cond", self.expr(cond).pretty())].with_cost(cost),
+                vec![("cond", self.expr(cond).pretty())].with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
             Order([orderby, child]) => Pretty::simple_record(
                 "Order",
-                vec![("by", self.expr(orderby).pretty())].with_cost(cost),
+                vec![("by", self.expr(orderby).pretty())].with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
             Desc(a) => {
@@ -253,7 +262,7 @@ impl<'a> Explain<'a> {
                     ("limit", self.expr(limit).pretty()),
                     ("offset", self.expr(offset).pretty()),
                 ]
-                .with_cost(cost),
+                .with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
             TopN([limit, offset, orderby, child]) => Pretty::simple_record(
@@ -263,7 +272,7 @@ impl<'a> Explain<'a> {
                     ("offset", self.expr(offset).pretty()),
                     ("order_by", self.expr(orderby).pretty()),
                 ]
-                .with_cost(cost),
+                .with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
             Join([ty, cond, left, right]) => {
@@ -274,7 +283,7 @@ impl<'a> Explain<'a> {
                 }
                 Pretty::simple_record(
                     "Join",
-                    fields.with_cost(cost),
+                    fields.with(cost, rows),
                     vec![self.child(left).pretty(), self.child(right).pretty()],
                 )
             }
@@ -290,14 +299,14 @@ impl<'a> Explain<'a> {
                     ("rhs", self.expr(rkeys).pretty()),
                 ];
                 let eq = Pretty::childless_record("=", fields);
-                let fields = vec![("type", self.expr(ty).pretty()), ("on", eq)].with_cost(cost);
+                let fields = vec![("type", self.expr(ty).pretty()), ("on", eq)].with(cost, rows);
                 let children = vec![self.child(left).pretty(), self.child(right).pretty()];
                 Pretty::simple_record(name, fields, children)
             }
             Inner | LeftOuter | RightOuter | FullOuter => Pretty::display(enode),
             Agg([aggs, child]) => Pretty::simple_record(
                 "Agg",
-                vec![("aggs", self.expr(aggs).pretty())].with_cost(cost),
+                vec![("aggs", self.expr(aggs).pretty())].with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
             HashAgg([aggs, group_keys, child]) | SortAgg([aggs, group_keys, child]) => {
@@ -311,21 +320,21 @@ impl<'a> Explain<'a> {
                         ("aggs", self.expr(aggs).pretty()),
                         ("group_by", self.expr(group_keys).pretty()),
                     ]
-                    .with_cost(cost),
+                    .with(cost, rows),
                     vec![self.child(child).pretty()],
                 )
             }
             Window([windows, child]) => Pretty::simple_record(
                 "Window",
-                vec![("windows", self.expr(windows).pretty())].with_cost(cost),
+                vec![("windows", self.expr(windows).pretty())].with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
             CreateTable(t) => {
-                let fields = t.pretty_table().with_cost(cost);
+                let fields = t.pretty_table().with(cost, rows);
                 Pretty::childless_record("CreateTable", fields)
             }
             Drop(t) => {
-                let fields = t.pretty_table().with_cost(cost);
+                let fields = t.pretty_table().with(cost, rows);
                 Pretty::childless_record("Drop", fields)
             }
             Insert([table, cols, child]) => Pretty::simple_record(
@@ -334,29 +343,29 @@ impl<'a> Explain<'a> {
                     ("table", self.expr(table).pretty()),
                     ("cols", self.expr(cols).pretty()),
                 ]
-                .with_cost(cost),
+                .with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
             Delete([table, child]) => Pretty::simple_record(
                 "Delete",
-                vec![("table", self.expr(table).pretty())].with_cost(cost),
+                vec![("table", self.expr(table).pretty())].with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
             CopyFrom([src, _]) => Pretty::childless_record(
                 "CopyFrom",
-                vec![("src", self.expr(src).pretty())].with_cost(cost),
+                vec![("src", self.expr(src).pretty())].with(cost, rows),
             ),
             CopyTo([dst, child]) => Pretty::simple_record(
                 "CopyTo",
-                vec![("dst", self.expr(dst).pretty())].with_cost(cost),
+                vec![("dst", self.expr(dst).pretty())].with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
             Explain(child) => Pretty::simple_record(
                 "Explain",
-                vec![].with_cost(cost),
+                vec![].with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
-            Empty(_) => Pretty::childless_record("Empty", vec![].with_cost(cost)),
+            Empty(_) => Pretty::childless_record("Empty", vec![].with(cost, rows)),
         }
     }
 }
