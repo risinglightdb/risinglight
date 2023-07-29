@@ -117,32 +117,32 @@ Projection
 │   ┌── l_returnflag
 │   ├── l_linestatus
 │   ├── sum
-│   │   └──  l_quantity
+│   │   └── l_quantity
 │   ├── sum
-│   │   └──  l_extendedprice
+│   │   └── l_extendedprice
 │   ├── sum
-│   │   └──  * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+│   │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
 │   ├── sum
 │   │   └── *
 │   │       ├── lhs: - { lhs: 1, rhs: l_discount }
 │   │       └── rhs: + { lhs: l_extendedprice, rhs: * { lhs: l_tax, rhs: l_extendedprice } }
 │   ├── /
 │   │   ├── lhs:sum
-│   │   │   └──  l_quantity
+│   │   │   └── l_quantity
 │   │   ├── rhs:count
-│   │   │   └──  l_quantity
+│   │   │   └── l_quantity
 
 │   ├── /
 │   │   ├── lhs:sum
-│   │   │   └──  l_extendedprice
+│   │   │   └── l_extendedprice
 │   │   ├── rhs:count
-│   │   │   └──  l_extendedprice
+│   │   │   └── l_extendedprice
 
 │   ├── /
 │   │   ├── lhs:sum
-│   │   │   └──  l_discount
+│   │   │   └── l_discount
 │   │   ├── rhs:count
-│   │   │   └──  l_discount
+│   │   │   └── l_discount
 
 │   └── rowcount
 ├── cost: 33958.95
@@ -150,23 +150,23 @@ Projection
     └── HashAgg
         ├── aggs:
         │   ┌── sum
-        │   │   └──  l_quantity
+        │   │   └── l_quantity
         │   ├── sum
-        │   │   └──  l_extendedprice
+        │   │   └── l_extendedprice
         │   ├── sum
-        │   │   └──  * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+        │   │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
         │   ├── sum
         │   │   └── *
         │   │       ├── lhs: - { lhs: 1, rhs: l_discount }
         │   │       └── rhs: + { lhs: l_extendedprice, rhs: * { lhs: l_tax, rhs: l_extendedprice } }
         │   ├── count
-        │   │   └──  l_quantity
+        │   │   └── l_quantity
         │   ├── count
-        │   │   └──  l_extendedprice
+        │   │   └── l_extendedprice
         │   ├── sum
-        │   │   └──  l_discount
+        │   │   └── l_discount
         │   ├── count
-        │   │   └──  l_discount
+        │   │   └── l_discount
         │   └── rowcount
         ├── group_by: [ l_returnflag, l_linestatus ]
         ├── cost: 25887.967
@@ -211,7 +211,7 @@ Projection
 ├── exprs:
 │   ┌── l_orderkey
 │   ├── sum
-│   │   └──  * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+│   │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
 │   ├── o_orderdate
 │   └── o_shippriority
 ├── cost: 60127.242
@@ -221,12 +221,12 @@ Projection
     ├── order_by:
     │   ┌── desc
     │   │   └── sum
-    │   │       └──  * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+    │   │       └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
     │   └── o_orderdate
     ├── cost: 60125.844
     └── HashAgg
         ├── aggs:sum
-        │   └──  * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+        │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
         ├── group_by: [ l_orderkey, o_orderdate, o_shippriority ]
         ├── cost: 58702.07
         └── Projection
@@ -288,16 +288,16 @@ Projection
 ├── exprs:
 │   ┌── n_name
 │   └── sum
-│       └──  * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+│       └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
 ├── cost: 151062.08
 └── Order
     ├── by:desc
     │   └── sum
-    │       └──  * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+    │       └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
     ├── cost: 151002.08
     └── HashAgg
         ├── aggs:sum
-        │   └──  * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+        │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
         ├── group_by: [ n_name ]
         ├── cost: 145517.75
         └── Projection { exprs: [ n_name, l_extendedprice, l_discount ], cost: 134919.08 }
@@ -342,11 +342,11 @@ Projection
                 │       │       │           ├── list: [ l_orderkey, l_suppkey, l_extendedprice, l_discount ]
                 │       │       │           ├── filter: null
                 │       │       │           └── cost: 4000
-                │       │       └──  Scan { table: supplier, list: [ s_suppkey, s_nationkey ], filter: null, cost: 2000 }
-                │       └──  Scan { table: nation, list: [ n_nationkey, n_name, n_regionkey ], filter: null, cost: 3000 }
+                │       │       └── Scan { table: supplier, list: [ s_suppkey, s_nationkey ], filter: null, cost: 2000 }
+                │       └── Scan { table: nation, list: [ n_nationkey, n_name, n_regionkey ], filter: null, cost: 3000 }
                 └── Projection { exprs: [ r_regionkey ], cost: 2632 }
                     └── Filter { cond: = { lhs: r_name, rhs: 'AFRICA' }, cost: 2610 }
-                        └──  Scan { table: region, list: [ r_regionkey, r_name ], filter: null, cost: 2000 }
+                        └── Scan { table: region, list: [ r_regionkey, r_name ], filter: null, cost: 2000 }
 */
 
 -- tpch-q6
@@ -363,11 +363,11 @@ where
 /*
 Projection
 ├── exprs:sum
-│   └──  * { lhs: l_discount, rhs: l_extendedprice }
+│   └── * { lhs: l_discount, rhs: l_extendedprice }
 ├── cost: 6906.0093
 └── Agg
     ├── aggs:sum
-    │   └──  * { lhs: l_discount, rhs: l_extendedprice }
+    │   └── * { lhs: l_discount, rhs: l_extendedprice }
     ├── cost: 6905.8994
     └── Projection { exprs: [ l_extendedprice, l_discount ], cost: 6800.042 }
         └── Filter
@@ -425,7 +425,7 @@ Order
 ├── by:
 │   ┌── n_name
 │   └── desc
-│       └──  Extract { from: o_orderdate, field: YEAR }
+│       └── Extract { from: o_orderdate, field: YEAR }
 ├── cost: 151067680
 └── Projection
     ├── exprs:
@@ -512,8 +512,8 @@ Order
                 │       │           ├── list: [ ps_partkey, ps_suppkey, ps_supplycost ]
                 │       │           ├── filter: null
                 │       │           └── cost: 3000
-                │       └──  Scan { table: orders, list: [ o_orderkey, o_orderdate ], filter: null, cost: 2000 }
-                └──  Scan { table: nation, list: [ n_nationkey, n_name ], filter: null, cost: 2000 }
+                │       └── Scan { table: orders, list: [ o_orderkey, o_orderdate ], filter: null, cost: 2000 }
+                └── Scan { table: nation, list: [ n_nationkey, n_name ], filter: null, cost: 2000 }
 */
 
 -- tpch-q10: TPC-H Q10
@@ -556,7 +556,7 @@ Projection
 │   ┌── c_custkey
 │   ├── c_name
 │   ├── sum
-│   │   └──  * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+│   │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
 │   ├── c_acctbal
 │   ├── n_name
 │   ├── c_address
@@ -568,11 +568,11 @@ Projection
     ├── offset: 0
     ├── order_by:desc
     │   └── sum
-    │       └──  * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+    │       └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
     ├── cost: 115368.99
     └── HashAgg
         ├── aggs:sum
-        │   └──  * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+        │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
         ├── group_by: [ c_custkey, c_name, c_acctbal, c_phone, n_name, c_address, c_comment ]
         ├── cost: 113012.836
         └── Projection
@@ -646,6 +646,6 @@ Projection
                 │                   ├── list: [ l_orderkey, l_extendedprice, l_discount, l_returnflag ]
                 │                   ├── filter: null
                 │                   └── cost: 4000
-                └──  Scan { table: nation, list: [ n_nationkey, n_name ], filter: null, cost: 2000 }
+                └── Scan { table: nation, list: [ n_nationkey, n_name ], filter: null, cost: 2000 }
 */
 

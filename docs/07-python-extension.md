@@ -6,7 +6,7 @@ We are working to support Python API for user to process and analyze data in Pyt
 ## Build and Use Python APIs
 ```
 pip3 install maturin
-python3 -m matruin build
+matruin build -F python
 pip3 install ./target/wheels/risinglight-*.whl
 python3
 import risinglight

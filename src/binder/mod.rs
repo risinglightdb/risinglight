@@ -87,6 +87,8 @@ pub enum BindError {
     NotSupportedOnInternalTable,
     #[error("{0} is not an aggregate function")]
     NotAgg(String),
+    #[error("not supported yet: {0}")]
+    Todo(String),
 }
 
 /// The binder resolves all expressions referring to schema objects such as
@@ -150,18 +152,15 @@ impl Binder {
                 ..
             } => self.bind_insert(table_name, columns, source),
             Statement::Delete {
-                table_name,
-                selection,
-                ..
-            } => self.bind_delete(table_name, selection),
+                from, selection, ..
+            } => self.bind_delete(from, selection),
             Statement::Copy {
-                table_name,
-                columns,
+                source,
                 to,
                 target,
                 options,
                 ..
-            } => self.bind_copy(table_name, &columns, to, target, &options),
+            } => self.bind_copy(source, to, target, &options),
             Statement::Query(query) => self.bind_query(*query).map(|(id, _)| id),
             Statement::Explain { statement, .. } => self.bind_explain(*statement),
             Statement::ShowVariable { .. }

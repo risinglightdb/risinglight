@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 
 use super::*;
 use crate::parser::{
-    BinaryOperator, DataType, DateTimeField, Expr, Function, FunctionArg, FunctionArgExpr,
+    self, BinaryOperator, DataType, DateTimeField, Expr, Function, FunctionArg, FunctionArgExpr,
     UnaryOperator, Value,
 };
 use crate::types::{DataTypeKind, DataValue, Interval};
@@ -39,11 +39,7 @@ impl Binder {
                 low,
                 high,
             } => self.bind_between(*expr, negated, *low, *high),
-            Expr::Interval {
-                value,
-                leading_field,
-                ..
-            } => self.bind_interval(*value, leading_field),
+            Expr::Interval(interval) => self.bind_interval(interval),
             Expr::Extract { field, expr } => self.bind_extract(field, *expr),
             _ => todo!("bind expression: {:?}", expr),
         }?;
@@ -178,16 +174,16 @@ impl Binder {
         }
     }
 
-    fn bind_interval(&mut self, value: Expr, leading_field: Option<DateTimeField>) -> Result {
-        let Expr::Value(Value::Number(v, _) | Value::SingleQuotedString(v)) = value else {
+    fn bind_interval(&mut self, interval: parser::Interval) -> Result {
+        let Expr::Value(Value::Number(v, _) | Value::SingleQuotedString(v)) = *interval.value else {
             panic!("interval value must be number or string");
         };
         let num = v.parse().expect("interval value is not a number");
-        let value = DataValue::Interval(match leading_field {
+        let value = DataValue::Interval(match interval.leading_field {
             Some(DateTimeField::Day) => Interval::from_days(num),
             Some(DateTimeField::Month) => Interval::from_months(num),
             Some(DateTimeField::Year) => Interval::from_years(num),
-            _ => todo!("Support interval with leading field: {:?}", leading_field),
+            f => todo!("Support interval with leading field: {f:?}"),
         });
         Ok(self.egraph.add(Node::Constant(value)))
     }
@@ -240,7 +236,11 @@ impl Binder {
         Ok(id)
     }
 
-    fn bind_window_function(&mut self, func: Id, window: WindowSpec) -> Result {
+    fn bind_window_function(&mut self, func: Id, window: WindowType) -> Result {
+        let window = match window {
+            WindowType::WindowSpec(window) => window,
+            WindowType::NamedWindow(_) => return Err(BindError::Todo("named window".into())),
+        };
         if !self.node(func).is_window_function() {
             return Err(BindError::NotAgg(self.node(func).to_string()));
         }
