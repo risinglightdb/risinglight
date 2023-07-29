@@ -135,10 +135,11 @@ pub fn eval_constant(egraph: &EGraph, enode: &Expr) -> ConstValue {
         Some(DataValue::Bool(x(a)?.is_null()))
     } else if let &Cast([ty, a]) = enode {
         let a = x(a)?;
-        if a.is_null() {
-            return Some(DataValue::Null);
-        }
         let ty = egraph[ty].nodes[0].as_type();
+        // don't eval cast if data type can not be kept
+        if a.is_null() && !ty.is_null() || ty.is_parametric_decimal() {
+            return None;
+        }
         // TODO: handle cast error
         a.cast(ty).ok()
     } else if let &Max(a) | &Min(a) | &Avg(a) | &First(a) | &Last(a) = enode {
