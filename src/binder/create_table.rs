@@ -60,14 +60,14 @@ impl Binder {
             .get_schema_by_name(schema_name)
             .ok_or_else(|| BindError::InvalidSchema(schema_name.into()))?;
         if schema.get_table_by_name(table_name).is_some() {
-            return Err(BindError::DuplicatedTable(table_name.into()));
+            return Err(BindError::TableExists(table_name.into()));
         }
 
         // check duplicated column names
         let mut set = HashSet::new();
         for col in columns.iter() {
             if !set.insert(col.name.value.to_lowercase()) {
-                return Err(BindError::DuplicatedColumn(col.name.value.clone()));
+                return Err(BindError::ColumnExists(col.name.value.to_lowercase()));
             }
         }
 

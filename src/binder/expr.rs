@@ -79,7 +79,11 @@ impl Binder {
         } else if map.len() == 1 {
             Ok(*map.values().next().unwrap())
         } else {
-            Err(BindError::AmbiguousColumn(column_name.into()))
+            let use_ = map
+                .keys()
+                .map(|table_name| format!("\"{table_name}.{column_name}\""))
+                .join(" or ");
+            Err(BindError::AmbiguousColumn(column_name.into(), use_))
         }
     }
 

@@ -35,27 +35,25 @@ pub type Result<T = Id> = std::result::Result<T, BindError>;
 /// The error type of bind operations.
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum BindError {
-    #[error("invalid database {0}")]
-    InvalidDatabase(String),
-    #[error("invalid schema {0}")]
+    #[error("invalid schema {0:?}")]
     InvalidSchema(String),
-    #[error("invalid table {0}")]
+    #[error("invalid table {0:?}")]
     InvalidTable(String),
-    #[error("invalid column {0}")]
+    #[error("invalid column {0:?}")]
     InvalidColumn(String),
-    #[error("duplicated table {0}")]
-    DuplicatedTable(String),
-    #[error("duplicated column {0}")]
-    DuplicatedColumn(String),
-    #[error("duplicated alias {0}")]
+    #[error("table {0:?} already exists")]
+    TableExists(String),
+    #[error("column {0:?} already exists")]
+    ColumnExists(String),
+    #[error("duplicated alias {0:?}")]
     DuplicatedAlias(String),
-    #[error("invalid expression: {0}")]
+    #[error("invalid expression {0}")]
     InvalidExpression(String),
-    #[error("not nullable column: {0}")]
+    #[error("not nullable column {0:?}")]
     NotNullableColumn(String),
-    #[error("ambiguous column: {0}")]
-    AmbiguousColumn(String),
-    #[error("invalid table name: {0:?}")]
+    #[error("ambiguous column {0:?} (use {1})")]
+    AmbiguousColumn(String, String),
+    #[error("invalid table name {0:?}")]
     InvalidTableName(Vec<Ident>),
     #[error("SQL not supported")]
     NotSupportedTSQL,
@@ -79,13 +77,13 @@ pub enum BindError {
     WindowInWhere,
     #[error("HAVING clause cannot contain window functions")]
     WindowInHaving,
-    #[error("column {0} must appear in the GROUP BY clause or be used in an aggregate function")]
+    #[error("column {0:?} must appear in the GROUP BY clause or be used in an aggregate function")]
     ColumnNotInAgg(String),
     #[error("ORDER BY items must appear in the select list if DISTINCT is specified")]
     OrderKeyNotInDistinct,
     #[error("operation on internal table is not supported")]
     NotSupportedOnInternalTable,
-    #[error("{0} is not an aggregate function")]
+    #[error("{0:?} is not an aggregate function")]
     NotAgg(String),
     #[error("not supported yet: {0}")]
     Todo(String),
@@ -97,6 +95,8 @@ pub struct Binder {
     egraph: egg::EGraph<Node, TypeSchemaAnalysis>,
     catalog: Arc<RootCatalog>,
     contexts: Vec<Context>,
+    /// The number of occurrences of each table in the query.
+    table_occurrences: HashMap<TableRefId, u32>,
 }
 
 /// The context of binder execution.
@@ -119,6 +119,7 @@ impl Binder {
             catalog: catalog.clone(),
             egraph: egg::EGraph::new(TypeSchemaAnalysis { catalog }),
             contexts: vec![Context::default()],
+            table_occurrences: HashMap::new(),
         }
     }
 

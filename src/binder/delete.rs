@@ -16,7 +16,7 @@ impl Binder {
         if is_internal {
             return Err(BindError::NotSupportedOnInternalTable);
         }
-        let cols = self.bind_table_name(name, None, true)?;
+        let cols = self.bind_table_def(name, None, true)?;
         let true_ = self.egraph.add(Node::true_());
         let scan = self.egraph.add(Node::Scan([table_id, cols, true_]));
         let cond = self.bind_where(selection)?;
