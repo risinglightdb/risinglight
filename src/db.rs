@@ -1,6 +1,6 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use futures::TryStreamExt;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
@@ -9,7 +9,7 @@ use crate::array::{
     ArrayBuilder, ArrayBuilderImpl, Chunk, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder,
 };
 use crate::catalog::{RootCatalogRef, TableRefId, INTERNAL_SCHEMA_NAME};
-use crate::parser::{parse, ParserError};
+use crate::parser::{parse, ParserError, Statement};
 use crate::planner::Statistics;
 use crate::storage::{
     InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
@@ -20,6 +20,7 @@ use crate::storage::{
 pub struct Database {
     catalog: RootCatalogRef,
     storage: StorageImpl,
+    mock_stat: Mutex<Option<Statistics>>,
 }
 
 impl Database {
@@ -29,6 +30,7 @@ impl Database {
         Database {
             catalog: storage.catalog().clone(),
             storage: StorageImpl::InMemoryStorage(Arc::new(storage)),
+            mock_stat: Default::default(),
         }
     }
 
@@ -39,6 +41,7 @@ impl Database {
         Database {
             catalog: storage.catalog().clone(),
             storage: StorageImpl::SecondaryStorage(storage),
+            mock_stat: Default::default(),
         }
     }
 
@@ -204,6 +207,9 @@ impl Database {
         let stmts = parse(sql)?;
         let mut outputs: Vec<Chunk> = vec![];
         for stmt in stmts {
+            if self.handle_set(&stmt)? {
+                continue;
+            }
             let mut binder = crate::binder::Binder::new(self.catalog.clone());
             let bound = binder.bind(stmt)?;
             let optimized = optimizer.optimize(&bound);
@@ -224,6 +230,9 @@ impl Database {
     }
 
     async fn get_storage_statistics(&self) -> Result<Statistics, Error> {
+        if let Some(mock) = &*self.mock_stat.lock().unwrap() {
+            return Ok(mock.clone());
+        }
         let mut stat = Statistics::default();
         // only secondary storage supports statistics
         let StorageImpl::SecondaryStorage(storage) = self.storage.clone() else {
@@ -246,6 +255,30 @@ impl Database {
             }
         }
         Ok(stat)
+    }
+
+    /// Mock the row count of a table for planner test.
+    fn handle_set(&self, stmt: &Statement) -> Result<bool, Error> {
+        let Statement::SetVariable { variable, value, .. } = stmt else {
+            return Ok(false);
+        };
+        let Some(table_name) = variable.0[0].value.strip_prefix("mock_rowcount_") else {
+            return Ok(false);
+        };
+        let count = value[0]
+            .to_string()
+            .parse::<u32>()
+            .map_err(|_| Error::Internal("invalid count".into()))?;
+        let table_id = self
+            .catalog
+            .get_table_id_by_name("postgres", table_name)
+            .ok_or_else(|| Error::Internal("table not found".into()))?;
+        self.mock_stat
+            .lock()
+            .unwrap()
+            .get_or_insert_with(Default::default)
+            .add_row_count(table_id, count);
+        Ok(true)
     }
 }
 

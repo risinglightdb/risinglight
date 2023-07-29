@@ -85,6 +85,15 @@
           L_COMMENT       VARCHAR(44) NOT NULL
       );
 
+      SET mock_rowcount_customer =  150000;
+      SET mock_rowcount_lineitem = 6001215;
+      SET mock_rowcount_nation   =      25;
+      SET mock_rowcount_orders   = 1500000;
+      SET mock_rowcount_part     =  200000;
+      SET mock_rowcount_partsupp =  800000;
+      SET mock_rowcount_region   =       5;
+      SET mock_rowcount_supplier =   10000;
+
 - id: tpch-q1
   sql: |
       explain select
