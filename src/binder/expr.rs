@@ -47,6 +47,11 @@ impl Binder {
                 results,
                 else_result,
             } => self.bind_case(operand, conditions, results, else_result),
+            Expr::InList {
+                expr,
+                list,
+                negated,
+            } => self.bind_in_list(*expr, list, negated),
             _ => todo!("bind expression: {:?}", expr),
         }?;
         self.type_(id)?;
@@ -226,6 +231,17 @@ impl Binder {
             case = self.egraph.add(Node::If([cond, result, case]));
         }
         Ok(case)
+    }
+
+    fn bind_in_list(&mut self, expr: Expr, list: Vec<Expr>, negated: bool) -> Result {
+        let expr = self.bind_expr(expr)?;
+        let list = self.bind_exprs(list)?;
+        let in_list = self.egraph.add(Node::In([expr, list]));
+        if negated {
+            Ok(self.egraph.add(Node::Not(in_list)))
+        } else {
+            Ok(in_list)
+        }
     }
 
     fn bind_function(&mut self, func: Function) -> Result {

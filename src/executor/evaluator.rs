@@ -91,6 +91,16 @@ impl<'a> Evaluator<'a> {
                 let else_ = self.next(*else_).eval(chunk)?;
                 cond.select(&then, &else_)
             }
+            In([expr, list]) => {
+                let expr = self.next(*expr).eval(chunk)?;
+                let values = self.next(*list).eval_list(chunk)?;
+                let mut in_ = expr.eq(&values.array_at(0))?;
+                for value in &values.arrays()[1..] {
+                    let eq = expr.eq(value)?;
+                    in_ = in_.or(&eq).unwrap();
+                }
+                Ok(in_)
+            }
             Desc(a) | Ref(a) => self.next(*a).eval(chunk),
             // for aggs, evaluate its children
             RowCount => Ok(ArrayImpl::new_null(

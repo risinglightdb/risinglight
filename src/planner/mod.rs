@@ -86,7 +86,7 @@ define_language! {
 
         // subquery related
         "exists" = Exists(Id),
-        "in" = In([Id; 2]),
+        "in" = In([Id; 2]),                     // (in expr list)
 
         "cast" = Cast([Id; 2]),                 // (cast type expr)
 

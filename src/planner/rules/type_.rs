@@ -91,6 +91,17 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
             [x(cond)?, x(then)?, x(else_)?],
             |[cond, then, else_]| (cond == Kind::Bool && then == else_).then_some(then),
         ),
+        In([expr, list]) => {
+            let expr = x(expr)?;
+            let list = x(list)?;
+            if list.kind().as_struct().iter().any(|t| t.kind != expr.kind) {
+                return Err(TypeError::NoFunction {
+                    op: "in".into(),
+                    operands: vec![expr.kind(), list.kind()],
+                });
+            }
+            Ok(Kind::Bool.nullable())
+        }
 
         // null ops
         IsNull(_) => Ok(Kind::Bool.not_null()),
