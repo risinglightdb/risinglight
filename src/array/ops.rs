@@ -18,9 +18,10 @@ use crate::types::{
 };
 
 type A = ArrayImpl;
+type Result = std::result::Result<ArrayImpl, ConvertError>;
 
 impl ArrayImpl {
-    pub fn neg(&self) -> Result<Self, ConvertError> {
+    pub fn neg(&self) -> Result {
         Ok(match self {
             A::Int32(a) => A::new_int32(unary_op(a.as_ref(), |v| -v)),
             A::Int64(a) => A::new_int64(unary_op(a.as_ref(), |v| -v)),
@@ -31,7 +32,7 @@ impl ArrayImpl {
     }
 
     /// Perform unary operation.
-    pub fn unary_op(&self, op: &UnaryOperator) -> Result<ArrayImpl, ConvertError> {
+    pub fn unary_op(&self, op: &UnaryOperator) -> Result {
         Ok(match op {
             UnaryOperator::Plus => match self {
                 A::Int32(_) | A::Int64(_) | A::Float64(_) | A::Decimal(_) | A::Interval(_) => {
@@ -52,7 +53,7 @@ macro_rules! arith {
         pub fn $name(
             &self,
             other: &Self,
-        ) -> Result<Self, ConvertError> {
+        ) -> Result {
         Ok(match (self, other) {
             (A::Int16(a), A::Int16(b)) => A::new_int16(binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b)),
 
@@ -98,7 +99,7 @@ macro_rules! cmp {
         pub fn $name(
             &self,
             other: &Self,
-        ) -> Result<Self, ConvertError> {
+        ) -> Result {
         Ok(A::new_bool(clear_null(match (self, other) {
             (A::Bool(a), A::Bool(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
 
@@ -155,7 +156,7 @@ impl ArrayImpl {
     cmp!(ge, >=);
     cmp!(le, <=);
 
-    pub fn and(&self, other: &Self) -> Result<Self, ConvertError> {
+    pub fn and(&self, other: &Self) -> Result {
         let (A::Bool(a), A::Bool(b)) = (self, other) else {
             return Err(ConvertError::NoBinaryOp("and".into(), self.type_string(), other.type_string()));
         };
@@ -167,7 +168,7 @@ impl ArrayImpl {
         Ok(A::new_bool(c))
     }
 
-    pub fn or(&self, other: &Self) -> Result<Self, ConvertError> {
+    pub fn or(&self, other: &Self) -> Result {
         let (A::Bool(a), A::Bool(b)) = (self, other) else {
             return Err(ConvertError::NoBinaryOp("or".into(), self.type_string(), other.type_string()));
         };
@@ -177,14 +178,14 @@ impl ArrayImpl {
         Ok(A::new_bool(c))
     }
 
-    pub fn not(&self) -> Result<Self, ConvertError> {
+    pub fn not(&self) -> Result {
         let A::Bool(a) = self else {
             return Err(ConvertError::NoUnaryOp("not".into(), self.type_string()));
         };
         Ok(A::new_bool(clear_null(unary_op(a.as_ref(), |b| !b))))
     }
 
-    pub fn like(&self, pattern: &str) -> Result<Self, ConvertError> {
+    pub fn like(&self, pattern: &str) -> Result {
         /// Converts a SQL LIKE pattern to a regex pattern.
         fn like_to_regex(pattern: &str) -> String {
             let mut regex = String::with_capacity(pattern.len());
@@ -206,7 +207,7 @@ impl ArrayImpl {
         }))))
     }
 
-    pub fn concat(&self, other: &Self) -> Result<Self, ConvertError> {
+    pub fn concat(&self, other: &Self) -> Result {
         let (A::Utf8(a), A::Utf8(b)) = (self, other) else {
             return Err(ConvertError::NoBinaryOp("||".into(), self.type_string(), other.type_string()));
         };
@@ -216,7 +217,7 @@ impl ArrayImpl {
         })))
     }
 
-    pub fn extract(&self, field: DateTimeField) -> Result<Self, ConvertError> {
+    pub fn extract(&self, field: DateTimeField) -> Result {
         Ok(match self {
             A::Date(a) => match field.0 {
                 sqlparser::ast::DateTimeField::Year => {
@@ -235,11 +236,7 @@ impl ArrayImpl {
     }
 
     /// Perform binary operation.
-    pub fn binary_op(
-        &self,
-        op: &BinaryOperator,
-        other: &ArrayImpl,
-    ) -> Result<ArrayImpl, ConvertError> {
+    pub fn binary_op(&self, op: &BinaryOperator, other: &ArrayImpl) -> Result {
         use BinaryOperator::*;
         match op {
             Plus => self.add(other),
@@ -265,7 +262,7 @@ impl ArrayImpl {
     }
 
     /// Cast the array to another type.
-    pub fn cast(&self, data_type: &DataTypeKind) -> Result<Self, ConvertError> {
+    pub fn cast(&self, data_type: &DataTypeKind) -> Result {
         type Type = DataTypeKind;
         Ok(match self {
             Self::Null(a) => {
@@ -520,7 +517,7 @@ impl ArrayImpl {
         self.get_valid_bitmap().count_ones()
     }
 
-    pub fn replace(&self, from: &str, to: &str) -> Result<Self, ConvertError> {
+    pub fn replace(&self, from: &str, to: &str) -> Result {
         let A::Utf8(a) = self else {
             return Err(ConvertError::NoUnaryOp("replace".into(), self.type_string()));
         };
@@ -588,12 +585,12 @@ where
     O::from_data(a.raw_iter().map(f), a.get_valid_bitmap().clone())
 }
 
-fn try_unary_op<A, O, F, V, E>(a: &A, f: F) -> Result<O, E>
+fn try_unary_op<A, O, F, V, E>(a: &A, f: F) -> std::result::Result<O, E>
 where
     A: Array,
     O: Array,
     V: Borrow<O::Item>,
-    F: Fn(&A::Item) -> Result<V, E>,
+    F: Fn(&A::Item) -> std::result::Result<V, E>,
 {
     let mut builder = O::Builder::with_capacity(a.len());
     for e in a.iter() {
