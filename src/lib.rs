@@ -47,6 +47,7 @@ pub mod array;
 /// Metadata of database objects.
 pub mod catalog;
 /// Python Extension
+#[cfg(feature = "python")]
 pub mod python;
 /// Postgres wire protocol.
 pub mod server;
@@ -57,6 +58,7 @@ pub mod types;
 /// Utilities.
 pub mod utils;
 
+#[cfg(feature = "python")]
 use python::open;
 #[cfg(feature = "jemalloc")]
 use tikv_jemallocator::Jemalloc;
@@ -69,9 +71,11 @@ pub use self::db::{Database, Error};
 static GLOBAL: Jemalloc = Jemalloc;
 
 /// Python Extension
+#[cfg(feature = "python")]
 use pyo3::{prelude::*, wrap_pyfunction};
 
 /// The entry point of python module must be in the lib.rs
+#[cfg(feature = "python")]
 #[pymodule]
 fn risinglight(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(open, m)?)?;

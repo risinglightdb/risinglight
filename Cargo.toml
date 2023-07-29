@@ -13,6 +13,7 @@ keywords = ["sql", "database", "embedded", "cli"]
 [features]
 default = ["jemalloc"]
 jemalloc = ["tikv-jemallocator"]
+python = ["pyo3", "pyo3-build-config"]
 
 [dependencies]
 anyhow = "1"
@@ -71,7 +72,7 @@ tracing-subscriber = { version = "0.3", features = [
     "env-filter",
     "parking_lot",
 ] }
-pyo3 = { version = "0.19", features = ["extension-module"] }
+pyo3 = { version = "0.19", features = ["extension-module"], optional = true }
 pretty-xmlish = "0.1"
 
 [dev-dependencies]
@@ -80,7 +81,7 @@ tempfile = "3"
 test-case = "3"
 
 [build-dependencies]
-pyo3-build-config = "0.19"
+pyo3-build-config = { version = "0.19", optional = true }
 
 [[bench]]
 harness = false
