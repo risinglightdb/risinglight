@@ -10,18 +10,17 @@ use crate::planner::{Explain, Optimizer};
 /// The executor of `explain` statement.
 pub struct ExplainExecutor {
     pub plan: RecExpr,
-    pub catalog: RootCatalogRef,
+    pub optimizer: Optimizer,
 }
 
 impl ExplainExecutor {
     pub fn execute(self) -> BoxedExecutor {
-        let optimizer = Optimizer::new(self.catalog.clone(), Default::default());
-        let costs = optimizer.costs(&self.plan);
-        let rows = optimizer.rows(&self.plan);
+        let costs = self.optimizer.costs(&self.plan);
+        let rows = self.optimizer.rows(&self.plan);
         let explain_obj = Explain::of(&self.plan)
             .with_costs(&costs)
             .with_rows(&rows)
-            .with_catalog(&self.catalog);
+            .with_catalog(self.optimizer.catalog());
         let explainer = explain_obj.pretty();
         let mut explain = String::with_capacity(4096);
         let mut config = PrettyConfig {

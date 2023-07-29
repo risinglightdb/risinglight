@@ -15,7 +15,7 @@ mod rules;
 
 pub use explain::Explain;
 pub use optimizer::{Config, Optimizer};
-pub use rules::{ExprAnalysis, TypeError, TypeSchemaAnalysis};
+pub use rules::{ExprAnalysis, Statistics, TypeError, TypeSchemaAnalysis};
 
 // Alias types for our language.
 type EGraph = egg::EGraph<Expr, ExprAnalysis>;

@@ -8,8 +8,9 @@ use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use crate::array::{
     ArrayBuilder, ArrayBuilderImpl, Chunk, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder,
 };
-use crate::catalog::RootCatalogRef;
+use crate::catalog::{RootCatalogRef, TableRefId, INTERNAL_SCHEMA_NAME};
 use crate::parser::{parse, ParserError};
+use crate::planner::Statistics;
 use crate::storage::{
     InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
     StorageImpl, Table,
@@ -114,7 +115,7 @@ impl Database {
         )])])
     }
 
-    pub async fn run_internal(&self, cmd: &str) -> Result<Vec<Chunk>, Error> {
+    async fn run_internal(&self, cmd: &str) -> Result<Vec<Chunk>, Error> {
         if let Some((cmd, arg)) = cmd.split_once(' ') {
             if cmd == "stat" {
                 if let StorageImpl::SecondaryStorage(ref storage) = self.storage {
@@ -193,6 +194,7 @@ impl Database {
 
         let optimizer = crate::planner::Optimizer::new(
             self.catalog.clone(),
+            self.get_storage_statistics().await?,
             crate::planner::Config {
                 enable_range_filter_scan: self.storage.support_range_filter_scan(),
                 table_is_sorted_by_primary_key: self.storage.table_is_sorted_by_primary_key(),
@@ -207,10 +209,10 @@ impl Database {
             let optimized = optimizer.optimize(&bound);
             let executor = match self.storage.clone() {
                 StorageImpl::InMemoryStorage(s) => {
-                    crate::executor::build(self.catalog.clone(), s, &optimized)
+                    crate::executor::build(optimizer.clone(), s, &optimized)
                 }
                 StorageImpl::SecondaryStorage(s) => {
-                    crate::executor::build(self.catalog.clone(), s, &optimized)
+                    crate::executor::build(optimizer.clone(), s, &optimized)
                 }
             };
             let output = executor.try_collect().await?;
@@ -219,6 +221,31 @@ impl Database {
             outputs.push(chunk);
         }
         Ok(outputs)
+    }
+
+    async fn get_storage_statistics(&self) -> Result<Statistics, Error> {
+        let mut stat = Statistics::default();
+        // only secondary storage supports statistics
+        let StorageImpl::SecondaryStorage(storage) = self.storage.clone() else {
+            return Ok(stat);
+        };
+        for schema in self.catalog.all_schemas().values() {
+            // skip internal schema
+            if schema.name() == INTERNAL_SCHEMA_NAME {
+                continue;
+            }
+            for table in schema.all_tables().values() {
+                let table_id = TableRefId::new(schema.id(), table.id());
+                let table = storage.get_table(table_id)?;
+                let txn = table.read().await?;
+                let values = txn.aggreagate_block_stat(&[(
+                    BlockStatisticsType::RowCount,
+                    StorageColumnRef::Idx(0),
+                )]);
+                stat.add_row_count(table_id, values[0].as_usize().unwrap().unwrap() as u32);
+            }
+        }
+        Ok(stat)
     }
 }
 

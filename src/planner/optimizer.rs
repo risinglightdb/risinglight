@@ -6,9 +6,9 @@ use super::*;
 use crate::catalog::RootCatalogRef;
 
 /// Plan optimizer.
+#[derive(Clone)]
 pub struct Optimizer {
-    catalog: RootCatalogRef,
-    config: Config,
+    analysis: ExprAnalysis,
 }
 
 /// Optimizer configurations.
@@ -20,8 +20,14 @@ pub struct Config {
 
 impl Optimizer {
     /// Creates a new optimizer.
-    pub fn new(catalog: RootCatalogRef, config: Config) -> Self {
-        Self { catalog, config }
+    pub fn new(catalog: RootCatalogRef, stat: Statistics, config: Config) -> Self {
+        Self {
+            analysis: ExprAnalysis {
+                catalog,
+                config,
+                stat,
+            },
+        }
     }
 
     /// Optimize the given expression.
@@ -30,7 +36,7 @@ impl Optimizer {
 
         // define extra rules for some configurations
         let mut extra_rules = vec![];
-        if self.config.enable_range_filter_scan {
+        if self.analysis.config.enable_range_filter_scan {
             extra_rules.append(&mut rules::filter_scan_rule());
         }
 
@@ -38,13 +44,10 @@ impl Optimizer {
         let mut best_cost = f32::MAX;
         // to prune costy nodes, we iterate multiple times and only keep the best one for each run.
         for _ in 0..3 {
-            let runner = egg::Runner::<_, _, ()>::new(ExprAnalysis {
-                catalog: self.catalog.clone(),
-                config: self.config.clone(),
-            })
-            .with_expr(&expr)
-            .with_iter_limit(6)
-            .run(rules::STAGE1_RULES.iter().chain(&extra_rules));
+            let runner = egg::Runner::<_, _, ()>::new(self.analysis.clone())
+                .with_expr(&expr)
+                .with_iter_limit(6)
+                .run(rules::STAGE1_RULES.iter().chain(&extra_rules));
             let cost_fn = cost::CostFn {
                 egraph: &runner.egraph,
             };
@@ -64,12 +67,9 @@ impl Optimizer {
         }
 
         // 2. join reorder and hashjoin
-        let runner = egg::Runner::<_, _, ()>::new(ExprAnalysis {
-            catalog: self.catalog.clone(),
-            config: self.config.clone(),
-        })
-        .with_expr(&expr)
-        .run(&*rules::STAGE2_RULES);
+        let runner = egg::Runner::<_, _, ()>::new(self.analysis.clone())
+            .with_expr(&expr)
+            .run(&*rules::STAGE2_RULES);
         let cost_fn = cost::CostFn {
             egraph: &runner.egraph,
         };
@@ -81,7 +81,7 @@ impl Optimizer {
 
     /// Returns the cost for each node in the expression.
     pub fn costs(&self, expr: &RecExpr) -> Vec<f32> {
-        let mut egraph = EGraph::default();
+        let mut egraph = EGraph::new(self.analysis.clone());
         // NOTE: we assume Expr node has the same Id in both EGraph and RecExpr.
         egraph.add_expr(expr);
         let mut cost_fn = cost::CostFn { egraph: &egraph };
@@ -95,11 +95,16 @@ impl Optimizer {
 
     /// Returns the estimated row for each node in the expression.
     pub fn rows(&self, expr: &RecExpr) -> Vec<f32> {
-        let mut egraph = EGraph::default();
+        let mut egraph = EGraph::new(self.analysis.clone());
         // NOTE: we assume Expr node has the same Id in both EGraph and RecExpr.
         egraph.add_expr(expr);
         (0..expr.as_ref().len())
             .map(|i| egraph[i.into()].data.rows)
             .collect()
+    }
+
+    /// Returns the catalog.
+    pub fn catalog(&self) -> &RootCatalogRef {
+        &self.analysis.catalog
     }
 }

@@ -48,6 +48,7 @@ mod schema;
 mod type_;
 
 pub use range::filter_scan_rule;
+pub use rows::Statistics;
 
 pub use self::type_::TypeError;
 
@@ -71,10 +72,11 @@ pub static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
 });
 
 /// The unified analysis for all rules.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ExprAnalysis {
     pub catalog: RootCatalogRef,
     pub config: Config,
+    pub stat: Statistics,
 }
 
 /// The analysis data associated with each eclass.
