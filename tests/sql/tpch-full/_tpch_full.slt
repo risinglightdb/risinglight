@@ -3,6 +3,7 @@ include _q3.slt
 include _q5.slt
 include _q6.slt
 include _q7.slt
+include _q8.slt
 # need ~16GB memory and cause out-of-memory on CI
 # include _q9.slt
 include _q10.slt
