@@ -51,7 +51,9 @@ parking_lot = "0.12"
 parse-display = "0.8"
 paste = "1"
 pgwire = "0.15"
+pretty-xmlish = "0.1"
 prost = "0.11.0"
+pyo3 = { version = "0.19", features = ["extension-module"], optional = true }
 ref-cast = "1.0"
 regex = "1"
 risinglight_proto = "0.2"
@@ -72,8 +74,6 @@ tracing-subscriber = { version = "0.3", features = [
     "env-filter",
     "parking_lot",
 ] }
-pyo3 = { version = "0.19", features = ["extension-module"], optional = true }
-pretty-xmlish = "0.1"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_tokio"] }
