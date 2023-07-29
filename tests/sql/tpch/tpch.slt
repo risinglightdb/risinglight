@@ -8,4 +8,5 @@ include _q7.slt
 include _q8.slt
 include _q9.slt
 include _q10.slt
+include _q12.slt
 include _drop.slt
