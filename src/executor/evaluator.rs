@@ -85,6 +85,12 @@ impl<'a> Evaluator<'a> {
                 let Expr::Field(field) = self.expr[*field] else { panic!("not a field") };
                 a.extract(field)
             }
+            If([cond, then, else_]) => {
+                let cond = self.next(*cond).eval(chunk)?;
+                let then = self.next(*then).eval(chunk)?;
+                let else_ = self.next(*else_).eval(chunk)?;
+                cond.select(&then, &else_)
+            }
             Desc(a) | Ref(a) => self.next(*a).eval(chunk),
             // for aggs, evaluate its children
             RowCount => Ok(ArrayImpl::new_null(

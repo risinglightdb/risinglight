@@ -235,6 +235,41 @@ impl ArrayImpl {
         })
     }
 
+    /// Select values from `true_array` or `false_array` according to the boolean value of `self`.
+    pub fn select(&self, true_array: &Self, false_array: &Self) -> Result {
+        let A::Bool(s) = self else {
+            return Err(ConvertError::NoUnaryOp("case".into(), self.type_string()));
+        };
+        Ok(match (true_array, false_array) {
+            (A::Int16(a), A::Int16(b)) => {
+                A::new_int16(select_op(s.as_ref(), a.as_ref(), b.as_ref()))
+            }
+            (A::Int32(a), A::Int32(b)) => {
+                A::new_int32(select_op(s.as_ref(), a.as_ref(), b.as_ref()))
+            }
+            (A::Int64(a), A::Int64(b)) => {
+                A::new_int64(select_op(s.as_ref(), a.as_ref(), b.as_ref()))
+            }
+            (A::Float64(a), A::Float64(b)) => {
+                A::new_float64(select_op(s.as_ref(), a.as_ref(), b.as_ref()))
+            }
+            (A::Decimal(a), A::Decimal(b)) => {
+                A::new_decimal(select_op(s.as_ref(), a.as_ref(), b.as_ref()))
+            }
+            (A::Date(a), A::Date(b)) => A::new_date(select_op(s.as_ref(), a.as_ref(), b.as_ref())),
+            (A::Interval(a), A::Interval(b)) => {
+                A::new_interval(select_op(s.as_ref(), a.as_ref(), b.as_ref()))
+            }
+            _ => {
+                return Err(ConvertError::NoBinaryOp(
+                    "case".into(),
+                    true_array.type_string(),
+                    false_array.type_string(),
+                ))
+            }
+        })
+    }
+
     /// Perform binary operation.
     pub fn binary_op(&self, op: &BinaryOperator, other: &ArrayImpl) -> Result {
         use BinaryOperator::*;
@@ -601,6 +636,21 @@ where
         }
     }
     Ok(builder.finish())
+}
+
+fn select_op<A>(s: &BoolArray, a: &A, b: &A) -> A
+where
+    A: ArrayValidExt + ArrayFromDataExt,
+{
+    assert_eq!(a.len(), b.len());
+    let it = a
+        .raw_iter()
+        .zip(b.raw_iter())
+        .zip(s.raw_iter())
+        .map(|((a, b), s)| if *s { a } else { b });
+    let mut valid = s.get_valid_bitmap().and(a.get_valid_bitmap());
+    valid.or(&s.get_valid_bitmap().not_then_and(b.get_valid_bitmap()));
+    A::from_data(it, valid)
 }
 
 /// Optimized operations.
