@@ -129,11 +129,11 @@ impl ColumnRefId {
 impl std::fmt::Debug for ColumnRefId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // TODO: print schema id
-        write!(f, "${}", self.table_id)?;
+        write!(f, "${}.{}", self.table_id, self.column_id)?;
         if self.table_occurrence != 0 {
             write!(f, "({})", self.table_occurrence)?;
         }
-        write!(f, ".{}", self.column_id)
+        Ok(())
     }
 }
 

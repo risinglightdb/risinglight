@@ -112,7 +112,11 @@ impl<'a> Explain<'a> {
             Column(i) => {
                 if let Some(catalog) = self.catalog {
                     let column_catalog = catalog.get_column(i).expect("no column");
-                    column_catalog.into_name().into()
+                    let mut name = column_catalog.into_name();
+                    if i.table_occurrence != 0 {
+                        name = format!("{}({})", name, i.table_occurrence);
+                    }
+                    name.into()
                 } else {
                     Pretty::display(i)
                 }
