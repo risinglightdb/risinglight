@@ -152,8 +152,8 @@ impl Binder {
                 ..
             } => self.bind_insert(table_name, columns, source),
             Statement::Delete {
-                tables, selection, ..
-            } => self.bind_delete(tables, selection),
+                from, selection, ..
+            } => self.bind_delete(from, selection),
             Statement::Copy {
                 source,
                 to,

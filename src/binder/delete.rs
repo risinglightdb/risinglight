@@ -3,13 +3,15 @@ use super::*;
 impl Binder {
     pub(super) fn bind_delete(
         &mut self,
-        tables: Vec<ObjectName>,
+        from: Vec<TableWithJoins>,
         selection: Option<Expr>,
     ) -> Result {
-        if tables.len() != 1 {
-            return Err(BindError::Todo("delete from multiple tables".into()));
+        if from.len() != 1 || !from[0].joins.is_empty() {
+            return Err(BindError::Todo(format!("delete from {from:?}")));
         }
-        let name = &tables[0];
+        let TableFactor::Table { name, .. } = &from[0].relation else {
+            return Err(BindError::Todo(format!("delete from {from:?}")));
+        };
         let (table_id, is_internal) = self.bind_table_id(name)?;
         if is_internal {
             return Err(BindError::NotSupportedOnInternalTable);
