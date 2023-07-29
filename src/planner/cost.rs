@@ -25,7 +25,7 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
         let cols = |i: &Id| self.egraph[*i].data.schema.len() as f32;
         let nlogn = |x: f32| x * (x + 1.0).log2();
         // The cost of output chunks of a plan.
-        let out = || rows(id) * cols(id);
+        let out = || rows(id) * cols(id) * 0.1;
 
         let c = match enode {
             Scan(_) | Values(_) => out(),
@@ -50,9 +50,9 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             MergeJoin([_, _, _, l, r]) => out() + costs(l) + costs(r),
             Insert([_, _, c]) | CopyTo([_, c]) => rows(c) * cols(c) + costs(c),
             Empty(_) => 0.0,
-            // for expressions, the cost is 0.1x AST size
+            // for expressions, the cost is 1x AST size
             Column(_) | Ref(_) => 0.01,
-            _ => enode.fold(0.1, |sum, id| sum + costs(&id)),
+            _ => enode.fold(1.0, |sum, id| sum + costs(&id)),
         };
         debug!(
             "{id}\t{enode:?}\tcost={c}, rows={}, cols={}",
