@@ -49,7 +49,7 @@ impl Binder {
             } => self.bind_case(operand, conditions, results, else_result),
             _ => todo!("bind expression: {:?}", expr),
         }?;
-        self.check_type(id)?;
+        self.type_(id)?;
         Ok(id)
     }
 
@@ -221,7 +221,8 @@ impl Binder {
             if let Some(operand) = operand {
                 cond = self.egraph.add(Node::Eq([operand, cond]));
             }
-            let result = self.bind_expr(result)?;
+            let mut result = self.bind_expr(result)?;
+            (result, case) = self.implicit_type_cast(result, case)?;
             case = self.egraph.add(Node::If([cond, result, case]));
         }
         Ok(case)
@@ -286,6 +287,23 @@ impl Binder {
             todo!("support window frame");
         }
         Ok(self.egraph.add(Node::Over([func, partitionby, orderby])))
+    }
+
+    /// Add optional type cast to the expressions to make them return the same type.
+    fn implicit_type_cast(&mut self, mut id1: Id, mut id2: Id) -> Result<(Id, Id)> {
+        let ty1 = self.type_(id1)?;
+        let ty2 = self.type_(id2)?;
+        if let Some(compatible_type) = ty1.union(&ty2) {
+            if compatible_type != ty1 {
+                let id = self.egraph.add(Node::Type(compatible_type.kind()));
+                id1 = self.egraph.add(Node::Cast([id, id1]));
+            }
+            if compatible_type != ty2 {
+                let id = self.egraph.add(Node::Type(compatible_type.kind()));
+                id2 = self.egraph.add(Node::Cast([id, id2]));
+            }
+        }
+        Ok((id1, id2))
     }
 }
 

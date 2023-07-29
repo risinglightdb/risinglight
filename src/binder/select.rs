@@ -163,7 +163,7 @@ impl Binder {
             bound_values.push(self.bind_exprs(row)?);
         }
         let id = self.egraph.add(Node::Values(bound_values.into()));
-        self.check_type(id)?;
+        self.type_(id)?;
         Ok(id)
     }
 

@@ -86,7 +86,7 @@ impl Binder {
             if is_internal {
                 return Err(BindError::NotSupportedOnInternalTable);
             }
-            let types = self.check_type(cols)?.kind();
+            let types = self.type_(cols)?.kind();
             let types = self.egraph.add(Node::Type(types));
             let copy = self.egraph.add(Node::CopyFrom([ext_source, types]));
             self.egraph.add(Node::Insert([table, cols, copy]))

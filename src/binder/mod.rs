@@ -190,7 +190,7 @@ impl Binder {
         // may override the same name
     }
 
-    fn check_type(&self, id: Id) -> Result<crate::types::DataType> {
+    fn type_(&self, id: Id) -> Result<crate::types::DataType> {
         Ok(self.egraph[id].data.type_.clone()?)
     }
 

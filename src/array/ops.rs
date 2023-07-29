@@ -271,9 +271,7 @@ impl ArrayImpl {
             Self::Null(a) => {
                 let mut builder =
                     ArrayBuilderImpl::with_capacity(a.len(), &data_type.clone().nullable());
-                for _ in 0..a.len() {
-                    builder.push(&DataValue::Null);
-                }
+                builder.push_n(a.len(), &DataValue::Null);
                 builder.finish()
             }
             Self::Bool(a) => match data_type {
