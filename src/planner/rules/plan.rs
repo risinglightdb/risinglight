@@ -99,6 +99,11 @@ pub fn join_rules() -> Vec<Rewrite> { vec![
         "(join ?type ?cond1 ?left (join ?type ?cond2 ?mid ?right))"
         if columns_is_disjoint("?cond2", "?left")
     ),
+    rw!("inner-join-swap";
+        // needs a top projection to keep the schema
+        "(proj ?exprs (join inner ?cond ?left ?right))" =>
+        "(proj ?exprs (join inner ?cond ?right ?left))"
+    ),
     rw!("hash-join-on-one-eq";
         "(join ?type (= ?el ?er) ?left ?right)" =>
         "(hashjoin ?type (list ?el) (list ?er) ?left ?right)"
