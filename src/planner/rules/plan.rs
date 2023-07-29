@@ -52,6 +52,7 @@ fn merge_rules() -> Vec<Rewrite> { vec![
 
 #[rustfmt::skip]
 fn predicate_pushdown_rules() -> Vec<Rewrite> { vec![
+    pushdown("filter", "?cond", "proj", "?exprs"),
     pushdown("filter", "?cond", "order", "?keys"),
     pushdown("filter", "?cond", "limit", "?limit ?offset"),
     pushdown("filter", "?cond", "topn", "?limit ?offset ?keys"),
@@ -96,8 +97,7 @@ pub fn join_rules() -> Vec<Rewrite> { vec![
     // thus left rotation is not needed.
     rw!("join-reorder";
         "(join ?type ?cond2 (join ?type ?cond1 ?left ?mid) ?right)" =>
-        "(join ?type ?cond1 ?left (join ?type ?cond2 ?mid ?right))"
-        if columns_is_disjoint("?cond2", "?left")
+        "(join ?type (and ?cond1 ?cond2) ?left (join ?type true ?mid ?right))"
     ),
     rw!("inner-join-swap";
         // needs a top projection to keep the schema
@@ -117,6 +117,12 @@ pub fn join_rules() -> Vec<Rewrite> { vec![
         if columns_is_subset("?l2", "?left")
         if columns_is_subset("?r1", "?right")
         if columns_is_subset("?r2", "?right")
+    ),
+    rw!("hash-join-on-one-eq-1";
+        "(join ?type (and (= ?el ?er) ?cond) ?left ?right)" =>
+        "(filter ?cond (hashjoin ?type (list ?el) (list ?er) ?left ?right))"
+        if columns_is_subset("?el", "?left")
+        if columns_is_subset("?er", "?right")
     ),
     // TODO: support more than two equals
 ]}
@@ -192,11 +198,6 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
 /// Returns true if the columns in `var1` are a subset of the columns in `var2`.
 fn columns_is_subset(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     columns_is(var1, var2, HashSet::is_subset)
-}
-
-/// Returns true if the columns in `var1` has no elements in common with the columns in `var2`.
-fn columns_is_disjoint(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    columns_is(var1, var2, HashSet::is_disjoint)
 }
 
 fn columns_is(

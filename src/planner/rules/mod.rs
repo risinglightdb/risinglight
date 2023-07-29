@@ -64,6 +64,7 @@ pub static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
 pub static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     let mut rules = vec![];
     rules.append(&mut expr::rules());
+    rules.append(&mut plan::always_better_rules());
     rules.append(&mut plan::join_rules());
     rules.append(&mut order::order_rules());
     rules
