@@ -1217,3 +1217,196 @@ Projection
                     └── rows: 1500000
 */
 
+-- tpch-q14
+explain select
+    100.00 * sum(case
+        when p_type like 'PROMO%'
+            then l_extendedprice * (1 - l_discount)
+        else 0
+    end) / sum(l_extendedprice * (1 - l_discount)) as promo_revenue
+from
+    lineitem,
+    part
+where
+    l_partkey = p_partkey
+    and l_shipdate >= date '1995-09-01'
+    and l_shipdate < date '1995-09-01' + interval '1' month;
+
+/*
+Projection
+├── exprs:/
+│   ├── lhs:*
+│   │   ├── lhs: 100.00
+│   │   ├── rhs:sum
+│   │   │   └── If
+│   │   │       ├── cond: like { lhs: p_type, rhs: 'PROMO%' }
+│   │   │       ├── then: * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+│   │   │       ├── else:Cast { type: 0 }
+│   │   │       │   └── DECIMAL(30,4)
+
+
+│   ├── rhs:sum
+│   │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+
+├── cost: 43638110
+├── rows: 1
+└── Agg
+    ├── aggs:
+    │   ┌── sum
+    │   │   └── If
+    │   │       ├── cond: like { lhs: p_type, rhs: 'PROMO%' }
+    │   │       ├── then: * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+    │   │       ├── else:Cast { type: 0 }
+    │   │       │   └── DECIMAL(30,4)
+
+    │   └── sum
+    │       └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+    ├── cost: 43638110
+    ├── rows: 1
+    └── Projection { exprs: [ p_type, l_extendedprice, l_discount ], cost: 41447668, rows: 1500303.8 }
+        └── HashJoin { type: inner, on: = { lhs: [ p_partkey ], rhs: [ l_partkey ] }, cost: 41387656, rows: 1500303.8 }
+            ├── Scan { table: part, list: [ p_partkey, p_type ], filter: null, cost: 400000, rows: 200000 }
+            └── Projection { exprs: [ l_partkey, l_extendedprice, l_discount ], cost: 33186720, rows: 1500303.8 }
+                └── Filter
+                    ├── cond:and
+                    │   ├── lhs: >= { lhs: l_shipdate, rhs: 1995-09-01 }
+                    │   └── rhs: > { lhs: 1995-10-01, rhs: l_shipdate }
+                    ├── cost: 33126708
+                    ├── rows: 1500303.8
+                    └── Scan
+                        ├── table: lineitem
+                        ├── list: [ l_partkey, l_extendedprice, l_discount, l_shipdate ]
+                        ├── filter: null
+                        ├── cost: 24004860
+                        └── rows: 6001215
+*/
+
+-- tpch-q19
+explain select
+    sum(l_extendedprice* (1 - l_discount)) as revenue
+from
+    lineitem,
+    part
+where
+    (
+        p_partkey = l_partkey
+        and p_brand = 'Brand#12'
+        and p_container in ('SM CASE', 'SM BOX', 'SM PACK', 'SM PKG')
+        and l_quantity >= 1 and l_quantity <= 1 + 10
+        and p_size between 1 and 5
+        and l_shipmode in ('AIR', 'AIR REG')
+        and l_shipinstruct = 'DELIVER IN PERSON'
+    )
+    or
+    (
+        p_partkey = l_partkey
+        and p_brand = 'Brand#23'
+        and p_container in ('MED BAG', 'MED BOX', 'MED PKG', 'MED PACK')
+        and l_quantity >= 10 and l_quantity <= 10 + 10
+        and p_size between 1 and 10
+        and l_shipmode in ('AIR', 'AIR REG')
+        and l_shipinstruct = 'DELIVER IN PERSON'
+    )
+    or
+    (
+        p_partkey = l_partkey
+        and p_brand = 'Brand#33'
+        and p_container in ('LG CASE', 'LG BOX', 'LG PACK', 'LG PKG')
+        and l_quantity >= 20 and l_quantity <= 20 + 10
+        and p_size between 1 and 15
+        and l_shipmode in ('AIR', 'AIR REG')
+        and l_shipinstruct = 'DELIVER IN PERSON'
+    );
+
+/*
+Projection
+├── exprs:sum
+│   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+├── cost: 82429944
+├── rows: 1
+└── Agg
+    ├── aggs:sum
+    │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+    ├── cost: 82429944
+    ├── rows: 1
+    └── Projection { exprs: [ l_extendedprice, l_discount ], cost: 82307260, rows: 285307.75 }
+        └── Filter
+            ├── cond:or
+            │   ├── lhs:or
+            │   │   ├── lhs:and
+            │   │   │   ├── lhs: = { lhs: p_brand, rhs: 'Brand#23' }
+            │   │   │   ├── rhs:and
+            │   │   │   │   ├── lhs:and
+            │   │   │   │   │   ├── lhs: >= { lhs: l_quantity, rhs: 10 }
+            │   │   │   │   │   └── rhs: and { lhs: >= { lhs: 10, rhs: p_size }, rhs: >= { lhs: 20, rhs: l_quantity } }
+            │   │   │   │   ├── rhs:In { in: [ 'MED BAG', 'MED BOX', 'MED PKG', 'MED PACK' ] }
+            │   │   │   │   │   └── p_container
+
+
+            │   │   ├── rhs:and
+            │   │   │   ├── lhs: = { lhs: p_brand, rhs: 'Brand#12' }
+            │   │   │   ├── rhs:and
+            │   │   │   │   ├── lhs:and
+            │   │   │   │   │   ├── lhs: >= { lhs: l_quantity, rhs: 1 }
+            │   │   │   │   │   └── rhs: and { lhs: >= { lhs: 5, rhs: p_size }, rhs: >= { lhs: 11, rhs: l_quantity } }
+            │   │   │   │   ├── rhs:In { in: [ 'SM CASE', 'SM BOX', 'SM PACK', 'SM PKG' ] }
+            │   │   │   │   │   └── p_container
+
+
+
+            │   ├── rhs:and
+            │   │   ├── lhs: = { lhs: p_brand, rhs: 'Brand#33' }
+            │   │   ├── rhs:and
+            │   │   │   ├── lhs: and { lhs: >= { lhs: 15, rhs: p_size }, rhs: >= { lhs: 30, rhs: l_quantity } }
+            │   │   │   ├── rhs:and
+            │   │   │   │   ├── lhs: >= { lhs: l_quantity, rhs: 20 }
+            │   │   │   │   ├── rhs:In { in: [ 'LG CASE', 'LG BOX', 'LG PACK', 'LG PKG' ] }
+            │   │   │   │   │   └── p_container
+
+
+
+
+            ├── cost: 82298700
+            ├── rows: 285307.75
+            └── Projection
+                ├── exprs: [ p_brand, p_size, p_container, l_quantity, l_extendedprice, l_discount ]
+                ├── cost: 69624640
+                ├── rows: 2000404.9
+                └── HashJoin
+                    ├── type: inner
+                    ├── on: = { lhs: [ p_partkey ], rhs: [ l_partkey ] }
+                    ├── cost: 69484610
+                    ├── rows: 2000404.9
+                    ├── Filter { cond: >= { lhs: p_size, rhs: 1 }, cost: 1242000, rows: 100000 }
+                    │   └── Scan
+                    │       ├── table: part
+                    │       ├── list: [ p_partkey, p_brand, p_size, p_container ]
+                    │       ├── filter: null
+                    │       ├── cost: 800000
+                    │       └── rows: 200000
+                    └── Projection
+                        ├── exprs: [ l_partkey, l_quantity, l_extendedprice, l_discount ]
+                        ├── cost: 51890500
+                        ├── rows: 2000404.9
+                        └── Filter
+                            ├── cond:and
+                            │   ├── lhs: = { lhs: l_shipinstruct, rhs: 'DELIVER IN PERSON' }
+                            │   ├── rhs:In { in: [ 'AIR', 'AIR REG' ] }
+                            │   │   └── l_shipmode
+
+                            ├── cost: 51790480
+                            ├── rows: 2000404.9
+                            └── Scan
+                                ├── table: lineitem
+                                ├── list:
+                                │   ┌── l_partkey
+                                │   ├── l_quantity
+                                │   ├── l_extendedprice
+                                │   ├── l_discount
+                                │   ├── l_shipinstruct
+                                │   └── l_shipmode
+                                ├── filter: null
+                                ├── cost: 36007290
+                                └── rows: 6001215
+*/
+

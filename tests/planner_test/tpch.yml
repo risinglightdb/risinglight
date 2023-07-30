@@ -396,3 +396,63 @@
   before: ["*prepare"]
   tasks:
       - print
+
+- id: tpch-q14
+  sql: |
+    explain select
+        100.00 * sum(case
+            when p_type like 'PROMO%'
+                then l_extendedprice * (1 - l_discount)
+            else 0
+        end) / sum(l_extendedprice * (1 - l_discount)) as promo_revenue
+    from
+        lineitem,
+        part
+    where
+        l_partkey = p_partkey
+        and l_shipdate >= date '1995-09-01'
+        and l_shipdate < date '1995-09-01' + interval '1' month;
+  before: ["*prepare"]
+  tasks:
+      - print
+
+- id: tpch-q19
+  sql: |
+    explain select
+        sum(l_extendedprice* (1 - l_discount)) as revenue
+    from
+        lineitem,
+        part
+    where
+        (
+            p_partkey = l_partkey
+            and p_brand = 'Brand#12'
+            and p_container in ('SM CASE', 'SM BOX', 'SM PACK', 'SM PKG')
+            and l_quantity >= 1 and l_quantity <= 1 + 10
+            and p_size between 1 and 5
+            and l_shipmode in ('AIR', 'AIR REG')
+            and l_shipinstruct = 'DELIVER IN PERSON'
+        )
+        or
+        (
+            p_partkey = l_partkey
+            and p_brand = 'Brand#23'
+            and p_container in ('MED BAG', 'MED BOX', 'MED PKG', 'MED PACK')
+            and l_quantity >= 10 and l_quantity <= 10 + 10
+            and p_size between 1 and 10
+            and l_shipmode in ('AIR', 'AIR REG')
+            and l_shipinstruct = 'DELIVER IN PERSON'
+        )
+        or
+        (
+            p_partkey = l_partkey
+            and p_brand = 'Brand#33'
+            and p_container in ('LG CASE', 'LG BOX', 'LG PACK', 'LG PKG')
+            and l_quantity >= 20 and l_quantity <= 20 + 10
+            and p_size between 1 and 15
+            and l_shipmode in ('AIR', 'AIR REG')
+            and l_shipinstruct = 'DELIVER IN PERSON'
+        );
+  before: ["*prepare"]
+  tasks:
+      - print
