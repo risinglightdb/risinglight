@@ -48,14 +48,23 @@ fn merge_rules() -> Vec<Rewrite> { vec![
         "(filter ?cond1 (filter ?cond2 ?child))" =>
         "(filter (and ?cond1 ?cond2) ?child)"
     ),
+    rw!("proj-merge";
+        "(proj ?proj1 (proj ?proj2 ?child))" =>
+        "(proj ?proj1 ?child)"
+        if columns_is_subset("?proj1", "?child")
+    ),
 ]}
 
 #[rustfmt::skip]
 fn predicate_pushdown_rules() -> Vec<Rewrite> { vec![
-    pushdown("filter", "?cond", "proj", "?exprs"),
     pushdown("filter", "?cond", "order", "?keys"),
     pushdown("filter", "?cond", "limit", "?limit ?offset"),
     pushdown("filter", "?cond", "topn", "?limit ?offset ?keys"),
+    rw!("pushdown-filter-proj";
+        "(filter ?cond (proj ?proj ?child))" =>
+        "(proj ?proj (filter ?cond ?child))"
+        if columns_is_subset("?cond", "?child")
+    ),
     rw!("pushdown-filter-join";
         "(filter ?cond (join inner ?on ?left ?right))" =>
         "(join inner (and ?on ?cond) ?left ?right)"
@@ -91,24 +100,42 @@ fn pushdown(a: &str, a_args: &str, b: &str, b_args: &str) -> Rewrite {
 }
 
 #[rustfmt::skip]
-pub fn join_rules() -> Vec<Rewrite> { vec![
+pub fn join_reorder_rules() -> Vec<Rewrite> { vec![
     // we only have right rotation rule,
     // because the initial state is always a left-deep tree
     // thus left rotation is not needed.
-    rw!("join-reorder";
-        "(join ?type ?cond2 (join ?type ?cond1 ?left ?mid) ?right)" =>
-        "(join ?type (and ?cond1 ?cond2) ?left (join ?type true ?mid ?right))"
+    rw!("inner-join-right-rotate";
+        "(join inner ?cond1 (join inner ?cond2 ?left ?mid) ?right)" =>
+        "(join inner (and ?cond1 ?cond2) ?left (join inner true ?mid ?right))"
+    ),
+    rw!("inner-join-right-rotate-1";
+        "(proj ?proj (join inner ?cond
+            (proj ?projl (join inner ?condl ?left ?mid))
+            ?right
+        ))" =>
+        "(proj ?proj (join inner (and ?cond ?condl)
+            ?left
+            (join inner true ?mid ?right)
+        ))"
     ),
     rw!("inner-join-swap";
         // needs a top projection to keep the schema
-        "(proj ?exprs (join inner ?cond ?left ?right))" =>
-        "(proj ?exprs (join inner ?cond ?right ?left))"
+        "(proj ?proj (join inner ?cond ?left ?right))" =>
+        "(proj ?proj (join inner ?cond ?right ?left))"
     ),
+    rw!("inner-hash-join-swap";
+        "(proj ?proj (hashjoin inner ?lkeys ?rkeys ?left ?right))" =>
+        "(proj ?proj (hashjoin inner ?rkeys ?lkeys ?right ?left))"
+    ),
+]}
+
+#[rustfmt::skip]
+pub fn hash_join_rules() -> Vec<Rewrite> { vec![
     rw!("hash-join-on-one-eq";
-        "(join ?type (= ?el ?er) ?left ?right)" =>
-        "(hashjoin ?type (list ?el) (list ?er) ?left ?right)"
-        if columns_is_subset("?el", "?left")
-        if columns_is_subset("?er", "?right")
+        "(join ?type (= ?l1 ?r1) ?left ?right)" =>
+        "(hashjoin ?type (list ?l1) (list ?r1) ?left ?right)"
+        if columns_is_subset("?l1", "?left")
+        if columns_is_subset("?r1", "?right")
     ),
     rw!("hash-join-on-two-eq";
         "(join ?type (and (= ?l1 ?r1) (= ?l2 ?r2)) ?left ?right)" =>
@@ -118,13 +145,35 @@ pub fn join_rules() -> Vec<Rewrite> { vec![
         if columns_is_subset("?r1", "?right")
         if columns_is_subset("?r2", "?right")
     ),
-    rw!("hash-join-on-one-eq-1";
-        "(join ?type (and (= ?el ?er) ?cond) ?left ?right)" =>
-        "(filter ?cond (hashjoin ?type (list ?el) (list ?er) ?left ?right))"
-        if columns_is_subset("?el", "?left")
-        if columns_is_subset("?er", "?right")
+    rw!("hash-join-on-three-eq";
+        "(join ?type (and (= ?l1 ?r1) (and (= ?l2 ?r2) (= ?l3 ?r3))) ?left ?right)" =>
+        "(hashjoin ?type (list ?l1 ?l2 ?l3) (list ?r1 ?r2 ?r3) ?left ?right)"
+        if columns_is_subset("?l1", "?left")
+        if columns_is_subset("?l2", "?left")
+        if columns_is_subset("?l3", "?left")
+        if columns_is_subset("?r1", "?right")
+        if columns_is_subset("?r2", "?right")
+        if columns_is_subset("?r3", "?right")
     ),
-    // TODO: support more than two equals
+    rw!("hash-join-on-one-eq-1";
+        "(join ?type (and (= ?l1 ?r1) ?cond) ?left ?right)" =>
+        "(filter ?cond (hashjoin ?type (list ?l1) (list ?r1) ?left ?right))"
+        if columns_is_subset("?l1", "?left")
+        if columns_is_subset("?r1", "?right")
+    ),
+    // allow reverting hashjoin to join so that projections and filters can be pushed down
+    rw!("hash-join-on-one-eq-rev";
+        "(hashjoin ?type (list ?l1) (list ?r1) ?left ?right)" =>
+        "(join ?type (= ?l1 ?r1) ?left ?right)"
+    ),
+    rw!("hash-join-on-two-eq-rev";
+        "(hashjoin ?type (list ?l1 ?l2) (list ?r1 ?r2) ?left ?right)" =>
+        "(join ?type (and (= ?l1 ?r1) (= ?l2 ?r2)) ?left ?right)"
+    ),
+    rw!("hash-join-on-three-eq-rev";
+        "(hashjoin ?type (list ?l1 ?l2 ?l3) (list ?r1 ?r2 ?r3) ?left ?right)" =>
+        "(join ?type (and (= ?l1 ?r1) (and (= ?l2 ?r2) (= ?l3 ?r3))) ?left ?right)"
+    ),
 ]}
 
 /// Pushdown projections and prune unused columns.
@@ -350,7 +399,8 @@ mod tests {
         let mut rules = vec![];
         rules.append(&mut expr::rules());
         rules.append(&mut plan::always_better_rules());
-        rules.append(&mut plan::join_rules());
+        rules.append(&mut plan::join_reorder_rules());
+        rules.append(&mut plan::hash_join_rules());
         rules
     }
 

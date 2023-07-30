@@ -30,7 +30,6 @@
 
 use std::collections::HashSet;
 use std::hash::Hash;
-use std::sync::LazyLock;
 
 use egg::{rewrite as rw, *};
 
@@ -38,38 +37,18 @@ use super::{Config, EGraph, Expr, ExprExt, Pattern, Rewrite};
 use crate::catalog::RootCatalogRef;
 use crate::types::F32;
 
-mod agg;
-mod expr;
-mod order;
-mod plan;
-mod range;
-mod rows;
-mod schema;
-mod type_;
+pub mod agg;
+pub mod expr;
+pub mod order;
+pub mod plan;
+pub mod range;
+pub mod rows;
+pub mod schema;
+pub mod type_;
 
-pub use range::filter_scan_rule;
 pub use rows::Statistics;
 
 pub use self::type_::TypeError;
-
-/// Stage1 rules in the optimizer.
-pub static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
-    let mut rules = vec![];
-    rules.append(&mut expr::rules());
-    rules.append(&mut plan::always_better_rules());
-    rules.append(&mut order::order_rules());
-    rules
-});
-
-/// Stage2 rules in the optimizer.
-pub static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
-    let mut rules = vec![];
-    rules.append(&mut expr::rules());
-    rules.append(&mut plan::always_better_rules());
-    rules.append(&mut plan::join_rules());
-    rules.append(&mut order::order_rules());
-    rules
-});
 
 /// The unified analysis for all rules.
 #[derive(Default, Clone)]

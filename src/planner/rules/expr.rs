@@ -103,6 +103,14 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("add-or-distri"; "(or (and ?a ?b) (and ?a ?c)))" => "(and ?a (or ?b ?c))"),
 ]}
 
+#[rustfmt::skip]
+pub fn and_rules() -> Vec<Rewrite> { vec![
+    rw!("eq-comm";   "(=  ?a ?b)" => "(=  ?b ?a)"),
+    rw!("and-true";  "(and true ?a)"    => "?a"),
+    rw!("and-comm";  "(and ?a ?b)"      => "(and ?b ?a)"),
+    rw!("and-assoc"; "(and ?a (and ?b ?c))" => "(and (and ?a ?b) ?c)"),
+]}
+
 /// The data type of constant analysis.
 ///
 /// `Some` for a known constant, `None` for unknown.

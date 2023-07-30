@@ -1,5 +1,7 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::sync::LazyLock;
+
 use egg::CostFunction;
 
 use super::*;
@@ -37,7 +39,7 @@ impl Optimizer {
         // define extra rules for some configurations
         let mut extra_rules = vec![];
         if self.analysis.config.enable_range_filter_scan {
-            extra_rules.append(&mut rules::filter_scan_rule());
+            extra_rules.append(&mut rules::range::filter_scan_rule());
         }
 
         // 1. pushdown
@@ -47,7 +49,7 @@ impl Optimizer {
             let runner = egg::Runner::<_, _, ()>::new(self.analysis.clone())
                 .with_expr(&expr)
                 .with_iter_limit(6)
-                .run(rules::STAGE1_RULES.iter().chain(&extra_rules));
+                .run(STAGE1_RULES.iter().chain(&extra_rules));
             let cost_fn = cost::CostFn {
                 egraph: &runner.egraph,
             };
@@ -67,14 +69,28 @@ impl Optimizer {
         }
 
         // 2. join reorder and hashjoin
-        let runner = egg::Runner::<_, _, ()>::new(self.analysis.clone())
-            .with_expr(&expr)
-            .run(&*rules::STAGE2_RULES);
-        let cost_fn = cost::CostFn {
-            egraph: &runner.egraph,
-        };
-        let extractor = egg::Extractor::new(&runner.egraph, cost_fn);
-        (_, expr) = extractor.find_best(runner.roots[0]);
+        for _ in 0..4 {
+            let runner = egg::Runner::<_, _, ()>::new(self.analysis.clone())
+                .with_expr(&expr)
+                .with_iter_limit(8)
+                .run(&*STAGE2_RULES);
+            let cost_fn = cost::CostFn {
+                egraph: &runner.egraph,
+            };
+            let extractor = egg::Extractor::new(&runner.egraph, cost_fn);
+            let cost;
+            (cost, expr) = extractor.find_best(runner.roots[0]);
+            if cost >= best_cost {
+                break;
+            }
+            best_cost = cost;
+            // println!(
+            //     "{}",
+            //     Explain::of(&expr)
+            //         .with_costs(&self.costs(&expr))
+            //         .with_rows(&self.rows(&expr))
+            // );
+        }
 
         expr
     }
@@ -108,3 +124,22 @@ impl Optimizer {
         &self.analysis.catalog
     }
 }
+
+/// Stage1 rules in the optimizer.
+static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
+    let mut rules = vec![];
+    rules.append(&mut rules::expr::rules());
+    rules.append(&mut rules::plan::always_better_rules());
+    rules.append(&mut rules::order::order_rules());
+    rules
+});
+
+/// Stage2 rules in the optimizer.
+static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
+    let mut rules = vec![];
+    rules.append(&mut rules::expr::and_rules());
+    rules.append(&mut rules::plan::always_better_rules());
+    rules.append(&mut rules::plan::join_reorder_rules());
+    rules.append(&mut rules::plan::hash_join_rules());
+    rules
+});
