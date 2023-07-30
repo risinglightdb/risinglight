@@ -44,14 +44,15 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         HashJoin([_, _, _, l, r]) | MergeJoin([_, _, _, l, r]) => x(l).max(x(r)),
         Empty(_) => 0.0,
 
-        // for expressions, the result represents selectivity
+        // for boolean expressions, the result represents selectivity
         Ref(a) => x(a),
         Constant(DataValue::Bool(false)) => 0.0,
         Constant(DataValue::Bool(true)) => 1.0,
         And([a, b]) => x(a) * x(b), // TODO: consider dependency
         Or([a, b]) => x(a) + x(b) - x(a) * x(b), // TODO: consider dependency
+        Xor([a, b]) => x(a) + x(b) - 2.0 * x(a) * x(b),
         Not(a) => 1.0 - x(a),
-        Gt(_) | Lt(_) | GtEq(_) | LtEq(_) | Eq(_) | NotEq(_) => 0.5,
+        Gt(_) | Lt(_) | GtEq(_) | LtEq(_) | Eq(_) | NotEq(_) | Like(_) => 0.5,
         In([_, b]) => 1.0 - 1.0 / (list_len(b) as f32 + 1.0),
 
         _ => 1.0,

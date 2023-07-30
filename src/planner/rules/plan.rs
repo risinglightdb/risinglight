@@ -70,23 +70,23 @@ fn predicate_pushdown_rules() -> Vec<Rewrite> { vec![
         "(join inner (and ?on ?cond) ?left ?right)"
     ),
     rw!("pushdown-filter-join-left";
-        "(join inner (and ?cond1 ?cond2) ?left ?right)" =>
-        "(join inner ?cond2 (filter ?cond1 ?left) ?right)"
+        "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
+        "(join ?type ?cond2 (filter ?cond1 ?left) ?right)"
         if columns_is_subset("?cond1", "?left")
     ),
     rw!("pushdown-filter-join-left-1";
-        "(join inner ?cond1 ?left ?right)" =>
-        "(join inner true (filter ?cond1 ?left) ?right)"
+        "(join ?type ?cond1 ?left ?right)" =>
+        "(join ?type true (filter ?cond1 ?left) ?right)"
         if columns_is_subset("?cond1", "?left")
     ),
     rw!("pushdown-filter-join-right";
-        "(join inner (and ?cond1 ?cond2) ?left ?right)" =>
-        "(join inner ?cond2 ?left (filter ?cond1 ?right))"
+        "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
+        "(join ?type ?cond2 ?left (filter ?cond1 ?right))"
         if columns_is_subset("?cond1", "?right")
     ),
     rw!("pushdown-filter-join-right-1";
-        "(join inner ?cond1 ?left ?right)" =>
-        "(join inner true ?left (filter ?cond1 ?right))"
+        "(join ?type ?cond1 ?left ?right)" =>
+        "(join ?type true ?left (filter ?cond1 ?right))"
         if columns_is_subset("?cond1", "?right")
     ),
 ]}
@@ -156,8 +156,9 @@ pub fn hash_join_rules() -> Vec<Rewrite> { vec![
         if columns_is_subset("?r3", "?right")
     ),
     rw!("hash-join-on-one-eq-1";
-        "(join ?type (and (= ?l1 ?r1) ?cond) ?left ?right)" =>
-        "(filter ?cond (hashjoin ?type (list ?l1) (list ?r1) ?left ?right))"
+        // only valid for inner join
+        "(join inner (and (= ?l1 ?r1) ?cond) ?left ?right)" =>
+        "(filter ?cond (hashjoin inner (list ?l1) (list ?r1) ?left ?right))"
         if columns_is_subset("?l1", "?left")
         if columns_is_subset("?r1", "?right")
     ),
