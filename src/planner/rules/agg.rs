@@ -13,6 +13,7 @@ pub fn analyze_aggs(enode: &Expr, x: impl Fn(&Id) -> AggSet) -> AggSet {
     match enode {
         _ if enode.is_aggregate_function() => vec![enode.clone()],
         Over(_) | Ref(_) => vec![],
+        In([a, _]) => x(a),
         // merge the set from all children
         _ => enode.children().iter().flat_map(x).collect(),
     }

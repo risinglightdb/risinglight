@@ -40,8 +40,14 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         }
         Filter([cond, c]) => x(c) * x(cond),
         Limit([limit, _, c]) | TopN([limit, _, _, c]) => x(c).min(get_limit_num(limit)),
-        Join([_, on, l, r]) => x(l) * x(r) * x(on),
-        HashJoin([_, _, _, l, r]) | MergeJoin([_, _, _, l, r]) => x(l).max(x(r)),
+        Join([t, on, l, r]) => match egraph[*t].nodes[0] {
+            Semi | Anti => x(l) * x(on),
+            _ => x(l) * x(r) * x(on),
+        },
+        HashJoin([t, _, _, l, r]) | MergeJoin([t, _, _, l, r]) => match egraph[*t].nodes[0] {
+            Semi | Anti => x(l),
+            _ => x(l).max(x(r)),
+        },
         Empty(_) => 0.0,
 
         // for boolean expressions, the result represents selectivity
@@ -53,7 +59,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         Xor([a, b]) => x(a) + x(b) - 2.0 * x(a) * x(b),
         Not(a) => 1.0 - x(a),
         Gt(_) | Lt(_) | GtEq(_) | LtEq(_) | Eq(_) | NotEq(_) | Like(_) => 0.5,
-        In([_, b]) => 1.0 - 1.0 / (list_len(b) as f32 + 1.0),
+        In([_, b]) => 1.0 / x(b),
 
         _ => 1.0,
     }

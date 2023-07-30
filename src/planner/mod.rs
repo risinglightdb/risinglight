@@ -85,8 +85,8 @@ define_language! {
         "row_number" = RowNumber,
 
         // subquery related
-        "exists" = Exists(Id),
-        "in" = In([Id; 2]),                     // (in expr list)
+        "exists" = Exists(Id),                  // (exists plan)
+        "in" = In([Id; 2]),                     // (in expr plan)
 
         "cast" = Cast([Id; 2]),                 // (cast type expr)
 
@@ -107,6 +107,8 @@ define_language! {
             "left_outer" = LeftOuter,
             "right_outer" = RightOuter,
             "full_outer" = FullOuter,
+            "semi" = Semi,
+            "anti" = Anti,
         "agg" = Agg([Id; 2]),                   // (agg aggs=[expr..] child)
                                                     // expressions must be aggregate functions
         "hashagg" = HashAgg([Id; 3]),           // (hashagg aggs=[expr..] group_keys=[expr..] child)

@@ -260,6 +260,8 @@ impl<S: Storage> Builder<S> {
                 LeftOuter => self.build_hashjoin::<{ JoinType::LeftOuter }>(args),
                 RightOuter => self.build_hashjoin::<{ JoinType::RightOuter }>(args),
                 FullOuter => self.build_hashjoin::<{ JoinType::FullOuter }>(args),
+                Semi => self.build_hashsemijoin(args, false),
+                Anti => self.build_hashsemijoin(args, true),
                 t => panic!("invalid join type: {t:?}"),
             },
 
@@ -354,6 +356,17 @@ impl<S: Storage> Builder<S> {
             right_keys: self.resolve_column_index(rkeys, right),
             left_types: self.plan_types(left).to_vec(),
             right_types: self.plan_types(right).to_vec(),
+        }
+        .execute(self.build_id(left), self.build_id(right))
+    }
+
+    fn build_hashsemijoin(&self, args: [Id; 5], anti: bool) -> BoxedExecutor {
+        let [_, lkeys, rkeys, left, right] = args;
+        HashSemiJoinExecutor {
+            left_keys: self.resolve_column_index(lkeys, left),
+            right_keys: self.resolve_column_index(rkeys, right),
+            left_types: self.plan_types(left).to_vec(),
+            anti,
         }
         .execute(self.build_id(left), self.build_id(right))
     }

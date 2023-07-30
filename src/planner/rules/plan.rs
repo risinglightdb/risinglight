@@ -177,6 +177,49 @@ pub fn hash_join_rules() -> Vec<Rewrite> { vec![
     ),
 ]}
 
+#[rustfmt::skip]
+pub fn subquery_rules() -> Vec<Rewrite> { vec![
+    rw!("in-to-semi-join";
+        "(filter (in ?expr ?subquery) ?child)" =>
+        { FirstOutput{
+            pattern: pattern("(join semi (= ?expr ?o) ?child ?subquery)"),
+            subquery: var("?subquery"),
+            output: var("?o"),
+        }}
+    ),
+    rw!("not-in-to-anti-join";
+        "(filter (not (in ?expr ?subquery)) ?child)" =>
+        { FirstOutput{
+            pattern: pattern("(join anti (= ?expr ?o) ?child ?subquery)"),
+            subquery: var("?subquery"),
+            output: var("?o"),
+        }}
+    ),
+]}
+
+struct FirstOutput {
+    pattern: Pattern,
+    subquery: Var,
+    output: Var,
+}
+
+impl Applier<Expr, ExprAnalysis> for FirstOutput {
+    fn apply_one(
+        &self,
+        egraph: &mut EGraph,
+        eclass: Id,
+        subst: &Subst,
+        searcher_ast: Option<&PatternAst<Expr>>,
+        rule_name: Symbol,
+    ) -> Vec<Id> {
+        let id = egraph[subst[self.subquery]].data.schema[0];
+        let mut subst = subst.clone();
+        subst.insert(self.output, id);
+        self.pattern
+            .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+    }
+}
+
 /// Pushdown projections and prune unused columns.
 #[rustfmt::skip]
 pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
@@ -292,7 +335,7 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
                 .iter()
                 .find(|e| matches!(e, Column(_) | Ref(_)))
                 .cloned()
-                .unwrap_or(Expr::Ref(*id))
+                .unwrap_or(Ref(*id))
         })
     };
     match enode {
@@ -303,8 +346,17 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
         HashAgg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
             produced(exprs).chain(produced(group_keys)).collect()
         }
+        Join([k, _, l, r]) | HashJoin([k, _, _, l, r]) | MergeJoin([k, _, _, l, r]) => {
+            match egraph[*k].nodes[0] {
+                Semi | Anti => columns(l).clone(),
+                _ => columns(l).union(columns(r)).cloned().collect(),
+            }
+        }
 
-        // expressions: merge from all children
+        // expressions
+        In([a, _]) => columns(a).clone(),
+
+        // others: merge from all children
         _ => (enode.children().iter())
             .flat_map(|id| columns(id).iter().cloned())
             .collect(),

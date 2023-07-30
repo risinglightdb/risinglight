@@ -17,7 +17,12 @@ pub enum TypeError {
 }
 
 /// Returns data type of the expression.
-pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalogRef) -> Type {
+pub fn analyze_type(
+    enode: &Expr,
+    x: impl Fn(&Id) -> Type,
+    node0: impl Fn(&Id) -> Expr,
+    catalog: &RootCatalogRef,
+) -> Type {
     use Expr::*;
     let concat_struct = |t1: DataType, t2: DataType| match (t1.kind, t2.kind) {
         (Kind::Struct(l), Kind::Struct(r)) => {
@@ -131,8 +136,11 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(c),
 
         // concat 2 children
-        Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) | MergeJoin([_, _, _, l, r]) => {
-            concat_struct(x(l)?, x(r)?)
+        Join([t, _, l, r]) | HashJoin([t, _, _, l, r]) | MergeJoin([t, _, _, l, r]) => {
+            match node0(t) {
+                Semi | Anti => x(l),
+                _ => concat_struct(x(l)?, x(r)?),
+            }
         }
 
         // plans that change schema

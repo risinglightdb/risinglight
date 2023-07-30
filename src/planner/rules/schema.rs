@@ -8,7 +8,11 @@ use super::*;
 pub type Schema = Vec<Id>;
 
 /// Returns the output expressions for plan node.
-pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
+pub fn analyze_schema(
+    enode: &Expr,
+    x: impl Fn(&Id) -> Schema,
+    node0: impl Fn(&Id) -> Expr,
+) -> Schema {
     use Expr::*;
     let concat = |v1: Vec<Id>, v2: Vec<Id>| v1.into_iter().chain(v2.into_iter()).collect();
     match enode {
@@ -16,8 +20,11 @@ pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
         Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(c),
 
         // concat 2 children
-        Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) | MergeJoin([_, _, _, l, r]) => {
-            concat(x(l), x(r))
+        Join([t, _, l, r]) | HashJoin([t, _, _, l, r]) | MergeJoin([t, _, _, l, r]) => {
+            match node0(t) {
+                Semi | Anti => x(l),
+                _ => concat(x(l), x(r)),
+            }
         }
 
         // list is the source for the following nodes

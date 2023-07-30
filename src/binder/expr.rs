@@ -52,6 +52,11 @@ impl Binder {
                 list,
                 negated,
             } => self.bind_in_list(*expr, list, negated),
+            Expr::InSubquery {
+                expr,
+                subquery,
+                negated,
+            } => self.bind_in_subquery(*expr, *subquery, negated),
             _ => todo!("bind expression: {:?}", expr),
         }?;
         self.type_(id)?;
@@ -241,6 +246,17 @@ impl Binder {
             Ok(self.egraph.add(Node::Not(in_list)))
         } else {
             Ok(in_list)
+        }
+    }
+
+    fn bind_in_subquery(&mut self, expr: Expr, subquery: Query, negated: bool) -> Result {
+        let expr = self.bind_expr(expr)?;
+        let (subquery, _) = self.bind_query(subquery)?;
+        let in_subquery = self.egraph.add(Node::In([expr, subquery]));
+        if negated {
+            Ok(self.egraph.add(Node::Not(in_subquery)))
+        } else {
+            Ok(in_subquery)
         }
     }
 

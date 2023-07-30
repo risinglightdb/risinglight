@@ -111,3 +111,36 @@ impl<const T: JoinType> HashJoinExecutor<T> {
         }
     }
 }
+
+/// The executor for hash semi/anti join
+pub struct HashSemiJoinExecutor {
+    pub left_keys: RecExpr,
+    pub right_keys: RecExpr,
+    pub left_types: Vec<DataType>,
+    pub anti: bool,
+}
+
+impl HashSemiJoinExecutor {
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self, left: BoxedExecutor, right: BoxedExecutor) {
+        let mut key_set: HashSet<JoinKeys> = HashSet::new();
+        #[for_await]
+        for chunk in right {
+            let chunk = chunk?;
+            let keys_chunk = Evaluator::new(&self.right_keys).eval_list(&chunk)?;
+            for row in keys_chunk.rows() {
+                key_set.insert(row.values().collect());
+            }
+        }
+        #[for_await]
+        for chunk in left {
+            let chunk = chunk?;
+            let keys_chunk = Evaluator::new(&self.left_keys).eval_list(&chunk)?;
+            let exists = keys_chunk
+                .rows()
+                .map(|key| key_set.contains(&key.values().collect::<JoinKeys>()) ^ self.anti)
+                .collect::<Vec<bool>>();
+            yield chunk.filter(&exists);
+        }
+    }
+}
