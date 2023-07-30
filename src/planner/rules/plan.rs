@@ -186,6 +186,7 @@ pub fn subquery_rules() -> Vec<Rewrite> { vec![
             subquery: var("?subquery"),
             output: var("?o"),
         }}
+        if is_not_list("?subquery")
     ),
     rw!("not-in-to-anti-join";
         "(filter (not (in ?expr ?subquery)) ?child)" =>
@@ -194,9 +195,11 @@ pub fn subquery_rules() -> Vec<Rewrite> { vec![
             subquery: var("?subquery"),
             output: var("?o"),
         }}
+        if is_not_list("?subquery")
     ),
 ]}
 
+/// Replace `output` with the first column of `subquery` and then apply `pattern`.
 struct FirstOutput {
     pattern: Pattern,
     subquery: Var,
@@ -290,14 +293,6 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
 
 /// Returns true if the columns in `var1` are a subset of the columns in `var2`.
 fn columns_is_subset(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    columns_is(var1, var2, HashSet::is_subset)
-}
-
-fn columns_is(
-    var1: &str,
-    var2: &str,
-    f: impl Fn(&HashSet<Id>, &HashSet<Id>) -> bool,
-) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var1 = var(var1);
     let var2 = var(var2);
     move |egraph, _, subst| {
@@ -307,9 +302,20 @@ fn columns_is(
                 .columns
                 .iter()
                 .map(|e| egraph.lookup(e.clone()).unwrap())
-                .collect()
+                .collect::<HashSet<_>>()
         };
-        f(&get_set(var1), &get_set(var2))
+        get_set(var1).is_subset(&get_set(var2))
+    }
+}
+
+/// Returns true if the node `var1` is not a list.
+fn is_not_list(var1: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let var1 = var(var1);
+    move |egraph, _, subst| {
+        !egraph[subst[var1]]
+            .nodes
+            .iter()
+            .any(|e| matches!(e, Expr::List(_)))
     }
 }
 
