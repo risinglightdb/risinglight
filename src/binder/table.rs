@@ -74,14 +74,22 @@ impl Binder {
                 subquery, alias, ..
             } => {
                 let (id, ctx) = self.bind_query(*subquery)?;
-                // move `output_aliases` to current context
-                let table_name = alias.map_or("".into(), |alias| alias.name.value);
-                for (name, mut id) in ctx.output_aliases {
-                    // wrap with `Ref` if the node is not a column unit.
-                    if !matches!(self.node(id), Node::Column(_) | Node::Ref(_)) {
-                        id = self.egraph.add(Node::Ref(id));
+                if let Some(alias) = &alias && !alias.columns.is_empty() {
+                    // 'as t(a, b, ..)'
+                    let table_name = &alias.name.value;
+                    for (column, id) in alias.columns.iter().zip(self.schema(id)) {
+                        self.add_alias(column.value.clone(), table_name.clone(), id);
                     }
-                    self.add_alias(name, table_name.clone(), id);
+                } else {
+                    // move `output_aliases` to current context
+                    let table_name = alias.map_or("".into(), |alias| alias.name.value);
+                    for (name, mut id) in ctx.output_aliases {
+                        // wrap with `Ref` if the node is not a column unit.
+                        if !matches!(self.node(id), Node::Column(_) | Node::Ref(_)) {
+                            id = self.egraph.add(Node::Ref(id));
+                        }
+                        self.add_alias(name, table_name.clone(), id);
+                    }
                 }
                 Ok(id)
             }
