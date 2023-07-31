@@ -50,6 +50,10 @@ fn merge_rules() -> Vec<Rewrite> { vec![
         "(filter ?cond1 (filter ?cond2 ?child))" =>
         "(filter (and ?cond1 ?cond2) ?child)"
     ),
+    rw!("filter-split";
+        "(filter (and ?cond1 ?cond2) ?child)" =>
+        "(filter ?cond1 (filter ?cond2 ?child))"
+    ),
     // rw!("proj-merge";
     //     "(proj ?proj1 (proj ?proj2 ?child))" =>
     //     "(proj ?proj1 ?child)"
@@ -196,16 +200,21 @@ pub fn subquery_rules() -> Vec<Rewrite> { vec![
         "(apply anti ?child ?subquery)"
         if is_not_list("?subquery")
     ),
+    // Orthogonal Optimization of Subqueries and Aggregation
+    // https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.563.8492&rep=rep1&type=pdf
+    // Figure 4 Rule (1)
     rw!("apply-to-join";
         "(apply ?type ?left ?right)" =>
         "(join ?type true ?left ?right)"
         if not_depend_on("?right", "?left")
     ),
+    // Figure 4 Rule (2)
     rw!("apply-filter-to-join";
         "(apply ?type ?left (filter ?cond ?right))" =>
         "(join ?type ?cond ?left ?right)"
         if not_depend_on("?right", "?left")
     ),
+    // Figure 4 Rule (3)
     rw!("pushdown-apply-filter";
         "(apply inner ?left (filter ?cond ?right))" =>
         "(filter ?cond (apply inner ?left ?right))"
