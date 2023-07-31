@@ -49,6 +49,7 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
                 hash(rows(l)) * (rows(l) + rows(r)) + build() + costs(l) + costs(r)
             }
             MergeJoin([_, _, _, l, r]) => build() + costs(l) + costs(r),
+            Apply([_, l, r]) => build() + rows(l) * costs(r),
             Insert([_, _, c]) | CopyTo([_, c]) => rows(c) * cols(c) + costs(c),
             Empty(_) => 0.0,
             // expressions

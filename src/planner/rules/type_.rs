@@ -107,6 +107,7 @@ pub fn analyze_type(
             }
             Ok(Kind::Bool.nullable())
         }
+        Exists(_) => Ok(Kind::Bool.not_null()),
 
         // null ops
         IsNull(_) => Ok(Kind::Bool.not_null()),

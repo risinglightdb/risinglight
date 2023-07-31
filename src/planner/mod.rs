@@ -103,6 +103,7 @@ define_language! {
         "join" = Join([Id; 4]),                 // (join join_type expr left right)
         "hashjoin" = HashJoin([Id; 5]),         // (hashjoin join_type [left_expr..] [right_expr..] left right)
         "mergejoin" = MergeJoin([Id; 5]),       // (mergejoin join_type [left_expr..] [right_expr..] left right)
+        "apply" = Apply([Id; 3]),               // (apply type left right)
             "inner" = Inner,
             "left_outer" = LeftOuter,
             "right_outer" = RightOuter,

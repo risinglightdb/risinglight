@@ -179,48 +179,75 @@ pub fn hash_join_rules() -> Vec<Rewrite> { vec![
 
 #[rustfmt::skip]
 pub fn subquery_rules() -> Vec<Rewrite> { vec![
-    rw!("in-to-semi-join";
-        "(filter (in ?expr ?subquery) ?child)" =>
-        { FirstOutput{
-            pattern: pattern("(join semi (= ?expr ?o) ?child ?subquery)"),
-            subquery: var("?subquery"),
-            output: var("?o"),
-        }}
+    rw!("in-to-exist";
+        "(in ?expr ?subquery)" =>
+        { apply_column0("(exists (filter (= ?expr ?column0) ?subquery))") }
         if is_not_list("?subquery")
     ),
-    rw!("not-in-to-anti-join";
-        "(filter (not (in ?expr ?subquery)) ?child)" =>
-        { FirstOutput{
-            pattern: pattern("(join anti (= ?expr ?o) ?child ?subquery)"),
-            subquery: var("?subquery"),
-            output: var("?o"),
-        }}
+    rw!("exists-to-semi-apply";
+        "(filter (exists ?subquery) ?child)" =>
+        "(apply semi ?child ?subquery)"
         if is_not_list("?subquery")
+    ),
+    rw!("not-exists-to-anti-apply";
+        "(filter (not (exists ?subquery)) ?child)" =>
+        "(apply anti ?child ?subquery)"
+        if is_not_list("?subquery")
+    ),
+    rw!("apply-to-join";
+        "(apply ?type ?left ?right)" =>
+        "(join ?type true ?left ?right)"
+        if no_parameters_from("?left", "?right")
+    ),
+    rw!("pushdown-apply-filter";
+        "(apply ?type ?left (filter ?cond ?right))" =>
+        "(filter ?cond (apply ?type ?left ?right))"
+    ),
+    rw!("pushdown-semi-apply-proj";
+        "(apply semi ?left (proj ?proj ?right))" =>
+        "(apply semi ?left ?right)"
+    ),
+    rw!("pushdown-anti-apply-proj";
+        "(apply anti ?left (proj ?proj ?right))" =>
+        "(apply anti ?left ?right)"
     ),
 ]}
 
-/// Replace `output` with the first column of `subquery` and then apply `pattern`.
-struct FirstOutput {
-    pattern: Pattern,
-    subquery: Var,
-    output: Var,
+/// Returns an applier that replaces `?column0` with the first column of `?subquery`.
+fn apply_column0(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
+    struct ApplyColumn0 {
+        pattern: Pattern,
+        subquery: Var,
+        column0: Var,
+    }
+    impl Applier<Expr, ExprAnalysis> for ApplyColumn0 {
+        fn apply_one(
+            &self,
+            egraph: &mut EGraph,
+            eclass: Id,
+            subst: &Subst,
+            searcher_ast: Option<&PatternAst<Expr>>,
+            rule_name: Symbol,
+        ) -> Vec<Id> {
+            let id = egraph[subst[self.subquery]].data.schema[0];
+            let mut subst = subst.clone();
+            subst.insert(self.column0, id);
+            self.pattern
+                .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+        }
+    }
+    ApplyColumn0 {
+        pattern: pattern(pattern_str),
+        subquery: var("?subquery"),
+        column0: var("?column0"),
+    }
 }
 
-impl Applier<Expr, ExprAnalysis> for FirstOutput {
-    fn apply_one(
-        &self,
-        egraph: &mut EGraph,
-        eclass: Id,
-        subst: &Subst,
-        searcher_ast: Option<&PatternAst<Expr>>,
-        rule_name: Symbol,
-    ) -> Vec<Id> {
-        let id = egraph[subst[self.subquery]].data.schema[0];
-        let mut subst = subst.clone();
-        subst.insert(self.output, id);
-        self.pattern
-            .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
-    }
+/// Returns true if no parameters in `var2` is resolved from `var1`.
+fn no_parameters_from(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let var1 = var(var1);
+    let var2 = var(var2);
+    move |egraph, _, subst| todo!()
 }
 
 /// Pushdown projections and prune unused columns.
@@ -352,12 +379,13 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
         HashAgg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
             produced(exprs).chain(produced(group_keys)).collect()
         }
-        Join([k, _, l, r]) | HashJoin([k, _, _, l, r]) | MergeJoin([k, _, _, l, r]) => {
-            match egraph[*k].nodes[0] {
-                Semi | Anti => columns(l).clone(),
-                _ => columns(l).union(columns(r)).cloned().collect(),
-            }
-        }
+        Join([t, _, l, r])
+        | HashJoin([t, _, _, l, r])
+        | MergeJoin([t, _, _, l, r])
+        | Apply([t, l, r]) => match egraph[*t].nodes[0] {
+            Semi | Anti => columns(l).clone(),
+            _ => columns(l).union(columns(r)).cloned().collect(),
+        },
 
         // expressions
         In([a, _]) => columns(a).clone(),

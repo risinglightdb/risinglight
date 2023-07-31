@@ -303,6 +303,11 @@ impl<'a> Explain<'a> {
                 let children = vec![self.child(left).pretty(), self.child(right).pretty()];
                 Pretty::simple_record(name, fields, children)
             }
+            Apply([ty, left, right]) => Pretty::simple_record(
+                "Apply",
+                vec![("type", self.expr(ty).pretty())].with(cost, rows),
+                vec![self.child(left).pretty(), self.child(right).pretty()],
+            ),
             Inner | LeftOuter | RightOuter | FullOuter | Semi | Anti => Pretty::display(enode),
             Agg([aggs, child]) => Pretty::simple_record(
                 "Agg",
