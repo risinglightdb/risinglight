@@ -57,6 +57,7 @@ impl Binder {
                 subquery,
                 negated,
             } => self.bind_in_subquery(*expr, *subquery, negated),
+            Expr::Exists { subquery, negated } => self.bind_exists(*subquery, negated),
             _ => todo!("bind expression: {:?}", expr),
         }?;
         self.type_(id)?;
@@ -72,7 +73,7 @@ impl Binder {
         Ok(self.egraph.add(Node::List(list)))
     }
 
-    fn bind_ident(&mut self, idents: impl IntoIterator<Item = Ident>) -> Result {
+    fn bind_ident(&self, idents: impl IntoIterator<Item = Ident>) -> Result {
         let idents = idents
             .into_iter()
             .map(|ident| Ident::new(ident.value.to_lowercase()))
@@ -83,24 +84,7 @@ impl Binder {
             [schema, table, column] => (Some(&schema.value), Some(&table.value), &column.value),
             _ => return Err(BindError::InvalidTableName(idents)),
         };
-        let map = self
-            .current_ctx()
-            .aliases
-            .get(column_name)
-            .ok_or_else(|| BindError::InvalidColumn(column_name.into()))?;
-        if let Some(table_name) = table_name {
-            map.get(table_name)
-                .cloned()
-                .ok_or_else(|| BindError::InvalidTable(table_name.clone()))
-        } else if map.len() == 1 {
-            Ok(*map.values().next().unwrap())
-        } else {
-            let use_ = map
-                .keys()
-                .map(|table_name| format!("\"{table_name}.{column_name}\""))
-                .join(" or ");
-            Err(BindError::AmbiguousColumn(column_name.into(), use_))
-        }
+        self.find_alias(column_name, table_name.map(|s| s.as_str()))
     }
 
     fn bind_binary_op(&mut self, left: Expr, op: BinaryOperator, right: Expr) -> Result {
@@ -257,6 +241,16 @@ impl Binder {
             Ok(self.egraph.add(Node::Not(in_subquery)))
         } else {
             Ok(in_subquery)
+        }
+    }
+
+    fn bind_exists(&mut self, subquery: Query, negated: bool) -> Result {
+        let (subquery, _) = self.bind_query(subquery)?;
+        let exists = self.egraph.add(Node::Exists(subquery));
+        if negated {
+            Ok(self.egraph.add(Node::Not(exists)))
+        } else {
+            Ok(exists)
         }
     }
 

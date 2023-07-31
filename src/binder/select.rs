@@ -69,7 +69,7 @@ impl Binder {
                     };
                     let id = self.bind_expr(expr)?;
                     if let Some(ident) = ident {
-                        self.current_ctx_mut().output_aliases.insert(ident, id);
+                        self.add_output_alias(ident, id);
                     }
                     select_list.push(id);
                 }
@@ -77,7 +77,7 @@ impl Binder {
                     let id = self.bind_expr(expr)?;
                     let name = alias.value.to_lowercase();
                     self.add_alias(name.clone(), "".into(), id);
-                    self.current_ctx_mut().output_aliases.insert(name, id);
+                    self.add_output_alias(name, id);
                     select_list.push(id);
                 }
                 SelectItem::Wildcard(_) => {

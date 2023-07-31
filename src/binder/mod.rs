@@ -171,14 +171,6 @@ impl Binder {
         }
     }
 
-    fn current_ctx(&self) -> &Context {
-        self.contexts.last().unwrap()
-    }
-
-    fn current_ctx_mut(&mut self) -> &mut Context {
-        self.contexts.last_mut().unwrap()
-    }
-
     /// Add an alias to the current context.
     fn add_alias(&mut self, column_name: String, table_name: String, id: Id) {
         let context = self.contexts.last_mut().unwrap();
@@ -188,6 +180,43 @@ impl Binder {
             .or_default()
             .insert(table_name, id);
         // may override the same name
+    }
+
+    /// Add a table alias.
+    fn add_table_alias(&mut self, table_name: &str) -> Result<()> {
+        let context = self.contexts.last_mut().unwrap();
+        if !context.table_aliases.insert(table_name.into()) {
+            return Err(BindError::DuplicatedAlias(table_name.into()));
+        }
+        Ok(())
+    }
+
+    /// Add an alias so that it can be accessed from the outside query.
+    fn add_output_alias(&mut self, column_name: String, id: Id) {
+        let context = self.contexts.last_mut().unwrap();
+        context.output_aliases.insert(column_name, id);
+    }
+
+    /// Find an alias.
+    fn find_alias(&self, column_name: &str, table_name: Option<&str>) -> Result {
+        for context in self.contexts.iter().rev() {
+            if let Some(map) = context.aliases.get(column_name) {
+                if let Some(table_name) = table_name {
+                    if let Some(id) = map.get(table_name) {
+                        return Ok(*id);
+                    }
+                } else if map.len() == 1 {
+                    return Ok(*map.values().next().unwrap());
+                } else {
+                    let use_ = map
+                        .keys()
+                        .map(|table_name| format!("\"{table_name}.{column_name}\""))
+                        .join(" or ");
+                    return Err(BindError::AmbiguousColumn(column_name.into(), use_));
+                }
+            }
+        }
+        Err(BindError::InvalidColumn(column_name.into()))
     }
 
     fn type_(&self, id: Id) -> Result<crate::types::DataType> {

@@ -160,13 +160,7 @@ impl Binder {
             Some(alias) => &alias.name.value,
             None => table_name,
         };
-        if !self
-            .current_ctx_mut()
-            .table_aliases
-            .insert(table_alias.into())
-        {
-            return Err(BindError::DuplicatedAlias(table_alias.into()));
-        }
+        self.add_table_alias(table_alias)?;
 
         let table = self.catalog.get_table(&ref_id).unwrap();
         let table_occurence = {
