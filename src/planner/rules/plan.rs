@@ -2,6 +2,8 @@
 
 //! Plan optimization rules.
 
+use itertools::Itertools;
+
 use super::schema::schema_is_eq;
 use super::*;
 use crate::planner::ExprExt;
@@ -48,11 +50,11 @@ fn merge_rules() -> Vec<Rewrite> { vec![
         "(filter ?cond1 (filter ?cond2 ?child))" =>
         "(filter (and ?cond1 ?cond2) ?child)"
     ),
-    rw!("proj-merge";
-        "(proj ?proj1 (proj ?proj2 ?child))" =>
-        "(proj ?proj1 ?child)"
-        if columns_is_subset("?proj1", "?child")
-    ),
+    // rw!("proj-merge";
+    //     "(proj ?proj1 (proj ?proj2 ?child))" =>
+    //     "(proj ?proj1 ?child)"
+    //     if columns_is_subset("?proj1", "?child")
+    // ),
 ]}
 
 #[rustfmt::skip]
@@ -60,11 +62,11 @@ fn predicate_pushdown_rules() -> Vec<Rewrite> { vec![
     pushdown("filter", "?cond", "order", "?keys"),
     pushdown("filter", "?cond", "limit", "?limit ?offset"),
     pushdown("filter", "?cond", "topn", "?limit ?offset ?keys"),
-    rw!("pushdown-filter-proj";
-        "(filter ?cond (proj ?proj ?child))" =>
-        "(proj ?proj (filter ?cond ?child))"
-        if columns_is_subset("?cond", "?child")
-    ),
+    // rw!("pushdown-filter-proj";
+    //     "(filter ?cond (proj ?proj ?child))" =>
+    //     "(proj ?proj (filter ?cond ?child))"
+    //     if columns_is_subset("?cond", "?child")
+    // ),
     rw!("pushdown-filter-join";
         "(filter ?cond (join inner ?on ?left ?right))" =>
         "(join inner (and ?on ?cond) ?left ?right)"
@@ -72,22 +74,22 @@ fn predicate_pushdown_rules() -> Vec<Rewrite> { vec![
     rw!("pushdown-filter-join-left";
         "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
         "(join ?type ?cond2 (filter ?cond1 ?left) ?right)"
-        if columns_is_subset("?cond1", "?left")
+        if not_depend_on("?cond1", "?right")
     ),
     rw!("pushdown-filter-join-left-1";
         "(join ?type ?cond1 ?left ?right)" =>
         "(join ?type true (filter ?cond1 ?left) ?right)"
-        if columns_is_subset("?cond1", "?left")
+        if not_depend_on("?cond1", "?right")
     ),
     rw!("pushdown-filter-join-right";
         "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
         "(join ?type ?cond2 ?left (filter ?cond1 ?right))"
-        if columns_is_subset("?cond1", "?right")
+        if not_depend_on("?cond1", "?left")
     ),
     rw!("pushdown-filter-join-right-1";
         "(join ?type ?cond1 ?left ?right)" =>
         "(join ?type true ?left (filter ?cond1 ?right))"
-        if columns_is_subset("?cond1", "?right")
+        if not_depend_on("?cond1", "?left")
     ),
 ]}
 
@@ -134,33 +136,33 @@ pub fn hash_join_rules() -> Vec<Rewrite> { vec![
     rw!("hash-join-on-one-eq";
         "(join ?type (= ?l1 ?r1) ?left ?right)" =>
         "(hashjoin ?type (list ?l1) (list ?r1) ?left ?right)"
-        if columns_is_subset("?l1", "?left")
-        if columns_is_subset("?r1", "?right")
+        if not_depend_on("?l1", "?right")
+        if not_depend_on("?r1", "?left")
     ),
     rw!("hash-join-on-two-eq";
         "(join ?type (and (= ?l1 ?r1) (= ?l2 ?r2)) ?left ?right)" =>
         "(hashjoin ?type (list ?l1 ?l2) (list ?r1 ?r2) ?left ?right)"
-        if columns_is_subset("?l1", "?left")
-        if columns_is_subset("?l2", "?left")
-        if columns_is_subset("?r1", "?right")
-        if columns_is_subset("?r2", "?right")
+        if not_depend_on("?l1", "?right")
+        if not_depend_on("?l2", "?right")
+        if not_depend_on("?r1", "?left")
+        if not_depend_on("?r2", "?left")
     ),
     rw!("hash-join-on-three-eq";
         "(join ?type (and (= ?l1 ?r1) (and (= ?l2 ?r2) (= ?l3 ?r3))) ?left ?right)" =>
         "(hashjoin ?type (list ?l1 ?l2 ?l3) (list ?r1 ?r2 ?r3) ?left ?right)"
-        if columns_is_subset("?l1", "?left")
-        if columns_is_subset("?l2", "?left")
-        if columns_is_subset("?l3", "?left")
-        if columns_is_subset("?r1", "?right")
-        if columns_is_subset("?r2", "?right")
-        if columns_is_subset("?r3", "?right")
+        if not_depend_on("?l1", "?right")
+        if not_depend_on("?l2", "?right")
+        if not_depend_on("?l3", "?right")
+        if not_depend_on("?r1", "?left")
+        if not_depend_on("?r2", "?left")
+        if not_depend_on("?r3", "?left")
     ),
     rw!("hash-join-on-one-eq-1";
         // only valid for inner join
         "(join inner (and (= ?l1 ?r1) ?cond) ?left ?right)" =>
         "(filter ?cond (hashjoin inner (list ?l1) (list ?r1) ?left ?right))"
-        if columns_is_subset("?l1", "?left")
-        if columns_is_subset("?r1", "?right")
+        if not_depend_on("?l1", "?right")
+        if not_depend_on("?r1", "?left")
     ),
     // allow reverting hashjoin to join so that projections and filters can be pushed down
     rw!("hash-join-on-one-eq-rev";
@@ -179,7 +181,7 @@ pub fn hash_join_rules() -> Vec<Rewrite> { vec![
 
 #[rustfmt::skip]
 pub fn subquery_rules() -> Vec<Rewrite> { vec![
-    rw!("in-to-exist";
+    rw!("in-to-exists";
         "(in ?expr ?subquery)" =>
         { apply_column0("(exists (filter (= ?expr ?column0) ?subquery))") }
         if is_not_list("?subquery")
@@ -197,11 +199,16 @@ pub fn subquery_rules() -> Vec<Rewrite> { vec![
     rw!("apply-to-join";
         "(apply ?type ?left ?right)" =>
         "(join ?type true ?left ?right)"
-        if no_parameters_from("?left", "?right")
+        if not_depend_on("?right", "?left")
+    ),
+    rw!("apply-filter-to-join";
+        "(apply ?type ?left (filter ?cond ?right))" =>
+        "(join ?type ?cond ?left ?right)"
+        if not_depend_on("?right", "?left")
     ),
     rw!("pushdown-apply-filter";
-        "(apply ?type ?left (filter ?cond ?right))" =>
-        "(filter ?cond (apply ?type ?left ?right))"
+        "(apply inner ?left (filter ?cond ?right))" =>
+        "(filter ?cond (apply inner ?left ?right))"
     ),
     rw!("pushdown-semi-apply-proj";
         "(apply semi ?left (proj ?proj ?right))" =>
@@ -241,13 +248,6 @@ fn apply_column0(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
         subquery: var("?subquery"),
         column0: var("?column0"),
     }
-}
-
-/// Returns true if no parameters in `var2` is resolved from `var1`.
-fn no_parameters_from(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    let var1 = var(var1);
-    let var2 = var(var2);
-    move |egraph, _, subst| todo!()
 }
 
 /// Pushdown projections and prune unused columns.
@@ -318,21 +318,26 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
     ),
 ]}
 
-/// Returns true if the columns in `var1` are a subset of the columns in `var2`.
-fn columns_is_subset(var1: &str, var2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    let var1 = var(var1);
-    let var2 = var(var2);
+/// Returns true if the columns used in `expr` is disjoint from columns produced by `plan`.
+fn not_depend_on(expr: &str, plan: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let expr = var(expr);
+    let plan = var(plan);
     move |egraph, _, subst| {
-        let get_set = |var| {
-            egraph[subst[var]]
-                .data
-                .columns
-                .iter()
-                .map(|e| egraph.lookup(e.clone()).unwrap())
-                .collect::<HashSet<_>>()
-        };
-        get_set(var1).is_subset(&get_set(var2))
+        let used = &egraph[subst[expr]].data.columns;
+        let produced = produced(egraph, subst[plan]).collect();
+        used.is_disjoint(&produced)
     }
+}
+
+/// Returns the columns produced by the plan.
+fn produced(egraph: &EGraph, plan: Id) -> impl Iterator<Item = Expr> + '_ {
+    (egraph[plan].data.schema.iter()).map(|id| {
+        egraph[*id]
+            .iter()
+            .find(|e| matches!(e, Expr::Column(_) | Expr::Ref(_)))
+            .cloned()
+            .unwrap_or(Expr::Ref(*id))
+    })
 }
 
 /// Returns true if the node `var1` is not a list.
@@ -348,8 +353,7 @@ fn is_not_list(var1: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 
 /// The data type of column analysis.
 ///
-/// For expr node, it is the set of columns used in the expression.
-/// For plan node, it is the set of columns produced by the plan.
+/// It is the set of columns used in the expression or plan.
 /// The elements of the set are either `Column` or `Ref`.
 pub type ColumnSet = HashSet<Expr>;
 
@@ -357,39 +361,8 @@ pub type ColumnSet = HashSet<Expr>;
 pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
     use Expr::*;
     let columns = |i: &Id| &egraph[*i].data.columns;
-    // Returns the columns produced by the list.
-    // If an element is not a column unit (`Column` or `Ref`), it will be wrapped in a `Ref`.
-    // # Example
-    // input:  (list $1.1 (ref (- $1.2)) (- $1.3))
-    // output: [$1.1, (ref (- $1.2)), (ref (- $1.3))]
-    let produced = |i: &Id| {
-        egraph[*i].as_list().iter().map(|id| {
-            egraph[*id]
-                .iter()
-                .find(|e| matches!(e, Column(_) | Ref(_)))
-                .cloned()
-                .unwrap_or(Ref(*id))
-        })
-    };
     match enode {
-        // column unit
         Column(_) | Ref(_) => [enode.clone()].into_iter().collect(),
-
-        Proj([exprs, _]) | Agg([exprs, _]) => produced(exprs).collect(),
-        HashAgg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
-            produced(exprs).chain(produced(group_keys)).collect()
-        }
-        Join([t, _, l, r])
-        | HashJoin([t, _, _, l, r])
-        | MergeJoin([t, _, _, l, r])
-        | Apply([t, l, r]) => match egraph[*t].nodes[0] {
-            Semi | Anti => columns(l).clone(),
-            _ => columns(l).union(columns(r)).cloned().collect(),
-        },
-
-        // expressions
-        In([a, _]) => columns(a).clone(),
-
         // others: merge from all children
         _ => (enode.children().iter())
             .flat_map(|id| columns(id).iter().cloned())
@@ -413,31 +386,20 @@ impl Applier<Expr, ExprAnalysis> for ProjectionPushdown {
         searcher_ast: Option<&PatternAst<Expr>>,
         rule_name: Symbol,
     ) -> Vec<Id> {
-        let mut used = (self.used.iter())
+        let used = (self.used.iter())
             .flat_map(|v| &egraph[subst[*v]].data.columns)
-            .collect::<Vec<&Expr>>();
-        used.sort_unstable();
-        used.dedup();
-        let used = used
-            .into_iter()
-            .map(|col| egraph.lookup(col.clone()).unwrap())
-            .collect::<Vec<Id>>();
+            .cloned()
+            .collect::<HashSet<Expr>>();
 
         let mut subst = subst.clone();
         for &child in &self.children {
+            // filter out unused columns from child's schema
             let child_id = subst[child];
-            let filtered = if self.children.len() == 1 {
-                // no need to filter
-                used.clone().into()
-            } else {
-                let child_set = (egraph[child_id].data.columns.iter())
-                    .map(|e| egraph.lookup(e.clone()).unwrap())
-                    .collect::<HashSet<Id>>();
-                (used.iter().cloned())
-                    .filter(|id| child_set.contains(id))
-                    .collect()
-            };
-            let id = egraph.add(Expr::List(filtered));
+            let filtered = produced(egraph, child_id)
+                .filter(|col| used.contains(col))
+                .collect_vec();
+            let filtered_ids = filtered.into_iter().map(|col| egraph.add(col)).collect();
+            let id = egraph.add(Expr::List(filtered_ids));
             let id = egraph.add(Expr::Proj([id, child_id]));
             subst.insert(child, id);
         }

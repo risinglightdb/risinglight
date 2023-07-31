@@ -135,7 +135,7 @@ impl<'a> Explain<'a> {
             // TODO: use object
             ExtSource(src) => format!("path={:?}, format={}", src.path, src.format).into(),
             Symbol(s) => Pretty::display(s),
-            Ref(e) => self.expr(e).pretty(),
+            Ref(e) => Pretty::fieldless_record("ref", vec![self.expr(e).pretty()]),
             List(list) => Pretty::Array(list.iter().map(|e| self.expr(e).pretty()).collect()),
 
             // binary operations

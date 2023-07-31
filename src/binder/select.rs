@@ -215,8 +215,10 @@ impl Binder {
     fn rewrite_agg_in_expr(&mut self, id: Id, schema: &[Id]) -> Result {
         let mut expr = self.node(id).clone();
         if schema.contains(&id) {
-            // found agg, wrap it with Ref
-            return Ok(self.egraph.add(Node::Ref(id)));
+            return Ok(match &expr {
+                Node::Column(_) | Node::Ref(_) => id,
+                _ => self.egraph.add(Node::Ref(id)),
+            });
         }
         if let Node::Column(cid) = &expr {
             let name = self.catalog.get_column(cid).unwrap().name().to_string();
