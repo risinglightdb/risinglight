@@ -845,14 +845,14 @@ Projection
 │       └── -
 │           ├── lhs: * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
 │           └── rhs: * { lhs: ps_supplycost, rhs: l_quantity }
-├── cost: 252359860
+├── cost: 252079230
 ├── rows: 100
 └── Order
     ├── by:
     │   ┌── n_name
     │   └── desc
     │       └── Extract { from: o_orderdate, field: YEAR }
-    ├── cost: 252359860
+    ├── cost: 252079230
     ├── rows: 100
     └── HashAgg
         ├── aggs:sum
@@ -860,7 +860,7 @@ Projection
         │       ├── lhs: * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
         │       └── rhs: * { lhs: ps_supplycost, rhs: l_quantity }
         ├── group_by: [ n_name, Extract { from: o_orderdate, field: YEAR } ]
-        ├── cost: 252358900
+        ├── cost: 252078270
         ├── rows: 100
         └── Projection
             ├── exprs:
@@ -869,12 +869,12 @@ Projection
             │   └── -
             │       ├── lhs: * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
             │       └── rhs: * { lhs: ps_supplycost, rhs: l_quantity }
-            ├── cost: 251058850
+            ├── cost: 250778220
             ├── rows: 6001215
             └── HashJoin
                 ├── type: inner
                 ├── on: = { lhs: [ o_orderkey ], rhs: [ l_orderkey ] }
-                ├── cost: 246437920
+                ├── cost: 246157300
                 ├── rows: 6001215
                 ├── Scan
                 │   ├── table: orders
@@ -884,12 +884,12 @@ Projection
                 │   └── rows: 1500000
                 └── Projection
                     ├── exprs: [ n_name, ps_supplycost, l_orderkey, l_quantity, l_extendedprice, l_discount ]
-                    ├── cost: 193889220
+                    ├── cost: 193608590
                     ├── rows: 6001215
                     └── HashJoin
                         ├── type: inner
                         ├── on: = { lhs: [ ps_suppkey, ps_partkey ], rhs: [ l_suppkey, l_partkey ] }
-                        ├── cost: 193469140
+                        ├── cost: 193188510
                         ├── rows: 6001215
                         ├── Scan
                         │   ├── table: partsupp
@@ -906,12 +906,12 @@ Projection
                             │   ├── l_quantity
                             │   ├── l_extendedprice
                             │   └── l_discount
-                            ├── cost: 129723300
+                            ├── cost: 129442670
                             ├── rows: 6001215
                             └── HashJoin
                                 ├── type: inner
                                 ├── on: = { lhs: [ s_suppkey ], rhs: [ l_suppkey ] }
-                                ├── cost: 129243200
+                                ├── cost: 128962580
                                 ├── rows: 6001215
                                 ├── Projection { exprs: [ n_name, s_suppkey ], cost: 60821.22, rows: 10000 }
                                 │   └── HashJoin
@@ -939,18 +939,18 @@ Projection
                                     │   ├── l_quantity
                                     │   ├── l_extendedprice
                                     │   └── l_discount
-                                    ├── cost: 80373896
+                                    ├── cost: 80093270
                                     ├── rows: 6001215
                                     └── HashJoin
                                         ├── type: inner
                                         ├── on: = { lhs: [ p_partkey ], rhs: [ l_partkey ] }
-                                        ├── cost: 79953810
+                                        ├── cost: 79673180
                                         ├── rows: 6001215
-                                        ├── Projection { exprs: [ p_partkey ], cost: 846000, rows: 200000 }
+                                        ├── Projection { exprs: [ p_partkey ], cost: 644000, rows: 100000 }
                                         │   └── Filter
                                         │       ├── cond: like { lhs: p_name, rhs: '%green%' }
-                                        │       ├── cost: 842000
-                                        │       ├── rows: 200000
+                                        │       ├── cost: 642000
+                                        │       ├── rows: 100000
                                         │       └── Scan
                                         │           ├── table: part
                                         │           ├── list: [ p_partkey, p_name ]
@@ -1215,6 +1215,85 @@ Projection
                     ├── filter: null
                     ├── cost: 3000000
                     └── rows: 1500000
+*/
+
+-- tpch-q13
+explain select
+    c_count,
+    count(*) as custdist
+from
+    (
+        select
+            c_custkey,
+            count(o_orderkey)
+        from
+            customer left outer join orders on
+                c_custkey = o_custkey
+                and o_comment not like '%special%requests%'
+        group by
+            c_custkey
+    ) as c_orders (c_custkey, c_count)
+group by
+    c_count
+order by
+    custdist desc,
+    c_count desc;
+
+/*
+Projection
+├── exprs:
+│   ┌── count
+│   │   └── o_orderkey
+│   └── rowcount
+├── cost: 9945795
+├── rows: 10
+└── Order
+    ├── by:
+    │   ┌── desc
+    │   │   └── rowcount
+    │   └── desc
+    │       └── count
+    │           └── o_orderkey
+    ├── cost: 9945795
+    ├── rows: 10
+    └── HashAgg
+        ├── aggs: [ rowcount ]
+        ├── group_by:count
+        │   └── o_orderkey
+        ├── cost: 9945740
+        ├── rows: 10
+        └── Projection
+            ├── exprs:
+            │   ┌── c_custkey
+            │   └── count
+            │       └── o_orderkey
+            ├── cost: 9945718
+            ├── rows: 10
+            └── HashAgg
+                ├── aggs:count
+                │   └── o_orderkey
+                ├── group_by: [ c_custkey ]
+                ├── cost: 9945718
+                ├── rows: 10
+                └── Projection { exprs: [ c_custkey, o_orderkey ], cost: 9814752, rows: 750000 }
+                    └── HashJoin
+                        ├── type: left_outer
+                        ├── on: = { lhs: [ c_custkey ], rhs: [ o_custkey ] }
+                        ├── cost: 9792252
+                        ├── rows: 750000
+                        ├── Scan { table: customer, list: [ c_custkey ], filter: null, cost: 150000, rows: 150000 }
+                        └── Projection { exprs: [ o_orderkey, o_custkey ], cost: 7237500, rows: 750000 }
+                            └── Filter
+                                ├── cond:not
+                                │   └── like { lhs: o_comment, rhs: '%special%requests%' }
+                                ├── cost: 7215000
+                                ├── rows: 750000
+                                └── Scan
+                                    ├── table: orders
+                                    ├── list: [ o_orderkey, o_custkey, o_comment ]
+                                    ├── filter: null
+                                    ├── cost: 4500000
+                                    └── rows: 1500000
 */
 
 -- tpch-q14
