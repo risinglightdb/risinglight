@@ -141,5 +141,6 @@ static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     rules.append(&mut rules::plan::always_better_rules());
     rules.append(&mut rules::plan::join_reorder_rules());
     rules.append(&mut rules::plan::hash_join_rules());
+    rules.append(&mut rules::order::order_rules());
     rules
 });
