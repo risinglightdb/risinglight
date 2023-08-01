@@ -165,6 +165,18 @@ impl<S: Storage> Builder<S> {
     /// Resolve the column index of `expr` in `plan`.
     fn resolve_column_index(&self, expr: Id, plan: Id) -> RecExpr {
         let schema = &self.egraph[plan].data.schema;
+        self.resolve_column_index_on_schema(expr, schema)
+    }
+
+    /// Resolve the column index of `expr` in `left` || `right`.
+    fn resolve_column_index2(&self, expr: Id, left: Id, right: Id) -> RecExpr {
+        let left = &self.egraph[left].data.schema;
+        let right = &self.egraph[right].data.schema;
+        let schema = left.iter().chain(right.iter()).cloned().collect_vec();
+        self.resolve_column_index_on_schema(expr, &schema)
+    }
+
+    fn resolve_column_index_on_schema(&self, expr: Id, schema: &[Id]) -> RecExpr {
         self.node(expr).build_recexpr(|id| {
             if let Some(idx) = schema.iter().position(|x| *x == id) {
                 return Expr::ColumnIndex(ColumnIndex(idx as _));
@@ -249,7 +261,7 @@ impl<S: Storage> Builder<S> {
 
             Join([op, on, left, right]) => NestedLoopJoinExecutor {
                 op: self.node(op).clone(),
-                condition: self.resolve_column_index(on, id),
+                condition: self.resolve_column_index2(on, left, right),
                 left_types: self.plan_types(left).to_vec(),
                 right_types: self.plan_types(right).to_vec(),
             }
