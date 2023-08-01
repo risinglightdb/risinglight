@@ -58,6 +58,7 @@ impl Binder {
                 negated,
             } => self.bind_in_subquery(*expr, *subquery, negated),
             Expr::Exists { subquery, negated } => self.bind_exists(*subquery, negated),
+            Expr::Subquery(query) => self.bind_subquery(*query),
             _ => todo!("bind expression: {:?}", expr),
         }?;
         self.type_(id)?;
@@ -252,6 +253,11 @@ impl Binder {
         } else {
             Ok(exists)
         }
+    }
+
+    fn bind_subquery(&mut self, subquery: Query) -> Result {
+        let (id, _) = self.bind_query(subquery)?;
+        Ok(self.egraph.add(Node::Max1Row(id)))
     }
 
     fn bind_function(&mut self, func: Function) -> Result {

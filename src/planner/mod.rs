@@ -130,6 +130,8 @@ define_language! {
         "empty" = Empty(Box<[Id]>),             // (empty child..)
                                                     // returns empty chunk
                                                     // with the same schema as `child`
+        "max1row" = Max1Row(Id),                // (max1row child)
+                                                    // convert table to scalar
 
         Symbol(Symbol),
     }

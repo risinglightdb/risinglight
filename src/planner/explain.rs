@@ -371,6 +371,7 @@ impl<'a> Explain<'a> {
                 vec![self.child(child).pretty()],
             ),
             Empty(_) => Pretty::childless_record("Empty", vec![].with(cost, rows)),
+            Max1Row(child) => Pretty::fieldless_record("Max1Row", vec![self.expr(child).pretty()]),
         }
     }
 }

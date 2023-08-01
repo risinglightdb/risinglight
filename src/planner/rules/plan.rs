@@ -185,11 +185,19 @@ pub fn hash_join_rules() -> Vec<Rewrite> { vec![
 
 #[rustfmt::skip]
 pub fn subquery_rules() -> Vec<Rewrite> { vec![
+    // in, =, .. -> exists
     rw!("in-to-exists";
         "(in ?expr ?subquery)" =>
         { apply_column0("(exists (filter (= ?expr ?column0) ?subquery))") }
         if is_not_list("?subquery")
     ),
+    cmp_subquery_rule("="),
+    cmp_subquery_rule("<>"),
+    cmp_subquery_rule(">"),
+    cmp_subquery_rule(">="),
+    cmp_subquery_rule("<"),
+    cmp_subquery_rule("<="),
+    // exists -> semi apply
     rw!("exists-to-semi-apply";
         "(filter (exists ?subquery) ?child)" =>
         "(apply semi ?child ?subquery)"
@@ -227,7 +235,29 @@ pub fn subquery_rules() -> Vec<Rewrite> { vec![
         "(apply anti ?left (proj ?proj ?right))" =>
         "(apply anti ?left ?right)"
     ),
+    // // Figure 4 Rule (8)
+    // rw!("pushdown-apply-group-agg";
+    //     "(apply inner ?left (hashagg ?aggs ?group_keys ?right))" =>
+    //     "(hashagg ?aggs ?? (apply inner ?left ?right))"
+    // ),
+    // // Figure 4 Rule (9)
+    // // FIXME: not valid for `count` agg
+    // rw!("pushdown-apply-scalar-agg";
+    //     "(apply inner ?left (agg ?aggs ?right))" =>
+    //     "(hashagg ?aggs ?pk (apply left_outer ?left ?right))"
+    // ),
 ]}
+
+/// Returns a rule for `op`:
+/// `(op ?expr ?subquery) => (exists (filter (op ?expr ?column0) ?subquery))`
+fn cmp_subquery_rule(op: &str) -> Rewrite {
+    let name = format!("{op}-to-exists");
+    let searcher = pattern(&format!("({op} ?expr (max1row ?subquery))"));
+    let applier = apply_column0(&format!(
+        "(exists (filter ({op} ?expr ?column0) ?subquery))"
+    ));
+    Rewrite::new(name, searcher, applier).unwrap()
+}
 
 /// Returns an applier that replaces `?column0` with the first column of `?subquery`.
 fn apply_column0(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
@@ -245,7 +275,14 @@ fn apply_column0(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
             searcher_ast: Option<&PatternAst<Expr>>,
             rule_name: Symbol,
         ) -> Vec<Id> {
-            let id = egraph[subst[self.subquery]].data.schema[0];
+            let mut id = egraph[subst[self.subquery]].data.schema[0];
+            if !egraph[id]
+                .nodes
+                .iter()
+                .any(|e| matches!(e, Expr::Column(_) | Expr::Ref(_)))
+            {
+                id = egraph.add(Expr::Ref(id));
+            }
             let mut subst = subst.clone();
             subst.insert(self.column0, id);
             self.pattern

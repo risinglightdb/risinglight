@@ -214,6 +214,11 @@ impl Binder {
     /// ```
     fn rewrite_agg_in_expr(&mut self, id: Id, schema: &[Id]) -> Result {
         let mut expr = self.node(id).clone();
+        // stop at subquery
+        // XXX: maybe wrong
+        if let Node::Max1Row(_) = &expr {
+            return Ok(id);
+        }
         if schema.contains(&id) {
             return Ok(match &expr {
                 Node::Column(_) | Node::Ref(_) => id,

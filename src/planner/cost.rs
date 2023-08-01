@@ -45,13 +45,21 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             Limit([_, _, c]) => build() + costs(c),
             TopN([_, _, _, c]) => (rows(id) + 1.0).log2() * rows(c) + build() + costs(c),
             Join([_, on, l, r]) => costs(on) * rows(l) * rows(r) + build() + costs(l) + costs(r),
-            HashJoin([_, _, _, l, r]) => {
-                hash(rows(l)) * (rows(l) + rows(r)) + build() + costs(l) + costs(r)
+            HashJoin([_, lkey, rkey, l, r]) => {
+                hash(rows(l)) * (rows(l) + rows(r))
+                    + costs(lkey) * rows(l)
+                    + costs(rkey) * rows(r)
+                    + build()
+                    + costs(l)
+                    + costs(r)
             }
-            MergeJoin([_, _, _, l, r]) => build() + costs(l) + costs(r),
+            MergeJoin([_, lkey, rkey, l, r]) => {
+                build() + costs(lkey) * rows(l) + costs(rkey) * rows(r) + costs(l) + costs(r)
+            }
             Apply([_, l, r]) => build() + rows(l) * costs(r),
             Insert([_, _, c]) | CopyTo([_, c]) => rows(c) * cols(c) + costs(c),
             Empty(_) => 0.0,
+            Max1Row(c) => costs(c),
             // expressions
             Column(_) | Ref(_) => 0.01, // column reference is almost free
             List(_) => enode.fold(0.01, |sum, id| sum + costs(&id)), // list is almost free

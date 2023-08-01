@@ -173,6 +173,7 @@ pub fn analyze_type(
             }
             Ok(Kind::Struct(types).not_null())
         }
+        Max1Row(c) => Ok(x(c)?.kind().as_struct()[0].clone()),
 
         // other plan nodes
         _ => Err(TypeError::Unavailable(enode.to_string())),

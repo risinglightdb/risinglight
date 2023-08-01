@@ -53,6 +53,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
             _ => x(l) * x(r),
         },
         Empty(_) => 0.0,
+        Max1Row(_) => 1.0,
 
         // for boolean expressions, the result represents selectivity
         Ref(a) => x(a),
