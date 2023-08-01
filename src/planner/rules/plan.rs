@@ -185,18 +185,12 @@ pub fn hash_join_rules() -> Vec<Rewrite> { vec![
 
 #[rustfmt::skip]
 pub fn subquery_rules() -> Vec<Rewrite> { vec![
-    // in, =, .. -> exists
+    // in -> exists
     rw!("in-to-exists";
         "(in ?expr ?subquery)" =>
         { apply_column0("(exists (filter (= ?expr ?column0) ?subquery))") }
         if is_not_list("?subquery")
     ),
-    cmp_subquery_rule("="),
-    cmp_subquery_rule("<>"),
-    cmp_subquery_rule(">"),
-    cmp_subquery_rule(">="),
-    cmp_subquery_rule("<"),
-    cmp_subquery_rule("<="),
     // exists -> semi apply
     rw!("exists-to-semi-apply";
         "(filter (exists ?subquery) ?child)" =>
@@ -247,17 +241,6 @@ pub fn subquery_rules() -> Vec<Rewrite> { vec![
     //     "(hashagg ?aggs ?pk (apply left_outer ?left ?right))"
     // ),
 ]}
-
-/// Returns a rule for `op`:
-/// `(op ?expr ?subquery) => (exists (filter (op ?expr ?column0) ?subquery))`
-fn cmp_subquery_rule(op: &str) -> Rewrite {
-    let name = format!("{op}-to-exists");
-    let searcher = pattern(&format!("({op} ?expr (max1row ?subquery))"));
-    let applier = apply_column0(&format!(
-        "(exists (filter ({op} ?expr ?column0) ?subquery))"
-    ));
-    Rewrite::new(name, searcher, applier).unwrap()
-}
 
 /// Returns an applier that replaces `?column0` with the first column of `?subquery`.
 fn apply_column0(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {

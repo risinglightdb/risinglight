@@ -31,7 +31,7 @@ impl Binder {
     fn bind_select(&mut self, select: Select, order_by: Vec<OrderByExpr>) -> Result {
         let from = self.bind_from(select.from)?;
         let projection = self.bind_projection(select.projection, from)?;
-        let where_ = self.bind_where(select.selection)?;
+        let mut where_ = self.bind_where(select.selection)?;
         let groupby = match select.group_by {
             group_by if group_by.is_empty() => None,
             group_by => Some(self.bind_groupby(group_by)?),
@@ -44,10 +44,13 @@ impl Binder {
             Some(Distinct::On(exprs)) => self.bind_exprs(exprs)?,
         };
 
-        let mut plan = self.egraph.add(Node::Filter([where_, from]));
+        let mut plan = from;
+        self.plan_apply(&mut where_, &mut plan);
+        plan = self.egraph.add(Node::Filter([where_, plan]));
         let mut to_rewrite = [projection, distinct, having, orderby];
         plan = self.plan_agg(&mut to_rewrite, groupby, plan)?;
-        let [mut projection, distinct, having, orderby] = to_rewrite;
+        let [mut projection, distinct, mut having, orderby] = to_rewrite;
+        self.plan_apply(&mut having, &mut plan);
         plan = self.egraph.add(Node::Filter([having, plan]));
         plan = self.plan_window(projection, distinct, orderby, plan)?;
         plan = self.plan_distinct(distinct, orderby, &mut projection, plan)?;
@@ -220,10 +223,7 @@ impl Binder {
             return Ok(id);
         }
         if schema.contains(&id) {
-            return Ok(match &expr {
-                Node::Column(_) | Node::Ref(_) => id,
-                _ => self.egraph.add(Node::Ref(id)),
-            });
+            return Ok(self.wrap_ref(id));
         }
         if let Node::Column(cid) = &expr {
             let name = self.catalog.get_column(cid).unwrap().name().to_string();
@@ -306,5 +306,25 @@ impl Binder {
         list.dedup();
         let overs = self.egraph.add(Node::List(list.into()));
         Ok(self.egraph.add(Node::Window([overs, plan])))
+    }
+
+    /// Extract all subqueries from `id` and generate [`Apply`](Node::Apply) plans.
+    fn plan_apply(&mut self, id: &mut Id, plan: &mut Id) {
+        let mut expr = self.node(*id).clone();
+        if let Node::Max1Row(subquery) = &expr {
+            // rewrite the plan to a left outer apply
+            let left_outer = self.egraph.add(Node::LeftOuter);
+            *plan = self.egraph.add(Node::Apply([left_outer, *plan, *subquery]));
+
+            // rewrite the subquery to a reference to its first column
+            let column0 = self.schema(*subquery)[0];
+            *id = self.wrap_ref(column0);
+            return;
+        }
+        // recursive rewrite
+        for child in expr.children_mut() {
+            self.plan_apply(child, plan);
+        }
+        *id = self.egraph.add(expr);
     }
 }

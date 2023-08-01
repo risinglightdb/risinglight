@@ -84,10 +84,7 @@ impl Binder {
                     // move `output_aliases` to current context
                     let table_name = alias.map_or("".into(), |alias| alias.name.value);
                     for (name, mut id) in ctx.output_aliases {
-                        // wrap with `Ref` if the node is not a column unit.
-                        if !matches!(self.node(id), Node::Column(_) | Node::Ref(_)) {
-                            id = self.egraph.add(Node::Ref(id));
-                        }
+                        id = self.wrap_ref(id);
                         self.add_alias(name, table_name.clone(), id);
                     }
                 }

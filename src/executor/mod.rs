@@ -285,6 +285,10 @@ impl<S: Storage> Builder<S> {
                 t => panic!("invalid join type: {t:?}"),
             },
 
+            Apply(_) => {
+                panic!("Apply is not supported in executor. It should be rewritten to join by optimizer.")
+            }
+
             Agg([aggs, child]) => SimpleAggExecutor {
                 aggs: self.resolve_column_index(aggs, child),
             }

@@ -244,6 +244,14 @@ impl Binder {
         self.node(id).build_recexpr(|id| self.node(id).clone())
     }
 
+    /// Wrap the node with `Ref` if it is not a column unit.
+    fn wrap_ref(&mut self, id: Id) -> Id {
+        match self.node(id) {
+            Node::Column(_) | Node::Ref(_) => id,
+            _ => self.egraph.add(Node::Ref(id)),
+        }
+    }
+
     fn bind_explain(&mut self, query: Statement) -> Result {
         let id = self.bind_stmt(query)?;
         let id = self.egraph.add(Node::Explain(id));
