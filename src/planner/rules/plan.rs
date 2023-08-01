@@ -307,60 +307,31 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
     pushdown("limit", "?limit ?offset", "proj", "?exprs"),
     rw!("pushdown-proj-order";
         "(proj ?exprs (order ?keys ?child))" =>
-        { ProjectionPushdown {
-            pattern: pattern("(proj ?exprs (order ?keys ?child))"),
-            used: vec![var("?exprs"), var("?keys")],
-            children: vec![var("?child")],
-        }}
+        { apply_proj("(proj [?exprs] (order [?keys] ?child))") }
     ),
     rw!("pushdown-proj-topn";
         "(proj ?exprs (topn ?limit ?offset ?keys ?child))" =>
-        { ProjectionPushdown {
-            pattern: pattern("(proj ?exprs (topn ?limit ?offset ?keys ?child))"),
-            used: vec![var("?exprs"), var("?keys")],
-            children: vec![var("?child")],
-        }}
+        { apply_proj("(proj [?exprs] (topn ?limit ?offset [?keys] ?child))") }
     ),
     rw!("pushdown-proj-filter";
         "(proj ?exprs (filter ?cond ?child))" =>
-        { ProjectionPushdown {
-            pattern: pattern("(proj ?exprs (filter ?cond ?child))"),
-            used: vec![var("?exprs"), var("?cond")],
-            children: vec![var("?child")],
-        }}
+        { apply_proj("(proj [?exprs] (filter [?cond] ?child))") }
     ),
     rw!("pushdown-proj-agg";
         "(agg ?aggs ?child)" =>
-        { ProjectionPushdown {
-            pattern: pattern("(agg ?aggs ?child)"),
-            used: vec![var("?aggs")],
-            children: vec![var("?child")],
-        }}
+        { apply_proj("(agg [?aggs] ?child)") }
     ),
     rw!("pushdown-proj-hashagg";
         "(hashagg ?aggs ?groupby ?child)" =>
-        { ProjectionPushdown {
-            pattern: pattern("(hashagg ?aggs ?groupby ?child)"),
-            used: vec![var("?aggs"), var("?groupby")],
-            children: vec![var("?child")],
-        }}
+        { apply_proj("(hashagg [?aggs] [?groupby] ?child)") }
     ),
     rw!("pushdown-proj-join";
         "(proj ?exprs (join ?type ?on ?left ?right))" =>
-        { ProjectionPushdown {
-            pattern: pattern("(proj ?exprs (join ?type ?on ?left ?right))"),
-            used: vec![var("?exprs"), var("?on")],
-            children: vec![var("?left"), var("?right")],
-        }}
+        { apply_proj("(proj [?exprs] (join ?type [?on] ?left ?right))") }
     ),
-    // column pruning
     rw!("pushdown-proj-scan";
         "(proj ?exprs (scan ?table ?columns ?filter))" =>
-        { ColumnPrune {
-            pattern: pattern("(proj ?exprs (scan ?table ?columns ?filter))"),
-            used: [var("?exprs"), var("?filter")],
-            columns: var("?columns"),
-        }}
+        { column_prune("(proj ?exprs (scan ?table ?columns ?filter))") }
     ),
 ]}
 
@@ -416,74 +387,101 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
     }
 }
 
-/// Generate a projection node over each children.
-struct ProjectionPushdown {
-    pattern: Pattern,
-    used: Vec<Var>,
-    children: Vec<Var>,
-}
+/// Returns an applier that:
+/// 1. collect all used columns from `[?vars]`.
+/// 2. generate a `proj` node over `?child`, `?left` or `?right`.
+///    the projection list is the intersection of used and produced columns.
+/// 3. apply the rest `pattern`.
+fn apply_proj(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
+    struct ProjectionPushdown {
+        pattern: Pattern,
+        used: Vec<Var>,
+        children: Vec<Var>,
+    }
+    impl Applier<Expr, ExprAnalysis> for ProjectionPushdown {
+        fn apply_one(
+            &self,
+            egraph: &mut EGraph,
+            eclass: Id,
+            subst: &Subst,
+            searcher_ast: Option<&PatternAst<Expr>>,
+            rule_name: Symbol,
+        ) -> Vec<Id> {
+            let used = (self.used.iter())
+                .flat_map(|v| &egraph[subst[*v]].data.columns)
+                .cloned()
+                .collect::<HashSet<Expr>>();
 
-impl Applier<Expr, ExprAnalysis> for ProjectionPushdown {
-    fn apply_one(
-        &self,
-        egraph: &mut EGraph,
-        eclass: Id,
-        subst: &Subst,
-        searcher_ast: Option<&PatternAst<Expr>>,
-        rule_name: Symbol,
-    ) -> Vec<Id> {
-        let used = (self.used.iter())
-            .flat_map(|v| &egraph[subst[*v]].data.columns)
-            .cloned()
-            .collect::<HashSet<Expr>>();
+            let mut subst = subst.clone();
+            for &child in &self.children {
+                // filter out unused columns from child's schema
+                let child_id = subst[child];
+                let filtered = produced(egraph, child_id)
+                    .filter(|col| used.contains(col))
+                    .collect_vec();
+                let filtered_ids = filtered.into_iter().map(|col| egraph.add(col)).collect();
+                let id = egraph.add(Expr::List(filtered_ids));
+                let id = egraph.add(Expr::Proj([id, child_id]));
+                subst.insert(child, id);
+            }
 
-        let mut subst = subst.clone();
-        for &child in &self.children {
-            // filter out unused columns from child's schema
-            let child_id = subst[child];
-            let filtered = produced(egraph, child_id)
-                .filter(|col| used.contains(col))
-                .collect_vec();
-            let filtered_ids = filtered.into_iter().map(|col| egraph.add(col)).collect();
-            let id = egraph.add(Expr::List(filtered_ids));
-            let id = egraph.add(Expr::Proj([id, child_id]));
-            subst.insert(child, id);
+            self.pattern
+                .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
         }
-
-        self.pattern
-            .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+    }
+    ProjectionPushdown {
+        pattern: pattern(&pattern_str.replace(['[', ']'], "")),
+        used: pattern_str
+            .split_whitespace()
+            .filter(|s| s.starts_with('[') && s.ends_with(']'))
+            .map(|s| var(&s[1..s.len() - 1]))
+            .collect(),
+        children: ["?child", "?left", "?right"]
+            .into_iter()
+            .filter(|s| pattern_str.contains(s))
+            .map(|s| var(s))
+            .collect(),
     }
 }
 
-/// Remove element from `columns` whose column set is not a subset of `used`
-struct ColumnPrune {
-    pattern: Pattern,
-    used: [Var; 2],
-    columns: Var,
-}
+/// Returns an applier that:
+/// 1. collect all used columns from `?exprs` and `?filter`.
+/// 2. filter out unused columns from `?columns`.
+/// 3. apply the rest `pattern`.
+fn column_prune(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
+    struct ColumnPrune {
+        pattern: Pattern,
+        used: [Var; 2],
+        columns: Var,
+    }
+    impl Applier<Expr, ExprAnalysis> for ColumnPrune {
+        fn apply_one(
+            &self,
+            egraph: &mut EGraph,
+            eclass: Id,
+            subst: &Subst,
+            searcher_ast: Option<&PatternAst<Expr>>,
+            rule_name: Symbol,
+        ) -> Vec<Id> {
+            let used1 = &egraph[subst[self.used[0]]].data.columns;
+            let used2 = &egraph[subst[self.used[1]]].data.columns;
+            let used = used1.union(used2).cloned().collect();
+            let columns = egraph[subst[self.columns]].as_list();
+            let filtered = (columns.iter().cloned())
+                .filter(|id| egraph[*id].data.columns.is_subset(&used))
+                .collect();
+            let id = egraph.add(Expr::List(filtered));
 
-impl Applier<Expr, ExprAnalysis> for ColumnPrune {
-    fn apply_one(
-        &self,
-        egraph: &mut EGraph,
-        eclass: Id,
-        subst: &Subst,
-        searcher_ast: Option<&PatternAst<Expr>>,
-        rule_name: Symbol,
-    ) -> Vec<Id> {
-        let used1 = &egraph[subst[self.used[0]]].data.columns;
-        let used2 = &egraph[subst[self.used[1]]].data.columns;
-        let used = used1.union(used2).cloned().collect();
-        let columns = egraph[subst[self.columns]].as_list();
-        let filtered = (columns.iter().cloned())
-            .filter(|id| egraph[*id].data.columns.is_subset(&used))
-            .collect();
-        let id = egraph.add(Expr::List(filtered));
-
-        let mut subst = subst.clone();
-        subst.insert(self.columns, id);
-        self.pattern
-            .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+            let mut subst = subst.clone();
+            subst.insert(self.columns, id);
+            self.pattern
+                .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+        }
+    }
+    ColumnPrune {
+        pattern: pattern(pattern_str),
+        used: [var("?exprs"), var("?filter")],
+        columns: var("?columns"),
     }
 }
 
