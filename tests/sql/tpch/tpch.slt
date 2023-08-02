@@ -17,4 +17,5 @@ include _q14.slt
 include _q17.slt
 include _q18.slt
 include _q19.slt
+include _q22.slt
 include _drop.slt
