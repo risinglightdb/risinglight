@@ -234,6 +234,23 @@ impl ArrayImpl {
         })
     }
 
+    pub fn substring(&self, start: &Self, length: &Self) -> Result<Self, ConvertError> {
+        let (A::Utf8(a), A::Int32(b), A::Int32(c)) = (self, start, length) else {
+            return Err(ConvertError::NoTernaryOp("substring".into(), self.type_string(), start.type_string(), length.type_string()));
+        };
+        Ok(A::new_utf8(ternary_op(
+            a.as_ref(),
+            b.as_ref(),
+            c.as_ref(),
+            |a, b, c| {
+                a.chars()
+                    .skip(*b as usize - 1)
+                    .take(*c as usize)
+                    .collect::<String>()
+            },
+        )))
+    }
+
     /// Perform binary operation.
     pub fn binary_op(
         &self,
@@ -606,6 +623,26 @@ where
         }
     }
     Ok(builder.finish())
+}
+
+fn ternary_op<A, B, C, O, F, V>(a: &A, b: &B, c: &C, f: F) -> O
+where
+    A: Array,
+    B: Array,
+    C: Array,
+    O: Array,
+    V: Borrow<O::Item>,
+    F: Fn(&A::Item, &B::Item, &C::Item) -> V,
+{
+    let mut builder = O::Builder::with_capacity(a.len());
+    for e in a.iter().zip(b.iter()).zip(c.iter()) {
+        if let ((Some(a), Some(b)), Some(c)) = e {
+            builder.push(Some(f(a, b, c).borrow()));
+        } else {
+            builder.push(None);
+        }
+    }
+    builder.finish()
 }
 
 /// Optimized operations.
