@@ -127,7 +127,7 @@ define_language! {
         "explain" = Explain(Id),                // (explain child)
 
         // internal functions
-        "empty" = Empty(Box<[Id]>),             // (empty child..)
+        "empty" = Empty(Id),                    // (empty child)
                                                     // returns empty chunk
                                                     // with the same schema as `child`
         "max1row" = Max1Row(Id),                // (max1row child)

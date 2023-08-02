@@ -26,7 +26,7 @@ fn cancel_rules() -> Vec<Rewrite> { vec![
     rw!("filter-true";      "(filter true ?child)"      => "?child"),
     rw!("filter-false";     "(filter false ?child)"     => "(empty ?child)"),
     rw!("window-null";      "(window (list) ?child)"    => "?child"),
-    rw!("inner-join-false"; "(join inner false ?l ?r)"  => "(empty ?l ?r)"),
+    rw!("inner-join-false"; "(join inner false ?l ?r)"  => "(empty (join inner true ?l ?r))"),
 
     rw!("proj-on-empty";    "(proj ?exprs (empty ?c))"                  => "(empty ?c)"),
     rw!("window-on-empty";  "(window ?exprs (empty ?c))"                => "(empty ?c)"),
@@ -36,8 +36,8 @@ fn cancel_rules() -> Vec<Rewrite> { vec![
     rw!("order-on-empty";   "(order ?keys (empty ?c))"                  => "(empty ?c)"),
     rw!("limit-on-empty";   "(limit ?limit ?offset (empty ?c))"         => "(empty ?c)"),
     rw!("topn-on-empty";    "(topn ?limit ?offset ?keys (empty ?c))"    => "(empty ?c)"),
-    rw!("inner-join-on-left-empty";  "(join inner ?on (empty ?l) ?r)"   => "(empty ?l ?r)"),
-    rw!("inner-join-on-right-empty"; "(join inner ?on ?l (empty ?r))"   => "(empty ?l ?r)"),
+    rw!("inner-join-on-left-empty";  "(join inner ?on (empty ?l) ?r)"   => "(empty (join inner true ?l ?r))"),
+    rw!("inner-join-on-right-empty"; "(join inner ?on ?l (empty ?r))"   => "(empty (join inner true ?l ?r))"),
 ]}
 
 #[rustfmt::skip]

@@ -17,7 +17,7 @@ pub fn analyze_schema(
     let concat = |v1: Vec<Id>, v2: Vec<Id>| v1.into_iter().chain(v2.into_iter()).collect();
     match enode {
         // equal to child
-        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(c),
+        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) | Empty(c) => x(c),
 
         // concat 2 children
         Join([t, _, l, r])
@@ -38,13 +38,6 @@ pub fn analyze_schema(
         Window([exprs, child]) => concat(x(child), x(exprs)),
         HashAgg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
             concat(x(exprs), x(group_keys))
-        }
-        Empty(ids) => {
-            let mut s = vec![];
-            for id in ids.iter() {
-                s.extend(x(id));
-            }
-            s
         }
 
         // not plan node

@@ -134,7 +134,7 @@ pub fn analyze_type(
         }),
 
         // equal to child
-        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(c),
+        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) | Empty(c) => x(c),
 
         // concat 2 children
         Join([t, _, l, r]) | HashJoin([t, _, _, l, r]) | MergeJoin([t, _, _, l, r]) => {
@@ -164,14 +164,6 @@ pub fn analyze_type(
         Window([exprs, c]) => concat_struct(x(c)?, x(exprs)?),
         HashAgg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
             concat_struct(x(exprs)?, x(group_keys)?)
-        }
-        Empty(ids) => {
-            let mut types = vec![];
-            for id in ids.iter() {
-                let Kind::Struct(list) = x(id)?.kind else { panic!("not struct type") };
-                types.extend(list);
-            }
-            Ok(Kind::Struct(types).not_null())
         }
         Max1Row(c) => Ok(x(c)?.kind().as_struct()[0].clone()),
 
