@@ -1,6 +1,7 @@
 include _create.slt
 include _insert.slt
 include _q1.slt
+include _q2.slt
 include _q3.slt
 include _q4.slt
 include _q5.slt
