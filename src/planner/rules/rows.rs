@@ -36,7 +36,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         Agg(_) => 1.0,
         HashAgg([keys, _, _]) | SortAgg([keys, _, _]) => {
             // TODO: consider distinct values of group keys
-            10_u32.pow(list_len(keys) as u32) as f32
+            10_f32.powi(list_len(keys) as i32)
         }
         Filter([cond, c]) => x(c) * x(cond),
         Limit([limit, _, c]) | TopN([limit, _, _, c]) => x(c).min(get_limit_num(limit)),

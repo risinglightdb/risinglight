@@ -12,6 +12,7 @@ use crate::planner::ExprExt;
 pub fn always_better_rules() -> Vec<Rewrite> {
     let mut rules = vec![];
     rules.extend(cancel_rules());
+    rules.extend(join_rules());
     rules.extend(merge_rules());
     rules.extend(predicate_pushdown_rules());
     rules.extend(projection_pushdown_rules());
@@ -95,6 +96,11 @@ fn predicate_pushdown_rules() -> Vec<Rewrite> { vec![
         "(join ?type true ?left (filter ?cond1 ?right))"
         if not_depend_on("?cond1", "?left")
     ),
+    rw!("pushdown-filter-apply-left";
+        "(filter ?cond (apply ?type ?left ?right))" =>
+        "(apply ?type (filter ?cond ?left) ?right)"
+        if not_depend_on("?cond", "?right")
+    ),
 ]}
 
 /// Returns a rule to pushdown plan `a` through `b`.
@@ -104,6 +110,17 @@ fn pushdown(a: &str, a_args: &str, b: &str, b_args: &str) -> Rewrite {
     let applier = format!("({b} {b_args} ({a} {a_args} ?child))");
     Rewrite::new(name, pattern(&searcher), pattern(&applier)).unwrap()
 }
+
+#[rustfmt::skip]
+pub fn join_rules() -> Vec<Rewrite> { vec![
+    rw!("left-outer-join-to-inner-join";
+        "(filter ?cond (join left_outer ?on ?left ?right))" =>
+        "(filter ?cond (join inner ?on ?left ?right))"
+        // XXX: should be
+        // if null_reject("?right", "?cond")
+        if depend_on("?cond", "?right")
+    ),
+]}
 
 #[rustfmt::skip]
 pub fn join_reorder_rules() -> Vec<Rewrite> { vec![
@@ -202,6 +219,13 @@ pub fn subquery_rules() -> Vec<Rewrite> { vec![
         "(apply anti ?child ?subquery)"
         if is_not_list("?subquery")
     ),
+    rw!("left-outer-apply-to-inner-apply";
+        "(filter ?cond (apply left_outer ?left ?right))" =>
+        "(filter ?cond (apply inner ?left ?right))"
+        // FIXME: should be
+        // if null_reject("?right", "?cond")
+        if depend_on("?cond", "?right")
+    ),
     // Orthogonal Optimization of Subqueries and Aggregation
     // https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.563.8492&rep=rep1&type=pdf
     // Figure 4 Rule (1)
@@ -221,6 +245,11 @@ pub fn subquery_rules() -> Vec<Rewrite> { vec![
         "(apply inner ?left (filter ?cond ?right))" =>
         "(filter ?cond (apply inner ?left ?right))"
     ),
+    // Figure 4 Rule (4)
+    rw!("pushdown-apply-proj";
+        "(proj ?proj (apply inner ?left (proj ?proj1 ?right)))" =>
+        "(proj ?proj (apply inner ?left ?right))"
+    ),
     rw!("pushdown-semi-apply-proj";
         "(apply semi ?left (proj ?proj ?right))" =>
         "(apply semi ?left ?right)"
@@ -229,17 +258,24 @@ pub fn subquery_rules() -> Vec<Rewrite> { vec![
         "(apply anti ?left (proj ?proj ?right))" =>
         "(apply anti ?left ?right)"
     ),
-    // // Figure 4 Rule (8)
-    // rw!("pushdown-apply-group-agg";
-    //     "(apply inner ?left (hashagg ?aggs ?group_keys ?right))" =>
-    //     "(hashagg ?aggs ?? (apply inner ?left ?right))"
-    // ),
-    // // Figure 4 Rule (9)
-    // // FIXME: not valid for `count` agg
-    // rw!("pushdown-apply-scalar-agg";
-    //     "(apply inner ?left (agg ?aggs ?right))" =>
-    //     "(hashagg ?aggs ?pk (apply left_outer ?left ?right))"
-    // ),
+    // Figure 4 Rule (8)
+    rw!("pushdown-apply-group-agg";
+        "(apply inner ?left (hashagg ?keys ?aggs ?right))" =>
+        // ?new_keys = ?left || ?keys
+        { extract_key("(hashagg ?new_keys ?aggs (apply inner ?left ?right))") }
+        // FIXME: this rule is correct only if
+        // 1. all aggregate functions satisfy: agg({}) = agg({null})
+        // 2. the left table has a key
+    ),
+    // Figure 4 Rule (9)
+    rw!("pushdown-apply-scalar-agg";
+        "(apply inner ?left (agg ?aggs ?right))" =>
+        // ?new_keys = ?left
+        { extract_key("(hashagg ?new_keys ?aggs (apply left_outer ?left ?right))") }
+        // FIXME: this rule is correct only if
+        // 1. all aggregate functions satisfy: agg({}) = agg({null})
+        // 2. the left table has a key
+    ),
 ]}
 
 /// Returns an applier that replaces `?column0` with the first column of `?subquery`.
@@ -279,6 +315,42 @@ fn apply_column0(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
     }
 }
 
+/// Returns an applier that replaces `?new_keys` with the schema of `?left` (|| `?keys`).
+fn extract_key(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
+    struct ExtractKey {
+        pattern: Pattern,
+        left: Var,
+        keys: Var,
+        new_keys: Var,
+    }
+    impl Applier<Expr, ExprAnalysis> for ExtractKey {
+        fn apply_one(
+            &self,
+            egraph: &mut EGraph,
+            eclass: Id,
+            subst: &Subst,
+            searcher_ast: Option<&PatternAst<Expr>>,
+            rule_name: Symbol,
+        ) -> Vec<Id> {
+            let mut new_keys = egraph[subst[self.left]].data.schema.clone();
+            if let Some(keys_id) = subst.get(self.keys) {
+                new_keys.extend_from_slice(&egraph[*keys_id].data.schema);
+            }
+            let id = egraph.add(Expr::List(new_keys.into()));
+            let mut subst = subst.clone();
+            subst.insert(self.new_keys, id);
+            self.pattern
+                .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+        }
+    }
+    ExtractKey {
+        pattern: pattern(pattern_str),
+        left: var("?left"),
+        keys: var("?keys"),
+        new_keys: var("?new_keys"),
+    }
+}
+
 /// Pushdown projections and prune unused columns.
 #[rustfmt::skip]
 pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
@@ -312,6 +384,10 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
         "(proj ?exprs (join ?type ?on ?left ?right))" =>
         { apply_proj("(proj [?exprs] (join ?type [?on] ?left ?right))") }
     ),
+    // rw!("pushdown-proj-apply";
+    //     "(proj ?exprs (apply ?type ?left ?right))" =>
+    //     { apply_proj("(proj [?exprs] (apply ?type ?left [?right]))") }
+    // ),
     rw!("pushdown-proj-scan";
         "(proj ?exprs (scan ?table ?columns ?filter))" =>
         { column_prune("(proj ?exprs (scan ?table ?columns ?filter))") }
@@ -326,6 +402,17 @@ fn not_depend_on(expr: &str, plan: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> 
         let used = &egraph[subst[expr]].data.columns;
         let produced = produced(egraph, subst[plan]).collect();
         used.is_disjoint(&produced)
+    }
+}
+
+/// Returns true if the columns used in `expr` is disjoint from columns produced by `plan`.
+fn depend_on(expr: &str, plan: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let expr = var(expr);
+    let plan = var(plan);
+    move |egraph, _, subst| {
+        let used = &egraph[subst[expr]].data.columns;
+        let produced = produced(egraph, subst[plan]).collect();
+        !used.is_disjoint(&produced)
     }
 }
 
