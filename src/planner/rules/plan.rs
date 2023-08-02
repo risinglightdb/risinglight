@@ -62,6 +62,7 @@ pub fn predicate_pushdown_rules() -> Vec<Rewrite> { vec![
     rw!("pushdown-filter-proj";
         "(filter ?cond (proj ?proj ?child))" =>
         "(proj ?proj (filter ?cond ?child))"
+        if all_depend_on("?cond", "?child")
     ),
     rw!("pushdown-filter-hashagg";
         "(filter ?cond (hashagg ?keys ?aggs ?child))" =>
@@ -351,6 +352,7 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
     rw!("pushdown-proj-proj";
         "(proj ?proj1 (proj ?proj2 ?child))" =>
         "(proj ?proj1 ?child)"
+        if all_depend_on("?proj1", "?child")
     ),
     pushdown("proj", "?exprs", "limit", "?limit ?offset"),
     pushdown("limit", "?limit ?offset", "proj", "?exprs"),
@@ -407,6 +409,17 @@ fn depend_on(expr: &str, plan: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool
         let used = &egraph[subst[expr]].data.columns;
         let produced = produced(egraph, subst[plan]).collect();
         !used.is_disjoint(&produced)
+    }
+}
+
+/// Returns true if the columns used in `expr` is subset of columns produced by `plan`.
+fn all_depend_on(expr: &str, plan: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let expr = var(expr);
+    let plan = var(plan);
+    move |egraph, _, subst| {
+        let used = &egraph[subst[expr]].data.columns;
+        let produced = produced(egraph, subst[plan]).collect();
+        used.is_subset(&produced)
     }
 }
 
