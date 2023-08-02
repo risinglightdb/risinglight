@@ -68,6 +68,7 @@ define_language! {
         "extract" = Extract([Id; 2]),           // (extract field expr)
             Field(DateTimeField),
         "replace" = Replace([Id; 3]),           // (replace expr pattern replacement)
+        "substring" = Substring([Id; 3]),       // (substring expr start length)
 
         // aggregations
         "max" = Max(Id),

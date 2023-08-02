@@ -297,6 +297,8 @@ pub enum ConvertError {
     NoUnaryOp(String, &'static str),
     #[error("no function {0}({1}, {2})")]
     NoBinaryOp(String, &'static str, &'static str),
+    #[error("no function {0}({1}, {2}, {3})")]
+    NoTernaryOp(String, &'static str, &'static str, &'static str),
     #[error("no cast {0} -> {1}")]
     NoCast(&'static str, DataTypeKind),
 }

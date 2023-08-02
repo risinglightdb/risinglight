@@ -85,6 +85,12 @@ impl<'a> Evaluator<'a> {
                 let Expr::Field(field) = self.expr[*field] else { panic!("not a field") };
                 a.extract(field)
             }
+            Substring([str, start, length]) => {
+                let str = self.next(*str).eval(chunk)?;
+                let start = self.next(*start).eval(chunk)?;
+                let length = self.next(*length).eval(chunk)?;
+                str.substring(&start, &length)
+            }
             If([cond, then, else_]) => {
                 let cond = self.next(*cond).eval(chunk)?;
                 let then = self.next(*then).eval(chunk)?;
