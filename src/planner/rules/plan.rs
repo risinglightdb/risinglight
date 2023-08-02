@@ -12,10 +12,7 @@ use crate::planner::ExprExt;
 pub fn always_better_rules() -> Vec<Rewrite> {
     let mut rules = vec![];
     rules.extend(cancel_rules());
-    rules.extend(join_rules());
     rules.extend(merge_rules());
-    rules.extend(predicate_pushdown_rules());
-    rules.extend(projection_pushdown_rules());
     rules
 }
 
@@ -55,43 +52,47 @@ fn merge_rules() -> Vec<Rewrite> { vec![
         "(filter (and ?cond1 ?cond2) ?child)" =>
         "(filter ?cond1 (filter ?cond2 ?child))"
     ),
-    // rw!("proj-merge";
-    //     "(proj ?proj1 (proj ?proj2 ?child))" =>
-    //     "(proj ?proj1 ?child)"
-    //     if columns_is_subset("?proj1", "?child")
-    // ),
 ]}
 
 #[rustfmt::skip]
-fn predicate_pushdown_rules() -> Vec<Rewrite> { vec![
+pub fn predicate_pushdown_rules() -> Vec<Rewrite> { vec![
     pushdown("filter", "?cond", "order", "?keys"),
     pushdown("filter", "?cond", "limit", "?limit ?offset"),
     pushdown("filter", "?cond", "topn", "?limit ?offset ?keys"),
-    // rw!("pushdown-filter-proj";
-    //     "(filter ?cond (proj ?proj ?child))" =>
-    //     "(proj ?proj (filter ?cond ?child))"
-    //     if columns_is_subset("?cond", "?child")
-    // ),
-    rw!("pushdown-filter-join";
+    rw!("pushdown-filter-proj";
+        "(filter ?cond (proj ?proj ?child))" =>
+        "(proj ?proj (filter ?cond ?child))"
+    ),
+    rw!("pushdown-filter-hashagg";
+        "(filter ?cond (hashagg ?keys ?aggs ?child))" =>
+        "(hashagg ?keys ?aggs (filter ?cond ?child))"
+        if not_depend_on("?cond", "?aggs")
+    ),
+    rw!("pushdown-filter-inner-join";
         "(filter ?cond (join inner ?on ?left ?right))" =>
         "(join inner (and ?on ?cond) ?left ?right)"
     ),
-    rw!("pushdown-filter-join-left";
+    rw!("pushdown-filter-left-outer-join-left";
+        "(filter ?cond (join left_outer ?on ?left ?right))" =>
+        "(join left_outer ?on (filter ?cond ?left) ?right)"
+        if not_depend_on("?cond", "?right")
+    ),
+    rw!("pushdown-join-condition-left";
         "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
         "(join ?type ?cond2 (filter ?cond1 ?left) ?right)"
         if not_depend_on("?cond1", "?right")
     ),
-    rw!("pushdown-filter-join-left-1";
+    rw!("pushdown-join-condition-left-1";
         "(join ?type ?cond1 ?left ?right)" =>
         "(join ?type true (filter ?cond1 ?left) ?right)"
         if not_depend_on("?cond1", "?right")
     ),
-    rw!("pushdown-filter-join-right";
+    rw!("pushdown-join-condition-right";
         "(join ?type (and ?cond1 ?cond2) ?left ?right)" =>
         "(join ?type ?cond2 ?left (filter ?cond1 ?right))"
         if not_depend_on("?cond1", "?left")
     ),
-    rw!("pushdown-filter-join-right-1";
+    rw!("pushdown-join-condition-right-1";
         "(join ?type ?cond1 ?left ?right)" =>
         "(join ?type true ?left (filter ?cond1 ?right))"
         if not_depend_on("?cond1", "?left")
@@ -110,17 +111,6 @@ fn pushdown(a: &str, a_args: &str, b: &str, b_args: &str) -> Rewrite {
     let applier = format!("({b} {b_args} ({a} {a_args} ?child))");
     Rewrite::new(name, pattern(&searcher), pattern(&applier)).unwrap()
 }
-
-#[rustfmt::skip]
-pub fn join_rules() -> Vec<Rewrite> { vec![
-    rw!("left-outer-join-to-inner-join";
-        "(filter ?cond (join left_outer ?on ?left ?right))" =>
-        "(filter ?cond (join inner ?on ?left ?right))"
-        // XXX: should be
-        // if null_reject("?right", "?cond")
-        if depend_on("?cond", "?right")
-    ),
-]}
 
 #[rustfmt::skip]
 pub fn join_reorder_rules() -> Vec<Rewrite> { vec![
@@ -247,8 +237,8 @@ pub fn subquery_rules() -> Vec<Rewrite> { vec![
     ),
     // Figure 4 Rule (4)
     rw!("pushdown-apply-proj";
-        "(proj ?proj (apply inner ?left (proj ?proj1 ?right)))" =>
-        "(proj ?proj (apply inner ?left ?right))"
+        "(apply inner ?left (proj ?keys ?right))" =>
+        { extract_key("(proj ?new_keys (apply inner ?left ?right))") }
     ),
     rw!("pushdown-semi-apply-proj";
         "(apply semi ?left (proj ?proj ?right))" =>
@@ -358,6 +348,10 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
         "(proj ?expr ?child)" => "?child" 
         if schema_is_eq("?expr", "?child")
     ),
+    rw!("pushdown-proj-proj";
+        "(proj ?proj1 (proj ?proj2 ?child))" =>
+        "(proj ?proj1 ?child)"
+    ),
     pushdown("proj", "?exprs", "limit", "?limit ?offset"),
     pushdown("limit", "?limit ?offset", "proj", "?exprs"),
     rw!("pushdown-proj-order";
@@ -384,10 +378,10 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
         "(proj ?exprs (join ?type ?on ?left ?right))" =>
         { apply_proj("(proj [?exprs] (join ?type [?on] ?left ?right))") }
     ),
-    // rw!("pushdown-proj-apply";
-    //     "(proj ?exprs (apply ?type ?left ?right))" =>
-    //     { apply_proj("(proj [?exprs] (apply ?type ?left [?right]))") }
-    // ),
+    rw!("pushdown-proj-apply";
+        "(proj ?exprs (apply ?type ?left ?right))" =>
+        { apply_proj("(proj [?exprs] (apply ?type ?left [?right]))") }
+    ),
     rw!("pushdown-proj-scan";
         "(proj ?exprs (scan ?table ?columns ?filter))" =>
         { column_prune("(proj ?exprs (scan ?table ?columns ?filter))") }

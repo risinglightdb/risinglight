@@ -35,6 +35,7 @@ impl Optimizer {
     /// Optimize the given expression.
     pub fn optimize(&self, expr: &RecExpr) -> RecExpr {
         let mut expr = expr.clone();
+        let mut best_cost = f32::MAX;
 
         // define extra rules for some configurations
         let mut extra_rules = vec![];
@@ -42,14 +43,31 @@ impl Optimizer {
             extra_rules.append(&mut rules::range::filter_scan_rule());
         }
 
-        // 1. pushdown
-        let mut best_cost = f32::MAX;
+        // 1. pushdown apply
+        for _ in 0..3 {
+            let runner = egg::Runner::<_, _, ()>::new(self.analysis.clone())
+                .with_expr(&expr)
+                .with_iter_limit(6)
+                .run(&*STAGE1_RULES);
+            let cost_fn = cost::CostFn {
+                egraph: &runner.egraph,
+            };
+            let extractor = egg::Extractor::new(&runner.egraph, cost_fn);
+            let cost;
+            (cost, expr) = extractor.find_best(runner.roots[0]);
+            if cost >= best_cost {
+                break;
+            }
+            best_cost = cost;
+        }
+
+        // 2. pushdown predicate and projection
         // to prune costy nodes, we iterate multiple times and only keep the best one for each run.
         for _ in 0..3 {
             let runner = egg::Runner::<_, _, ()>::new(self.analysis.clone())
                 .with_expr(&expr)
                 .with_iter_limit(6)
-                .run(STAGE1_RULES.iter().chain(&extra_rules));
+                .run(STAGE2_RULES.iter().chain(&extra_rules));
             let cost_fn = cost::CostFn {
                 egraph: &runner.egraph,
             };
@@ -68,12 +86,12 @@ impl Optimizer {
             // );
         }
 
-        // 2. join reorder and hashjoin
+        // 3. join reorder and hashjoin
         for _ in 0..4 {
             let runner = egg::Runner::<_, _, ()>::new(self.analysis.clone())
                 .with_expr(&expr)
                 .with_iter_limit(8)
-                .run(&*STAGE2_RULES);
+                .run(&*STAGE3_RULES);
             let cost_fn = cost::CostFn {
                 egraph: &runner.egraph,
             };
@@ -131,16 +149,28 @@ static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     rules.append(&mut rules::expr::rules());
     rules.append(&mut rules::plan::always_better_rules());
     rules.append(&mut rules::plan::subquery_rules());
-    rules.append(&mut rules::order::order_rules());
     rules
 });
 
 /// Stage2 rules in the optimizer.
 static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     let mut rules = vec![];
+    rules.append(&mut rules::expr::rules());
+    rules.append(&mut rules::plan::always_better_rules());
+    rules.append(&mut rules::plan::predicate_pushdown_rules());
+    rules.append(&mut rules::plan::projection_pushdown_rules());
+    rules.append(&mut rules::order::order_rules());
+    rules
+});
+
+/// Stage3 rules in the optimizer.
+static STAGE3_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
+    let mut rules = vec![];
     rules.append(&mut rules::expr::and_rules());
     rules.append(&mut rules::plan::always_better_rules());
     rules.append(&mut rules::plan::join_reorder_rules());
     rules.append(&mut rules::plan::hash_join_rules());
+    rules.append(&mut rules::plan::predicate_pushdown_rules());
+    rules.append(&mut rules::plan::projection_pushdown_rules());
     rules
 });
