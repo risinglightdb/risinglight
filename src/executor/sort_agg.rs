@@ -26,7 +26,9 @@ impl SortAggExecutor {
                 let keys = keys_chunk.row(i);
                 if !matches!(&last_keys, Some(last_keys) if keys == last_keys) {
                     if let Some(keys) = last_keys.take() {
-                        if let Some(chunk) = builder.push_row(states.drain(..).chain(keys)) {
+                        if let Some(chunk) =
+                            builder.push_row(keys.into_iter().chain(states.drain(..)))
+                        {
                             yield chunk;
                         }
                     }
@@ -37,7 +39,7 @@ impl SortAggExecutor {
             }
         }
         if let Some(keys) = last_keys.take() {
-            if let Some(chunk) = builder.push_row(states.drain(..).chain(keys)) {
+            if let Some(chunk) = builder.push_row(keys.into_iter().chain(states.drain(..))) {
                 yield chunk;
             } else if let Some(chunk) = builder.take() {
                 yield chunk;

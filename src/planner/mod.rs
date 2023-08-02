@@ -113,7 +113,7 @@ define_language! {
         "agg" = Agg([Id; 2]),                   // (agg aggs=[expr..] child)
                                                     // expressions must be aggregate functions
         "hashagg" = HashAgg([Id; 3]),           // (hashagg aggs=[expr..] group_keys=[expr..] child)
-                                                    // output = aggs || group_keys
+                                                    // output = group_keys || aggs
         "sortagg" = SortAgg([Id; 3]),           // (sortagg aggs=[expr..] group_keys=[expr..] child)
                                                     // child must be ordered by group_keys
         "window" = Window([Id; 2]),             // (window [over..] child)

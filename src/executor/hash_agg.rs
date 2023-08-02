@@ -43,7 +43,7 @@ impl HashAggExecutor {
         while let Some(batch) = batches.next() {
             let mut builder = DataChunkBuilder::new(&self.types, PROCESSING_WINDOW_SIZE);
             for (key, aggs) in batch {
-                if let Some(chunk) = builder.push_row(aggs.into_iter().chain(key.into_iter())) {
+                if let Some(chunk) = builder.push_row(key.into_iter().chain(aggs.into_iter())) {
                     yield chunk;
                 }
             }

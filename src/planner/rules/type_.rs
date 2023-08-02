@@ -163,7 +163,7 @@ pub fn analyze_type(
         Proj([exprs, _]) | Agg([exprs, _]) => x(exprs),
         Window([exprs, c]) => concat_struct(x(c)?, x(exprs)?),
         HashAgg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
-            concat_struct(x(exprs)?, x(group_keys)?)
+            concat_struct(x(group_keys)?, x(exprs)?)
         }
         Max1Row(c) => Ok(x(c)?.kind().as_struct()[0].clone()),
 
