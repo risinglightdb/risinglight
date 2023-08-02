@@ -11,8 +11,8 @@ use crate::types::DataValue;
 
 /// The executor of hash aggregation.
 pub struct HashAggExecutor {
+    pub keys: RecExpr,
     pub aggs: RecExpr,
-    pub group_keys: RecExpr,
     pub types: Vec<DataType>,
 }
 
@@ -27,7 +27,7 @@ impl HashAggExecutor {
         #[for_await]
         for chunk in child {
             let chunk = chunk?;
-            let keys_chunk = Evaluator::new(&self.group_keys).eval_list(&chunk)?;
+            let keys_chunk = Evaluator::new(&self.keys).eval_list(&chunk)?;
             let args_chunk = Evaluator::new(&self.aggs).eval_list(&chunk)?;
 
             for i in 0..chunk.cardinality() {

@@ -54,9 +54,9 @@ pub fn order_rules() -> Vec<Rewrite> { vec![
         if is_orderby("?rkey", "?right")
     ),
     rw!("sort-agg";
-        "(hashagg ?aggs ?group_keys ?child)" =>
-        "(sortagg ?aggs ?group_keys ?child)"
-        if is_orderby("?group_keys", "?child")
+        "(hashagg ?keys ?aggs ?child)" =>
+        "(sortagg ?keys ?aggs ?child)"
+        if is_orderby("?keys", "?child")
     ),
 ]}
 

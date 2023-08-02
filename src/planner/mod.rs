@@ -112,10 +112,10 @@ define_language! {
             "anti" = Anti,
         "agg" = Agg([Id; 2]),                   // (agg aggs=[expr..] child)
                                                     // expressions must be aggregate functions
-        "hashagg" = HashAgg([Id; 3]),           // (hashagg aggs=[expr..] group_keys=[expr..] child)
-                                                    // output = group_keys || aggs
-        "sortagg" = SortAgg([Id; 3]),           // (sortagg aggs=[expr..] group_keys=[expr..] child)
-                                                    // child must be ordered by group_keys
+        "hashagg" = HashAgg([Id; 3]),           // (hashagg keys=[expr..] aggs=[expr..] child)
+                                                    // output = keys || aggs
+        "sortagg" = SortAgg([Id; 3]),           // (sortagg keys=[expr..] aggs=[expr..] child)
+                                                    // child must be ordered by keys
         "window" = Window([Id; 2]),             // (window [over..] child)
                                                     // output = child || exprs
         CreateTable(CreateTable),

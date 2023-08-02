@@ -190,7 +190,7 @@ impl Binder {
         list.dedup();
         let aggs = self.egraph.add(Node::List(list.into()));
         let plan = self.egraph.add(match groupby {
-            Some(groupby) => Node::HashAgg([aggs, groupby, plan]),
+            Some(groupby) => Node::HashAgg([groupby, aggs, plan]),
             None => Node::Agg([aggs, plan]),
         });
         // check for not aggregated columns

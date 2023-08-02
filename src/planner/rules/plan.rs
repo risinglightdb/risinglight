@@ -30,8 +30,8 @@ fn cancel_rules() -> Vec<Rewrite> { vec![
 
     rw!("proj-on-empty";    "(proj ?exprs (empty ?c))"                  => "(empty ?c)"),
     rw!("window-on-empty";  "(window ?exprs (empty ?c))"                => "(empty ?c)"),
-    rw!("hashagg-on-empty"; "(hashagg ?aggs ?groupby (empty ?c))"       => "(empty ?c)"),
-    rw!("sortagg-on-empty"; "(sortagg ?aggs ?groupby (empty ?c))"       => "(empty ?c)"),
+    rw!("hashagg-on-empty"; "(hashagg ?keys ?aggs (empty ?c))"          => "(empty ?c)"),
+    rw!("sortagg-on-empty"; "(sortagg ?keys ?aggs (empty ?c))"          => "(empty ?c)"),
     rw!("filter-on-empty";  "(filter ?cond (empty ?c))"                 => "(empty ?c)"),
     rw!("order-on-empty";   "(order ?keys (empty ?c))"                  => "(empty ?c)"),
     rw!("limit-on-empty";   "(limit ?limit ?offset (empty ?c))"         => "(empty ?c)"),
@@ -305,8 +305,8 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
         { apply_proj("(agg [?aggs] ?child)") }
     ),
     rw!("pushdown-proj-hashagg";
-        "(hashagg ?aggs ?groupby ?child)" =>
-        { apply_proj("(hashagg [?aggs] [?groupby] ?child)") }
+        "(hashagg ?keys ?aggs ?child)" =>
+        { apply_proj("(hashagg [?keys] [?aggs] ?child)") }
     ),
     rw!("pushdown-proj-join";
         "(proj ?exprs (join ?type ?on ?left ?right))" =>

@@ -36,12 +36,10 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             Filter([exprs, c]) => costs(exprs) * rows(c) + build() + costs(c),
             Proj([exprs, c]) | Window([exprs, c]) => costs(exprs) * rows(c) + costs(c),
             Agg([exprs, c]) => costs(exprs) * rows(c) + build() + costs(c),
-            HashAgg([exprs, groupby, c]) => {
-                (hash(rows(id)) + costs(exprs) + costs(groupby)) * rows(c) + build() + costs(c)
+            HashAgg([keys, aggs, c]) => {
+                (hash(rows(id)) + costs(keys) + costs(aggs)) * rows(c) + build() + costs(c)
             }
-            SortAgg([exprs, groupby, c]) => {
-                (costs(exprs) + costs(groupby)) * rows(c) + build() + costs(c)
-            }
+            SortAgg([keys, aggs, c]) => (costs(keys) + costs(aggs)) * rows(c) + build() + costs(c),
             Limit([_, _, c]) => build() + costs(c),
             TopN([_, _, _, c]) => (rows(id) + 1.0).log2() * rows(c) + build() + costs(c),
             Join([_, on, l, r]) => costs(on) * rows(l) * rows(r) + build() + costs(l) + costs(r),

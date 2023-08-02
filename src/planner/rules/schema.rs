@@ -36,9 +36,7 @@ pub fn analyze_schema(
         Values(vs) => x(&vs[0]),
         Proj([exprs, _]) | Agg([exprs, _]) => x(exprs),
         Window([exprs, child]) => concat(x(child), x(exprs)),
-        HashAgg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
-            concat(x(group_keys), x(exprs))
-        }
+        HashAgg([keys, aggs, _]) | SortAgg([keys, aggs, _]) => concat(x(keys), x(aggs)),
 
         // not plan node
         _ => vec![],

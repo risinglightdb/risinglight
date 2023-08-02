@@ -294,16 +294,16 @@ impl<S: Storage> Builder<S> {
             }
             .execute(self.build_id(child)),
 
-            HashAgg([aggs, group_keys, child]) => HashAggExecutor {
+            HashAgg([keys, aggs, child]) => HashAggExecutor {
+                keys: self.resolve_column_index(keys, child),
                 aggs: self.resolve_column_index(aggs, child),
-                group_keys: self.resolve_column_index(group_keys, child),
                 types: self.plan_types(id).to_vec(),
             }
             .execute(self.build_id(child)),
 
-            SortAgg([aggs, group_keys, child]) => SortAggExecutor {
+            SortAgg([keys, aggs, child]) => SortAggExecutor {
+                keys: self.resolve_column_index(keys, child),
                 aggs: self.resolve_column_index(aggs, child),
-                group_keys: self.resolve_column_index(group_keys, child),
                 types: self.plan_types(id).to_vec(),
             }
             .execute(self.build_id(child)),

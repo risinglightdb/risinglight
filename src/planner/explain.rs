@@ -314,21 +314,19 @@ impl<'a> Explain<'a> {
                 vec![("aggs", self.expr(aggs).pretty())].with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
-            HashAgg([aggs, group_keys, child]) | SortAgg([aggs, group_keys, child]) => {
-                Pretty::simple_record(
-                    match enode {
-                        HashAgg(_) => "HashAgg",
-                        SortAgg(_) => "SortAgg",
-                        _ => unreachable!(),
-                    },
-                    vec![
-                        ("aggs", self.expr(aggs).pretty()),
-                        ("group_by", self.expr(group_keys).pretty()),
-                    ]
-                    .with(cost, rows),
-                    vec![self.child(child).pretty()],
-                )
-            }
+            HashAgg([keys, aggs, child]) | SortAgg([keys, aggs, child]) => Pretty::simple_record(
+                match enode {
+                    HashAgg(_) => "HashAgg",
+                    SortAgg(_) => "SortAgg",
+                    _ => unreachable!(),
+                },
+                vec![
+                    ("keys", self.expr(keys).pretty()),
+                    ("aggs", self.expr(aggs).pretty()),
+                ]
+                .with(cost, rows),
+                vec![self.child(child).pretty()],
+            ),
             Window([windows, child]) => Pretty::simple_record(
                 "Window",
                 vec![("windows", self.expr(windows).pretty())].with(cost, rows),
