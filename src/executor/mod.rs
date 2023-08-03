@@ -291,6 +291,7 @@ impl<S: Storage> Builder<S> {
 
             Agg([aggs, child]) => SimpleAggExecutor {
                 aggs: self.resolve_column_index(aggs, child),
+                types: self.plan_types(id).to_vec(),
             }
             .execute(self.build_id(child)),
 

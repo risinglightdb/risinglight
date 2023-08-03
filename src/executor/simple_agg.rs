@@ -1,7 +1,7 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use super::*;
-use crate::array::ArrayImpl;
+use crate::array::DataChunkBuilder;
 
 /// The executor of simple aggregation.
 pub struct SimpleAggExecutor {
@@ -9,6 +9,7 @@ pub struct SimpleAggExecutor {
     ///
     /// e.g. `(list (sum #0) (count #1))`
     pub aggs: RecExpr,
+    pub types: Vec<DataType>,
 }
 
 impl SimpleAggExecutor {
@@ -20,6 +21,7 @@ impl SimpleAggExecutor {
             let chunk = chunk?;
             Evaluator::new(&self.aggs).eval_agg_list(&mut states, &chunk)?;
         }
-        yield states.iter().map(ArrayImpl::from).collect();
+        let mut builder = DataChunkBuilder::new(&self.types, 1);
+        yield builder.push_row(states).unwrap();
     }
 }
