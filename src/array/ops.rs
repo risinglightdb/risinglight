@@ -189,6 +189,7 @@ impl ArrayImpl {
         /// Converts a SQL LIKE pattern to a regex pattern.
         fn like_to_regex(pattern: &str) -> String {
             let mut regex = String::with_capacity(pattern.len());
+            regex.push('^');
             for c in pattern.chars() {
                 match c {
                     '%' => regex.push_str(".*"),
@@ -196,6 +197,7 @@ impl ArrayImpl {
                     c => regex.push(c),
                 }
             }
+            regex.push('$');
             regex
         }
         let A::Utf8(a) = self else {
