@@ -38,7 +38,7 @@ impl std::fmt::Display for FileFormat {
     }
 }
 
-impl FromStr for ExtSource {
+impl FromStr for Box<ExtSource> {
     type Err = ();
     fn from_str(_s: &str) -> std::result::Result<Self, Self::Err> {
         Err(())
@@ -64,13 +64,13 @@ impl Binder {
 
         let cols = self.bind_table_columns(&table_name, &columns)?;
 
-        let ext_source = self.egraph.add(Node::ExtSource(ExtSource {
+        let ext_source = self.egraph.add(Node::ExtSource(Box::new(ExtSource {
             path: match target {
                 CopyTarget::File { filename } => filename.into(),
                 t => todo!("unsupported copy target: {:?}", t),
             },
             format: FileFormat::from_options(options),
-        }));
+        })));
 
         let copy = if to {
             // COPY <source_table> TO <dest_file>

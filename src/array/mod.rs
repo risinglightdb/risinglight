@@ -566,7 +566,7 @@ macro_rules! impl_array {
                     Self::Null(_) => DataValue::Null,
                     $(
                         Self::$Abc(a) => match a.get(idx) {
-                            Some(val) => DataValue::$Value(val.to_owned()),
+                            Some(val) => DataValue::$Value(val.to_owned().into()),
                             None => DataValue::Null,
                         },
                     )*

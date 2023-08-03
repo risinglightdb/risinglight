@@ -151,7 +151,7 @@ impl Binder {
         match data_type {
             DataType::Date => {
                 let date = value.parse().map_err(|_| {
-                    BindError::CastError(DataValue::String(value), DataTypeKind::Date)
+                    BindError::CastError(DataValue::String(value.into()), DataTypeKind::Date)
                 })?;
                 Ok(self.egraph.add(Node::Constant(DataValue::Date(date))))
             }
@@ -376,8 +376,8 @@ impl From<Value> for DataValue {
                     panic!("invalid digit: {}", n);
                 }
             }
-            Value::SingleQuotedString(s) => Self::String(s),
-            Value::DoubleQuotedString(s) => Self::String(s),
+            Value::SingleQuotedString(s) => Self::String(s.into()),
+            Value::DoubleQuotedString(s) => Self::String(s.into()),
             Value::Boolean(b) => Self::Bool(b),
             Value::Null => Self::Null,
             _ => todo!("parse value: {:?}", v),

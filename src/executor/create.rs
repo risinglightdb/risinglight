@@ -8,7 +8,7 @@ use crate::storage::Storage;
 
 /// The executor of `create table` statement.
 pub struct CreateTableExecutor<S: Storage> {
-    pub plan: CreateTable,
+    pub plan: Box<CreateTable>,
     pub storage: Arc<S>,
 }
 

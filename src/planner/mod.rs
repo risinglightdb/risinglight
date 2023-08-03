@@ -31,7 +31,7 @@ define_language! {
         Column(ColumnRefId),            // $1.2, $2.1, ...
         Table(TableRefId),              // $1, $2, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
-        ExtSource(ExtSource),
+        ExtSource(Box<ExtSource>),
 
         // utilities
         "ref" = Ref(Id),                // (ref expr)
@@ -119,7 +119,7 @@ define_language! {
                                                     // child must be ordered by keys
         "window" = Window([Id; 2]),             // (window [over..] child)
                                                     // output = child || exprs
-        CreateTable(CreateTable),
+        CreateTable(Box<CreateTable>),
         Drop(BoundDrop),
         "insert" = Insert([Id; 3]),             // (insert table [column..] child)
         "delete" = Delete([Id; 2]),             // (delete table child)
@@ -178,7 +178,7 @@ impl Expr {
 
     pub fn as_ext_source(&self) -> ExtSource {
         let Self::ExtSource(v) = self else { panic!("not an external source: {self}") };
-        v.clone()
+        *v.clone()
     }
 
     pub const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {

@@ -26,7 +26,7 @@ pub enum DataValue {
     #[display("{0}")]
     Float64(F64),
     #[display("'{0}'")]
-    String(String),
+    String(Str),
     #[display("{0}")]
     Blob(Blob),
     #[display("{0}")]
@@ -47,6 +47,7 @@ pub type Row = Vec<DataValue>;
 /// A wrapper around floats providing implementations of `Eq`, `Ord`, and `Hash`.
 pub type F32 = OrderedFloat<f32>;
 pub type F64 = OrderedFloat<f64>;
+pub type Str = Box<str>;
 
 macro_rules! impl_arith_for_datavalue {
     ($Trait:ident, $name:ident) => {
@@ -196,7 +197,7 @@ macro_rules! impl_min_max {
         impl From<Option<&$Type>> for DataValue {
             fn from(v: Option<&$Type>) -> Self {
                 match v {
-                    Some(v) => Self::$Value(v.to_owned()),
+                    Some(v) => Self::$Value(v.to_owned().into()),
                     None => Self::Null,
                 }
             }
@@ -264,7 +265,7 @@ impl FromStr for DataValue {
         } else if let Ok(d) = s.parse::<Decimal>() {
             Ok(Self::Decimal(d))
         } else if s.starts_with('\'') && s.ends_with('\'') {
-            Ok(Self::String(s[1..s.len() - 1].to_string()))
+            Ok(Self::String(s[1..s.len() - 1].into()))
         } else if s.starts_with("b\'") && s.ends_with('\'') {
             Ok(Self::Blob(s[2..s.len() - 1].parse()?))
         } else if let Some(s) = s.strip_prefix("interval") {
