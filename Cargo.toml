@@ -77,7 +77,6 @@ tracing-subscriber = { version = "0.3", features = [
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_tokio"] }
-glob = "0.3"
 tempfile = "3"
 test-case = "3"
 

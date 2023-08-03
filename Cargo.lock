@@ -2709,7 +2709,6 @@ dependencies = [
  "erased-serde",
  "futures",
  "futures-async-stream",
- "glob",
  "humantime",
  "indicatif",
  "indoc 2.0.3",

@@ -1,5 +1,7 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::path::PathBuf;
+
 use criterion::*;
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::Database;
@@ -30,10 +32,22 @@ fn bench_tpch(c: &mut Criterion) {
         }
         db
     });
-    for path in glob::glob("tests/sql/tpch/q*.sql").unwrap() {
-        let path = path.unwrap();
-        let name = path.file_stem().unwrap().to_str().unwrap();
-        let query_sql = std::fs::read_to_string(&path).unwrap();
-        c.bench_function(name, |b| b.to_async(&rt).iter(|| db.run(&query_sql)));
+    for num in 1..=22 {
+        let name = format!("explain-q{num}");
+        let path = PathBuf::from(format!("tests/sql/tpch/q{num}.sql"));
+        if !path.exists() {
+            continue;
+        }
+        let sql = format!("explain {}", std::fs::read_to_string(&path).unwrap());
+        c.bench_function(&name, |b| b.to_async(&rt).iter(|| db.run(&sql)));
+    }
+    for num in 1..=22 {
+        let name = format!("q{num}");
+        let path = PathBuf::from(format!("tests/sql/tpch/q{num}.sql"));
+        if !path.exists() {
+            continue;
+        }
+        let sql = std::fs::read_to_string(&path).unwrap();
+        c.bench_function(&name, |b| b.to_async(&rt).iter(|| db.run(&sql)));
     }
 }
