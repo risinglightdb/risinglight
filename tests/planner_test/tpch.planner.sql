@@ -2655,13 +2655,13 @@ order by
 limit 100;
 
 /*
-Limit { limit: 100, offset: 0, cost: 15781590000000000, rows: 10 }
+Limit { limit: 100, offset: 0, cost: 4591978000000, rows: 10 }
 └── Projection
     ├── exprs:
     │   ┌── s_name
     │   └── ref
     │       └── rowcount
-    ├── cost: 15781590000000000
+    ├── cost: 4591978000000
     ├── rows: 10
     └── Order
         ├── by:
@@ -2669,100 +2669,98 @@ Limit { limit: 100, offset: 0, cost: 15781590000000000, rows: 10 }
         │   │   └── ref
         │   │       └── rowcount
         │   └── s_name
-        ├── cost: 15781590000000000
+        ├── cost: 4591978000000
         ├── rows: 10
-        └── HashAgg { keys: [ s_name ], aggs: [ rowcount ], cost: 15781590000000000, rows: 10 }
-            └── Projection { exprs: [ s_name ], cost: 15781590000000000, rows: 58593750 }
+        └── HashAgg { keys: [ s_name ], aggs: [ rowcount ], cost: 4591978000000, rows: 10 }
+            └── Projection { exprs: [ s_name ], cost: 4591978000000, rows: 187537.97 }
                 └── Join
                     ├── type: semi
                     ├── on:and
                     │   ├── lhs: = { lhs: l_orderkey(1), rhs: l_orderkey }
                     │   └── rhs: <> { lhs: l_suppkey(1), rhs: l_suppkey }
-                    ├── cost: 15781590000000000
-                    ├── rows: 58593750
-                    ├── Projection
-                    │   ├── exprs: [ s_name, l_orderkey, l_suppkey ]
-                    │   ├── cost: 15303368000000000
-                    │   ├── rows: 234375000
-                    │   └── Filter
-                    │       ├── cond:and
-                    │       │   ├── lhs:and
-                    │       │   │   ├── lhs:and
-                    │       │   │   │   ├── lhs: = { lhs: s_suppkey, rhs: l_suppkey }
-                    │       │   │   │   └── rhs: = { lhs: o_orderkey, rhs: l_orderkey }
-                    │       │   │   └── rhs: = { lhs: o_orderstatus, rhs: 'F' }
-                    │       │   └── rhs: > { lhs: l_receiptdate, rhs: l_commitdate }
-                    │       ├── cost: 15303368000000000
-                    │       ├── rows: 234375000
-                    │       └── Join
-                    │           ├── type: anti
-                    │           ├── on:and
-                    │           │   ├── lhs: = { lhs: l_orderkey(2), rhs: l_orderkey }
-                    │           │   └── rhs: <> { lhs: l_suppkey(2), rhs: l_suppkey }
-                    │           ├── cost: 15303363000000000
-                    │           ├── rows: 3750000000
-                    │           ├── Projection
-                    │           │   ├── exprs:
-                    │           │   │   ┌── s_suppkey
-                    │           │   │   ├── s_name
-                    │           │   │   ├── l_orderkey
-                    │           │   │   ├── l_suppkey
-                    │           │   │   ├── l_commitdate
-                    │           │   │   ├── l_receiptdate
-                    │           │   │   ├── o_orderkey
-                    │           │   │   └── o_orderstatus
-                    │           │   ├── cost: 232504840000
-                    │           │   ├── rows: 15000000000
-                    │           │   └── HashJoin
-                    │           │       ├── type: inner
-                    │           │       ├── on: = { lhs: [ n_nationkey ], rhs: [ s_nationkey ] }
-                    │           │       ├── cost: 231154840000
-                    │           │       ├── rows: 15000000000
-                    │           │       ├── Join { type: inner, cost: 406582370, rows: 75015180 }
-                    │           │       │   ├── Projection { exprs: [ n_nationkey ], cost: 80.5, rows: 12.5 }
-                    │           │       │   │   └── Filter
-                    │           │       │   │       ├── cond: = { lhs: n_name, rhs: 'SAUDI ARABIA' }
-                    │           │       │   │       ├── cost: 80.25
-                    │           │       │   │       ├── rows: 12.5
-                    │           │       │   │       └── Scan
-                    │           │       │   │           ├── table: nation
-                    │           │       │   │           ├── list: [ n_nationkey, n_name ]
-                    │           │       │   │           ├── filter: null
-                    │           │       │   │           ├── cost: 50
-                    │           │       │   │           └── rows: 25
-                    │           │       │   └── Scan
-                    │           │       │       ├── table: lineitem
-                    │           │       │       ├── list: [ l_orderkey, l_suppkey, l_commitdate, l_receiptdate ]
-                    │           │       │       ├── filter: null
-                    │           │       │       ├── cost: 24004860
-                    │           │       │       └── rows: 6001215
-                    │           │       └── Join { type: inner, cost: 76503030000, rows: 15000000000 }
-                    │           │           ├── Scan
-                    │           │           │   ├── table: orders
-                    │           │           │   ├── list: [ o_orderkey, o_orderstatus ]
-                    │           │           │   ├── filter: null
-                    │           │           │   ├── cost: 3000000
-                    │           │           │   └── rows: 1500000
-                    │           │           └── Scan
-                    │           │               ├── table: supplier
-                    │           │               ├── list: [ s_suppkey, s_name, s_nationkey ]
-                    │           │               ├── filter: null
-                    │           │               ├── cost: 30000
-                    │           │               └── rows: 10000
-                    │           └── Projection
-                    │               ├── exprs: [ l_orderkey(2), l_suppkey(2) ]
-                    │               ├── cost: 36817456
-                    │               ├── rows: 3000607.5
-                    │               └── Filter
-                    │                   ├── cond: > { lhs: l_receiptdate(2), rhs: l_commitdate(2) }
-                    │                   ├── cost: 36727436
-                    │                   ├── rows: 3000607.5
-                    │                   └── Scan
-                    │                       ├── table: lineitem
-                    │                       ├── list: [ l_orderkey(2), l_suppkey(2), l_commitdate(2), l_receiptdate(2) ]
-                    │                       ├── filter: null
-                    │                       ├── cost: 24004860
-                    │                       └── rows: 6001215
+                    ├── cost: 4591978000000
+                    ├── rows: 187537.97
+                    ├── Join
+                    │   ├── type: anti
+                    │   ├── on:and
+                    │   │   ├── lhs: = { lhs: l_orderkey(2), rhs: l_orderkey }
+                    │   │   └── rhs: <> { lhs: l_suppkey(2), rhs: l_suppkey }
+                    │   ├── cost: 3061345700000
+                    │   ├── rows: 750151.9
+                    │   ├── Projection { exprs: [ s_name, l_orderkey, l_suppkey ], cost: 67230584, rows: 3000607.5 }
+                    │   │   └── HashJoin
+                    │   │       ├── type: inner
+                    │   │       ├── on: = { lhs: [ o_orderkey ], rhs: [ l_orderkey ] }
+                    │   │       ├── cost: 67110560
+                    │   │       ├── rows: 3000607.5
+                    │   │       ├── Projection { exprs: [ o_orderkey ], cost: 4830000, rows: 750000 }
+                    │   │       │   └── Filter
+                    │   │       │       ├── cond: = { lhs: o_orderstatus, rhs: 'F' }
+                    │   │       │       ├── cost: 4815000
+                    │   │       │       ├── rows: 750000
+                    │   │       │       └── Scan
+                    │   │       │           ├── table: orders
+                    │   │       │           ├── list: [ o_orderkey, o_orderstatus ]
+                    │   │       │           ├── filter: null
+                    │   │       │           ├── cost: 3000000
+                    │   │       │           └── rows: 1500000
+                    │   │       └── Projection
+                    │   │           ├── exprs: [ s_name, l_orderkey, l_suppkey ]
+                    │   │           ├── cost: 49471124
+                    │   │           ├── rows: 3000607.5
+                    │   │           └── HashJoin
+                    │   │               ├── type: inner
+                    │   │               ├── on: = { lhs: [ s_suppkey ], rhs: [ l_suppkey ] }
+                    │   │               ├── cost: 49351100
+                    │   │               ├── rows: 3000607.5
+                    │   │               ├── Projection { exprs: [ s_suppkey, s_name ], cost: 70956.7, rows: 10000 }
+                    │   │               │   └── HashJoin
+                    │   │               │       ├── type: inner
+                    │   │               │       ├── on: = { lhs: [ n_nationkey ], rhs: [ s_nationkey ] }
+                    │   │               │       ├── cost: 70656.7
+                    │   │               │       ├── rows: 10000
+                    │   │               │       ├── Projection { exprs: [ n_nationkey ], cost: 80.5, rows: 12.5 }
+                    │   │               │       │   └── Filter
+                    │   │               │       │       ├── cond: = { lhs: n_name, rhs: 'SAUDI ARABIA' }
+                    │   │               │       │       ├── cost: 80.25
+                    │   │               │       │       ├── rows: 12.5
+                    │   │               │       │       └── Scan
+                    │   │               │       │           ├── table: nation
+                    │   │               │       │           ├── list: [ n_nationkey, n_name ]
+                    │   │               │       │           ├── filter: null
+                    │   │               │       │           ├── cost: 50
+                    │   │               │       │           └── rows: 25
+                    │   │               │       └── Scan
+                    │   │               │           ├── table: supplier
+                    │   │               │           ├── list: [ s_suppkey, s_name, s_nationkey ]
+                    │   │               │           ├── filter: null
+                    │   │               │           ├── cost: 30000
+                    │   │               │           └── rows: 10000
+                    │   │               └── Projection
+                    │   │                   ├── exprs: [ l_orderkey, l_suppkey ]
+                    │   │                   ├── cost: 36817456
+                    │   │                   ├── rows: 3000607.5
+                    │   │                   └── Filter
+                    │   │                       ├── cond: > { lhs: l_receiptdate, rhs: l_commitdate }
+                    │   │                       ├── cost: 36727436
+                    │   │                       ├── rows: 3000607.5
+                    │   │                       └── Scan
+                    │   │                           ├── table: lineitem
+                    │   │                           ├── list: [ l_orderkey, l_suppkey, l_commitdate, l_receiptdate ]
+                    │   │                           ├── filter: null
+                    │   │                           ├── cost: 24004860
+                    │   │                           └── rows: 6001215
+                    │   └── Projection { exprs: [ l_orderkey(2), l_suppkey(2) ], cost: 36817456, rows: 3000607.5 }
+                    │       └── Filter
+                    │           ├── cond: > { lhs: l_receiptdate(2), rhs: l_commitdate(2) }
+                    │           ├── cost: 36727436
+                    │           ├── rows: 3000607.5
+                    │           └── Scan
+                    │               ├── table: lineitem
+                    │               ├── list: [ l_orderkey(2), l_suppkey(2), l_commitdate(2), l_receiptdate(2) ]
+                    │               ├── filter: null
+                    │               ├── cost: 24004860
+                    │               └── rows: 6001215
                     └── Scan
                         ├── table: lineitem
                         ├── list: [ l_orderkey(1), l_suppkey(1) ]

@@ -77,7 +77,12 @@ pub fn predicate_pushdown_rules() -> Vec<Rewrite> { vec![
         "(filter ?cond (join semi ?on ?left ?right))" =>
         "(join semi (and ?on ?cond) ?left ?right)"
     ),
-    rw!("pushdown-filter-left-outer-join-left";
+    rw!("pushdown-filter-anti-join";
+        "(filter ?cond (join anti ?on ?left ?right))" =>
+        "(join anti ?on (filter ?cond ?left) ?right)"
+        if not_depend_on("?cond", "?right")
+    ),
+    rw!("pushdown-filter-left-outer-join";
         "(filter ?cond (join left_outer ?on ?left ?right))" =>
         "(join left_outer ?on (filter ?cond ?left) ?right)"
         if not_depend_on("?cond", "?right")
@@ -573,6 +578,7 @@ mod tests {
         let mut rules = vec![];
         rules.append(&mut expr::rules());
         rules.append(&mut plan::always_better_rules());
+        rules.append(&mut plan::predicate_pushdown_rules());
         rules.append(&mut plan::join_reorder_rules());
         rules.append(&mut plan::hash_join_rules());
         rules
