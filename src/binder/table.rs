@@ -266,7 +266,7 @@ mod tests {
         let catalog = Arc::new(RootCatalog::new());
         let col_catalog = ColumnCatalog::new(0, ColumnDesc::new("a", DataType::Int32, false));
         catalog
-            .add_table(1, "t".into(), vec![col_catalog], false, vec![])
+            .add_table(1, "t".into(), vec![col_catalog], vec![])
             .unwrap();
 
         let stmts = parse("select x.b from (select a as b from t) as x").unwrap();

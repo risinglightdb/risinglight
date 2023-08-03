@@ -17,6 +17,7 @@ use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
 pub mod copy;
 mod create_function;
 mod create_table;
+mod create_view;
 mod delete;
 mod drop;
 mod expr;
@@ -274,6 +275,12 @@ impl Binder {
                 constraints,
                 ..
             } => self.bind_create_table(name, &columns, &constraints),
+            Statement::CreateView {
+                name,
+                columns,
+                query,
+                ..
+            } => self.bind_create_view(name, columns, *query),
             Statement::CreateFunction {
                 name,
                 args,

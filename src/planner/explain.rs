@@ -338,6 +338,11 @@ impl<'a> Explain<'a> {
                 let fields = t.pretty_table().with(cost, rows);
                 Pretty::childless_record("CreateTable", fields)
             }
+            CreateView([table, query]) => Pretty::simple_record(
+                "CreateView",
+                vec![("table", self.expr(table).pretty())].with(cost, rows),
+                vec![self.expr(query).pretty()],
+            ),
             CreateFunction(f) => {
                 let v = f.pretty_function();
                 Pretty::childless_record("CreateFunction", v)
