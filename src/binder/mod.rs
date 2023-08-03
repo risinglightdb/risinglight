@@ -15,6 +15,7 @@ use crate::types::{DataTypeKind, DataValue};
 
 pub mod copy;
 mod create_table;
+mod create_view;
 mod delete;
 mod drop;
 mod expr;
@@ -139,6 +140,12 @@ impl Binder {
                 constraints,
                 ..
             } => self.bind_create_table(name, &columns, &constraints),
+            Statement::CreateView {
+                name,
+                columns,
+                query,
+                ..
+            } => self.bind_create_view(name, columns, *query),
             Statement::Drop {
                 object_type,
                 if_exists,

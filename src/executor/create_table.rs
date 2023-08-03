@@ -8,7 +8,7 @@ use crate::storage::Storage;
 
 /// The executor of `create table` statement.
 pub struct CreateTableExecutor<S: Storage> {
-    pub plan: Box<CreateTable>,
+    pub table: Box<CreateTable>,
     pub storage: Arc<S>,
 }
 
@@ -17,14 +17,13 @@ impl<S: Storage> CreateTableExecutor<S> {
     pub async fn execute(self) {
         self.storage
             .create_table(
-                self.plan.schema_id,
-                &self.plan.table_name,
-                &self.plan.columns,
-                &self.plan.ordered_pk_ids,
+                self.table.schema_id,
+                &self.table.table_name,
+                &self.table.columns,
+                &self.table.ordered_pk_ids,
             )
             .await?;
 
-        let chunk = DataChunk::single(1);
-        yield chunk
+        yield DataChunk::single(1);
     }
 }

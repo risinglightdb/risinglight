@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use super::*;
+use crate::planner::RecExpr;
 
 /// The root of all catalogs.
 pub struct RootCatalog {
@@ -76,12 +77,23 @@ impl RootCatalog {
         schema_id: SchemaId,
         name: String,
         columns: Vec<ColumnCatalog>,
-        is_materialized_view: bool,
         ordered_pk_ids: Vec<ColumnId>,
     ) -> Result<TableId, CatalogError> {
         let mut inner = self.inner.lock().unwrap();
         let schema = inner.schemas.get_mut(&schema_id).unwrap();
-        schema.add_table(name, columns, is_materialized_view, ordered_pk_ids)
+        schema.add_table(name, columns, ordered_pk_ids)
+    }
+
+    pub fn add_view(
+        &self,
+        schema_id: SchemaId,
+        name: String,
+        columns: Vec<ColumnCatalog>,
+        query: RecExpr,
+    ) -> Result<TableId, CatalogError> {
+        let mut inner = self.inner.lock().unwrap();
+        let schema = inner.schemas.get_mut(&schema_id).unwrap();
+        schema.add_view(name, columns, query)
     }
 
     pub fn drop_table(&self, table_ref_id: TableRefId) {
@@ -128,7 +140,6 @@ impl Inner {
                         .not_null()
                         .to_column("github_id".into()),
                 )],
-                false,
                 vec![],
             )
             .unwrap();

@@ -122,6 +122,7 @@ define_language! {
                                                     // output = child || exprs
         CreateTable(Box<CreateTable>),
         Drop(BoundDrop),
+        "create_view" = CreateView([Id; 2]),    // (create_view create_table child)
         "insert" = Insert([Id; 3]),             // (insert table [column..] child)
         "delete" = Delete([Id; 2]),             // (delete table child)
         "copy_from" = CopyFrom([Id; 2]),        // (copy_from dest types)
@@ -175,6 +176,11 @@ impl Expr {
     pub fn as_type(&self) -> &DataTypeKind {
         let Self::Type(t) = self else { panic!("not a type: {self}") };
         t
+    }
+
+    pub fn as_create_table(&self) -> Box<CreateTable> {
+        let Self::CreateTable(v) = self else { panic!("not a create table: {self}") };
+        v.clone()
     }
 
     pub fn as_ext_source(&self) -> ExtSource {

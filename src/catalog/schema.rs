@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::*;
+use crate::planner::RecExpr;
 
 /// The catalog of a schema.
 #[derive(Clone)]
@@ -30,7 +31,6 @@ impl SchemaCatalog {
         &mut self,
         name: String,
         columns: Vec<ColumnCatalog>,
-        is_materialized_view: bool,
         ordered_pk_ids: Vec<ColumnId>,
     ) -> Result<TableId, CatalogError> {
         if self.table_idxs.contains_key(&name) {
@@ -42,8 +42,29 @@ impl SchemaCatalog {
             table_id,
             name.clone(),
             columns,
-            is_materialized_view,
             ordered_pk_ids,
+        ));
+        self.table_idxs.insert(name, table_id);
+        self.tables.insert(table_id, table_catalog);
+        Ok(table_id)
+    }
+
+    pub(super) fn add_view(
+        &mut self,
+        name: String,
+        columns: Vec<ColumnCatalog>,
+        query: RecExpr,
+    ) -> Result<TableId, CatalogError> {
+        if self.table_idxs.contains_key(&name) {
+            return Err(CatalogError::Duplicated("view", name));
+        }
+        let table_id = self.next_table_id;
+        self.next_table_id += 1;
+        let table_catalog = Arc::new(TableCatalog::new_view(
+            table_id,
+            name.clone(),
+            columns,
+            query,
         ));
         self.table_idxs.insert(name, table_id);
         self.tables.insert(table_id, table_catalog);

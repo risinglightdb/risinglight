@@ -205,7 +205,6 @@ impl SecondaryStorage {
                 schema_id,
                 table_name.clone(),
                 column_descs.to_vec(),
-                false,
                 ordered_pk_ids,
             )
             .map_err(|_| TracedStorageError::duplicated("table", table_name))?;

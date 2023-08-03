@@ -22,7 +22,8 @@ use itertools::Itertools;
 // use minitrace::prelude::*;
 use self::copy_from_file::*;
 use self::copy_to_file::*;
-use self::create::*;
+use self::create_table::*;
+use self::create_view::*;
 use self::delete::*;
 use self::drop::*;
 use self::evaluator::*;
@@ -46,13 +47,15 @@ use self::top_n::TopNExecutor;
 use self::values::*;
 use self::window::*;
 use crate::array::DataChunk;
+use crate::catalog::CatalogError;
 use crate::planner::{Expr, ExprAnalysis, Optimizer, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, TracedStorageError};
 use crate::types::{ColumnIndex, ConvertError, DataType};
 
 mod copy_from_file;
 mod copy_to_file;
-mod create;
+mod create_table;
+mod create_view;
 mod delete;
 mod drop;
 mod evaluator;
@@ -82,25 +85,18 @@ pub enum ExecutorError {
     Storage(
         #[from]
         #[backtrace]
-        #[source]
         TracedStorageError,
     ),
+    #[error("catalog error: {0}")]
+    Catalog(#[from] CatalogError),
     #[error("conversion error: {0}")]
     Convert(#[from] ConvertError),
     #[error("tuple length mismatch: expected {expected} but got {actual}")]
     LengthMismatch { expected: usize, actual: usize },
     #[error("io error")]
-    Io(
-        #[from]
-        #[source]
-        std::io::Error,
-    ),
+    Io(#[from] std::io::Error),
     #[error("csv error")]
-    Csv(
-        #[from]
-        #[source]
-        csv::Error,
-    ),
+    Csv(#[from] csv::Error),
     #[error("value can not be null")]
     NotNullable,
     #[error("exceed char/varchar length limit: item length {length} > char/varchar width {width}")]
@@ -324,9 +320,16 @@ impl<S: Storage> Builder<S> {
             }
             .execute(self.build_id(child)),
 
-            CreateTable(plan) => CreateTableExecutor {
-                plan,
+            CreateTable(table) => CreateTableExecutor {
+                table,
                 storage: self.storage.clone(),
+            }
+            .execute(),
+
+            CreateView([table, query]) => CreateViewExecutor {
+                table: self.node(table).as_create_table(),
+                query: self.recexpr(query),
+                catalog: self.optimizer.catalog().clone(),
             }
             .execute(),
 
