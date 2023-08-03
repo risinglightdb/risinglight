@@ -43,13 +43,12 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             Limit([_, _, c]) => build() + costs(c),
             TopN([_, _, _, c]) => (rows(id) + 1.0).log2() * rows(c) + build() + costs(c),
             Join([_, on, l, r]) => costs(on) * rows(l) * rows(r) + build() + costs(l) + costs(r),
-            HashJoin([_, lkey, rkey, l, r]) => {
-                hash(rows(l)) * (rows(l) + rows(r))
-                    + costs(lkey) * rows(l)
-                    + costs(rkey) * rows(r)
-                    + build()
-                    + costs(l)
-                    + costs(r)
+            HashJoin([t, lkey, rkey, l, r]) => {
+                let hash = match self.egraph[*t].nodes[0] {
+                    Semi | Anti => hash(rows(r)) * (rows(l) + rows(r)),
+                    _ => hash(rows(l)) * (rows(l) + rows(r)),
+                };
+                hash + costs(lkey) * rows(l) + costs(rkey) * rows(r) + build() + costs(l) + costs(r)
             }
             MergeJoin([_, lkey, rkey, l, r]) => {
                 build() + costs(lkey) * rows(l) + costs(rkey) * rows(r) + costs(l) + costs(r)
