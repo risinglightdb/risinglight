@@ -54,7 +54,7 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             MergeJoin([_, lkey, rkey, l, r]) => {
                 build() + costs(lkey) * rows(l) + costs(rkey) * rows(r) + costs(l) + costs(r)
             }
-            Apply([_, l, r]) => build() + rows(l) * costs(r),
+            Apply([_, l, r]) => build() + costs(l) + rows(l) * costs(r),
             Insert([_, _, c]) | CopyTo([_, c]) => rows(c) * cols(c) + costs(c),
             Empty(_) => 0.0,
             Max1Row(c) => costs(c),
