@@ -76,6 +76,7 @@ define_language! {
         "sum" = Sum(Id),
         "avg" = Avg(Id),
         "count" = Count(Id),
+        "count-distinct" = CountDistinct(Id),
         "rowcount" = RowCount,
         "first" = First(Id),
         "last" = Last(Id),
@@ -218,7 +219,15 @@ impl Expr {
         use Expr::*;
         matches!(
             self,
-            RowCount | Max(_) | Min(_) | Sum(_) | Avg(_) | Count(_) | First(_) | Last(_)
+            RowCount
+                | Max(_)
+                | Min(_)
+                | Sum(_)
+                | Avg(_)
+                | Count(_)
+                | CountDistinct(_)
+                | First(_)
+                | Last(_)
         )
     }
 

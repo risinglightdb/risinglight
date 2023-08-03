@@ -17,7 +17,7 @@ pub struct HashAggExecutor {
 }
 
 pub type GroupKeys = SmallVec<[DataValue; 4]>;
-pub type AggValue = SmallVec<[DataValue; 16]>;
+pub type AggValue = SmallVec<[AggState; 4]>;
 
 impl HashAggExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
@@ -42,8 +42,9 @@ impl HashAggExecutor {
         let mut batches = IterChunks::chunks(states.into_iter(), PROCESSING_WINDOW_SIZE);
         while let Some(batch) = batches.next() {
             let mut builder = DataChunkBuilder::new(&self.types, PROCESSING_WINDOW_SIZE);
-            for (key, aggs) in batch {
-                if let Some(chunk) = builder.push_row(key.into_iter().chain(aggs.into_iter())) {
+            for (key, states) in batch {
+                let agg_results = Evaluator::new(&self.aggs).agg_list_take_result(states);
+                if let Some(chunk) = builder.push_row(key.into_iter().chain(agg_results)) {
                     yield chunk;
                 }
             }

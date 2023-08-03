@@ -129,7 +129,7 @@ pub fn analyze_type(
         Avg(a) => check(enode, x(a)?, |a| a.is_number()),
 
         // agg
-        RowCount | RowNumber | Count(_) => Ok(Kind::Int32.not_null()),
+        RowCount | RowNumber | Count(_) | CountDistinct(_) => Ok(Kind::Int32.not_null()),
         First(a) | Last(a) => x(a),
         Over([f, _, _]) => x(f),
 

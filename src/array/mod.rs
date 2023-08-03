@@ -573,6 +573,11 @@ macro_rules! impl_array {
                 }
             }
 
+            /// Get iterator of current array.
+            pub fn iter(&self) -> impl DoubleEndedIterator<Item = DataValue> + '_ {
+                (0..self.len()).map(|i| self.get(i))
+            }
+
             /// Number of items of array.
             pub fn len(&self) -> usize {
                 match self {

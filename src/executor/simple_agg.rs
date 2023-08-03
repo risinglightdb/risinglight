@@ -22,6 +22,7 @@ impl SimpleAggExecutor {
             Evaluator::new(&self.aggs).eval_agg_list(&mut states, &chunk)?;
         }
         let mut builder = DataChunkBuilder::new(&self.types, 1);
-        yield builder.push_row(states).unwrap();
+        let results = Evaluator::new(&self.aggs).agg_list_take_result(states);
+        yield builder.push_row(results).unwrap();
     }
 }

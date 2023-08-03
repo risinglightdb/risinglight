@@ -194,7 +194,8 @@ impl<'a> Explain<'a> {
 
             // aggregations
             RowCount | RowNumber => enode.to_string().into(),
-            Max(a) | Min(a) | Sum(a) | Avg(a) | Count(a) | First(a) | Last(a) => {
+            Max(a) | Min(a) | Sum(a) | Avg(a) | Count(a) | First(a) | Last(a)
+            | CountDistinct(a) => {
                 let name = enode.to_string();
                 let v = vec![self.expr(a).pretty()];
                 Pretty::fieldless_record(name, v)
