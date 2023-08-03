@@ -122,7 +122,17 @@ impl Binder {
                 let condition = self.egraph.add(Node::true_());
                 Ok((ty, condition))
             }
-            _ => todo!("Support more join types"),
+            LeftSemi(constraint) => {
+                let ty = self.egraph.add(Node::Semi);
+                let condition = self.bind_join_constraint(constraint)?;
+                Ok((ty, condition))
+            }
+            LeftAnti(constraint) => {
+                let ty = self.egraph.add(Node::Anti);
+                let condition = self.bind_join_constraint(constraint)?;
+                Ok((ty, condition))
+            }
+            op => todo!("unsupported join operator: {op:?}"),
         }
     }
 

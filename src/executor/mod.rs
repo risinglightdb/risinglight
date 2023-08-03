@@ -259,13 +259,22 @@ impl<S: Storage> Builder<S> {
             }
             .execute(self.build_id(child)),
 
-            Join([op, on, left, right]) => NestedLoopJoinExecutor {
-                op: self.node(op).clone(),
-                condition: self.resolve_column_index2(on, left, right),
-                left_types: self.plan_types(left).to_vec(),
-                right_types: self.plan_types(right).to_vec(),
-            }
-            .execute(self.build_id(left), self.build_id(right)),
+            Join([op, on, left, right]) => match self.node(op) {
+                Inner | LeftOuter | RightOuter | FullOuter => NestedLoopJoinExecutor {
+                    op: self.node(op).clone(),
+                    condition: self.resolve_column_index2(on, left, right),
+                    left_types: self.plan_types(left).to_vec(),
+                    right_types: self.plan_types(right).to_vec(),
+                }
+                .execute(self.build_id(left), self.build_id(right)),
+                op @ Semi | op @ Anti => NestedLoopSemiJoinExecutor {
+                    anti: matches!(op, Anti),
+                    condition: self.resolve_column_index2(on, left, right),
+                    left_types: self.plan_types(left).to_vec(),
+                }
+                .execute(self.build_id(left), self.build_id(right)),
+                t => panic!("invalid join type: {t:?}"),
+            },
 
             HashJoin(args @ [op, ..]) => match self.node(op) {
                 Inner => self.build_hashjoin::<{ JoinType::Inner }>(args),
