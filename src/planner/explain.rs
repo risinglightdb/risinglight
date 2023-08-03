@@ -170,6 +170,14 @@ impl<'a> Explain<'a> {
                     ("to", self.expr(c).pretty()),
                 ],
             ),
+            Substring([str, start, len]) => Pretty::childless_record(
+                "Substring",
+                vec![
+                    ("str", self.expr(str).pretty()),
+                    ("start", self.expr(start).pretty()),
+                    ("length", self.expr(len).pretty()),
+                ],
+            ),
 
             // aggregations
             RowCount | RowNumber => enode.to_string().into(),

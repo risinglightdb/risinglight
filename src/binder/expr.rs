@@ -41,6 +41,11 @@ impl Binder {
             } => self.bind_between(*expr, negated, *low, *high),
             Expr::Interval(interval) => self.bind_interval(interval),
             Expr::Extract { field, expr } => self.bind_extract(field, *expr),
+            Expr::Substring {
+                expr,
+                substring_from,
+                substring_for,
+            } => self.bind_substring(*expr, substring_from, substring_for),
             _ => todo!("bind expression: {:?}", expr),
         }?;
         self.check_type(id)?;
@@ -192,6 +197,24 @@ impl Binder {
         let expr = self.bind_expr(expr)?;
         let field = self.egraph.add(Node::Field(field.into()));
         Ok(self.egraph.add(Node::Extract([field, expr])))
+    }
+
+    fn bind_substring(
+        &mut self,
+        expr: Expr,
+        from: Option<Box<Expr>>,
+        for_: Option<Box<Expr>>,
+    ) -> Result {
+        let expr = self.bind_expr(expr)?;
+        let from = match from {
+            Some(expr) => self.bind_expr(*expr)?,
+            None => self.egraph.add(Node::Constant(DataValue::Int32(1))),
+        };
+        let for_ = match for_ {
+            Some(expr) => self.bind_expr(*expr)?,
+            None => self.egraph.add(Node::Constant(DataValue::Int32(i32::MAX))),
+        };
+        Ok(self.egraph.add(Node::Substring([expr, from, for_])))
     }
 
     fn bind_function(&mut self, func: Function) -> Result {
