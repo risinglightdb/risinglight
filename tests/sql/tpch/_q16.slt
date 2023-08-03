@@ -1,0 +1,66 @@
+query TTII
+select
+    p_brand,
+    p_type,
+    p_size,
+    count(distinct ps_suppkey) as supplier_cnt
+from
+    partsupp,
+    part
+where
+    p_partkey = ps_partkey
+    and p_brand <> 'Brand#45'
+    and p_type not like 'MEDIUM POLISHED%'
+    and p_size in (49, 14, 23, 45, 19, 3, 36, 9)
+    and ps_suppkey not in (
+        select
+            s_suppkey
+        from
+            supplier
+        where
+            s_comment like '%Customer%Complaints%'
+    )
+group by
+    p_brand,
+    p_type,
+    p_size
+order by
+    supplier_cnt desc,
+    p_brand,
+    p_type,
+    p_size;
+----
+Brand#11        PROMO ANODIZED TIN      45      4
+Brand#11        SMALL PLATED COPPER     45      4
+Brand#11        STANDARD POLISHED TIN   45      4
+Brand#13        MEDIUM ANODIZED STEEL   36      4
+Brand#14        SMALL ANODIZED NICKEL   45      4
+Brand#15        LARGE ANODIZED BRASS    45      4
+Brand#21        LARGE BURNISHED COPPER  19      4
+Brand#23        ECONOMY BRUSHED COPPER  9       4
+Brand#25        MEDIUM PLATED BRASS     45      4
+Brand#31        ECONOMY PLATED STEEL    23      4
+Brand#31        PROMO POLISHED TIN      23      4
+Brand#32        MEDIUM BURNISHED BRASS  49      4
+Brand#33        LARGE BRUSHED TIN       36      4
+Brand#33        SMALL BURNISHED NICKEL  3       4
+Brand#34        LARGE PLATED BRASS      45      4
+Brand#34        MEDIUM BRUSHED COPPER   9       4
+Brand#34        SMALL PLATED BRASS      14      4
+Brand#35        STANDARD ANODIZED STEEL 23      4
+Brand#43        PROMO POLISHED BRASS    19      4
+Brand#43        SMALL BRUSHED NICKEL    9       4
+Brand#44        SMALL PLATED COPPER     19      4
+Brand#52        MEDIUM BURNISHED TIN    45      4
+Brand#52        SMALL BURNISHED NICKEL  14      4
+Brand#53        MEDIUM BRUSHED COPPER   3       4
+Brand#55        STANDARD ANODIZED BRASS 36      4
+Brand#55        STANDARD BRUSHED COPPER 3       4
+Brand#13        SMALL BRUSHED NICKEL    19      2
+Brand#25        SMALL BURNISHED COPPER  3       2
+Brand#43        MEDIUM ANODIZED BRASS   14      2
+Brand#53        STANDARD PLATED STEEL   45      2
+Brand#24        MEDIUM PLATED STEEL     19      1
+Brand#51        ECONOMY POLISHED STEEL  49      1
+Brand#53        LARGE BURNISHED NICKEL  23      1
+Brand#54        ECONOMY ANODIZED BRASS  9       1
