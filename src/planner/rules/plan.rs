@@ -73,6 +73,10 @@ pub fn predicate_pushdown_rules() -> Vec<Rewrite> { vec![
         "(filter ?cond (join inner ?on ?left ?right))" =>
         "(join inner (and ?on ?cond) ?left ?right)"
     ),
+    rw!("pushdown-filter-semi-join";
+        "(filter ?cond (join semi ?on ?left ?right))" =>
+        "(join semi (and ?on ?cond) ?left ?right)"
+    ),
     rw!("pushdown-filter-left-outer-join-left";
         "(filter ?cond (join left_outer ?on ?left ?right))" =>
         "(join left_outer ?on (filter ?cond ?left) ?right)"
