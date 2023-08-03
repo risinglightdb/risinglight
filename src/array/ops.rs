@@ -243,9 +243,20 @@ impl ArrayImpl {
             b.as_ref(),
             c.as_ref(),
             |a, b, c| {
+                let chars = a.chars().count() as i32;
+                let mut start = match *b {
+                    0.. => *b - 1,
+                    _ => chars + *b,
+                };
+                let mut end = start.saturating_add(*c);
+                if start > end {
+                    (start, end) = (end, start);
+                }
+                let skip = start.max(0);
+                let take = (end - skip).max(0);
                 a.chars()
-                    .skip(*b as usize - 1)
-                    .take(*c as usize)
+                    .skip(skip as usize)
+                    .take(take as usize)
                     .collect::<String>()
             },
         )))

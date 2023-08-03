@@ -71,64 +71,63 @@ h
 el
 
 # FIXME: support null inputs
-halt
 
-# test substrings with constant nulls in different places
-query T
-SELECT substring(NULL from off for length) FROM strings
-----
-NULL
-NULL
-NULL
-NULL
+# # test substrings with constant nulls in different places
+# query T
+# SELECT substring(NULL from off for length) FROM strings
+# ----
+# NULL
+# NULL
+# NULL
+# NULL
 
-query T
-SELECT substring('hello' from NULL for length) FROM strings
-----
-NULL
-NULL
-NULL
-NULL
+# query T
+# SELECT substring('hello' from NULL for length) FROM strings
+# ----
+# NULL
+# NULL
+# NULL
+# NULL
 
-query T
-SELECT substring('hello' from off for NULL) FROM strings
-----
-NULL
-NULL
-NULL
-NULL
+# query T
+# SELECT substring('hello' from off for NULL) FROM strings
+# ----
+# NULL
+# NULL
+# NULL
+# NULL
 
-query T
-SELECT substring(NULL from NULL for length) FROM strings
-----
-NULL
-NULL
-NULL
-NULL
+# query T
+# SELECT substring(NULL from NULL for length) FROM strings
+# ----
+# NULL
+# NULL
+# NULL
+# NULL
 
-query T
-SELECT substring('hello' from NULL for NULL) FROM strings
-----
-NULL
-NULL
-NULL
-NULL
+# query T
+# SELECT substring('hello' from NULL for NULL) FROM strings
+# ----
+# NULL
+# NULL
+# NULL
+# NULL
 
-query T
-SELECT substring(NULL from off for NULL) FROM strings
-----
-NULL
-NULL
-NULL
-NULL
+# query T
+# SELECT substring(NULL from off for NULL) FROM strings
+# ----
+# NULL
+# NULL
+# NULL
+# NULL
 
-query T
-SELECT substring(NULL from NULL for NULL) FROM strings
-----
-NULL
-NULL
-NULL
-NULL
+# query T
+# SELECT substring(NULL from NULL for NULL) FROM strings
+# ----
+# NULL
+# NULL
+# NULL
+# NULL
 
 # fixed slice
 query T
@@ -201,13 +200,14 @@ SELECT substring(s, 2147483647, 2147483647) FROM strings
 (empty)
 NULL
 
-query T
-SELECT substring(s, 2147483647, -2147483648) FROM strings
-----
-hello
-world
-b
-NULL
+# FIXME: -2147483648 should be INT32
+# query T
+# SELECT substring(s, 2147483647, -2147483648) FROM strings
+# ----
+# hello
+# world
+# b
+# NULL
 
 query T
 SELECT substring(s, -2147483647, 2147483647) FROM strings
@@ -217,19 +217,20 @@ world
 b
 NULL
 
-query T
-SELECT substring(s, -2147483648, -2147483648) FROM strings
-----
-(empty)
-(empty)
-(empty)
-NULL
+# FIXME: -2147483648 should be INT32
+# query T
+# SELECT substring(s, -2147483648, -2147483648) FROM strings
+# ----
+# (empty)
+# (empty)
+# (empty)
+# NULL
 
 # Issue #2553 - accept BIGINT arguments
-query I
-SELECT substring('abc', INSTR('abc', 'b'));
-----
-bc
+# query I
+# SELECT substring('abc', INSTR('abc', 'b'));
+# ----
+# bc
 
 # Issue #4978 - substring integer overflow
 query I
