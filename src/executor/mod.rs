@@ -31,7 +31,6 @@ use self::filter::*;
 use self::hash_agg::*;
 use self::hash_join::*;
 use self::insert::*;
-use self::internal::*;
 use self::limit::*;
 use self::merge_join::*;
 use self::nested_loop_join::*;
@@ -41,12 +40,14 @@ use self::order::*;
 use self::projection::*;
 use self::simple_agg::*;
 use self::sort_agg::*;
+use self::system_table_scan::*;
 use self::table_scan::*;
 use self::top_n::TopNExecutor;
 use self::values::*;
 use self::window::*;
 use crate::array::DataChunk;
 use crate::executor::create_function::CreateFunctionExecutor;
+use crate::catalog::{CatalogError, SYSTEM_SCHEMA_ID};
 use crate::planner::{Expr, ExprAnalysis, Optimizer, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, TracedStorageError};
 use crate::types::{ColumnIndex, ConvertError, DataType};
@@ -63,10 +64,10 @@ mod filter;
 mod hash_agg;
 mod hash_join;
 mod insert;
-mod internal;
 mod limit;
 mod nested_loop_join;
 mod order;
+mod system_table_scan;
 // mod perfect_hash_agg;
 mod merge_join;
 mod projection;
@@ -185,20 +186,29 @@ impl<S: Storage> Builder<S> {
     fn build_id(&self, id: Id) -> BoxedExecutor {
         use Expr::*;
         let stream = match self.node(id).clone() {
-            Scan([table, list, filter]) => TableScanExecutor {
-                table_id: self.node(table).as_table(),
-                columns: (self.node(list).as_list().iter())
+            Scan([table, list, filter]) => {
+                let table_id = self.node(table).as_table();
+                let columns = (self.node(list).as_list().iter())
                     .map(|id| self.node(*id).as_column())
-                    .collect(),
-                filter: {
-                    // analyze range for the filter
-                    let mut egraph = egg::EGraph::new(ExprAnalysis::default());
-                    let root = egraph.add_expr(&self.recexpr(filter));
-                    egraph[root].data.range.clone().map(|(_, r)| r)
-                },
-                storage: self.storage.clone(),
+                    .collect();
+
+                if table_id.schema_id == SYSTEM_SCHEMA_ID {
+                    SystemTableScan { table_id, columns }.execute()
+                } else {
+                    TableScanExecutor {
+                        table_id,
+                        columns,
+                        filter: {
+                            // analyze range for the filter
+                            let mut egraph = egg::EGraph::new(ExprAnalysis::default());
+                            let root = egraph.add_expr(&self.recexpr(filter));
+                            egraph[root].data.range.clone().map(|(_, r)| r)
+                        },
+                        storage: self.storage.clone(),
+                    }
+                    .execute()
+                }
             }
-            .execute(),
 
             Values(rows) => ValuesExecutor {
                 column_types: self.plan_types(id).to_vec(),
@@ -211,11 +221,6 @@ impl<S: Storage> Builder<S> {
                         })
                         .collect()
                 },
-            }
-            .execute(),
-
-            Internal([table, _]) => InternalTableExecutor {
-                table_id: self.node(table).as_table(),
             }
             .execute(),
 

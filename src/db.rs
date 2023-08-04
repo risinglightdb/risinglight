@@ -9,7 +9,7 @@ use crate::array::{
     ArrayBuilder, ArrayBuilderImpl, Chunk, DataChunk, I32ArrayBuilder, StringArrayBuilder,
 };
 use crate::binder::bind_header;
-use crate::catalog::{RootCatalogRef, TableRefId, INTERNAL_SCHEMA_NAME};
+use crate::catalog::{RootCatalogRef, TableRefId, SYSTEM_SCHEMA_NAME};
 use crate::parser::{parse, ParserError, Statement};
 use crate::planner::Statistics;
 use crate::storage::{
@@ -242,7 +242,7 @@ impl Database {
         };
         for schema in self.catalog.all_schemas().values() {
             // skip internal schema
-            if schema.name() == INTERNAL_SCHEMA_NAME {
+            if schema.name() == SYSTEM_SCHEMA_NAME {
                 continue;
             }
             for table in schema.all_tables().values() {

@@ -1,22 +1,25 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 use super::*;
 use crate::array::{ArrayImpl, StringArray};
-use crate::catalog::{TableRefId, CONTRIBUTORS_TABLE_ID};
-/// The executor of internal tables.
-pub struct InternalTableExecutor {
+use crate::catalog::{ColumnRefId, TableRefId, CONTRIBUTORS_TABLE_ID};
+
+/// Scan a system table.
+pub struct SystemTableScan {
     pub table_id: TableRefId,
+    pub columns: Vec<ColumnRefId>,
 }
 
-impl InternalTableExecutor {
+impl SystemTableScan {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         match self.table_id.table_id {
             CONTRIBUTORS_TABLE_ID => {
+                assert!(self.columns.len() == 1 && self.columns[0].column_id == 0);
                 yield contributors();
             }
             _ => {
                 panic!(
-                    "InternalTableExecutor::execute: unknown table ref id: {}",
+                    "SystemTableScan::execute: unknown table ref id: {}",
                     self.table_id
                 );
             }

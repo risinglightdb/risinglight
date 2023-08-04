@@ -3,7 +3,7 @@
 use std::vec::Vec;
 
 use super::*;
-use crate::catalog::{ColumnRefId, INTERNAL_SCHEMA_NAME};
+use crate::catalog::{ColumnRefId, SYSTEM_SCHEMA_NAME};
 
 impl Binder {
     /// Binds the FROM clause. Returns a nested [`Join`](Node::Join) plan of tables.
@@ -60,14 +60,10 @@ impl Binder {
     fn bind_table_factor(&mut self, table: TableFactor) -> Result {
         match table {
             TableFactor::Table { name, alias, .. } => {
-                let (table_id, is_internal) = self.bind_table_id(&name)?;
+                let (table_id, _) = self.bind_table_id(&name)?;
                 let cols = self.bind_table_def(&name, alias, false)?;
-                let id = if is_internal {
-                    self.egraph.add(Node::Internal([table_id, cols]))
-                } else {
-                    let null = self.egraph.add(Node::null());
-                    self.egraph.add(Node::Scan([table_id, cols, null]))
-                };
+                let null = self.egraph.add(Node::null());
+                let id = self.egraph.add(Node::Scan([table_id, cols, null]));
                 Ok(id)
             }
             TableFactor::Derived {
@@ -252,7 +248,7 @@ impl Binder {
             .get_table_id_by_name(schema_name, table_name)
             .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
         let id = self.egraph.add(Node::Table(table_ref_id));
-        Ok((id, schema_name == INTERNAL_SCHEMA_NAME))
+        Ok((id, schema_name == SYSTEM_SCHEMA_NAME))
     }
 }
 
