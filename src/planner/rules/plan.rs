@@ -19,23 +19,9 @@ pub fn always_better_rules() -> Vec<Rewrite> {
 #[rustfmt::skip]
 fn cancel_rules() -> Vec<Rewrite> { vec![
     rw!("limit-null";       "(limit null 0 ?child)"     => "?child"),
-    rw!("limit-0";          "(limit 0 ?offset ?child)"  => "(empty ?child)"),
     rw!("order-null";       "(order (list) ?child)"     => "?child"),
     rw!("filter-true";      "(filter true ?child)"      => "?child"),
-    rw!("filter-false";     "(filter false ?child)"     => "(empty ?child)"),
     rw!("window-null";      "(window (list) ?child)"    => "?child"),
-    rw!("inner-join-false"; "(join inner false ?l ?r)"  => "(empty (join inner true ?l ?r))"),
-
-    rw!("proj-on-empty";    "(proj ?exprs (empty ?c))"                  => "(empty ?c)"),
-    rw!("window-on-empty";  "(window ?exprs (empty ?c))"                => "(empty ?c)"),
-    rw!("hashagg-on-empty"; "(hashagg ?keys ?aggs (empty ?c))"          => "(empty ?c)"),
-    rw!("sortagg-on-empty"; "(sortagg ?keys ?aggs (empty ?c))"          => "(empty ?c)"),
-    rw!("filter-on-empty";  "(filter ?cond (empty ?c))"                 => "(empty ?c)"),
-    rw!("order-on-empty";   "(order ?keys (empty ?c))"                  => "(empty ?c)"),
-    rw!("limit-on-empty";   "(limit ?limit ?offset (empty ?c))"         => "(empty ?c)"),
-    rw!("topn-on-empty";    "(topn ?limit ?offset ?keys (empty ?c))"    => "(empty ?c)"),
-    rw!("inner-join-on-left-empty";  "(join inner ?on (empty ?l) ?r)"   => "(empty (join inner true ?l ?r))"),
-    rw!("inner-join-on-right-empty"; "(join inner ?on ?l (empty ?r))"   => "(empty (join inner true ?l ?r))"),
 ]}
 
 #[rustfmt::skip]

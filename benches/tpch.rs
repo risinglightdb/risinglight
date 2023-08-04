@@ -42,7 +42,7 @@ fn bench_tpch(c: &mut Criterion) {
         c.bench_function(&name, |b| b.to_async(&rt).iter(|| db.run(&sql)));
     }
     for num in 1..=22 {
-        let name = format!("q{num}");
+        let name = format!("run-q{num}");
         let path = PathBuf::from(format!("tests/sql/tpch/q{num}.sql"));
         if !path.exists() {
             continue;

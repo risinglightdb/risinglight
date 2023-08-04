@@ -46,9 +46,9 @@ impl Optimizer {
         self.optimize_stage(&mut expr, &mut cost, STAGE1_RULES.iter(), 2, 6);
         // 2. pushdown predicate and projection
         let rules = STAGE2_RULES.iter().chain(&extra_rules);
-        self.optimize_stage(&mut expr, &mut cost, rules, 4, 6);
+        self.optimize_stage(&mut expr, &mut cost, rules, 3, 6);
         // 3. join reorder and hashjoin
-        self.optimize_stage(&mut expr, &mut cost, STAGE3_RULES.iter(), 4, 8);
+        self.optimize_stage(&mut expr, &mut cost, STAGE3_RULES.iter(), 3, 8);
         expr
     }
 
