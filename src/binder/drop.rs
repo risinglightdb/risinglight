@@ -10,7 +10,7 @@ impl Binder {
         names: Vec<ObjectName>,
         cascade: bool,
     ) -> Result {
-        if !matches!(object_type, ObjectType::Table) {
+        if !matches!(object_type, ObjectType::Table | ObjectType::View) {
             return Err(BindError::Todo(format!("drop {object_type:?}")));
         }
         if cascade {
