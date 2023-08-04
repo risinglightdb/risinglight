@@ -172,10 +172,7 @@ fn pg_attribute(catalog: RootCatalogRef) -> DataChunk {
 }
 
 /// Returns `pg_stat` table.
-async fn pg_stat(
-    catalog: RootCatalogRef,
-    storage: &impl Storage,
-) -> Result<DataChunk, ExecutorError> {
+async fn pg_stat(catalog: RootCatalogRef, storage: &impl Storage) -> Result<DataChunk> {
     // let mut schema_id = I32ArrayBuilder::new();
     // let mut table_id = I32ArrayBuilder::new();
     // let mut column_id = I32ArrayBuilder::new();
