@@ -12,10 +12,11 @@
 //!
 //! [`try_stream`]: async_stream::try_stream
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use egg::{Id, Language};
-use futures::stream::{BoxStream, Stream, StreamExt};
+use futures::stream::{BoxStream, StreamExt};
 use futures_async_stream::try_stream;
 use itertools::Itertools;
 
@@ -49,7 +50,7 @@ use self::top_n::TopNExecutor;
 use self::values::*;
 use self::window::*;
 use crate::array::DataChunk;
-use crate::catalog::RootCatalog;
+use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
 use crate::planner::{Expr, ExprAnalysis, Optimizer, RecExpr, TypeSchemaAnalysis};
 use crate::storage::Storage;
 use crate::types::{ColumnIndex, DataType};
@@ -102,6 +103,9 @@ struct Builder<S: Storage> {
     optimizer: Optimizer,
     egraph: egg::EGraph<Expr, TypeSchemaAnalysis>,
     root: Id,
+    /// For scans on views, we prebuild their executors and store them here.
+    /// Multiple scans on the same view will share the same executor.
+    views: HashMap<TableRefId, StreamSubscriber>,
 }
 
 impl<S: Storage> Builder<S> {
@@ -111,11 +115,23 @@ impl<S: Storage> Builder<S> {
             catalog: optimizer.catalog().clone(),
         });
         let root = egraph.add_expr(plan);
+
+        // recursively build for all views
+        let mut views = HashMap::new();
+        for node in plan.as_ref() {
+            if let Expr::Table(tid) = node && let Some(query) = optimizer.catalog().get_table(tid).unwrap().query() {
+                let builder = Self::new(optimizer.clone(), storage.clone(), &query);
+                let subscriber = builder.build_subscriber();
+                views.insert(*tid, subscriber);
+            }
+        }
+
         Builder {
             storage,
             optimizer,
             egraph,
             root,
+            views,
         }
     }
 
@@ -150,6 +166,7 @@ impl<S: Storage> Builder<S> {
         self.resolve_column_index_on_schema(expr, &schema)
     }
 
+    /// Resolve the column index of `expr` in `schema`.
     fn resolve_column_index_on_schema(&self, expr: Id, schema: &[Id]) -> RecExpr {
         self.node(expr).build_recexpr(|id| {
             if let Some(idx) = schema.iter().position(|x| *x == id) {
@@ -162,22 +179,64 @@ impl<S: Storage> Builder<S> {
         })
     }
 
+    /// Returns the catalog.
+    fn catalog(&self) -> &RootCatalogRef {
+        self.optimizer.catalog()
+    }
+
+    /// Builds the executor.
     fn build(self) -> BoxedExecutor {
         self.build_id(self.root)
     }
 
+    /// Builds the executor and returns its subscriber.
+    fn build_subscriber(self) -> StreamSubscriber {
+        self.build_id_subscriber(self.root)
+    }
+
+    /// Builds the executor for the given id.
     fn build_id(&self, id: Id) -> BoxedExecutor {
+        self.build_id_subscriber(id).subscribe()
+    }
+
+    /// Builds the executor for the given id and returns its subscriber.
+    fn build_id_subscriber(&self, id: Id) -> StreamSubscriber {
         use Expr::*;
         let stream = match self.node(id).clone() {
             Scan([table, list, filter]) => {
                 let table_id = self.node(table).as_table();
                 let columns = (self.node(list).as_list().iter())
                     .map(|id| self.node(*id).as_column())
-                    .collect();
+                    .collect_vec();
+                // analyze range filter
+                let filter = {
+                    let mut egraph = egg::EGraph::new(ExprAnalysis::default());
+                    let root = egraph.add_expr(&self.recexpr(filter));
+                    egraph[root].data.range.clone().map(|(_, r)| r)
+                };
 
-                if table_id.schema_id == RootCatalog::SYSTEM_SCHEMA_ID {
+                if let Some(subscriber) = self.views.get(&table_id) {
+                    // scan a view
+                    assert!(
+                        filter.is_none(),
+                        "range filter is not supported in view scan"
+                    );
+
+                    // resolve column index
+                    // child schema: [$v.0, $v.1, ...]
+                    let mut projs = RecExpr::default();
+                    let lists = columns
+                        .iter()
+                        .map(|c| {
+                            projs.add(ColumnIndex(crate::types::ColumnIndex(c.column_id as _)))
+                        })
+                        .collect();
+                    projs.add(List(lists));
+
+                    ProjectionExecutor { projs }.execute(subscriber.subscribe())
+                } else if table_id.schema_id == RootCatalog::SYSTEM_SCHEMA_ID {
                     SystemTableScan {
-                        catalog: self.optimizer.catalog().clone(),
+                        catalog: self.catalog().clone(),
                         storage: self.storage.clone(),
                         table_id,
                         columns,
@@ -187,12 +246,7 @@ impl<S: Storage> Builder<S> {
                     TableScanExecutor {
                         table_id,
                         columns,
-                        filter: {
-                            // analyze range for the filter
-                            let mut egraph = egg::EGraph::new(ExprAnalysis::default());
-                            let root = egraph.add_expr(&self.recexpr(filter));
-                            egraph[root].data.range.clone().map(|(_, r)| r)
-                        },
+                        filter,
                         storage: self.storage.clone(),
                     }
                     .execute()
@@ -317,7 +371,7 @@ impl<S: Storage> Builder<S> {
             CreateView([table, query]) => CreateViewExecutor {
                 table: self.node(table).as_create_table(),
                 query: self.recexpr(query),
-                catalog: self.optimizer.catalog().clone(),
+                catalog: self.catalog().clone(),
             }
             .execute(),
 
@@ -325,7 +379,7 @@ impl<S: Storage> Builder<S> {
                 tables: (self.node(tables).as_list().iter())
                     .map(|id| self.node(*id).as_table())
                     .collect(),
-                catalog: self.optimizer.catalog().clone(),
+                catalog: self.catalog().clone(),
                 storage: self.storage.clone(),
             }
             .execute(),
@@ -404,34 +458,62 @@ impl<S: Storage> Builder<S> {
 }
 
 /// Spawn a new task to execute the given stream.
-fn spawn(name: &str, mut stream: BoxedExecutor) -> BoxedExecutor {
-    let (tx, rx) = tokio::sync::mpsc::channel(16);
+fn spawn(name: &str, mut stream: BoxedExecutor) -> StreamSubscriber {
+    let (tx, _rx) = tokio::sync::broadcast::channel(16);
+    let tx0 = tx.clone();
     let handle = tokio::task::Builder::default()
         .name(name)
         .spawn(async move {
             while let Some(item) = stream.next().await {
-                if tx.send(item).await.is_err() {
+                if tx.send(item).is_err() {
                     return;
                 }
             }
         })
         .expect("failed to spawn task");
-    use std::pin::Pin;
-    use std::task::{Context, Poll};
-    struct SpawnedStream {
-        rx: tokio::sync::mpsc::Receiver<Result<DataChunk>>,
-        handle: tokio::task::JoinHandle<()>,
+
+    StreamSubscriber {
+        tx: tx0,
+        handle: Arc::new(AbortOnDropHandle(handle)),
     }
-    impl Stream for SpawnedStream {
-        type Item = Result<DataChunk>;
-        fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-            self.rx.poll_recv(cx)
+}
+
+/// A subscriber of an executor's output stream.
+///
+/// New streams can be created by calling `subscribe`.
+struct StreamSubscriber {
+    tx: tokio::sync::broadcast::Sender<Result<DataChunk>>,
+    handle: Arc<AbortOnDropHandle>,
+}
+
+impl StreamSubscriber {
+    /// Subscribes an output stream from the executor.
+    fn subscribe(&self) -> BoxedExecutor {
+        #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+        async fn to_stream(
+            mut rx: tokio::sync::broadcast::Receiver<Result<DataChunk>>,
+            handle: Arc<AbortOnDropHandle>,
+        ) {
+            use tokio::sync::broadcast::error::RecvError;
+            loop {
+                match rx.recv().await {
+                    Err(RecvError::Closed) => break,
+                    Err(e @ RecvError::Lagged(_)) => panic!("{e}"),
+                    Ok(Ok(chunk)) => yield chunk,
+                    Ok(Err(e)) => return Err(e),
+                }
+            }
+            drop(handle);
         }
+        to_stream(self.tx.subscribe(), self.handle.clone())
     }
-    impl Drop for SpawnedStream {
-        fn drop(&mut self) {
-            self.handle.abort();
-        }
+}
+
+/// A wrapper over `JoinHandle` that aborts the task when dropped.
+struct AbortOnDropHandle(tokio::task::JoinHandle<()>);
+
+impl Drop for AbortOnDropHandle {
+    fn drop(&mut self) {
+        self.0.abort();
     }
-    Box::pin(SpawnedStream { rx, handle })
 }
