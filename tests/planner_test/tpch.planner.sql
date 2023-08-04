@@ -673,15 +673,15 @@ Projection
 │   ┌── o_orderpriority
 │   └── ref
 │       └── rowcount
-├── cost: 35713732
+├── cost: 35815010
 ├── rows: 10
-└── Order { by: [ o_orderpriority ], cost: 35713732, rows: 10 }
-    └── HashAgg { keys: [ o_orderpriority ], aggs: [ rowcount ], cost: 35713676, rows: 10 }
-        └── Projection { exprs: [ o_orderpriority ], cost: 35651932, rows: 375000 }
+└── Order { by: [ o_orderpriority ], cost: 35815010, rows: 10 }
+    └── HashAgg { keys: [ o_orderpriority ], aggs: [ rowcount ], cost: 35814950, rows: 10 }
+        └── Projection { exprs: [ o_orderpriority ], cost: 35753210, rows: 375000 }
             └── HashJoin
                 ├── type: semi
                 ├── on: = { lhs: [ o_orderkey ], rhs: [ l_orderkey ] }
-                ├── cost: 35644430
+                ├── cost: 35745708
                 ├── rows: 375000
                 ├── Projection { exprs: [ o_orderkey, o_orderpriority ], cost: 6416250, rows: 375000 }
                 │   └── Filter
@@ -1960,6 +1960,183 @@ Projection
                         └── rows: 6001215
 */
 
+-- tpch-q15
+create view revenue0 (supplier_no, total_revenue) as
+    select
+        l_suppkey,
+        sum(l_extendedprice * (1 - l_discount))
+    from
+        lineitem
+    where
+        l_shipdate >= date '1996-01-01'
+        and l_shipdate < date '1996-01-01' + interval '3' month
+    group by
+        l_suppkey;
+
+explain select
+    s_suppkey,
+    s_name,
+    s_address,
+    s_phone,
+    total_revenue
+from
+    supplier,
+    revenue0
+where
+    s_suppkey = supplier_no
+    and total_revenue = (
+        select
+            max(total_revenue)
+        from
+            revenue0
+    )
+order by
+    s_suppkey;
+
+/*
+1Order { by: [ s_suppkey ], cost: 283977.4, rows: 5000 }
+└── Projection { exprs: [ s_suppkey, s_name, s_address, s_phone, total_revenue ], cost: 197537.4, rows: 5000 }
+    └── Filter
+        ├── cond:=
+        │   ├── lhs:ref
+        │   │   └── max
+        │   │       └── total_revenue(1)
+        │   ├── rhs: total_revenue
+
+        ├── cost: 197237.4
+        ├── rows: 5000
+        └── Join { type: left_outer, cost: 166037.4, rows: 10000 }
+            ├── Projection
+            │   ├── exprs: [ s_suppkey, s_name, s_address, s_phone, total_revenue ]
+            │   ├── cost: 103916.39
+            │   ├── rows: 10000
+            │   └── HashJoin
+            │       ├── type: inner
+            │       ├── on: = { lhs: [ supplier_no ], rhs: [ s_suppkey ] }
+            │       ├── cost: 103316.39
+            │       ├── rows: 10000
+            │       ├── Scan
+            │       │   ├── table: revenue0
+            │       │   ├── list: [ supplier_no, total_revenue ]
+            │       │   ├── filter: null
+            │       │   ├── cost: 2000
+            │       │   └── rows: 1000
+            │       └── Scan
+            │           ├── table: supplier
+            │           ├── list: [ s_suppkey, s_name, s_address, s_phone ]
+            │           ├── filter: null
+            │           ├── cost: 40000
+            │           └── rows: 10000
+            └── Projection
+                ├── exprs:ref
+                │   └── max
+                │       └── total_revenue(1)
+                ├── cost: 1121.02
+                ├── rows: 1
+                └── Agg
+                    ├── aggs:max
+                    │   └── total_revenue(1)
+                    ├── cost: 1121
+                    ├── rows: 1
+                    └── Scan { table: revenue0, list: [ total_revenue(1) ], filter: null, cost: 1000, rows: 1000 }
+*/
+
+-- tpch-q16
+explain select
+    p_brand,
+    p_type,
+    p_size,
+    count(distinct ps_suppkey) as supplier_cnt
+from
+    partsupp,
+    part
+where
+    p_partkey = ps_partkey
+    and p_brand <> 'Brand#45'
+    and p_type not like 'MEDIUM POLISHED%'
+    and p_size in (49, 14, 23, 45, 19, 3, 36, 9)
+    and ps_suppkey not in (
+        select
+            s_suppkey
+        from
+            supplier
+        where
+            s_comment like '%Customer%Complaints%'
+    )
+group by
+    p_brand,
+    p_type,
+    p_size
+order by
+    supplier_cnt desc,
+    p_brand,
+    p_type,
+    p_size;
+
+/*
+Projection
+├── exprs:
+│   ┌── p_brand
+│   ├── p_type
+│   ├── p_size
+│   └── ref
+│       └── count-distinct
+│           └── ps_suppkey
+├── cost: 11490655
+├── rows: 1000
+└── Order
+    ├── by:
+    │   ┌── desc
+    │   │   └── ref
+    │   │       └── count-distinct
+    │   │           └── ps_suppkey
+    │   ├── p_brand
+    │   ├── p_type
+    │   └── p_size
+    ├── cost: 11490605
+    ├── rows: 1000
+    └── HashAgg
+        ├── keys: [ p_brand, p_type, p_size ]
+        ├── aggs:count-distinct
+        │   └── ps_suppkey
+        ├── cost: 11476638
+        ├── rows: 1000
+        └── HashJoin { type: anti, on: = { lhs: [ ps_suppkey ], rhs: [ s_suppkey ] }, cost: 11264900, rows: 800000 }
+            ├── Projection { exprs: [ ps_suppkey, p_brand, p_type, p_size ], cost: 7917682, rows: 800000 }
+            │   └── HashJoin
+            │       ├── type: inner
+            │       ├── on: = { lhs: [ p_partkey ], rhs: [ ps_partkey ] }
+            │       ├── cost: 7877682
+            │       ├── rows: 800000
+            │       ├── Filter
+            │       │   ├── cond:and
+            │       │   │   ├── lhs:not
+            │       │   │   │   └── like { lhs: p_type, rhs: 'MEDIUM POLISHED%' }
+            │       │   │   ├── rhs:and
+            │       │   │   │   ├── lhs: <> { lhs: p_brand, rhs: 'Brand#45' }
+            │       │   │   │   ├── rhs:In { in: [ 49, 14, 23, 45, 19, 3, 36, 9 ] }
+            │       │   │   │   │   └── p_size
+
+
+            │       │   ├── cost: 1328000
+            │       │   ├── rows: 50000
+            │       │   └── Scan
+            │       │       ├── table: part
+            │       │       ├── list: [ p_partkey, p_brand, p_type, p_size ]
+            │       │       ├── filter: null
+            │       │       ├── cost: 800000
+            │       │       └── rows: 200000
+            │       └── Scan
+            │           ├── table: partsupp
+            │           ├── list: [ ps_partkey, ps_suppkey ]
+            │           ├── filter: null
+            │           ├── cost: 1600000
+            │           └── rows: 800000
+            └── Projection { exprs: [ s_suppkey ], cost: 32200, rows: 5000 }
+                └── Filter { cond: like { lhs: s_comment, rhs: '%Customer%Complaints%' }, cost: 32100, rows: 5000 }
+                    └── Scan { table: supplier, list: [ s_suppkey, s_comment ], filter: null, cost: 20000, rows: 10000 }
+*/
+
 -- tpch-q17
 explain select
     sum(l_extendedprice) / 7.0 as avg_yearly
@@ -2242,7 +2419,7 @@ Projection
 │   └── ref
 │       └── sum
 │           └── l_quantity
-├── cost: 125699016
+├── cost: 124502856
 ├── rows: 100
 └── TopN
     ├── limit: 100
@@ -2251,18 +2428,18 @@ Projection
     │   ┌── desc
     │   │   └── o_totalprice
     │   └── o_orderdate
-    ├── cost: 125699010
+    ├── cost: 124502850
     ├── rows: 100
     └── HashAgg
         ├── keys: [ c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice ]
         ├── aggs:sum
         │   └── l_quantity
-        ├── cost: 125032584
+        ├── cost: 123836424
         ├── rows: 100000
         └── HashJoin
             ├── type: semi
             ├── on: = { lhs: [ o_orderkey ], rhs: [ l_orderkey(1) ] }
-            ├── cost: 122355580
+            ├── cost: 121159420
             ├── rows: 6001215
             ├── Projection
             │   ├── exprs: [ c_custkey, c_name, o_orderkey, o_totalprice, o_orderdate, l_quantity ]
@@ -2496,9 +2673,9 @@ order by
     s_name;
 
 /*
-Order { by: [ s_name ], cost: 52233836, rows: 10000 }
-└── Projection { exprs: [ s_name, s_address ], cost: 52080956, rows: 10000 }
-    └── HashJoin { type: semi, on: = { lhs: [ s_suppkey ], rhs: [ ps_suppkey ] }, cost: 52080656, rows: 10000 }
+Order { by: [ s_name ], cost: 52236732, rows: 10000 }
+└── Projection { exprs: [ s_name, s_address ], cost: 52083852, rows: 10000 }
+    └── HashJoin { type: semi, on: = { lhs: [ s_suppkey ], rhs: [ ps_suppkey ] }, cost: 52083550, rows: 10000 }
         ├── Projection { exprs: [ s_suppkey, s_name, s_address ], cost: 91056.7, rows: 10000 }
         │   └── HashJoin
         │       ├── type: inner
@@ -2514,8 +2691,8 @@ Order { by: [ s_name ], cost: 52233836, rows: 10000 }
         │           ├── filter: null
         │           ├── cost: 40000
         │           └── rows: 10000
-        └── Projection { exprs: [ ps_suppkey ], cost: 51950428, rows: 50000 }
-            └── HashJoin { type: semi, on: = { lhs: [ ps_partkey ], rhs: [ p_partkey ] }, cost: 51949428, rows: 50000 }
+        └── Projection { exprs: [ ps_suppkey ], cost: 51951930, rows: 50000 }
+            └── HashJoin { type: semi, on: = { lhs: [ ps_partkey ], rhs: [ p_partkey ] }, cost: 51950930, rows: 50000 }
                 ├── Projection { exprs: [ ps_partkey, ps_suppkey ], cost: 51179012, rows: 50000 }
                 │   └── Filter
                 │       ├── cond:>
@@ -2818,12 +2995,12 @@ Projection
 │   └── ref
 │       └── sum
 │           └── c_acctbal
-├── cost: 4309256.5
+├── cost: 4377327
 ├── rows: 10
 └── Order
     ├── by:ref
     │   └── Substring { str: c_phone, start: 1, length: 2 }
-    ├── cost: 4309256
+    ├── cost: 4377326.5
     ├── rows: 10
     └── HashAgg
         ├── keys:ref
@@ -2832,13 +3009,13 @@ Projection
         │   ┌── rowcount
         │   └── sum
         │       └── c_acctbal
-        ├── cost: 4309191.5
+        ├── cost: 4377262
         ├── rows: 10
         └── Projection
             ├── exprs: [ Substring { str: c_phone, start: 1, length: 2 }, c_acctbal ]
-            ├── cost: 4288567
+            ├── cost: 4356637.5
             ├── rows: 75000
-            └── HashJoin { type: anti, on: = { lhs: [ c_custkey ], rhs: [ o_custkey ] }, cost: 4263817, rows: 75000 }
+            └── HashJoin { type: anti, on: = { lhs: [ c_custkey ], rhs: [ o_custkey ] }, cost: 4331887.5, rows: 75000 }
                 ├── Projection { exprs: [ c_custkey, c_phone, c_acctbal ], cost: 2252252, rows: 75000 }
                 │   └── Filter
                 │       ├── cond:and
