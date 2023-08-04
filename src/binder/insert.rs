@@ -10,9 +10,9 @@ impl Binder {
         columns: Vec<Ident>,
         source: Box<Query>,
     ) -> Result {
-        let (table, is_internal) = self.bind_table_id(&table_name)?;
-        if is_internal {
-            return Err(BindError::NotSupportedOnInternalTable);
+        let (table, is_internal, is_view) = self.bind_table_id(&table_name)?;
+        if is_internal || is_view {
+            return Err(BindError::CanNotInsert);
         }
         let cols = self.bind_table_columns(&table_name, &columns)?;
         let source = self.bind_query(*source)?.0;

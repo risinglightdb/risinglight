@@ -82,12 +82,16 @@ pub enum BindError {
     ColumnNotInAgg(String),
     #[error("ORDER BY items must appear in the select list if DISTINCT is specified")]
     OrderKeyNotInDistinct,
-    #[error("operation on internal table is not supported")]
-    NotSupportedOnInternalTable,
     #[error("{0:?} is not an aggregate function")]
     NotAgg(String),
     #[error("not supported yet: {0}")]
     Todo(String),
+    #[error("can not copy to {0}")]
+    CopyTo(String),
+    #[error("can only insert into table")]
+    CanNotInsert,
+    #[error("can only delete from table")]
+    CanNotDelete,
 }
 
 /// The binder resolves all expressions referring to schema objects such as

@@ -244,6 +244,9 @@ impl Database {
                 continue;
             }
             for table in schema.all_tables().values() {
+                if table.is_view() {
+                    continue;
+                }
                 let table_id = TableRefId::new(schema.id(), table.id());
                 let table = storage.get_table(table_id)?;
                 let txn = table.read().await?;

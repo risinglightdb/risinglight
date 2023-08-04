@@ -53,17 +53,6 @@ impl Binder {
         target: CopyTarget,
         options: &[CopyOption],
     ) -> Result {
-        let (table_name, columns) = match source {
-            CopySource::Table {
-                table_name,
-                columns,
-            } => (table_name, columns),
-            CopySource::Query(_) => return Err(BindError::Todo("copy from query".into())),
-        };
-        let (table, is_internal) = self.bind_table_id(&table_name)?;
-
-        let cols = self.bind_table_columns(&table_name, &columns)?;
-
         let ext_source = self.egraph.add(Node::ExtSource(Box::new(ExtSource {
             path: match target {
                 CopyTarget::File { filename } => filename.into(),
@@ -74,18 +63,41 @@ impl Binder {
 
         let copy = if to {
             // COPY <source_table> TO <dest_file>
-            let scan = if is_internal {
-                self.egraph.add(Node::Internal([table, cols]))
-            } else {
-                let true_ = self.egraph.add(Node::true_());
-                self.egraph.add(Node::Scan([table, cols, true_]))
+            let query = match source {
+                CopySource::Table {
+                    table_name,
+                    columns,
+                } => {
+                    let (table, is_internal, _) = self.bind_table_id(&table_name)?;
+                    let cols = self.bind_table_columns(&table_name, &columns)?;
+                    if is_internal {
+                        self.egraph.add(Node::Internal([table, cols]))
+                    } else {
+                        let true_ = self.egraph.add(Node::true_());
+                        self.egraph.add(Node::Scan([table, cols, true_]))
+                    }
+                }
+                CopySource::Query(query) => self.bind_query(*query)?.0,
             };
-            self.egraph.add(Node::CopyTo([ext_source, scan]))
+            self.egraph.add(Node::CopyTo([ext_source, query]))
         } else {
             // COPY <dest_table> FROM <source_file>
-            if is_internal {
-                return Err(BindError::NotSupportedOnInternalTable);
-            }
+            let (table, cols) = match source {
+                CopySource::Table {
+                    table_name,
+                    columns,
+                } => {
+                    let (table, is_internal, is_view) = self.bind_table_id(&table_name)?;
+                    if is_internal {
+                        return Err(BindError::CopyTo("internal table".into()));
+                    } else if is_view {
+                        return Err(BindError::CopyTo("view".into()));
+                    }
+                    let cols = self.bind_table_columns(&table_name, &columns)?;
+                    (table, cols)
+                }
+                CopySource::Query(_) => return Err(BindError::CopyTo("query".into())),
+            };
             let types = self.type_(cols)?.kind();
             let types = self.egraph.add(Node::Type(types));
             let copy = self.egraph.add(Node::CopyFrom([ext_source, types]));

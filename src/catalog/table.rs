@@ -15,8 +15,7 @@ pub struct TableCatalog {
 
     kind: TableKind,
     next_column_id: ColumnId,
-    #[allow(dead_code)]
-    ordered_pk_ids: Vec<ColumnId>,
+    primary_key: Vec<ColumnId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -30,9 +29,9 @@ impl TableCatalog {
         id: TableId,
         name: String,
         columns: Vec<ColumnCatalog>,
-        ordered_pk_ids: Vec<ColumnId>,
+        primary_key: Vec<ColumnId>,
     ) -> TableCatalog {
-        Self::new_internal(id, name, columns, TableKind::Table, ordered_pk_ids)
+        Self::new_(id, name, columns, TableKind::Table, primary_key)
     }
 
     pub fn new_view(
@@ -41,15 +40,15 @@ impl TableCatalog {
         columns: Vec<ColumnCatalog>,
         query: RecExpr,
     ) -> TableCatalog {
-        Self::new_internal(id, name, columns, TableKind::View(query), vec![])
+        Self::new_(id, name, columns, TableKind::View(query), vec![])
     }
 
-    fn new_internal(
+    fn new_(
         id: TableId,
         name: String,
         columns: Vec<ColumnCatalog>,
         kind: TableKind,
-        ordered_pk_ids: Vec<ColumnId>,
+        primary_key: Vec<ColumnId>,
     ) -> TableCatalog {
         let mut table_catalog = TableCatalog {
             id,
@@ -58,7 +57,7 @@ impl TableCatalog {
             columns: BTreeMap::new(),
             kind,
             next_column_id: 0,
-            ordered_pk_ids,
+            primary_key,
         };
         table_catalog
             .add_column(ColumnCatalog::new(
@@ -126,7 +125,19 @@ impl TableCatalog {
     }
 
     pub fn primary_keys(&self) -> Vec<ColumnId> {
-        self.ordered_pk_ids.clone()
+        self.primary_key.clone()
+    }
+
+    pub fn is_view(&self) -> bool {
+        matches!(self.kind, TableKind::View(_))
+    }
+
+    /// Returns the query if it is a view.
+    pub fn query(&self) -> Option<&RecExpr> {
+        match &self.kind {
+            TableKind::Table => None,
+            TableKind::View(query) => Some(query),
+        }
     }
 }
 
