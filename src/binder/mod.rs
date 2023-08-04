@@ -27,7 +27,6 @@ mod table;
 
 pub use self::create_function::*;
 pub use self::create_table::*;
-pub use self::drop::*;
 
 pub type Result<T = Id> = std::result::Result<T, BindError>;
 

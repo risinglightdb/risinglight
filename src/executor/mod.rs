@@ -323,8 +323,10 @@ impl<S: Storage> Builder<S> {
             }
             .execute(),
 
-            Drop(plan) => DropExecutor {
-                plan,
+            Drop(tables) => DropExecutor {
+                tables: (self.node(tables).as_list().iter())
+                    .map(|id| self.node(*id).as_table())
+                    .collect(),
                 storage: self.storage.clone(),
             }
             .execute(),

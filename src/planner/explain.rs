@@ -347,8 +347,8 @@ impl<'a> Explain<'a> {
                 let v = f.pretty_function();
                 Pretty::childless_record("CreateFunction", v)
             }
-            Drop(t) => {
-                let fields = t.pretty_table().with(cost, rows);
+            Drop(tables) => {
+                let fields = vec![("objects", self.expr(tables).pretty())].with(cost, rows);
                 Pretty::childless_record("Drop", fields)
             }
             Insert([table, cols, child]) => Pretty::simple_record(
