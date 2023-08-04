@@ -233,14 +233,6 @@ impl<'a> Explain<'a> {
                 ]
                 .with(cost, rows),
             ),
-            Internal([table, list]) => Pretty::childless_record(
-                "Internal",
-                vec![
-                    ("table", self.expr(table).pretty()),
-                    ("list", self.expr(list).pretty()),
-                ]
-                .with(cost, rows),
-            ),
             Values(values) => Pretty::simple_record(
                 "Values",
                 vec![("rows", Pretty::display(&values.len()))].with(cost, rows),

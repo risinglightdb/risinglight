@@ -68,14 +68,10 @@ impl Binder {
                     table_name,
                     columns,
                 } => {
-                    let (table, is_internal, _) = self.bind_table_id(&table_name)?;
+                    let (table, _, _) = self.bind_table_id(&table_name)?;
                     let cols = self.bind_table_columns(&table_name, &columns)?;
-                    if is_internal {
-                        self.egraph.add(Node::Internal([table, cols]))
-                    } else {
-                        let true_ = self.egraph.add(Node::true_());
-                        self.egraph.add(Node::Scan([table, cols, true_]))
-                    }
+                    let true_ = self.egraph.add(Node::true_());
+                    self.egraph.add(Node::Scan([table, cols, true_]))
                 }
                 CopySource::Query(query) => self.bind_query(*query)?.0,
             };

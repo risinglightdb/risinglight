@@ -32,7 +32,7 @@ pub fn analyze_schema(
         List(ids) => ids.to_vec(),
 
         // plans that change schema
-        Scan([_, columns, _]) | Internal([_, columns]) => x(columns),
+        Scan([_, columns, _]) => x(columns),
         Values(vs) => x(&vs[0]),
         Proj([exprs, _]) | Agg([exprs, _]) => x(exprs),
         Window([exprs, child]) => concat(x(child), x(exprs)),

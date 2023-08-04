@@ -27,8 +27,8 @@ impl Default for RootCatalog {
 impl RootCatalog {
     pub fn new() -> RootCatalog {
         let mut inner = Inner::default();
+        inner.add_system();
         inner.add_schema(DEFAULT_SCHEMA_NAME.into()).unwrap();
-        inner.add_internals();
         RootCatalog {
             inner: Mutex::new(inner),
         }
@@ -126,8 +126,9 @@ impl Inner {
         Ok(schema_id)
     }
 
-    fn add_internals(&mut self) {
-        let schema_id = self.add_schema(INTERNAL_SCHEMA_NAME.into()).unwrap();
+    fn add_system(&mut self) {
+        let schema_id = self.add_schema(SYSTEM_SCHEMA_NAME.into()).unwrap();
+        assert_eq!(schema_id, SYSTEM_SCHEMA_ID);
         let table_id = self
             .schemas
             .get_mut(&schema_id)
