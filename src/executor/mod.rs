@@ -429,13 +429,13 @@ impl<S: Storage> Builder<S> {
 
 /// Spawn a new task to execute the given stream.
 fn spawn(name: &str, mut stream: BoxedExecutor) -> StreamSubscriber {
-    let (tx, _rx) = tokio::sync::broadcast::channel(16);
-    let tx0 = tx.clone();
+    let (tx, rx) = async_broadcast::broadcast(16);
     let handle = tokio::task::Builder::default()
         .name(name)
         .spawn(async move {
             while let Some(item) = stream.next().await {
-                if tx.send(item).is_err() {
+                if tx.broadcast(item).await.is_err() {
+                    // all receivers are dropped, stop the task.
                     return;
                 }
             }
@@ -443,7 +443,7 @@ fn spawn(name: &str, mut stream: BoxedExecutor) -> StreamSubscriber {
         .expect("failed to spawn task");
 
     StreamSubscriber {
-        tx: tx0,
+        rx: rx.deactivate(),
         handle: Arc::new(AbortOnDropHandle(handle)),
     }
 }
@@ -452,7 +452,7 @@ fn spawn(name: &str, mut stream: BoxedExecutor) -> StreamSubscriber {
 ///
 /// New streams can be created by calling `subscribe`.
 struct StreamSubscriber {
-    tx: tokio::sync::broadcast::Sender<Result<DataChunk>>,
+    rx: async_broadcast::InactiveReceiver<Result<DataChunk>>,
     handle: Arc<AbortOnDropHandle>,
 }
 
@@ -461,21 +461,16 @@ impl StreamSubscriber {
     fn subscribe(&self) -> BoxedExecutor {
         #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
         async fn to_stream(
-            mut rx: tokio::sync::broadcast::Receiver<Result<DataChunk>>,
+            rx: async_broadcast::Receiver<Result<DataChunk>>,
             handle: Arc<AbortOnDropHandle>,
         ) {
-            use tokio::sync::broadcast::error::RecvError;
-            loop {
-                match rx.recv().await {
-                    Err(RecvError::Closed) => break,
-                    Err(e @ RecvError::Lagged(_)) => panic!("{e}"),
-                    Ok(Ok(chunk)) => yield chunk,
-                    Ok(Err(e)) => return Err(e),
-                }
+            #[for_await]
+            for chunk in rx {
+                yield chunk?;
             }
             drop(handle);
         }
-        to_stream(self.tx.subscribe(), self.handle.clone())
+        to_stream(self.rx.activate_cloned(), self.handle.clone())
     }
 }
 
