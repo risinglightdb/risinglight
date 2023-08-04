@@ -350,8 +350,8 @@ impl<'a> Explain<'a> {
                 vec![("table", self.expr(table).pretty())].with(cost, rows),
                 vec![self.expr(query).pretty()],
             ),
-            Drop(t) => {
-                let fields = t.pretty_table().with(cost, rows);
+            Drop(tables) => {
+                let fields = vec![("objects", self.expr(tables).pretty())].with(cost, rows);
                 Pretty::childless_record("Drop", fields)
             }
             Insert([table, cols, child]) => Pretty::simple_record(

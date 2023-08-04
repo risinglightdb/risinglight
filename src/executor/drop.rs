@@ -3,20 +3,20 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::binder::{BoundDrop, Object};
+use crate::catalog::TableRefId;
 use crate::storage::Storage;
 
 /// The executor of `drop` statement.
 pub struct DropExecutor<S: Storage> {
-    pub plan: BoundDrop,
+    pub tables: Vec<TableRefId>,
     pub storage: Arc<S>,
 }
 
 impl<S: Storage> DropExecutor<S> {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
-        match self.plan.object {
-            Object::Table(id) => self.storage.drop_table(id).await?,
+        for table in self.tables {
+            self.storage.drop_table(table).await?;
         }
         yield DataChunk::single(1);
     }
