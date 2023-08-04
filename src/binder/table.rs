@@ -3,7 +3,7 @@
 use std::vec::Vec;
 
 use super::*;
-use crate::catalog::{ColumnRefId, SYSTEM_SCHEMA_NAME};
+use crate::catalog::{ColumnRefId, RootCatalog};
 
 impl Binder {
     /// Binds the FROM clause. Returns a nested [`Join`](Node::Join) plan of tables.
@@ -248,7 +248,7 @@ impl Binder {
             .get_table_id_by_name(schema_name, table_name)
             .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
         let id = self.egraph.add(Node::Table(table_ref_id));
-        Ok((id, schema_name == SYSTEM_SCHEMA_NAME))
+        Ok((id, table_ref_id.schema_id == RootCatalog::SYSTEM_SCHEMA_ID))
     }
 }
 

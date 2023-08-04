@@ -113,7 +113,12 @@ impl<'a> Explain<'a> {
             Type(t) => Pretty::display(t),
             Table(i) => {
                 if let Some(catalog) = self.catalog {
-                    catalog.get_table(i).expect("no table").name().into()
+                    catalog
+                        .get_table(i)
+                        .expect("no table")
+                        .name()
+                        .to_string()
+                        .into()
                 } else {
                     Pretty::display(i)
                 }

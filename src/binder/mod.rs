@@ -10,7 +10,7 @@ use itertools::Itertools;
 
 use crate::array;
 use crate::catalog::function::FunctionCatalog;
-use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId, DEFAULT_SCHEMA_NAME};
+use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
 use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
 use crate::types::{DataTypeKind, DataValue};
@@ -371,7 +371,7 @@ impl Binder {
 /// Split an object name into `(schema name, table name)`.
 fn split_name(name: &ObjectName) -> Result<(&str, &str)> {
     Ok(match name.0.as_slice() {
-        [table] => (DEFAULT_SCHEMA_NAME, &table.value),
+        [table] => (RootCatalog::DEFAULT_SCHEMA_NAME, &table.value),
         [schema, table] => (&schema.value, &table.value),
         _ => return Err(BindError::InvalidTableName(name.0.clone())),
     })

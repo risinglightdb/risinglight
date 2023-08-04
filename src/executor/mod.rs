@@ -46,8 +46,8 @@ use self::top_n::TopNExecutor;
 use self::values::*;
 use self::window::*;
 use crate::array::DataChunk;
+use crate::catalog::{RootCatalog};
 use crate::executor::create_function::CreateFunctionExecutor;
-use crate::catalog::{CatalogError, SYSTEM_SCHEMA_ID};
 use crate::planner::{Expr, ExprAnalysis, Optimizer, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, TracedStorageError};
 use crate::types::{ColumnIndex, ConvertError, DataType};
@@ -192,8 +192,14 @@ impl<S: Storage> Builder<S> {
                     .map(|id| self.node(*id).as_column())
                     .collect();
 
-                if table_id.schema_id == SYSTEM_SCHEMA_ID {
-                    SystemTableScan { table_id, columns }.execute()
+                if table_id.schema_id == RootCatalog::SYSTEM_SCHEMA_ID {
+                    SystemTableScan {
+                        catalog: self.optimizer.catalog().clone(),
+                        storage: self.storage.clone(),
+                        table_id,
+                        columns,
+                    }
+                    .execute()
                 } else {
                     TableScanExecutor {
                         table_id,
