@@ -84,6 +84,9 @@ pub trait Storage: Sync + Send + 'static {
         &self,
         table_id: TableRefId,
     ) -> impl Future<Output = StorageResult<()>> + Send + '_;
+
+    // XXX: remove this
+    fn as_disk(&self) -> Option<&SecondaryStorage>;
 }
 
 /// A table in the storage engine. [`Table`] is by default a reference to a table,

@@ -117,4 +117,8 @@ impl Storage for InMemoryStorage {
         self.catalog.drop_table(table_id);
         Ok(())
     }
+
+    fn as_disk(&self) -> Option<&super::SecondaryStorage> {
+        None
+    }
 }

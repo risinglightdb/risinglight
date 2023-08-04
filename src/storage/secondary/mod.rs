@@ -183,4 +183,8 @@ impl Storage for SecondaryStorage {
     async fn drop_table(&self, table_id: TableRefId) -> StorageResult<()> {
         self.drop_table_inner(table_id).await
     }
+
+    fn as_disk(&self) -> Option<&SecondaryStorage> {
+        Some(self)
+    }
 }

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use super::*;
+use crate::parser;
 use crate::planner::RecExpr;
 
 /// The root of all catalogs.
@@ -27,8 +28,8 @@ impl Default for RootCatalog {
 impl RootCatalog {
     pub fn new() -> RootCatalog {
         let mut inner = Inner::default();
-        inner.add_system();
-        inner.add_schema(DEFAULT_SCHEMA_NAME.into()).unwrap();
+        inner.add_system_schema();
+        inner.add_schema(Self::DEFAULT_SCHEMA_NAME.into()).unwrap();
         RootCatalog {
             inner: Mutex::new(inner),
         }
@@ -111,6 +112,10 @@ impl RootCatalog {
             table_id: table.id(),
         })
     }
+
+    pub const DEFAULT_SCHEMA_NAME: &str = "postgres";
+    pub const SYSTEM_SCHEMA_NAME: &str = "pg_catalog";
+    pub const SYSTEM_SCHEMA_ID: TableId = 0;
 }
 
 impl Inner {
@@ -126,32 +131,68 @@ impl Inner {
         Ok(schema_id)
     }
 
-    fn add_system(&mut self) {
-        let schema_id = self.add_schema(SYSTEM_SCHEMA_NAME.into()).unwrap();
-        assert_eq!(schema_id, SYSTEM_SCHEMA_ID);
-        let table_id = self
-            .schemas
-            .get_mut(&schema_id)
-            .unwrap()
-            .add_table(
-                CONTRIBUTORS_TABLE_NAME.to_string(),
-                vec![ColumnCatalog::new(
-                    0,
-                    DataTypeKind::String
-                        .not_null()
-                        .to_column("github_id".into()),
-                )],
-                vec![],
-            )
+    fn add_system_schema(&mut self) {
+        let schema_id = self
+            .add_schema(RootCatalog::SYSTEM_SCHEMA_NAME.into())
             .unwrap();
-        assert_eq!(table_id, CONTRIBUTORS_TABLE_ID);
+        let system_schema = self.schemas.get_mut(&schema_id).unwrap();
+        assert_eq!(schema_id, RootCatalog::SYSTEM_SCHEMA_ID);
+
+        let stmts = parser::parse(CREATE_SYSTEM_TABLE_SQL).unwrap();
+        for stmt in stmts {
+            let parser::Statement::CreateTable { name, columns, .. } = stmt else {
+                panic!("invalid system table sql: {stmt}");
+            };
+            system_schema
+                .add_table(
+                    name.to_string(),
+                    columns
+                        .into_iter()
+                        .enumerate()
+                        .map(|(cid, col)| {
+                            let mut column = ColumnCatalog::from(&col);
+                            column.set_id(cid as u32);
+                            column
+                        })
+                        .collect(),
+                    vec![],
+                )
+                .expect("failed to add system table");
+        }
     }
 }
 
 fn split_name(name: &str) -> Option<(&str, &str)> {
     match name.split('.').collect::<Vec<&str>>()[..] {
-        [table] => Some((DEFAULT_SCHEMA_NAME, table)),
+        [table] => Some((RootCatalog::DEFAULT_SCHEMA_NAME, table)),
         [schema, table] => Some((schema, table)),
         _ => None,
     }
 }
+
+const CREATE_SYSTEM_TABLE_SQL: &str = "
+    create table contributors (
+        github_id string not null
+    );
+    create table pg_tables (
+        schema_id int not null,
+        schema_name string not null,
+        table_id int not null,
+        table_name string not null
+    );
+    create table pg_attribute (
+        schema_name string not null,
+        table_name string not null,
+        column_id int not null,
+        column_name string not null,
+        column_type string not null,
+        column_not_null boolean not null
+    );
+    create table pg_stat (
+        schema_name string not null,
+        table_name string not null,
+        column_name string not null,
+        n_row int,
+        n_distinct int
+    );
+";
