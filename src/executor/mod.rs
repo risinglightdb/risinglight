@@ -26,6 +26,8 @@ use self::create_table::*;
 use self::create_view::*;
 use self::delete::*;
 use self::drop::*;
+pub use self::error::Error as ExecutorError;
+use self::error::*;
 use self::evaluator::*;
 use self::explain::*;
 use self::filter::*;
@@ -47,10 +49,10 @@ use self::top_n::TopNExecutor;
 use self::values::*;
 use self::window::*;
 use crate::array::DataChunk;
-use crate::catalog::{CatalogError, RootCatalog};
+use crate::catalog::RootCatalog;
 use crate::planner::{Expr, ExprAnalysis, Optimizer, RecExpr, TypeSchemaAnalysis};
-use crate::storage::{Storage, TracedStorageError};
-use crate::types::{ColumnIndex, ConvertError, DataType};
+use crate::storage::Storage;
+use crate::types::{ColumnIndex, DataType};
 
 mod copy_from_file;
 mod copy_to_file;
@@ -69,6 +71,7 @@ mod nested_loop_join;
 mod order;
 mod system_table_scan;
 // mod perfect_hash_agg;
+mod error;
 mod merge_join;
 mod projection;
 mod simple_agg;
@@ -77,33 +80,6 @@ mod table_scan;
 mod top_n;
 mod values;
 mod window;
-
-/// The error type of execution.
-#[derive(thiserror::Error, Debug)]
-pub enum ExecutorError {
-    #[error("storage error: {0}")]
-    Storage(
-        #[from]
-        #[backtrace]
-        TracedStorageError,
-    ),
-    #[error("catalog error: {0}")]
-    Catalog(#[from] CatalogError),
-    #[error("conversion error: {0}")]
-    Convert(#[from] ConvertError),
-    #[error("tuple length mismatch: expected {expected} but got {actual}")]
-    LengthMismatch { expected: usize, actual: usize },
-    #[error("io error")]
-    Io(#[from] std::io::Error),
-    #[error("csv error")]
-    Csv(#[from] csv::Error),
-    #[error("value can not be null")]
-    NotNullable,
-    #[error("exceed char/varchar length limit: item length {length} > char/varchar width {width}")]
-    ExceedLengthLimit { length: u64, width: u64 },
-    #[error("abort")]
-    Abort,
-}
 
 /// The maximum chunk length produced by executor at a time.
 const PROCESSING_WINDOW_SIZE: usize = 1024;
@@ -114,7 +90,7 @@ const PROCESSING_WINDOW_SIZE: usize = 1024;
 ///
 /// It consumes one or more streams from its child executors,
 /// and produces a stream to its parent.
-pub type BoxedExecutor = BoxStream<'static, Result<DataChunk, ExecutorError>>;
+pub type BoxedExecutor = BoxStream<'static, Result<DataChunk>>;
 
 pub fn build(optimizer: Optimizer, storage: Arc<impl Storage>, plan: &RecExpr) -> BoxedExecutor {
     Builder::new(optimizer, storage, plan).build()
@@ -443,11 +419,11 @@ fn spawn(name: &str, mut stream: BoxedExecutor) -> BoxedExecutor {
     use std::pin::Pin;
     use std::task::{Context, Poll};
     struct SpawnedStream {
-        rx: tokio::sync::mpsc::Receiver<Result<DataChunk, ExecutorError>>,
+        rx: tokio::sync::mpsc::Receiver<Result<DataChunk>>,
         handle: tokio::task::JoinHandle<()>,
     }
     impl Stream for SpawnedStream {
-        type Item = Result<DataChunk, ExecutorError>;
+        type Item = Result<DataChunk>;
         fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             self.rx.poll_recv(cx)
         }

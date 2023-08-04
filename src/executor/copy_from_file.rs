@@ -46,7 +46,7 @@ impl CopyFromFileExecutor {
     /// Read records from file using blocking IO.
     ///
     /// The read data chunks will be sent through `tx`.
-    fn read_file_blocking(self, tx: Sender<DataChunk>) -> Result<(), ExecutorError> {
+    fn read_file_blocking(self, tx: Sender<DataChunk>) -> Result<()> {
         let file = File::open(self.source.path)?;
         let file_size = file.metadata()?.len();
         let mut buf_reader = BufReader::new(file);
@@ -91,15 +91,12 @@ impl CopyFromFileExecutor {
             if !(record.len() == column_count
                 || record.len() == column_count + 1 && record.get(column_count) == Some(""))
             {
-                return Err(ExecutorError::LengthMismatch {
-                    expected: column_count,
-                    actual: record.len(),
-                });
+                return Err(Error::length_mismatch(column_count, record.len()));
             }
 
             for (v, ty) in record.iter().zip(&self.types) {
                 if !ty.nullable && v.is_empty() {
-                    return Err(ExecutorError::NotNullable);
+                    return Err(Error::not_nullable());
                 }
             }
             size_count += record.as_slice().as_bytes().len();
@@ -107,12 +104,12 @@ impl CopyFromFileExecutor {
             // push a raw str row and send it if necessary
             if let Some(chunk) = chunk_builder.push_str_row(record.iter())? {
                 bar.set_position(size_count as u64);
-                tx.blocking_send(chunk).map_err(|_| ExecutorError::Abort)?;
+                tx.blocking_send(chunk).map_err(|_| Error::aborted())?;
             }
         }
         // send left chunk
         if let Some(chunk) = chunk_builder.take() {
-            tx.blocking_send(chunk).map_err(|_| ExecutorError::Abort)?;
+            tx.blocking_send(chunk).map_err(|_| Error::aborted())?;
         }
         bar.finish();
         Ok(())
