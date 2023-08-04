@@ -62,7 +62,7 @@ impl Binder {
             } => (table_name, columns),
             CopySource::Query(_) => return Err(BindError::Todo("copy from query".into())),
         };
-        let (table, _) = self.bind_table_id(&table_name)?;
+        let (table, is_system, is_view) = self.bind_table_id(&table_name)?;
 
         let cols = self.bind_table_columns(&table_name, &columns)?;
 
@@ -81,6 +81,11 @@ impl Binder {
             self.egraph.add(Node::CopyTo([ext_source, scan]))
         } else {
             // COPY <dest_table> FROM <source_file>
+            if is_system {
+                return Err(BindError::CopyTo("system table".into()));
+            } else if is_view {
+                return Err(BindError::CopyTo("view".into()));
+            }
             let types = self.type_(cols)?;
             let types = self.egraph.add(Node::Type(types));
             let copy = self.egraph.add(Node::CopyFrom([ext_source, types]));

@@ -14,9 +14,9 @@ impl Binder {
         let TableFactor::Table { name, .. } = &from[0].relation else {
             return Err(BindError::Todo(format!("delete from {from:?}")));
         };
-        let (table_id, is_internal) = self.bind_table_id(name)?;
-        if is_internal {
-            return Err(BindError::NotSupportedOnInternalTable);
+        let (table_id, is_internal, is_view) = self.bind_table_id(name)?;
+        if is_internal || is_view {
+            return Err(BindError::CanNotDelete);
         }
         let cols = self.bind_table_def(name, None, true)?;
         let true_ = self.egraph.add(Node::true_());

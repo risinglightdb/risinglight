@@ -60,7 +60,7 @@ impl Binder {
     fn bind_table_factor(&mut self, table: TableFactor) -> Result {
         match table {
             TableFactor::Table { name, alias, .. } => {
-                let (table_id, _) = self.bind_table_id(&name)?;
+                let (table_id, _, _) = self.bind_table_id(&name)?;
                 let cols = self.bind_table_def(&name, alias, false)?;
                 let null = self.egraph.add(Node::null());
                 let id = self.egraph.add(Node::Scan([table_id, cols, null]));
@@ -235,11 +235,11 @@ impl Binder {
         Ok(id)
     }
 
-    /// Returns a [`Table`](Node::Table) node.
+    /// Returns a [`Table`](Node::Table) node, is_internal flag, and is_view flag.
     ///
     /// # Example
     /// - `bind_table_id(t)` => `$1`
-    pub(super) fn bind_table_id(&mut self, table_name: &ObjectName) -> Result<(Id, bool)> {
+    pub(super) fn bind_table_id(&mut self, table_name: &ObjectName) -> Result<(Id, bool, bool)> {
         let name = lower_case_name(table_name);
         let (schema_name, table_name) = split_name(&name)?;
 
@@ -247,8 +247,13 @@ impl Binder {
             .catalog
             .get_table_id_by_name(schema_name, table_name)
             .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
+        let table = self.catalog.get_table(&table_ref_id).unwrap();
         let id = self.egraph.add(Node::Table(table_ref_id));
-        Ok((id, table_ref_id.schema_id == RootCatalog::SYSTEM_SCHEMA_ID))
+        Ok((
+            id,
+            table_ref_id.schema_id == RootCatalog::SYSTEM_SCHEMA_ID,
+            table.is_view(),
+        ))
     }
 }
 
