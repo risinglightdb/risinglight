@@ -17,6 +17,7 @@ python = ["pyo3", "pyo3-build-config"]
 
 [dependencies]
 anyhow = "1"
+async-broadcast = "0.5"
 async-recursion = "1"
 async-stream = "0.3"
 async-trait = "0.1"
