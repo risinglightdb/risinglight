@@ -143,7 +143,9 @@ impl<S: Storage> Builder<S> {
         }
     }
 
+    /// Get the node from id.
     fn node(&self, id: Id) -> &Expr {
+        // each e-class has exactly one node since there is no rewrite or union.
         &self.egraph[id].nodes[0]
     }
 
@@ -347,6 +349,7 @@ impl<S: Storage> Builder<S> {
                 tables: (self.node(tables).as_list().iter())
                     .map(|id| self.node(*id).as_table())
                     .collect(),
+                catalog: self.optimizer.catalog().clone(),
                 storage: self.storage.clone(),
             }
             .execute(),
