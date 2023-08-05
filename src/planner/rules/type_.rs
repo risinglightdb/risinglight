@@ -143,7 +143,7 @@ pub fn analyze_type(
         Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) | Empty(c) => x(c),
 
         // concat 2 children
-        Join([t, _, l, r]) | HashJoin([t, _, _, l, r]) | MergeJoin([t, _, _, l, r]) => {
+        Join([t, _, l, r]) | HashJoin([t, _, _, _, l, r]) | MergeJoin([t, _, _, _, l, r]) => {
             match node0(t) {
                 Semi | Anti => x(l),
                 _ => concat_struct(x(l)?, x(r)?),

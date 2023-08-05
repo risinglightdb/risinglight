@@ -44,7 +44,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
             Semi | Anti => x(l) * x(on),
             _ => x(l) * x(r) * x(on),
         },
-        HashJoin([t, _, _, l, r]) | MergeJoin([t, _, _, l, r]) => match egraph[*t].nodes[0] {
+        HashJoin([t, _, _, _, l, r]) | MergeJoin([t, _, _, _, l, r]) => match egraph[*t].nodes[0] {
             Semi | Anti => x(l),
             _ => x(l).max(x(r)),
         },

@@ -34,7 +34,7 @@ pub fn analyze_order(egraph: &EGraph, enode: &Expr) -> OrderKey {
         Order([keys, _]) | TopN([_, _, keys, _]) => x(keys).clone(),
         // plans that preserve order
         Proj([_, c]) | Filter([_, c]) | Window([_, c]) | Limit([_, _, c]) => x(c).clone(),
-        MergeJoin([_, _, _, _, r]) => x(r).clone(),
+        MergeJoin([_, _, _, _, _, r]) => x(r).clone(),
         SortAgg([_, _, c]) => x(c).clone(),
         // unordered for other plans
         _ => Box::new([]),
@@ -48,8 +48,8 @@ pub fn order_rules() -> Vec<Rewrite> { vec![
         if is_orderby("?keys", "?child")
     ),
     rw!("merge-join";
-        "(hashjoin ?type ?lkey ?rkey ?left ?right)" =>
-        "(mergejoin ?type ?lkey ?rkey ?left ?right)"
+        "(hashjoin ?type ?cond ?lkey ?rkey ?left ?right)" =>
+        "(mergejoin ?type ?cond ?lkey ?rkey ?left ?right)"
         if is_orderby("?lkey", "?left")
         if is_orderby("?rkey", "?right")
     ),

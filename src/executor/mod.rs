@@ -423,8 +423,9 @@ impl<S: Storage> Builder<S> {
         spawn(&self.node(id).to_string(), stream)
     }
 
-    fn build_hashjoin<const T: JoinType>(&self, args: [Id; 5]) -> BoxedExecutor {
-        let [_, lkeys, rkeys, left, right] = args;
+    fn build_hashjoin<const T: JoinType>(&self, args: [Id; 6]) -> BoxedExecutor {
+        let [_, cond, lkeys, rkeys, left, right] = args;
+        assert_eq!(self.node(cond), &Expr::true_());
         HashJoinExecutor::<T> {
             left_keys: self.resolve_column_index(lkeys, left),
             right_keys: self.resolve_column_index(rkeys, right),
@@ -434,19 +435,32 @@ impl<S: Storage> Builder<S> {
         .execute(self.build_id(left), self.build_id(right))
     }
 
-    fn build_hashsemijoin(&self, args: [Id; 5], anti: bool) -> BoxedExecutor {
-        let [_, lkeys, rkeys, left, right] = args;
-        HashSemiJoinExecutor {
-            left_keys: self.resolve_column_index(lkeys, left),
-            right_keys: self.resolve_column_index(rkeys, right),
-            left_types: self.plan_types(left).to_vec(),
-            anti,
+    fn build_hashsemijoin(&self, args: [Id; 6], anti: bool) -> BoxedExecutor {
+        let [_, cond, lkeys, rkeys, left, right] = args;
+        if self.node(cond) == &Expr::true_() {
+            HashSemiJoinExecutor {
+                left_keys: self.resolve_column_index(lkeys, left),
+                right_keys: self.resolve_column_index(rkeys, right),
+                left_types: self.plan_types(left).to_vec(),
+                anti,
+            }
+            .execute(self.build_id(left), self.build_id(right))
+        } else {
+            HashSemiJoinExecutor2 {
+                left_keys: self.resolve_column_index(lkeys, left),
+                right_keys: self.resolve_column_index(rkeys, right),
+                condition: self.resolve_column_index2(cond, left, right),
+                left_types: self.plan_types(left).to_vec(),
+                right_types: self.plan_types(right).to_vec(),
+                anti,
+            }
+            .execute(self.build_id(left), self.build_id(right))
         }
-        .execute(self.build_id(left), self.build_id(right))
     }
 
-    fn build_mergejoin<const T: JoinType>(&self, args: [Id; 5]) -> BoxedExecutor {
-        let [_, lkeys, rkeys, left, right] = args;
+    fn build_mergejoin<const T: JoinType>(&self, args: [Id; 6]) -> BoxedExecutor {
+        let [_, cond, lkeys, rkeys, left, right] = args;
+        assert_eq!(self.node(cond), &Expr::true_());
         MergeJoinExecutor::<T> {
             left_keys: self.resolve_column_index(lkeys, left),
             right_keys: self.resolve_column_index(rkeys, right),

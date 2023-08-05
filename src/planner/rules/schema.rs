@@ -21,8 +21,8 @@ pub fn analyze_schema(
 
         // concat 2 children
         Join([t, _, l, r])
-        | HashJoin([t, _, _, l, r])
-        | MergeJoin([t, _, _, l, r])
+        | HashJoin([t, _, _, _, l, r])
+        | MergeJoin([t, _, _, _, l, r])
         | Apply([t, l, r]) => match node0(t) {
             Semi | Anti => x(l),
             _ => concat(x(l), x(r)),

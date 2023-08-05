@@ -293,19 +293,20 @@ impl<'a> Explain<'a> {
                     vec![self.child(left).pretty(), self.child(right).pretty()],
                 )
             }
-            HashJoin([ty, lkeys, rkeys, left, right])
-            | MergeJoin([ty, lkeys, rkeys, left, right]) => {
+            HashJoin([ty, cond, lkeys, rkeys, left, right])
+            | MergeJoin([ty, cond, lkeys, rkeys, left, right]) => {
                 let name = match enode {
                     HashJoin(_) => "HashJoin",
                     MergeJoin(_) => "MergeJoin",
                     _ => unreachable!(),
                 };
                 let fields = vec![
-                    ("lhs", self.expr(lkeys).pretty()),
-                    ("rhs", self.expr(rkeys).pretty()),
-                ];
-                let eq = Pretty::childless_record("=", fields);
-                let fields = vec![("type", self.expr(ty).pretty()), ("on", eq)].with(cost, rows);
+                    ("type", self.expr(ty).pretty()),
+                    ("cond", self.expr(cond).pretty()),
+                    ("lkey", self.expr(lkeys).pretty()),
+                    ("rkey", self.expr(rkeys).pretty()),
+                ]
+                .with(cost, rows);
                 let children = vec![self.child(left).pretty(), self.child(right).pretty()];
                 Pretty::simple_record(name, fields, children)
             }

@@ -7,7 +7,7 @@ use futures::TryStreamExt;
 use smallvec::SmallVec;
 
 use super::*;
-use crate::array::{DataChunk, DataChunkBuilder, RowRef};
+use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunk, DataChunkBuilder, RowRef};
 use crate::types::{DataType, DataValue};
 
 /// The executor for hash join
@@ -124,6 +124,7 @@ impl HashSemiJoinExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self, left: BoxedExecutor, right: BoxedExecutor) {
         let mut key_set: HashSet<JoinKeys> = HashSet::new();
+        // build
         #[for_await]
         for chunk in right {
             let chunk = chunk?;
@@ -131,7 +132,9 @@ impl HashSemiJoinExecutor {
             for row in keys_chunk.rows() {
                 key_set.insert(row.values().collect());
             }
+            tokio::task::consume_budget().await;
         }
+        // probe
         #[for_await]
         for chunk in left {
             let chunk = chunk?;
@@ -142,5 +145,74 @@ impl HashSemiJoinExecutor {
                 .collect::<Vec<bool>>();
             yield chunk.filter(&exists);
         }
+    }
+}
+
+/// The executor for hash semi/anti join
+pub struct HashSemiJoinExecutor2 {
+    pub left_keys: RecExpr,
+    pub right_keys: RecExpr,
+    pub condition: RecExpr,
+    pub left_types: Vec<DataType>,
+    pub right_types: Vec<DataType>,
+    pub anti: bool,
+}
+
+impl HashSemiJoinExecutor2 {
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self, left: BoxedExecutor, right: BoxedExecutor) {
+        let mut key_set: HashMap<JoinKeys, DataChunkBuilder> = HashMap::new();
+        // build
+        #[for_await]
+        for chunk in right {
+            let chunk = chunk?;
+            let keys_chunk = Evaluator::new(&self.right_keys).eval_list(&chunk)?;
+            for (key, row) in keys_chunk.rows().zip(chunk.rows()) {
+                let chunk = key_set
+                    .entry(key.values().collect())
+                    .or_insert_with(|| DataChunkBuilder::new(&self.right_types, 1024))
+                    .push_row(row.values());
+                assert!(chunk.is_none());
+            }
+            tokio::task::consume_budget().await;
+        }
+        let key_set = key_set
+            .into_iter()
+            .map(|(k, mut v)| (k, v.take().unwrap()))
+            .collect::<HashMap<JoinKeys, DataChunk>>();
+        // probe
+        #[for_await]
+        for chunk in left {
+            let chunk = chunk?;
+            let keys_chunk = Evaluator::new(&self.left_keys).eval_list(&chunk)?;
+            let mut exists = Vec::with_capacity(chunk.cardinality());
+            for (key, lrow) in keys_chunk.rows().zip(chunk.rows()) {
+                let b = if let Some(rchunk) = key_set.get(&key.values().collect::<JoinKeys>()) {
+                    let lchunk = self.left_row_to_chunk(&lrow, rchunk.cardinality());
+                    let join_chunk = lchunk.row_concat(rchunk.clone());
+                    let ArrayImpl::Bool(a) = Evaluator::new(&self.condition).eval(&join_chunk)? else {
+                        panic!("join condition should return bool");
+                    };
+                    a.true_array().iter().any(|b| *b)
+                } else {
+                    false
+                };
+                exists.push(b ^ self.anti);
+            }
+            yield chunk.filter(&exists);
+        }
+    }
+
+    /// Expand the left row to a chunk with given length.
+    fn left_row_to_chunk(&self, row: &RowRef<'_>, len: usize) -> DataChunk {
+        self.left_types
+            .iter()
+            .zip(row.values())
+            .map(|(ty, value)| {
+                let mut builder = ArrayBuilderImpl::with_capacity(len, ty);
+                builder.push_n(len, &value);
+                builder.finish()
+            })
+            .collect()
     }
 }

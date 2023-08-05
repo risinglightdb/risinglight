@@ -133,8 +133,8 @@ pub fn join_reorder_rules() -> Vec<Rewrite> { vec![
         "(proj ?proj (join inner ?cond ?right ?left))"
     ),
     rw!("inner-hash-join-swap";
-        "(proj ?proj (hashjoin inner ?lkeys ?rkeys ?left ?right))" =>
-        "(proj ?proj (hashjoin inner ?rkeys ?lkeys ?right ?left))"
+        "(proj ?proj (hashjoin inner ?cond ?lkeys ?rkeys ?left ?right))" =>
+        "(proj ?proj (hashjoin inner ?cond ?rkeys ?lkeys ?right ?left))"
     ),
 ]}
 
@@ -142,13 +142,13 @@ pub fn join_reorder_rules() -> Vec<Rewrite> { vec![
 pub fn hash_join_rules() -> Vec<Rewrite> { vec![
     rw!("hash-join-on-one-eq";
         "(join ?type (= ?l1 ?r1) ?left ?right)" =>
-        "(hashjoin ?type (list ?l1) (list ?r1) ?left ?right)"
+        "(hashjoin ?type true (list ?l1) (list ?r1) ?left ?right)"
         if not_depend_on("?l1", "?right")
         if not_depend_on("?r1", "?left")
     ),
     rw!("hash-join-on-two-eq";
         "(join ?type (and (= ?l1 ?r1) (= ?l2 ?r2)) ?left ?right)" =>
-        "(hashjoin ?type (list ?l1 ?l2) (list ?r1 ?r2) ?left ?right)"
+        "(hashjoin ?type true (list ?l1 ?l2) (list ?r1 ?r2) ?left ?right)"
         if not_depend_on("?l1", "?right")
         if not_depend_on("?l2", "?right")
         if not_depend_on("?r1", "?left")
@@ -156,7 +156,7 @@ pub fn hash_join_rules() -> Vec<Rewrite> { vec![
     ),
     rw!("hash-join-on-three-eq";
         "(join ?type (and (= ?l1 ?r1) (and (= ?l2 ?r2) (= ?l3 ?r3))) ?left ?right)" =>
-        "(hashjoin ?type (list ?l1 ?l2 ?l3) (list ?r1 ?r2 ?r3) ?left ?right)"
+        "(hashjoin ?type true (list ?l1 ?l2 ?l3) (list ?r1 ?r2 ?r3) ?left ?right)"
         if not_depend_on("?l1", "?right")
         if not_depend_on("?l2", "?right")
         if not_depend_on("?l3", "?right")
@@ -167,22 +167,34 @@ pub fn hash_join_rules() -> Vec<Rewrite> { vec![
     rw!("hash-join-on-one-eq-1";
         // only valid for inner join
         "(join inner (and (= ?l1 ?r1) ?cond) ?left ?right)" =>
-        "(filter ?cond (hashjoin inner (list ?l1) (list ?r1) ?left ?right))"
+        "(filter ?cond (hashjoin inner true (list ?l1) (list ?r1) ?left ?right))"
+        if not_depend_on("?l1", "?right")
+        if not_depend_on("?r1", "?left")
+    ),
+    rw!("hash-join-on-one-eq-2";
+        "(join semi (and (= ?l1 ?r1) ?cond) ?left ?right)" =>
+        "(hashjoin semi ?cond (list ?l1) (list ?r1) ?left ?right)"
+        if not_depend_on("?l1", "?right")
+        if not_depend_on("?r1", "?left")
+    ),
+    rw!("hash-join-on-one-eq-3";
+        "(join anti (and (= ?l1 ?r1) ?cond) ?left ?right)" =>
+        "(hashjoin anti ?cond (list ?l1) (list ?r1) ?left ?right)"
         if not_depend_on("?l1", "?right")
         if not_depend_on("?r1", "?left")
     ),
     // allow reverting hashjoin to join so that projections and filters can be pushed down
     rw!("hash-join-on-one-eq-rev";
-        "(hashjoin ?type (list ?l1) (list ?r1) ?left ?right)" =>
-        "(join ?type (= ?l1 ?r1) ?left ?right)"
+        "(hashjoin ?type ?cond (list ?l1) (list ?r1) ?left ?right)" =>
+        "(join ?type (and ?cond (= ?l1 ?r1)) ?left ?right)"
     ),
     rw!("hash-join-on-two-eq-rev";
-        "(hashjoin ?type (list ?l1 ?l2) (list ?r1 ?r2) ?left ?right)" =>
-        "(join ?type (and (= ?l1 ?r1) (= ?l2 ?r2)) ?left ?right)"
+        "(hashjoin ?type ?cond (list ?l1 ?l2) (list ?r1 ?r2) ?left ?right)" =>
+        "(join ?type (and ?cond (and (= ?l1 ?r1) (= ?l2 ?r2))) ?left ?right)"
     ),
     rw!("hash-join-on-three-eq-rev";
-        "(hashjoin ?type (list ?l1 ?l2 ?l3) (list ?r1 ?r2 ?r3) ?left ?right)" =>
-        "(join ?type (and (= ?l1 ?r1) (and (= ?l2 ?r2) (= ?l3 ?r3))) ?left ?right)"
+        "(hashjoin ?type ?cond (list ?l1 ?l2 ?l3) (list ?r1 ?r2 ?r3) ?left ?right)" =>
+        "(join ?type (and ?cond (and (= ?l1 ?r1) (and (= ?l2 ?r2) (= ?l3 ?r3)))) ?left ?right)"
     ),
 ]}
 
@@ -626,7 +638,7 @@ mod tests {
             (scan $1 (list $1.1 $1.2) null)
             (scan $2 (list $2.1 $2.2) null)
         ))" => "
-        (hashjoin inner (list $1.1) (list $2.1)
+        (hashjoin inner true (list $1.1) (list $2.1)
             (filter (> $1.2 2)
                 (scan $1 (list $1.1 $1.2) null)
             )
