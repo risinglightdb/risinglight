@@ -1,19 +1,17 @@
 -- prepare
 CREATE TABLE NATION  (
-    N_NATIONKEY  INT NOT NULL,
+    N_NATIONKEY  INT PRIMARY KEY,
     N_NAME       CHAR(25) NOT NULL,
     N_REGIONKEY  INT NOT NULL,
     N_COMMENT    VARCHAR(152)
 );
-
 CREATE TABLE REGION  (
-    R_REGIONKEY  INT NOT NULL,
+    R_REGIONKEY  INT PRIMARY KEY,
     R_NAME       CHAR(25) NOT NULL,
     R_COMMENT    VARCHAR(152)
 );
-
 CREATE TABLE PART  (
-    P_PARTKEY     INT NOT NULL,
+    P_PARTKEY     INT PRIMARY KEY,
     P_NAME        VARCHAR(55) NOT NULL,
     P_MFGR        CHAR(25) NOT NULL,
     P_BRAND       CHAR(10) NOT NULL,
@@ -23,9 +21,8 @@ CREATE TABLE PART  (
     P_RETAILPRICE DECIMAL(15,2) NOT NULL,
     P_COMMENT     VARCHAR(23) NOT NULL
 );
-
 CREATE TABLE SUPPLIER (
-    S_SUPPKEY     INT NOT NULL,
+    S_SUPPKEY     INT PRIMARY KEY,
     S_NAME        CHAR(25) NOT NULL,
     S_ADDRESS     VARCHAR(40) NOT NULL,
     S_NATIONKEY   INT NOT NULL,
@@ -33,17 +30,16 @@ CREATE TABLE SUPPLIER (
     S_ACCTBAL     DECIMAL(15,2) NOT NULL,
     S_COMMENT     VARCHAR(101) NOT NULL
 );
-
 CREATE TABLE PARTSUPP (
     PS_PARTKEY     INT NOT NULL,
     PS_SUPPKEY     INT NOT NULL,
     PS_AVAILQTY    INT NOT NULL,
     PS_SUPPLYCOST  DECIMAL(15,2)  NOT NULL,
     PS_COMMENT     VARCHAR(199) NOT NULL
+    -- PRIMARY KEY (PS_PARTKEY, PS_SUPPKEY)
 );
-
 CREATE TABLE CUSTOMER (
-    C_CUSTKEY     INT NOT NULL,
+    C_CUSTKEY     INT PRIMARY KEY,
     C_NAME        VARCHAR(25) NOT NULL,
     C_ADDRESS     VARCHAR(40) NOT NULL,
     C_NATIONKEY   INT NOT NULL,
@@ -52,9 +48,8 @@ CREATE TABLE CUSTOMER (
     C_MKTSEGMENT  CHAR(10) NOT NULL,
     C_COMMENT     VARCHAR(117) NOT NULL
 );
-
 CREATE TABLE ORDERS (
-    O_ORDERKEY       INT NOT NULL,
+    O_ORDERKEY       INT PRIMARY KEY,
     O_CUSTKEY        INT NOT NULL,
     O_ORDERSTATUS    CHAR(1) NOT NULL,
     O_TOTALPRICE     DECIMAL(15,2) NOT NULL,
@@ -64,7 +59,6 @@ CREATE TABLE ORDERS (
     O_SHIPPRIORITY   INT NOT NULL,
     O_COMMENT        VARCHAR(79) NOT NULL
 );
-
 CREATE TABLE LINEITEM (
     L_ORDERKEY      INT NOT NULL,
     L_PARTKEY       INT NOT NULL,
@@ -82,6 +76,7 @@ CREATE TABLE LINEITEM (
     L_SHIPINSTRUCT  CHAR(25) NOT NULL,
     L_SHIPMODE      CHAR(10) NOT NULL,
     L_COMMENT       VARCHAR(44) NOT NULL
+    -- PRIMARY KEY (L_ORDERKEY, L_LINENUMBER)
 );
 
 SET mock_rowcount_customer =  150000;
@@ -254,7 +249,7 @@ limit 100;
 /*
 Projection
 ├── exprs: [ s_acctbal, s_name, n_name, p_partkey, p_mfgr, s_address, s_phone, s_comment ]
-├── cost: 183870780
+├── cost: 108848000
 ├── rows: 100
 └── TopN
     ├── limit: 100
@@ -265,12 +260,12 @@ Projection
     │   ├── n_name
     │   ├── s_name
     │   └── p_partkey
-    ├── cost: 183870770
+    ├── cost: 108847990
     ├── rows: 100
     └── Projection
         ├── exprs: [ p_partkey, p_mfgr, s_name, s_address, s_phone, s_acctbal, s_comment, n_name ]
-        ├── cost: 179708590
-        ├── rows: 625000
+        ├── cost: 106183900
+        ├── rows: 400000
         └── Filter
             ├── cond:=
             │   ├── lhs: ps_supplycost
@@ -278,8 +273,8 @@ Projection
             │   │   └── min
             │   │       └── ps_supplycost(1)
 
-            ├── cost: 179652340
-            ├── rows: 625000
+            ├── cost: 106147900
+            ├── rows: 400000
             └── Projection
                 ├── exprs:
                 │   ┌── p_partkey
@@ -294,8 +289,8 @@ Projection
                 │   └── ref
                 │       └── min
                 │           └── ps_supplycost(1)
-                ├── cost: 173252340
-                ├── rows: 1250000
+                ├── cost: 102051900
+                ├── rows: 800000
                 └── HashAgg
                     ├── keys:
                     │   ┌── p_partkey
@@ -328,8 +323,8 @@ Projection
                     │   └── r_comment
                     ├── aggs:min
                     │   └── ps_supplycost(1)
-                    ├── cost: 173114830
-                    ├── rows: 1250000
+                    ├── cost: 101963900
+                    ├── rows: 800000
                     └── Projection
                         ├── exprs:
                         │   ┌── p_partkey
@@ -361,15 +356,15 @@ Projection
                         │   ├── r_name
                         │   ├── r_comment
                         │   └── ps_supplycost(1)
-                        ├── cost: 136099170
-                        ├── rows: 1250000
+                        ├── cost: 78279020
+                        ├── rows: 800000
                         └── HashJoin
                             ├── type: left_outer
                             ├── cond: true
                             ├── lkey: [ p_partkey ]
                             ├── rkey: [ ps_partkey(1) ]
-                            ├── cost: 135724180
-                            ├── rows: 1250000
+                            ├── cost: 78039020
+                            ├── rows: 800000
                             ├── Projection
                             │   ├── exprs:
                             │   │   ┌── p_partkey
@@ -400,135 +395,161 @@ Projection
                             │   │   ├── r_regionkey
                             │   │   ├── r_name
                             │   │   └── r_comment
-                            │   ├── cost: 91662130
-                            │   ├── rows: 1250000
+                            │   ├── cost: 44733540
+                            │   ├── rows: 10000
                             │   └── HashJoin
                             │       ├── type: inner
                             │       ├── cond: true
-                            │       ├── lkey: [ p_partkey, s_suppkey ]
-                            │       ├── rkey: [ ps_partkey, ps_suppkey ]
-                            │       ├── cost: 91299630
-                            │       ├── rows: 1250000
-                            │       ├── HashJoin
-                            │       │   ├── type: inner
-                            │       │   ├── cond: true
-                            │       │   ├── lkey: [ s_nationkey ]
-                            │       │   ├── rkey: [ n_nationkey ]
-                            │       │   ├── cost: 51617932
-                            │       │   ├── rows: 1250000
-                            │       │   ├── Scan
-                            │       │   │   ├── table: supplier
-                            │       │   │   ├── list:
-                            │       │   │   │   ┌── s_suppkey
-                            │       │   │   │   ├── s_name
-                            │       │   │   │   ├── s_address
-                            │       │   │   │   ├── s_nationkey
-                            │       │   │   │   ├── s_phone
-                            │       │   │   │   ├── s_acctbal
-                            │       │   │   │   └── s_comment
-                            │       │   │   ├── filter: null
-                            │       │   │   ├── cost: 70000
-                            │       │   │   └── rows: 10000
-                            │       │   └── Join { type: inner, cost: 22479304, rows: 1250000 }
-                            │       │       ├── HashJoin
-                            │       │       │   ├── type: inner
-                            │       │       │   ├── cond: true
-                            │       │       │   ├── lkey: [ n_regionkey ]
-                            │       │       │   ├── rkey: [ r_regionkey ]
-                            │       │       │   ├── cost: 303.1426
-                            │       │       │   ├── rows: 25
-                            │       │       │   ├── Scan
-                            │       │       │   │   ├── table: nation
-                            │       │       │   │   ├── list: [ n_nationkey, n_name, n_regionkey, n_comment ]
-                            │       │       │   │   ├── filter: null
-                            │       │       │   │   ├── cost: 100
-                            │       │       │   │   └── rows: 25
+                            │       ├── lkey: [ n_nationkey, ps_suppkey ]
+                            │       ├── rkey: [ s_nationkey, s_suppkey ]
+                            │       ├── cost: 44730640
+                            │       ├── rows: 10000
+                            │       ├── Projection
+                            │       │   ├── exprs:
+                            │       │   │   ┌── ps_partkey
+                            │       │   │   ├── ps_suppkey
+                            │       │   │   ├── ps_availqty
+                            │       │   │   ├── ps_supplycost
+                            │       │   │   ├── ps_comment
+                            │       │   │   ├── n_nationkey
+                            │       │   │   ├── n_name
+                            │       │   │   ├── n_regionkey
+                            │       │   │   ├── n_comment
+                            │       │   │   ├── r_regionkey
+                            │       │   │   ├── r_name
+                            │       │   │   ├── r_comment
+                            │       │   │   ├── p_partkey
+                            │       │   │   ├── p_name
+                            │       │   │   ├── p_mfgr
+                            │       │   │   ├── p_brand
+                            │       │   │   ├── p_type
+                            │       │   │   ├── p_size
+                            │       │   │   ├── p_container
+                            │       │   │   ├── p_retailprice
+                            │       │   │   └── p_comment
+                            │       │   ├── cost: 44116500
+                            │       │   ├── rows: 800000
+                            │       │   └── HashJoin
+                            │       │       ├── type: inner
+                            │       │       ├── cond: true
+                            │       │       ├── lkey: [ p_partkey ]
+                            │       │       ├── rkey: [ ps_partkey ]
+                            │       │       ├── cost: 43940500
+                            │       │       ├── rows: 800000
+                            │       │       ├── Join { type: inner, cost: 22479304, rows: 1250000 }
+                            │       │       │   ├── HashJoin
+                            │       │       │   │   ├── type: inner
+                            │       │       │   │   ├── cond: true
+                            │       │       │   │   ├── lkey: [ n_regionkey ]
+                            │       │       │   │   ├── rkey: [ r_regionkey ]
+                            │       │       │   │   ├── cost: 303.1426
+                            │       │       │   │   ├── rows: 25
+                            │       │       │   │   ├── Scan
+                            │       │       │   │   │   ├── table: nation
+                            │       │       │   │   │   ├── list: [ n_nationkey, n_name, n_regionkey, n_comment ]
+                            │       │       │   │   │   ├── filter: null
+                            │       │       │   │   │   ├── cost: 100
+                            │       │       │   │   │   └── rows: 25
+                            │       │       │   │   └── Filter
+                            │       │       │   │       ├── cond: = { lhs: 'EUROPE', rhs: r_name }
+                            │       │       │   │       ├── cost: 23.55
+                            │       │       │   │       ├── rows: 2.5
+                            │       │       │   │       └── Scan
+                            │       │       │   │           ├── table: region
+                            │       │       │   │           ├── list: [ r_regionkey, r_name, r_comment ]
+                            │       │       │   │           ├── filter: null
+                            │       │       │   │           ├── cost: 15
+                            │       │       │   │           └── rows: 5
                             │       │       │   └── Filter
-                            │       │       │       ├── cond: = { lhs: 'EUROPE', rhs: r_name }
-                            │       │       │       ├── cost: 23.55
-                            │       │       │       ├── rows: 2.5
+                            │       │       │       ├── cond:and
+                            │       │       │       │   ├── lhs: = { lhs: p_size, rhs: 15 }
+                            │       │       │       │   └── rhs: like { lhs: p_type, rhs: '%BRASS' }
+                            │       │       │       ├── cost: 2354000
+                            │       │       │       ├── rows: 50000
                             │       │       │       └── Scan
-                            │       │       │           ├── table: region
-                            │       │       │           ├── list: [ r_regionkey, r_name, r_comment ]
+                            │       │       │           ├── table: part
+                            │       │       │           ├── list:
+                            │       │       │           │   ┌── p_partkey
+                            │       │       │           │   ├── p_name
+                            │       │       │           │   ├── p_mfgr
+                            │       │       │           │   ├── p_brand
+                            │       │       │           │   ├── p_type
+                            │       │       │           │   ├── p_size
+                            │       │       │           │   ├── p_container
+                            │       │       │           │   ├── p_retailprice
+                            │       │       │           │   └── p_comment
                             │       │       │           ├── filter: null
-                            │       │       │           ├── cost: 15
-                            │       │       │           └── rows: 5
-                            │       │       └── Filter
-                            │       │           ├── cond:and
-                            │       │           │   ├── lhs: = { lhs: p_size, rhs: 15 }
-                            │       │           │   └── rhs: like { lhs: p_type, rhs: '%BRASS' }
-                            │       │           ├── cost: 2354000
-                            │       │           ├── rows: 50000
-                            │       │           └── Scan
-                            │       │               ├── table: part
-                            │       │               ├── list:
-                            │       │               │   ┌── p_partkey
-                            │       │               │   ├── p_name
-                            │       │               │   ├── p_mfgr
-                            │       │               │   ├── p_brand
-                            │       │               │   ├── p_type
-                            │       │               │   ├── p_size
-                            │       │               │   ├── p_container
-                            │       │               │   ├── p_retailprice
-                            │       │               │   └── p_comment
-                            │       │               ├── filter: null
-                            │       │               ├── cost: 1800000
-                            │       │               └── rows: 200000
+                            │       │       │           ├── cost: 1800000
+                            │       │       │           └── rows: 200000
+                            │       │       └── Scan
+                            │       │           ├── table: partsupp
+                            │       │           ├── list:
+                            │       │           │   ┌── ps_partkey
+                            │       │           │   ├── ps_suppkey
+                            │       │           │   ├── ps_availqty
+                            │       │           │   ├── ps_supplycost
+                            │       │           │   └── ps_comment
+                            │       │           ├── filter: null
+                            │       │           ├── cost: 4000000
+                            │       │           └── rows: 800000
                             │       └── Scan
-                            │           ├── table: partsupp
-                            │           ├── list: [ ps_partkey, ps_suppkey, ps_availqty, ps_supplycost, ps_comment ]
+                            │           ├── table: supplier
+                            │           ├── list:
+                            │           │   ┌── s_suppkey
+                            │           │   ├── s_name
+                            │           │   ├── s_address
+                            │           │   ├── s_nationkey
+                            │           │   ├── s_phone
+                            │           │   ├── s_acctbal
+                            │           │   └── s_comment
                             │           ├── filter: null
-                            │           ├── cost: 4000000
-                            │           └── rows: 800000
-                            └── Projection { exprs: [ ps_partkey(1), ps_supplycost(1) ], cost: 5900852, rows: 800000 }
+                            │           ├── cost: 70000
+                            │           └── rows: 10000
+                            └── Projection { exprs: [ ps_partkey(1), ps_supplycost(1) ], cost: 9100652, rows: 800000 }
                                 └── HashJoin
                                     ├── type: inner
                                     ├── cond: true
                                     ├── lkey: [ s_suppkey(1) ]
                                     ├── rkey: [ ps_suppkey(1) ]
-                                    ├── cost: 5876852
+                                    ├── cost: 9076652
                                     ├── rows: 800000
-                                    ├── Projection { exprs: [ s_suppkey(1) ], cost: 72019.91, rows: 10000 }
-                                    │   └── HashJoin
-                                    │       ├── type: inner
-                                    │       ├── cond: true
-                                    │       ├── lkey: [ n_nationkey(1) ]
-                                    │       ├── rkey: [ s_nationkey(1) ]
-                                    │       ├── cost: 71819.91
-                                    │       ├── rows: 10000
-                                    │       ├── HashJoin
-                                    │       │   ├── type: inner
-                                    │       │   ├── cond: true
-                                    │       │   ├── lkey: [ n_regionkey(1) ]
-                                    │       │   ├── rkey: [ r_regionkey(1) ]
-                                    │       │   ├── cost: 145.69263
-                                    │       │   ├── rows: 25
-                                    │       │   ├── Scan
-                                    │       │   │   ├── table: nation
-                                    │       │   │   ├── list: [ n_nationkey(1), n_regionkey(1) ]
-                                    │       │   │   ├── filter: null
-                                    │       │   │   ├── cost: 50
-                                    │       │   │   └── rows: 25
-                                    │       │   └── Projection
-                                    │       │       ├── exprs: [ r_regionkey(1) ]
-                                    │       │       ├── cost: 16.099998
-                                    │       │       ├── rows: 2.5
-                                    │       │       └── Filter
-                                    │       │           ├── cond: = { lhs: r_name(1), rhs: 'EUROPE' }
-                                    │       │           ├── cost: 16.05
-                                    │       │           ├── rows: 2.5
-                                    │       │           └── Scan
-                                    │       │               ├── table: region
-                                    │       │               ├── list: [ r_regionkey(1), r_name(1) ]
-                                    │       │               ├── filter: null
-                                    │       │               ├── cost: 10
-                                    │       │               └── rows: 5
-                                    │       └── Scan
-                                    │           ├── table: supplier
-                                    │           ├── list: [ s_suppkey(1), s_nationkey(1) ]
-                                    │           ├── filter: null
-                                    │           ├── cost: 20000
-                                    │           └── rows: 10000
+                                    ├── HashJoin
+                                    │   ├── type: inner
+                                    │   ├── cond: true
+                                    │   ├── lkey: [ n_nationkey(1) ]
+                                    │   ├── rkey: [ s_nationkey(1) ]
+                                    │   ├── cost: 71819.91
+                                    │   ├── rows: 10000
+                                    │   ├── HashJoin
+                                    │   │   ├── type: inner
+                                    │   │   ├── cond: true
+                                    │   │   ├── lkey: [ n_regionkey(1) ]
+                                    │   │   ├── rkey: [ r_regionkey(1) ]
+                                    │   │   ├── cost: 145.69263
+                                    │   │   ├── rows: 25
+                                    │   │   ├── Scan
+                                    │   │   │   ├── table: nation
+                                    │   │   │   ├── list: [ n_nationkey(1), n_regionkey(1) ]
+                                    │   │   │   ├── filter: null
+                                    │   │   │   ├── cost: 50
+                                    │   │   │   └── rows: 25
+                                    │   │   └── Projection { exprs: [ r_regionkey(1) ], cost: 16.099998, rows: 2.5 }
+                                    │   │       └── Filter
+                                    │   │           ├── cond: = { lhs: r_name(1), rhs: 'EUROPE' }
+                                    │   │           ├── cost: 16.05
+                                    │   │           ├── rows: 2.5
+                                    │   │           └── Scan
+                                    │   │               ├── table: region
+                                    │   │               ├── list: [ r_regionkey(1), r_name(1) ]
+                                    │   │               ├── filter: null
+                                    │   │               ├── cost: 10
+                                    │   │               └── rows: 5
+                                    │   └── Scan
+                                    │       ├── table: supplier
+                                    │       ├── list: [ s_suppkey(1), s_nationkey(1) ]
+                                    │       ├── filter: null
+                                    │       ├── cost: 20000
+                                    │       └── rows: 10000
                                     └── Scan
                                         ├── table: partsupp
                                         ├── list: [ ps_partkey(1), ps_suppkey(1), ps_supplycost(1) ]
@@ -571,7 +592,7 @@ Projection
 │   │       └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
 │   ├── o_orderdate
 │   └── o_shippriority
-├── cost: 72280776
+├── cost: 78279400
 ├── rows: 10
 └── TopN
     ├── limit: 10
@@ -582,48 +603,47 @@ Projection
     │   │       └── sum
     │   │           └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
     │   └── o_orderdate
-    ├── cost: 72280776
+    ├── cost: 78279400
     ├── rows: 10
     └── HashAgg
         ├── keys: [ l_orderkey, o_orderdate, o_shippriority ]
         ├── aggs:sum
         │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
-        ├── cost: 72277280
+        ├── cost: 78275900
         ├── rows: 1000
         └── Projection
             ├── exprs: [ o_orderdate, o_shippriority, l_orderkey, l_extendedprice, l_discount ]
-            ├── cost: 70563920
+            ├── cost: 76562540
             ├── rows: 3000607.5
             └── HashJoin
                 ├── type: inner
                 ├── cond: true
                 ├── lkey: [ o_orderkey ]
                 ├── rkey: [ l_orderkey ]
-                ├── cost: 70383880
+                ├── cost: 76382504
                 ├── rows: 3000607.5
-                ├── Projection { exprs: [ o_orderkey, o_orderdate, o_shippriority ], cost: 13810606, rows: 750000 }
-                │   └── HashJoin
-                │       ├── type: inner
-                │       ├── cond: true
-                │       ├── lkey: [ c_custkey ]
-                │       ├── rkey: [ o_custkey ]
-                │       ├── cost: 13780606
-                │       ├── rows: 750000
-                │       ├── Projection { exprs: [ c_custkey ], cost: 483000, rows: 75000 }
-                │       │   └── Filter { cond: = { lhs: c_mktsegment, rhs: 'BUILDING' }, cost: 481500, rows: 75000 }
-                │       │       └── Scan
-                │       │           ├── table: customer
-                │       │           ├── list: [ c_custkey, c_mktsegment ]
-                │       │           ├── filter: null
-                │       │           ├── cost: 300000
-                │       │           └── rows: 150000
-                │       └── Filter { cond: > { lhs: 1995-03-15, rhs: o_orderdate }, cost: 9315000, rows: 750000 }
+                ├── HashJoin
+                │   ├── type: inner
+                │   ├── cond: true
+                │   ├── lkey: [ o_custkey ]
+                │   ├── rkey: [ c_custkey ]
+                │   ├── cost: 13808012
+                │   ├── rows: 750000
+                │   ├── Filter { cond: > { lhs: 1995-03-15, rhs: o_orderdate }, cost: 9315000, rows: 750000 }
+                │   │   └── Scan
+                │   │       ├── table: orders
+                │   │       ├── list: [ o_orderkey, o_custkey, o_orderdate, o_shippriority ]
+                │   │       ├── filter: null
+                │   │       ├── cost: 6000000
+                │   │       └── rows: 1500000
+                │   └── Projection { exprs: [ c_custkey ], cost: 483000, rows: 75000 }
+                │       └── Filter { cond: = { lhs: c_mktsegment, rhs: 'BUILDING' }, cost: 481500, rows: 75000 }
                 │           └── Scan
-                │               ├── table: orders
-                │               ├── list: [ o_orderkey, o_custkey, o_orderdate, o_shippriority ]
+                │               ├── table: customer
+                │               ├── list: [ c_custkey, c_mktsegment ]
                 │               ├── filter: null
-                │               ├── cost: 6000000
-                │               └── rows: 1500000
+                │               ├── cost: 300000
+                │               └── rows: 150000
                 └── Projection { exprs: [ l_orderkey, l_extendedprice, l_discount ], cost: 37387570, rows: 3000607.5 }
                     └── Filter { cond: > { lhs: l_shipdate, rhs: 1995-03-15 }, cost: 37267544, rows: 3000607.5 }
                         └── Scan
@@ -731,112 +751,106 @@ Projection
 │   └── ref
 │       └── sum
 │           └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
-├── cost: 284949340
+├── cost: 129503016
 ├── rows: 10
 └── Order
     ├── by:desc
     │   └── ref
     │       └── sum
     │           └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
-    ├── cost: 284949340
+    ├── cost: 129503016
     ├── rows: 10
     └── HashAgg
         ├── keys: [ n_name ]
         ├── aggs:sum
         │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
-        ├── cost: 284949280
+        ├── cost: 129502960
         ├── rows: 10
-        └── Projection { exprs: [ l_extendedprice, l_discount, n_name ], cost: 282677730, rows: 4687500 }
-            └── Filter { cond: = { lhs: c_nationkey, rhs: s_nationkey }, cost: 282490240, rows: 4687500 }
+        └── Projection { exprs: [ l_extendedprice, l_discount, n_name ], cost: 126594780, rows: 6001215 }
+            └── HashJoin
+                ├── type: inner
+                ├── cond: true
+                ├── lkey: [ s_suppkey, s_nationkey ]
+                ├── rkey: [ l_suppkey, c_nationkey ]
+                ├── cost: 126354740
+                ├── rows: 6001215
+                ├── HashJoin
+                │   ├── type: inner
+                │   ├── cond: true
+                │   ├── lkey: [ n_regionkey ]
+                │   ├── rkey: [ r_regionkey ]
+                │   ├── cost: 124794.74
+                │   ├── rows: 10000
+                │   ├── Projection
+                │   │   ├── exprs: [ s_suppkey, s_nationkey, n_name, n_regionkey ]
+                │   │   ├── cost: 72249.22
+                │   │   ├── rows: 10000
+                │   │   └── HashJoin
+                │   │       ├── type: inner
+                │   │       ├── cond: true
+                │   │       ├── lkey: [ n_nationkey ]
+                │   │       ├── rkey: [ s_nationkey ]
+                │   │       ├── cost: 71749.22
+                │   │       ├── rows: 10000
+                │   │       ├── Scan
+                │   │       │   ├── table: nation
+                │   │       │   ├── list: [ n_nationkey, n_name, n_regionkey ]
+                │   │       │   ├── filter: null
+                │   │       │   ├── cost: 75
+                │   │       │   └── rows: 25
+                │   │       └── Scan
+                │   │           ├── table: supplier
+                │   │           ├── list: [ s_suppkey, s_nationkey ]
+                │   │           ├── filter: null
+                │   │           ├── cost: 20000
+                │   │           └── rows: 10000
+                │   └── Projection { exprs: [ r_regionkey ], cost: 16.099998, rows: 2.5 }
+                │       └── Filter { cond: = { lhs: r_name, rhs: 'AFRICA' }, cost: 16.05, rows: 2.5 }
+                │           └── Scan { table: region, list: [ r_regionkey, r_name ], filter: null, cost: 10, rows: 5 }
                 └── Projection
-                    ├── exprs: [ s_nationkey, n_name, c_nationkey, l_extendedprice, l_discount ]
-                    ├── cost: 257927730
-                    ├── rows: 9375000
+                    ├── exprs: [ c_nationkey, l_suppkey, l_extendedprice, l_discount ]
+                    ├── cost: 70638780
+                    ├── rows: 6001215
                     └── HashJoin
                         ├── type: inner
                         ├── cond: true
-                        ├── lkey: [ l_suppkey, l_orderkey ]
-                        ├── rkey: [ s_suppkey, o_orderkey ]
-                        ├── cost: 257365230
-                        ├── rows: 9375000
-                        ├── Scan
-                        │   ├── table: lineitem
-                        │   ├── list: [ l_orderkey, l_suppkey, l_extendedprice, l_discount ]
-                        │   ├── filter: null
-                        │   ├── cost: 24004860
-                        │   └── rows: 6001215
-                        └── Projection
-                            ├── exprs: [ c_nationkey, o_orderkey, s_suppkey, s_nationkey, n_name ]
-                            ├── cost: 143524220
-                            ├── rows: 9375000
-                            └── HashJoin
-                                ├── type: inner
-                                ├── cond: true
-                                ├── lkey: [ s_nationkey ]
-                                ├── rkey: [ n_nationkey ]
-                                ├── cost: 142961730
-                                ├── rows: 9375000
-                                ├── Scan
-                                │   ├── table: supplier
-                                │   ├── list: [ s_suppkey, s_nationkey ]
-                                │   ├── filter: null
-                                │   ├── cost: 20000
-                                │   └── rows: 10000
-                                └── Join { type: inner, cost: 65568468, rows: 9375000 }
-                                    ├── HashJoin
-                                    │   ├── type: inner
-                                    │   ├── cond: true
-                                    │   ├── lkey: [ n_regionkey ]
-                                    │   ├── rkey: [ r_regionkey ]
-                                    │   ├── cost: 195.69263
-                                    │   ├── rows: 25
-                                    │   ├── Scan
-                                    │   │   ├── table: nation
-                                    │   │   ├── list: [ n_nationkey, n_name, n_regionkey ]
-                                    │   │   ├── filter: null
-                                    │   │   ├── cost: 75
-                                    │   │   └── rows: 25
-                                    │   └── Projection { exprs: [ r_regionkey ], cost: 16.099998, rows: 2.5 }
-                                    │       └── Filter
-                                    │           ├── cond: = { lhs: r_name, rhs: 'AFRICA' }
-                                    │           ├── cost: 16.05
-                                    │           ├── rows: 2.5
-                                    │           └── Scan
-                                    │               ├── table: region
-                                    │               ├── list: [ r_regionkey, r_name ]
-                                    │               ├── filter: null
-                                    │               ├── cost: 10
-                                    │               └── rows: 5
-                                    └── Projection { exprs: [ c_nationkey, o_orderkey ], cost: 8380772, rows: 375000 }
-                                        └── HashJoin
-                                            ├── type: inner
-                                            ├── cond: true
-                                            ├── lkey: [ c_custkey ]
-                                            ├── rkey: [ o_custkey ]
-                                            ├── cost: 8369522
-                                            ├── rows: 375000
-                                            ├── Scan
-                                            │   ├── table: customer
-                                            │   ├── list: [ c_custkey, c_nationkey ]
-                                            │   ├── filter: null
-                                            │   ├── cost: 300000
-                                            │   └── rows: 150000
-                                            └── Projection
-                                                ├── exprs: [ o_orderkey, o_custkey ]
-                                                ├── cost: 6416250
-                                                ├── rows: 375000
-                                                └── Filter
-                                                    ├── cond:and
-                                                    │   ├── lhs: > { lhs: 1995-01-01, rhs: o_orderdate }
-                                                    │   └── rhs: >= { lhs: o_orderdate, rhs: 1994-01-01 }
-                                                    ├── cost: 6405000
-                                                    ├── rows: 375000
-                                                    └── Scan
-                                                        ├── table: orders
-                                                        ├── list: [ o_orderkey, o_custkey, o_orderdate ]
-                                                        ├── filter: null
-                                                        ├── cost: 4500000
-                                                        └── rows: 1500000
+                        ├── lkey: [ o_orderkey ]
+                        ├── rkey: [ l_orderkey ]
+                        ├── cost: 70338720
+                        ├── rows: 6001215
+                        ├── Projection { exprs: [ c_nationkey, o_orderkey ], cost: 8380772, rows: 375000 }
+                        │   └── HashJoin
+                        │       ├── type: inner
+                        │       ├── cond: true
+                        │       ├── lkey: [ c_custkey ]
+                        │       ├── rkey: [ o_custkey ]
+                        │       ├── cost: 8369522
+                        │       ├── rows: 375000
+                        │       ├── Scan
+                        │       │   ├── table: customer
+                        │       │   ├── list: [ c_custkey, c_nationkey ]
+                        │       │   ├── filter: null
+                        │       │   ├── cost: 300000
+                        │       │   └── rows: 150000
+                        │       └── Projection { exprs: [ o_orderkey, o_custkey ], cost: 6416250, rows: 375000 }
+                        │           └── Filter
+                        │               ├── cond:and
+                        │               │   ├── lhs: > { lhs: 1995-01-01, rhs: o_orderdate }
+                        │               │   └── rhs: >= { lhs: o_orderdate, rhs: 1994-01-01 }
+                        │               ├── cost: 6405000
+                        │               ├── rows: 375000
+                        │               └── Scan
+                        │                   ├── table: orders
+                        │                   ├── list: [ o_orderkey, o_custkey, o_orderdate ]
+                        │                   ├── filter: null
+                        │                   ├── cost: 4500000
+                        │                   └── rows: 1500000
+                        └── Scan
+                            ├── table: lineitem
+                            ├── list: [ l_orderkey, l_suppkey, l_extendedprice, l_discount ]
+                            ├── filter: null
+                            ├── cost: 24004860
+                            └── rows: 6001215
 */
 
 -- tpch-q6
@@ -935,7 +949,7 @@ Projection
 │       └── sum
 │           └── ref
 │               └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
-├── cost: 82596776
+├── cost: 96768620
 ├── rows: 1000
 └── Order
     ├── by:
@@ -943,7 +957,7 @@ Projection
     │   ├── n_name(1)
     │   └── ref
     │       └── Extract { from: l_shipdate, field: YEAR }
-    ├── cost: 82596730
+    ├── cost: 96768580
     ├── rows: 1000
     └── HashAgg
         ├── keys:
@@ -954,7 +968,7 @@ Projection
         ├── aggs:sum
         │   └── ref
         │       └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
-        ├── cost: 82582760
+        ├── cost: 96754610
         ├── rows: 1000
         └── Projection
             ├── exprs:
@@ -962,97 +976,108 @@ Projection
             │   ├── n_name(1)
             │   ├── Extract { from: l_shipdate, field: YEAR }
             │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
-            ├── cost: 82189176
-            ├── rows: 1500303.8
-            └── HashJoin
-                ├── type: inner
-                ├── cond: true
-                ├── lkey: [ l_suppkey, l_orderkey ]
-                ├── rkey: [ s_suppkey, o_orderkey ]
-                ├── cost: 81349010
-                ├── rows: 1500303.8
-                ├── Filter
-                │   ├── cond:and
-                │   │   ├── lhs: >= { lhs: l_shipdate, rhs: 1995-01-01 }
-                │   │   └── rhs: >= { lhs: 1996-12-31, rhs: l_shipdate }
-                │   ├── cost: 40628228
-                │   ├── rows: 1500303.8
-                │   └── Scan
-                │       ├── table: lineitem
-                │       ├── list: [ l_orderkey, l_suppkey, l_extendedprice, l_discount, l_shipdate ]
-                │       ├── filter: null
-                │       ├── cost: 30006076
-                │       └── rows: 6001215
-                └── HashJoin
-                    ├── type: inner
-                    ├── cond: true
-                    ├── lkey: [ s_nationkey ]
-                    ├── rkey: [ n_nationkey ]
-                    ├── cost: 23211836
-                    ├── rows: 1500000
-                    ├── Scan
-                    │   ├── table: supplier
-                    │   ├── list: [ s_suppkey, s_nationkey ]
-                    │   ├── filter: null
-                    │   ├── cost: 20000
-                    │   └── rows: 10000
-                    └── Projection
-                        ├── exprs: [ n_nationkey, n_name, n_name(1), o_orderkey ]
-                        ├── cost: 13809989
-                        ├── rows: 1500000
-                        └── HashJoin
-                            ├── type: inner
-                            ├── cond: true
-                            ├── lkey: [ c_custkey ]
-                            ├── rkey: [ o_custkey ]
-                            ├── cost: 13734989
-                            ├── rows: 1500000
-                            ├── Projection
-                            │   ├── exprs: [ c_custkey, n_nationkey, n_name, n_name(1) ]
-                            │   ├── cost: 1253278
-                            │   ├── rows: 150000
-                            │   └── HashJoin
-                            │       ├── type: inner
-                            │       ├── cond: true
-                            │       ├── lkey: [ c_nationkey ]
-                            │       ├── rkey: [ n_nationkey(1) ]
-                            │       ├── cost: 1245778
-                            │       ├── rows: 150000
-                            │       ├── Scan
-                            │       │   ├── table: customer
-                            │       │   ├── list: [ c_custkey, c_nationkey ]
-                            │       │   ├── filter: null
-                            │       │   ├── cost: 300000
-                            │       │   └── rows: 150000
-                            │       └── Join
-                            │           ├── type: inner
-                            │           ├── on:or
-                            │           │   ├── lhs:and
-                            │           │   │   ├── lhs: = { lhs: n_name, rhs: 'GERMANY' }
-                            │           │   │   └── rhs: = { lhs: n_name(1), rhs: 'FRANCE' }
-                            │           │   └── rhs:and
-                            │           │       ├── lhs: = { lhs: n_name, rhs: 'FRANCE' }
-                            │           │       └── rhs: = { lhs: n_name(1), rhs: 'GERMANY' }
-                            │           ├── cost: 1906.25
-                            │           ├── rows: 273.4375
-                            │           ├── Scan
-                            │           │   ├── table: nation
-                            │           │   ├── list: [ n_nationkey(1), n_name(1) ]
-                            │           │   ├── filter: null
-                            │           │   ├── cost: 50
-                            │           │   └── rows: 25
-                            │           └── Scan
-                            │               ├── table: nation
-                            │               ├── list: [ n_nationkey, n_name ]
-                            │               ├── filter: null
-                            │               ├── cost: 50
-                            │               └── rows: 25
-                            └── Scan
-                                ├── table: orders
-                                ├── list: [ o_orderkey, o_custkey ]
-                                ├── filter: null
-                                ├── cost: 3000000
-                                └── rows: 1500000
+            ├── cost: 96580160
+            ├── rows: 656382.9
+            └── Filter
+                ├── cond:or
+                │   ├── lhs: and { lhs: = { lhs: n_name, rhs: 'FRANCE' }, rhs: = { lhs: n_name(1), rhs: 'GERMANY' } }
+                │   └── rhs: and { lhs: = { lhs: n_name, rhs: 'GERMANY' }, rhs: = { lhs: n_name(1), rhs: 'FRANCE' } }
+                ├── cost: 96212584
+                ├── rows: 656382.9
+                └── Projection
+                    ├── exprs: [ l_extendedprice, l_discount, l_shipdate, n_name, n_name(1) ]
+                    ├── cost: 91220320
+                    ├── rows: 1500303.8
+                    └── HashJoin
+                        ├── type: inner
+                        ├── cond: true
+                        ├── lkey: [ n_nationkey ]
+                        ├── rkey: [ s_nationkey ]
+                        ├── cost: 91130300
+                        ├── rows: 1500303.8
+                        ├── Scan { table: nation, list: [ n_nationkey, n_name ], filter: null, cost: 50, rows: 25 }
+                        └── Projection
+                            ├── exprs: [ n_name(1), s_nationkey, l_extendedprice, l_discount, l_shipdate ]
+                            ├── cost: 80377570
+                            ├── rows: 1500303.8
+                            └── Projection
+                                ├── exprs:
+                                │   ┌── n_nationkey(1)
+                                │   ├── n_name(1)
+                                │   ├── s_nationkey
+                                │   ├── l_extendedprice
+                                │   ├── l_discount
+                                │   ├── l_shipdate
+                                │   └── c_nationkey
+                                ├── cost: 80287550
+                                ├── rows: 1500303.8
+                                └── HashJoin
+                                    ├── type: inner
+                                    ├── cond: true
+                                    ├── lkey: [ c_nationkey, l_suppkey ]
+                                    ├── rkey: [ n_nationkey(1), s_suppkey ]
+                                    ├── cost: 80167530
+                                    ├── rows: 1500303.8
+                                    ├── Projection
+                                    │   ├── exprs: [ l_suppkey, l_extendedprice, l_discount, l_shipdate, c_nationkey ]
+                                    │   ├── cost: 65033100
+                                    │   ├── rows: 1500303.8
+                                    │   └── HashJoin
+                                    │       ├── type: inner
+                                    │       ├── cond: true
+                                    │       ├── lkey: [ o_orderkey ]
+                                    │       ├── rkey: [ l_orderkey ]
+                                    │       ├── cost: 64943080
+                                    │       ├── rows: 1500303.8
+                                    │       ├── HashJoin
+                                    │       │   ├── type: inner
+                                    │       │   ├── cond: true
+                                    │       │   ├── lkey: [ o_custkey ]
+                                    │       │   ├── rkey: [ c_custkey ]
+                                    │       │   ├── cost: 9836523
+                                    │       │   ├── rows: 1500000
+                                    │       │   ├── Scan
+                                    │       │   │   ├── table: orders
+                                    │       │   │   ├── list: [ o_orderkey, o_custkey ]
+                                    │       │   │   ├── filter: null
+                                    │       │   │   ├── cost: 3000000
+                                    │       │   │   └── rows: 1500000
+                                    │       │   └── Scan
+                                    │       │       ├── table: customer
+                                    │       │       ├── list: [ c_custkey, c_nationkey ]
+                                    │       │       ├── filter: null
+                                    │       │       ├── cost: 300000
+                                    │       │       └── rows: 150000
+                                    │       └── Filter
+                                    │           ├── cond:and
+                                    │           │   ├── lhs: >= { lhs: l_shipdate, rhs: 1995-01-01 }
+                                    │           │   └── rhs: >= { lhs: 1996-12-31, rhs: l_shipdate }
+                                    │           ├── cost: 40628228
+                                    │           ├── rows: 1500303.8
+                                    │           └── Scan
+                                    │               ├── table: lineitem
+                                    │               ├── list:
+                                    │               │   ┌── l_orderkey
+                                    │               │   ├── l_suppkey
+                                    │               │   ├── l_extendedprice
+                                    │               │   ├── l_discount
+                                    │               │   └── l_shipdate
+                                    │               ├── filter: null
+                                    │               ├── cost: 30006076
+                                    │               └── rows: 6001215
+                                    └── Join { type: inner, cost: 1045050, rows: 250000 }
+                                        ├── Scan
+                                        │   ├── table: supplier
+                                        │   ├── list: [ s_suppkey, s_nationkey ]
+                                        │   ├── filter: null
+                                        │   ├── cost: 20000
+                                        │   └── rows: 10000
+                                        └── Scan
+                                            ├── table: nation
+                                            ├── list: [ n_nationkey(1), n_name(1) ]
+                                            ├── filter: null
+                                            ├── cost: 50
+                                            └── rows: 25
 */
 
 -- tpch-q8
@@ -1114,12 +1139,12 @@ Projection
 │       │       └── ref
 │       │           └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
 
-├── cost: 224387710
+├── cost: 288358700
 ├── rows: 10
 └── Order
     ├── by:ref
     │   └── Extract { from: o_orderdate, field: YEAR }
-    ├── cost: 224387710
+    ├── cost: 288358700
     ├── rows: 10
     └── HashAgg
         ├── keys:ref
@@ -1136,128 +1161,160 @@ Projection
         │   └── sum
         │       └── ref
         │           └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
-        ├── cost: 224387650
+        ├── cost: 288358620
         ├── rows: 10
         └── Projection
             ├── exprs:
             │   ┌── Extract { from: o_orderdate, field: YEAR }
             │   ├── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
             │   └── n_name(1)
-            ├── cost: 219018960
-            ├── rows: 6001215
-            └── HashJoin
-                ├── type: inner
-                ├── cond: true
-                ├── lkey: [ n_nationkey(1), n_nationkey ]
-                ├── rkey: [ s_nationkey, c_nationkey ]
-                ├── cost: 215718290
-                ├── rows: 6001215
-                ├── Projection { exprs: [ n_nationkey, n_nationkey(1), n_name(1) ], cost: 3407.397, rows: 625 }
-                │   └── Join { type: inner, cost: 3382.397, rows: 625 }
-                │       ├── Scan
-                │       │   ├── table: nation
-                │       │   ├── list: [ n_nationkey(1), n_name(1) ]
-                │       │   ├── filter: null
-                │       │   ├── cost: 50
-                │       │   └── rows: 25
-                │       └── HashJoin
-                │           ├── type: inner
-                │           ├── cond: true
-                │           ├── lkey: [ r_regionkey ]
-                │           ├── rkey: [ n_regionkey ]
-                │           ├── cost: 144.89702
-                │           ├── rows: 25
-                │           ├── Projection { exprs: [ r_regionkey ], cost: 16.099998, rows: 2.5 }
-                │           │   └── Filter { cond: = { lhs: r_name, rhs: 'AMERICA' }, cost: 16.05, rows: 2.5 }
-                │           │       └── Scan
-                │           │           ├── table: region
-                │           │           ├── list: [ r_regionkey, r_name ]
-                │           │           ├── filter: null
-                │           │           ├── cost: 10
-                │           │           └── rows: 5
-                │           └── Scan
-                │               ├── table: nation
-                │               ├── list: [ n_nationkey, n_regionkey ]
-                │               ├── filter: null
-                │               ├── cost: 50
-                │               └── rows: 25
+            ├── cost: 287016420
+            ├── rows: 1500303.8
+            └── Filter { cond: = { lhs: c_nationkey, rhs: n_nationkey }, cost: 286191260, rows: 1500303.8 }
                 └── Projection
-                    ├── exprs: [ s_nationkey, l_extendedprice, l_discount, o_orderdate, c_nationkey ]
-                    ├── cost: 166367340
-                    ├── rows: 6001215
+                    ├── exprs: [ c_nationkey, l_extendedprice, l_discount, o_orderdate, n_nationkey, n_name(1) ]
+                    ├── cost: 276829380
+                    ├── rows: 3000607.5
                     └── HashJoin
                         ├── type: inner
                         ├── cond: true
-                        ├── lkey: [ o_orderkey ]
-                        ├── rkey: [ l_orderkey ]
-                        ├── cost: 166007260
-                        ├── rows: 6001215
-                        ├── Projection { exprs: [ o_orderkey, o_orderdate, c_nationkey ], cost: 8748272, rows: 375000 }
-                        │   └── HashJoin
-                        │       ├── type: inner
-                        │       ├── cond: true
-                        │       ├── lkey: [ c_custkey ]
-                        │       ├── rkey: [ o_custkey ]
-                        │       ├── cost: 8733272
-                        │       ├── rows: 375000
-                        │       ├── Scan
-                        │       │   ├── table: customer
-                        │       │   ├── list: [ c_custkey, c_nationkey ]
-                        │       │   ├── filter: null
-                        │       │   ├── cost: 300000
-                        │       │   └── rows: 150000
-                        │       └── Filter
-                        │           ├── cond:and
-                        │           │   ├── lhs: >= { lhs: o_orderdate, rhs: 1995-01-01 }
-                        │           │   └── rhs: >= { lhs: 1996-12-31, rhs: o_orderdate }
-                        │           ├── cost: 6405000
-                        │           ├── rows: 375000
-                        │           └── Scan
-                        │               ├── table: orders
-                        │               ├── list: [ o_orderkey, o_custkey, o_orderdate ]
-                        │               ├── filter: null
-                        │               ├── cost: 4500000
-                        │               └── rows: 1500000
-                        └── Projection
-                            ├── exprs: [ s_nationkey, l_orderkey, l_extendedprice, l_discount ]
-                            ├── cost: 113304690
-                            ├── rows: 6001215
-                            └── HashJoin
-                                ├── type: inner
-                                ├── cond: true
-                                ├── lkey: [ s_suppkey ]
-                                ├── rkey: [ l_suppkey ]
-                                ├── cost: 113004620
-                                ├── rows: 6001215
-                                ├── Scan
-                                │   ├── table: supplier
-                                │   ├── list: [ s_suppkey, s_nationkey ]
-                                │   ├── filter: null
-                                │   ├── cost: 20000
-                                │   └── rows: 10000
-                                └── Projection
-                                    ├── exprs: [ l_orderkey, l_suppkey, l_extendedprice, l_discount ]
-                                    ├── cost: 75457230
-                                    ├── rows: 6001215
-                                    └── HashJoin
-                                        ├── type: inner
-                                        ├── cond: true
-                                        ├── lkey: [ l_partkey, 'ECONOMY ANODIZED STEEL' ]
-                                        ├── rkey: [ p_partkey, p_type ]
-                                        ├── cost: 75157170
-                                        ├── rows: 6001215
-                                        ├── Scan
-                                        │   ├── table: lineitem
-                                        │   ├── list: [ l_orderkey, l_partkey, l_suppkey, l_extendedprice, l_discount ]
-                                        │   ├── filter: null
-                                        │   ├── cost: 30006076
-                                        │   └── rows: 6001215
-                                        └── Scan
-                                            ├── table: part
-                                            ├── list: [ p_partkey, p_type ]
-                                            ├── filter: null
-                                            ├── cost: 400000
-                                            └── rows: 200000
+                        ├── lkey: [ o_custkey ]
+                        ├── rkey: [ c_custkey ]
+                        ├── cost: 276619330
+                        ├── rows: 3000607.5
+                        ├── Filter
+                        │   ├── cond: = { lhs: s_nationkey, rhs: n_nationkey(1) }
+                        │   ├── cost: 245257280
+                        │   ├── rows: 3000607.5
+                        │   └── Projection
+                        │       ├── exprs:
+                        │       │   ┌── s_nationkey
+                        │       │   ├── l_extendedprice
+                        │       │   ├── l_discount
+                        │       │   ├── o_custkey
+                        │       │   ├── o_orderdate
+                        │       │   ├── n_nationkey
+                        │       │   ├── n_nationkey(1)
+                        │       │   └── n_name(1)
+                        │       ├── cost: 220532270
+                        │       ├── rows: 6001215
+                        │       └── HashJoin
+                        │           ├── type: inner
+                        │           ├── cond: true
+                        │           ├── lkey: [ l_orderkey ]
+                        │           ├── rkey: [ o_orderkey ]
+                        │           ├── cost: 219992160
+                        │           ├── rows: 6001215
+                        │           ├── Projection
+                        │           │   ├── exprs:
+                        │           │   │   ┌── n_nationkey
+                        │           │   │   ├── n_nationkey(1)
+                        │           │   │   ├── n_name(1)
+                        │           │   │   ├── s_nationkey
+                        │           │   │   ├── l_orderkey
+                        │           │   │   ├── l_extendedprice
+                        │           │   │   └── l_discount
+                        │           │   ├── cost: 151374140
+                        │           │   ├── rows: 6001215
+                        │           │   └── HashJoin
+                        │           │       ├── type: inner
+                        │           │       ├── cond: true
+                        │           │       ├── lkey: [ s_suppkey ]
+                        │           │       ├── rkey: [ l_suppkey ]
+                        │           │       ├── cost: 150894050
+                        │           │       ├── rows: 6001215
+                        │           │       ├── Join { type: inner, cost: 1795449.5, rows: 250000 }
+                        │           │       │   ├── Scan
+                        │           │       │   │   ├── table: supplier
+                        │           │       │   │   ├── list: [ s_suppkey, s_nationkey ]
+                        │           │       │   │   ├── filter: null
+                        │           │       │   │   ├── cost: 20000
+                        │           │       │   │   └── rows: 10000
+                        │           │       │   └── HashJoin
+                        │           │       │       ├── type: inner
+                        │           │       │       ├── cond: true
+                        │           │       │       ├── lkey: [ n_regionkey ]
+                        │           │       │       ├── rkey: [ r_regionkey ]
+                        │           │       │       ├── cost: 449.4629
+                        │           │       │       ├── rows: 25
+                        │           │       │       ├── Scan
+                        │           │       │       │   ├── table: nation
+                        │           │       │       │   ├── list: [ n_nationkey, n_regionkey ]
+                        │           │       │       │   ├── filter: null
+                        │           │       │       │   ├── cost: 50
+                        │           │       │       │   └── rows: 25
+                        │           │       │       └── Join { type: inner, cost: 259.85, rows: 62.5 }
+                        │           │       │           ├── Scan
+                        │           │       │           │   ├── table: nation
+                        │           │       │           │   ├── list: [ n_nationkey(1), n_name(1) ]
+                        │           │       │           │   ├── filter: null
+                        │           │       │           │   ├── cost: 50
+                        │           │       │           │   └── rows: 25
+                        │           │       │           └── Projection
+                        │           │       │               ├── exprs: [ r_regionkey ]
+                        │           │       │               ├── cost: 16.099998
+                        │           │       │               ├── rows: 2.5
+                        │           │       │               └── Filter
+                        │           │       │                   ├── cond: = { lhs: r_name, rhs: 'AMERICA' }
+                        │           │       │                   ├── cost: 16.05
+                        │           │       │                   ├── rows: 2.5
+                        │           │       │                   └── Scan
+                        │           │       │                       ├── table: region
+                        │           │       │                       ├── list: [ r_regionkey, r_name ]
+                        │           │       │                       ├── filter: null
+                        │           │       │                       ├── cost: 10
+                        │           │       │                       └── rows: 5
+                        │           │       └── Projection
+                        │           │           ├── exprs:
+                        │           │           │   ┌── l_orderkey
+                        │           │           │   ├── l_suppkey
+                        │           │           │   ├── l_extendedprice
+                        │           │           │   ├── l_discount
+                        │           │           │   └── p_type
+                        │           │           ├── cost: 75212936
+                        │           │           ├── rows: 6001215
+                        │           │           └── HashJoin
+                        │           │               ├── type: inner
+                        │           │               ├── cond: true
+                        │           │               ├── lkey: [ p_partkey, p_type ]
+                        │           │               ├── rkey: [ l_partkey, 'ECONOMY ANODIZED STEEL' ]
+                        │           │               ├── cost: 74852860
+                        │           │               ├── rows: 6001215
+                        │           │               ├── Scan
+                        │           │               │   ├── table: part
+                        │           │               │   ├── list: [ p_partkey, p_type ]
+                        │           │               │   ├── filter: null
+                        │           │               │   ├── cost: 400000
+                        │           │               │   └── rows: 200000
+                        │           │               └── Scan
+                        │           │                   ├── table: lineitem
+                        │           │                   ├── list:
+                        │           │                   │   ┌── l_orderkey
+                        │           │                   │   ├── l_partkey
+                        │           │                   │   ├── l_suppkey
+                        │           │                   │   ├── l_extendedprice
+                        │           │                   │   └── l_discount
+                        │           │                   ├── filter: null
+                        │           │                   ├── cost: 30006076
+                        │           │                   └── rows: 6001215
+                        │           └── Filter
+                        │               ├── cond:and
+                        │               │   ├── lhs: >= { lhs: 1996-12-31, rhs: o_orderdate }
+                        │               │   └── rhs: >= { lhs: o_orderdate, rhs: 1995-01-01 }
+                        │               ├── cost: 6405000
+                        │               ├── rows: 375000
+                        │               └── Scan
+                        │                   ├── table: orders
+                        │                   ├── list: [ o_orderkey, o_custkey, o_orderdate ]
+                        │                   ├── filter: null
+                        │                   ├── cost: 4500000
+                        │                   └── rows: 1500000
+                        └── Scan
+                            ├── table: customer
+                            ├── list: [ c_custkey, c_nationkey ]
+                            ├── filter: null
+                            ├── cost: 300000
+                            └── rows: 150000
 */
 
 -- tpch-q9
@@ -1295,26 +1352,26 @@ order by
     o_year desc;
 
 /*
-Projection
-├── exprs:
+Order
+├── by:
 │   ┌── n_name
-│   ├── ref
-│   │   └── Extract { from: o_orderdate, field: YEAR }
-│   └── ref
-│       └── sum
-│           └── ref
-│               └── -
-│                   ├── lhs: * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
-│                   └── rhs: * { lhs: ps_supplycost, rhs: l_quantity }
-├── cost: 267320370
+│   └── desc
+│       └── ref
+│           └── Extract { from: o_orderdate, field: YEAR }
+├── cost: 42257910000000
 ├── rows: 100
-└── Order
-    ├── by:
+└── Projection
+    ├── exprs:
     │   ┌── n_name
-    │   └── desc
-    │       └── ref
-    │           └── Extract { from: o_orderdate, field: YEAR }
-    ├── cost: 267320370
+    │   ├── ref
+    │   │   └── Extract { from: o_orderdate, field: YEAR }
+    │   └── ref
+    │       └── sum
+    │           └── ref
+    │               └── -
+    │                   ├── lhs: * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
+    │                   └── rhs: * { lhs: ps_supplycost, rhs: l_quantity }
+    ├── cost: 42257910000000
     ├── rows: 100
     └── HashAgg
         ├── keys:
@@ -1326,7 +1383,7 @@ Projection
         │       └── -
         │           ├── lhs: * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
         │           └── rhs: * { lhs: ps_supplycost, rhs: l_quantity }
-        ├── cost: 267319410
+        ├── cost: 42257910000000
         ├── rows: 100
         └── Projection
             ├── exprs:
@@ -1335,104 +1392,123 @@ Projection
             │   └── -
             │       ├── lhs: * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
             │       └── rhs: * { lhs: ps_supplycost, rhs: l_quantity }
-            ├── cost: 266019360
-            ├── rows: 6001215
-            └── HashJoin
-                ├── type: inner
-                ├── cond: true
-                ├── lkey: [ o_orderkey ]
-                ├── rkey: [ l_orderkey ]
-                ├── cost: 261398430
-                ├── rows: 6001215
-                ├── Scan
-                │   ├── table: orders
-                │   ├── list: [ o_orderkey, o_orderdate ]
-                │   ├── filter: null
-                │   ├── cost: 3000000
-                │   └── rows: 1500000
-                └── Projection
-                    ├── exprs: [ l_orderkey, l_quantity, l_extendedprice, l_discount, ps_supplycost, n_name ]
-                    ├── cost: 207949570
-                    ├── rows: 6001215
-                    └── HashJoin
-                        ├── type: inner
-                        ├── cond: true
-                        ├── lkey: [ s_suppkey ]
-                        ├── rkey: [ l_suppkey ]
-                        ├── cost: 207529490
-                        ├── rows: 6001215
-                        ├── HashJoin
-                        │   ├── type: inner
-                        │   ├── cond: true
-                        │   ├── lkey: [ n_nationkey ]
-                        │   ├── rkey: [ s_nationkey ]
-                        │   ├── cost: 61724.22
-                        │   ├── rows: 10000
-                        │   ├── Scan { table: nation, list: [ n_nationkey, n_name ], filter: null, cost: 50, rows: 25 }
-                        │   └── Scan
-                        │       ├── table: supplier
-                        │       ├── list: [ s_suppkey, s_nationkey ]
-                        │       ├── filter: null
-                        │       ├── cost: 20000
-                        │       └── rows: 10000
-                        └── Projection
-                            ├── exprs: [ l_orderkey, l_suppkey, l_quantity, l_extendedprice, l_discount, ps_supplycost ]
-                            ├── cost: 145935500
-                            ├── rows: 6001215
-                            └── HashJoin
-                                ├── type: inner
-                                ├── cond: true
-                                ├── lkey: [ p_partkey ]
-                                ├── rkey: [ l_partkey ]
-                                ├── cost: 145515420
-                                ├── rows: 6001215
-                                ├── Projection { exprs: [ p_partkey ], cost: 644000, rows: 100000 }
-                                │   └── Filter
-                                │       ├── cond: like { lhs: p_name, rhs: '%green%' }
-                                │       ├── cost: 642000
-                                │       ├── rows: 100000
-                                │       └── Scan
-                                │           ├── table: part
-                                │           ├── list: [ p_partkey, p_name ]
-                                │           ├── filter: null
-                                │           ├── cost: 400000
-                                │           └── rows: 200000
-                                └── Projection
-                                    ├── exprs:
-                                    │   ┌── l_orderkey
-                                    │   ├── l_partkey
-                                    │   ├── l_suppkey
-                                    │   ├── l_quantity
-                                    │   ├── l_extendedprice
-                                    │   ├── l_discount
-                                    │   └── ps_supplycost
-                                    ├── cost: 95116180
-                                    ├── rows: 6001215
-                                    └── HashJoin
-                                        ├── type: inner
-                                        ├── cond: true
-                                        ├── lkey: [ ps_suppkey, ps_partkey ]
-                                        ├── rkey: [ l_suppkey, l_partkey ]
-                                        ├── cost: 94636080
-                                        ├── rows: 6001215
-                                        ├── Scan
-                                        │   ├── table: partsupp
-                                        │   ├── list: [ ps_partkey, ps_suppkey, ps_supplycost ]
-                                        │   ├── filter: null
-                                        │   ├── cost: 2400000
-                                        │   └── rows: 800000
-                                        └── Scan
-                                            ├── table: lineitem
-                                            ├── list:
-                                            │   ┌── l_orderkey
-                                            │   ├── l_partkey
-                                            │   ├── l_suppkey
-                                            │   ├── l_quantity
-                                            │   ├── l_extendedprice
-                                            │   └── l_discount
-                                            ├── filter: null
-                                            ├── cost: 36007290
-                                            └── rows: 6001215
+            ├── cost: 41997960000000
+            ├── rows: 1200243000000
+            └── Projection
+                ├── exprs: [ n_name, l_quantity, l_extendedprice, l_discount, ps_supplycost, o_orderdate ]
+                ├── cost: 41073775000000
+                ├── rows: 1200243000000
+                └── HashJoin
+                    ├── type: inner
+                    ├── cond: true
+                    ├── lkey: [ n_nationkey ]
+                    ├── rkey: [ s_nationkey ]
+                    ├── cost: 40989760000000
+                    ├── rows: 1200243000000
+                    ├── Scan { table: nation, list: [ n_nationkey, n_name ], filter: null, cost: 50, rows: 25 }
+                    └── Projection
+                        ├── exprs: [ s_nationkey, l_quantity, l_extendedprice, l_discount, ps_supplycost, o_orderdate ]
+                        ├── cost: 31187370000000
+                        ├── rows: 1200243000000
+                        └── HashJoin
+                            ├── type: inner
+                            ├── cond: true
+                            ├── lkey: [ l_orderkey ]
+                            ├── rkey: [ o_orderkey ]
+                            ├── cost: 31103354000000
+                            ├── rows: 1200243000000
+                            ├── Projection
+                            │   ├── exprs:
+                            │   │   ┌── s_nationkey
+                            │   │   ├── l_orderkey
+                            │   │   ├── l_quantity
+                            │   │   ├── l_extendedprice
+                            │   │   ├── l_discount
+                            │   │   └── ps_supplycost
+                            │   ├── cost: 20875764000000
+                            │   ├── rows: 1200243000000
+                            │   └── HashJoin
+                            │       ├── type: inner
+                            │       ├── cond: true
+                            │       ├── lkey: [ s_suppkey ]
+                            │       ├── rkey: [ l_suppkey ]
+                            │       ├── cost: 20791748000000
+                            │       ├── rows: 1200243000000
+                            │       ├── Scan
+                            │       │   ├── table: supplier
+                            │       │   ├── list: [ s_suppkey, s_nationkey ]
+                            │       │   ├── filter: null
+                            │       │   ├── cost: 20000
+                            │       │   └── rows: 10000
+                            │       └── Projection
+                            │           ├── exprs:
+                            │           │   ┌── l_orderkey
+                            │           │   ├── l_suppkey
+                            │           │   ├── l_quantity
+                            │           │   ├── l_extendedprice
+                            │           │   ├── l_discount
+                            │           │   └── ps_supplycost
+                            │           ├── cost: 10886289000000
+                            │           ├── rows: 1200243000000
+                            │           └── HashJoin
+                            │               ├── type: inner
+                            │               ├── cond: true
+                            │               ├── lkey: [ l_suppkey, l_partkey ]
+                            │               ├── rkey: [ ps_suppkey, ps_partkey ]
+                            │               ├── cost: 10802272000000
+                            │               ├── rows: 1200243000000
+                            │               ├── Projection
+                            │               │   ├── exprs:
+                            │               │   │   ┌── l_orderkey
+                            │               │   │   ├── l_partkey
+                            │               │   │   ├── l_suppkey
+                            │               │   │   ├── l_quantity
+                            │               │   │   ├── l_extendedprice
+                            │               │   │   └── l_discount
+                            │               │   ├── cost: 80825416
+                            │               │   ├── rows: 6001215
+                            │               │   └── HashJoin
+                            │               │       ├── type: inner
+                            │               │       ├── cond: true
+                            │               │       ├── lkey: [ p_partkey ]
+                            │               │       ├── rkey: [ l_partkey ]
+                            │               │       ├── cost: 80405330
+                            │               │       ├── rows: 6001215
+                            │               │       ├── Projection { exprs: [ p_partkey ], cost: 644000, rows: 100000 }
+                            │               │       │   └── Filter
+                            │               │       │       ├── cond: like { lhs: p_name, rhs: '%green%' }
+                            │               │       │       ├── cost: 642000
+                            │               │       │       ├── rows: 100000
+                            │               │       │       └── Scan
+                            │               │       │           ├── table: part
+                            │               │       │           ├── list: [ p_partkey, p_name ]
+                            │               │       │           ├── filter: null
+                            │               │       │           ├── cost: 400000
+                            │               │       │           └── rows: 200000
+                            │               │       └── Scan
+                            │               │           ├── table: lineitem
+                            │               │           ├── list:
+                            │               │           │   ┌── l_orderkey
+                            │               │           │   ├── l_partkey
+                            │               │           │   ├── l_suppkey
+                            │               │           │   ├── l_quantity
+                            │               │           │   ├── l_extendedprice
+                            │               │           │   └── l_discount
+                            │               │           ├── filter: null
+                            │               │           ├── cost: 36007290
+                            │               │           └── rows: 6001215
+                            │               └── Scan
+                            │                   ├── table: partsupp
+                            │                   ├── list: [ ps_partkey, ps_suppkey, ps_supplycost ]
+                            │                   ├── filter: null
+                            │                   ├── cost: 2400000
+                            │                   └── rows: 800000
+                            └── Scan
+                                ├── table: orders
+                                ├── list: [ o_orderkey, o_orderdate ]
+                                ├── filter: null
+                                ├── cost: 3000000
+                                └── rows: 1500000
 */
 
 -- tpch-q10: TPC-H Q10
@@ -1482,7 +1558,7 @@ Projection
 │   ├── c_address
 │   ├── c_phone
 │   └── c_comment
-├── cost: 123500400
+├── cost: 133322750
 ├── rows: 20
 └── TopN
     ├── limit: 20
@@ -1491,13 +1567,13 @@ Projection
     │   └── ref
     │       └── sum
     │           └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
-    ├── cost: 123500400
+    ├── cost: 133322750
     ├── rows: 20
     └── HashAgg
         ├── keys: [ c_custkey, c_name, c_acctbal, c_phone, n_name, c_address, c_comment ]
         ├── aggs:sum
         │   └── * { lhs: l_extendedprice, rhs: - { lhs: 1, rhs: l_discount } }
-        ├── cost: 110320616
+        ├── cost: 120142970
         ├── rows: 3000607.5
         └── Projection
             ├── exprs:
@@ -1510,77 +1586,70 @@ Projection
             │   ├── l_extendedprice
             │   ├── l_discount
             │   └── n_name
-            ├── cost: 84139810
+            ├── cost: 93962160
             ├── rows: 3000607.5
             └── HashJoin
                 ├── type: inner
                 ├── cond: true
-                ├── lkey: [ o_orderkey ]
-                ├── rkey: [ l_orderkey ]
-                ├── cost: 83839740
+                ├── lkey: [ l_orderkey ]
+                ├── rkey: [ o_orderkey ]
+                ├── cost: 93662100
                 ├── rows: 3000607.5
-                ├── Projection
-                │   ├── exprs: [ n_name, c_custkey, c_name, c_address, c_phone, c_acctbal, c_comment, o_orderkey ]
-                │   ├── cost: 12415377
-                │   ├── rows: 375000
-                │   └── HashJoin
-                │       ├── type: inner
-                │       ├── cond: true
-                │       ├── lkey: [ c_custkey ]
-                │       ├── rkey: [ o_custkey ]
-                │       ├── cost: 12381627
-                │       ├── rows: 375000
-                │       ├── Projection
-                │       │   ├── exprs: [ c_custkey, c_name, c_address, c_phone, c_acctbal, c_comment, n_name ]
-                │       │   ├── cost: 2437105
-                │       │   ├── rows: 150000
-                │       │   └── HashJoin
-                │       │       ├── type: inner
-                │       │       ├── cond: true
-                │       │       ├── lkey: [ n_nationkey ]
-                │       │       ├── rkey: [ c_nationkey ]
-                │       │       ├── cost: 2425105
-                │       │       ├── rows: 150000
-                │       │       ├── Scan
-                │       │       │   ├── table: nation
-                │       │       │   ├── list: [ n_nationkey, n_name ]
-                │       │       │   ├── filter: null
-                │       │       │   ├── cost: 50
-                │       │       │   └── rows: 25
-                │       │       └── Scan
-                │       │           ├── table: customer
-                │       │           ├── list:
-                │       │           │   ┌── c_custkey
-                │       │           │   ├── c_name
-                │       │           │   ├── c_address
-                │       │           │   ├── c_nationkey
-                │       │           │   ├── c_phone
-                │       │           │   ├── c_acctbal
-                │       │           │   └── c_comment
-                │       │           ├── filter: null
-                │       │           ├── cost: 1050000
-                │       │           └── rows: 150000
-                │       └── Projection { exprs: [ o_orderkey, o_custkey ], cost: 6416250, rows: 375000 }
-                │           └── Filter
-                │               ├── cond:and
-                │               │   ├── lhs: > { lhs: 1994-01-01, rhs: o_orderdate }
-                │               │   └── rhs: >= { lhs: o_orderdate, rhs: 1993-10-01 }
-                │               ├── cost: 6405000
-                │               ├── rows: 375000
-                │               └── Scan
-                │                   ├── table: orders
-                │                   ├── list: [ o_orderkey, o_custkey, o_orderdate ]
-                │                   ├── filter: null
-                │                   ├── cost: 4500000
-                │                   └── rows: 1500000
-                └── Projection { exprs: [ l_orderkey, l_extendedprice, l_discount ], cost: 37387570, rows: 3000607.5 }
-                    └── Filter { cond: = { lhs: l_returnflag, rhs: 'R' }, cost: 37267544, rows: 3000607.5 }
-                        └── Scan
-                            ├── table: lineitem
-                            ├── list: [ l_orderkey, l_extendedprice, l_discount, l_returnflag ]
-                            ├── filter: null
-                            ├── cost: 24004860
-                            └── rows: 6001215
+                ├── Projection { exprs: [ l_orderkey, l_extendedprice, l_discount ], cost: 37387570, rows: 3000607.5 }
+                │   └── Filter { cond: = { lhs: l_returnflag, rhs: 'R' }, cost: 37267544, rows: 3000607.5 }
+                │       └── Scan
+                │           ├── table: lineitem
+                │           ├── list: [ l_orderkey, l_extendedprice, l_discount, l_returnflag ]
+                │           ├── filter: null
+                │           ├── cost: 24004860
+                │           └── rows: 6001215
+                └── HashJoin
+                    ├── type: inner
+                    ├── cond: true
+                    ├── lkey: [ c_custkey ]
+                    ├── rkey: [ o_custkey ]
+                    ├── cost: 13134626
+                    ├── rows: 375000
+                    ├── Projection
+                    │   ├── exprs:
+                    │   │   ┌── c_custkey
+                    │   │   ├── c_name
+                    │   │   ├── c_address
+                    │   │   ├── c_nationkey
+                    │   │   ├── c_phone
+                    │   │   ├── c_acctbal
+                    │   │   ├── c_comment
+                    │   │   ├── n_nationkey
+                    │   │   └── n_name
+                    │   ├── cost: 2440105
+                    │   ├── rows: 150000
+                    │   └── HashJoin
+                    │       ├── type: inner
+                    │       ├── cond: true
+                    │       ├── lkey: [ n_nationkey ]
+                    │       ├── rkey: [ c_nationkey ]
+                    │       ├── cost: 2425105
+                    │       ├── rows: 150000
+                    │       ├── Scan { table: nation, list: [ n_nationkey, n_name ], filter: null, cost: 50, rows: 25 }
+                    │       └── Scan
+                    │           ├── table: customer
+                    │           ├── list: [ c_custkey, c_name, c_address, c_nationkey, c_phone, c_acctbal, c_comment ]
+                    │           ├── filter: null
+                    │           ├── cost: 1050000
+                    │           └── rows: 150000
+                    └── Projection { exprs: [ o_orderkey, o_custkey ], cost: 6416250, rows: 375000 }
+                        └── Filter
+                            ├── cond:and
+                            │   ├── lhs: > { lhs: 1994-01-01, rhs: o_orderdate }
+                            │   └── rhs: >= { lhs: o_orderdate, rhs: 1993-10-01 }
+                            ├── cost: 6405000
+                            ├── rows: 375000
+                            └── Scan
+                                ├── table: orders
+                                ├── list: [ o_orderkey, o_custkey, o_orderdate ]
+                                ├── filter: null
+                                ├── cost: 4500000
+                                └── rows: 1500000
 */
 
 -- tpch-q11
@@ -1618,7 +1687,7 @@ Order
 │   └── ref
 │       └── sum
 │           └── * { lhs: ps_supplycost, rhs: ps_availqty }
-├── cost: 17083158
+├── cost: 16981544
 ├── rows: 5
 └── Projection
     ├── exprs:
@@ -1626,7 +1695,7 @@ Order
     │   └── ref
     │       └── sum
     │           └── * { lhs: ps_supplycost, rhs: ps_availqty }
-    ├── cost: 17083136
+    ├── cost: 16981522
     ├── rows: 5
     └── Filter
         ├── cond:>
@@ -1641,50 +1710,51 @@ Order
         │   │       ├── rhs: 0.0001000000
 
 
-        ├── cost: 17083136
+        ├── cost: 16981522
         ├── rows: 5
-        └── Join { type: left_outer, cost: 17083120, rows: 10 }
+        └── Join { type: left_outer, cost: 16981506, rows: 10 }
             ├── HashAgg
             │   ├── keys: [ ps_partkey ]
             │   ├── aggs:sum
             │   │   └── * { lhs: ps_supplycost, rhs: ps_availqty }
-            │   ├── cost: 9367391
+            │   ├── cost: 9316585
             │   ├── rows: 10
-            │   └── Projection { exprs: [ ps_partkey, ps_availqty, ps_supplycost ], cost: 9139696, rows: 800000 }
+            │   └── Projection { exprs: [ ps_partkey, ps_availqty, ps_supplycost ], cost: 9088890, rows: 800000 }
             │       └── HashJoin
             │           ├── type: inner
             │           ├── cond: true
-            │           ├── lkey: [ ps_suppkey ]
-            │           ├── rkey: [ s_suppkey ]
-            │           ├── cost: 9107696
+            │           ├── lkey: [ s_suppkey ]
+            │           ├── rkey: [ ps_suppkey ]
+            │           ├── cost: 9056890
             │           ├── rows: 800000
-            │           ├── Scan
-            │           │   ├── table: partsupp
-            │           │   ├── list: [ ps_partkey, ps_suppkey, ps_availqty, ps_supplycost ]
-            │           │   ├── filter: null
-            │           │   ├── cost: 3200000
-            │           │   └── rows: 800000
-            │           └── HashJoin
-            │               ├── type: inner
-            │               ├── cond: true
-            │               ├── lkey: [ n_nationkey ]
-            │               ├── rkey: [ s_nationkey ]
-            │               ├── cost: 51657.96
-            │               ├── rows: 10000
-            │               ├── Projection { exprs: [ n_nationkey ], cost: 80.5, rows: 12.5 }
-            │               │   └── Filter { cond: = { lhs: 'GERMANY', rhs: n_name }, cost: 80.25, rows: 12.5 }
-            │               │       └── Scan
-            │               │           ├── table: nation
-            │               │           ├── list: [ n_nationkey, n_name ]
-            │               │           ├── filter: null
-            │               │           ├── cost: 50
-            │               │           └── rows: 25
-            │               └── Scan
-            │                   ├── table: supplier
-            │                   ├── list: [ s_suppkey, s_nationkey ]
-            │                   ├── filter: null
-            │                   ├── cost: 20000
-            │                   └── rows: 10000
+            │           ├── Projection { exprs: [ s_suppkey, s_nationkey, n_nationkey ], cost: 52057.96, rows: 10000 }
+            │           │   └── HashJoin
+            │           │       ├── type: inner
+            │           │       ├── cond: true
+            │           │       ├── lkey: [ n_nationkey ]
+            │           │       ├── rkey: [ s_nationkey ]
+            │           │       ├── cost: 51657.96
+            │           │       ├── rows: 10000
+            │           │       ├── Projection { exprs: [ n_nationkey ], cost: 80.5, rows: 12.5 }
+            │           │       │   └── Filter { cond: = { lhs: 'GERMANY', rhs: n_name }, cost: 80.25, rows: 12.5 }
+            │           │       │       └── Scan
+            │           │       │           ├── table: nation
+            │           │       │           ├── list: [ n_nationkey, n_name ]
+            │           │       │           ├── filter: null
+            │           │       │           ├── cost: 50
+            │           │       │           └── rows: 25
+            │           │       └── Scan
+            │           │           ├── table: supplier
+            │           │           ├── list: [ s_suppkey, s_nationkey ]
+            │           │           ├── filter: null
+            │           │           ├── cost: 20000
+            │           │           └── rows: 10000
+            │           └── Scan
+            │               ├── table: partsupp
+            │               ├── list: [ ps_partkey, ps_suppkey, ps_availqty, ps_supplycost ]
+            │               ├── filter: null
+            │               ├── cost: 3200000
+            │               └── rows: 800000
             └── Projection
                 ├── exprs:*
                 │   ├── lhs:ref
@@ -1692,48 +1762,55 @@ Order
                 │   │       └── * { lhs: ps_supplycost(1), rhs: ps_availqty(1) }
                 │   ├── rhs: 0.0001000000
 
-                ├── cost: 7715697
+                ├── cost: 7664890.5
                 ├── rows: 1
                 └── Agg
                     ├── aggs:sum
                     │   └── * { lhs: ps_supplycost(1), rhs: ps_availqty(1) }
-                    ├── cost: 7715697
+                    ├── cost: 7664890.5
                     ├── rows: 1
-                    └── Projection { exprs: [ ps_availqty(1), ps_supplycost(1) ], cost: 7531696, rows: 800000 }
+                    └── Projection { exprs: [ ps_availqty(1), ps_supplycost(1) ], cost: 7480889.5, rows: 800000 }
                         └── HashJoin
                             ├── type: inner
                             ├── cond: true
-                            ├── lkey: [ ps_suppkey(1) ]
-                            ├── rkey: [ s_suppkey(1) ]
-                            ├── cost: 7507696
+                            ├── lkey: [ s_suppkey(1) ]
+                            ├── rkey: [ ps_suppkey(1) ]
+                            ├── cost: 7456889.5
                             ├── rows: 800000
-                            ├── Scan
-                            │   ├── table: partsupp
-                            │   ├── list: [ ps_suppkey(1), ps_availqty(1), ps_supplycost(1) ]
-                            │   ├── filter: null
-                            │   ├── cost: 2400000
-                            │   └── rows: 800000
-                            └── HashJoin
-                                ├── type: inner
-                                ├── cond: true
-                                ├── lkey: [ n_nationkey(1) ]
-                                ├── rkey: [ s_nationkey(1) ]
-                                ├── cost: 51657.96
-                                ├── rows: 10000
-                                ├── Projection { exprs: [ n_nationkey(1) ], cost: 80.5, rows: 12.5 }
-                                │   └── Filter { cond: = { lhs: n_name(1), rhs: 'GERMANY' }, cost: 80.25, rows: 12.5 }
-                                │       └── Scan
-                                │           ├── table: nation
-                                │           ├── list: [ n_nationkey(1), n_name(1) ]
-                                │           ├── filter: null
-                                │           ├── cost: 50
-                                │           └── rows: 25
-                                └── Scan
-                                    ├── table: supplier
-                                    ├── list: [ s_suppkey(1), s_nationkey(1) ]
-                                    ├── filter: null
-                                    ├── cost: 20000
-                                    └── rows: 10000
+                            ├── Projection
+                            │   ├── exprs: [ s_suppkey(1), s_nationkey(1), n_nationkey(1) ]
+                            │   ├── cost: 52057.96
+                            │   ├── rows: 10000
+                            │   └── HashJoin
+                            │       ├── type: inner
+                            │       ├── cond: true
+                            │       ├── lkey: [ n_nationkey(1) ]
+                            │       ├── rkey: [ s_nationkey(1) ]
+                            │       ├── cost: 51657.96
+                            │       ├── rows: 10000
+                            │       ├── Projection { exprs: [ n_nationkey(1) ], cost: 80.5, rows: 12.5 }
+                            │       │   └── Filter
+                            │       │       ├── cond: = { lhs: n_name(1), rhs: 'GERMANY' }
+                            │       │       ├── cost: 80.25
+                            │       │       ├── rows: 12.5
+                            │       │       └── Scan
+                            │       │           ├── table: nation
+                            │       │           ├── list: [ n_nationkey(1), n_name(1) ]
+                            │       │           ├── filter: null
+                            │       │           ├── cost: 50
+                            │       │           └── rows: 25
+                            │       └── Scan
+                            │           ├── table: supplier
+                            │           ├── list: [ s_suppkey(1), s_nationkey(1) ]
+                            │           ├── filter: null
+                            │           ├── cost: 20000
+                            │           └── rows: 10000
+                            └── Scan
+                                ├── table: partsupp
+                                ├── list: [ ps_suppkey(1), ps_availqty(1), ps_supplycost(1) ]
+                                ├── filter: null
+                                ├── cost: 2400000
+                                └── rows: 800000
 */
 
 -- tpch-q12
@@ -1786,9 +1863,9 @@ Projection
 │               │   └── rhs: <> { lhs: o_orderpriority, rhs: '1-URGENT' }
 │               ├── then: 1
 │               └── else: 0
-├── cost: 50998250
+├── cost: 44322280
 ├── rows: 10
-└── Order { by: [ l_shipmode ], cost: 50998250, rows: 10 }
+└── Order { by: [ l_shipmode ], cost: 44322280, rows: 10 }
     └── HashAgg
         ├── keys: [ l_shipmode ]
         ├── aggs:
@@ -1806,16 +1883,16 @@ Projection
         │           │   └── rhs: <> { lhs: o_orderpriority, rhs: '1-URGENT' }
         │           ├── then: 1
         │           └── else: 0
-        ├── cost: 50998184
+        ├── cost: 44322216
         ├── rows: 10
-        └── Projection { exprs: [ o_orderpriority, l_shipmode ], cost: 48141264, rows: 1500000 }
+        └── Projection { exprs: [ o_orderpriority, l_shipmode ], cost: 43607820, rows: 375075.94 }
             └── HashJoin
                 ├── type: inner
                 ├── cond: true
                 ├── lkey: [ l_orderkey ]
                 ├── rkey: [ o_orderkey ]
-                ├── cost: 48096264
-                ├── rows: 1500000
+                ├── cost: 43596570
+                ├── rows: 375075.94
                 ├── Filter
                 │   ├── cond:In { in: [ 'MAIL', 'SHIP' ] }
                 │   │   └── l_shipmode
@@ -2039,8 +2116,8 @@ order by
     s_suppkey;
 
 /*
-1Order { by: [ s_suppkey ], cost: 285077.4, rows: 5000 }
-└── Projection { exprs: [ s_suppkey, s_name, s_address, s_phone, total_revenue ], cost: 198637.4, rows: 5000 }
+1Order { by: [ s_suppkey ], cost: 67831.75, rows: 500 }
+└── Projection { exprs: [ s_suppkey, s_name, s_address, s_phone, total_revenue ], cost: 60847.414, rows: 500 }
     └── Filter
         ├── cond:=
         │   ├── lhs:ref
@@ -2048,20 +2125,20 @@ order by
         │   │       └── total_revenue(1)
         │   ├── rhs: total_revenue
 
-        ├── cost: 198337.4
-        ├── rows: 5000
-        └── Join { type: left_outer, cost: 167137.4, rows: 10000 }
+        ├── cost: 60817.414
+        ├── rows: 500
+        └── Join { type: left_outer, cost: 57697.414, rows: 1000 }
             ├── Projection
             │   ├── exprs: [ s_suppkey, s_name, s_address, s_phone, total_revenue ]
-            │   ├── cost: 105016.39
-            │   ├── rows: 10000
+            │   ├── cost: 50476.395
+            │   ├── rows: 1000
             │   └── HashJoin
             │       ├── type: inner
             │       ├── cond: true
             │       ├── lkey: [ supplier_no ]
             │       ├── rkey: [ s_suppkey ]
-            │       ├── cost: 104416.39
-            │       ├── rows: 10000
+            │       ├── cost: 50416.395
+            │       ├── rows: 1000
             │       ├── Scan
             │       │   ├── table: revenue0
             │       │   ├── list: [ supplier_no, total_revenue ]
@@ -2478,7 +2555,7 @@ Projection
 │   └── ref
 │       └── sum
 │           └── l_quantity
-├── cost: 126018104
+├── cost: 131984136
 ├── rows: 100
 └── TopN
     ├── limit: 100
@@ -2487,55 +2564,51 @@ Projection
     │   ┌── desc
     │   │   └── o_totalprice
     │   └── o_orderdate
-    ├── cost: 126018100
+    ├── cost: 131984130
     ├── rows: 100
     └── HashAgg
         ├── keys: [ c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice ]
         ├── aggs:sum
         │   └── l_quantity
-        ├── cost: 125351670
+        ├── cost: 131317704
         ├── rows: 100000
         └── HashJoin
             ├── type: semi
             ├── cond: true
             ├── lkey: [ o_orderkey ]
             ├── rkey: [ l_orderkey(1) ]
-            ├── cost: 122674670
+            ├── cost: 128640700
             ├── rows: 6001215
             ├── Projection
             │   ├── exprs: [ c_custkey, c_name, o_orderkey, o_totalprice, o_orderdate, l_quantity ]
-            │   ├── cost: 72741870
+            │   ├── cost: 78707896
             │   ├── rows: 6001215
             │   └── HashJoin
             │       ├── type: inner
             │       ├── cond: true
             │       ├── lkey: [ o_orderkey ]
             │       ├── rkey: [ l_orderkey ]
-            │       ├── cost: 72321784
+            │       ├── cost: 78287810
             │       ├── rows: 6001215
-            │       ├── Projection
-            │       │   ├── exprs: [ c_custkey, c_name, o_orderkey, o_totalprice, o_orderdate ]
-            │       │   ├── cost: 15871711
+            │       ├── HashJoin
+            │       │   ├── type: inner
+            │       │   ├── cond: true
+            │       │   ├── lkey: [ o_custkey ]
+            │       │   ├── rkey: [ c_custkey ]
+            │       │   ├── cost: 15836523
             │       │   ├── rows: 1500000
-            │       │   └── HashJoin
-            │       │       ├── type: inner
-            │       │       ├── cond: true
-            │       │       ├── lkey: [ c_custkey ]
-            │       │       ├── rkey: [ o_custkey ]
-            │       │       ├── cost: 15781711
-            │       │       ├── rows: 1500000
-            │       │       ├── Scan
-            │       │       │   ├── table: customer
-            │       │       │   ├── list: [ c_custkey, c_name ]
-            │       │       │   ├── filter: null
-            │       │       │   ├── cost: 300000
-            │       │       │   └── rows: 150000
-            │       │       └── Scan
-            │       │           ├── table: orders
-            │       │           ├── list: [ o_orderkey, o_custkey, o_totalprice, o_orderdate ]
-            │       │           ├── filter: null
-            │       │           ├── cost: 6000000
-            │       │           └── rows: 1500000
+            │       │   ├── Scan
+            │       │   │   ├── table: orders
+            │       │   │   ├── list: [ o_orderkey, o_custkey, o_totalprice, o_orderdate ]
+            │       │   │   ├── filter: null
+            │       │   │   ├── cost: 6000000
+            │       │   │   └── rows: 1500000
+            │       │   └── Scan
+            │       │       ├── table: customer
+            │       │       ├── list: [ c_custkey, c_name ]
+            │       │       ├── filter: null
+            │       │       ├── cost: 300000
+            │       │       └── rows: 150000
             │       └── Scan
             │           ├── table: lineitem
             │           ├── list: [ l_orderkey, l_quantity ]
@@ -2740,9 +2813,15 @@ order by
     s_name;
 
 /*
-Order { by: [ s_name ], cost: 52488764, rows: 10000 }
-└── Projection { exprs: [ s_name, s_address ], cost: 52335884, rows: 10000 }
-    └── HashJoin { type: semi, cond: true, lkey: [ s_suppkey ], rkey: [ ps_suppkey ], cost: 52335584, rows: 10000 }
+Order { by: [ s_name ], cost: 2525380500000, rows: 10000 }
+└── Projection { exprs: [ s_name, s_address ], cost: 2525380200000, rows: 10000 }
+    └── HashJoin
+        ├── type: semi
+        ├── cond: true
+        ├── lkey: [ s_suppkey ]
+        ├── rkey: [ ps_suppkey ]
+        ├── cost: 2525380200000
+        ├── rows: 10000
         ├── Projection { exprs: [ s_suppkey, s_name, s_address ], cost: 92057.95, rows: 10000 }
         │   └── HashJoin
         │       ├── type: inner
@@ -2760,15 +2839,15 @@ Order { by: [ s_name ], cost: 52488764, rows: 10000 }
         │           ├── filter: null
         │           ├── cost: 40000
         │           └── rows: 10000
-        └── Projection { exprs: [ ps_suppkey ], cost: 52196960, rows: 50000 }
+        └── Projection { exprs: [ ps_suppkey ], cost: 2525380000000, rows: 50000 }
             └── HashJoin
                 ├── type: semi
                 ├── cond: true
                 ├── lkey: [ ps_partkey ]
                 ├── rkey: [ p_partkey ]
-                ├── cost: 52195960
+                ├── cost: 2525380000000
                 ├── rows: 50000
-                ├── Projection { exprs: [ ps_partkey, ps_suppkey ], cost: 51409044, rows: 50000 }
+                ├── Projection { exprs: [ ps_partkey, ps_suppkey ], cost: 2525379200000, rows: 50000 }
                 │   └── Filter
                 │       ├── cond:>
                 │       │   ├── lhs: ps_availqty
@@ -2780,87 +2859,68 @@ Order { by: [ s_name ], cost: 52488764, rows: 10000 }
                 │       │   │       │       └── l_quantity
 
 
-                │       ├── cost: 51407544
+                │       ├── cost: 2525379200000
                 │       ├── rows: 50000
                 │       └── Projection
                 │           ├── exprs:
                 │           │   ┌── ps_partkey
                 │           │   ├── ps_suppkey
                 │           │   ├── ps_availqty
-                │           │   └── ref
-                │           │       └── *
-                │           │           ├── lhs: 0.5
-                │           │           ├── rhs:ref
-                │           │           │   └── sum
-                │           │           │       └── l_quantity
+                │           │   ├── ps_supplycost
+                │           │   ├── ps_comment
+                │           │   └── *
+                │           │       ├── lhs: 0.5
+                │           │       ├── rhs:ref
+                │           │       │   └── sum
+                │           │       │       └── l_quantity
 
-                │           ├── cost: 51195544
+                │           ├── cost: 2525379000000
                 │           ├── rows: 100000
-                │           └── Projection
-                │               ├── exprs:
-                │               │   ┌── ps_partkey
-                │               │   ├── ps_suppkey
-                │               │   ├── ps_availqty
-                │               │   ├── ps_supplycost
-                │               │   ├── ps_comment
-                │               │   └── *
-                │               │       ├── lhs: 0.5
-                │               │       ├── rhs:ref
-                │               │       │   └── sum
-                │               │       │       └── l_quantity
-
-                │               ├── cost: 51190544
+                │           └── HashAgg
+                │               ├── keys: [ ps_partkey, ps_suppkey, ps_availqty, ps_supplycost, ps_comment ]
+                │               ├── aggs:sum
+                │               │   └── l_quantity
+                │               ├── cost: 2525379000000
                 │               ├── rows: 100000
-                │               └── HashAgg
-                │                   ├── keys: [ ps_partkey, ps_suppkey, ps_availqty, ps_supplycost, ps_comment ]
-                │                   ├── aggs:sum
+                │               └── Projection
+                │                   ├── exprs:
+                │                   │   ┌── ps_partkey
+                │                   │   ├── ps_suppkey
+                │                   │   ├── ps_availqty
+                │                   │   ├── ps_supplycost
+                │                   │   ├── ps_comment
                 │                   │   └── l_quantity
-                │                   ├── cost: 51163544
-                │                   ├── rows: 100000
-                │                   └── Projection
-                │                       ├── exprs:
-                │                       │   ┌── ps_partkey
-                │                       │   ├── ps_suppkey
-                │                       │   ├── ps_availqty
-                │                       │   ├── ps_supplycost
-                │                       │   ├── ps_comment
-                │                       │   └── l_quantity
-                │                       ├── cost: 50044292
-                │                       ├── rows: 1500303.8
-                │                       └── HashJoin
-                │                           ├── type: left_outer
-                │                           ├── cond: true
-                │                           ├── lkey: [ ps_partkey, ps_suppkey ]
-                │                           ├── rkey: [ l_partkey, l_suppkey ]
-                │                           ├── cost: 49939270
+                │                   ├── cost: 2421528200000
+                │                   ├── rows: 300060740000
+                │                   └── HashJoin
+                │                       ├── type: left_outer
+                │                       ├── cond: true
+                │                       ├── lkey: [ ps_partkey, ps_suppkey ]
+                │                       ├── rkey: [ l_partkey, l_suppkey ]
+                │                       ├── cost: 2400524000000
+                │                       ├── rows: 300060740000
+                │                       ├── Scan
+                │                       │   ├── table: partsupp
+                │                       │   ├── list: [ ps_partkey, ps_suppkey, ps_availqty, ps_supplycost, ps_comment ]
+                │                       │   ├── filter: null
+                │                       │   ├── cost: 4000000
+                │                       │   └── rows: 800000
+                │                       └── Projection
+                │                           ├── exprs: [ l_partkey, l_suppkey, l_quantity ]
+                │                           ├── cost: 33186720
                 │                           ├── rows: 1500303.8
-                │                           ├── Scan
-                │                           │   ├── table: partsupp
-                │                           │   ├── list:
-                │                           │   │   ┌── ps_partkey
-                │                           │   │   ├── ps_suppkey
-                │                           │   │   ├── ps_availqty
-                │                           │   │   ├── ps_supplycost
-                │                           │   │   └── ps_comment
-                │                           │   ├── filter: null
-                │                           │   ├── cost: 4000000
-                │                           │   └── rows: 800000
-                │                           └── Projection
-                │                               ├── exprs: [ l_partkey, l_suppkey, l_quantity ]
-                │                               ├── cost: 33186720
+                │                           └── Filter
+                │                               ├── cond:and
+                │                               │   ├── lhs: >= { lhs: l_shipdate, rhs: 1994-01-01 }
+                │                               │   └── rhs: > { lhs: 1995-01-01, rhs: l_shipdate }
+                │                               ├── cost: 33126708
                 │                               ├── rows: 1500303.8
-                │                               └── Filter
-                │                                   ├── cond:and
-                │                                   │   ├── lhs: >= { lhs: l_shipdate, rhs: 1994-01-01 }
-                │                                   │   └── rhs: > { lhs: 1995-01-01, rhs: l_shipdate }
-                │                                   ├── cost: 33126708
-                │                                   ├── rows: 1500303.8
-                │                                   └── Scan
-                │                                       ├── table: lineitem
-                │                                       ├── list: [ l_partkey, l_suppkey, l_quantity, l_shipdate ]
-                │                                       ├── filter: null
-                │                                       ├── cost: 24004860
-                │                                       └── rows: 6001215
+                │                               └── Scan
+                │                                   ├── table: lineitem
+                │                                   ├── list: [ l_partkey, l_suppkey, l_quantity, l_shipdate ]
+                │                                   ├── filter: null
+                │                                   ├── cost: 24004860
+                │                                   └── rows: 6001215
                 └── Projection { exprs: [ p_partkey ], cost: 644000, rows: 100000 }
                     └── Filter { cond: like { lhs: p_name, rhs: 'forest%' }, cost: 642000, rows: 100000 }
                         └── Scan { table: part, list: [ p_partkey, p_name ], filter: null, cost: 400000, rows: 200000 }
@@ -2914,7 +2974,7 @@ Projection
 │   ┌── s_name
 │   └── ref
 │       └── rowcount
-├── cost: 140703820
+├── cost: 128563280
 ├── rows: 10
 └── TopN
     ├── limit: 100
@@ -2924,90 +2984,90 @@ Projection
     │   │   └── ref
     │   │       └── rowcount
     │   └── s_name
-    ├── cost: 140703820
+    ├── cost: 128563280
     ├── rows: 10
-    └── HashAgg { keys: [ s_name ], aggs: [ rowcount ], cost: 140703780, rows: 10 }
-        └── Projection { exprs: [ s_name ], cost: 140209870, rows: 3000607.5 }
+    └── HashAgg { keys: [ s_name ], aggs: [ rowcount ], cost: 128563224, rows: 10 }
+        └── Projection { exprs: [ s_name ], cost: 128439736, rows: 750151.9 }
             └── HashJoin
                 ├── type: semi
                 ├── cond: <> { lhs: l_suppkey(1), rhs: l_suppkey }
                 ├── lkey: [ l_orderkey ]
                 ├── rkey: [ l_orderkey(1) ]
-                ├── cost: 140149860
-                ├── rows: 3000607.5
+                ├── cost: 128424740
+                ├── rows: 750151.9
                 ├── HashJoin
                 │   ├── type: anti
                 │   ├── cond: <> { lhs: l_suppkey(2), rhs: l_suppkey }
                 │   ├── lkey: [ l_orderkey ]
                 │   ├── rkey: [ l_orderkey(2) ]
-                │   ├── cost: 115858424
-                │   ├── rows: 3000607.5
-                │   ├── Projection { exprs: [ s_name, l_orderkey, l_suppkey ], cost: 67907704, rows: 3000607.5 }
+                │   ├── cost: 111432530
+                │   ├── rows: 1500303.8
+                │   ├── Projection { exprs: [ s_name, l_orderkey, l_suppkey ], cost: 67982720, rows: 3000607.5 }
                 │   │   └── HashJoin
                 │   │       ├── type: inner
                 │   │       ├── cond: true
-                │   │       ├── lkey: [ o_orderkey ]
-                │   │       ├── rkey: [ l_orderkey ]
-                │   │       ├── cost: 67787680
+                │   │       ├── lkey: [ l_orderkey ]
+                │   │       ├── rkey: [ o_orderkey ]
+                │   │       ├── cost: 67862696
                 │   │       ├── rows: 3000607.5
-                │   │       ├── Projection { exprs: [ o_orderkey ], cost: 4830000, rows: 750000 }
-                │   │       │   └── Filter { cond: = { lhs: o_orderstatus, rhs: 'F' }, cost: 4815000, rows: 750000 }
-                │   │       │       └── Scan
-                │   │       │           ├── table: orders
-                │   │       │           ├── list: [ o_orderkey, o_orderstatus ]
-                │   │       │           ├── filter: null
-                │   │       │           ├── cost: 3000000
-                │   │       │           └── rows: 1500000
-                │   │       └── Projection
-                │   │           ├── exprs: [ l_orderkey, l_suppkey, s_name ]
-                │   │           ├── cost: 49773184
-                │   │           ├── rows: 3000607.5
-                │   │           └── HashJoin
-                │   │               ├── type: inner
-                │   │               ├── cond: true
-                │   │               ├── lkey: [ s_suppkey ]
-                │   │               ├── rkey: [ l_suppkey ]
-                │   │               ├── cost: 49653160
-                │   │               ├── rows: 3000607.5
-                │   │               ├── Projection { exprs: [ s_suppkey, s_name ], cost: 71957.95, rows: 10000 }
-                │   │               │   └── HashJoin
-                │   │               │       ├── type: inner
-                │   │               │       ├── cond: true
-                │   │               │       ├── lkey: [ n_nationkey ]
-                │   │               │       ├── rkey: [ s_nationkey ]
-                │   │               │       ├── cost: 71657.95
-                │   │               │       ├── rows: 10000
-                │   │               │       ├── Projection { exprs: [ n_nationkey ], cost: 80.5, rows: 12.5 }
-                │   │               │       │   └── Filter
-                │   │               │       │       ├── cond: = { lhs: n_name, rhs: 'SAUDI ARABIA' }
-                │   │               │       │       ├── cost: 80.25
-                │   │               │       │       ├── rows: 12.5
-                │   │               │       │       └── Scan
-                │   │               │       │           ├── table: nation
-                │   │               │       │           ├── list: [ n_nationkey, n_name ]
-                │   │               │       │           ├── filter: null
-                │   │               │       │           ├── cost: 50
-                │   │               │       │           └── rows: 25
-                │   │               │       └── Scan
-                │   │               │           ├── table: supplier
-                │   │               │           ├── list: [ s_suppkey, s_name, s_nationkey ]
-                │   │               │           ├── filter: null
-                │   │               │           ├── cost: 30000
-                │   │               │           └── rows: 10000
-                │   │               └── Projection
-                │   │                   ├── exprs: [ l_orderkey, l_suppkey ]
-                │   │                   ├── cost: 36817456
-                │   │                   ├── rows: 3000607.5
-                │   │                   └── Filter
-                │   │                       ├── cond: > { lhs: l_receiptdate, rhs: l_commitdate }
-                │   │                       ├── cost: 36727436
-                │   │                       ├── rows: 3000607.5
-                │   │                       └── Scan
-                │   │                           ├── table: lineitem
-                │   │                           ├── list: [ l_orderkey, l_suppkey, l_commitdate, l_receiptdate ]
-                │   │                           ├── filter: null
-                │   │                           ├── cost: 24004860
-                │   │                           └── rows: 6001215
+                │   │       ├── Projection
+                │   │       │   ├── exprs: [ s_name, l_orderkey, l_suppkey ]
+                │   │       │   ├── cost: 49773184
+                │   │       │   ├── rows: 3000607.5
+                │   │       │   └── HashJoin
+                │   │       │       ├── type: inner
+                │   │       │       ├── cond: true
+                │   │       │       ├── lkey: [ s_suppkey ]
+                │   │       │       ├── rkey: [ l_suppkey ]
+                │   │       │       ├── cost: 49653160
+                │   │       │       ├── rows: 3000607.5
+                │   │       │       ├── Projection { exprs: [ s_suppkey, s_name ], cost: 71957.95, rows: 10000 }
+                │   │       │       │   └── HashJoin
+                │   │       │       │       ├── type: inner
+                │   │       │       │       ├── cond: true
+                │   │       │       │       ├── lkey: [ n_nationkey ]
+                │   │       │       │       ├── rkey: [ s_nationkey ]
+                │   │       │       │       ├── cost: 71657.95
+                │   │       │       │       ├── rows: 10000
+                │   │       │       │       ├── Projection { exprs: [ n_nationkey ], cost: 80.5, rows: 12.5 }
+                │   │       │       │       │   └── Filter
+                │   │       │       │       │       ├── cond: = { lhs: n_name, rhs: 'SAUDI ARABIA' }
+                │   │       │       │       │       ├── cost: 80.25
+                │   │       │       │       │       ├── rows: 12.5
+                │   │       │       │       │       └── Scan
+                │   │       │       │       │           ├── table: nation
+                │   │       │       │       │           ├── list: [ n_nationkey, n_name ]
+                │   │       │       │       │           ├── filter: null
+                │   │       │       │       │           ├── cost: 50
+                │   │       │       │       │           └── rows: 25
+                │   │       │       │       └── Scan
+                │   │       │       │           ├── table: supplier
+                │   │       │       │           ├── list: [ s_suppkey, s_name, s_nationkey ]
+                │   │       │       │           ├── filter: null
+                │   │       │       │           ├── cost: 30000
+                │   │       │       │           └── rows: 10000
+                │   │       │       └── Projection
+                │   │       │           ├── exprs: [ l_orderkey, l_suppkey ]
+                │   │       │           ├── cost: 36817456
+                │   │       │           ├── rows: 3000607.5
+                │   │       │           └── Filter
+                │   │       │               ├── cond: > { lhs: l_receiptdate, rhs: l_commitdate }
+                │   │       │               ├── cost: 36727436
+                │   │       │               ├── rows: 3000607.5
+                │   │       │               └── Scan
+                │   │       │                   ├── table: lineitem
+                │   │       │                   ├── list: [ l_orderkey, l_suppkey, l_commitdate, l_receiptdate ]
+                │   │       │                   ├── filter: null
+                │   │       │                   ├── cost: 24004860
+                │   │       │                   └── rows: 6001215
+                │   │       └── Projection { exprs: [ o_orderkey ], cost: 4830000, rows: 750000 }
+                │   │           └── Filter { cond: = { lhs: o_orderstatus, rhs: 'F' }, cost: 4815000, rows: 750000 }
+                │   │               └── Scan
+                │   │                   ├── table: orders
+                │   │                   ├── list: [ o_orderkey, o_orderstatus ]
+                │   │                   ├── filter: null
+                │   │                   ├── cost: 3000000
+                │   │                   └── rows: 1500000
                 │   └── Projection { exprs: [ l_orderkey(2), l_suppkey(2) ], cost: 36817456, rows: 3000607.5 }
                 │       └── Filter
                 │           ├── cond: > { lhs: l_receiptdate(2), rhs: l_commitdate(2) }

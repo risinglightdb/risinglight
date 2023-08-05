@@ -46,7 +46,7 @@ impl Optimizer {
         self.optimize_stage(&mut expr, &mut cost, STAGE1_RULES.iter(), 2, 6);
         // 2. pushdown predicate and projection
         let rules = STAGE2_RULES.iter().chain(&extra_rules);
-        self.optimize_stage(&mut expr, &mut cost, rules, 3, 6);
+        self.optimize_stage(&mut expr, &mut cost, rules, 4, 6);
         // 3. join reorder and hashjoin
         self.optimize_stage(&mut expr, &mut cost, STAGE3_RULES.iter(), 3, 8);
         expr
@@ -128,7 +128,6 @@ static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     rules.append(&mut rules::plan::always_better_rules());
     rules.append(&mut rules::plan::predicate_pushdown_rules());
     rules.append(&mut rules::plan::projection_pushdown_rules());
-    rules.append(&mut rules::order::order_rules());
     rules
 });
 
@@ -142,5 +141,6 @@ static STAGE3_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     rules.append(&mut rules::plan::hash_join_rules());
     rules.append(&mut rules::plan::predicate_pushdown_rules());
     rules.append(&mut rules::plan::projection_pushdown_rules());
+    rules.append(&mut rules::order::order_rules());
     rules
 });

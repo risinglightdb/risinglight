@@ -44,10 +44,32 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
             Semi | Anti => x(l) * x(on),
             _ => x(l) * x(r) * x(on),
         },
-        HashJoin([t, _, _, _, l, r]) | MergeJoin([t, _, _, _, l, r]) => match egraph[*t].nodes[0] {
-            Semi | Anti => x(l),
-            _ => x(l).max(x(r)),
-        },
+        HashJoin([t, on, lkey, rkey, l, r]) | MergeJoin([t, on, lkey, rkey, l, r]) => {
+            if let Semi | Anti = egraph[*t].nodes[0] {
+                return x(l) * x(on) * 0.5f32.powi(list_len(lkey) as i32);
+            }
+            let contains_primary_key = |list: &Id| {
+                let catalog = &egraph.analysis.catalog;
+                egraph[*list].as_list().iter().any(|cid| {
+                    for node in egraph[*cid].nodes.iter() {
+                        if let Column(cid) = node {
+                            return match catalog.get_column(cid) {
+                                Some(col) => col.is_primary(),
+                                None => false,
+                            };
+                        }
+                    }
+                    false
+                })
+            };
+            if contains_primary_key(lkey) {
+                x(r) * x(on)
+            } else if contains_primary_key(rkey) {
+                x(l) * x(on)
+            } else {
+                x(l) * x(r) * x(on) * 0.5f32.powi(list_len(lkey) as i32)
+            }
+        }
         Apply([t, l, r]) => match egraph[*t].nodes[0] {
             Semi | Anti => x(l),
             _ => x(l) * x(r),
