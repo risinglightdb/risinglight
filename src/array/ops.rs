@@ -159,7 +159,7 @@ impl ArrayImpl {
         let (A::Bool(a), A::Bool(b)) = (self, other) else {
             return Err(ConvertError::NoBinaryOp("and".into(), self.type_string(), other.type_string()));
         };
-        let mut c: BoolArray = binary_op(a.as_ref(), b.as_ref(), |a, b| *a && *b);
+        let mut c: BoolArray = binary_lop(a.as_ref(), b.as_ref(), |a, b| *a && *b);
         let a_false = a.to_raw_bitvec().not_then_and(a.get_valid_bitmap());
         let b_false = b.to_raw_bitvec().not_then_and(b.get_valid_bitmap());
         c.get_valid_bitmap_mut().or(&a_false);
@@ -171,7 +171,7 @@ impl ArrayImpl {
         let (A::Bool(a), A::Bool(b)) = (self, other) else {
             return Err(ConvertError::NoBinaryOp("or".into(), self.type_string(), other.type_string()));
         };
-        let mut c: BoolArray = binary_op(a.as_ref(), b.as_ref(), |a, b| *a || *b);
+        let mut c: BoolArray = binary_lop(a.as_ref(), b.as_ref(), |a, b| *a || *b);
         let bitmap = c.to_raw_bitvec();
         c.get_valid_bitmap_mut().or(&bitmap);
         Ok(A::new_bool(c))
@@ -600,11 +600,30 @@ where
     A: ArrayValidExt,
     B: ArrayValidExt,
     O: ArrayFromDataExt,
+    <O::Item as ToOwned>::Owned: Default,
     F: Fn(&A::Item, &B::Item) -> <O::Item as ToOwned>::Owned,
 {
     assert_eq!(a.len(), b.len());
-    let it = a.raw_iter().zip(b.raw_iter()).map(|(a, b)| f(a, b));
     let valid = a.get_valid_bitmap().and(b.get_valid_bitmap());
+    let it = a
+        .raw_iter()
+        .zip(b.raw_iter())
+        .zip(valid.clone())
+        .map(|((a, b), bit)| if bit { f(a, b) } else { Default::default() });
+    O::from_data(it, valid)
+}
+
+fn binary_lop<A, B, O, F>(a: &A, b: &B, f: F) -> O
+where
+    A: ArrayValidExt,
+    B: ArrayValidExt,
+    O: ArrayFromDataExt,
+    <O::Item as ToOwned>::Owned: Default,
+    F: Fn(&A::Item, &B::Item) -> <O::Item as ToOwned>::Owned,
+{
+    assert_eq!(a.len(), b.len());
+    let valid = a.get_valid_bitmap().and(b.get_valid_bitmap());
+    let it = a.raw_iter().zip(b.raw_iter()).map(|(a, b)| f(a, b));
     O::from_data(it, valid)
 }
 
