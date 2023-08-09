@@ -13,8 +13,8 @@ use super::*;
 use crate::for_all_variants;
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{
-    Blob, ConvertError, DataTypeKind, DataValue, Date, DateTimeField, Interval, Timestamp,
-    TimestampTz, F64,
+    Blob, ConvertError, DataTypeKind, DataValue, Date, DateTimeField, Interval, NativeType,
+    Timestamp, TimestampTz, F64,
 };
 
 type A = ArrayImpl;
@@ -146,7 +146,7 @@ impl ArrayImpl {
     arith!(add, +);
     arith!(sub, -);
     arith!(mul, *);
-    arith!(div, /);
+    arith!(unchecked_div, /);
     arith!(rem, %);
     cmp!(eq, ==);
     cmp!(ne, !=);
@@ -155,11 +155,22 @@ impl ArrayImpl {
     cmp!(ge, >=);
     cmp!(le, <=);
 
+    pub fn div(&self, other: &Self) -> Result<Self, ConvertError> {
+        let valid_rhs = other.get_valid_bitmap();
+        let other = safen_dividend(other, valid_rhs).ok_or(ConvertError::NoBinaryOp(
+            "div".into(),
+            self.type_string(),
+            other.type_string(),
+        ))?;
+
+        self.unchecked_div(&other)
+    }
+
     pub fn and(&self, other: &Self) -> Result<Self, ConvertError> {
         let (A::Bool(a), A::Bool(b)) = (self, other) else {
             return Err(ConvertError::NoBinaryOp("and".into(), self.type_string(), other.type_string()));
         };
-        let mut c: BoolArray = binary_lop(a.as_ref(), b.as_ref(), |a, b| *a && *b);
+        let mut c: BoolArray = binary_op(a.as_ref(), b.as_ref(), |a, b| *a && *b);
         let a_false = a.to_raw_bitvec().not_then_and(a.get_valid_bitmap());
         let b_false = b.to_raw_bitvec().not_then_and(b.get_valid_bitmap());
         c.get_valid_bitmap_mut().or(&a_false);
@@ -171,7 +182,7 @@ impl ArrayImpl {
         let (A::Bool(a), A::Bool(b)) = (self, other) else {
             return Err(ConvertError::NoBinaryOp("or".into(), self.type_string(), other.type_string()));
         };
-        let mut c: BoolArray = binary_lop(a.as_ref(), b.as_ref(), |a, b| *a || *b);
+        let mut c: BoolArray = binary_op(a.as_ref(), b.as_ref(), |a, b| *a || *b);
         let bitmap = c.to_raw_bitvec();
         c.get_valid_bitmap_mut().or(&bitmap);
         Ok(A::new_bool(c))
@@ -595,35 +606,60 @@ macro_rules! impl_agg {
 
 for_all_variants! { impl_agg }
 
+fn safen_dividend(array: &ArrayImpl, valid: &BitVec) -> Option<ArrayImpl> {
+    fn f<T, N>(array: &PrimitiveArray<N>, valid: &BitVec, value: N) -> T
+    where
+        T: ArrayFromDataExt,
+        N: NativeType + std::borrow::Borrow<<T as Array>::Item>,
+    {
+        T::from_data(
+            array
+                .raw_iter()
+                .zip(valid)
+                .map(|(item, valid)| if *valid { *item } else { value }),
+            valid.to_owned(),
+        )
+    }
+
+    Some(match array {
+        ArrayImpl::Int16(array) => {
+            let array = f(array, valid, 1);
+            ArrayImpl::Int16(Arc::new(array))
+        }
+        ArrayImpl::Int32(array) => {
+            let array = f(array, valid, 1);
+            ArrayImpl::Int32(Arc::new(array))
+        }
+        ArrayImpl::Int64(array) => {
+            let array = f(array, valid, 1);
+            ArrayImpl::Int64(Arc::new(array))
+        }
+        ArrayImpl::Float64(array) => {
+            let array = f(array, valid, 1.0.into());
+            ArrayImpl::Float64(Arc::new(array))
+        }
+        ArrayImpl::Decimal(array) => {
+            let array = f(array, valid, Decimal::new(1, 0));
+            ArrayImpl::Decimal(Arc::new(array))
+        }
+        ArrayImpl::Interval(array) => {
+            let array = f(array, valid, Interval::from_secs(1));
+            ArrayImpl::Interval(Arc::new(array))
+        }
+        _ => return None,
+    })
+}
+
 fn binary_op<A, B, O, F>(a: &A, b: &B, f: F) -> O
 where
     A: ArrayValidExt,
     B: ArrayValidExt,
     O: ArrayFromDataExt,
-    <O::Item as ToOwned>::Owned: Default,
     F: Fn(&A::Item, &B::Item) -> <O::Item as ToOwned>::Owned,
 {
     assert_eq!(a.len(), b.len());
-    let valid = a.get_valid_bitmap().and(b.get_valid_bitmap());
-    let it = a
-        .raw_iter()
-        .zip(b.raw_iter())
-        .zip(valid.clone())
-        .map(|((a, b), bit)| if bit { f(a, b) } else { Default::default() });
-    O::from_data(it, valid)
-}
-
-fn binary_lop<A, B, O, F>(a: &A, b: &B, f: F) -> O
-where
-    A: ArrayValidExt,
-    B: ArrayValidExt,
-    O: ArrayFromDataExt,
-    <O::Item as ToOwned>::Owned: Default,
-    F: Fn(&A::Item, &B::Item) -> <O::Item as ToOwned>::Owned,
-{
-    assert_eq!(a.len(), b.len());
-    let valid = a.get_valid_bitmap().and(b.get_valid_bitmap());
     let it = a.raw_iter().zip(b.raw_iter()).map(|(a, b)| f(a, b));
+    let valid = a.get_valid_bitmap().and(b.get_valid_bitmap());
     O::from_data(it, valid)
 }
 
