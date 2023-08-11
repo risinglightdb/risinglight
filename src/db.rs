@@ -1,6 +1,6 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use futures::TryStreamExt;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
@@ -8,8 +8,9 @@ use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use crate::array::{
     ArrayBuilder, ArrayBuilderImpl, Chunk, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder,
 };
-use crate::catalog::RootCatalogRef;
-use crate::parser::{parse, ParserError};
+use crate::catalog::{RootCatalogRef, TableRefId, INTERNAL_SCHEMA_NAME};
+use crate::parser::{parse, ParserError, Statement};
+use crate::planner::Statistics;
 use crate::storage::{
     InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
     StorageImpl, Table,
@@ -19,6 +20,7 @@ use crate::storage::{
 pub struct Database {
     catalog: RootCatalogRef,
     storage: StorageImpl,
+    mock_stat: Mutex<Option<Statistics>>,
 }
 
 impl Database {
@@ -28,6 +30,7 @@ impl Database {
         Database {
             catalog: storage.catalog().clone(),
             storage: StorageImpl::InMemoryStorage(Arc::new(storage)),
+            mock_stat: Default::default(),
         }
     }
 
@@ -38,6 +41,7 @@ impl Database {
         Database {
             catalog: storage.catalog().clone(),
             storage: StorageImpl::SecondaryStorage(storage),
+            mock_stat: Default::default(),
         }
     }
 
@@ -114,7 +118,7 @@ impl Database {
         )])])
     }
 
-    pub async fn run_internal(&self, cmd: &str) -> Result<Vec<Chunk>, Error> {
+    async fn run_internal(&self, cmd: &str) -> Result<Vec<Chunk>, Error> {
         if let Some((cmd, arg)) = cmd.split_once(' ') {
             if cmd == "stat" {
                 if let StorageImpl::SecondaryStorage(ref storage) = self.storage {
@@ -193,6 +197,7 @@ impl Database {
 
         let optimizer = crate::planner::Optimizer::new(
             self.catalog.clone(),
+            self.get_storage_statistics().await?,
             crate::planner::Config {
                 enable_range_filter_scan: self.storage.support_range_filter_scan(),
                 table_is_sorted_by_primary_key: self.storage.table_is_sorted_by_primary_key(),
@@ -202,15 +207,18 @@ impl Database {
         let stmts = parse(sql)?;
         let mut outputs: Vec<Chunk> = vec![];
         for stmt in stmts {
+            if self.handle_set(&stmt)? {
+                continue;
+            }
             let mut binder = crate::binder::Binder::new(self.catalog.clone());
             let bound = binder.bind(stmt)?;
             let optimized = optimizer.optimize(&bound);
             let executor = match self.storage.clone() {
                 StorageImpl::InMemoryStorage(s) => {
-                    crate::executor::build(self.catalog.clone(), s, &optimized)
+                    crate::executor::build(optimizer.clone(), s, &optimized)
                 }
                 StorageImpl::SecondaryStorage(s) => {
-                    crate::executor::build(self.catalog.clone(), s, &optimized)
+                    crate::executor::build(optimizer.clone(), s, &optimized)
                 }
             };
             let output = executor.try_collect().await?;
@@ -219,6 +227,58 @@ impl Database {
             outputs.push(chunk);
         }
         Ok(outputs)
+    }
+
+    async fn get_storage_statistics(&self) -> Result<Statistics, Error> {
+        if let Some(mock) = &*self.mock_stat.lock().unwrap() {
+            return Ok(mock.clone());
+        }
+        let mut stat = Statistics::default();
+        // only secondary storage supports statistics
+        let StorageImpl::SecondaryStorage(storage) = self.storage.clone() else {
+            return Ok(stat);
+        };
+        for schema in self.catalog.all_schemas().values() {
+            // skip internal schema
+            if schema.name() == INTERNAL_SCHEMA_NAME {
+                continue;
+            }
+            for table in schema.all_tables().values() {
+                let table_id = TableRefId::new(schema.id(), table.id());
+                let table = storage.get_table(table_id)?;
+                let txn = table.read().await?;
+                let values = txn.aggreagate_block_stat(&[(
+                    BlockStatisticsType::RowCount,
+                    StorageColumnRef::Idx(0),
+                )]);
+                stat.add_row_count(table_id, values[0].as_usize().unwrap().unwrap() as u32);
+            }
+        }
+        Ok(stat)
+    }
+
+    /// Mock the row count of a table for planner test.
+    fn handle_set(&self, stmt: &Statement) -> Result<bool, Error> {
+        let Statement::SetVariable { variable, value, .. } = stmt else {
+            return Ok(false);
+        };
+        let Some(table_name) = variable.0[0].value.strip_prefix("mock_rowcount_") else {
+            return Ok(false);
+        };
+        let count = value[0]
+            .to_string()
+            .parse::<u32>()
+            .map_err(|_| Error::Internal("invalid count".into()))?;
+        let table_id = self
+            .catalog
+            .get_table_id_by_name("postgres", table_name)
+            .ok_or_else(|| Error::Internal("table not found".into()))?;
+        self.mock_stat
+            .lock()
+            .unwrap()
+            .get_or_insert_with(Default::default)
+            .add_row_count(table_id, count);
+        Ok(true)
     }
 }
 

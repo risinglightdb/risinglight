@@ -2,7 +2,8 @@
     explain select count(*) from t
   desc: count(*) is special
   before:
-    - create table t(v int)
+    - create table t(v int);
+      insert into t values (1);
   tasks:
     - print
 
@@ -10,6 +11,7 @@
     explain select count(*) + 1 from t
   desc: count(*) with projection
   before:
-    - create table t(v int)
+    - create table t(v int);
+      insert into t values (1);
   tasks:
     - print

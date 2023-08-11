@@ -2,7 +2,8 @@
     explain select * from t where (a = 1 and b = 2) or (a = 1 and c = 3)
   desc: extract common predicate
   before:
-    - create table t(a int, b int, c int)
+    - create table t(a int, b int, c int);
+      insert into t values (1, 2, 3);
   tasks:
     - print
 

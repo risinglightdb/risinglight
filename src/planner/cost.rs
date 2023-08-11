@@ -24,34 +24,37 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
         let rows = |i: &Id| self.egraph[*i].data.rows;
         let cols = |i: &Id| self.egraph[*i].data.schema.len() as f32;
         let nlogn = |x: f32| x * (x + 1.0).log2();
-        // The cost of output chunks of a plan.
-        let out = || rows(id) * cols(id);
+        // The cost of build output chunks of a plan.
+        let build = || rows(id) * cols(id);
+        // The cost of an operation in hash table.
+        let hash = |size: f32| (size + 1.0).log2() * 0.01;
 
         let c = match enode {
-            Scan(_) | Values(_) => out(),
-            Order([_, c]) => nlogn(rows(c)) + out() + costs(c),
-            Filter([exprs, c]) => costs(exprs) * rows(c) + out() + costs(c),
+            // plan nodes
+            Scan(_) | Values(_) => build(),
+            Order([_, c]) => nlogn(rows(c)) + build() + costs(c),
+            Filter([exprs, c]) => costs(exprs) * rows(c) + build() + costs(c),
             Proj([exprs, c]) | Window([exprs, c]) => costs(exprs) * rows(c) + costs(c),
-            Agg([exprs, c]) => costs(exprs) * rows(c) + out() + costs(c),
+            Agg([exprs, c]) => costs(exprs) * rows(c) + build() + costs(c),
             HashAgg([exprs, groupby, c]) => {
-                ((rows(id) + 1.0).log2() + costs(exprs) + costs(groupby)) * rows(c)
-                    + out()
-                    + costs(c)
+                (hash(rows(id)) + costs(exprs) + costs(groupby)) * rows(c) + build() + costs(c)
             }
             SortAgg([exprs, groupby, c]) => {
-                (costs(exprs) + costs(groupby)) * rows(c) + out() + costs(c)
+                (costs(exprs) + costs(groupby)) * rows(c) + build() + costs(c)
             }
-            Limit([_, _, c]) => out() + costs(c),
-            TopN([_, _, _, c]) => (rows(id) + 1.0).log2() * rows(c) + out() + costs(c),
-            Join([_, on, l, r]) => costs(on) * rows(l) * rows(r) + out() + costs(l) + costs(r),
+            Limit([_, _, c]) => build() + costs(c),
+            TopN([_, _, _, c]) => (rows(id) + 1.0).log2() * rows(c) + build() + costs(c),
+            Join([_, on, l, r]) => costs(on) * rows(l) * rows(r) + build() + costs(l) + costs(r),
             HashJoin([_, _, _, l, r]) => {
-                (rows(l) + 1.0).log2() * (rows(l) + rows(r)) + out() + costs(l) + costs(r)
+                hash(rows(l)) * (rows(l) + rows(r)) + build() + costs(l) + costs(r)
             }
-            MergeJoin([_, _, _, l, r]) => out() + costs(l) + costs(r),
+            MergeJoin([_, _, _, l, r]) => build() + costs(l) + costs(r),
             Insert([_, _, c]) | CopyTo([_, c]) => rows(c) * cols(c) + costs(c),
             Empty(_) => 0.0,
-            // for expressions, the cost is 0.1x AST size
-            Column(_) | Ref(_) => 0.01,
+            // expressions
+            Column(_) | Ref(_) => 0.01, // column reference is almost free
+            List(_) => enode.fold(0.01, |sum, id| sum + costs(&id)), // list is almost free
+            // each operator has a cost of 0.1
             _ => enode.fold(0.1, |sum, id| sum + costs(&id)),
         };
         debug!(
