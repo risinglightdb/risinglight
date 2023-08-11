@@ -607,7 +607,7 @@ macro_rules! impl_agg {
 for_all_variants! { impl_agg }
 
 fn safen_dividend(array: &ArrayImpl, valid: &BitVec) -> Option<ArrayImpl> {
-    fn f<'a, T, N>(array: &'a PrimitiveArray<N>, valid: &BitVec, value: N) -> T
+    fn f<T, N>(array: &PrimitiveArray<N>, valid: &BitVec, value: N) -> T
     where
         T: ArrayFromDataExt,
         N: NativeType + num_traits::Zero + Borrow<<T as Array>::Item>,
