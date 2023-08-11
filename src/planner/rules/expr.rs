@@ -118,7 +118,7 @@ pub fn eval_constant(egraph: &EGraph, enode: &Expr) -> ConstValue {
         Some(x(*e)?.clone())
     } else if let Some((op, a, b)) = enode.binary_op() {
         let (a, b) = (x(a)?, x(b)?);
-        if a.is_null() || b.is_null() || b.is_zero() {
+        if a.is_null() || b.is_null() {
             return Some(DataValue::Null);
         }
         let array_a = ArrayImpl::from(a);

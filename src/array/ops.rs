@@ -607,20 +607,29 @@ macro_rules! impl_agg {
 for_all_variants! { impl_agg }
 
 fn safen_dividend(array: &ArrayImpl, valid: &BitVec) -> Option<ArrayImpl> {
-    fn f<T, N>(array: &PrimitiveArray<N>, valid: &BitVec, value: N) -> T
+    fn f<'a, T, N>(array: &'a PrimitiveArray<N>, valid: &BitVec, value: N) -> T
     where
         T: ArrayFromDataExt,
-        N: NativeType + std::borrow::Borrow<<T as Array>::Item>,
+        N: NativeType + num_traits::Zero + Borrow<<T as Array>::Item>,
     {
-        T::from_data(
-            array
-                .raw_iter()
-                .zip(valid)
-                .map(|(item, valid)| if *valid { *item } else { value }),
-            valid.to_owned(),
-        )
+        let mut valid = valid.to_owned();
+
+        // 1. set valid as false if item is zero
+        for (idx, item) in array.raw_iter().enumerate() {
+            if item.is_zero() {
+                valid.set(idx, false);
+            }
+        }
+
+        // 2. replace item with safe dividend if valid is false
+        let data = array
+            .raw_iter()
+            .map(|item| if item.is_zero() { value } else { *item });
+
+        T::from_data(data, valid)
     }
 
+    // all valid dividend case
     Some(match array {
         ArrayImpl::Int16(array) => {
             let array = f(array, valid, 1);
@@ -641,10 +650,6 @@ fn safen_dividend(array: &ArrayImpl, valid: &BitVec) -> Option<ArrayImpl> {
         ArrayImpl::Decimal(array) => {
             let array = f(array, valid, Decimal::new(1, 0));
             ArrayImpl::Decimal(Arc::new(array))
-        }
-        ArrayImpl::Interval(array) => {
-            let array = f(array, valid, Interval::from_secs(1));
-            ArrayImpl::Interval(Arc::new(array))
         }
         _ => return None,
     })
