@@ -661,25 +661,25 @@ fn safen_dividend(array: &ArrayImpl, valid: &BitVec) -> Option<ArrayImpl> {
 
     // all valid dividend case
     Some(match array {
-        ArrayImpl::Int16(array) => {
+        A::Int16(array) => {
             let array = f(array, valid, 1);
-            ArrayImpl::Int16(Arc::new(array))
+            A::new_int16(array)
         }
-        ArrayImpl::Int32(array) => {
+        A::Int32(array) => {
             let array = f(array, valid, 1);
-            ArrayImpl::Int32(Arc::new(array))
+            A::new_int32(array)
         }
-        ArrayImpl::Int64(array) => {
+        A::Int64(array) => {
             let array = f(array, valid, 1);
-            ArrayImpl::Int64(Arc::new(array))
+            A::new_int64(array)
         }
-        ArrayImpl::Float64(array) => {
+        A::Float64(array) => {
             let array = f(array, valid, 1.0.into());
-            ArrayImpl::Float64(Arc::new(array))
+            A::new_float64(array)
         }
-        ArrayImpl::Decimal(array) => {
+        A::Decimal(array) => {
             let array = f(array, valid, Decimal::new(1, 0));
-            ArrayImpl::Decimal(Arc::new(array))
+            A::new_decimal(array)
         }
         _ => return None,
     })
