@@ -87,6 +87,10 @@ pub fn analyze_range(egraph: &EGraph, enode: &Expr) -> RangeCondition {
 #[rustfmt::skip]
 pub fn filter_scan_rule() -> Vec<Rewrite> { vec![
     // pushdown range condition to scan
+    rw!("filter-scan-null-eq-true";
+        "(filter ?cond (scan ?table ?columns null))" =>
+        "(filter ?cond (scan ?table ?columns true))"
+    ),
     rw!("filter-scan";
         "(filter ?cond (scan ?table ?columns true))" =>
         "(scan ?table ?columns ?cond)"
@@ -104,11 +108,11 @@ fn is_primary_key_range(expr: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool 
     let var = var(expr);
     move |egraph, _, subst| {
         let Some((column, _)) = &egraph[subst[var]].data.range else { return false };
-        egraph
-            .analysis
-            .catalog
-            .get_column(column)
-            .unwrap()
-            .is_primary()
+        if let Some(col) = egraph.analysis.catalog.get_column(column) {
+            col.is_primary()
+        } else {
+            // handle the case that catalog is not initialized, like in test cases
+            false
+        }
     }
 }

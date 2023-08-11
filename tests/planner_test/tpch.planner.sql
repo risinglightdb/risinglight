@@ -1291,7 +1291,7 @@ Projection
                                 └── Scan
                                     ├── table: orders
                                     ├── list: [ o_orderkey, o_custkey, o_comment ]
-                                    ├── filter: null
+                                    ├── filter: true
                                     ├── cost: 4500000
                                     └── rows: 1500000
 */
