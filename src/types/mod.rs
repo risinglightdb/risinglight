@@ -111,7 +111,7 @@ impl From<&crate::parser::DataType> for DataTypeKind {
             // Real => Self::Float32,
             Float(_) | Double => Self::Float64,
             SmallInt(_) => Self::Int16,
-            Int(_) => Self::Int32,
+            Int(_) | Integer(_) => Self::Int32,
             BigInt(_) => Self::Int64,
             Boolean => Self::Bool,
             Decimal(info) => match info {
@@ -297,6 +297,8 @@ pub enum ConvertError {
     NoUnaryOp(String, &'static str),
     #[error("no function {0}({1}, {2})")]
     NoBinaryOp(String, &'static str, &'static str),
+    #[error("no function {0}({1}, {2}, {3})")]
+    NoTernaryOp(String, &'static str, &'static str, &'static str),
     #[error("no cast {0} -> {1}")]
     NoCast(&'static str, DataTypeKind),
 }

@@ -110,6 +110,12 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         Extract([_, a]) => merge(enode, [x(a)?], |[a]| {
             matches!(a, Kind::Date | Kind::Interval).then_some(Kind::Int32)
         }),
+        Substring([str, start, len]) => {
+            merge(enode, [x(str)?, x(start)?, x(len)?], |[str, start, len]| {
+                (str == Kind::String && start == Kind::Int32 && len == Kind::Int32)
+                    .then_some(Kind::String)
+            })
+        }
 
         // number agg
         Max(a) | Min(a) => x(a),
