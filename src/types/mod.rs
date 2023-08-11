@@ -111,7 +111,7 @@ impl From<&crate::parser::DataType> for DataTypeKind {
             // Real => Self::Float32,
             Float(_) | Double => Self::Float64,
             SmallInt(_) => Self::Int16,
-            Int(_) => Self::Int32,
+            Int(_) | Integer(_) => Self::Int32,
             BigInt(_) => Self::Int64,
             Boolean => Self::Bool,
             Decimal(info) => match info {

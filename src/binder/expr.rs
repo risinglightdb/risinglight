@@ -204,24 +204,6 @@ impl Binder {
         Ok(self.egraph.add(Node::Extract([field, expr])))
     }
 
-    fn bind_substring(
-        &mut self,
-        expr: Expr,
-        from: Option<Box<Expr>>,
-        for_: Option<Box<Expr>>,
-    ) -> Result {
-        let expr = self.bind_expr(expr)?;
-        let from = match from {
-            Some(expr) => self.bind_expr(*expr)?,
-            None => self.egraph.add(Node::Constant(DataValue::Int32(1))),
-        };
-        let for_ = match for_ {
-            Some(expr) => self.bind_expr(*expr)?,
-            None => self.egraph.add(Node::Constant(DataValue::Int32(i32::MAX))),
-        };
-        Ok(self.egraph.add(Node::Substring([expr, from, for_])))
-    }
-
     fn bind_case(
         &mut self,
         operand: Option<Box<Expr>>,
@@ -281,6 +263,24 @@ impl Binder {
     fn bind_subquery(&mut self, subquery: Query) -> Result {
         let (id, _) = self.bind_query(subquery)?;
         Ok(self.egraph.add(Node::Max1Row(id)))
+    }
+
+    fn bind_substring(
+        &mut self,
+        expr: Expr,
+        from: Option<Box<Expr>>,
+        for_: Option<Box<Expr>>,
+    ) -> Result {
+        let expr = self.bind_expr(expr)?;
+        let from = match from {
+            Some(expr) => self.bind_expr(*expr)?,
+            None => self.egraph.add(Node::Constant(DataValue::Int32(1))),
+        };
+        let for_ = match for_ {
+            Some(expr) => self.bind_expr(*expr)?,
+            None => self.egraph.add(Node::Constant(DataValue::Int32(i32::MAX))),
+        };
+        Ok(self.egraph.add(Node::Substring([expr, from, for_])))
     }
 
     fn bind_function(&mut self, func: Function) -> Result {

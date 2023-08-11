@@ -1,0 +1,20 @@
+statement ok
+create table t(x int, y int)
+
+statement ok
+insert into t values (1, 2), (2, NULL)
+
+query I
+select x / y from t
+----
+0
+NULL
+
+query I
+select x / 0 from t
+----
+NULL
+NULL
+
+statement ok
+drop table t

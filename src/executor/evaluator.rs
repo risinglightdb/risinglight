@@ -101,7 +101,7 @@ impl<'a> Evaluator<'a> {
             In([expr, list]) => {
                 let expr = self.next(*expr).eval(chunk)?;
                 let values = self.next(*list).eval_list(chunk)?;
-                let mut in_ = expr.eq(&values.array_at(0))?;
+                let mut in_ = expr.eq(values.array_at(0))?;
                 for value in &values.arrays()[1..] {
                     let eq = expr.eq(value)?;
                     in_ = in_.or(&eq).unwrap();

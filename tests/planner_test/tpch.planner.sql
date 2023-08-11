@@ -683,18 +683,18 @@ Projection
 │   ┌── o_orderpriority
 │   └── ref
 │       └── rowcount
-├── cost: 36152572
+├── cost: 35742960
 ├── rows: 10
-└── Order { by: [ o_orderpriority ], cost: 36152572, rows: 10 }
-    └── HashAgg { keys: [ o_orderpriority ], aggs: [ rowcount ], cost: 36152516, rows: 10 }
-        └── Projection { exprs: [ o_orderpriority ], cost: 36090772, rows: 375000 }
+└── Order { by: [ o_orderpriority ], cost: 35742960, rows: 10 }
+    └── HashAgg { keys: [ o_orderpriority ], aggs: [ rowcount ], cost: 35742904, rows: 10 }
+        └── Projection { exprs: [ o_orderpriority ], cost: 35712024, rows: 187500 }
             └── HashJoin
                 ├── type: semi
                 ├── cond: true
                 ├── lkey: [ o_orderkey ]
                 ├── rkey: [ l_orderkey ]
-                ├── cost: 36083270
-                ├── rows: 375000
+                ├── cost: 35708270
+                ├── rows: 187500
                 ├── Projection { exprs: [ o_orderkey, o_orderpriority ], cost: 6416250, rows: 375000 }
                 │   └── Filter
                 │       ├── cond:and
@@ -2206,7 +2206,7 @@ Projection
 │   └── ref
 │       └── count-distinct
 │           └── ps_suppkey
-├── cost: 11656155
+├── cost: 9952286
 ├── rows: 1000
 └── Order
     ├── by:
@@ -2217,21 +2217,15 @@ Projection
     │   ├── p_brand
     │   ├── p_type
     │   └── p_size
-    ├── cost: 11656105
+    ├── cost: 9952236
     ├── rows: 1000
     └── HashAgg
         ├── keys: [ p_brand, p_type, p_size ]
         ├── aggs:count-distinct
         │   └── ps_suppkey
-        ├── cost: 11642138
+        ├── cost: 9938269
         ├── rows: 1000
-        └── HashJoin
-            ├── type: anti
-            ├── cond: true
-            ├── lkey: [ ps_suppkey ]
-            ├── rkey: [ s_suppkey ]
-            ├── cost: 11430400
-            ├── rows: 800000
+        └── HashJoin { type: anti, cond: true, lkey: [ ps_suppkey ], rkey: [ s_suppkey ], cost: 9830400, rows: 400000 }
             ├── Projection { exprs: [ ps_suppkey, p_brand, p_type, p_size ], cost: 8002682, rows: 800000 }
             │   └── HashJoin
             │       ├── type: inner
@@ -2555,7 +2549,7 @@ Projection
 │   └── ref
 │       └── sum
 │           └── l_quantity
-├── cost: 131984136
+├── cost: 112941980
 ├── rows: 100
 └── TopN
     ├── limit: 100
@@ -2564,21 +2558,21 @@ Projection
     │   ┌── desc
     │   │   └── o_totalprice
     │   └── o_orderdate
-    ├── cost: 131984130
+    ├── cost: 112941976
     ├── rows: 100
     └── HashAgg
         ├── keys: [ c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice ]
         ├── aggs:sum
         │   └── l_quantity
-        ├── cost: 131317704
+        ├── cost: 112275550
         ├── rows: 100000
         └── HashJoin
             ├── type: semi
             ├── cond: true
             ├── lkey: [ o_orderkey ]
             ├── rkey: [ l_orderkey(1) ]
-            ├── cost: 128640700
-            ├── rows: 6001215
+            ├── cost: 110637060
+            ├── rows: 3000607.5
             ├── Projection
             │   ├── exprs: [ c_custkey, c_name, o_orderkey, o_totalprice, o_orderdate, l_quantity ]
             │   ├── cost: 78707896
@@ -2813,15 +2807,9 @@ order by
     s_name;
 
 /*
-Order { by: [ s_name ], cost: 2525380500000, rows: 10000 }
-└── Projection { exprs: [ s_name, s_address ], cost: 2525380200000, rows: 10000 }
-    └── HashJoin
-        ├── type: semi
-        ├── cond: true
-        ├── lkey: [ s_suppkey ]
-        ├── rkey: [ ps_suppkey ]
-        ├── cost: 2525380200000
-        ├── rows: 10000
+Order { by: [ s_name ], cost: 2525379700000, rows: 5000 }
+└── Projection { exprs: [ s_name, s_address ], cost: 2525379700000, rows: 5000 }
+    └── HashJoin { type: semi, cond: true, lkey: [ s_suppkey ], rkey: [ ps_suppkey ], cost: 2525379700000, rows: 5000 }
         ├── Projection { exprs: [ s_suppkey, s_name, s_address ], cost: 92057.95, rows: 10000 }
         │   └── HashJoin
         │       ├── type: inner
@@ -2839,14 +2827,14 @@ Order { by: [ s_name ], cost: 2525380500000, rows: 10000 }
         │           ├── filter: null
         │           ├── cost: 40000
         │           └── rows: 10000
-        └── Projection { exprs: [ ps_suppkey ], cost: 2525380000000, rows: 50000 }
+        └── Projection { exprs: [ ps_suppkey ], cost: 2525379700000, rows: 25000 }
             └── HashJoin
                 ├── type: semi
                 ├── cond: true
                 ├── lkey: [ ps_partkey ]
                 ├── rkey: [ p_partkey ]
-                ├── cost: 2525380000000
-                ├── rows: 50000
+                ├── cost: 2525379700000
+                ├── rows: 25000
                 ├── Projection { exprs: [ ps_partkey, ps_suppkey ], cost: 2525379200000, rows: 50000 }
                 │   └── Filter
                 │       ├── cond:>
@@ -2974,7 +2962,7 @@ Projection
 │   ┌── s_name
 │   └── ref
 │       └── rowcount
-├── cost: 128563280
+├── cost: 124247200
 ├── rows: 10
 └── TopN
     ├── limit: 100
@@ -2984,24 +2972,24 @@ Projection
     │   │   └── ref
     │   │       └── rowcount
     │   └── s_name
-    ├── cost: 128563280
+    ├── cost: 124247200
     ├── rows: 10
-    └── HashAgg { keys: [ s_name ], aggs: [ rowcount ], cost: 128563224, rows: 10 }
-        └── Projection { exprs: [ s_name ], cost: 128439736, rows: 750151.9 }
+    └── HashAgg { keys: [ s_name ], aggs: [ rowcount ], cost: 124247144, rows: 10 }
+        └── Projection { exprs: [ s_name ], cost: 124216260, rows: 187537.97 }
             └── HashJoin
                 ├── type: semi
                 ├── cond: <> { lhs: l_suppkey(1), rhs: l_suppkey }
                 ├── lkey: [ l_orderkey ]
                 ├── rkey: [ l_orderkey(1) ]
-                ├── cost: 128424740
-                ├── rows: 750151.9
+                ├── cost: 124212504
+                ├── rows: 187537.97
                 ├── HashJoin
                 │   ├── type: anti
                 │   ├── cond: <> { lhs: l_suppkey(2), rhs: l_suppkey }
                 │   ├── lkey: [ l_orderkey ]
                 │   ├── rkey: [ l_orderkey(2) ]
-                │   ├── cost: 111432530
-                │   ├── rows: 1500303.8
+                │   ├── cost: 109182070
+                │   ├── rows: 750151.9
                 │   ├── Projection { exprs: [ s_name, l_orderkey, l_suppkey ], cost: 67982720, rows: 3000607.5 }
                 │   │   └── HashJoin
                 │   │       ├── type: inner
@@ -3136,12 +3124,12 @@ Projection
 │   └── ref
 │       └── sum
 │           └── c_acctbal
-├── cost: 4534827
+├── cost: 4399655
 ├── rows: 10
 └── Order
     ├── by:ref
     │   └── Substring { str: c_phone, start: 1, length: 2 }
-    ├── cost: 4534826.5
+    ├── cost: 4399654.5
     ├── rows: 10
     └── HashAgg
         ├── keys:ref
@@ -3150,19 +3138,19 @@ Projection
         │   ┌── rowcount
         │   └── sum
         │       └── c_acctbal
-        ├── cost: 4534762
+        ├── cost: 4399590
         ├── rows: 10
         └── Projection
             ├── exprs: [ Substring { str: c_phone, start: 1, length: 2 }, c_acctbal ]
-            ├── cost: 4514137.5
-            ├── rows: 75000
+            ├── cost: 4389262.5
+            ├── rows: 37500
             └── HashJoin
                 ├── type: anti
                 ├── cond: true
                 ├── lkey: [ c_custkey ]
                 ├── rkey: [ o_custkey ]
-                ├── cost: 4489387.5
-                ├── rows: 75000
+                ├── cost: 4376887.5
+                ├── rows: 37500
                 ├── Projection { exprs: [ c_custkey, c_phone, c_acctbal ], cost: 2252252, rows: 75000 }
                 │   └── Filter
                 │       ├── cond:and
