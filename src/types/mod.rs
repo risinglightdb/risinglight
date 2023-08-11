@@ -57,6 +57,10 @@ impl DataTypeKind {
         )
     }
 
+    pub const fn is_parametric_decimal(&self) -> bool {
+        matches!(self, Self::Decimal(Some(_), _) | Self::Decimal(_, Some(_)))
+    }
+
     /// Returns the inner types of the struct.
     pub fn as_struct(&self) -> &[DataType] {
         let Self::Struct(types) = self else { panic!("not a struct: {self}") };

@@ -46,9 +46,20 @@ impl Binder {
                 substring_from,
                 substring_for,
             } => self.bind_substring(*expr, substring_from, substring_for),
+            Expr::Case {
+                operand,
+                conditions,
+                results,
+                else_result,
+            } => self.bind_case(operand, conditions, results, else_result),
+            Expr::InList {
+                expr,
+                list,
+                negated,
+            } => self.bind_in_list(*expr, list, negated),
             _ => todo!("bind expression: {:?}", expr),
         }?;
-        self.check_type(id)?;
+        self.type_(id)?;
         Ok(id)
     }
 
@@ -84,7 +95,11 @@ impl Binder {
         } else if map.len() == 1 {
             Ok(*map.values().next().unwrap())
         } else {
-            Err(BindError::AmbiguousColumn(column_name.into()))
+            let use_ = map
+                .keys()
+                .map(|table_name| format!("\"{table_name}.{column_name}\""))
+                .join(" or ");
+            Err(BindError::AmbiguousColumn(column_name.into(), use_))
         }
     }
 
@@ -199,6 +214,41 @@ impl Binder {
         Ok(self.egraph.add(Node::Extract([field, expr])))
     }
 
+    fn bind_case(
+        &mut self,
+        operand: Option<Box<Expr>>,
+        conditions: Vec<Expr>,
+        results: Vec<Expr>,
+        else_result: Option<Box<Expr>>,
+    ) -> Result {
+        let operand = operand.map(|expr| self.bind_expr(*expr)).transpose()?;
+        let mut case = match else_result {
+            Some(expr) => self.bind_expr(*expr)?,
+            None => self.egraph.add(Node::null()),
+        };
+        for (cond, result) in conditions.into_iter().rev().zip(results.into_iter().rev()) {
+            let mut cond = self.bind_expr(cond)?;
+            if let Some(operand) = operand {
+                cond = self.egraph.add(Node::Eq([operand, cond]));
+            }
+            let mut result = self.bind_expr(result)?;
+            (result, case) = self.implicit_type_cast(result, case)?;
+            case = self.egraph.add(Node::If([cond, result, case]));
+        }
+        Ok(case)
+    }
+
+    fn bind_in_list(&mut self, expr: Expr, list: Vec<Expr>, negated: bool) -> Result {
+        let expr = self.bind_expr(expr)?;
+        let list = self.bind_exprs(list)?;
+        let in_list = self.egraph.add(Node::In([expr, list]));
+        if negated {
+            Ok(self.egraph.add(Node::Not(in_list)))
+        } else {
+            Ok(in_list)
+        }
+    }
+
     fn bind_substring(
         &mut self,
         expr: Expr,
@@ -276,6 +326,23 @@ impl Binder {
             todo!("support window frame");
         }
         Ok(self.egraph.add(Node::Over([func, partitionby, orderby])))
+    }
+
+    /// Add optional type cast to the expressions to make them return the same type.
+    fn implicit_type_cast(&mut self, mut id1: Id, mut id2: Id) -> Result<(Id, Id)> {
+        let ty1 = self.type_(id1)?;
+        let ty2 = self.type_(id2)?;
+        if let Some(compatible_type) = ty1.union(&ty2) {
+            if compatible_type != ty1 {
+                let id = self.egraph.add(Node::Type(compatible_type.kind()));
+                id1 = self.egraph.add(Node::Cast([id, id1]));
+            }
+            if compatible_type != ty2 {
+                let id = self.egraph.add(Node::Type(compatible_type.kind()));
+                id2 = self.egraph.add(Node::Cast([id, id2]));
+            }
+        }
+        Ok((id1, id2))
     }
 }
 

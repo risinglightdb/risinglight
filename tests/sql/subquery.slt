@@ -1,10 +1,10 @@
 # Test subquery 
 
 statement ok
-create table t(a int not null, b int not null)
+create table t(a int not null, b int not null);
 
 statement ok
-insert into t values (1, 2), (3, 4)
+insert into t values (1, 2), (3, 4);
 
 query II
 select a, b from (select a, b from t);
@@ -47,3 +47,17 @@ select x.a, y.a from
 -1 -4
 -3 -2
 -3 -4
+
+query error duplicated alias
+select a, b from t, t;
+
+query error ambiguous column
+select a, b from t, t as t1;
+
+query IIII
+select t.a, t.b, t1.a, t1.b from t, t as t1;
+----
+1 2 1 2
+3 4 1 2
+1 2 3 4
+3 4 3 4

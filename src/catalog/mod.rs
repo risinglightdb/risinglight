@@ -28,7 +28,7 @@ pub type ColumnId = u32;
 
 pub type RootCatalogRef = Arc<RootCatalog>;
 
-/// The reference ID of a table.
+/// An unique ID to a table in the query.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize, Deserialize)]
 pub struct TableRefId {
     pub schema_id: SchemaId,
@@ -37,7 +37,7 @@ pub struct TableRefId {
 
 impl std::fmt::Debug for TableRefId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO: now ignore database and schema
+        // TODO: print schema id
         write!(f, "${}", self.table_id)
     }
 }
@@ -83,27 +83,37 @@ impl TableRefId {
     }
 }
 
-/// The reference ID of a column.
+/// An unique ID to a column in the query.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize)]
 pub struct ColumnRefId {
     pub schema_id: SchemaId,
     pub table_id: TableId,
+    /// How many times this table occurs in the query.
+    /// This field is used to distinguish the same table in different places.
+    pub table_occurrence: u32,
     pub column_id: ColumnId,
 }
 
 impl ColumnRefId {
-    pub const fn from_table(table: TableRefId, column_id: ColumnId) -> Self {
+    pub const fn from_table(table: TableRefId, table_occurrence: u32, column_id: ColumnId) -> Self {
         ColumnRefId {
             schema_id: table.schema_id,
             table_id: table.table_id,
+            table_occurrence,
             column_id,
         }
     }
 
-    pub const fn new(schema_id: SchemaId, table_id: TableId, column_id: ColumnId) -> Self {
+    pub const fn new(
+        schema_id: SchemaId,
+        table_id: TableId,
+        table_occurrence: u32,
+        column_id: ColumnId,
+    ) -> Self {
         ColumnRefId {
             schema_id,
             table_id,
+            table_occurrence,
             column_id,
         }
     }
@@ -118,8 +128,12 @@ impl ColumnRefId {
 
 impl std::fmt::Debug for ColumnRefId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO: now ignore database and schema
-        write!(f, "${}.{}", self.table_id, self.column_id)
+        // TODO: print schema id
+        write!(f, "${}.{}", self.table_id, self.column_id)?;
+        if self.table_occurrence != 0 {
+            write!(f, "({})", self.table_occurrence)?;
+        }
+        Ok(())
     }
 }
 
@@ -154,6 +168,7 @@ impl FromStr for ColumnRefId {
         Ok(ColumnRefId {
             schema_id,
             table_id,
+            table_occurrence: 0,
             column_id,
         })
     }

@@ -103,6 +103,14 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("add-or-distri"; "(or (and ?a ?b) (and ?a ?c)))" => "(and ?a (or ?b ?c))"),
 ]}
 
+#[rustfmt::skip]
+pub fn and_rules() -> Vec<Rewrite> { vec![
+    rw!("eq-comm";   "(=  ?a ?b)" => "(=  ?b ?a)"),
+    rw!("and-true";  "(and true ?a)"    => "?a"),
+    rw!("and-comm";  "(and ?a ?b)"      => "(and ?b ?a)"),
+    rw!("and-assoc"; "(and ?a (and ?b ?c))" => "(and (and ?a ?b) ?c)"),
+]}
+
 /// The data type of constant analysis.
 ///
 /// `Some` for a known constant, `None` for unknown.
@@ -135,10 +143,11 @@ pub fn eval_constant(egraph: &EGraph, enode: &Expr) -> ConstValue {
         Some(DataValue::Bool(x(a)?.is_null()))
     } else if let &Cast([ty, a]) = enode {
         let a = x(a)?;
-        if a.is_null() {
-            return Some(DataValue::Null);
-        }
         let ty = egraph[ty].nodes[0].as_type();
+        // don't eval cast if data type can not be kept
+        if a.is_null() && !ty.is_null() || ty.is_parametric_decimal() {
+            return None;
+        }
         // TODO: handle cast error
         a.cast(ty).ok()
     } else if let &Max(a) | &Min(a) | &Avg(a) | &First(a) | &Last(a) = enode {

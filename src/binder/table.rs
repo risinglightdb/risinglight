@@ -61,7 +61,7 @@ impl Binder {
         match table {
             TableFactor::Table { name, alias, .. } => {
                 let (table_id, is_internal) = self.bind_table_id(&name)?;
-                let cols = self.bind_table_name(&name, alias, false)?;
+                let cols = self.bind_table_def(&name, alias, false)?;
                 let id = if is_internal {
                     self.egraph.add(Node::Internal([table_id, cols]))
                 } else {
@@ -74,14 +74,22 @@ impl Binder {
                 subquery, alias, ..
             } => {
                 let (id, ctx) = self.bind_query(*subquery)?;
-                // move `output_aliases` to current context
-                let table_name = alias.map_or("".into(), |alias| alias.name.value);
-                for (name, mut id) in ctx.output_aliases {
-                    // wrap with `Ref` if the node is not a column unit.
-                    if !matches!(self.node(id), Node::Column(_) | Node::Ref(_)) {
-                        id = self.egraph.add(Node::Ref(id));
+                if let Some(alias) = &alias && !alias.columns.is_empty() {
+                    // 'as t(a, b, ..)'
+                    let table_name = &alias.name.value;
+                    for (column, id) in alias.columns.iter().zip(self.schema(id)) {
+                        self.add_alias(column.value.clone(), table_name.clone(), id);
                     }
-                    self.add_alias(name, table_name.clone(), id);
+                } else {
+                    // move `output_aliases` to current context
+                    let table_name = alias.map_or("".into(), |alias| alias.name.value);
+                    for (name, mut id) in ctx.output_aliases {
+                        // wrap with `Ref` if the node is not a column unit.
+                        if !matches!(self.node(id), Node::Column(_) | Node::Ref(_)) {
+                            id = self.egraph.add(Node::Ref(id));
+                        }
+                        self.add_alias(name, table_name.clone(), id);
+                    }
                 }
                 Ok(id)
             }
@@ -134,8 +142,8 @@ impl Binder {
     /// This function defines the table name so that it can be referred later.
     ///
     /// # Example
-    /// - `bind_table_name(t)` => `(list $1.1 $1.2)`
-    pub(super) fn bind_table_name(
+    /// - `bind_table_def(t)` => `(list $1.1 $1.2)`
+    pub(super) fn bind_table_def(
         &mut self,
         name: &ObjectName,
         alias: Option<TableAlias>,
@@ -157,17 +165,21 @@ impl Binder {
             .table_aliases
             .insert(table_alias.into())
         {
-            return Err(BindError::DuplicatedTable(table_alias.into()));
+            return Err(BindError::DuplicatedAlias(table_alias.into()));
         }
 
         let table = self.catalog.get_table(&ref_id).unwrap();
+        let table_occurence = {
+            let count = self.table_occurrences.entry(ref_id).or_default();
+            std::mem::replace(count, *count + 1)
+        };
         let mut ids = vec![];
         for (cid, column) in if with_rowid {
             table.all_columns_with_rowid()
         } else {
             table.all_columns()
         } {
-            let column_ref_id = ColumnRefId::from_table(ref_id, cid);
+            let column_ref_id = ColumnRefId::from_table(ref_id, table_occurence, cid);
             let id = self.egraph.add(Node::Column(column_ref_id));
             // TODO: handle column aliases
             self.add_alias(column.name().into(), table_alias.into(), id);
@@ -217,7 +229,7 @@ impl Binder {
         let ids = column_ids
             .into_iter()
             .map(|id| {
-                let column_ref_id = ColumnRefId::from_table(table_ref_id, id);
+                let column_ref_id = ColumnRefId::from_table(table_ref_id, 0, id);
                 self.egraph.add(Node::Column(column_ref_id))
             })
             .collect();
