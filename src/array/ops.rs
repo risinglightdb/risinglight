@@ -270,7 +270,7 @@ impl ArrayImpl {
         })
     }
 
-    pub fn substring(&self, start: &Self, length: &Self) -> Result<Self, ConvertError> {
+    pub fn substring(&self, start: &Self, length: &Self) -> Result {
         let (A::Utf8(a), A::Int32(b), A::Int32(c)) = (self, start, length) else {
             return Err(ConvertError::NoTernaryOp("substring".into(), self.type_string(), start.type_string(), length.type_string()));
         };
