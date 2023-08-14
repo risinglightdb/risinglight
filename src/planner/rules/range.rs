@@ -87,10 +87,6 @@ pub fn analyze_range(egraph: &EGraph, enode: &Expr) -> RangeCondition {
 #[rustfmt::skip]
 pub fn filter_scan_rule() -> Vec<Rewrite> { vec![
     // pushdown range condition to scan
-    rw!("filter-scan-null-eq-true";
-        "(filter ?cond (scan ?table ?columns null))" =>
-        "(filter ?cond (scan ?table ?columns true))"
-    ),
     rw!("filter-scan";
         "(filter ?cond (scan ?table ?columns true))" =>
         "(scan ?table ?columns ?cond)"

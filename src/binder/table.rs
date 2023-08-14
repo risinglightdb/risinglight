@@ -55,7 +55,7 @@ impl Binder {
     /// Returns a `Scan` plan of table or a plan of subquery.
     ///
     /// # Example
-    /// - `bind_table_factor(t)` => `(scan $1 (list $1.1 $1.2 $1.3) null)`
+    /// - `bind_table_factor(t)` => `(scan $1 (list $1.1 $1.2 $1.3) true)`
     /// - `bind_table_factor(select 1)` => `(values (1))`
     fn bind_table_factor(&mut self, table: TableFactor) -> Result {
         match table {
@@ -65,8 +65,8 @@ impl Binder {
                 let id = if is_internal {
                     self.egraph.add(Node::Internal([table_id, cols]))
                 } else {
-                    let null = self.egraph.add(Node::null());
-                    self.egraph.add(Node::Scan([table_id, cols, null]))
+                    let true_ = self.egraph.add(Node::true_());
+                    self.egraph.add(Node::Scan([table_id, cols, true_]))
                 };
                 Ok(id)
             }

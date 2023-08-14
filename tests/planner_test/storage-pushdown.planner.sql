@@ -3,15 +3,15 @@ explain select * from t1 join t2 on a = c;
 
 /*
 Join { type: inner, on: = { lhs: c, rhs: a }, cost: 0, rows: 0 }
-├── Scan { table: t1, list: [ a, b ], filter: null, cost: 0, rows: 0 }
-└── Scan { table: t2, list: [ c, d ], filter: null, cost: 0, rows: 0 }
+├── Scan { table: t1, list: [ a, b ], filter: true, cost: 0, rows: 0 }
+└── Scan { table: t2, list: [ c, d ], filter: true, cost: 0, rows: 0 }
 */
 
 -- use storage order by instead of sorting by primary key
 explain select * from t1 order by a;
 
 /*
-Scan { table: t1, list: [ a, b ], filter: null, cost: 0, rows: 0 }
+Scan { table: t1, list: [ a, b ], filter: true, cost: 0, rows: 0 }
 */
 
 -- use storage filter for primary key
