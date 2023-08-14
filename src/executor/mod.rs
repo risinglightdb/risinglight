@@ -12,6 +12,7 @@
 //!
 //! [`try_stream`]: async_stream::try_stream
 
+use std::ops::Bound;
 use std::sync::Arc;
 
 use egg::{Id, Language};
@@ -47,7 +48,7 @@ use self::values::*;
 use self::window::*;
 use crate::array::DataChunk;
 use crate::planner::{Expr, ExprAnalysis, Optimizer, RecExpr, TypeSchemaAnalysis};
-use crate::storage::{Storage, TracedStorageError};
+use crate::storage::{KeyRange, Storage, TracedStorageError};
 use crate::types::{ColumnIndex, ConvertError, DataType};
 
 mod copy_from_file;
@@ -192,7 +193,19 @@ impl<S: Storage> Builder<S> {
                     // analyze range for the filter
                     let mut egraph = egg::EGraph::new(ExprAnalysis::default());
                     let root = egraph.add_expr(&self.recexpr(filter));
-                    egraph[root].data.range.clone().map(|(_, r)| r)
+                    let expr: Option<crate::storage::KeyRange> =
+                        egraph[root].data.range.clone().map(|(_, r)| r);
+                    if matches!(
+                        expr,
+                        Some(KeyRange {
+                            start: Bound::Unbounded,
+                            end: Bound::Unbounded
+                        })
+                    ) {
+                        None
+                    } else {
+                        expr
+                    }
                 },
                 storage: self.storage.clone(),
             }
