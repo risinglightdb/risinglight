@@ -6,7 +6,7 @@ use futures::TryStreamExt;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 
 use crate::array::{
-    ArrayBuilder, ArrayBuilderImpl, Chunk, DataChunk, I32ArrayBuilder, Utf8ArrayBuilder,
+    ArrayBuilder, ArrayBuilderImpl, Chunk, DataChunk, I32ArrayBuilder, StringArrayBuilder,
 };
 use crate::catalog::{RootCatalogRef, TableRefId, INTERNAL_SCHEMA_NAME};
 use crate::parser::{parse, ParserError, Statement};
@@ -54,10 +54,10 @@ impl Database {
 
     fn run_desc(&self, table_name: &str) -> Result<Vec<Chunk>, Error> {
         let mut column_id = I32ArrayBuilder::new();
-        let mut column_name = Utf8ArrayBuilder::new();
-        let mut column_type = Utf8ArrayBuilder::new();
-        let mut column_is_null = Utf8ArrayBuilder::new();
-        let mut column_is_primary = Utf8ArrayBuilder::new();
+        let mut column_name = StringArrayBuilder::new();
+        let mut column_type = StringArrayBuilder::new();
+        let mut column_is_null = StringArrayBuilder::new();
+        let mut column_is_primary = StringArrayBuilder::new();
         let table_catalog = self.catalog.get_table_by_name(table_name).unwrap();
 
         let all_columns = table_catalog.all_columns();
@@ -96,9 +96,9 @@ impl Database {
 
     fn run_dt(&self) -> Result<Vec<Chunk>, Error> {
         let mut schema_id_vec = I32ArrayBuilder::new();
-        let mut schema_vec = Utf8ArrayBuilder::new();
+        let mut schema_vec = StringArrayBuilder::new();
         let mut table_id_vec = I32ArrayBuilder::new();
-        let mut table_vec = Utf8ArrayBuilder::new();
+        let mut table_vec = StringArrayBuilder::new();
         for (_, schema) in self.catalog.all_schemas() {
             for (_, table) in schema.all_tables() {
                 schema_id_vec.push(Some(&(schema.id() as i32)));
@@ -148,8 +148,8 @@ impl Database {
                             StorageColumnRef::Idx(col_id),
                         ),
                     ]);
-                    let mut stat_name = Utf8ArrayBuilder::with_capacity(2);
-                    let mut stat_value = Utf8ArrayBuilder::with_capacity(2);
+                    let mut stat_name = StringArrayBuilder::with_capacity(2);
+                    let mut stat_value = StringArrayBuilder::with_capacity(2);
                     stat_name.push(Some("RowCount"));
                     stat_value.push(Some(
                         row_count[0]

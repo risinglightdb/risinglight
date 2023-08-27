@@ -193,7 +193,7 @@ mod tests {
     use super::RleBlockIterator;
     use crate::array::{
         ArrayBuilder, ArrayToVecExt, BlobArray, BlobArrayBuilder, I32Array, I32ArrayBuilder,
-        Utf8Array, Utf8ArrayBuilder,
+        StringArray, StringArrayBuilder,
     };
     use crate::storage::secondary::block::{
         decode_nullable_block, decode_rle_block, BlockBuilder, NullableBlockBuilder,
@@ -315,7 +315,7 @@ mod tests {
     #[test]
     fn test_scan_rle_char() {
         let builder = PlainCharBlockBuilder::new(120, 40);
-        let mut rle_builder = RleBlockBuilder::<Utf8Array, PlainCharBlockBuilder>::new(builder);
+        let mut rle_builder = RleBlockBuilder::<StringArray, PlainCharBlockBuilder>::new(builder);
 
         let width_40_char = ["2"].iter().cycle().take(40).join("");
 
@@ -332,11 +332,11 @@ mod tests {
 
         let (rle_num, rle_data, block_data) = decode_rle_block(Bytes::from(data));
         let block_iter = PlainCharBlockIterator::new(block_data, rle_num, 40);
-        let mut scanner = RleBlockIterator::<Utf8Array, PlainCharBlockIterator>::new(
+        let mut scanner = RleBlockIterator::<StringArray, PlainCharBlockIterator>::new(
             block_iter, rle_data, rle_num,
         );
 
-        let mut builder = Utf8ArrayBuilder::new();
+        let mut builder = StringArrayBuilder::new();
 
         scanner.skip(3);
         assert_eq!(scanner.remaining_items(), 6);
@@ -347,7 +347,7 @@ mod tests {
             vec![Some("2333".to_string()), Some("2333".to_string())]
         );
 
-        let mut builder = Utf8ArrayBuilder::new();
+        let mut builder = StringArrayBuilder::new();
         assert_eq!(scanner.next_batch(Some(2), &mut builder), 2);
 
         assert_eq!(
@@ -355,7 +355,7 @@ mod tests {
             vec![Some("2333".to_string()), Some(width_40_char.clone())]
         );
 
-        let mut builder = Utf8ArrayBuilder::new();
+        let mut builder = StringArrayBuilder::new();
         assert_eq!(scanner.next_batch(Some(3), &mut builder), 2);
 
         assert_eq!(
@@ -363,7 +363,7 @@ mod tests {
             vec![Some(width_40_char.clone()), Some(width_40_char.clone())]
         );
 
-        let mut builder = Utf8ArrayBuilder::new();
+        let mut builder = StringArrayBuilder::new();
         assert_eq!(scanner.next_batch(None, &mut builder), 0);
     }
 
@@ -372,7 +372,7 @@ mod tests {
         // Test rle block iterator for varchar
         let builder = PlainBlobBlockBuilder::new(30);
         let mut rle_builder =
-            RleBlockBuilder::<Utf8Array, PlainBlobBlockBuilder<str>>::new(builder);
+            RleBlockBuilder::<StringArray, PlainBlobBlockBuilder<str>>::new(builder);
         for item in [Some("233")].iter().cycle().cloned().take(3) {
             rle_builder.append(item);
         }
@@ -386,11 +386,11 @@ mod tests {
 
         let (rle_num, rle_data, block_data) = decode_rle_block(Bytes::from(data));
         let block_iter = PlainBlobBlockIterator::new(block_data, rle_num);
-        let mut scanner = RleBlockIterator::<Utf8Array, PlainBlobBlockIterator<str>>::new(
+        let mut scanner = RleBlockIterator::<StringArray, PlainBlobBlockIterator<str>>::new(
             block_iter, rle_data, rle_num,
         );
 
-        let mut builder = Utf8ArrayBuilder::new();
+        let mut builder = StringArrayBuilder::new();
 
         scanner.skip(3);
         assert_eq!(scanner.remaining_items(), 5);
@@ -401,7 +401,7 @@ mod tests {
             vec![Some("23333".to_string()), Some("23333".to_string())]
         );
 
-        let mut builder = Utf8ArrayBuilder::new();
+        let mut builder = StringArrayBuilder::new();
         assert_eq!(scanner.next_batch(Some(6), &mut builder), 3);
 
         assert_eq!(
@@ -413,7 +413,7 @@ mod tests {
             ]
         );
 
-        let mut builder = Utf8ArrayBuilder::new();
+        let mut builder = StringArrayBuilder::new();
         assert_eq!(scanner.next_batch(None, &mut builder), 0);
     }
 

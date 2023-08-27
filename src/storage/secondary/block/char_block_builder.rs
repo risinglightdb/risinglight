@@ -5,7 +5,7 @@ use risinglight_proto::rowset::BlockStatistics;
 
 use super::super::statistics::StatisticsBuilder;
 use super::{BlockBuilder, NonNullableBlockBuilder};
-use crate::array::{Array, Utf8Array};
+use crate::array::{Array, StringArray};
 
 /// Encodes fixed-width char into a block.
 ///
@@ -31,8 +31,8 @@ impl PlainCharBlockBuilder {
     }
 }
 
-impl NonNullableBlockBuilder<Utf8Array> for PlainCharBlockBuilder {
-    fn append_value(&mut self, item: &<Utf8Array as Array>::Item) {
+impl NonNullableBlockBuilder<StringArray> for PlainCharBlockBuilder {
+    fn append_value(&mut self, item: &<StringArray as Array>::Item) {
         let item = item.as_bytes();
         if item.len() > self.char_width {
             panic!(
@@ -68,7 +68,7 @@ impl NonNullableBlockBuilder<Utf8Array> for PlainCharBlockBuilder {
 
     fn estimated_size_with_next_item(
         &self,
-        _next_item: &Option<&<Utf8Array as Array>::Item>,
+        _next_item: &Option<&<StringArray as Array>::Item>,
     ) -> usize {
         self.estimated_size() + self.char_width
     }
@@ -78,7 +78,7 @@ impl NonNullableBlockBuilder<Utf8Array> for PlainCharBlockBuilder {
     }
 }
 
-impl BlockBuilder<Utf8Array> for PlainCharBlockBuilder {
+impl BlockBuilder<StringArray> for PlainCharBlockBuilder {
     fn append(&mut self, item: Option<&str>) {
         match item {
             Some(item) => self.append_value(item),

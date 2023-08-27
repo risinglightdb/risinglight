@@ -1,6 +1,6 @@
 // Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 use super::*;
-use crate::array::{ArrayImpl, Utf8Array};
+use crate::array::{ArrayImpl, StringArray};
 use crate::catalog::{TableRefId, CONTRIBUTORS_TABLE_ID};
 /// The executor of internal tables.
 pub struct InternalTableExecutor {
@@ -79,7 +79,7 @@ fn contributors() -> DataChunk {
         "yuzi-neko",
         "XieJiann",
     ];
-    [ArrayImpl::new_utf8(Utf8Array::from_iter(
+    [ArrayImpl::new_string(StringArray::from_iter(
         contributors.iter().map(|s| Some(*s)).sorted(),
     ))]
     .into_iter()
