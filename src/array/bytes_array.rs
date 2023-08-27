@@ -37,9 +37,9 @@ impl ValueRef for BlobRef {
     }
 }
 
-pub type Utf8Array = BytesArray<str>;
+pub type StringArray = BytesArray<str>;
 pub type BlobArray = BytesArray<BlobRef>;
-pub type Utf8ArrayBuilder = BytesArrayBuilder<str>;
+pub type StringArrayBuilder = BytesArrayBuilder<str>;
 pub type BlobArrayBuilder = BytesArrayBuilder<BlobRef>;
 
 impl<T: ValueRef + ?Sized> Clone for BytesArray<T> {
@@ -222,7 +222,7 @@ impl<T: ValueRef + ?Sized> Drop for BytesArrayWriter<'_, T> {
     }
 }
 
-impl Utf8Array {
+impl StringArray {
     pub fn from_iter_display(iter: impl IntoIterator<Item = Option<impl Display>>) -> Self {
         let iter = iter.into_iter();
         let mut builder = <Self as Array>::Builder::with_capacity(iter.size_hint().0);
@@ -260,8 +260,8 @@ impl<O: AsRef<T>, T: ValueRef + ?Sized> FromIterator<Option<O>> for BytesArray<T
 mod tests {
     use super::*;
     #[test]
-    fn test_utf8_builder() {
-        let mut builder = Utf8ArrayBuilder::with_capacity(100);
+    fn test_string_array_builder() {
+        let mut builder = StringArrayBuilder::with_capacity(100);
         for i in 0..100 {
             if i % 2 == 0 {
                 builder.push(Some(&format!("{}", i)));

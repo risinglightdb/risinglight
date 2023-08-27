@@ -5,15 +5,15 @@ use risinglight_proto::rowset::BlockIndex;
 
 use super::super::{Block, BlockIterator};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
-use crate::array::{ArrayBuilder, Utf8Array, Utf8ArrayBuilder};
+use crate::array::{ArrayBuilder, StringArray, StringArrayBuilder};
 use crate::storage::secondary::block::{
     decode_dict_block, decode_nullable_block, decode_rle_block, DictBlockIterator,
     FakeBlockIterator, NullableBlockIterator, PlainBlobBlockIterator, PlainCharBlockIterator,
     RleBlockIterator,
 };
 
-type NullableCharBlockIterator = NullableBlockIterator<Utf8Array, PlainCharBlockIterator>;
-type NullableVarcharBlockIterator = NullableBlockIterator<Utf8Array, PlainBlobBlockIterator<str>>;
+type NullableCharBlockIterator = NullableBlockIterator<StringArray, PlainCharBlockIterator>;
+type NullableVarcharBlockIterator = NullableBlockIterator<StringArray, PlainBlobBlockIterator<str>>;
 
 /// All supported block iterators for char types.
 pub enum CharBlockIteratorImpl {
@@ -21,24 +21,27 @@ pub enum CharBlockIteratorImpl {
     PlainNullableFixedChar(NullableCharBlockIterator),
     PlainVarchar(PlainBlobBlockIterator<str>),
     PlainNullableVarchar(NullableVarcharBlockIterator),
-    RleFixedChar(RleBlockIterator<Utf8Array, PlainCharBlockIterator>),
-    RleNullableFixedChar(RleBlockIterator<Utf8Array, NullableCharBlockIterator>),
-    RleVarchar(RleBlockIterator<Utf8Array, PlainBlobBlockIterator<str>>),
+    RleFixedChar(RleBlockIterator<StringArray, PlainCharBlockIterator>),
+    RleNullableFixedChar(RleBlockIterator<StringArray, NullableCharBlockIterator>),
+    RleVarchar(RleBlockIterator<StringArray, PlainBlobBlockIterator<str>>),
     RleNullableVarchar(
-        RleBlockIterator<Utf8Array, NullableBlockIterator<Utf8Array, PlainBlobBlockIterator<str>>>,
+        RleBlockIterator<
+            StringArray,
+            NullableBlockIterator<StringArray, PlainBlobBlockIterator<str>>,
+        >,
     ),
-    DictFixedChar(DictBlockIterator<Utf8Array, PlainCharBlockIterator>),
-    DictNullableFixedChar(DictBlockIterator<Utf8Array, NullableCharBlockIterator>),
-    DictVarchar(DictBlockIterator<Utf8Array, PlainBlobBlockIterator<str>>),
-    DictNullableVarchar(DictBlockIterator<Utf8Array, NullableVarcharBlockIterator>),
-    Fake(FakeBlockIterator<Utf8Array>),
+    DictFixedChar(DictBlockIterator<StringArray, PlainCharBlockIterator>),
+    DictNullableFixedChar(DictBlockIterator<StringArray, NullableCharBlockIterator>),
+    DictVarchar(DictBlockIterator<StringArray, PlainBlobBlockIterator<str>>),
+    DictNullableVarchar(DictBlockIterator<StringArray, NullableVarcharBlockIterator>),
+    Fake(FakeBlockIterator<StringArray>),
 }
 
-impl BlockIterator<Utf8Array> for CharBlockIteratorImpl {
+impl BlockIterator<StringArray> for CharBlockIteratorImpl {
     fn next_batch(
         &mut self,
         expected_size: Option<usize>,
-        builder: &mut Utf8ArrayBuilder,
+        builder: &mut StringArrayBuilder,
     ) -> usize {
         match self {
             Self::PlainFixedChar(it) => it.next_batch(expected_size, builder),
@@ -105,9 +108,9 @@ impl CharBlockIteratorFactory {
 }
 
 /// Column iterators on primitive types
-pub type CharColumnIterator = ConcreteColumnIterator<Utf8Array, CharBlockIteratorFactory>;
+pub type CharColumnIterator = ConcreteColumnIterator<StringArray, CharBlockIteratorFactory>;
 
-impl BlockIteratorFactory<Utf8Array> for CharBlockIteratorFactory {
+impl BlockIteratorFactory<StringArray> for CharBlockIteratorFactory {
     type BlockIteratorImpl = CharBlockIteratorImpl;
 
     fn get_iterator_for(
@@ -141,7 +144,7 @@ impl BlockIteratorFactory<Utf8Array> for CharBlockIteratorFactory {
             (BlockType::RleFixedChar, Some(char_width)) => {
                 let (rle_num, rle_data, block_data) = decode_rle_block(block);
                 let block_iter = PlainCharBlockIterator::new(block_data, rle_num, char_width);
-                let it = RleBlockIterator::<Utf8Array, PlainCharBlockIterator>::new(
+                let it = RleBlockIterator::<StringArray, PlainCharBlockIterator>::new(
                     block_iter, rle_data, rle_num,
                 );
                 CharBlockIteratorImpl::RleFixedChar(it)
@@ -160,7 +163,7 @@ impl BlockIteratorFactory<Utf8Array> for CharBlockIteratorFactory {
             (BlockType::RleVarchar, _) => {
                 let (rle_num, rle_data, block_data) = decode_rle_block(block);
                 let block_iter = PlainBlobBlockIterator::new(block_data, rle_num);
-                let it = RleBlockIterator::<Utf8Array, PlainBlobBlockIterator<str>>::new(
+                let it = RleBlockIterator::<StringArray, PlainBlobBlockIterator<str>>::new(
                     block_iter, rle_data, rle_num,
                 );
                 CharBlockIteratorImpl::RleVarchar(it)
@@ -177,11 +180,11 @@ impl BlockIteratorFactory<Utf8Array> for CharBlockIteratorFactory {
                 CharBlockIteratorImpl::RleNullableVarchar(it)
             }
             (BlockType::DictFixedChar, Some(char_width)) => {
-                let mut dict_builder = Utf8ArrayBuilder::new();
+                let mut dict_builder = StringArrayBuilder::new();
                 let (dict_count_sum, dict_block, rle_block) = decode_dict_block(block);
                 let mut dict_iter =
                     PlainCharBlockIterator::new(dict_block, dict_count_sum, char_width);
-                let it = DictBlockIterator::<Utf8Array, PlainCharBlockIterator>::new(
+                let it = DictBlockIterator::<StringArray, PlainCharBlockIterator>::new(
                     &mut dict_builder,
                     &mut dict_iter,
                     rle_block,
@@ -190,7 +193,7 @@ impl BlockIteratorFactory<Utf8Array> for CharBlockIteratorFactory {
                 CharBlockIteratorImpl::DictFixedChar(it)
             }
             (BlockType::DictNullableFixedChar, Some(char_width)) => {
-                let mut dict_builder = Utf8ArrayBuilder::new();
+                let mut dict_builder = StringArrayBuilder::new();
                 let (dict_count_sum, dict_block, rle_block) = decode_dict_block(block);
                 let (inner, bitmap) = decode_nullable_block(dict_block);
                 let mut dict_iter = NullableBlockIterator::new(
@@ -206,10 +209,10 @@ impl BlockIteratorFactory<Utf8Array> for CharBlockIteratorFactory {
                 CharBlockIteratorImpl::DictNullableFixedChar(it)
             }
             (BlockType::DictVarchar, _) => {
-                let mut dict_builder = Utf8ArrayBuilder::new();
+                let mut dict_builder = StringArrayBuilder::new();
                 let (dict_count_sum, dict_block, rle_block) = decode_dict_block(block);
                 let mut dict_iter = PlainBlobBlockIterator::new(dict_block, dict_count_sum);
-                let it = DictBlockIterator::<Utf8Array, PlainBlobBlockIterator<str>>::new(
+                let it = DictBlockIterator::<StringArray, PlainBlobBlockIterator<str>>::new(
                     &mut dict_builder,
                     &mut dict_iter,
                     rle_block,
@@ -218,7 +221,7 @@ impl BlockIteratorFactory<Utf8Array> for CharBlockIteratorFactory {
                 CharBlockIteratorImpl::DictVarchar(it)
             }
             (BlockType::DictNullableVarchar, _) => {
-                let mut dict_builder = Utf8ArrayBuilder::new();
+                let mut dict_builder = StringArrayBuilder::new();
                 let (dict_count_sum, dict_block, rle_block) = decode_dict_block(block);
                 let (inner, bitmap) = decode_nullable_block(dict_block);
                 let mut dict_iter = NullableBlockIterator::new(

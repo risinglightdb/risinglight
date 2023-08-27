@@ -115,7 +115,7 @@ mod tests {
     use itertools::Itertools;
     use ordered_float::OrderedFloat;
 
-    use crate::array::{I64Array, Utf8Array};
+    use crate::array::{I64Array, StringArray};
     use crate::storage::secondary::block::dict_block_builder::DictBlockBuilder;
     use crate::storage::secondary::block::{
         BlockBuilder, NullableBlockBuilder, PlainBlobBlockBuilder, PlainCharBlockBuilder,
@@ -249,7 +249,7 @@ mod tests {
     fn test_build_dict_varchar() {
         let builder = PlainBlobBlockBuilder::new(30);
         let mut dict_builder =
-            DictBlockBuilder::<Utf8Array, PlainBlobBlockBuilder<str>>::new(builder);
+            DictBlockBuilder::<StringArray, PlainBlobBlockBuilder<str>>::new(builder);
         let width_40_char = ["2333"].iter().cycle().take(40).join("");
         for item in [Some("233")].iter().cycle().cloned().take(30) {
             dict_builder.append(item);

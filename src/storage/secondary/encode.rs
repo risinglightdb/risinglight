@@ -206,7 +206,7 @@ impl BlobEncode for BlobRef {
 }
 
 impl BlobEncode for str {
-    type ArrayType = Utf8Array;
+    type ArrayType = StringArray;
 
     fn len(&self) -> usize {
         self.len()

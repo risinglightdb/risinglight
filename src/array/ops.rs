@@ -133,7 +133,7 @@ macro_rules! cmp {
             (A::Decimal(a), A::Float64(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| *a $op Decimal::from_f64_retain(b.0).unwrap()),
             (A::Decimal(a), A::Decimal(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
 
-            (A::Utf8(a), A::Utf8(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
+            (A::String(a), A::String(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
 
             (A::Date(a), A::Date(b)) => binary_op(a.as_ref(), b.as_ref(), |a, b| a $op b),
 
@@ -209,7 +209,7 @@ impl ArrayImpl {
             }
             regex
         }
-        let A::Utf8(a) = self else {
+        let A::String(a) = self else {
             return Err(ConvertError::NoUnaryOp("like".into(), self.type_string()));
         };
         let regex = Regex::new(&like_to_regex(pattern)).unwrap();
@@ -219,11 +219,11 @@ impl ArrayImpl {
     }
 
     pub fn concat(&self, other: &Self) -> Result {
-        let (A::Utf8(a), A::Utf8(b)) = (self, other) else {
+        let (A::String(a), A::String(b)) = (self, other) else {
             return Err(ConvertError::NoBinaryOp("||".into(), self.type_string(), other.type_string()));
         };
 
-        Ok(A::new_utf8(binary_op(a.as_ref(), b.as_ref(), |a, b| {
+        Ok(A::new_string(binary_op(a.as_ref(), b.as_ref(), |a, b| {
             format!("{a}{b}")
         })))
     }
@@ -282,10 +282,10 @@ impl ArrayImpl {
     }
 
     pub fn substring(&self, start: &Self, length: &Self) -> Result {
-        let (A::Utf8(a), A::Int32(b), A::Int32(c)) = (self, start, length) else {
+        let (A::String(a), A::Int32(b), A::Int32(c)) = (self, start, length) else {
             return Err(ConvertError::NoTernaryOp("substring".into(), self.type_string(), start.type_string(), length.type_string()));
         };
-        Ok(A::new_utf8(ternary_op(
+        Ok(A::new_string(ternary_op(
             a.as_ref(),
             b.as_ref(),
             c.as_ref(),
@@ -354,7 +354,7 @@ impl ArrayImpl {
                     Self::new_float64(unary_op(a.as_ref(), |&b| F64::from(b as u8 as f64)))
                 }
                 Type::String => {
-                    Self::new_utf8(unary_op(a.as_ref(), |&b| if b { "true" } else { "false" }))
+                    Self::new_string(unary_op(a.as_ref(), |&b| if b { "true" } else { "false" }))
                 }
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&b| Decimal::from(b as u8)))
@@ -375,7 +375,7 @@ impl ArrayImpl {
                 Type::Int32 => Self::new_int32(unary_op(a.as_ref(), |&b| b as i32)),
                 Type::Int64 => Self::new_int64(unary_op(a.as_ref(), |&b| b as i64)),
                 Type::Float64 => Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64))),
-                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
+                Type::String => Self::new_string(StringArray::from_iter_display(a.iter())),
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
                 }
@@ -398,7 +398,7 @@ impl ArrayImpl {
                 Type::Int32 => Self::Int32(a.clone()),
                 Type::Int64 => Self::new_int64(unary_op(a.as_ref(), |&b| b as i64)),
                 Type::Float64 => Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64))),
-                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
+                Type::String => Self::new_string(StringArray::from_iter_display(a.iter())),
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
                 }
@@ -424,7 +424,7 @@ impl ArrayImpl {
                 })?),
                 Type::Int64 => Self::Int64(a.clone()),
                 Type::Float64 => Self::new_float64(unary_op(a.as_ref(), |&i| F64::from(i as f64))),
-                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
+                Type::String => Self::new_string(StringArray::from_iter_display(a.iter())),
                 Type::Decimal(_, _) => {
                     Self::new_decimal(unary_op(a.as_ref(), |&i| Decimal::from(i)))
                 }
@@ -453,7 +453,7 @@ impl ArrayImpl {
                         .ok_or(ConvertError::Overflow(DataValue::Float64(b), Type::Int64))
                 })?),
                 Type::Float64 => Self::Float64(a.clone()),
-                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
+                Type::String => Self::new_string(StringArray::from_iter_display(a.iter())),
                 Type::Decimal(_, _) => Self::new_decimal(unary_op(a.as_ref(), |&f| {
                     Decimal::from_f64_retain(f.0).unwrap()
                 })),
@@ -467,7 +467,7 @@ impl ArrayImpl {
                     return Err(ConvertError::NoCast("DOUBLE", data_type.clone()));
                 }
             },
-            Self::Utf8(a) => match data_type {
+            Self::String(a) => match data_type {
                 Type::Bool => Self::new_bool(try_unary_op(a.as_ref(), |s| {
                     s.parse::<bool>()
                         .map_err(|e| ConvertError::ParseBool(s.to_string(), e))
@@ -488,7 +488,7 @@ impl ArrayImpl {
                     s.parse::<F64>()
                         .map_err(|e| ConvertError::ParseFloat(s.to_string(), e))
                 })?),
-                Type::String => Self::Utf8(a.clone()),
+                Type::String => Self::String(a.clone()),
                 Type::Decimal(_, _) => Self::new_decimal(try_unary_op(a.as_ref(), |s| {
                     Decimal::from_str(s).map_err(|e| ConvertError::ParseDecimal(s.to_string(), e))
                 })?),
@@ -533,7 +533,7 @@ impl ArrayImpl {
                         .map(F64::from)
                         .ok_or(ConvertError::FromDecimalError(DataTypeKind::Float64, d))
                 })?),
-                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
+                Type::String => Self::new_string(StringArray::from_iter_display(a.iter())),
                 Type::Decimal(_, _) => self.clone(),
                 Type::Null
                 | Type::Blob
@@ -547,17 +547,17 @@ impl ArrayImpl {
             },
             Self::Date(a) => match data_type {
                 Type::Date => self.clone(),
-                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
+                Type::String => Self::new_string(StringArray::from_iter_display(a.iter())),
                 _ => return Err(ConvertError::NoCast("DATE", data_type.clone())),
             },
             Self::Timestamp(a) => match data_type {
                 Type::Timestamp => self.clone(),
-                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
+                Type::String => Self::new_string(StringArray::from_iter_display(a.iter())),
                 _ => return Err(ConvertError::NoCast("TIMESTAMP", data_type.clone())),
             },
             Self::TimestampTz(a) => match data_type {
                 Type::TimestampTz => self.clone(),
-                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
+                Type::String => Self::new_string(StringArray::from_iter_display(a.iter())),
                 _ => {
                     return Err(ConvertError::NoCast(
                         "TIMESTAMP WITH TIME ZONE",
@@ -567,7 +567,7 @@ impl ArrayImpl {
             },
             Self::Interval(a) => match data_type {
                 Type::Interval => self.clone(),
-                Type::String => Self::new_utf8(Utf8Array::from_iter_display(a.iter())),
+                Type::String => Self::new_string(StringArray::from_iter_display(a.iter())),
                 _ => return Err(ConvertError::NoCast("INTERVAL", data_type.clone())),
             },
         })
@@ -592,10 +592,10 @@ impl ArrayImpl {
     }
 
     pub fn replace(&self, from: &str, to: &str) -> Result {
-        let A::Utf8(a) = self else {
+        let A::String(a) = self else {
             return Err(ConvertError::NoUnaryOp("replace".into(), self.type_string()));
         };
-        Ok(A::new_utf8(unary_op(a.as_ref(), |s| s.replace(from, to))))
+        Ok(A::new_string(unary_op(a.as_ref(), |s| s.replace(from, to))))
     }
 }
 
