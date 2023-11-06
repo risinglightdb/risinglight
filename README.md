@@ -64,3 +64,5 @@ The RisingLight project was initiated by a group of college students who have sp
 Welcome to the RisingLight community!
 
 [GitHub Discussions]: https://github.com/risinglightdb/risinglight/discussions
+
+The code in this repository is licensed under the [Apache 2.0 license](LICENSE)
