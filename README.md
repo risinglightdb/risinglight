@@ -65,4 +65,6 @@ Welcome to the RisingLight community!
 
 [GitHub Discussions]: https://github.com/risinglightdb/risinglight/discussions
 
+## License
+
 The code in this repository is licensed under the [Apache 2.0 license](LICENSE)
