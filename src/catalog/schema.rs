@@ -82,3 +82,16 @@ impl SchemaCatalog {
         self.id
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_schema_catalog() {
+        // schema
+        let schemacatalog = SchemaCatalog::new(0, "test".into());
+        assert_eq!(schemacatalog.name(), "test");
+        assert_eq!(schemacatalog.id(), 0);
+    }
+}
