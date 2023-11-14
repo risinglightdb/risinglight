@@ -99,10 +99,10 @@ mod tests {
         assert_eq!(schema_catalog.id(), 0);
         assert_eq!(schema_catalog.name(), "test");
 
-        let schema_result = schema_catalog
+        let table_id = schema_catalog
             .add_table("t".into(), col_catalogs, false, vec![])
             .unwrap();
-        assert_eq!(schema_result, 0);
+        assert_eq!(table_id, 0);
 
         let table_catalog = schema_catalog.get_table_by_id(0).unwrap();
         assert!(!table_catalog.contains_column("c"));
