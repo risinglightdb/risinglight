@@ -89,9 +89,24 @@ mod tests {
 
     #[test]
     fn test_schema_catalog() {
+        // column
+        let col0 = ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("a".into()));
+        let col1 = ColumnCatalog::new(1, DataTypeKind::Bool.not_null().to_column("b".into()));
+        let col_catalogs = vec![col0, col1];
+
         // schema
-        let schemacatalog = SchemaCatalog::new(0, "test".into());
-        assert_eq!(schemacatalog.name(), "test");
-        assert_eq!(schemacatalog.id(), 0);
+        let mut schema_catalog = SchemaCatalog::new(0, "test".into());
+        assert_eq!(schema_catalog.id(), 0);
+        assert_eq!(schema_catalog.name(), "test");
+
+        let schema_result = schema_catalog
+            .add_table("t".into(), col_catalogs, false, vec![])
+            .unwrap();
+        assert_eq!(schema_result, 0);
+
+        let table_catalog = schema_catalog.get_table_by_id(0).unwrap();
+        assert!(!table_catalog.contains_column("c"));
+        assert!(table_catalog.contains_column("a"));
+        assert!(table_catalog.contains_column("b"))
     }
 }
