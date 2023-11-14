@@ -173,7 +173,7 @@ In database systems, there are a lot of logical operators. Here we list some:
 * Join: join results from two executors. For example, `select * from a inner join b`.
 * ...
 
-The logical planner will do some simple mappings from bound statements to logical plans, so as to have a basic sketch of how this query will be processed. See [`src/logical_planner`](../src/logical_planner) for more information.
+The logical planner will do some simple mappings from bound statements to logical plans, so as to have a basic sketch of how this query will be processed. See [`src/planner`](../src/planner) for more information.
 
 The example SQL will have the following logical plan, which is a simple DAG: `Projection <- Aggregate <- TableScan`.
 
