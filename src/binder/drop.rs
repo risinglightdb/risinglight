@@ -75,7 +75,7 @@ impl Binder {
                     cascade,
                 })))
             }
-            _ => Err(BindError::UnsupportedObjectName(object_type.into())),
+            _ => Err(BindError::UnsupportedObjectName(object_type)),
         }
     }
 }
