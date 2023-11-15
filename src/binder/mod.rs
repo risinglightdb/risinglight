@@ -85,6 +85,8 @@ pub enum BindError {
     NotSupportedOnInternalTable,
     #[error("{0:?} is not an aggregate function")]
     NotAgg(String),
+    #[error("unsupported object name: {0:?}")]
+    UnsupportedObjectName(ObjectType),
     #[error("not supported yet: {0}")]
     Todo(String),
 }
