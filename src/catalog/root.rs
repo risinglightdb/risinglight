@@ -143,3 +143,28 @@ fn split_name(name: &str) -> Option<(&str, &str)> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use super::*;
+
+    #[test]
+    fn test_root_catalog() {
+        let catalog = Arc::new(RootCatalog::new());
+        let schema_catalog1 = catalog.get_schema_by_id(0).unwrap();
+        assert_eq!(schema_catalog1.id(), 0);
+        assert_eq!(schema_catalog1.name(), DEFAULT_SCHEMA_NAME);
+
+        let schema_catalog2 = catalog.get_schema_by_name(DEFAULT_SCHEMA_NAME).unwrap();
+        assert_eq!(schema_catalog1.id(), schema_catalog2.id());
+        assert_eq!(schema_catalog1.name(), schema_catalog2.name());
+
+        let col = ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("a".into()));
+        let table_id = catalog
+            .add_table(0, "t".into(), vec![col], false, vec![])
+            .unwrap();
+        assert_eq!(table_id, 0);
+    }
+}
