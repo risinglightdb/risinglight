@@ -21,7 +21,7 @@ After that, the table will be created, and the table information will be stored 
 ```plain
 > \dt
 | 0 | postgres   | 0 | users        |
-| 0 | postgres   | 4 | t            |
+| 0 | postgres   | 1 | t            |
 | 1 | pg_catalog | 0 | contributors |
 ```
 
