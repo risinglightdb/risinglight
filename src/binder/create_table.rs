@@ -195,9 +195,8 @@ impl From<&ColumnDef> for ColumnCatalog {
 mod tests {
     use std::sync::Arc;
 
-    use super::*;
     use crate::binder::Binder;
-    use crate::catalog::{ColumnCatalog, RootCatalog};
+    use crate::catalog::{RootCatalog};
     use crate::parser::parse;
 
     #[test]
