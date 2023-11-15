@@ -158,8 +158,8 @@ mod tests {
         assert_eq!(schema_catalog1.name(), DEFAULT_SCHEMA_NAME);
 
         let schema_catalog2 = catalog.get_schema_by_name(DEFAULT_SCHEMA_NAME).unwrap();
-        assert_eq!(schema_catalog2.id(), 0);
-        assert_eq!(schema_catalog2.name(), DEFAULT_SCHEMA_NAME);
+        assert_eq!(schema_catalog1.id(), schema_catalog2.id());
+        assert_eq!(schema_catalog1.name(), schema_catalog2.name());
 
         let col = ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("a".into()));
         let table_id = catalog
