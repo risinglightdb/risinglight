@@ -84,6 +84,7 @@ impl Binder {
 mod tests {
     use std::sync::Arc;
 
+    use crate::binder::Binder;
     use crate::catalog::RootCatalog;
     use crate::parser::parse;
 
@@ -95,6 +96,10 @@ mod tests {
             .unwrap();
 
         let stmts = parse("drop table mytable").unwrap();
-        println!("{:?}", stmts)
+        let mut binder = Binder::new(catalog);
+        for stmt in stmts {
+            let plan = binder.bind(stmt).unwrap();
+            println!("{}", plan.pretty(10));
+        }
     }
 }

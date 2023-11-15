@@ -24,3 +24,30 @@ impl Binder {
         Ok(self.egraph.add(Node::Delete([table_id, filter])))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use super::*;
+    use crate::binder::Binder;
+    use crate::catalog::{ColumnCatalog, RootCatalog};
+    use crate::parser::parse;
+
+    #[test]
+    fn bind_test_subquery() {
+        let catalog = Arc::new(RootCatalog::new());
+        let col_desc = DataTypeKind::Int32.not_null().to_column("a".into());
+        let col_catalog = ColumnCatalog::new(0, col_desc);
+        catalog
+            .add_table(0, "t".into(), vec![col_catalog], false, vec![])
+            .unwrap();
+
+        let stmts = parse("delete from t where a").unwrap();
+        let mut binder = Binder::new(catalog);
+        for stmt in stmts {
+            let plan = binder.bind(stmt).unwrap();
+            println!("{}", plan.pretty(10));
+        }
+    }
+}
