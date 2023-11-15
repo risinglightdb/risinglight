@@ -196,7 +196,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::binder::Binder;
-    use crate::catalog::{RootCatalog};
+    use crate::catalog::RootCatalog;
     use crate::parser::parse;
 
     #[test]
