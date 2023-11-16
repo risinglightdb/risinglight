@@ -200,7 +200,7 @@ mod tests {
     use crate::parser::parse;
 
     #[test]
-    fn bind_test_subquery() {
+    fn bind_create_table() {
         let catalog = Arc::new(RootCatalog::new());
         let stmts = parse(
             "CREATE TABLE t (

@@ -31,7 +31,7 @@ mod tests {
     use crate::parser::parse;
 
     #[test]
-    fn bind_drop_table() {
+    fn bind_insert_table() {
         let catalog = Arc::new(RootCatalog::new());
         let col_desc = DataTypeKind::Int32.not_null().to_column("a".into());
         let col_catalog = ColumnCatalog::new(0, col_desc);
