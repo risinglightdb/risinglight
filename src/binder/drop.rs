@@ -79,22 +79,3 @@ impl Binder {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-
-    use crate::catalog::RootCatalog;
-    use crate::parser::parse;
-
-    #[test]
-    fn bind_drop_table() {
-        let catalog = Arc::new(RootCatalog::new());
-        catalog
-            .add_table(0, "mytable".into(), vec![], false, vec![])
-            .unwrap();
-
-        let stmts = parse("drop table mytable").unwrap();
-        println!("{:?}", stmts)
-    }
-}
