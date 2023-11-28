@@ -251,7 +251,7 @@ Another example is the *filter scan* rule. In RisingLight, the storage layer sup
 
 The *filter scan* rule will automatically merge a filter plan node and a table scan node, apply the filter condition to the table scan node, and produce a single `TableScan` node.
 
-In a nutshell, in RisingLight, the optimizer will transform while optimizing the logical plan into a physical plan. See [`src/optimizer`](../src/optimizer) for more information. The example SQL will produce the following physical plan: `PhysicalProjection <- PhysicalHashAgg <- PhysicalTableScan`. Note that as physical nodes have almost identical information to logical nodes, we store information of logical nodes inside physical nodes as `logical` variable. Despite their existence inside physical plans, after all, the following tree only contain physical nodes.
+In a nutshell, in RisingLight, the optimizer will transform while optimizing the logical plan into a physical plan. See [`src/optimizer`](../src/planner/optimizer.rs) for more information. The example SQL will produce the following physical plan: `PhysicalProjection <- PhysicalHashAgg <- PhysicalTableScan`. Note that as physical nodes have almost identical information to logical nodes, we store information of logical nodes inside physical nodes as `logical` variable. Despite their existence inside physical plans, after all, the following tree only contain physical nodes.
 
 ```rust
 PhysicalProjection {
