@@ -194,7 +194,7 @@ mod tests {
     }
 
     egg::test_fn! {
-        #[cfg_attr(feature = "simd", ignore)] 
+        #[cfg_attr(feature = "simd", ignore)]
         constant_folding,
         rules(),
         "(* (- (+ 1 2) 4) (/ 6 2))" => "-3",
@@ -224,7 +224,4 @@ mod tests {
         rules(),
         "(isnull 1)" => "false",
     }
-    
-
-    
 }
