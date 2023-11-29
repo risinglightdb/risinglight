@@ -194,10 +194,17 @@ mod tests {
     }
 
     egg::test_fn! {
-        #[cfg_attr(feature = "simd", ignore)] // FIXME: 'attempt to divide by zero'
+        #[cfg_attr(feature = "simd", ignore)] 
         constant_folding,
         rules(),
         "(* (- (+ 1 2) 4) (/ 6 2))" => "-3",
+    }
+
+    egg::test_fn! {
+        #[cfg_attr(feature = "simd", ignore)] // FIXME: 'attempt to divide by zero'a
+        constant_divide_zero,
+        rules(),
+        "(/ 3 0)" => "null",
     }
 
     egg::test_fn! {
@@ -211,4 +218,13 @@ mod tests {
         rules(),
         "(cast BOOLEAN 1)" => "true",
     }
+
+    egg::test_fn! {
+        constant_type_isnull,
+        rules(),
+        "(isnull 1)" => "false",
+    }
+    
+
+    
 }
