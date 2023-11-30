@@ -13,6 +13,11 @@ select 100.0::DOUBLE/8.0::DOUBLE
 ----
 12.5
 
+query R
+select 100::INT/0::INT
+----
+NULL
+
 query B
 select 2>1
 ----
