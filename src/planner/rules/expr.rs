@@ -194,7 +194,7 @@ mod tests {
     }
 
     egg::test_fn! {
-        #[cfg_attr(feature = "simd", ignore)]// FIXME: 'attempt to divide by zero'
+        #[cfg_attr(feature = "simd", ignore)] // FIXME: 'attempt to divide by zero'
         constant_folding,
         rules(),
         "(* (- (+ 1 2) 4) (/ 6 2))" => "-3",
