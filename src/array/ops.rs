@@ -234,6 +234,12 @@ impl ArrayImpl {
                 sqlparser::ast::DateTimeField::Year => {
                     A::new_int32(unary_op(a.as_ref(), |d| d.year()))
                 }
+                sqlparser::ast::DateTimeField::Month => {
+                    A::new_int32(unary_op(a.as_ref(), |d| d.month()))
+                }
+                sqlparser::ast::DateTimeField::Day => {
+                    A::new_int32(unary_op(a.as_ref(), |d| d.day()))
+                }
                 f => todo!("extract {f} from date"),
             },
             A::Interval(_) => todo!("extract {field} from interval"),
