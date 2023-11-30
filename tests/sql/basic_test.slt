@@ -28,6 +28,14 @@ select DATE '2001-02-16'
 ----
 2001-02-16
 
+query T
+SELECT EXTRACT(YEAR FROM DATE '2022-09-08') AS year,
+       EXTRACT(MONTH FROM DATE '2022-09-08') AS month,
+       EXTRACT(DAY FROM DATE '2022-09-08') AS day;
+----
+| 2022 | 9 | 8 |
+----
+
 # FIXME: support timestamp
 
 # query T
