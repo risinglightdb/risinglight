@@ -211,4 +211,10 @@ mod tests {
         rules(),
         "(cast BOOLEAN 1)" => "true",
     }
+
+    egg::test_fn! {
+        constant_type_isnull,
+        rules(),
+        "(isnull 1)" => "false",
+    }
 }
