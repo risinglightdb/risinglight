@@ -8,6 +8,7 @@ use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use crate::array::{
     ArrayBuilder, ArrayBuilderImpl, Chunk, DataChunk, I32ArrayBuilder, StringArrayBuilder,
 };
+use crate::binder::bind_header;
 use crate::catalog::{RootCatalogRef, TableRefId, INTERNAL_SCHEMA_NAME};
 use crate::parser::{parse, ParserError, Statement};
 use crate::planner::Statistics;
@@ -224,17 +225,7 @@ impl Database {
             };
             let output = executor.try_collect().await?;
             let mut chunk = Chunk::new(output);
-            let header_values = match stmt_copy {
-                Statement::CreateTable { .. } => vec!["$create".to_string()],
-                Statement::Drop { .. } => vec!["$drop".to_string()],
-                Statement::Insert { .. } => vec!["$insert.row_counts".to_string()],
-                Statement::Explain { .. } => vec!["$explain".to_string()],
-                Statement::Delete { .. } => vec!["$delete.row_counts".to_string()],
-                _ => Vec::new(),
-            };
-            if !header_values.is_empty() {
-                chunk.set_header(header_values);
-            }
+            chunk = bind_header(chunk, stmt_copy);
             outputs.push(chunk);
         }
         Ok(outputs)

@@ -8,6 +8,7 @@ use std::vec::Vec;
 use egg::{Id, Language};
 use itertools::Itertools;
 
+use crate::array;
 use crate::catalog::{RootCatalog, TableRefId, DEFAULT_SCHEMA_NAME};
 use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
@@ -99,6 +100,23 @@ pub struct Binder {
     contexts: Vec<Context>,
     /// The number of occurrences of each table in the query.
     table_occurrences: HashMap<TableRefId, u32>,
+}
+
+pub fn bind_header(mut chunk: array::Chunk, stmt: Statement) -> array::Chunk {
+    let header_values = match stmt {
+        Statement::CreateTable { .. } => vec!["$create".to_string()],
+        Statement::Drop { .. } => vec!["$drop".to_string()],
+        Statement::Insert { .. } => vec!["$insert.row_counts".to_string()],
+        Statement::Explain { .. } => vec!["$explain".to_string()],
+        Statement::Delete { .. } => vec!["$delete.row_counts".to_string()],
+        _ => Vec::new(),
+    };
+
+    if !header_values.is_empty() {
+        chunk.set_header(header_values);
+    }
+
+    chunk
 }
 
 /// The context of binder execution.
