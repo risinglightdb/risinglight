@@ -210,6 +210,7 @@ impl Database {
             if self.handle_set(&stmt)? {
                 continue;
             }
+            let stmt_copy = stmt.clone();
             let mut binder = crate::binder::Binder::new(self.catalog.clone());
             let bound = binder.bind(stmt)?;
             let optimized = optimizer.optimize(&bound);
@@ -222,8 +223,19 @@ impl Database {
                 }
             };
             let output = executor.try_collect().await?;
-            let chunk = Chunk::new(output);
-            // TODO: set name
+            let mut chunk = Chunk::new(output);
+            let header_values = match stmt_copy {
+                Statement::CreateTable { .. } => vec!["$create".to_string()],
+                Statement::Drop { .. } => vec!["$drop".to_string()],
+                Statement::Insert { .. } => vec!["$insert.row_counts".to_string()],
+                Statement::Explain { .. } => vec!["$explain".to_string()],
+                Statement::Delete { .. } => vec!["$delete.row_counts".to_string()],
+                _ => Vec::new(),
+            };
+            if !header_values.is_empty() {
+                chunk.set_header(header_values);
+            }
+
             outputs.push(chunk);
         }
         Ok(outputs)
