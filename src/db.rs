@@ -232,7 +232,9 @@ impl Database {
                 Statement::Delete { .. } => vec!["$delete.row_counts".to_string()],
                 _ => Vec::new(),
             };
-            chunk.set_header(header_values);
+            if !header_values.is_empty() {
+                chunk.set_header(header_values);
+            }
             outputs.push(chunk);
         }
         Ok(outputs)
