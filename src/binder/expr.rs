@@ -165,6 +165,14 @@ impl Binder {
                 })?;
                 Ok(self.egraph.add(Node::Constant(DataValue::Date(date))))
             }
+            DataType::Timestamp(_, _) => {
+                let timestamp = value.parse().map_err(|_| {
+                    BindError::CastError(DataValue::String(value), DataTypeKind::Timestamp)
+                })?;
+                Ok(self
+                    .egraph
+                    .add(Node::Constant(DataValue::Timestamp(timestamp))))
+            }
             t => todo!("support typed string: {:?}", t),
         }
     }

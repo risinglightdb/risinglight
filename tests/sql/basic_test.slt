@@ -40,12 +40,20 @@ SELECT EXTRACT(YEAR FROM DATE '2022-09-08') AS year,
 ----
 2022 9 8
 
-# FIXME: support timestamp
+query T
+select timestamp '1999-01-08 01:00:00'
+----
+1999-01-08 01:00:00
 
-# query T
-# select timestamp '1999-01-08 01:00:00'
-# ----
-# 1999-01-08 01:00:00
+query T
+select timestamp '1991-01-08 04:05:06 AD';
+----
+1991-01-08 04:05:06
+
+query T
+select timestamp '1991-01-08 04:05:06 BC';
+----
+1991-01-08 04:05:06 BC
 
 subtest NullType
 
