@@ -211,9 +211,9 @@ impl Database {
             if self.handle_set(&stmt)? {
                 continue;
             }
-            let stmt_copy = stmt.clone();
+
             let mut binder = crate::binder::Binder::new(self.catalog.clone());
-            let bound = binder.bind(stmt)?;
+            let bound = binder.bind(stmt.clone())?;
             let optimized = optimizer.optimize(&bound);
             let executor = match self.storage.clone() {
                 StorageImpl::InMemoryStorage(s) => {
@@ -225,7 +225,7 @@ impl Database {
             };
             let output = executor.try_collect().await?;
             let mut chunk = Chunk::new(output);
-            chunk = bind_header(chunk, stmt_copy);
+            chunk = bind_header(chunk, &stmt);
             outputs.push(chunk);
         }
         Ok(outputs)

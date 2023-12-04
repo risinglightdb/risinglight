@@ -102,7 +102,7 @@ pub struct Binder {
     table_occurrences: HashMap<TableRefId, u32>,
 }
 
-pub fn bind_header(mut chunk: array::Chunk, stmt: Statement) -> array::Chunk {
+pub fn bind_header(mut chunk: array::Chunk, stmt: &Statement) -> array::Chunk {
     let header_values = match stmt {
         Statement::CreateTable { .. } => vec!["$create".to_string()],
         Statement::Drop { .. } => vec!["$drop".to_string()],
