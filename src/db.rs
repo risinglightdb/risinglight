@@ -8,6 +8,7 @@ use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use crate::array::{
     ArrayBuilder, ArrayBuilderImpl, Chunk, DataChunk, I32ArrayBuilder, StringArrayBuilder,
 };
+use crate::binder::bind_header;
 use crate::catalog::{RootCatalogRef, TableRefId, INTERNAL_SCHEMA_NAME};
 use crate::parser::{parse, ParserError, Statement};
 use crate::planner::Statistics;
@@ -210,8 +211,9 @@ impl Database {
             if self.handle_set(&stmt)? {
                 continue;
             }
+
             let mut binder = crate::binder::Binder::new(self.catalog.clone());
-            let bound = binder.bind(stmt)?;
+            let bound = binder.bind(stmt.clone())?;
             let optimized = optimizer.optimize(&bound);
             let executor = match self.storage.clone() {
                 StorageImpl::InMemoryStorage(s) => {
@@ -222,8 +224,8 @@ impl Database {
                 }
             };
             let output = executor.try_collect().await?;
-            let chunk = Chunk::new(output);
-            // TODO: set name
+            let mut chunk = Chunk::new(output);
+            chunk = bind_header(chunk, &stmt);
             outputs.push(chunk);
         }
         Ok(outputs)
