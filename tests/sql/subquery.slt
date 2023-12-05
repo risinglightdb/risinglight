@@ -61,3 +61,9 @@ select t.a, t.b, t1.a, t1.b from t, t as t1;
 3 4 1 2
 1 2 3 4
 3 4 3 4
+
+query IV
+select * from (select a + a as c from t) as left;
+----
+2
+6
