@@ -268,7 +268,7 @@ fn columns_is(
         };
         match (get_set(var1), get_set(var2)) {
             (Ok(set1), Ok(set2)) => f(&set1, &set2),
-            _ => false, 
+            _ => false,
         }
     }
 }
