@@ -263,10 +263,13 @@ fn columns_is(
                 .data
                 .columns
                 .iter()
-                .map(|e| egraph.lookup(e.clone()).unwrap())
-                .collect()
+                .map(|e| egraph.lookup(e.clone()).ok_or("none"))
+                .collect::<Result<_, _>>()
         };
-        f(&get_set(var1), &get_set(var2))
+        match (get_set(var1), get_set(var2)) {
+            (Ok(set1), Ok(set2)) => f(&set1, &set2),
+            _ => false, 
+        }
     }
 }
 
