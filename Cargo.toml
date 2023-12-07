@@ -41,7 +41,7 @@ futures-async-stream = "0.2"
 humantime = "2"
 indicatif = "0.17"
 indoc = "2"
-iter-chunks = "0.1"
+iter-chunks = "0.2"
 itertools = "0.11"
 minitrace = "0.4.0"
 moka = { version = "0.11", features = ["future"] }
