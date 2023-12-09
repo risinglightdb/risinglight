@@ -49,6 +49,7 @@ pub struct SecondaryTable {
 }
 
 impl SecondaryTable {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         storage_options: Arc<StorageOptions>,
         table_ref_id: TableRefId,

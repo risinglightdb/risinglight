@@ -40,15 +40,15 @@ pub trait MemTable {
 
 pub struct BTreeMapMemTable {
     columns: Arc<[ColumnCatalog]>,
-    primary_key_idx: usize,
-    multi_btree_map: BTreeMultiMap<ComparableDataValue, Row>,
+    ordered_pk_idx: Vec<usize>,
+    multi_btree_map: BTreeMultiMap<Vec<ComparableDataValue>, Row>,
 }
 
 impl BTreeMapMemTable {
-    fn new(columns: Arc<[ColumnCatalog]>, primary_key_idx: usize) -> Self {
+    fn new(columns: Arc<[ColumnCatalog]>, ordered_pk_idx: Vec<usize>) -> Self {
         Self {
             columns,
-            primary_key_idx,
+            ordered_pk_idx,
             multi_btree_map: BTreeMultiMap::new(),
         }
     }
@@ -58,7 +58,10 @@ impl MemTable for BTreeMapMemTable {
     fn append(&mut self, columns: DataChunk) -> StorageResult<()> {
         for row_idx in 0..columns.cardinality() {
             self.multi_btree_map.insert(
-                ComparableDataValue(columns.array_at(self.primary_key_idx).get(row_idx)),
+                self.ordered_pk_idx
+                    .iter()
+                    .map(|&idx| ComparableDataValue(columns.array_at(idx).get(row_idx)))
+                    .collect_vec(),
                 columns.row(row_idx).values().collect(),
             );
         }
@@ -177,7 +180,7 @@ impl SecondaryMemRowsetImpl {
         let sort_keys = find_sort_key_id(&columns);
         if !sort_keys.is_empty() {
             Self::BTree(SecondaryMemRowset::<BTreeMapMemTable> {
-                mem_table: BTreeMapMemTable::new(columns.clone(), sort_keys[0]),
+                mem_table: BTreeMapMemTable::new(columns.clone(), sort_keys),
                 rowset_builder: RowsetBuilder::new(columns, column_options),
                 rowset_id,
             })
