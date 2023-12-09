@@ -16,6 +16,7 @@ pub struct InMemoryTable {
     pub(super) table_ref_id: TableRefId,
     pub(super) columns: Arc<[ColumnCatalog]>,
     pub(super) inner: InMemoryTableInnerRef,
+    pub(super) ordered_pk_ids: Vec<ColumnId>,
 }
 
 pub(super) struct InMemoryTableInner {
@@ -58,6 +59,7 @@ impl InMemoryTable {
             table_ref_id,
             columns: columns.into(),
             inner: Arc::new(RwLock::new(InMemoryTableInner::new())),
+            ordered_pk_ids: Vec::new(),
         }
     }
 }
@@ -83,5 +85,9 @@ impl Table for InMemoryTable {
 
     async fn update(&self) -> StorageResult<InMemoryTransaction> {
         InMemoryTransaction::start(self)
+    }
+
+    fn ordered_pk_ids(&self) -> Vec<ColumnId> {
+        self.ordered_pk_ids.clone()
     }
 }

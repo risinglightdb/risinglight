@@ -174,9 +174,10 @@ impl SecondaryMemRowsetImpl {
         column_options: ColumnBuilderOptions,
         rowset_id: u32,
     ) -> Self {
-        if let Some(sort_key_idx) = find_sort_key_id(&columns) {
+        let sort_keys = find_sort_key_id(&columns);
+        if !sort_keys.is_empty() {
             Self::BTree(SecondaryMemRowset::<BTreeMapMemTable> {
-                mem_table: BTreeMapMemTable::new(columns.clone(), sort_key_idx),
+                mem_table: BTreeMapMemTable::new(columns.clone(), sort_keys[0]),
                 rowset_builder: RowsetBuilder::new(columns, column_options),
                 rowset_id,
             })

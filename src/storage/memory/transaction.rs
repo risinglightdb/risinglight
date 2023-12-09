@@ -7,9 +7,8 @@ use itertools::Itertools;
 
 use super::table::InMemoryTableInnerRef;
 use super::{InMemoryRowHandler, InMemoryTable, InMemoryTxnIterator};
-use crate::array::{ArrayBuilderImpl, ArrayImplBuilderPickExt, ArrayImplSortExt, DataChunk};
-use crate::catalog::{find_sort_key_id, ColumnCatalog};
-use crate::storage::{ScanOptions, StorageColumnRef, StorageResult, Transaction};
+use crate::array::{ArrayBuilderImpl, ArrayImplBuilderPickExt, DataChunk};
+use crate::storage::{ScanOptions, StorageColumnRef, StorageResult, Table, Transaction};
 
 /// A transaction running on `InMemoryStorage`.
 pub struct InMemoryTransaction {
@@ -34,13 +33,24 @@ pub struct InMemoryTransaction {
     /// Snapshot of all deleted rows
     deleted_rows: Arc<HashSet<usize>>,
 
-    /// All information about columns
-    column_infos: Arc<[ColumnCatalog]>,
+    /// Ordered primary key indexes in `column_infos`
+    ordered_pk_idx: Vec<usize>,
 }
 
 impl InMemoryTransaction {
     pub(super) fn start(table: &InMemoryTable) -> StorageResult<Self> {
         let inner = table.inner.read().unwrap();
+        let ordered_pk_idx = table
+            .ordered_pk_ids()
+            .iter()
+            .map(|id| {
+                table
+                    .columns
+                    .iter()
+                    .position(|c| c.id() == *id)
+                    .expect("Malformed table object")
+            })
+            .collect_vec();
         Ok(Self {
             finished: false,
             buffer: vec![],
@@ -48,7 +58,7 @@ impl InMemoryTransaction {
             table: table.inner.clone(),
             snapshot: Arc::new(inner.get_all_chunks()),
             deleted_rows: Arc::new(inner.get_all_deleted_rows()),
-            column_infos: table.columns.clone(),
+            ordered_pk_idx,
         })
     }
 }
@@ -56,9 +66,9 @@ impl InMemoryTransaction {
 /// If primary key is found in [`ColumnCatalog`], sort all in-memory data using that key.
 fn sort_datachunk_by_pk(
     chunks: &Arc<Vec<DataChunk>>,
-    column_infos: &[ColumnCatalog],
+    ordered_pk_idx: &[usize],
 ) -> Arc<Vec<DataChunk>> {
-    if let Some(sort_key_id) = find_sort_key_id(column_infos) {
+    if !ordered_pk_idx.is_empty() {
         if chunks.is_empty() {
             return chunks.clone();
         }
@@ -78,7 +88,15 @@ fn sort_datachunk_by_pk(
             .into_iter()
             .map(|builder| builder.finish())
             .collect_vec();
-        let sorted_index = arrays[sort_key_id].get_sorted_indices();
+
+        let pk_arrays = Vec::from(ordered_pk_idx)
+            .iter()
+            .map(|idx| &arrays[*idx])
+            .collect_vec();
+        let pk_array = itertools::izip!(pk_arrays).collect_vec();
+        let sorted_index = (0..pk_array.len())
+            .sorted_by_key(|idx| pk_array[*idx])
+            .collect_vec();
 
         let chunk = arrays
             .into_iter()
@@ -109,7 +127,7 @@ impl Transaction for InMemoryTransaction {
         assert!(!opts.reversed, "reverse iterator is not supported for now");
 
         let snapshot = if opts.is_sorted {
-            sort_datachunk_by_pk(&self.snapshot, &self.column_infos)
+            sort_datachunk_by_pk(&self.snapshot, &self.ordered_pk_idx)
         } else {
             self.snapshot.clone()
         };

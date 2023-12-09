@@ -14,7 +14,7 @@ use crate::storage::Table;
 /// A table in Secondary engine.
 ///
 /// As `SecondaryStorage` holds the reference to `SecondaryTable`, we cannot store
-/// `Arc<SecondaryStorage>` inside `SecondaryTable`. This sturct only contains necessary information
+/// `Arc<SecondaryStorage>` inside `SecondaryTable`. This struct only contains necessary information
 /// to decode the columns of the table.
 #[derive(Clone)]
 pub struct SecondaryTable {
@@ -26,6 +26,9 @@ pub struct SecondaryTable {
 
     /// Mapping from [`ColumnId`] to column index in `columns`.
     pub column_map: HashMap<ColumnId, usize>,
+
+    /// Ordered list of primary key columns.
+    pub ordered_pk_ids: Vec<ColumnId>,
 
     /// Root directory of the storage
     pub storage_options: Arc<StorageOptions>,
@@ -54,6 +57,7 @@ impl SecondaryTable {
         version: Arc<VersionManager>,
         block_cache: Cache<BlockCacheKey, Block>,
         txn_mgr: Arc<TransactionManager>,
+        ordered_pk_ids: Vec<ColumnId>,
     ) -> Self {
         Self {
             columns: columns.into(),
@@ -68,6 +72,7 @@ impl SecondaryTable {
             version,
             block_cache,
             txn_mgr,
+            ordered_pk_ids,
         }
     }
 
@@ -125,5 +130,9 @@ impl Table for SecondaryTable {
 
     async fn update(&self) -> StorageResult<SecondaryTransaction> {
         SecondaryTransaction::start(self, false, true).await
+    }
+
+    fn ordered_pk_ids(&self) -> Vec<ColumnId> {
+        self.ordered_pk_ids.clone()
     }
 }
