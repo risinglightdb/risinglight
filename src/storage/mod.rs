@@ -106,6 +106,9 @@ pub trait Table: Sync + Send + Clone + 'static {
 
     /// Get table id
     fn table_id(&self) -> TableRefId;
+
+    /// Get primary key
+    fn ordered_pk_ids(&self) -> Vec<ColumnId>;
 }
 
 /// Reference to a column.

@@ -206,7 +206,7 @@ impl SecondaryStorage {
                 table_name.clone(),
                 column_descs.to_vec(),
                 false,
-                ordered_pk_ids,
+                ordered_pk_ids.clone(),
             )
             .map_err(|_| TracedStorageError::duplicated("table", table_name))?;
 
@@ -222,6 +222,7 @@ impl SecondaryStorage {
             self.version.clone(),
             self.block_cache.clone(),
             self.txn_mgr.clone(),
+            ordered_pk_ids,
         );
         self.tables.write().insert(id, table);
 

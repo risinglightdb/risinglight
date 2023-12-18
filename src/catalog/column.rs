@@ -126,17 +126,14 @@ impl ColumnCatalog {
 }
 
 /// Find the id of the sort key among column catalogs
-pub fn find_sort_key_id(column_infos: &[ColumnCatalog]) -> Option<usize> {
-    let mut key = None;
+pub fn find_sort_key_id(column_infos: &[ColumnCatalog]) -> Vec<usize> {
+    let mut keys = vec![];
     for (id, column_info) in column_infos.iter().enumerate() {
         if column_info.is_primary() {
-            if key.is_some() {
-                panic!("only one primary key is supported");
-            }
-            key = Some(id);
+            keys.push(id);
         }
     }
-    key
+    keys
 }
 
 #[cfg(test)]

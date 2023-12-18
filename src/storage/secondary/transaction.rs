@@ -259,15 +259,23 @@ impl SecondaryTransaction {
         let final_iter = if iters.len() == 1 {
             iters.pop().unwrap().into()
         } else if opts.is_sorted {
-            let sort_key = find_sort_key_id(&self.table.columns);
-            if let Some(sort_key) = sort_key {
-                let real_col_idx = col_idx.iter().position(|x| match x {
-                    StorageColumnRef::Idx(y) => *y as usize == sort_key,
-                    _ => false,
-                });
+            let sort_keys = find_sort_key_id(&self.table.columns);
+            if !sort_keys.is_empty() {
+                let real_col_idx = sort_keys
+                    .iter()
+                    .map(|id| {
+                        col_idx
+                            .iter()
+                            .position(|x| match x {
+                                StorageColumnRef::Idx(y) => *y as usize == *id,
+                                _ => false,
+                            })
+                            .expect("sorting key not in column list")
+                    })
+                    .collect_vec();
                 MergeIterator::new(
                     iters.into_iter().map(|iter| iter.into()).collect_vec(),
-                    vec![real_col_idx.expect("sort key not in column list")],
+                    real_col_idx,
                 )
                 .into()
             } else {
