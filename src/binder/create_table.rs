@@ -67,7 +67,7 @@ impl Binder {
 
         // check duplicated column names
         let mut set = HashSet::new();
-        for col in columns.iter() {
+        for col in columns {
             if !set.insert(col.name.value.to_lowercase()) {
                 return Err(BindError::ColumnExists(col.name.value.to_lowercase()));
             }

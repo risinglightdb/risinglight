@@ -49,7 +49,7 @@ impl<const T: JoinType> HashJoinExecutor<T> {
             for i in 0..chunk.cardinality() {
                 let keys = keys_chunk.row(i).values().collect();
                 let row = chunk.row(i);
-                hash_map.entry(keys).or_insert_with(SmallVec::new).push(row);
+                hash_map.entry(keys).or_default().push(row);
                 tokio::task::consume_budget().await;
             }
         }

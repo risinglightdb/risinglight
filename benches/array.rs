@@ -105,7 +105,9 @@ fn cast(c: &mut Criterion) {
 fn filter(c: &mut Criterion) {
     for_all_size(c, "filter(i32)", |b, &size| {
         let a1 = make_i32_array(size);
-        let ArrayImpl::Bool(a2) = make_bool_array(size) else { unreachable!() };
+        let ArrayImpl::Bool(a2) = make_bool_array(size) else {
+            unreachable!()
+        };
         b.iter(|| a1.filter(a2.true_array()))
     });
 }

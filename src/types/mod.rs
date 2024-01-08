@@ -63,7 +63,9 @@ impl DataTypeKind {
 
     /// Returns the inner types of the struct.
     pub fn as_struct(&self) -> &[DataType] {
-        let Self::Struct(types) = self else { panic!("not a struct: {self}") };
+        let Self::Struct(types) = self else {
+            panic!("not a struct: {self}")
+        };
         types
     }
 

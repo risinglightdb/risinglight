@@ -20,7 +20,6 @@ mod row_handler_column_iterator;
 use std::future::Future;
 use std::io::{Read, Seek, SeekFrom};
 
-pub use blob_column_builder::*;
 pub use blob_column_factory::*;
 pub use column_builder::*;
 pub use column_iterator::*;

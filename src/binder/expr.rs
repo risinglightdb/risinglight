@@ -203,7 +203,8 @@ impl Binder {
     }
 
     fn bind_interval(&mut self, interval: parser::Interval) -> Result {
-        let Expr::Value(Value::Number(v, _) | Value::SingleQuotedString(v)) = *interval.value else {
+        let Expr::Value(Value::Number(v, _) | Value::SingleQuotedString(v)) = *interval.value
+        else {
             panic!("interval value must be number or string");
         };
         let num = v.parse().expect("interval value is not a number");

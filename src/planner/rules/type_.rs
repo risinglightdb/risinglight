@@ -165,7 +165,9 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         Empty(ids) => {
             let mut types = vec![];
             for id in ids.iter() {
-                let Kind::Struct(list) = x(id)?.kind else { panic!("not struct type") };
+                let Kind::Struct(list) = x(id)?.kind else {
+                    panic!("not struct type")
+                };
                 types.extend(list);
             }
             Ok(Kind::Struct(types).not_null())

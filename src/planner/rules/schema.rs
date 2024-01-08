@@ -10,7 +10,7 @@ pub type Schema = Vec<Id>;
 /// Returns the output expressions for plan node.
 pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
     use Expr::*;
-    let concat = |v1: Vec<Id>, v2: Vec<Id>| v1.into_iter().chain(v2.into_iter()).collect();
+    let concat = |v1: Vec<Id>, v2: Vec<Id>| v1.into_iter().chain(v2).collect();
     match enode {
         // equal to child
         Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(c),
