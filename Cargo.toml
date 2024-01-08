@@ -63,7 +63,7 @@ serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 smallvec = { version = "1", features = ["serde"] }
 sqllogictest = "0.14"
-sqlparser = { version = "0.36", features = ["serde"] }
+sqlparser = { version = "0.41", features = ["serde"] }
 thiserror = "1"
 tikv-jemallocator = { version = "0.5", optional = true, features = [
     "disable_initial_exec_tls",

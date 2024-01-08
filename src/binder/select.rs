@@ -33,8 +33,9 @@ impl Binder {
         let projection = self.bind_projection(select.projection, from)?;
         let where_ = self.bind_where(select.selection)?;
         let groupby = match select.group_by {
-            group_by if group_by.is_empty() => None,
-            group_by => Some(self.bind_groupby(group_by)?),
+            GroupByExpr::All => return Err(BindError::Todo("group by all".into())),
+            GroupByExpr::Expressions(group_by) if group_by.is_empty() => None,
+            GroupByExpr::Expressions(group_by) => Some(self.bind_groupby(group_by)?),
         };
         let having = self.bind_having(select.having)?;
         let orderby = self.bind_orderby(order_by)?;

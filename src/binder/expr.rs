@@ -19,7 +19,9 @@ impl Binder {
             Expr::BinaryOp { left, op, right } => self.bind_binary_op(*left, op, *right),
             Expr::UnaryOp { op, expr } => self.bind_unary_op(op, *expr),
             Expr::Nested(expr) => self.bind_expr(*expr),
-            Expr::Cast { expr, data_type } => self.bind_cast(*expr, data_type),
+            Expr::Cast {
+                expr, data_type, ..
+            } => self.bind_cast(*expr, data_type),
             Expr::Function(func) => self.bind_function(func),
             Expr::IsNull(expr) => self.bind_is_null(*expr),
             Expr::IsNotNull(expr) => {
@@ -45,6 +47,7 @@ impl Binder {
                 expr,
                 substring_from,
                 substring_for,
+                ..
             } => self.bind_substring(*expr, substring_from, substring_for),
             Expr::Case {
                 operand,

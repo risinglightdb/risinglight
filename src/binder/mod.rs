@@ -164,7 +164,7 @@ impl Binder {
             Statement::Insert {
                 table_name,
                 columns,
-                source,
+                source: Some(source),
                 ..
             } => self.bind_insert(table_name, columns, source),
             Statement::Delete {
