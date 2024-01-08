@@ -20,13 +20,13 @@ pub struct ComparableDataValue(DataValue);
 
 impl PartialOrd for ComparableDataValue {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.0.partial_cmp(&other.0)
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for ComparableDataValue {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+        self.0.cmp(&other.0)
     }
 }
 

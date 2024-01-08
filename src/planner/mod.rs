@@ -147,32 +147,44 @@ impl Expr {
     }
 
     pub fn as_const(&self) -> DataValue {
-        let Self::Constant(v) = self else { panic!("not a constant: {self}") };
+        let Self::Constant(v) = self else {
+            panic!("not a constant: {self}")
+        };
         v.clone()
     }
 
     pub fn as_list(&self) -> &[Id] {
-        let Self::List(l) = self else { panic!("not a list: {self}") };
+        let Self::List(l) = self else {
+            panic!("not a list: {self}")
+        };
         l
     }
 
     pub fn as_column(&self) -> ColumnRefId {
-        let Self::Column(c) = self else { panic!("not a columnn: {self}") };
+        let Self::Column(c) = self else {
+            panic!("not a columnn: {self}")
+        };
         *c
     }
 
     pub fn as_table(&self) -> TableRefId {
-        let Self::Table(t) = self else { panic!("not a table: {self}") };
+        let Self::Table(t) = self else {
+            panic!("not a table: {self}")
+        };
         *t
     }
 
     pub fn as_type(&self) -> &DataTypeKind {
-        let Self::Type(t) = self else { panic!("not a type: {self}") };
+        let Self::Type(t) = self else {
+            panic!("not a type: {self}")
+        };
         t
     }
 
     pub fn as_ext_source(&self) -> ExtSource {
-        let Self::ExtSource(v) = self else { panic!("not an external source: {self}") };
+        let Self::ExtSource(v) = self else {
+            panic!("not an external source: {self}")
+        };
         v.clone()
     }
 

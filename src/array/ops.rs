@@ -169,7 +169,11 @@ impl ArrayImpl {
 
     pub fn and(&self, other: &Self) -> Result {
         let (A::Bool(a), A::Bool(b)) = (self, other) else {
-            return Err(ConvertError::NoBinaryOp("and".into(), self.type_string(), other.type_string()));
+            return Err(ConvertError::NoBinaryOp(
+                "and".into(),
+                self.type_string(),
+                other.type_string(),
+            ));
         };
         let mut c: BoolArray = binary_op(a.as_ref(), b.as_ref(), |a, b| *a && *b);
         let a_false = a.to_raw_bitvec().not_then_and(a.get_valid_bitmap());
@@ -181,7 +185,11 @@ impl ArrayImpl {
 
     pub fn or(&self, other: &Self) -> Result {
         let (A::Bool(a), A::Bool(b)) = (self, other) else {
-            return Err(ConvertError::NoBinaryOp("or".into(), self.type_string(), other.type_string()));
+            return Err(ConvertError::NoBinaryOp(
+                "or".into(),
+                self.type_string(),
+                other.type_string(),
+            ));
         };
         let mut c: BoolArray = binary_op(a.as_ref(), b.as_ref(), |a, b| *a || *b);
         let bitmap = c.to_raw_bitvec();
@@ -220,7 +228,11 @@ impl ArrayImpl {
 
     pub fn concat(&self, other: &Self) -> Result {
         let (A::String(a), A::String(b)) = (self, other) else {
-            return Err(ConvertError::NoBinaryOp("||".into(), self.type_string(), other.type_string()));
+            return Err(ConvertError::NoBinaryOp(
+                "||".into(),
+                self.type_string(),
+                other.type_string(),
+            ));
         };
 
         Ok(A::new_string(binary_op(a.as_ref(), b.as_ref(), |a, b| {
@@ -289,7 +301,12 @@ impl ArrayImpl {
 
     pub fn substring(&self, start: &Self, length: &Self) -> Result {
         let (A::String(a), A::Int32(b), A::Int32(c)) = (self, start, length) else {
-            return Err(ConvertError::NoTernaryOp("substring".into(), self.type_string(), start.type_string(), length.type_string()));
+            return Err(ConvertError::NoTernaryOp(
+                "substring".into(),
+                self.type_string(),
+                start.type_string(),
+                length.type_string(),
+            ));
         };
         Ok(A::new_string(ternary_op(
             a.as_ref(),
@@ -599,7 +616,10 @@ impl ArrayImpl {
 
     pub fn replace(&self, from: &str, to: &str) -> Result {
         let A::String(a) = self else {
-            return Err(ConvertError::NoUnaryOp("replace".into(), self.type_string()));
+            return Err(ConvertError::NoUnaryOp(
+                "replace".into(),
+                self.type_string(),
+            ));
         };
         Ok(A::new_string(unary_op(a.as_ref(), |s| s.replace(from, to))))
     }
@@ -808,7 +828,6 @@ impl BitVecExt for BitVec {
 
     fn from_bool_slice(bools: &[bool]) -> Self {
         // use SIMD to speed up
-        use std::simd::ToBitMask;
         let mut iter = bools.array_chunks::<64>();
         let mut bitvec = Vec::with_capacity((bools.len() + 63) / 64);
         for chunk in iter.by_ref() {

@@ -40,7 +40,8 @@ impl NestedLoopJoinExecutor {
                     let values = left_row.values().chain(right_row.values());
                     if let Some(chunk) = builder.push_row(values) {
                         // evaluate filter bitmap
-                        let ArrayImpl::Bool(a) = Evaluator::new(&self.condition).eval(&chunk)? else {
+                        let ArrayImpl::Bool(a) = Evaluator::new(&self.condition).eval(&chunk)?
+                        else {
                             panic!("join condition should return bool");
                         };
                         yield chunk.filter(a.true_array());

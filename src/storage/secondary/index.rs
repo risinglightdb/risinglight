@@ -39,8 +39,8 @@ impl ColumnIndex {
             ));
         }
         let length = footer.get_u64() as usize;
-        let checksum_type = ChecksumType::from_i32(footer.get_i32())
-            .ok_or_else(|| TracedStorageError::decode("invalid checksum type"))?;
+        let checksum_type = ChecksumType::try_from(footer.get_i32())
+            .map_err(|_| TracedStorageError::decode("invalid checksum type"))?;
         let checksum = footer.get_u64();
         verify_checksum(checksum_type, index_data, checksum)?;
 

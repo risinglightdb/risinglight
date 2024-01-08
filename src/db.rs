@@ -261,7 +261,10 @@ impl Database {
 
     /// Mock the row count of a table for planner test.
     fn handle_set(&self, stmt: &Statement) -> Result<bool, Error> {
-        let Statement::SetVariable { variable, value, .. } = stmt else {
+        let Statement::SetVariable {
+            variable, value, ..
+        } = stmt
+        else {
             return Ok(false);
         };
         let Some(table_name) = variable.0[0].value.strip_prefix("mock_rowcount_") else {

@@ -24,12 +24,7 @@ mod select;
 mod table;
 
 pub use self::create_table::*;
-pub use self::delete::*;
 pub use self::drop::*;
-pub use self::expr::*;
-pub use self::insert::*;
-pub use self::select::*;
-pub use self::table::*;
 
 pub type Result<T = Id> = std::result::Result<T, BindError>;
 
@@ -169,7 +164,7 @@ impl Binder {
             Statement::Insert {
                 table_name,
                 columns,
-                source,
+                source: Some(source),
                 ..
             } => self.bind_insert(table_name, columns, source),
             Statement::Delete {

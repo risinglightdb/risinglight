@@ -8,7 +8,7 @@ async fn main() -> Result<()> {
         Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("planner_test"),
-        || async { Ok(risinglight_plannertest::DatabaseWrapper::default()) },
+        || async { Ok(risinglight_plannertest::DatabaseWrapper) },
     )
     .await?;
     Ok(())

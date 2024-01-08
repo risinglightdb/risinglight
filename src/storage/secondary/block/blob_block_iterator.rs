@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn test_scan_blob() {
         let mut builder = PlainBlobBlockBuilder::<BlobRef>::new(128);
-        let input = vec![
+        let input = [
             Some(BlobRef::new("233".as_bytes())),
             Some(BlobRef::new("2333".as_bytes())),
             Some(BlobRef::new("23333".as_bytes())),

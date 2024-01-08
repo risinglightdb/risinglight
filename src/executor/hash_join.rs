@@ -1,6 +1,7 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::collections::{HashMap, HashSet};
+use std::marker::ConstParamTy;
 use std::vec::Vec;
 
 use futures::TryStreamExt;
@@ -19,7 +20,7 @@ pub struct HashJoinExecutor<const T: JoinType> {
 }
 
 /// Join types for generating join code during the compilation.
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, ConstParamTy)]
 pub enum JoinType {
     Inner,
     LeftOuter,
@@ -48,7 +49,7 @@ impl<const T: JoinType> HashJoinExecutor<T> {
             for i in 0..chunk.cardinality() {
                 let keys = keys_chunk.row(i).values().collect();
                 let row = chunk.row(i);
-                hash_map.entry(keys).or_insert_with(SmallVec::new).push(row);
+                hash_map.entry(keys).or_default().push(row);
                 tokio::task::consume_budget().await;
             }
         }
