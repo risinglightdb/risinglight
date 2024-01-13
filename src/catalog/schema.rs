@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::function::FunctionCatalog;
 use super::*;
 
 /// The catalog of a schema.
@@ -13,6 +14,8 @@ pub struct SchemaCatalog {
     table_idxs: HashMap<String, TableId>,
     tables: HashMap<TableId, Arc<TableCatalog>>,
     next_table_id: TableId,
+    /// Currently indexed by function name
+    functions: HashMap<String, Arc<FunctionCatalog>>,
 }
 
 impl SchemaCatalog {
@@ -23,6 +26,7 @@ impl SchemaCatalog {
             table_idxs: HashMap::new(),
             tables: HashMap::new(),
             next_table_id: 0,
+            functions: HashMap::new(),
         }
     }
 
@@ -80,6 +84,10 @@ impl SchemaCatalog {
 
     pub fn id(&self) -> SchemaId {
         self.id
+    }
+
+    pub fn get_function_by_name(&self, name: &str) -> Option<Arc<FunctionCatalog>> {
+        self.functions.get(name).cloned()
     }
 }
 

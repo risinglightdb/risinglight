@@ -15,6 +15,7 @@ use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
 use crate::types::{DataTypeKind, DataValue};
 
 pub mod copy;
+mod create_function;
 mod create_table;
 mod delete;
 mod drop;
@@ -23,6 +24,7 @@ mod insert;
 mod select;
 mod table;
 
+pub use self::create_function::*;
 pub use self::create_table::*;
 pub use self::drop::*;
 
@@ -154,6 +156,13 @@ impl Binder {
                 constraints,
                 ..
             } => self.bind_create_table(name, &columns, &constraints),
+            Statement::CreateFunction {
+                name,
+                args,
+                return_type,
+                params,
+                ..
+            } => self.bind_create_function(name, args, return_type, params),
             Statement::Drop {
                 object_type,
                 if_exists,

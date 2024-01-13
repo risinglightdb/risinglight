@@ -3,7 +3,7 @@
 use egg::{define_language, Id, Symbol};
 
 use crate::binder::copy::ExtSource;
-use crate::binder::{BoundDrop, CreateTable};
+use crate::binder::{BoundDrop, CreateFunction, CreateTable};
 use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataTypeKind, DataValue, DateTimeField};
@@ -117,6 +117,7 @@ define_language! {
         "window" = Window([Id; 2]),             // (window [over..] child)
                                                     // output = child || exprs
         CreateTable(CreateTable),
+        CreateFunction(CreateFunction),
         Drop(BoundDrop),
         "insert" = Insert([Id; 3]),             // (insert table [column..] child)
         "delete" = Delete([Id; 2]),             // (delete table child)
