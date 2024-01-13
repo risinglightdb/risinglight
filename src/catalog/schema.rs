@@ -89,6 +89,26 @@ impl SchemaCatalog {
     pub fn get_function_by_name(&self, name: &str) -> Option<Arc<FunctionCatalog>> {
         self.functions.get(name).cloned()
     }
+
+    pub fn create_function(
+        &mut self,
+        name: String,
+        arg_types: Vec<DataType>,
+        return_type: DataType,
+        language: String,
+        body: String,
+    ) {
+        self.functions.insert(
+            name.clone(),
+            Arc::new(FunctionCatalog {
+                name: name.clone(),
+                arg_types,
+                return_type,
+                language,
+                body,
+            }),
+        );
+    }
 }
 
 #[cfg(test)]

@@ -9,7 +9,7 @@ use egg::{Id, Language};
 use itertools::Itertools;
 
 use crate::array;
-use crate::catalog::{RootCatalog, TableRefId, DEFAULT_SCHEMA_NAME};
+use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId, DEFAULT_SCHEMA_NAME};
 use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
 use crate::types::{DataTypeKind, DataValue};
@@ -232,6 +232,10 @@ impl Binder {
 
     fn node(&self, id: Id) -> &Node {
         &self.egraph[id].nodes[0]
+    }
+
+    fn catalog(&self) -> RootCatalogRef {
+        self.catalog.clone()
     }
 
     fn bind_explain(&mut self, query: Statement) -> Result {
