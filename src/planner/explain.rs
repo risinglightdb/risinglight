@@ -341,6 +341,10 @@ impl<'a> Explain<'a> {
                 let fields = t.pretty_table().with(cost, rows);
                 Pretty::childless_record("CreateTable", fields)
             }
+            CreateFunction(f) => {
+                let v = f.pretty_function();
+                Pretty::childless_record("CreateFunction", v)
+            }
             Drop(t) => {
                 let fields = t.pretty_table().with(cost, rows);
                 Pretty::childless_record("Drop", fields)

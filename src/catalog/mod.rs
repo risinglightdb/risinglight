@@ -18,6 +18,7 @@ static CONTRIBUTORS_TABLE_NAME: &str = "contributors";
 pub const CONTRIBUTORS_TABLE_ID: TableId = 0;
 
 mod column;
+mod function;
 mod root;
 mod schema;
 mod table;
