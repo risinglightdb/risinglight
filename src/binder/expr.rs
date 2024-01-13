@@ -297,6 +297,16 @@ impl Binder {
                 FunctionArgExpr::QualifiedWildcard(_) => todo!("support qualified wildcard"),
             }
         }
+
+        // TODO: sql udf inlining
+        let _catalog = self.catalog();
+        let Ok((_schema_name, _function_name)) = split_name(&func.name) else {
+            return Err(BindError::BindFunctionError(format!(
+                "failed to parse the function name {}",
+                func.name
+            )));
+        };
+
         let node = match func.name.to_string().to_lowercase().as_str() {
             "count" if args.is_empty() => Node::RowCount,
             "count" => Node::Count(args[0]),
