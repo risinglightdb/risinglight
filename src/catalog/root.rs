@@ -3,7 +3,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use super::function::FunctionCatalog;
 use super::*;
 
 /// The root of all catalogs.
@@ -99,30 +98,6 @@ impl RootCatalog {
             schema_id: schema.id(),
             table_id: table.id(),
         })
-    }
-
-    pub fn get_function_by_name(
-        &self,
-        schema_name: &str,
-        function_name: &str,
-    ) -> Option<Arc<FunctionCatalog>> {
-        let schema = self.get_schema_by_name(schema_name)?;
-        schema.get_function_by_name(function_name)
-    }
-
-    pub fn create_function(
-        &self,
-        schema_name: String,
-        name: String,
-        arg_types: Vec<DataType>,
-        return_type: DataType,
-        language: String,
-        body: String,
-    ) {
-        let schema_idx = self.get_schema_id_by_name(&schema_name).unwrap();
-        let mut inner = self.inner.lock().unwrap();
-        let schema = inner.schemas.get_mut(&schema_idx).unwrap();
-        schema.create_function(name, arg_types, return_type, language, body);
     }
 }
 

@@ -4,11 +4,11 @@ use crate::types::DataType;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FunctionCatalog {
-    pub name: String,
-    pub arg_types: Vec<DataType>,
-    pub return_type: DataType,
-    pub language: String,
-    pub body: String,
+    name: String,
+    arg_types: Vec<DataType>,
+    return_type: DataType,
+    language: String,
+    body: String,
 }
 
 impl FunctionCatalog {

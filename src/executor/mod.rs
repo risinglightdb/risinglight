@@ -46,7 +46,6 @@ use self::top_n::TopNExecutor;
 use self::values::*;
 use self::window::*;
 use crate::array::DataChunk;
-use crate::executor::create_function::CreateFunctionExecutor;
 use crate::planner::{Expr, ExprAnalysis, Optimizer, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, TracedStorageError};
 use crate::types::{ColumnIndex, ConvertError, DataType};
@@ -54,7 +53,6 @@ use crate::types::{ColumnIndex, ConvertError, DataType};
 mod copy_from_file;
 mod copy_to_file;
 mod create;
-mod create_function;
 mod delete;
 mod drop;
 mod evaluator;
@@ -301,12 +299,6 @@ impl<S: Storage> Builder<S> {
             CreateTable(plan) => CreateTableExecutor {
                 plan,
                 storage: self.storage.clone(),
-            }
-            .execute(),
-
-            CreateFunction(f) => CreateFunctionExecutor {
-                f,
-                catalog: self.optimizer.catalog().clone(),
             }
             .execute(),
 
