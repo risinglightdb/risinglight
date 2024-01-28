@@ -100,6 +100,8 @@ impl Binder {
             arg_types.push(RlDataType::new(DataTypeKind::from(&arg.data_type), false));
         }
 
+        // TODO: Semantic check and basic syntax check for sql body definition
+
         let f = self.egraph.add(Node::CreateFunction(CreateFunction {
             schema_name,
             name,

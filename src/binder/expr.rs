@@ -300,6 +300,7 @@ impl Binder {
 
         // TODO: sql udf inlining
         let _catalog = self.catalog();
+        let mut _udf_context = self.udf_context_mut();
         let Ok((_schema_name, _function_name)) = split_name(&func.name) else {
             return Err(BindError::BindFunctionError(format!(
                 "failed to parse the function name {}",
