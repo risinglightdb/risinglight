@@ -298,6 +298,8 @@ impl Binder {
             }
         }
 
+        let mut _udf_context = self.udf_context_mut();
+
         let node = match func.name.to_string().to_lowercase().as_str() {
             "count" if args.is_empty() => Node::RowCount,
             "count" => Node::Count(args[0]),

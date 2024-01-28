@@ -346,10 +346,6 @@ impl Binder {
         &self.egraph[id].nodes[0]
     }
 
-    fn catalog(&self) -> RootCatalogRef {
-        self.catalog.clone()
-    }
-
     fn udf_context_mut(&mut self) -> &mut UdfContext {
         &mut self.udf_context
     }
