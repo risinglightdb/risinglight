@@ -103,7 +103,7 @@ pub struct Binder {
 
 #[derive(Clone, Debug, Default)]
 pub struct UdfContext {
-    /// The mapping from `sql udf parameters` to a bound `ExprImpl` generated from `ast
+    /// The mapping from `sql udf parameters` to a bound `Node` generated from `ast
     /// expressions` Note: The expressions are constructed during runtime, correspond to the
     /// actual users' input
     udf_param_context: HashMap<String, Node>,
