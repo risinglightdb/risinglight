@@ -199,9 +199,7 @@ impl UdfContext {
                 match current_arg {
                     FunctionArg::Unnamed(arg) => {
                         let FunctionArgExpr::Expr(e) = arg else {
-                            return Err(
-                                BindError::InvalidExpression("invalid syntax".to_string())
-                            );
+                            return Err(BindError::InvalidExpression("invalid syntax".to_string()));
                         };
                         if catalog.arg_names[i].is_empty() {
                             todo!("anonymous parameters not yet supported");

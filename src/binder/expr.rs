@@ -330,7 +330,9 @@ impl Binder {
             // Bind each expression in the newly created `udf_context`
             for (c, e) in context {
                 let Ok(e) = self.bind_expr(e) else {
-                    return Err(BindError::BindFunctionError("failed to bind arguments within the given sql udf".to_string()));
+                    return Err(BindError::BindFunctionError(
+                        "failed to bind arguments within the given sql udf".to_string(),
+                    ));
                 };
                 udf_context.insert(c, e);
             }
