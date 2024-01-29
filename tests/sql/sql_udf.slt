@@ -1,0 +1,42 @@
+# Create a named sql udf with single quote definition
+statement ok
+create function add_named(a INT, b INT) returns int language sql as 'select a + b';
+
+# Create another named sql udf with double dollar definition
+statement ok
+create function sub_named(a INT, b INT) returns int language sql as $$select a - b$$;
+
+# Named sql udf with corner case
+statement ok
+create function corner_case(a INT) returns varchar language sql as $$select '$1 + a + $3'$$;
+
+# Call sql udf inside named sql udf
+statement ok
+create function add_named_wrapper(a INT, b INT) returns int language sql as 'select add_named(a, b)';
+
+# TODO: add checks
+# Named sql udf with invalid parameter in body definition
+# Will be rejected at creation time
+# statement error failed to find named parameter aa
+# create function unknown_parameter(a INT) returns int language sql as 'select a + aa + a';
+
+# Call the defined named sql udfs
+query I
+select add_named(1, -1);
+----
+0
+
+query I
+select sub_named(1, 1);
+----
+0
+
+query T
+select corner_case(1);
+----
+$1 + a + $3
+
+query I
+select add_named_wrapper(1, -1);
+----
+0
