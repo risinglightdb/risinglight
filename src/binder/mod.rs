@@ -350,6 +350,10 @@ impl Binder {
         &mut self.udf_context
     }
 
+    fn catalog(&self) -> RootCatalogRef {
+        self.catalog.clone()
+    }
+
     fn bind_explain(&mut self, query: Statement) -> Result {
         let id = self.bind_stmt(query)?;
         let id = self.egraph.add(Node::Explain(id));
