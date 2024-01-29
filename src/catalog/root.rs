@@ -110,6 +110,7 @@ impl RootCatalog {
         schema.get_function_by_name(function_name)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_function(
         &self,
         schema_name: String,
