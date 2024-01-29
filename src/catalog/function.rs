@@ -6,6 +6,7 @@ use crate::types::DataType;
 pub struct FunctionCatalog {
     pub name: String,
     pub arg_types: Vec<DataType>,
+    pub arg_names: Vec<String>,
     pub return_type: DataType,
     pub language: String,
     pub body: String,
@@ -15,6 +16,7 @@ impl FunctionCatalog {
     pub fn new(
         name: String,
         arg_types: Vec<DataType>,
+        arg_names: Vec<String>,
         return_type: DataType,
         language: String,
         body: String,
@@ -22,6 +24,7 @@ impl FunctionCatalog {
         Self {
             name,
             arg_types,
+            arg_names,
             return_type,
             language,
             body,

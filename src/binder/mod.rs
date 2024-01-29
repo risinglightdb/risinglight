@@ -9,6 +9,7 @@ use egg::{Id, Language};
 use itertools::Itertools;
 
 use crate::array;
+use crate::catalog::function::FunctionCatalog;
 use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId, DEFAULT_SCHEMA_NAME};
 use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
@@ -103,10 +104,10 @@ pub struct Binder {
 
 #[derive(Clone, Debug, Default)]
 pub struct UdfContext {
-    /// The mapping from `sql udf parameters` to a bound `Node` generated from `ast
+    /// The mapping from `sql udf parameters` to a bound `Id` generated from `ast
     /// expressions` Note: The expressions are constructed during runtime, correspond to the
     /// actual users' input
-    udf_param_context: HashMap<String, Node>,
+    udf_param_context: HashMap<String, Id>,
 
     /// The global counter that records the calling stack depth
     /// of the current binding sql udf chain
@@ -133,7 +134,7 @@ impl UdfContext {
         self.udf_param_context.is_empty()
     }
 
-    pub fn update_context(&mut self, context: HashMap<String, Node>) {
+    pub fn update_context(&mut self, context: HashMap<String, Id>) {
         self.udf_param_context = context;
     }
 
@@ -142,11 +143,11 @@ impl UdfContext {
         self.udf_param_context.clear();
     }
 
-    pub fn expr(&self, name: &str) -> Option<&Node> {
+    pub fn get_expr(&self, name: &str) -> Option<&Id> {
         self.udf_param_context.get(name)
     }
 
-    pub fn get_context(&self) -> HashMap<String, Node> {
+    pub fn get_context(&self) -> HashMap<String, Id> {
         self.udf_param_context.clone()
     }
 
@@ -190,21 +191,29 @@ impl UdfContext {
 
     pub fn create_udf_context(
         args: &[FunctionArg],
-        _catalog: &RootCatalogRef,
+        catalog: &Arc<FunctionCatalog>,
     ) -> Result<HashMap<String, Expr>> {
         let mut ret: HashMap<String, Expr> = HashMap::new();
         for (i, current_arg) in args.iter().enumerate() {
-            if let FunctionArg::Unnamed(arg) = current_arg {
-                let FunctionArgExpr::Expr(e) = arg else {
-                    return Err(BindError::InvalidExpression("invalid syntax".to_string()));
-                };
-                // if catalog.arg_names.is_some() {
-                //      todo!()
-                // }
-                ret.insert(format!("${}", i + 1), e.clone());
-                continue;
+            if let FunctionArg::Unnamed(_arg) = current_arg {
+                match current_arg {
+                    FunctionArg::Unnamed(arg) => {
+                        let FunctionArgExpr::Expr(e) = arg else {
+                            return Err(
+                                BindError::InvalidExpression("invalid syntax".to_string())
+                            );
+                        };
+                        if catalog.arg_names[i].is_empty() {
+                            todo!("anonymous parameters not yet supported");
+                        } else {
+                            // The index mapping here is accurate
+                            // So that we could directly use the index
+                            ret.insert(catalog.arg_names[i].clone(), e.clone());
+                        }
+                    }
+                    _ => return Err(BindError::InvalidExpression("invalid syntax".to_string())),
+                }
             }
-            return Err(BindError::InvalidExpression("invalid syntax".to_string()));
         }
         Ok(ret)
     }
@@ -346,7 +355,7 @@ impl Binder {
         &self.egraph[id].nodes[0]
     }
 
-    fn udf_context_mut(&mut self) -> &mut UdfContext {
+    fn _udf_context_mut(&mut self) -> &mut UdfContext {
         &mut self.udf_context
     }
 
