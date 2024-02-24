@@ -46,7 +46,7 @@ use self::top_n::TopNExecutor;
 use self::values::*;
 use self::window::*;
 use crate::array::DataChunk;
-use crate::catalog::{RootCatalog};
+use crate::catalog::RootCatalog;
 use crate::executor::create_function::CreateFunctionExecutor;
 use crate::planner::{Expr, ExprAnalysis, Optimizer, RecExpr, TypeSchemaAnalysis};
 use crate::storage::{Storage, TracedStorageError};
