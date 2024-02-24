@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 //! # Execution Model
 //!
@@ -23,6 +23,7 @@ use itertools::Itertools;
 // use minitrace::prelude::*;
 use self::copy_from_file::*;
 use self::copy_to_file::*;
+use self::create_function::CreateFunctionExecutor;
 use self::create_table::*;
 use self::create_view::*;
 use self::delete::*;
@@ -57,6 +58,7 @@ use crate::types::{ColumnIndex, DataType};
 
 mod copy_from_file;
 mod copy_to_file;
+mod create_function;
 mod create_table;
 mod create_view;
 mod delete;
@@ -119,7 +121,9 @@ impl<S: Storage> Builder<S> {
         // recursively build for all views
         let mut views = HashMap::new();
         for node in plan.as_ref() {
-            if let Expr::Table(tid) = node && let Some(query) = optimizer.catalog().get_table(tid).unwrap().query() {
+            if let Expr::Table(tid) = node
+                && let Some(query) = optimizer.catalog().get_table(tid).unwrap().query()
+            {
                 let builder = Self::new(optimizer.clone(), storage.clone(), &query);
                 let subscriber = builder.build_subscriber();
                 views.insert(*tid, subscriber);
@@ -372,6 +376,12 @@ impl<S: Storage> Builder<S> {
                 table: self.node(table).as_create_table(),
                 query: self.recexpr(query),
                 catalog: self.catalog().clone(),
+            }
+            .execute(),
+
+            CreateFunction(f) => CreateFunctionExecutor {
+                f,
+                catalog: self.optimizer.catalog().clone(),
             }
             .execute(),
 

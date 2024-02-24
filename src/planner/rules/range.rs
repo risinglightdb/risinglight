@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 //! Range filter.
 
@@ -103,7 +103,9 @@ pub fn filter_scan_rule() -> Vec<Rewrite> { vec![
 fn is_primary_key_range(expr: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var(expr);
     move |egraph, _, subst| {
-        let Some((column, _)) = &egraph[subst[var]].data.range else { return false };
+        let Some((column, _)) = &egraph[subst[var]].data.range else {
+            return false;
+        };
         egraph
             .analysis
             .catalog

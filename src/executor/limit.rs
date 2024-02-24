@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use super::*;
 use crate::array::DataChunk;
@@ -50,6 +50,7 @@ mod tests {
     use super::*;
     use crate::array::ArrayImpl;
 
+    #[allow(clippy::single_range_in_vec_init)]
     #[test_case(&[(0..6)], 1, 4, &[(1..5)])]
     #[test_case(&[(0..6)], 0, 10, &[(0..6)])]
     #[test_case(&[(0..6)], 10, 0, &[])]

@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 //! Secondary's Block builders and iterators
 //!
@@ -168,10 +168,10 @@ impl BlockMeta {
         if buf.remaining() < 4 + 4 + 8 {
             return Err(TracedStorageError::decode("expected 16 bytes"));
         }
-        self.block_type = BlockType::from_i32(buf.get_i32())
-            .ok_or_else(|| TracedStorageError::decode("expected valid block type"))?;
-        self.checksum_type = ChecksumType::from_i32(buf.get_i32())
-            .ok_or_else(|| TracedStorageError::decode("expected valid checksum type"))?;
+        self.block_type = BlockType::try_from(buf.get_i32())
+            .map_err(|_| TracedStorageError::decode("expected valid block type"))?;
+        self.checksum_type = ChecksumType::try_from(buf.get_i32())
+            .map_err(|_| TracedStorageError::decode("expected valid checksum type"))?;
         self.checksum = buf.get_u64();
         Ok(())
     }

@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::str::FromStr;
 use std::sync::Arc;
@@ -12,6 +12,7 @@ pub use self::table::*;
 use crate::types::*;
 
 mod column;
+mod function;
 mod root;
 mod schema;
 mod table;

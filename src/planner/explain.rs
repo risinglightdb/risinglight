@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
 
@@ -348,6 +348,10 @@ impl<'a> Explain<'a> {
                 vec![("table", self.expr(table).pretty())].with(cost, rows),
                 vec![self.expr(query).pretty()],
             ),
+            CreateFunction(f) => {
+                let v = f.pretty_function();
+                Pretty::childless_record("CreateFunction", v)
+            }
             Drop(tables) => {
                 let fields = vec![("objects", self.expr(tables).pretty())].with(cost, rows);
                 Pretty::childless_record("Drop", fields)

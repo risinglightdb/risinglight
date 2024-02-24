@@ -1,3 +1,5 @@
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use std::collections::HashSet;
 use std::fmt;
 use std::str::FromStr;
@@ -65,7 +67,7 @@ impl Binder {
 
         // check duplicated column names
         let mut set = HashSet::new();
-        for col in columns.iter() {
+        for col in columns {
             if !set.insert(col.name.value.to_lowercase()) {
                 return Err(BindError::ColumnExists(col.name.value.to_lowercase()));
             }

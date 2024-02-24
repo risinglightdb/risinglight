@@ -82,7 +82,7 @@ mod tests {
     use bytes::Bytes;
 
     use super::*;
-    use crate::array::{ArrayToVecExt, I32ArrayBuilder, Utf8ArrayBuilder};
+    use crate::array::{ArrayToVecExt, I32ArrayBuilder, StringArrayBuilder};
     use crate::storage::secondary::block::{
         BlockBuilder, NullableBlockBuilder, PlainBlobBlockBuilder, PlainBlobBlockIterator,
         PlainPrimitiveBlockBuilder, PlainPrimitiveBlockIterator,
@@ -131,15 +131,15 @@ mod tests {
         iter.skip(1);
         assert_eq!(iter.remaining_items(), 2);
 
-        let mut builder = Utf8ArrayBuilder::new();
+        let mut builder = StringArrayBuilder::new();
         assert_eq!(iter.next_batch(Some(1), &mut builder), 1);
         assert_eq!(builder.finish().to_vec(), vec![None]);
 
-        let mut builder = Utf8ArrayBuilder::new();
+        let mut builder = StringArrayBuilder::new();
         assert_eq!(iter.next_batch(Some(2), &mut builder), 1);
         assert_eq!(builder.finish().to_vec(), vec![Some("2333333".to_string())]);
 
-        let mut builder = Utf8ArrayBuilder::new();
+        let mut builder = StringArrayBuilder::new();
         assert_eq!(iter.next_batch(None, &mut builder), 0);
     }
 }

@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::vec::Vec;
 
@@ -43,7 +43,8 @@ impl NestedLoopJoinExecutor {
                     let values = left_row.values().chain(right_row.values());
                     if let Some(chunk) = builder.push_row(values) {
                         // evaluate filter bitmap
-                        let ArrayImpl::Bool(a) = Evaluator::new(&self.condition).eval(&chunk)? else {
+                        let ArrayImpl::Bool(a) = Evaluator::new(&self.condition).eval(&chunk)?
+                        else {
                             panic!("join condition should return bool");
                         };
                         yield chunk.filter(a.true_array());
@@ -121,7 +122,8 @@ impl NestedLoopSemiJoinExecutor {
                     let left_chunk = self.left_row_to_chunk(&left_row, right_chunk.cardinality());
                     let join_chunk = left_chunk.row_concat(right_chunk.clone());
                     // evaluate filter bitmap
-                    let ArrayImpl::Bool(a) = Evaluator::new(&self.condition).eval(&join_chunk)? else {
+                    let ArrayImpl::Bool(a) = Evaluator::new(&self.condition).eval(&join_chunk)?
+                    else {
                         panic!("join condition should return bool");
                     };
                     exists |= a.true_array().iter().any(|v| *v);

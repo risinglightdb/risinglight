@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
@@ -8,12 +8,14 @@ use std::vec::Vec;
 use egg::{Id, Language};
 use itertools::Itertools;
 
-use crate::catalog::{RootCatalog, TableRefId};
+use crate::array;
+use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
 use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
 use crate::types::{DataTypeKind, DataValue};
 
 pub mod copy;
+mod create_function;
 mod create_table;
 mod create_view;
 mod delete;
@@ -23,13 +25,8 @@ mod insert;
 mod select;
 mod table;
 
+pub use self::create_function::*;
 pub use self::create_table::*;
-pub use self::delete::*;
-pub use self::drop::*;
-pub use self::expr::*;
-pub use self::insert::*;
-pub use self::select::*;
-pub use self::table::*;
 
 pub type Result<T = Id> = std::result::Result<T, BindError>;
 
@@ -84,6 +81,8 @@ pub enum BindError {
     OrderKeyNotInDistinct,
     #[error("{0:?} is not an aggregate function")]
     NotAgg(String),
+    #[error("unsupported object name: {0:?}")]
+    UnsupportedObjectName(ObjectType),
     #[error("not supported yet: {0}")]
     Todo(String),
     #[error("can not copy to {0}")]
@@ -102,6 +101,23 @@ pub struct Binder {
     contexts: Vec<Context>,
     /// The number of occurrences of each table in the query.
     table_occurrences: HashMap<TableRefId, u32>,
+}
+
+pub fn bind_header(mut chunk: array::Chunk, stmt: &Statement) -> array::Chunk {
+    let header_values = match stmt {
+        Statement::CreateTable { .. } => vec!["$create".to_string()],
+        Statement::Drop { .. } => vec!["$drop".to_string()],
+        Statement::Insert { .. } => vec!["$insert.row_counts".to_string()],
+        Statement::Explain { .. } => vec!["$explain".to_string()],
+        Statement::Delete { .. } => vec!["$delete.row_counts".to_string()],
+        _ => Vec::new(),
+    };
+
+    if !header_values.is_empty() {
+        chunk.set_header(header_values);
+    }
+
+    chunk
 }
 
 /// The context of binder execution.
@@ -150,6 +166,13 @@ impl Binder {
                 query,
                 ..
             } => self.bind_create_view(name, columns, *query),
+            Statement::CreateFunction {
+                name,
+                args,
+                return_type,
+                params,
+                ..
+            } => self.bind_create_function(name, args, return_type, params),
             Statement::Drop {
                 object_type,
                 if_exists,
@@ -160,7 +183,7 @@ impl Binder {
             Statement::Insert {
                 table_name,
                 columns,
-                source,
+                source: Some(source),
                 ..
             } => self.bind_insert(table_name, columns, source),
             Statement::Delete {
@@ -261,6 +284,10 @@ impl Binder {
             Node::Column(_) | Node::Ref(_) => id,
             _ => self.egraph.add(Node::Ref(id)),
         }
+    }
+
+    fn catalog(&self) -> RootCatalogRef {
+        self.catalog.clone()
     }
 
     fn bind_explain(&mut self, query: Statement) -> Result {

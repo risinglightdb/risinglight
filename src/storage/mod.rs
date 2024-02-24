@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 //! Traits and basic data structures for RisingLight's all storage engines.
 
@@ -70,20 +70,17 @@ pub trait Storage: Sync + Send + 'static {
     /// Type of the table belonging to this storage engine.
     type Table: Table<Transaction = Self::Transaction>;
 
-    fn create_table<'a>(
-        &'a self,
+    fn create_table(
+        &self,
         schema_id: SchemaId,
-        table_name: &'a str,
-        column_descs: &'a [ColumnCatalog],
-        ordered_pk_ids: &'a [ColumnId],
-    ) -> impl Future<Output = StorageResult<()>> + Send + 'a;
+        table_name: &str,
+        column_descs: &[ColumnCatalog],
+        ordered_pk_ids: &[ColumnId],
+    ) -> impl Future<Output = StorageResult<()>> + Send;
 
     fn get_table(&self, table_id: TableRefId) -> StorageResult<Self::Table>;
 
-    fn drop_table(
-        &self,
-        table_id: TableRefId,
-    ) -> impl Future<Output = StorageResult<()>> + Send + '_;
+    fn drop_table(&self, table_id: TableRefId) -> impl Future<Output = StorageResult<()>> + Send;
 
     // XXX: remove this
     fn as_disk(&self) -> Option<&SecondaryStorage>;
@@ -109,6 +106,9 @@ pub trait Table: Sync + Send + Clone + 'static {
 
     /// Get table id
     fn table_id(&self) -> TableRefId;
+
+    /// Get primary key
+    fn ordered_pk_ids(&self) -> Vec<ColumnId>;
 }
 
 /// Reference to a column.
@@ -139,22 +139,21 @@ pub trait Transaction: Sync + Send + 'static {
     type RowHandlerType: RowHandler;
 
     /// Scan one or multiple columns.
-    fn scan<'a>(
-        &'a self,
-        col_idx: &'a [StorageColumnRef],
+    fn scan(
+        &self,
+        col_idx: &[StorageColumnRef],
         options: ScanOptions,
-    ) -> impl Future<Output = StorageResult<Self::TxnIteratorType>> + Send + 'a;
+    ) -> impl Future<Output = StorageResult<Self::TxnIteratorType>> + Send;
 
     /// Append data to the table. Generally, `columns` should be in the same order as
     /// [`ColumnCatalog`] when constructing the [`Table`].
-    fn append(&mut self, columns: DataChunk)
-        -> impl Future<Output = StorageResult<()>> + Send + '_;
+    fn append(&mut self, columns: DataChunk) -> impl Future<Output = StorageResult<()>> + Send;
 
     /// Delete a record.
-    fn delete<'a>(
-        &'a mut self,
-        id: &'a Self::RowHandlerType,
-    ) -> impl Future<Output = StorageResult<()>> + Send + 'a;
+    fn delete(
+        &mut self,
+        id: &Self::RowHandlerType,
+    ) -> impl Future<Output = StorageResult<()>> + Send;
 
     /// Commit a transaction.
     fn commit(self) -> impl Future<Output = StorageResult<()>> + Send;

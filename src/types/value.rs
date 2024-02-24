@@ -1,3 +1,5 @@
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use num_traits::ToPrimitive;
 use ordered_float::OrderedFloat;
 use parse_display::Display;

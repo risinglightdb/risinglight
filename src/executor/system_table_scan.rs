@@ -1,6 +1,7 @@
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
 use super::*;
 use crate::array::*;
 use crate::catalog::{ColumnRefId, RootCatalogRef, TableRefId};
@@ -88,7 +89,7 @@ fn contributors() -> DataChunk {
         "yuzi-neko",
         "XieJiann",
     ];
-    [ArrayImpl::new_utf8(Utf8Array::from_iter(
+    [ArrayImpl::new_string(StringArray::from_iter(
         contributors.iter().map(|s| Some(*s)).sorted(),
     ))]
     .into_iter()
@@ -99,8 +100,8 @@ fn contributors() -> DataChunk {
 fn pg_tables(catalog: RootCatalogRef) -> DataChunk {
     let mut schema_id = I32ArrayBuilder::new();
     let mut table_id = I32ArrayBuilder::new();
-    let mut schema_name = Utf8ArrayBuilder::new();
-    let mut table_name = Utf8ArrayBuilder::new();
+    let mut schema_name = StringArrayBuilder::new();
+    let mut table_name = StringArrayBuilder::new();
 
     for (_, schema) in catalog.all_schemas() {
         for (_, table) in schema.all_tables() {
@@ -124,11 +125,11 @@ fn pg_tables(catalog: RootCatalogRef) -> DataChunk {
 fn pg_attribute(catalog: RootCatalogRef) -> DataChunk {
     // let mut schema_id = I32ArrayBuilder::new();
     // let mut table_id = I32ArrayBuilder::new();
-    let mut schema_name = Utf8ArrayBuilder::new();
-    let mut table_name = Utf8ArrayBuilder::new();
+    let mut schema_name = StringArrayBuilder::new();
+    let mut table_name = StringArrayBuilder::new();
     let mut column_id = I32ArrayBuilder::new();
-    let mut column_name = Utf8ArrayBuilder::new();
-    let mut column_type = Utf8ArrayBuilder::new();
+    let mut column_name = StringArrayBuilder::new();
+    let mut column_type = StringArrayBuilder::new();
     let mut column_not_null = BoolArrayBuilder::new();
 
     for (_, schema) in catalog.all_schemas() {
@@ -167,9 +168,9 @@ async fn pg_stat(catalog: RootCatalogRef, storage: &impl Storage) -> Result<Data
     // let mut schema_id = I32ArrayBuilder::new();
     // let mut table_id = I32ArrayBuilder::new();
     // let mut column_id = I32ArrayBuilder::new();
-    let mut schema_name = Utf8ArrayBuilder::new();
-    let mut table_name = Utf8ArrayBuilder::new();
-    let mut column_name = Utf8ArrayBuilder::new();
+    let mut schema_name = StringArrayBuilder::new();
+    let mut table_name = StringArrayBuilder::new();
+    let mut column_name = StringArrayBuilder::new();
     let mut n_row = I32ArrayBuilder::new();
     let mut n_distinct = I32ArrayBuilder::new();
 

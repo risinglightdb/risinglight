@@ -1,3 +1,5 @@
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use std::iter::IntoIterator;
 
 use super::{ArrayBuilderImpl, DataChunk};

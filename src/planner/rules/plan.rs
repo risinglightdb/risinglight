@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 //! Plan optimization rules.
 
@@ -473,8 +473,8 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
 
 /// Returns an applier that:
 /// 1. collect all used columns from `[?vars]`.
-/// 2. generate a `proj` node over `?child`, `?left` or `?right`.
-///    the projection list is the intersection of used and produced columns.
+/// 2. generate a `proj` node over `?child`, `?left` or `?right`. the projection list is the
+///    intersection of used and produced columns.
 /// 3. apply the rest `pattern`.
 fn apply_proj(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
     struct ProjectionPushdown {

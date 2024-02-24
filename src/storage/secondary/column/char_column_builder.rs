@@ -1,18 +1,19 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
 
 use super::super::{BlockBuilder, BlockIndexBuilder, PlainCharBlockBuilder};
 use super::{append_one_by_one, ColumnBuilder};
-use crate::array::{Array, Utf8Array};
+use crate::array::{Array, StringArray};
 use crate::storage::secondary::block::{
     DictBlockBuilder, NullableBlockBuilder, PlainBlobBlockBuilder, RleBlockBuilder,
 };
 use crate::storage::secondary::{ColumnBuilderOptions, EncodeType};
 
-type PlainNullableCharBlockBuilder = NullableBlockBuilder<Utf8Array, PlainCharBlockBuilder>;
-type PlainNullableVarcharBlockBuilder = NullableBlockBuilder<Utf8Array, PlainBlobBlockBuilder<str>>;
+type PlainNullableCharBlockBuilder = NullableBlockBuilder<StringArray, PlainCharBlockBuilder>;
+type PlainNullableVarcharBlockBuilder =
+    NullableBlockBuilder<StringArray, PlainBlobBlockBuilder<str>>;
 
 /// All supported block builders for char types.
 pub(super) enum CharBlockBuilderImpl {
@@ -20,14 +21,14 @@ pub(super) enum CharBlockBuilderImpl {
     PlainNullableFixedChar(PlainNullableCharBlockBuilder),
     PlainVarchar(PlainBlobBlockBuilder<str>),
     PlainNullableVarchar(PlainNullableVarcharBlockBuilder),
-    RleFixedChar(RleBlockBuilder<Utf8Array, PlainCharBlockBuilder>),
-    RleNullableFixedChar(RleBlockBuilder<Utf8Array, PlainNullableCharBlockBuilder>),
-    RleVarchar(RleBlockBuilder<Utf8Array, PlainBlobBlockBuilder<str>>),
-    RleNullableVarchar(RleBlockBuilder<Utf8Array, PlainNullableVarcharBlockBuilder>),
-    DictFixedChar(DictBlockBuilder<Utf8Array, PlainCharBlockBuilder>),
-    DictNullableFixedChar(DictBlockBuilder<Utf8Array, PlainNullableCharBlockBuilder>),
-    DictVarchar(DictBlockBuilder<Utf8Array, PlainBlobBlockBuilder<str>>),
-    DictNullableVarchar(DictBlockBuilder<Utf8Array, PlainNullableVarcharBlockBuilder>),
+    RleFixedChar(RleBlockBuilder<StringArray, PlainCharBlockBuilder>),
+    RleNullableFixedChar(RleBlockBuilder<StringArray, PlainNullableCharBlockBuilder>),
+    RleVarchar(RleBlockBuilder<StringArray, PlainBlobBlockBuilder<str>>),
+    RleNullableVarchar(RleBlockBuilder<StringArray, PlainNullableVarcharBlockBuilder>),
+    DictFixedChar(DictBlockBuilder<StringArray, PlainCharBlockBuilder>),
+    DictNullableFixedChar(DictBlockBuilder<StringArray, PlainNullableCharBlockBuilder>),
+    DictVarchar(DictBlockBuilder<StringArray, PlainBlobBlockBuilder<str>>),
+    DictNullableVarchar(DictBlockBuilder<StringArray, PlainNullableVarcharBlockBuilder>),
 }
 
 macro_rules! for_all_char_block_builder_enum {
@@ -114,8 +115,8 @@ impl CharColumnBuilder {
     }
 }
 
-impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
-    fn append(&mut self, array: &Utf8Array) {
+impl ColumnBuilder<StringArray> for CharColumnBuilder {
+    fn append(&mut self, array: &StringArray) {
         let mut iter = array.iter().peekable();
 
         while iter.peek().is_some() {
@@ -126,7 +127,7 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                         let builder = PlainCharBlockBuilder::new(target_size, char_width);
                         self.current_builder =
                             Some(CharBlockBuilderImpl::RleFixedChar(RleBlockBuilder::<
-                                Utf8Array,
+                                StringArray,
                                 PlainCharBlockBuilder,
                             >::new(
                                 builder
@@ -158,7 +159,7 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                         let builder = PlainCharBlockBuilder::new(target_size, char_width);
                         self.current_builder =
                             Some(CharBlockBuilderImpl::DictFixedChar(DictBlockBuilder::<
-                                Utf8Array,
+                                StringArray,
                                 PlainCharBlockBuilder,
                             >::new(
                                 builder
@@ -177,7 +178,7 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                         let builder = PlainBlobBlockBuilder::new(target_size);
                         self.current_builder =
                             Some(CharBlockBuilderImpl::RleVarchar(RleBlockBuilder::<
-                                Utf8Array,
+                                StringArray,
                                 PlainBlobBlockBuilder<str>,
                             >::new(
                                 builder
@@ -185,7 +186,7 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                     }
                     (None, true, EncodeType::RunLength) => {
                         let nullable_builder =
-                            NullableBlockBuilder::<Utf8Array, PlainBlobBlockBuilder<str>>::new(
+                            NullableBlockBuilder::<StringArray, PlainBlobBlockBuilder<str>>::new(
                                 PlainBlobBlockBuilder::new(target_size),
                                 target_size,
                             );
@@ -210,7 +211,7 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                         let builder = PlainBlobBlockBuilder::new(target_size);
                         self.current_builder =
                             Some(CharBlockBuilderImpl::DictVarchar(DictBlockBuilder::<
-                                Utf8Array,
+                                StringArray,
                                 PlainBlobBlockBuilder<str>,
                             >::new(
                                 builder
@@ -218,7 +219,7 @@ impl ColumnBuilder<Utf8Array> for CharColumnBuilder {
                     }
                     (None, true, EncodeType::Dictionary) => {
                         let nullable_builder =
-                            NullableBlockBuilder::<Utf8Array, PlainBlobBlockBuilder<str>>::new(
+                            NullableBlockBuilder::<StringArray, PlainBlobBlockBuilder<str>>::new(
                                 PlainBlobBlockBuilder::new(target_size),
                                 target_size,
                             );
@@ -280,7 +281,7 @@ mod tests {
             ColumnBuilderOptions::default_for_block_test(),
         );
         for _ in 0..10 {
-            builder.append(&Utf8Array::from_iter(
+            builder.append(&StringArray::from_iter(
                 [Some("2333")].iter().cycle().cloned().take(item_each_block),
             ));
         }
@@ -298,7 +299,7 @@ mod tests {
             CharColumnBuilder::new(true, None, ColumnBuilderOptions::default_for_block_test());
         for _ in 0..10 {
             // `item_each_block` is 13, so will be 7 Some and 6 None entries
-            builder.append(&Utf8Array::from_iter(
+            builder.append(&StringArray::from_iter(
                 [Some("nijigaku"), None]
                     .iter()
                     .cycle()
@@ -321,7 +322,7 @@ mod tests {
             ColumnBuilderOptions::default_for_rle_block_test(),
         );
         for num in 0..(distinct_item_each_block + 1) {
-            builder.append(&Utf8Array::from_iter(
+            builder.append(&StringArray::from_iter(
                 [Some(num.to_string().as_str())]
                     .iter()
                     .cycle()
@@ -352,7 +353,7 @@ mod tests {
         // We set char width to 150, which is larger than target block size
         let width_110_char = ["2"].iter().cycle().take(150).join("");
         for _ in 0..5 {
-            builder.append(&Utf8Array::from_iter([Some(&width_110_char), None]))
+            builder.append(&StringArray::from_iter([Some(&width_110_char), None]))
         }
         let (index, _) = builder.finish();
         assert_eq!(index.len(), 10);
@@ -367,7 +368,7 @@ mod tests {
             ColumnBuilderOptions::default_for_block_test(),
         );
         for _ in 0..10 {
-            builder.append(&Utf8Array::from_iter([Some("2333")]));
+            builder.append(&StringArray::from_iter([Some("2333")]));
         }
         let (index, _) = builder.finish();
         assert_eq!(index.len(), 10);

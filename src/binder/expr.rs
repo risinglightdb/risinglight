@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use rust_decimal::Decimal;
 
@@ -19,7 +19,9 @@ impl Binder {
             Expr::BinaryOp { left, op, right } => self.bind_binary_op(*left, op, *right),
             Expr::UnaryOp { op, expr } => self.bind_unary_op(op, *expr),
             Expr::Nested(expr) => self.bind_expr(*expr),
-            Expr::Cast { expr, data_type } => self.bind_cast(*expr, data_type),
+            Expr::Cast {
+                expr, data_type, ..
+            } => self.bind_cast(*expr, data_type),
             Expr::Function(func) => self.bind_function(func),
             Expr::IsNull(expr) => self.bind_is_null(*expr),
             Expr::IsNotNull(expr) => {
@@ -45,6 +47,7 @@ impl Binder {
                 expr,
                 substring_from,
                 substring_for,
+                ..
             } => self.bind_substring(*expr, substring_from, substring_for),
             Expr::Case {
                 operand,
@@ -155,6 +158,14 @@ impl Binder {
                 })?;
                 Ok(self.egraph.add(Node::Constant(DataValue::Date(date))))
             }
+            DataType::Timestamp(_, _) => {
+                let timestamp = value.parse().map_err(|_| {
+                    BindError::CastError(DataValue::String(value.into()), DataTypeKind::Timestamp)
+                })?;
+                Ok(self
+                    .egraph
+                    .add(Node::Constant(DataValue::Timestamp(timestamp))))
+            }
             t => todo!("support typed string: {:?}", t),
         }
     }
@@ -185,7 +196,8 @@ impl Binder {
     }
 
     fn bind_interval(&mut self, interval: parser::Interval) -> Result {
-        let Expr::Value(Value::Number(v, _) | Value::SingleQuotedString(v)) = *interval.value else {
+        let Expr::Value(Value::Number(v, _) | Value::SingleQuotedString(v)) = *interval.value
+        else {
             panic!("interval value must be number or string");
         };
         let num = v.parse().expect("interval value is not a number");
@@ -301,6 +313,16 @@ impl Binder {
                 FunctionArgExpr::QualifiedWildcard(_) => todo!("support qualified wildcard"),
             }
         }
+
+        // TODO: sql udf inlining
+        let _catalog = self.catalog();
+        let Ok((_schema_name, _function_name)) = split_name(&func.name) else {
+            return Err(BindError::BindFunctionError(format!(
+                "failed to parse the function name {}",
+                func.name
+            )));
+        };
+
         let node = match func.name.to_string().to_lowercase().as_str() {
             "count" if args.is_empty() => Node::RowCount,
             "count" if func.distinct => Node::CountDistinct(args[0]),

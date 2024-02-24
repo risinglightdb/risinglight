@@ -20,7 +20,9 @@ After that, the table will be created, and the table information will be stored 
 
 ```plain
 > \dt
-| 0 | postgres | 0 | postgres | 18 | t |
+| 0 | postgres   | 0 | users        |
+| 0 | postgres   | 1 | t            |
+| 1 | pg_catalog | 0 | contributors |
 ```
 
 ## Parser
@@ -173,7 +175,7 @@ In database systems, there are a lot of logical operators. Here we list some:
 * Join: join results from two executors. For example, `select * from a inner join b`.
 * ...
 
-The logical planner will do some simple mappings from bound statements to logical plans, so as to have a basic sketch of how this query will be processed. See [`src/logical_planner`](../src/logical_planner) for more information.
+The logical planner will do some simple mappings from bound statements to logical plans, so as to have a basic sketch of how this query will be processed. See [`src/planner`](../src/planner) for more information.
 
 The example SQL will have the following logical plan, which is a simple DAG: `Projection <- Aggregate <- TableScan`.
 
@@ -249,7 +251,7 @@ Another example is the *filter scan* rule. In RisingLight, the storage layer sup
 
 The *filter scan* rule will automatically merge a filter plan node and a table scan node, apply the filter condition to the table scan node, and produce a single `TableScan` node.
 
-In a nutshell, in RisingLight, the optimizer will transform while optimizing the logical plan into a physical plan. See [`src/optimizer`](../src/optimizer) for more information. The example SQL will produce the following physical plan: `PhysicalProjection <- PhysicalHashAgg <- PhysicalTableScan`. Note that as physical nodes have almost identical information to logical nodes, we store information of logical nodes inside physical nodes as `logical` variable. Despite their existence inside physical plans, after all, the following tree only contain physical nodes.
+In a nutshell, in RisingLight, the optimizer will transform while optimizing the logical plan into a physical plan. See [`src/optimizer`](../src/planner/optimizer.rs) for more information. The example SQL will produce the following physical plan: `PhysicalProjection <- PhysicalHashAgg <- PhysicalTableScan`. Note that as physical nodes have almost identical information to logical nodes, we store information of logical nodes inside physical nodes as `logical` variable. Despite their existence inside physical plans, after all, the following tree only contain physical nodes.
 
 ```rust
 PhysicalProjection {

@@ -29,42 +29,42 @@ bytes = "1"
 chrono = { version = "0.4", features = ["clock", "std", "wasmbind"] }
 clap = { version = "4", features = ["derive"] }
 comfy-table = { version = "7", default-features = false }
-console-subscriber = "0.1"
+console-subscriber = "0.2"
 crc32fast = "1"
 csv = "1"
 dirs = "5"
 downcast-rs = "1"
 egg = { version = "0.9.5", features = ["deterministic"] }
 enum_dispatch = "0.3"
-erased-serde = "0.3"
+erased-serde = "0.4"
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
 futures-async-stream = "0.2"
 humantime = "2"
 indicatif = "0.17"
 indoc = "2"
-iter-chunks = "0.1"
-itertools = "0.11"
-minitrace = "0.4.0"
-moka = { version = "0.11", features = ["future"] }
+iter-chunks = "0.2"
+itertools = "0.12"
+minitrace = "0.4"
+moka = { version = "0.12", features = ["future"] }
 num-traits = "0.2"
-ordered-float = { version = "3", features = ["serde"] }
+ordered-float = { version = "4", features = ["serde"] }
 parking_lot = "0.12"
 parse-display = "0.8"
 paste = "1"
 pgwire = "0.15"
 pretty-xmlish = "0.1"
-prost = "0.11.0"
-pyo3 = { version = "0.19", features = ["extension-module"], optional = true }
+prost = "0.12"
+pyo3 = { version = "0.20", features = ["extension-module"], optional = true }
 ref-cast = "1.0"
 regex = "1"
 risinglight_proto = "0.2"
 rust_decimal = "1"
-rustyline = "12"
+rustyline = "13"
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 smallvec = { version = "1", features = ["serde"] }
 sqllogictest = "0.14"
-sqlparser = { version = "0.36", features = ["serde"] }
+sqlparser = { version = "0.41", features = ["serde"] }
 thiserror = "1"
 tikv-jemallocator = { version = "0.5", optional = true, features = [
     "disable_initial_exec_tls",
@@ -82,7 +82,7 @@ tempfile = "3"
 test-case = "3"
 
 [build-dependencies]
-pyo3-build-config = { version = "0.19", optional = true }
+pyo3-build-config = { version = "0.20", optional = true }
 
 [[bench]]
 harness = false

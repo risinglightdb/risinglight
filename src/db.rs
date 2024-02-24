@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::sync::{Arc, Mutex};
 
@@ -6,6 +6,7 @@ use futures::TryStreamExt;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 
 use crate::array::Chunk;
+use crate::binder::bind_header;
 use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
 use crate::parser::{parse, ParserError, Statement};
 use crate::planner::Statistics;
@@ -90,8 +91,9 @@ impl Database {
             if self.handle_set(&stmt)? {
                 continue;
             }
+
             let mut binder = crate::binder::Binder::new(self.catalog.clone());
-            let bound = binder.bind(stmt)?;
+            let bound = binder.bind(stmt.clone())?;
             let optimized = optimizer.optimize(bound);
             let executor = match self.storage.clone() {
                 StorageImpl::InMemoryStorage(s) => {
@@ -102,8 +104,8 @@ impl Database {
                 }
             };
             let output = executor.try_collect().await?;
-            let chunk = Chunk::new(output);
-            // TODO: set name
+            let mut chunk = Chunk::new(output);
+            chunk = bind_header(chunk, &stmt);
             outputs.push(chunk);
         }
         Ok(outputs)
@@ -142,7 +144,10 @@ impl Database {
 
     /// Mock the row count of a table for planner test.
     fn handle_set(&self, stmt: &Statement) -> Result<bool, Error> {
-        let Statement::SetVariable { variable, value, .. } = stmt else {
+        let Statement::SetVariable {
+            variable, value, ..
+        } = stmt
+        else {
             return Ok(false);
         };
         let Some(table_name) = variable.0[0].value.strip_prefix("mock_rowcount_") else {

@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 //! Analyze the output schema of plans.
 
@@ -14,7 +14,7 @@ pub fn analyze_schema(
     node0: impl Fn(&Id) -> Expr,
 ) -> Schema {
     use Expr::*;
-    let concat = |v1: Vec<Id>, v2: Vec<Id>| v1.into_iter().chain(v2.into_iter()).collect();
+    let concat = |v1: Vec<Id>, v2: Vec<Id>| v1.into_iter().chain(v2).collect();
     match enode {
         // equal to child
         Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) | Empty(c) => x(c),

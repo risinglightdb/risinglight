@@ -1,10 +1,10 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use futures::{future, stream};
 use pretty_xmlish::PrettyConfig;
 
 use super::*;
-use crate::array::{ArrayImpl, Utf8Array};
+use crate::array::{ArrayImpl, StringArray};
 use crate::planner::{Explain, Optimizer};
 
 /// The executor of `explain` statement.
@@ -28,8 +28,9 @@ impl ExplainExecutor {
             ..PrettyConfig::default()
         };
         config.unicode(&mut explain, &explainer);
-        let chunk =
-            DataChunk::from_iter([ArrayImpl::new_utf8(Utf8Array::from_iter([Some(explain)]))]);
+        let chunk = DataChunk::from_iter([ArrayImpl::new_string(StringArray::from_iter([Some(
+            explain,
+        )]))]);
 
         stream::once(future::ok(chunk)).boxed()
     }

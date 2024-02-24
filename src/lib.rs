@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 //! RisingLight -- an educational OLAP database.
 
@@ -10,21 +10,16 @@
 #![deny(unused_must_use)]
 #![feature(array_chunks)]
 #![feature(portable_simd)]
-#![feature(generators)]
 #![feature(error_generic_member_access)]
-#![feature(provide_any)]
-#![feature(type_alias_impl_trait)]
 #![feature(stmt_expr_attributes)]
 #![feature(proc_macro_hygiene)]
-#![feature(core_intrinsics)]
 #![feature(trusted_len)]
 #![feature(adt_const_params)]
 #![feature(lazy_cell)]
-#![feature(array_methods)]
 #![feature(iterator_try_collect)]
-#![feature(async_fn_in_trait)]
-#![feature(return_position_impl_trait_in_trait)]
 #![feature(let_chains)]
+#![feature(impl_trait_in_assoc_type)]
+#![feature(coroutines)]
 #![allow(incomplete_features)]
 
 /// Top-level structure of the database.

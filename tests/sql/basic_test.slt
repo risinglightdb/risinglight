@@ -13,6 +13,11 @@ select 100.0::DOUBLE/8.0::DOUBLE
 ----
 12.5
 
+query R
+select 100::INT/0::INT
+----
+NULL
+
 query B
 select 2>1
 ----
@@ -28,12 +33,27 @@ select DATE '2001-02-16'
 ----
 2001-02-16
 
-# FIXME: support timestamp
+query T
+SELECT EXTRACT(YEAR FROM DATE '2022-09-08') AS year,
+       EXTRACT(MONTH FROM DATE '2022-09-08') AS month,
+       EXTRACT(DAY FROM DATE '2022-09-08') AS day;
+----
+2022 9 8
 
-# query T
-# select timestamp '1999-01-08 01:00:00'
-# ----
-# 1999-01-08 01:00:00
+query T
+select timestamp '1999-01-08 01:00:00'
+----
+1999-01-08 01:00:00
+
+query T
+select timestamp '1991-01-08 04:05:06 AD';
+----
+1991-01-08 04:05:06
+
+query T
+select timestamp '1991-01-08 04:05:06 BC';
+----
+1991-01-08 04:05:06 BC
 
 subtest NullType
 

@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::hash::Hash;
 use std::num::ParseIntError;
@@ -63,7 +63,9 @@ impl DataTypeKind {
 
     /// Returns the inner types of the struct.
     pub fn as_struct(&self) -> &[DataType] {
-        let Self::Struct(types) = self else { panic!("not a struct: {self}") };
+        let Self::Struct(types) = self else {
+            panic!("not a struct: {self}")
+        };
         types
     }
 
@@ -106,7 +108,7 @@ impl From<&crate::parser::DataType> for DataTypeKind {
 
         use crate::parser::DataType::*;
         match kind {
-            Char(_) | Varchar(_) | String | Text => Self::String,
+            Char(_) | Varchar(_) | String(_) | Text => Self::String,
             Bytea | Binary(_) | Varbinary(_) | Blob(_) => Self::Blob,
             // Real => Self::Float32,
             Float(_) | Double => Self::Float64,

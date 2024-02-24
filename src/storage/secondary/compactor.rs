@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -82,11 +82,11 @@ impl Compactor {
             );
         }
 
-        let sort_key = find_sort_key_id(&table.columns);
-        let mut iter: SecondaryIterator = if let Some(sort_key) = sort_key {
+        let sort_keys = find_sort_key_id(&table.columns);
+        let mut iter: SecondaryIterator = if !sort_keys.is_empty() {
             MergeIterator::new(
                 iters.into_iter().map(|iter| iter.into()).collect_vec(),
-                vec![sort_key],
+                sort_keys,
             )
             .into()
         } else {

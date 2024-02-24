@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::ops::Bound;
 use std::sync::Arc;
@@ -220,30 +220,26 @@ impl RowSetIterator {
             }
 
             // For now, we only support range-filter scan by first column.
-            if let Some(range) = &self.filter && id == 0 {
+            if let Some(range) = &self.filter
+                && id == 0
+            {
                 let len = array.len();
                 let start_row_id = match &range.start {
-                    Bound::Included(key) => {
-                        (0..array.len()).position(|idx| &array.get(idx) >= key)
-                    }
-                    Bound::Excluded(key) => {
-                        (0..array.len()).position(|idx| &array.get(idx) > key)
-                    }
+                    Bound::Included(key) => (0..array.len()).position(|idx| &array.get(idx) >= key),
+                    Bound::Excluded(key) => (0..array.len()).position(|idx| &array.get(idx) > key),
                     Bound::Unbounded => Some(0),
                 }
                 .unwrap_or(len);
                 let end_row_id = match &range.end {
-                    Bound::Included(key) => {
-                        (0..array.len()).position(|idx| &array.get(idx) > key)
-                    }
-                    Bound::Excluded(key) => {
-                        (0..array.len()).position(|idx| &array.get(idx) >= key)
-                    }
+                    Bound::Included(key) => (0..array.len()).position(|idx| &array.get(idx) > key),
+                    Bound::Excluded(key) => (0..array.len()).position(|idx| &array.get(idx) >= key),
                     Bound::Unbounded => None,
                 }
                 .unwrap_or(len);
                 if (start_row_id..end_row_id) != (0..len) {
-                    let bitmap = (0..len).map(|i| (start_row_id..end_row_id).contains(&i)).collect();
+                    let bitmap = (0..len)
+                        .map(|i| (start_row_id..end_row_id).contains(&i))
+                        .collect();
                     if let Some(ref mut vis) = visibility_map {
                         *vis &= bitmap;
                     } else {

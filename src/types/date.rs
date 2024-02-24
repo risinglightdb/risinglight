@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
@@ -29,6 +29,14 @@ impl Date {
     pub fn year(&self) -> i32 {
         let date = NaiveDate::from_num_days_from_ce_opt(self.0 + UNIX_EPOCH_DAYS).unwrap();
         date.year()
+    }
+    pub fn month(&self) -> i32 {
+        let date = NaiveDate::from_num_days_from_ce_opt(self.0 + UNIX_EPOCH_DAYS).unwrap();
+        date.month() as i32
+    }
+    pub fn day(&self) -> i32 {
+        let date = NaiveDate::from_num_days_from_ce_opt(self.0 + UNIX_EPOCH_DAYS).unwrap();
+        date.day() as i32
     }
 }
 

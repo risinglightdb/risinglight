@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::vec::Vec;
 
@@ -70,7 +70,9 @@ impl Binder {
                 subquery, alias, ..
             } => {
                 let (id, ctx) = self.bind_query(*subquery)?;
-                if let Some(alias) = &alias && !alias.columns.is_empty() {
+                if let Some(alias) = &alias
+                    && !alias.columns.is_empty()
+                {
                     // 'as t(a, b, ..)'
                     let table_name = &alias.name.value;
                     for (column, id) in alias.columns.iter().zip(self.schema(id)) {
@@ -214,7 +216,7 @@ impl Binder {
             table.all_columns().keys().cloned().collect_vec()
         } else {
             let mut ids = vec![];
-            for col in columns.iter() {
+            for col in columns {
                 let col_name = col.value.to_lowercase();
                 let col = table
                     .get_column_by_name(&col_name)

@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::convert::TryFrom;
 use std::fmt::Debug;
@@ -15,16 +15,16 @@ use crate::types::{
     F32, F64,
 };
 
+mod bytes_array;
 mod data_chunk;
 mod data_chunk_builder;
 pub mod ops;
 mod primitive_array;
-mod utf8_array;
 
+pub use self::bytes_array::*;
 pub use self::data_chunk::*;
 pub use self::data_chunk_builder::*;
 pub use self::primitive_array::*;
-pub use self::utf8_array::*;
 
 mod internal_ext;
 
@@ -39,7 +39,7 @@ pub use shuffle_ext::*;
 /// `ArrayBuilder` is a trait over all builders. You could build an array with
 /// `push` with the help of `ArrayBuilder` trait. The `push` function always
 /// accepts reference to an element. e.g. for `PrimitiveArray`,
-/// you must do `builder.push(Some(&1))`. For `Utf8Array`, you must do
+/// you must do `builder.push(Some(&1))`. For `StringArray`, you must do
 /// `builder.push(Some("xxx"))`. Note that you don't need to construct a `String`.
 ///
 /// The associated type `Array` is the type of the corresponding array. It is the
@@ -93,7 +93,7 @@ pub trait ArrayBuilder: Sized + Send + Sync + 'static {
 /// The `Builder` associated type is the builder for this array.
 /// The `Item` is the item you could retrieve from this array.
 ///
-/// For example, `PrimitiveArray` could return an `Option<&u32>`, and `Utf8Array` will
+/// For example, `PrimitiveArray` could return an `Option<&u32>`, and `StringArray` will
 /// return an `Option<&str>`.
 pub trait Array: Sized + Send + Sync + 'static {
     /// Corresponding builder of this array.
@@ -198,7 +198,7 @@ pub enum ArrayImpl {
     Int64(Arc<I64Array>),
     // Float32(PrimitiveArray<f32>),
     Float64(Arc<F64Array>),
-    Utf8(Arc<Utf8Array>),
+    String(Arc<StringArray>),
     Blob(Arc<BlobArray>),
     Decimal(Arc<DecimalArray>),
     Date(Arc<DateArray>),
@@ -229,7 +229,7 @@ pub enum ArrayBuilderImpl {
     Int64(I64ArrayBuilder),
     // Float32(PrimitiveArrayBuilder<f32>),
     Float64(F64ArrayBuilder),
-    Utf8(Utf8ArrayBuilder),
+    String(StringArrayBuilder),
     Blob(BlobArrayBuilder),
     Decimal(DecimalArrayBuilder),
     Date(DateArrayBuilder),
@@ -262,7 +262,7 @@ macro_rules! for_all_variants {
             { Timestamp, Timestamp, timestamp, TimestampArray, TimestampArrayBuilder, Timestamp, Timestamp },
             { TimestampTz, TimestampTz, timestamp_tz, TimestampTzArray, TimestampTzArrayBuilder, TimestampTz, TimestampTz },
             { Interval, Interval, interval, IntervalArray, IntervalArrayBuilder, Interval, Interval },
-            { Utf8, str, utf8, Utf8Array, Utf8ArrayBuilder, String, String },
+            { String, str, string, StringArray, StringArrayBuilder, String, String },
             { Blob, BlobRef, blob, BlobArray, BlobArrayBuilder, Blob, Blob }
         }
     };
@@ -283,7 +283,7 @@ macro_rules! for_all_variants_without_null {
             { Timestamp, Timestamp, timestamp, TimestampArray, TimestampArrayBuilder, Timestamp, Timestamp },
             { TimestampTz, TimestampTz, timestamp_tz, TimestampTzArray, TimestampTzArrayBuilder, TimestampTz, TimestampTz },
             { Interval, Interval, interval, IntervalArray, IntervalArrayBuilder, Interval, Interval },
-            { Utf8, str, utf8, Utf8Array, Utf8ArrayBuilder, String, String },
+            { String, str, string, StringArray, StringArrayBuilder, String, String },
             { Blob, BlobRef, blob, BlobArray, BlobArrayBuilder, Blob, Blob }
         }
     };
@@ -486,7 +486,7 @@ impl ArrayBuilderImpl {
             Self::Int32(a) if null => a.push(None),
             Self::Int64(a) if null => a.push(None),
             Self::Float64(a) if null => a.push(None),
-            Self::Utf8(a) if null => a.push(None),
+            Self::String(a) if null => a.push(None),
             Self::Blob(a) if null => a.push(None),
             Self::Decimal(a) if null => a.push(None),
             Self::Date(a) if null => a.push(None),
@@ -513,7 +513,7 @@ impl ArrayBuilderImpl {
                 &s.parse::<F64>()
                     .map_err(|e| ConvertError::ParseFloat(s.to_string(), e))?,
             )),
-            Self::Utf8(a) => a.push(Some(s)),
+            Self::String(a) => a.push(Some(s)),
             Self::Blob(a) => a.push(Some(
                 &s.parse::<Blob>()
                     .map_err(|e| ConvertError::ParseBlob(s.to_string(), e))?,
@@ -650,7 +650,7 @@ impl From<&DataValue> for ArrayImpl {
             &DataValue::Int32(v) => Self::new_int32([v].into_iter().collect()),
             &DataValue::Int64(v) => Self::new_int64([v].into_iter().collect()),
             &DataValue::Float64(v) => Self::new_float64([v].into_iter().collect()),
-            DataValue::String(v) => Self::new_utf8([Some(v)].into_iter().collect()),
+            DataValue::String(v) => Self::new_string([Some(v)].into_iter().collect()),
             DataValue::Blob(v) => Self::new_blob([Some(v)].into_iter().collect()),
             &DataValue::Decimal(v) => Self::new_decimal([v].into_iter().collect()),
             &DataValue::Date(v) => Self::new_date([v].into_iter().collect()),

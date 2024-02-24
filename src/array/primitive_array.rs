@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::borrow::Borrow;
 use std::iter::FromIterator;
@@ -199,7 +199,6 @@ impl PrimitiveArray<Decimal> {
 }
 
 pub fn clear_null(mut array: BoolArray) -> BoolArray {
-    use std::simd::ToBitMask;
     let mut valid = Vec::with_capacity(array.valid.as_raw_slice().len() * 64);
     for &bitmask in array.valid.as_raw_slice() {
         let chunk = std::simd::Mask::<i8, 64>::from_bitmask(bitmask as u64).to_array();

@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::{BlockIndex, BlockStatistics};
@@ -49,7 +49,7 @@ impl BlockIndexBuilder {
             length: block_data.len() as u64 + BLOCK_META_SIZE as u64,
             first_rowid: self.last_row_count as u32,
             row_count: (self.row_count - self.last_row_count) as u32,
-            /// TODO(chi): support sort key
+            // TODO(chi): support sort key
             is_first_key_null: first_key.is_none(),
             first_key: first_key.unwrap_or_default(),
             stats,

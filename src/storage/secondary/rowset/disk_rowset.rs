@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -6,8 +6,7 @@ use std::sync::{Arc, Mutex};
 use bytes::Bytes;
 use itertools::Itertools;
 use moka::future::Cache;
-use tokio::fs::OpenOptions;
-use tokio::io::AsyncReadExt;
+use tokio::fs::{read, OpenOptions};
 
 use super::super::{Block, BlockCacheKey, Column, ColumnIndex, ColumnSeekPosition, IOBackend};
 use super::{path_of_data_column, path_of_index_column, RowSetIterator};
@@ -42,15 +41,8 @@ impl DiskRowset {
 
             let index_content = match &io_backend {
                 IOBackend::NormalRead | IOBackend::PositionedRead => {
-                    let mut index = OpenOptions::default()
-                        .read(true)
-                        .write(false)
-                        .open(path_of_index_column)
-                        .await?;
-
                     // TODO(chi): add an index cache later
-                    let mut index_content = vec![];
-                    index.read_to_end(&mut index_content).await?;
+                    let index_content = read(&path_of_index_column).await?;
                     Bytes::from(index_content)
                 }
                 IOBackend::InMemory(map) => {

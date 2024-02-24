@@ -1,9 +1,9 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use itertools::Itertools;
 
 use super::{Block, BlockIterator, NonNullableBlockIterator};
-use crate::array::{ArrayBuilder, Utf8Array, Utf8ArrayBuilder};
+use crate::array::{ArrayBuilder, StringArray, StringArrayBuilder};
 
 /// Scans one or several arrays from the block content.
 pub struct PlainCharBlockIterator {
@@ -31,11 +31,11 @@ impl PlainCharBlockIterator {
     }
 }
 
-impl NonNullableBlockIterator<Utf8Array> for PlainCharBlockIterator {
+impl NonNullableBlockIterator<StringArray> for PlainCharBlockIterator {
     fn next_batch_non_null(
         &mut self,
         expected_size: Option<usize>,
-        builder: &mut <Utf8Array as crate::array::Array>::Builder,
+        builder: &mut <StringArray as crate::array::Array>::Builder,
     ) -> usize {
         if self.next_row >= self.row_count {
             return 0;
@@ -78,11 +78,11 @@ impl NonNullableBlockIterator<Utf8Array> for PlainCharBlockIterator {
     }
 }
 
-impl BlockIterator<Utf8Array> for PlainCharBlockIterator {
+impl BlockIterator<StringArray> for PlainCharBlockIterator {
     fn next_batch(
         &mut self,
         expected_size: Option<usize>,
-        builder: &mut Utf8ArrayBuilder,
+        builder: &mut StringArrayBuilder,
     ) -> usize {
         self.next_batch_non_null(expected_size, builder)
     }
@@ -101,7 +101,7 @@ mod tests {
     use bytes::Bytes;
 
     use super::*;
-    use crate::array::{ArrayBuilder, ArrayToVecExt, Utf8ArrayBuilder};
+    use crate::array::{ArrayBuilder, ArrayToVecExt, StringArrayBuilder};
     use crate::storage::secondary::block::{BlockBuilder, PlainCharBlockBuilder};
     use crate::storage::secondary::BlockIterator;
 
@@ -118,7 +118,7 @@ mod tests {
 
         let mut scanner = PlainCharBlockIterator::new(Bytes::from(data), 4, 20);
 
-        let mut builder = Utf8ArrayBuilder::new();
+        let mut builder = StringArrayBuilder::new();
 
         scanner.skip(1);
         assert_eq!(scanner.remaining_items(), 3);
@@ -126,15 +126,15 @@ mod tests {
         assert_eq!(scanner.next_batch(Some(1), &mut builder), 1);
         assert_eq!(builder.finish().to_vec(), vec![Some("2333".to_string())]);
 
-        let mut builder = Utf8ArrayBuilder::new();
+        let mut builder = StringArrayBuilder::new();
         assert_eq!(scanner.next_batch(Some(1), &mut builder), 1);
         assert_eq!(builder.finish().to_vec(), vec![Some("23333".to_string())]);
 
-        let mut builder = Utf8ArrayBuilder::new();
+        let mut builder = StringArrayBuilder::new();
         assert_eq!(scanner.next_batch(Some(2), &mut builder), 1);
         assert_eq!(builder.finish().to_vec(), vec![Some(width_20_char)]);
 
-        let mut builder = Utf8ArrayBuilder::new();
+        let mut builder = StringArrayBuilder::new();
         assert_eq!(scanner.next_batch(None, &mut builder), 0);
     }
 }

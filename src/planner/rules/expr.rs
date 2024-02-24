@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 //! Expression simplification rules and constant folding.
 
@@ -210,5 +210,11 @@ mod tests {
         constant_type_cast,
         rules(),
         "(cast BOOLEAN 1)" => "true",
+    }
+
+    egg::test_fn! {
+        constant_type_isnull,
+        rules(),
+        "(isnull 1)" => "false",
     }
 }

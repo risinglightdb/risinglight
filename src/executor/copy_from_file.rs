@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fs::File;
 use std::io::BufReader;
@@ -152,7 +152,7 @@ mod tests {
         let expected: DataChunk = [
             ArrayImpl::new_int32([1, 2].into_iter().collect()),
             ArrayImpl::new_float64([1.5, 2.5].into_iter().collect()),
-            ArrayImpl::new_utf8(["one", "two"].iter().map(Some).collect()),
+            ArrayImpl::new_string(["one", "two"].iter().map(Some).collect()),
         ]
         .into_iter()
         .collect();

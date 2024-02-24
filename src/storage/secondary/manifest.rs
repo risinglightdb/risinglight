@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 //! Basic serialization implementation of `RisingLight`.
 //!
@@ -205,7 +205,7 @@ impl SecondaryStorage {
                 schema_id,
                 table_name.clone(),
                 column_descs.to_vec(),
-                ordered_pk_ids,
+                ordered_pk_ids.clone(),
             )
             .map_err(|_| TracedStorageError::duplicated("table", table_name))?;
 
@@ -221,6 +221,7 @@ impl SecondaryStorage {
             self.version.clone(),
             self.block_cache.clone(),
             self.txn_mgr.clone(),
+            ordered_pk_ids,
         );
         self.tables.write().insert(id, table);
 

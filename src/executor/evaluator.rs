@@ -1,4 +1,4 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 //! Apply expressions on data chunks.
 
@@ -83,7 +83,9 @@ impl<'a> Evaluator<'a> {
             },
             Extract([field, a]) => {
                 let a = self.next(*a).eval(chunk)?;
-                let Expr::Field(field) = self.expr[*field] else { panic!("not a field") };
+                let Expr::Field(field) = self.expr[*field] else {
+                    panic!("not a field")
+                };
                 a.extract(field)
             }
             Substring([str, start, length]) => {

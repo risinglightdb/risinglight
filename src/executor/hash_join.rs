@@ -1,6 +1,7 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::collections::{HashMap, HashSet};
+use std::marker::ConstParamTy;
 use std::vec::Vec;
 
 use smallvec::SmallVec;
@@ -18,7 +19,7 @@ pub struct HashJoinExecutor<const T: JoinType> {
 }
 
 /// Join types for generating join code during the compilation.
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, ConstParamTy)]
 pub enum JoinType {
     Inner,
     LeftOuter,
@@ -180,7 +181,8 @@ impl HashSemiJoinExecutor2 {
                 let b = if let Some(rchunk) = key_set.get(&key.values().collect::<JoinKeys>()) {
                     let lchunk = self.left_row_to_chunk(&lrow, rchunk.cardinality());
                     let join_chunk = lchunk.row_concat(rchunk.clone());
-                    let ArrayImpl::Bool(a) = Evaluator::new(&self.condition).eval(&join_chunk)? else {
+                    let ArrayImpl::Bool(a) = Evaluator::new(&self.condition).eval(&join_chunk)?
+                    else {
                         panic!("join condition should return bool");
                     };
                     a.true_array().iter().any(|b| *b)

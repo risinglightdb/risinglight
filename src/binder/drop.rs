@@ -1,3 +1,5 @@
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use super::*;
 
 impl Binder {
@@ -29,24 +31,5 @@ impl Binder {
         let list = self.egraph.add(Node::List(table_ids.into()));
         let drop = self.egraph.add(Node::Drop(list));
         Ok(drop)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-
-    use crate::catalog::RootCatalog;
-    use crate::parser::parse;
-
-    #[test]
-    fn bind_drop_table() {
-        let catalog = Arc::new(RootCatalog::new());
-        catalog
-            .add_table(0, "mytable".into(), vec![], vec![])
-            .unwrap();
-
-        let stmts = parse("drop table mytable").unwrap();
-        println!("{:?}", stmts)
     }
 }
