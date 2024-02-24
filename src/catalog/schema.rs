@@ -94,6 +94,7 @@ impl SchemaCatalog {
         &mut self,
         name: String,
         arg_types: Vec<DataType>,
+        arg_names: Vec<String>,
         return_type: DataType,
         language: String,
         body: String,
@@ -103,6 +104,7 @@ impl SchemaCatalog {
             Arc::new(FunctionCatalog {
                 name: name.clone(),
                 arg_types,
+                arg_names,
                 return_type,
                 language,
                 body,

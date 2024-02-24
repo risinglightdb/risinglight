@@ -110,11 +110,13 @@ impl RootCatalog {
         schema.get_function_by_name(function_name)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_function(
         &self,
         schema_name: String,
         name: String,
         arg_types: Vec<DataType>,
+        arg_names: Vec<String>,
         return_type: DataType,
         language: String,
         body: String,
@@ -122,7 +124,7 @@ impl RootCatalog {
         let schema_idx = self.get_schema_id_by_name(&schema_name).unwrap();
         let mut inner = self.inner.lock().unwrap();
         let schema = inner.schemas.get_mut(&schema_idx).unwrap();
-        schema.create_function(name, arg_types, return_type, language, body);
+        schema.create_function(name, arg_types, arg_names, return_type, language, body);
     }
 }
 
