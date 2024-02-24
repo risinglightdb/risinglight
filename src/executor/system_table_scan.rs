@@ -25,7 +25,7 @@ impl<S: Storage> SystemTableScan<S> {
         assert_eq!(self.columns.len(), table.all_columns().len());
 
         yield match table.name() {
-            "contributor" => contributors(),
+            "contributors" => contributors(),
             "pg_tables" => pg_tables(self.catalog),
             "pg_attribute" => pg_attribute(self.catalog),
             "pg_stat" => pg_stat(self.catalog, &*self.storage).await?,
