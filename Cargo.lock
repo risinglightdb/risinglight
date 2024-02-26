@@ -172,17 +172,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "atty"
-version = "0.2.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
-dependencies = [
- "hermit-abi 0.1.19",
- "libc",
- "winapi",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -508,29 +497,12 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.2.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ea181bf566f71cb9a5d17a59e1871af638180a18fb0035c92ae62b705207123"
-dependencies = [
- "atty",
- "bitflags 1.3.2",
- "clap_derive 3.2.25",
- "clap_lex 0.2.4",
- "indexmap 1.9.3",
- "once_cell",
- "strsim 0.10.0",
- "termcolor",
- "textwrap",
-]
-
-[[package]]
-name = "clap"
 version = "4.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80c21025abd42669a92efc996ef13cfb2c5c627858421ea58d5c3b331a6c134f"
 dependencies = [
  "clap_builder",
- "clap_derive 4.5.0",
+ "clap_derive",
 ]
 
 [[package]]
@@ -541,21 +513,8 @@ checksum = "458bf1f341769dfcf849846f65dffdf9146daa56bcd2a47cb4e1de9915567c99"
 dependencies = [
  "anstream",
  "anstyle",
- "clap_lex 0.7.0",
- "strsim 0.11.0",
-]
-
-[[package]]
-name = "clap_derive"
-version = "3.2.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae6371b8bdc8b7d3959e9cf7b22d4435ef3e79e138688421ec654acf8c81b008"
-dependencies = [
- "heck",
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
+ "clap_lex",
+ "strsim",
 ]
 
 [[package]]
@@ -568,15 +527,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.49",
-]
-
-[[package]]
-name = "clap_lex"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
-dependencies = [
- "os_str_bytes",
 ]
 
 [[package]]
@@ -717,7 +667,7 @@ dependencies = [
  "anes",
  "cast",
  "ciborium",
- "clap 4.5.0",
+ "clap",
  "criterion-plot",
  "futures",
  "is-terminal",
@@ -1328,15 +1278,6 @@ checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
-dependencies = [
- "libc",
-]
-
-[[package]]
-name = "hermit-abi"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd5256b483761cd23699d0da46cc6fd2ee3be420bbe6d020ae4a091e70b7e9fd"
@@ -1518,7 +1459,7 @@ version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f23ff5ef2b80d608d61efee834934d862cd92461afc0560dedf493e4c033738b"
 dependencies = [
- "hermit-abi 0.3.6",
+ "hermit-abi",
  "libc",
  "windows-sys 0.52.0",
 ]
@@ -1596,22 +1537,11 @@ dependencies = [
 
 [[package]]
 name = "libtest-mimic"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79529479c298f5af41375b0c1a77ef670d450b4c9cd7949d2b43af08121b20ec"
-dependencies = [
- "clap 3.2.25",
- "termcolor",
- "threadpool",
-]
-
-[[package]]
-name = "libtest-mimic"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6d8de370f98a6cb8a4606618e53e802f93b094ddec0f96988eaec2c27e6e9ce7"
 dependencies = [
- "clap 4.5.0",
+ "clap",
  "termcolor",
  "threadpool",
 ]
@@ -1622,7 +1552,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f0f4c6f44ecfd52e8b443f2ad18f2b996540135771561283c2352ce56a1c70b"
 dependencies = [
- "clap 4.5.0",
+ "clap",
  "escape8259",
  "termcolor",
  "threadpool",
@@ -1876,7 +1806,7 @@ version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4161fcb6d602d4d2081af7c3a45852d875a03dd337a6bfdd6e06407b61342a43"
 dependencies = [
- "hermit-abi 0.3.6",
+ "hermit-abi",
  "libc",
 ]
 
@@ -1923,12 +1853,6 @@ dependencies = [
  "rand",
  "serde",
 ]
-
-[[package]]
-name = "os_str_bytes"
-version = "6.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2355d85b9a3786f481747ced0e0ff2ba35213a1f9bd406ed906554d7af805a1"
 
 [[package]]
 name = "overload"
@@ -2606,7 +2530,7 @@ dependencies = [
  "btreemultimap",
  "bytes",
  "chrono",
- "clap 4.5.0",
+ "clap",
  "comfy-table",
  "console-subscriber",
  "crc32fast",
@@ -3031,14 +2955,15 @@ dependencies = [
 [[package]]
 name = "sqlplannertest"
 version = "0.1.0"
-source = "git+https://github.com/risinglightdb/sqlplannertest-rs#3f92e1d7af3894f9a7fd319bb5b1757c748b4125"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca53611e63d1376360583b1f0b2816b4e86537529558903c8361d11c2f9d1d46"
 dependencies = [
  "anyhow",
  "async-trait",
  "console",
  "futures-util",
  "glob",
- "libtest-mimic 0.5.2",
+ "libtest-mimic 0.7.0",
  "serde",
  "serde_yaml",
  "similar",
@@ -3055,12 +2980,6 @@ dependencies = [
  "unicode-bidi",
  "unicode-normalization",
 ]
-
-[[package]]
-name = "strsim"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "strsim"
@@ -3243,12 +3162,6 @@ dependencies = [
  "syn 2.0.49",
  "test-case-core",
 ]
-
-[[package]]
-name = "textwrap"
-version = "0.16.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23d434d3f8967a09480fb04132ebe0a3e088c173e6d0ee7897abbdf4eab0f8b9"
 
 [[package]]
 name = "thiserror"

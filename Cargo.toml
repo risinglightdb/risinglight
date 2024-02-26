@@ -79,7 +79,7 @@ tracing-subscriber = { version = "0.3", features = [
 criterion = { version = "0.5", features = ["async_tokio"] }
 glob = "0.3"
 libtest-mimic = "0.7"
-sqlplannertest = { git = "https://github.com/risinglightdb/sqlplannertest-rs" }
+sqlplannertest = "0.1"
 tempfile = "3"
 test-case = "3"
 
