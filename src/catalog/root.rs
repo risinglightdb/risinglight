@@ -222,11 +222,15 @@ mod tests {
     #[test]
     fn test_root_catalog() {
         let catalog = Arc::new(RootCatalog::new());
-        let schema_catalog1 = catalog.get_schema_by_id(RootCatalog::SYSTEM_SCHEMA_ID).unwrap();
+        let schema_catalog1 = catalog
+            .get_schema_by_id(RootCatalog::SYSTEM_SCHEMA_ID)
+            .unwrap();
         assert_eq!(schema_catalog1.id(), 0);
         assert_eq!(schema_catalog1.name(), RootCatalog::SYSTEM_SCHEMA_NAME);
 
-        let schema_catalog2 = catalog.get_schema_by_name(RootCatalog::DEFAULT_SCHEMA_NAME).unwrap();
+        let schema_catalog2 = catalog
+            .get_schema_by_name(RootCatalog::DEFAULT_SCHEMA_NAME)
+            .unwrap();
         assert_eq!(schema_catalog2.id(), 1);
         assert_eq!(schema_catalog2.name(), RootCatalog::DEFAULT_SCHEMA_NAME);
 
