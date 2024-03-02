@@ -18,7 +18,8 @@ impl Binder {
             Expr::Value(v) => {
                 // This is okay since only sql udf relies on parameter-like (i.e., `$1`)
                 // values at present
-                // TODO: consider formally `bind_parameter` in the future (e.g., lambda function support, etc.)
+                // TODO: consider formally `bind_parameter` in the future (e.g., lambda function
+                // support, etc.)
                 if let Value::Placeholder(key) = v {
                     self.udf_context
                         .get_expr(&key)
@@ -26,7 +27,7 @@ impl Binder {
                 } else {
                     Ok(self.egraph.add(Node::Constant(v.into())))
                 }
-            },
+            }
             Expr::Identifier(ident) => self.bind_ident([ident]),
             Expr::CompoundIdentifier(idents) => self.bind_ident(idents),
             Expr::BinaryOp { left, op, right } => self.bind_binary_op(*left, op, *right),
