@@ -15,7 +15,18 @@ impl Binder {
     /// Bind an expression.
     pub fn bind_expr(&mut self, expr: Expr) -> Result {
         let id = match expr {
-            Expr::Value(v) => Ok(self.egraph.add(Node::Constant(v.into()))),
+            Expr::Value(v) => {
+                // This is okay since only sql udf relies on parameter-like (i.e., `$1`)
+                // values at present
+                // TODO: consider formally `bind_parameter` in the future (e.g., lambda function support, etc.)
+                if let Value::Placeholder(key) = v {
+                    self.udf_context
+                        .get_expr(&key)
+                        .map_or_else(|| Err(BindError::InvalidSQL), |&e| Ok(e))
+                } else {
+                    Ok(self.egraph.add(Node::Constant(v.into())))
+                }
+            },
             Expr::Identifier(ident) => self.bind_ident([ident]),
             Expr::CompoundIdentifier(idents) => self.bind_ident(idents),
             Expr::BinaryOp { left, op, right } => self.bind_binary_op(*left, op, *right),

@@ -202,7 +202,7 @@ impl UdfContext {
                             return Err(BindError::InvalidExpression("invalid syntax".to_string()));
                         };
                         if catalog.arg_names[i].is_empty() {
-                            todo!("anonymous parameters not yet supported");
+                            ret.insert(format!("${}", i + 1), e.clone());
                         } else {
                             // The index mapping here is accurate
                             // So that we could directly use the index
