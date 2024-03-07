@@ -1,6 +1,8 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use reqwest::Client;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
+use serde::Deserialize;
 
 use super::*;
 use crate::array::*;
@@ -25,7 +27,7 @@ impl<S: Storage> SystemTableScan<S> {
         assert_eq!(self.columns.len(), table.all_columns().len());
 
         yield match table.name() {
-            "contributors" => contributors(),
+            "contributors" => contributors().await?,
             "pg_tables" => pg_tables(self.catalog),
             "pg_attribute" => pg_attribute(self.catalog),
             "pg_stat" => pg_stat(self.catalog, &*self.storage).await?,
@@ -34,74 +36,27 @@ impl<S: Storage> SystemTableScan<S> {
     }
 }
 
-// TODO: find a better way to maintain the contributors list instead of hard-coding, and get total
-// contributors when contributors is more than 100. (per_page max is 100)
-// update this funciton with `curl https://api.github.com/repos/risinglightdb/risinglight/contributors?per_page=100 | jq ".[].login"`
-fn contributors() -> DataChunk {
-    let contributors = vec![
-        "skyzh",
-        "wangrunji0408",
-        "MingjiHan99",
-        "pleiadesian",
-        "TennyZhuang",
-        "xxchan",
-        "st1page",
-        "caicancai",
-        "Fedomn",
-        "arkbriar",
-        "likg227",
-        "lokax",
-        "zzl200012",
-        "unconsolable",
-        "BaymaxHWY",
-        "alissa-tung",
-        "ludics",
-        "Sunt-ing",
-        "yinfredyue",
-        "xiaoyong-z",
-        "Kikkon",
-        "D2Lark",
-        "xzhseh",
-        "ice1000",
-        "kwannoel",
-        "GoGim1",
-        "eliasyaoyc",
-        "wangqiim",
-        "silver-ymz",
-        "adlternative",
-        "yingjunwu",
-        "chaixuqing",
-        "WindowsXp-Beta",
-        "tabVersion",
-        "SkyFan2002",
-        "FANNG1",
-        "XieJiann",
-        "yuzi-neko",
-        "xinchengxx",
-        "sundy-li",
-        "nanderstabel",
-        "jetjinser",
-        "cadl",
-        "Gun9niR",
-        "zehaowei",
-        "rapiz1",
-        "LiuYuHui",
-        "Ted-Jiang",
-        "Y7n05h",
-        "RinChanNOWWW",
-        "noneback",
-        "chowc",
-        "xiaguan",
-        "JayiceZ",
-        "danipozo",
-        "PsiACE",
-        "yeya24",
-    ];
-    [ArrayImpl::new_string(StringArray::from_iter(
-        contributors.iter().map(|s| Some(*s)).sorted(),
+#[allow(clippy::doc_markdown)]
+/// Get contributors from GitHub.
+async fn contributors() -> Result<DataChunk, ExecutorError> {
+    #[derive(Deserialize)]
+    struct User {
+        login: String,
+    }
+    let client = Client::new();
+    let response = client
+        .get("https://api.github.com/repos/risinglightdb/risinglight/contributors?per_page=100")
+        // Github API requires a User-Agent header
+        .header("User-Agent", "RisingLight")
+        .send()
+        .await?;
+    let contributors = response.json::<Vec<User>>().await?;
+
+    Ok([ArrayImpl::new_string(StringArray::from_iter(
+        contributors.iter().map(|s| Some(&s.login)),
     ))]
     .into_iter()
-    .collect()
+    .collect())
 }
 
 /// Returns `pg_tables` table.
