@@ -1,6 +1,8 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use rust_decimal::Decimal;
+use sqlparser::dialect::GenericDialect;
+use sqlparser::parser::Parser;
 
 use super::*;
 use crate::parser::{
@@ -13,7 +15,19 @@ impl Binder {
     /// Bind an expression.
     pub fn bind_expr(&mut self, expr: Expr) -> Result {
         let id = match expr {
-            Expr::Value(v) => Ok(self.egraph.add(Node::Constant(v.into()))),
+            Expr::Value(v) => {
+                // This is okay since only sql udf relies on
+                // parameter-like (i.e., `$1`) values at present
+                // TODO: consider formally `bind_parameter` in the future
+                // e.g., lambda function support, etc.
+                if let Value::Placeholder(key) = v {
+                    self.udf_context
+                        .get_expr(&key)
+                        .map_or_else(|| Err(BindError::InvalidSQL), |&e| Ok(e))
+                } else {
+                    Ok(self.egraph.add(Node::Constant(v.into())))
+                }
+            }
             Expr::Identifier(ident) => self.bind_ident([ident]),
             Expr::CompoundIdentifier(idents) => self.bind_ident(idents),
             Expr::BinaryOp { left, op, right } => self.bind_binary_op(*left, op, *right),
@@ -93,6 +107,12 @@ impl Binder {
             [schema, table, column] => (Some(&schema.value), Some(&table.value), &column.value),
             _ => return Err(BindError::InvalidTableName(idents)),
         };
+
+        // Special check for sql udf
+        if let Some(id) = self.udf_context.get_expr(column_name) {
+            return Ok(*id);
+        }
+
         self.find_alias(column_name, table_name.map(|s| s.as_str()))
     }
 
@@ -297,7 +317,7 @@ impl Binder {
 
     fn bind_function(&mut self, func: Function) -> Result {
         let mut args = vec![];
-        for arg in func.args {
+        for arg in func.args.clone() {
             // ignore argument name
             let arg = match arg {
                 FunctionArg::Named { arg, .. } => arg,
@@ -314,14 +334,68 @@ impl Binder {
             }
         }
 
-        // TODO: sql udf inlining
-        let _catalog = self.catalog();
-        let Ok((_schema_name, _function_name)) = split_name(&func.name) else {
+        let catalog = self.catalog();
+        let Ok((schema_name, function_name)) = split_name(&func.name) else {
             return Err(BindError::BindFunctionError(format!(
                 "failed to parse the function name {}",
                 func.name
             )));
         };
+
+        // See if the input function is sql udf
+        if let Some(ref function_catalog) = catalog.get_function_by_name(schema_name, function_name)
+        {
+            // Create the brand new `udf_context`
+            let Ok(context) =
+                UdfContext::create_udf_context(func.args.as_slice(), function_catalog)
+            else {
+                return Err(BindError::InvalidExpression(
+                    "failed to create udf context".to_string(),
+                ));
+            };
+
+            let mut udf_context = HashMap::new();
+            // Bind each expression in the newly created `udf_context`
+            for (c, e) in context {
+                let Ok(e) = self.bind_expr(e) else {
+                    return Err(BindError::BindFunctionError(
+                        "failed to bind arguments within the given sql udf".to_string(),
+                    ));
+                };
+                udf_context.insert(c, e);
+            }
+
+            // Parse the sql body using `function_catalog`
+            let dialect = GenericDialect {};
+            let Ok(ast) = Parser::parse_sql(&dialect, &function_catalog.body) else {
+                return Err(BindError::InvalidSQL);
+            };
+
+            // Extract the corresponding udf expression out from `ast`
+            let Ok(expr) = UdfContext::extract_udf_expression(ast) else {
+                return Err(BindError::InvalidExpression(
+                    "failed to bind the sql udf expression".to_string(),
+                ));
+            };
+
+            let stashed_udf_context = self.udf_context.get_context();
+
+            // Update the `udf_context` in `Binder` before binding
+            self.udf_context.update_context(udf_context);
+
+            // Bind the expression in sql udf body
+            let Ok(bind_result) = self.bind_expr(expr) else {
+                return Err(BindError::InvalidExpression(
+                    "failed to bind the expression".to_string(),
+                ));
+            };
+
+            // Restore the context after binding
+            // to avoid affecting the potential subsequent binding(s)
+            self.udf_context.update_context(stashed_udf_context);
+
+            return Ok(bind_result);
+        }
 
         let node = match func.name.to_string().to_lowercase().as_str() {
             "count" if args.is_empty() => Node::RowCount,

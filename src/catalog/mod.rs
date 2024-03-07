@@ -12,7 +12,7 @@ pub use self::table::*;
 use crate::types::*;
 
 mod column;
-mod function;
+pub mod function;
 mod root;
 mod schema;
 mod table;

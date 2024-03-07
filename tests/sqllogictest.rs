@@ -1,17 +1,66 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
+//! Sqllogictest for RisingLight.
+
 use std::fmt::Display;
 use std::path::Path;
 
+use libtest_mimic::{Arguments, Trial};
 use risinglight::array::*;
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::{Database, Error};
 use sqllogictest::{DBOutput, DefaultColumnType};
+use tokio::runtime::Runtime;
 
 type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
 
+fn main() {
+    tracing_subscriber::fmt::init();
+
+    const PATTERN: &str = "tests/sql/**/[!_]*.slt"; // ignore files start with '_'
+    const MEM_BLOCKLIST: &[&str] = &["statistics.slt"];
+    const DISK_BLOCKLIST: &[&str] = &[];
+
+    let mut tests = vec![];
+
+    let paths = glob::glob(PATTERN).expect("failed to find test files");
+    for entry in paths {
+        let path = entry.expect("failed to read glob entry");
+        let subpath = path.strip_prefix("tests/sql").unwrap().to_str().unwrap();
+        if !MEM_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
+            let path = path.clone();
+            let engine = Engine::Mem;
+            tests.push(Trial::test(format!("{}::{}", engine, subpath), move || {
+                Ok(build_runtime().block_on(test(&path, engine))?)
+            }));
+        }
+        if !DISK_BLOCKLIST.iter().any(|p| subpath.contains(p)) {
+            let engine = Engine::Disk;
+            tests.push(Trial::test(format!("{}::{}", engine, subpath), move || {
+                Ok(build_runtime().block_on(test(&path, engine))?)
+            }));
+        }
+    }
+
+    if tests.is_empty() {
+        panic!(
+            "no test found for sqllogictest! pwd: {:?}",
+            std::env::current_dir().unwrap()
+        );
+    }
+
+    fn build_runtime() -> Runtime {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+    }
+
+    libtest_mimic::run(&Arguments::from_args(), tests).exit();
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Engine {
+enum Engine {
     Disk,
     Mem,
 }
@@ -25,7 +74,7 @@ impl Display for Engine {
     }
 }
 
-pub async fn test(filename: impl AsRef<Path>, engine: Engine) -> Result<()> {
+async fn test(filename: impl AsRef<Path>, engine: Engine) -> Result<()> {
     let db = match engine {
         Engine::Disk => Database::new_on_disk(SecondaryStorageOptions::default_for_test()).await,
         Engine::Mem => Database::new_in_memory(),

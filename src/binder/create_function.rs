@@ -15,6 +15,7 @@ pub struct CreateFunction {
     pub schema_name: String,
     pub name: String,
     pub arg_types: Vec<RlDataType>,
+    pub arg_names: Vec<String>,
     pub return_type: RlDataType,
     pub language: String,
     pub body: String,
@@ -96,14 +97,17 @@ impl Binder {
         };
 
         let mut arg_types = vec![];
+        let mut arg_names = vec![];
         for arg in args.unwrap_or_default() {
             arg_types.push(RlDataType::new(DataTypeKind::from(&arg.data_type), false));
+            arg_names.push(arg.name.map_or("".to_string(), |n| n.to_string()));
         }
 
         let f = self.egraph.add(Node::CreateFunction(CreateFunction {
             schema_name,
             name,
             arg_types,
+            arg_names,
             return_type,
             language,
             body,

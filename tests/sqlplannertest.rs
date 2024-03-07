@@ -1,10 +1,23 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use anyhow::Error;
+use std::path::Path;
+
+use anyhow::{Error, Result};
 use risinglight::array::*;
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::Database;
 use sqlplannertest::ParsedTestCase;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/planner_test");
+    if std::env::var("UPDATE_PLANNER").is_ok() {
+        sqlplannertest::planner_test_apply(path, || async { Ok(DatabaseWrapper) }).await?;
+    } else {
+        sqlplannertest::planner_test_runner(path, || async { Ok(DatabaseWrapper) })?;
+    }
+    Ok(())
+}
 
 #[derive(Default)]
 pub struct DatabaseWrapper;
