@@ -32,7 +32,7 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         Column(col) => Ok(catalog
             .get_column(col)
             .ok_or_else(|| TypeError::Unavailable(enode.to_string()))?
-            .datatype()),
+            .data_type()),
         Ref(a) => x(a),
         List(list) => Ok(DataType::Struct(list.iter().map(x).try_collect()?)),
 

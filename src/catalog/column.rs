@@ -10,7 +10,7 @@ use crate::types::DataType;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ColumnDesc {
     name: String,
-    datatype: DataType,
+    data_type: DataType,
     is_nullable: bool,
     is_primary: bool,
 }
@@ -19,7 +19,7 @@ impl ColumnDesc {
     pub fn new(name: impl Into<String>, datatype: DataType, is_nullable: bool) -> Self {
         ColumnDesc {
             name: name.into(),
-            datatype,
+            data_type: datatype,
             is_nullable,
             is_primary: false,
         }
@@ -41,8 +41,8 @@ impl ColumnDesc {
         self.is_nullable
     }
 
-    pub fn datatype(&self) -> &DataType {
-        &self.datatype
+    pub fn data_type(&self) -> &DataType {
+        &self.data_type
     }
 
     pub fn name(&self) -> &str {
@@ -52,7 +52,7 @@ impl ColumnDesc {
     pub fn pretty<'a>(&self) -> Pretty<'a> {
         let mut fields = vec![
             ("name", Pretty::display(&self.name)),
-            ("type", Pretty::display(&self.datatype)),
+            ("type", Pretty::display(&self.data_type)),
         ];
         if self.is_primary {
             fields.push(("primary", Pretty::display(&self.is_primary)));
@@ -96,8 +96,8 @@ impl ColumnCatalog {
         &self.desc
     }
 
-    pub fn datatype(&self) -> DataType {
-        self.desc.datatype.clone()
+    pub fn data_type(&self) -> DataType {
+        self.desc.data_type.clone()
     }
 
     pub fn set_primary(&mut self, is_primary: bool) {

@@ -127,10 +127,10 @@ mod tests {
 
         let col0_catalog = table_catalog.get_column_by_id(0).unwrap();
         assert_eq!(col0_catalog.name(), "a");
-        assert_eq!(col0_catalog.datatype(), DataType::Int32);
+        assert_eq!(col0_catalog.data_type(), DataType::Int32);
 
         let col1_catalog = table_catalog.get_column_by_id(1).unwrap();
         assert_eq!(col1_catalog.name(), "b");
-        assert_eq!(col1_catalog.datatype(), DataType::Bool);
+        assert_eq!(col1_catalog.data_type(), DataType::Bool);
     }
 }

@@ -32,7 +32,7 @@ impl RowsetBuilder {
                 .iter()
                 .map(|column| {
                     ColumnBuilderImpl::new_from_datatype(
-                        &column.datatype(),
+                        &column.data_type(),
                         column.is_nullable(),
                         column_options.clone(),
                     )

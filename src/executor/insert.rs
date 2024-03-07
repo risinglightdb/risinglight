@@ -32,7 +32,7 @@ impl<S: Storage> InsertExecutor<S> {
                         None => Expr::null(),
                     },
                 );
-                let ty = expr.add(Expr::Type(col.datatype()));
+                let ty = expr.add(Expr::Type(col.data_type()));
                 expr.add(Expr::Cast([ty, val]))
             })
             .collect();

@@ -31,7 +31,7 @@ impl ColumnIteratorImpl {
         start_pos: u32,
     ) -> StorageResult<Self> {
         use DataType::*;
-        let iter = match column_info.datatype() {
+        let iter = match column_info.data_type() {
             Null => panic!("column type should not be null"),
             Int16 => Self::Int16(
                 I16ColumnIterator::new(column, start_pos, PrimitiveBlockIteratorFactory::new())
