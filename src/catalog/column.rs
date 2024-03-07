@@ -9,17 +9,19 @@ use crate::types::DataType;
 /// A descriptor of a column.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ColumnDesc {
-    datatype: DataType,
     name: String,
+    datatype: DataType,
+    is_nullable: bool,
     is_primary: bool,
 }
 
 impl ColumnDesc {
-    pub const fn new(datatype: DataType, name: String, is_primary: bool) -> Self {
+    pub fn new(name: impl Into<String>, datatype: DataType, is_nullable: bool) -> Self {
         ColumnDesc {
+            name: name.into(),
             datatype,
-            name,
-            is_primary,
+            is_nullable,
+            is_primary: false,
         }
     }
 
@@ -32,11 +34,11 @@ impl ColumnDesc {
     }
 
     pub fn set_nullable(&mut self, is_nullable: bool) {
-        self.datatype.nullable = is_nullable;
+        self.is_nullable = is_nullable;
     }
 
     pub fn is_nullable(&self) -> bool {
-        self.datatype.nullable
+        self.is_nullable
     }
 
     pub fn datatype(&self) -> &DataType {
@@ -50,25 +52,15 @@ impl ColumnDesc {
     pub fn pretty<'a>(&self) -> Pretty<'a> {
         let mut fields = vec![
             ("name", Pretty::display(&self.name)),
-            ("type", Pretty::display(&self.datatype.kind)),
+            ("type", Pretty::display(&self.datatype)),
         ];
         if self.is_primary {
             fields.push(("primary", Pretty::display(&self.is_primary)));
         }
-        if self.datatype.nullable {
-            fields.push(("nullable", Pretty::display(&self.datatype.nullable)));
+        if self.is_nullable {
+            fields.push(("nullable", Pretty::display(&self.is_nullable)));
         }
         Pretty::childless_record("Column", fields)
-    }
-}
-
-impl DataType {
-    pub const fn to_column(self, name: String) -> ColumnDesc {
-        ColumnDesc::new(self, name, false)
-    }
-
-    pub const fn to_column_primary_key(self, name: String) -> ColumnDesc {
-        ColumnDesc::new(self, name, true)
     }
 }
 
@@ -139,12 +131,12 @@ pub fn find_sort_key_id(column_infos: &[ColumnCatalog]) -> Vec<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::DataTypeKind;
+    use crate::types::DataType;
 
     #[test]
     fn test_column_catalog() {
-        let col_desc = DataTypeKind::Int32.not_null().to_column("grade".into());
-        let mut col_catalog = ColumnCatalog::new(0, col_desc);
+        let mut col_catalog =
+            ColumnCatalog::new(0, ColumnDesc::new("grade", DataType::Int32, false));
         assert_eq!(col_catalog.id(), 0);
         assert!(!col_catalog.is_primary());
         assert!(!col_catalog.is_nullable());

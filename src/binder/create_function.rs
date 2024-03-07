@@ -8,15 +8,14 @@ use pretty_xmlish::Pretty;
 use serde::{Deserialize, Serialize};
 
 use super::*;
-use crate::types::DataType as RlDataType;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
 pub struct CreateFunction {
     pub schema_name: String,
     pub name: String,
-    pub arg_types: Vec<RlDataType>,
+    pub arg_types: Vec<crate::types::DataType>,
     pub arg_names: Vec<String>,
-    pub return_type: RlDataType,
+    pub return_type: crate::types::DataType,
     pub language: String,
     pub body: String,
 }
@@ -68,7 +67,7 @@ impl Binder {
                 "`return type` must be specified".to_string(),
             ));
         };
-        let return_type = RlDataType::new(DataTypeKind::from(&return_type), false);
+        let return_type = crate::types::DataType::from(&return_type);
 
         // TODO: language check (e.g., currently only support sql)
         let Some(language) = params.language.clone() else {
@@ -99,7 +98,7 @@ impl Binder {
         let mut arg_types = vec![];
         let mut arg_names = vec![];
         for arg in args.unwrap_or_default() {
-            arg_types.push(RlDataType::new(DataTypeKind::from(&arg.data_type), false));
+            arg_types.push((&arg.data_type).into());
             arg_names.push(arg.name.map_or("".to_string(), |n| n.to_string()));
         }
 

@@ -39,7 +39,7 @@ impl TableCatalog {
         table_catalog
             .add_column(ColumnCatalog::new(
                 u32::MAX,
-                DataTypeKind::Int64.not_null().to_column("_rowid_".into()),
+                ColumnDesc::new("_rowid_", DataType::Int64, false),
             ))
             .unwrap();
         for col_catalog in columns {
@@ -112,8 +112,8 @@ mod tests {
 
     #[test]
     fn test_table_catalog() {
-        let col0 = ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("a".into()));
-        let col1 = ColumnCatalog::new(1, DataTypeKind::Bool.not_null().to_column("b".into()));
+        let col0 = ColumnCatalog::new(0, ColumnDesc::new("a", DataType::Int32, false));
+        let col1 = ColumnCatalog::new(1, ColumnDesc::new("b", DataType::Bool, false));
 
         let col_catalogs = vec![col0, col1];
         let table_catalog = TableCatalog::new(0, "t".into(), col_catalogs, false, vec![]);
@@ -127,10 +127,10 @@ mod tests {
 
         let col0_catalog = table_catalog.get_column_by_id(0).unwrap();
         assert_eq!(col0_catalog.name(), "a");
-        assert_eq!(col0_catalog.datatype().kind(), DataTypeKind::Int32);
+        assert_eq!(col0_catalog.datatype(), DataType::Int32);
 
         let col1_catalog = table_catalog.get_column_by_id(1).unwrap();
         assert_eq!(col1_catalog.name(), "b");
-        assert_eq!(col1_catalog.datatype().kind(), DataTypeKind::Bool);
+        assert_eq!(col1_catalog.datatype(), DataType::Bool);
     }
 }

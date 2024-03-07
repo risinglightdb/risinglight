@@ -64,7 +64,7 @@ impl Database {
         let all_columns = table_catalog.all_columns();
         for (id, column) in &all_columns {
             let name = column.name();
-            let data_type = column.datatype().kind().to_string().to_ascii_lowercase();
+            let data_type = column.datatype().to_string().to_ascii_lowercase();
             let is_null = column.is_nullable();
             let is_primary = column.is_primary();
 

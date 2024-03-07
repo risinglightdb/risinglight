@@ -151,9 +151,7 @@ impl Inner {
                 CONTRIBUTORS_TABLE_NAME.to_string(),
                 vec![ColumnCatalog::new(
                     0,
-                    DataTypeKind::String
-                        .not_null()
-                        .to_column("github_id".into()),
+                    ColumnDesc::new("github_id", DataType::String, false),
                 )],
                 false,
                 vec![],
@@ -188,7 +186,7 @@ mod tests {
         assert_eq!(schema_catalog1.id(), schema_catalog2.id());
         assert_eq!(schema_catalog1.name(), schema_catalog2.name());
 
-        let col = ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("a".into()));
+        let col = ColumnCatalog::new(0, ColumnDesc::new("a", DataType::Int32, false));
         let table_id = catalog
             .add_table(0, "t".into(), vec![col], false, vec![])
             .unwrap();

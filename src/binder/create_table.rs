@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 
 use super::*;
 use crate::catalog::{ColumnCatalog, ColumnDesc, ColumnId, SchemaId};
-use crate::types::DataType;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
 pub struct CreateTable {
@@ -173,22 +172,23 @@ impl Binder {
 impl From<&ColumnDef> for ColumnCatalog {
     fn from(cdef: &ColumnDef) -> Self {
         let mut is_nullable = true;
-        let mut is_primary_ = false;
+        let mut is_primary = false;
         for opt in &cdef.options {
             match opt.option {
                 ColumnOption::Null => is_nullable = true,
                 ColumnOption::NotNull => is_nullable = false,
-                ColumnOption::Unique { is_primary } => is_primary_ = is_primary,
+                ColumnOption::Unique { is_primary: p } => is_primary = p,
                 _ => todo!("column options"),
             }
         }
-        ColumnCatalog::new(
-            0,
-            ColumnDesc::new(
-                DataType::new((&cdef.data_type).into(), is_nullable),
-                cdef.name.value.to_lowercase(),
-                is_primary_,
-            ),
-        )
+        let mut desc = ColumnDesc::new(
+            cdef.name.value.to_lowercase(),
+            (&cdef.data_type).into(),
+            is_nullable,
+        );
+        if is_primary {
+            desc.set_primary(true);
+        }
+        ColumnCatalog::new(0, desc)
     }
 }

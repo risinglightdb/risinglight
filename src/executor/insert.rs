@@ -32,7 +32,7 @@ impl<S: Storage> InsertExecutor<S> {
                         None => Expr::null(),
                     },
                 );
-                let ty = expr.add(Expr::Type(col.datatype().kind()));
+                let ty = expr.add(Expr::Type(col.datatype()));
                 expr.add(Expr::Cast([ty, val]))
             })
             .collect();
@@ -58,9 +58,9 @@ mod tests {
 
     use super::*;
     use crate::array::ArrayImpl;
-    use crate::catalog::{ColumnCatalog, TableRefId};
+    use crate::catalog::{ColumnCatalog, ColumnDesc, TableRefId};
     use crate::storage::{InMemoryStorage, StorageImpl};
-    use crate::types::DataTypeKind;
+    use crate::types::DataType;
 
     #[tokio::test]
     async fn simple() {
@@ -90,8 +90,8 @@ mod tests {
                 0,
                 "t",
                 &[
-                    ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("v1".into())),
-                    ColumnCatalog::new(1, DataTypeKind::Int32.not_null().to_column("v2".into())),
+                    ColumnCatalog::new(0, ColumnDesc::new("v1", DataType::Int32, false)),
+                    ColumnCatalog::new(1, ColumnDesc::new("v2", DataType::Int32, false)),
                 ],
                 &[],
             )

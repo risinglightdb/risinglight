@@ -4,7 +4,7 @@ use super::*;
 use crate::array::{Array, ArrayImpl};
 use crate::catalog::ColumnCatalog;
 use crate::storage::secondary::column::{DateColumnIterator, IntervalColumnIterator};
-use crate::types::DataTypeKind;
+use crate::types::DataType;
 
 /// [`ColumnIteratorImpl`] of all types
 pub enum ColumnIteratorImpl {
@@ -30,8 +30,8 @@ impl ColumnIteratorImpl {
         column_info: &ColumnCatalog,
         start_pos: u32,
     ) -> StorageResult<Self> {
-        use DataTypeKind::*;
-        let iter = match column_info.datatype().kind() {
+        use DataType::*;
+        let iter = match column_info.datatype() {
             Null => panic!("column type should not be null"),
             Int16 => Self::Int16(
                 I16ColumnIterator::new(column, start_pos, PrimitiveBlockIteratorFactory::new())

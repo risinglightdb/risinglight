@@ -9,7 +9,7 @@ use crate::parser::{
     self, BinaryOperator, DataType, DateTimeField, Expr, Function, FunctionArg, FunctionArgExpr,
     UnaryOperator, Value,
 };
-use crate::types::{DataTypeKind, DataValue, Interval};
+use crate::types::{DataValue, Interval};
 
 impl Binder {
     /// Bind an expression.
@@ -184,13 +184,16 @@ impl Binder {
         match data_type {
             DataType::Date => {
                 let date = value.parse().map_err(|_| {
-                    BindError::CastError(DataValue::String(value), DataTypeKind::Date)
+                    BindError::CastError(DataValue::String(value), crate::types::DataType::Date)
                 })?;
                 Ok(self.egraph.add(Node::Constant(DataValue::Date(date))))
             }
             DataType::Timestamp(_, _) => {
                 let timestamp = value.parse().map_err(|_| {
-                    BindError::CastError(DataValue::String(value), DataTypeKind::Timestamp)
+                    BindError::CastError(
+                        DataValue::String(value),
+                        crate::types::DataType::Timestamp,
+                    )
                 })?;
                 Ok(self
                     .egraph
@@ -430,11 +433,11 @@ impl Binder {
         let ty2 = self.type_(id2)?;
         if let Some(compatible_type) = ty1.union(&ty2) {
             if compatible_type != ty1 {
-                let id = self.egraph.add(Node::Type(compatible_type.kind()));
+                let id = self.egraph.add(Node::Type(compatible_type.clone()));
                 id1 = self.egraph.add(Node::Cast([id, id1]));
             }
             if compatible_type != ty2 {
-                let id = self.egraph.add(Node::Type(compatible_type.kind()));
+                let id = self.egraph.add(Node::Type(compatible_type));
                 id2 = self.egraph.add(Node::Cast([id, id2]));
             }
         }

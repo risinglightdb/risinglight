@@ -9,7 +9,7 @@ use tokio::sync::mpsc::Sender;
 use super::*;
 use crate::array::{ArrayImpl, DataChunkBuilder};
 use crate::binder::copy::{ExtSource, FileFormat};
-use crate::types::DataTypeKind;
+use crate::types::DataType;
 
 /// The executor of loading file data.
 pub struct CopyFromFileExecutor {
@@ -32,10 +32,10 @@ impl CopyFromFileExecutor {
         while let Some(mut chunk) = rx.recv().await {
             // rescale decimals
             for (i, ty) in types.iter().enumerate() {
-                if let (ArrayImpl::Decimal(a), DataTypeKind::Decimal(_, Some(scale))) =
-                    (chunk.array_mut_at(i), ty.kind())
+                if let (ArrayImpl::Decimal(a), DataType::Decimal(_, Some(scale))) =
+                    (chunk.array_mut_at(i), ty)
                 {
-                    Arc::get_mut(a).unwrap().rescale(scale);
+                    Arc::get_mut(a).unwrap().rescale(*scale);
                 }
             }
             yield chunk;
@@ -97,11 +97,6 @@ impl CopyFromFileExecutor {
                 });
             }
 
-            for (v, ty) in record.iter().zip(&self.types) {
-                if !ty.nullable && v.is_empty() {
-                    return Err(ExecutorError::NotNullable);
-                }
-            }
             size_count += record.as_slice().as_bytes().len();
 
             // push a raw str row and send it if necessary
@@ -125,7 +120,7 @@ mod tests {
 
     use super::*;
     use crate::array::ArrayImpl;
-    use crate::types::DataTypeKind;
+    use crate::types::DataType;
 
     #[tokio::test]
     async fn read_csv() {
@@ -144,11 +139,7 @@ mod tests {
                     header: false,
                 },
             },
-            types: vec![
-                DataTypeKind::Int32.not_null(),
-                DataTypeKind::Float64.not_null(),
-                DataTypeKind::String.not_null(),
-            ],
+            types: vec![DataType::Int32, DataType::Float64, DataType::String],
         };
         let actual = executor.execute().next().await.unwrap().unwrap();
 
