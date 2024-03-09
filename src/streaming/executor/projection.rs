@@ -1,24 +1,21 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use super::*;
-use crate::executor::Evaluator;
 
-/// The executor of project operation.
-pub struct ProjectionExecutor {
+/// Evaluates an arbitrary list of expressions on its input.
+pub struct Projection {
     /// A list of expressions.
-    ///
-    /// e.g. `(list (+ #0 #1) #0)`
-    pub projs: RecExpr,
+    pub expr: ExpressionList,
 }
 
-impl ProjectionExecutor {
-    #[try_stream(boxed, ok = StreamChunk, error = Error)]
-    pub async fn execute(self, child: BoxDiffStream) {
+impl Projection {
+    #[try_stream(boxed, ok = DeltaBatch, error = Error)]
+    async fn execute(self, input: DeltaBatchStream) {
         #[for_await]
-        for batch in child {
+        for batch in input {
             let batch = batch?;
-            let data = Evaluator::new(&self.projs).eval_list(batch.data())?;
-            yield StreamChunk::new(batch.ops().to_vec(), data);
+            let projected = self.expr.eval(batch.data())?;
+            yield DeltaBatch::new(batch.ops().clone(), projected);
         }
     }
 }

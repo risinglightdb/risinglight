@@ -90,8 +90,6 @@ pub enum ExecutorError {
     ),
     #[error("conversion error: {0}")]
     Convert(#[from] ConvertError),
-    #[error("streaming error: {0}")]
-    Streaming(#[from] crate::streaming::Error),
     #[error("tuple length mismatch: expected {expected} but got {actual}")]
     LengthMismatch { expected: usize, actual: usize },
     #[error("io error")]
@@ -125,7 +123,12 @@ const PROCESSING_WINDOW_SIZE: usize = 1024;
 /// and produces a stream to its parent.
 pub type BoxedExecutor = BoxStream<'static, Result<DataChunk, ExecutorError>>;
 
-pub fn build(optimizer: Optimizer, storage: Arc<impl Storage>, stream: Arc<StreamManager>, plan: &RecExpr) -> BoxedExecutor {
+pub fn build(
+    optimizer: Optimizer,
+    storage: Arc<impl Storage>,
+    stream: Arc<StreamManager>,
+    plan: &RecExpr,
+) -> BoxedExecutor {
     Builder::new(optimizer, storage, stream, plan).build()
 }
 

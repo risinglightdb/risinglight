@@ -1,24 +1,24 @@
-// Copyright 2023 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use anyhow::{Error, Result};
 use egg::{Id, Language};
-use futures::stream::BoxStream;
-use futures::Stream;
 use futures_async_stream::try_stream;
 
+use super::array::{DeltaBatch, DeltaBatchStream};
+use super::expr::{ExpressionList, ExpressionRef};
 use super::*;
 use crate::array::StreamChunk;
 use crate::executor::spawn_stream;
 use crate::planner::{Expr, RecExpr, TypeSchemaAnalysis};
-use crate::storage::Storage;
 use crate::types::{ColumnIndex, DataType};
 
+mod filter;
 mod projection;
-mod table_scan;
+mod table_observe;
 
-use self::projection::*;
-use self::table_scan::*;
-
-pub type BoxDiffStream = BoxStream<'static, Result<StreamChunk>>;
+pub use self::filter::Filter;
+pub use self::projection::Projection;
+pub use self::table_observe::TableObserve;
 
 /// Build the stream pipeline of a query.
 pub struct Builder<'a> {
@@ -70,29 +70,30 @@ impl<'a> Builder<'a> {
         })
     }
 
-    pub fn build(self) -> BoxDiffStream {
+    pub fn build(self) -> DeltaBatchStream {
         self.build_id(self.root)
     }
 
-    fn build_id(&self, id: Id) -> BoxDiffStream {
-        use Expr::*;
-        let stream = match self.node(id).clone() {
-            Scan([table, list, _filter]) => TableScanExecutor {
-                stream: self.streaming.get_stream(self.node(table).as_table()),
-                columns: (self.node(list).as_list().iter())
-                    .map(|id| self.node(*id).as_column())
-                    .collect(),
-                // todo: support filter
-            }
-            .execute(),
+    fn build_id(&self, id: Id) -> DeltaBatchStream {
+        todo!()
+        // use Expr::*;
+        // let stream = match self.node(id).clone() {
+        //     Scan([table, list, _filter]) => TableObserve {
+        //         stream: self.streaming.get_stream(self.node(table).as_table()),
+        //         columns: (self.node(list).as_list().iter())
+        //             .map(|id| self.node(*id).as_column())
+        //             .collect(),
+        //         // todo: support filter
+        //     }
+        //     .execute(),
 
-            Proj([projs, child]) => ProjectionExecutor {
-                projs: self.resolve_column_index(projs, child),
-            }
-            .execute(self.build_id(child)),
+        //     Proj([projs, child]) => Projection {
+        //         projs: self.resolve_column_index(projs, child),
+        //     }
+        //     .execute(self.build_id(child)),
 
-            node => panic!("not a plan: {node:?}"),
-        };
-        spawn_stream(&self.node(id).to_string(), stream)
+        //     node => panic!("not a plan: {node:?}"),
+        // };
+        // spawn_stream(&self.node(id).to_string(), stream)
     }
 }

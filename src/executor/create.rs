@@ -28,9 +28,9 @@ impl<S: Storage> CreateTableExecutor<S> {
             )
             .await?;
 
-        if self.plan.with.contains_key("connector") {
-            self.stream.create_source(id, &self.plan.with).await?;
-        }
+        // if self.plan.with.contains_key("connector") {
+        //     self.stream.create_source(id, &self.plan.with).await?;
+        // }
 
         let chunk = DataChunk::single(1);
         yield chunk
@@ -68,7 +68,7 @@ impl<S: Storage> CreateMViewExecutor<S> {
             .storage
             .create_table(self.args.schema_id, &self.args.name, &column_descs, &[])
             .await?;
-        self.stream.create_mview(id, self.query)?;
+        // self.stream.create_mview(id, self.query)?;
         yield DataChunk::single(1);
     }
 }

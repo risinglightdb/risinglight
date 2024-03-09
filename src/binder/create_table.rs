@@ -126,7 +126,9 @@ impl Binder {
         let mut with = BTreeMap::new();
         for opt in with_options {
             let DataValue::String(value) = DataValue::from(opt.value) else {
-                return Err(BindError::InvalidArgument("option value should be string".into()));
+                return Err(BindError::InvalidArgument(
+                    "option value should be string".into(),
+                ));
             };
             with.insert(opt.name.value, value);
         }

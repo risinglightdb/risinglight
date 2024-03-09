@@ -16,6 +16,9 @@ jemalloc = ["tikv-jemallocator"]
 python = ["pyo3", "pyo3-build-config"]
 
 [dependencies]
+arrow = { version = "50", features = ["prettyprint"] }
+arrow-udf = "0.2"
+linkme = "0.3"
 anyhow = "1"
 async-recursion = "1"
 async-stream = "0.3"
