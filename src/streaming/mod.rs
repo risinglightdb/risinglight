@@ -6,7 +6,9 @@ use arrow::datatypes::SchemaRef;
 use futures::StreamExt;
 use tokio::sync::broadcast;
 
-use self::array::{DeltaBatch, DeltaBatchStream, DeltaBatchStreamExt};
+use self::array::{
+    DeltaBatch, DeltaBatchSink, DeltaBatchSinkExt, DeltaBatchStream, DeltaBatchStreamExt,
+};
 use crate::binder::CreateMView;
 use crate::catalog::{CatalogError, RootCatalogRef, TableRefId};
 use crate::planner::RecExpr;

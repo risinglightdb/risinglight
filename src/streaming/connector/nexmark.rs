@@ -14,7 +14,8 @@ use super::*;
 #[linkme::distributed_slice(connector::CONNECTORS)]
 static NEXMARK: Connector = Connector {
     name: "nexmark",
-    build: |schema, options| async move { build(schema, options) }.boxed(),
+    build_source: Some(|schema, options| async move { build(schema, options) }.boxed()),
+    build_sink: None,
 };
 
 /// Build a nexmark source.

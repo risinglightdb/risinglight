@@ -13,7 +13,8 @@ use super::*;
 #[linkme::distributed_slice(connector::CONNECTORS)]
 static DATAGEN: Connector = Connector {
     name: "datagen",
-    build: |schema, options| async move { build(schema, options) }.boxed(),
+    build_source: Some(|schema, options| async move { build(schema, options) }.boxed()),
+    build_sink: None,
 };
 
 /// Build a datagen source.
