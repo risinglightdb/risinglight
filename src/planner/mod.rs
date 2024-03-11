@@ -6,7 +6,7 @@ use crate::binder::copy::ExtSource;
 use crate::binder::{BoundDrop, CreateFunction, CreateTable};
 use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
-use crate::types::{ColumnIndex, DataTypeKind, DataValue, DateTimeField};
+use crate::types::{ColumnIndex, DataType, DataValue, DateTimeField};
 
 mod cost;
 mod explain;
@@ -27,7 +27,7 @@ define_language! {
     pub enum Expr {
         // values
         Constant(DataValue),            // null, true, 1, 1.0, "hello", ...
-        Type(DataTypeKind),             // BOOLEAN, INT, DECIMAL(5), ...
+        Type(DataType),                 // BOOLEAN, INT, DECIMAL(5), ...
         Column(ColumnRefId),            // $1.2, $2.1, ...
         Table(TableRefId),              // $1, $2, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
@@ -174,7 +174,7 @@ impl Expr {
         *t
     }
 
-    pub fn as_type(&self) -> &DataTypeKind {
+    pub fn as_type(&self) -> &DataType {
         let Self::Type(t) = self else {
             panic!("not a type: {self}")
         };

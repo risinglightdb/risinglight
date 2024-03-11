@@ -168,7 +168,7 @@ impl<S: Storage> Builder<S> {
     /// Returns the output types of a plan node.
     fn plan_types(&self, id: Id) -> &[DataType] {
         let ty = self.egraph[id].data.type_.as_ref().unwrap();
-        ty.kind.as_struct()
+        ty.as_struct()
     }
 
     /// Resolve the column index of `expr` in `plan`.

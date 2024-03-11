@@ -174,37 +174,17 @@ pub mod tests {
 
     use super::*;
     use crate::array::ArrayImpl;
+    use crate::catalog::ColumnDesc;
     use crate::storage::secondary::rowset::rowset_builder::RowsetBuilder;
     use crate::storage::secondary::rowset::RowsetWriter;
     use crate::storage::secondary::{ColumnBuilderOptions, EncodeType};
-    use crate::types::DataTypeKind;
+    use crate::types::DataType;
 
     pub async fn helper_build_rowset(tempdir: &TempDir, nullable: bool, len: usize) -> DiskRowset {
         let columns = vec![
-            ColumnCatalog::new(
-                0,
-                if nullable {
-                    DataTypeKind::Int32.nullable().to_column("v1".to_string())
-                } else {
-                    DataTypeKind::Int32.not_null().to_column("v1".to_string())
-                },
-            ),
-            ColumnCatalog::new(
-                1,
-                if nullable {
-                    DataTypeKind::Int32.nullable().to_column("v2".to_string())
-                } else {
-                    DataTypeKind::Int32.not_null().to_column("v2".to_string())
-                },
-            ),
-            ColumnCatalog::new(
-                2,
-                if nullable {
-                    DataTypeKind::Int32.nullable().to_column("v3".to_string())
-                } else {
-                    DataTypeKind::Int32.not_null().to_column("v3".to_string())
-                },
-            ),
+            ColumnCatalog::new(0, ColumnDesc::new("v1", DataType::Int32, nullable)),
+            ColumnCatalog::new(1, ColumnDesc::new("v2", DataType::Int32, nullable)),
+            ColumnCatalog::new(2, ColumnDesc::new("v3", DataType::Int32, nullable)),
         ];
 
         let mut builder = RowsetBuilder::new(
@@ -253,11 +233,7 @@ pub mod tests {
     ) -> DiskRowset {
         let columns = vec![ColumnCatalog::new(
             0,
-            if nullable {
-                DataTypeKind::Int32.nullable().to_column("v1".to_string())
-            } else {
-                DataTypeKind::Int32.not_null().to_column("v1".to_string())
-            },
+            ColumnDesc::new("v1", DataType::Int32, nullable),
         )];
         let mut column_options = ColumnBuilderOptions::default_for_test();
         column_options.encode_type = EncodeType::RunLength;
@@ -296,11 +272,7 @@ pub mod tests {
     ) -> DiskRowset {
         let columns = vec![ColumnCatalog::new(
             0,
-            if nullable {
-                DataTypeKind::Int32.nullable().to_column("v1".to_string())
-            } else {
-                DataTypeKind::Int32.not_null().to_column("v1".to_string())
-            },
+            ColumnDesc::new("v1", DataType::Int32, nullable),
         )];
         let mut column_options = ColumnBuilderOptions::default_for_test();
         column_options.encode_type = EncodeType::Dictionary;
@@ -334,20 +306,9 @@ pub mod tests {
 
     pub async fn helper_build_rowset_with_first_key_recorded(tempdir: &TempDir) -> DiskRowset {
         let columns = vec![
-            ColumnCatalog::new(
-                0,
-                DataTypeKind::Int32
-                    .not_null()
-                    .to_column_primary_key("v1".to_string()),
-            ),
-            ColumnCatalog::new(
-                1,
-                DataTypeKind::Int32.not_null().to_column("v2".to_string()),
-            ),
-            ColumnCatalog::new(
-                2,
-                DataTypeKind::Int32.not_null().to_column("v3".to_string()),
-            ),
+            ColumnCatalog::new(0, ColumnDesc::new("v1", DataType::Int32, false)),
+            ColumnCatalog::new(1, ColumnDesc::new("v2", DataType::Int32, false)),
+            ColumnCatalog::new(2, ColumnDesc::new("v3", DataType::Int32, false)),
         ];
 
         let mut builder = RowsetBuilder::new(

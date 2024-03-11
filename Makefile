@@ -27,7 +27,7 @@ test:
 check: fmt_check clippy_check build test docs_check
 
 apply_planner_test:
-	cargo run -p risinglight_plannertest --bin apply-planner-test
+	UPDATE_PLANNER=1 cargo test --test sqlplannertest
 
 clean:
 	cargo clean

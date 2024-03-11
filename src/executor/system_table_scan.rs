@@ -99,7 +99,7 @@ fn pg_attribute(catalog: RootCatalogRef) -> DataChunk {
         for (_, table) in schema.all_tables() {
             for (_, column) in table.all_columns() {
                 let name = column.name();
-                let data_type = column.datatype().kind().to_string().to_ascii_lowercase();
+                let data_type = column.data_type().to_string().to_ascii_lowercase();
                 let not_null = !column.is_nullable();
 
                 // schema_id.push(Some(&(sid as i32)));

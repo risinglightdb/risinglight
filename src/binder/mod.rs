@@ -13,7 +13,6 @@ use crate::catalog::function::FunctionCatalog;
 use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
 use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
-use crate::types::{DataTypeKind, DataValue};
 
 pub mod copy;
 mod create_function;
@@ -59,7 +58,7 @@ pub enum BindError {
     #[error("invalid SQL")]
     InvalidSQL,
     #[error("cannot cast {0:?} to {1:?}")]
-    CastError(DataValue, DataTypeKind),
+    CastError(crate::types::DataValue, crate::types::DataType),
     #[error("{0}")]
     BindFunctionError(String),
     #[error("type error: {0}")]
@@ -202,7 +201,7 @@ impl UdfContext {
                             return Err(BindError::InvalidExpression("invalid syntax".to_string()));
                         };
                         if catalog.arg_names[i].is_empty() {
-                            todo!("anonymous parameters not yet supported");
+                            ret.insert(format!("${}", i + 1), e.clone());
                         } else {
                             // The index mapping here is accurate
                             // So that we could directly use the index

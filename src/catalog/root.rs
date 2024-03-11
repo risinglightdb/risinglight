@@ -234,7 +234,7 @@ mod tests {
         assert_eq!(schema_catalog2.id(), 1);
         assert_eq!(schema_catalog2.name(), RootCatalog::DEFAULT_SCHEMA_NAME);
 
-        let col = ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("a".into()));
+        let col = ColumnCatalog::new(0, ColumnDesc::new("a", DataType::Int32, false));
         let table_id = catalog
             .add_table(1, "t".into(), vec![col], false, vec![])
             .unwrap();

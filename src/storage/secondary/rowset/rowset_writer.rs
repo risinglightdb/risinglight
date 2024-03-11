@@ -124,9 +124,10 @@ impl RowsetWriter {
 mod tests {
     use super::*;
     use crate::array::ArrayImpl;
+    use crate::catalog::ColumnDesc;
     use crate::storage::secondary::rowset::RowsetBuilder;
     use crate::storage::secondary::ColumnBuilderOptions;
-    use crate::types::DataTypeKind;
+    use crate::types::DataType;
 
     #[tokio::test]
     async fn test_rowset_flush() {
@@ -135,7 +136,7 @@ mod tests {
         let mut builder = RowsetBuilder::new(
             vec![ColumnCatalog::new(
                 0,
-                DataTypeKind::Int32.nullable().to_column("v1".to_string()),
+                ColumnDesc::new("v1", DataType::Int32, true),
             )]
             .into(),
             ColumnBuilderOptions::default_for_test(),

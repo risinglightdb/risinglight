@@ -81,7 +81,7 @@ impl Binder {
             self.egraph.add(Node::CopyTo([ext_source, scan]))
         } else {
             // COPY <dest_table> FROM <source_file>
-            let types = self.type_(cols)?.kind();
+            let types = self.type_(cols)?;
             let types = self.egraph.add(Node::Type(types));
             let copy = self.egraph.add(Node::CopyFrom([ext_source, types]));
             self.egraph.add(Node::Insert([table, cols, copy]))

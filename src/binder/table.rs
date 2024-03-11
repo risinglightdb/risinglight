@@ -257,14 +257,14 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::catalog::{ColumnCatalog, RootCatalog};
+    use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog};
     use crate::parser::parse;
+    use crate::types::DataType;
 
     #[test]
     fn bind_test_subquery() {
         let catalog = Arc::new(RootCatalog::new());
-        let col_desc = DataTypeKind::Int32.not_null().to_column("a".into());
-        let col_catalog = ColumnCatalog::new(0, col_desc);
+        let col_catalog = ColumnCatalog::new(0, ColumnDesc::new("a", DataType::Int32, false));
         catalog
             .add_table(1, "t".into(), vec![col_catalog], false, vec![])
             .unwrap();

@@ -73,7 +73,7 @@ impl MemTable for BTreeMapMemTable {
         let mut builders = self
             .columns
             .iter()
-            .map(|column| ArrayBuilderImpl::new(column.desc().datatype()))
+            .map(|column| ArrayBuilderImpl::new(column.desc().data_type()))
             .collect_vec();
         for (_, row_vec) in self.multi_btree_map {
             for row in row_vec {
@@ -98,7 +98,7 @@ impl ColumnMemTable {
         Self {
             builders: columns
                 .iter()
-                .map(|column| ArrayBuilderImpl::new(column.desc().datatype()))
+                .map(|column| ArrayBuilderImpl::new(column.desc().data_type()))
                 .collect_vec(),
         }
     }
