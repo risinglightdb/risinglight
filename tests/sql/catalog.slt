@@ -1,8 +1,11 @@
 statement ok
 create table t(v1 int, v2 int, v3 int)
 
-query IIIIII rowsort
+query ITIT rowsort
 \dt
 ----
-0 postgres 0 t
-1 pg_catalog 0 contributors
+0 pg_catalog 0 contributors
+0 pg_catalog 1 pg_tables
+0 pg_catalog 2 pg_attribute
+0 pg_catalog 3 pg_stat
+1 postgres 0 t

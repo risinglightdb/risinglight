@@ -93,8 +93,8 @@ impl TableCatalog {
             .cloned()
     }
 
-    pub fn name(&self) -> String {
-        self.name.clone()
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub fn id(&self) -> TableId {

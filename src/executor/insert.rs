@@ -66,7 +66,7 @@ mod tests {
     async fn simple() {
         let storage = create_table().await;
         let executor = InsertExecutor {
-            table_id: TableRefId::new(0, 0),
+            table_id: TableRefId::new(1, 0),
             column_ids: vec![0, 1],
             storage: storage.as_in_memory_storage(),
         };
@@ -87,7 +87,7 @@ mod tests {
         storage
             .as_in_memory_storage()
             .create_table(
-                0,
+                1,
                 "t",
                 &[
                     ColumnCatalog::new(0, ColumnDesc::new("v1", DataType::Int32, false)),

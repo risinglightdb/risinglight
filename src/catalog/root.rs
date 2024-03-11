@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use super::function::FunctionCatalog;
 use super::*;
+use crate::parser;
 
 /// The root of all catalogs.
 pub struct RootCatalog {
@@ -27,8 +28,8 @@ impl Default for RootCatalog {
 impl RootCatalog {
     pub fn new() -> RootCatalog {
         let mut inner = Inner::default();
-        inner.add_schema(DEFAULT_SCHEMA_NAME.into()).unwrap();
-        inner.add_internals();
+        inner.add_system_schema();
+        inner.add_schema(Self::DEFAULT_SCHEMA_NAME.into()).unwrap();
         RootCatalog {
             inner: Mutex::new(inner),
         }
@@ -126,6 +127,10 @@ impl RootCatalog {
         let schema = inner.schemas.get_mut(&schema_idx).unwrap();
         schema.create_function(name, arg_types, arg_names, return_type, language, body);
     }
+
+    pub const DEFAULT_SCHEMA_NAME: &'static str = "postgres";
+    pub const SYSTEM_SCHEMA_NAME: &'static str = "pg_catalog";
+    pub const SYSTEM_SCHEMA_ID: TableId = 0;
 }
 
 impl Inner {
@@ -141,33 +146,72 @@ impl Inner {
         Ok(schema_id)
     }
 
-    fn add_internals(&mut self) {
-        let schema_id = self.add_schema(INTERNAL_SCHEMA_NAME.into()).unwrap();
-        let table_id = self
-            .schemas
-            .get_mut(&schema_id)
-            .unwrap()
-            .add_table(
-                CONTRIBUTORS_TABLE_NAME.to_string(),
-                vec![ColumnCatalog::new(
-                    0,
-                    ColumnDesc::new("github_id", DataType::String, false),
-                )],
-                false,
-                vec![],
-            )
+    fn add_system_schema(&mut self) {
+        let schema_id = self
+            .add_schema(RootCatalog::SYSTEM_SCHEMA_NAME.into())
             .unwrap();
-        assert_eq!(table_id, CONTRIBUTORS_TABLE_ID);
+        let system_schema = self.schemas.get_mut(&schema_id).unwrap();
+        assert_eq!(schema_id, RootCatalog::SYSTEM_SCHEMA_ID);
+
+        let stmts = parser::parse(CREATE_SYSTEM_TABLE_SQL).unwrap();
+        for stmt in stmts {
+            let parser::Statement::CreateTable { name, columns, .. } = stmt else {
+                panic!("invalid system table sql: {stmt}");
+            };
+            system_schema
+                .add_table(
+                    name.to_string(),
+                    columns
+                        .into_iter()
+                        .enumerate()
+                        .map(|(cid, col)| {
+                            let mut column = ColumnCatalog::from(&col);
+                            column.set_id(cid as u32);
+                            column
+                        })
+                        .collect(),
+                    false,
+                    vec![],
+                )
+                .expect("failed to add system table");
+        }
     }
 }
 
 fn split_name(name: &str) -> Option<(&str, &str)> {
     match name.split('.').collect::<Vec<&str>>()[..] {
-        [table] => Some((DEFAULT_SCHEMA_NAME, table)),
+        [table] => Some((RootCatalog::DEFAULT_SCHEMA_NAME, table)),
         [schema, table] => Some((schema, table)),
         _ => None,
     }
 }
+
+const CREATE_SYSTEM_TABLE_SQL: &str = "
+    create table contributors (
+        github_id string not null
+    );
+    create table pg_tables (
+        schema_id int not null,
+        schema_name string not null,
+        table_id int not null,
+        table_name string not null
+    );
+    create table pg_attribute (
+        schema_name string not null,
+        table_name string not null,
+        column_id int not null,
+        column_name string not null,
+        column_type string not null,
+        column_not_null boolean not null
+    );
+    create table pg_stat (
+        schema_name string not null,
+        table_name string not null,
+        column_name string not null,
+        n_row int,
+        n_distinct int
+    );
+";
 
 #[cfg(test)]
 mod tests {
@@ -178,17 +222,21 @@ mod tests {
     #[test]
     fn test_root_catalog() {
         let catalog = Arc::new(RootCatalog::new());
-        let schema_catalog1 = catalog.get_schema_by_id(0).unwrap();
+        let schema_catalog1 = catalog
+            .get_schema_by_id(RootCatalog::SYSTEM_SCHEMA_ID)
+            .unwrap();
         assert_eq!(schema_catalog1.id(), 0);
-        assert_eq!(schema_catalog1.name(), DEFAULT_SCHEMA_NAME);
+        assert_eq!(schema_catalog1.name(), RootCatalog::SYSTEM_SCHEMA_NAME);
 
-        let schema_catalog2 = catalog.get_schema_by_name(DEFAULT_SCHEMA_NAME).unwrap();
-        assert_eq!(schema_catalog1.id(), schema_catalog2.id());
-        assert_eq!(schema_catalog1.name(), schema_catalog2.name());
+        let schema_catalog2 = catalog
+            .get_schema_by_name(RootCatalog::DEFAULT_SCHEMA_NAME)
+            .unwrap();
+        assert_eq!(schema_catalog2.id(), 1);
+        assert_eq!(schema_catalog2.name(), RootCatalog::DEFAULT_SCHEMA_NAME);
 
         let col = ColumnCatalog::new(0, ColumnDesc::new("a", DataType::Int32, false));
         let table_id = catalog
-            .add_table(0, "t".into(), vec![col], false, vec![])
+            .add_table(1, "t".into(), vec![col], false, vec![])
             .unwrap();
         assert_eq!(table_id, 0);
     }

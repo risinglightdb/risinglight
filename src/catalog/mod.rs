@@ -11,12 +11,6 @@ pub use self::schema::*;
 pub use self::table::*;
 use crate::types::*;
 
-pub static DEFAULT_SCHEMA_NAME: &str = "postgres";
-pub static INTERNAL_SCHEMA_NAME: &str = "pg_catalog";
-
-static CONTRIBUTORS_TABLE_NAME: &str = "contributors";
-pub const CONTRIBUTORS_TABLE_ID: TableId = 0;
-
 mod column;
 pub mod function;
 mod root;
