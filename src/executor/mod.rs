@@ -104,12 +104,6 @@ pub enum ExecutorError {
         #[source]
         csv::Error,
     ),
-    #[error("request error: {0}")]
-    Reqwest(
-        #[from]
-        #[source]
-        reqwest::Error,
-    ),
     #[error("value can not be null")]
     NotNullable,
     #[error("exceed char/varchar length limit: item length {length} > char/varchar width {width}")]

@@ -1,7 +1,63 @@
 query I
-select count(github_id) > 50 from pg_catalog.contributors;
+select github_id from pg_catalog.contributors;
 ----
-true
+BaymaxHWY
+D2Lark
+FANNG1
+Fedomn
+GoGim1
+Gun9niR
+JayiceZ
+Kikkon
+LiuYuHui
+MingjiHan99
+PsiACE
+RinChanNOWWW
+SkyFan2002
+Sunt-ing
+Ted-Jiang
+TennyZhuang
+WindowsXp-Beta
+XieJiann
+Y7n05h
+adlternative
+alissa-tung
+arkbriar
+cadl
+caicancai
+chaixuqing
+chowc
+danipozo
+eliasyaoyc
+ice1000
+jetjinser
+kwannoel
+likg227
+lokax
+ludics
+nanderstabel
+noneback
+pleiadesian
+rapiz1
+silver-ymz
+skyzh
+st1page
+sundy-li
+tabVersion
+unconsolable
+wangqiim
+wangrunji0408
+xiaguan
+xiaoyong-z
+xinchengxx
+xxchan
+xzhseh
+yeya24
+yinfredyue
+yingjunwu
+yuzi-neko
+zehaowei
+zzl200012
 
 statement error
 select github_i from pg_catalog.contributors;
