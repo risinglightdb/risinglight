@@ -25,7 +25,7 @@ pub use self::value::*;
 
 /// Data type.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum DataTypeKind {
+pub enum DataType {
     // NOTE: order matters
     Null,
     Bool,
@@ -45,7 +45,7 @@ pub enum DataTypeKind {
     Struct(Vec<DataType>),
 }
 
-impl DataTypeKind {
+impl DataType {
     pub const fn is_null(&self) -> bool {
         matches!(self, Self::Null)
     }
@@ -71,7 +71,7 @@ impl DataTypeKind {
 
     /// Returns the minimum compatible type of 2 types.
     pub fn union(&self, other: &Self) -> Option<Self> {
-        use DataTypeKind::*;
+        use DataType::*;
         let (a, b) = if self <= other {
             (self, other)
         } else {
@@ -102,7 +102,7 @@ impl DataTypeKind {
     }
 }
 
-impl From<&crate::parser::DataType> for DataTypeKind {
+impl From<&crate::parser::DataType> for DataType {
     fn from(kind: &crate::parser::DataType) -> Self {
         use sqlparser::ast::ExactNumberInfo;
 
@@ -132,7 +132,7 @@ impl From<&crate::parser::DataType> for DataTypeKind {
     }
 }
 
-impl std::fmt::Display for DataTypeKind {
+impl std::fmt::Display for DataType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Null => write!(f, "NULL"),
@@ -157,10 +157,10 @@ impl std::fmt::Display for DataTypeKind {
             Self::Struct(types) => {
                 write!(f, "STRUCT(")?;
                 for t in types.iter().take(1) {
-                    write!(f, "{}", t.kind())?;
+                    write!(f, "{}", t)?;
                 }
                 for t in types.iter().skip(1) {
-                    write!(f, ", {}", t.kind())?;
+                    write!(f, ", {}", t)?;
                 }
                 write!(f, ")")
             }
@@ -176,11 +176,11 @@ pub enum ParseTypeError {
     Invalid(String),
 }
 
-impl FromStr for DataTypeKind {
+impl FromStr for DataType {
     type Err = ParseTypeError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use DataTypeKind::*;
+        use DataType::*;
         Ok(match s {
             "INT" => Int32,
             "BIGINT" => Int64,
@@ -204,61 +204,6 @@ impl FromStr for DataTypeKind {
             "INTERVAL" => Interval,
             _ => return Err(ParseTypeError::Invalid(s.to_owned())),
         })
-    }
-}
-
-/// Data type with nullable.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct DataType {
-    pub kind: DataTypeKind,
-    pub nullable: bool,
-}
-
-impl std::fmt::Debug for DataType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.kind)?;
-        if self.nullable {
-            write!(f, " (nullable)")?;
-        }
-        Ok(())
-    }
-}
-
-impl std::fmt::Display for DataType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl DataType {
-    pub fn new(kind: DataTypeKind, nullable: bool) -> DataType {
-        DataType { kind, nullable }
-    }
-
-    pub fn is_nullable(&self) -> bool {
-        self.nullable
-    }
-
-    pub fn kind(&self) -> DataTypeKind {
-        self.kind.clone()
-    }
-
-    /// Returns the minimum compatible type of 2 types.
-    pub fn union(&self, other: &Self) -> Option<Self> {
-        Some(DataType {
-            kind: self.kind.union(&other.kind)?,
-            nullable: self.nullable || other.nullable,
-        })
-    }
-}
-
-impl DataTypeKind {
-    pub fn nullable(self) -> DataType {
-        DataType::new(self, true)
-    }
-
-    pub fn not_null(self) -> DataType {
-        DataType::new(self, false)
     }
 }
 
@@ -286,15 +231,15 @@ pub enum ConvertError {
     #[error("failed to convert {0} to decimal")]
     ToDecimalError(DataValue),
     #[error("failed to convert {0} from decimal {1}")]
-    FromDecimalError(DataTypeKind, Decimal),
+    FromDecimalError(DataType, Decimal),
     #[error("failed to convert {0} from date")]
-    FromDateError(DataTypeKind),
+    FromDateError(DataType),
     #[error("failed to convert {0} from interval")]
-    FromIntervalError(DataTypeKind),
+    FromIntervalError(DataType),
     #[error("failed to cast {0} to type {1}")]
     Cast(String, &'static str),
     #[error("constant {0} overflows {1}")]
-    Overflow(DataValue, DataTypeKind),
+    Overflow(DataValue, DataType),
     #[error("no function {0}({1})")]
     NoUnaryOp(String, &'static str),
     #[error("no function {0}({1}, {2})")]
@@ -302,7 +247,7 @@ pub enum ConvertError {
     #[error("no function {0}({1}, {2}, {3})")]
     NoTernaryOp(String, &'static str, &'static str, &'static str),
     #[error("no cast {0} -> {1}")]
-    NoCast(&'static str, DataTypeKind),
+    NoCast(&'static str, DataType),
 }
 
 /// The physical index to the column from child plan.

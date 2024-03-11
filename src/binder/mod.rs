@@ -13,7 +13,6 @@ use crate::catalog::function::FunctionCatalog;
 use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId, DEFAULT_SCHEMA_NAME};
 use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
-use crate::types::{DataTypeKind, DataValue};
 
 pub mod copy;
 mod create_function;
@@ -59,7 +58,7 @@ pub enum BindError {
     #[error("invalid SQL")]
     InvalidSQL,
     #[error("cannot cast {0:?} to {1:?}")]
-    CastError(DataValue, DataTypeKind),
+    CastError(crate::types::DataValue, crate::types::DataType),
     #[error("{0}")]
     BindFunctionError(String),
     #[error("type error: {0}")]

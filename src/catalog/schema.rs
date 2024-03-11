@@ -120,8 +120,8 @@ mod tests {
     #[test]
     fn test_schema_catalog() {
         // column
-        let col0 = ColumnCatalog::new(0, DataTypeKind::Int32.not_null().to_column("a".into()));
-        let col1 = ColumnCatalog::new(1, DataTypeKind::Bool.not_null().to_column("b".into()));
+        let col0 = ColumnCatalog::new(0, ColumnDesc::new("a", DataType::Int32, false));
+        let col1 = ColumnCatalog::new(1, ColumnDesc::new("b", DataType::Bool, false));
         let col_catalogs = vec![col0, col1];
 
         // schema

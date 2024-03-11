@@ -13,8 +13,8 @@ use super::*;
 use crate::for_all_variants;
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{
-    Blob, ConvertError, DataTypeKind, DataValue, Date, DateTimeField, Interval, NativeType,
-    Timestamp, TimestampTz, F64,
+    Blob, ConvertError, DataType, DataValue, Date, DateTimeField, Interval, NativeType, Timestamp,
+    TimestampTz, F64,
 };
 
 type A = ArrayImpl;
@@ -359,12 +359,11 @@ impl ArrayImpl {
     }
 
     /// Cast the array to another type.
-    pub fn cast(&self, data_type: &DataTypeKind) -> Result {
-        type Type = DataTypeKind;
+    pub fn cast(&self, data_type: &DataType) -> Result {
+        type Type = DataType;
         Ok(match self {
             Self::Null(a) => {
-                let mut builder =
-                    ArrayBuilderImpl::with_capacity(a.len(), &data_type.clone().nullable());
+                let mut builder = ArrayBuilderImpl::with_capacity(a.len(), data_type);
                 builder.push_n(a.len(), &DataValue::Null);
                 builder.finish()
             }
@@ -541,20 +540,20 @@ impl ArrayImpl {
                 Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&d| !d.is_zero())),
                 Type::Int16 => Self::new_int16(try_unary_op(a.as_ref(), |&d| {
                     d.to_i16()
-                        .ok_or(ConvertError::FromDecimalError(DataTypeKind::Int16, d))
+                        .ok_or(ConvertError::FromDecimalError(DataType::Int16, d))
                 })?),
                 Type::Int32 => Self::new_int32(try_unary_op(a.as_ref(), |&d| {
                     d.to_i32()
-                        .ok_or(ConvertError::FromDecimalError(DataTypeKind::Int32, d))
+                        .ok_or(ConvertError::FromDecimalError(DataType::Int32, d))
                 })?),
                 Type::Int64 => Self::new_int64(try_unary_op(a.as_ref(), |&d| {
                     d.to_i64()
-                        .ok_or(ConvertError::FromDecimalError(DataTypeKind::Int64, d))
+                        .ok_or(ConvertError::FromDecimalError(DataType::Int64, d))
                 })?),
                 Type::Float64 => Self::new_float64(try_unary_op(a.as_ref(), |&d| {
                     d.to_f64()
                         .map(F64::from)
-                        .ok_or(ConvertError::FromDecimalError(DataTypeKind::Float64, d))
+                        .ok_or(ConvertError::FromDecimalError(DataType::Float64, d))
                 })?),
                 Type::String => Self::new_string(StringArray::from_iter_display(a.iter())),
                 Type::Decimal(_, _) => self.clone(),

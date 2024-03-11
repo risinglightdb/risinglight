@@ -7,7 +7,7 @@ use risinglight::array::{
     ArrayFromDataExt, ArrayImpl, BoolArray, DecimalArray, F64Array, I32Array,
 };
 use risinglight::parser::BinaryOperator;
-use risinglight::types::DataTypeKind;
+use risinglight::types::DataType;
 use rust_decimal::Decimal;
 
 fn ops(c: &mut Criterion) {
@@ -83,11 +83,11 @@ fn agg(c: &mut Criterion) {
 fn cast(c: &mut Criterion) {
     for_all_size(c, "cast(i32->f64)", |b, &size| {
         let a1 = make_i32_array(size);
-        b.iter(|| a1.cast(&DataTypeKind::Float64))
+        b.iter(|| a1.cast(&DataType::Float64))
     });
     for_all_size(c, "cast(f64->decimal)", |b, &size| {
         let a1 = make_f64_array(size);
-        b.iter(|| a1.cast(&DataTypeKind::Decimal(None, None)))
+        b.iter(|| a1.cast(&DataType::Decimal(None, None)))
     });
     for ty in ["i32", "f64", "decimal"] {
         for_all_size(c, format!("cast({ty}->string)"), |b, &size| {
@@ -97,7 +97,7 @@ fn cast(c: &mut Criterion) {
                 "decimal" => make_decimal_array(size),
                 _ => unreachable!(),
             };
-            b.iter(|| a1.cast(&DataTypeKind::String))
+            b.iter(|| a1.cast(&DataType::String))
         });
     }
 }

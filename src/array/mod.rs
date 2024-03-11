@@ -11,8 +11,7 @@ use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 
 use crate::types::{
-    Blob, ConvertError, DataType, DataTypeKind, DataValue, Date, Interval, Timestamp, TimestampTz,
-    F32, F64,
+    Blob, ConvertError, DataType, DataValue, Date, Interval, Timestamp, TimestampTz, F32, F64,
 };
 
 mod bytes_array;
@@ -390,8 +389,8 @@ macro_rules! impl_array_builder {
 
             /// Create a new array builder with data type
             pub fn with_capacity(capacity: usize, ty: &DataType) -> Self {
-                use DataTypeKind::*;
-                match ty.kind() {
+                use DataType::*;
+                match ty {
                     Null => Self::Null(NullArrayBuilder::with_capacity(capacity)),
                     Struct(_) => todo!("array of Struct type"),
                     $(
