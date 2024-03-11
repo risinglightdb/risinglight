@@ -6,30 +6,39 @@ CREATE TABLE persons (
 );
 
 # FIXME: creating a view without column aliases is not supported
-statement error VIEW aliases mismatch query result
-CREATE VIEW males AS
-SELECT name
+# statement ok
+# CREATE VIEW males AS
+# SELECT id, name
+# FROM persons
+# WHERE gender = 'M';
+
+statement ok
+CREATE VIEW males(id, name) AS
+SELECT id, name
 FROM persons
 WHERE gender = 'M';
 
 statement ok
-CREATE VIEW males(name) AS
-SELECT name
-FROM persons
-WHERE gender = 'M';
-
-statement ok
-CREATE VIEW females(name) AS
-SELECT name
+CREATE VIEW females(id, name) AS
+SELECT id, name
 FROM persons
 WHERE gender = 'F';
 
+statement ok
+CREATE VIEW male_females(mname, fname) AS
+SELECT m.name, f.name
+FROM males m, females f;
+
 query T
-SELECT * FROM males;
+SELECT name FROM males;
 ----
 
 query T
-SELECT * FROM females;
+SELECT name FROM females;
+----
+
+query TT
+SELECT * FROM male_females;
 ----
 
 statement ok
@@ -39,18 +48,24 @@ INSERT INTO persons (id, name, gender) VALUES
 (3, 'Mike', 'M');
 
 query T
-SELECT * FROM males;
+SELECT name FROM males;
 ----
 John
 Mike
 
 query T
-SELECT * FROM females;
+SELECT name FROM females;
 ----
 Jane
 
+query TT rowsort
+SELECT * FROM male_females;
+----
+John Jane
+Mike Jane
+
 statement ok
-DROP VIEW males, females;
+DROP VIEW male_females, males, females;
 
 statement ok
 DROP TABLE persons;
