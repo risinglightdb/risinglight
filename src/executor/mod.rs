@@ -124,7 +124,7 @@ impl<S: Storage> Builder<S> {
             if let Expr::Table(tid) = node
                 && let Some(query) = optimizer.catalog().get_table(tid).unwrap().query()
             {
-                let builder = Self::new(optimizer.clone(), storage.clone(), &query);
+                let builder = Self::new(optimizer.clone(), storage.clone(), query);
                 let subscriber = builder.build_subscriber();
                 views.insert(*tid, subscriber);
             }

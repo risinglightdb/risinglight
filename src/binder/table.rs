@@ -235,7 +235,7 @@ impl Binder {
         Ok(id)
     }
 
-    /// Returns a [`Table`](Node::Table) node, is_internal flag, and is_view flag.
+    /// Returns a [`Table`](Node::Table) node, `is_system` flag, and `is_view` flag.
     ///
     /// # Example
     /// - `bind_table_id(t)` => `$1`
