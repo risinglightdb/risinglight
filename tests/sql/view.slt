@@ -1,0 +1,56 @@
+statement ok
+CREATE TABLE persons (
+    id INT,
+    name VARCHAR,
+    gender VARCHAR -- M or F
+);
+
+# FIXME: creating a view without column aliases is not supported
+statement error VIEW aliases mismatch query result
+CREATE VIEW males AS
+SELECT name
+FROM persons
+WHERE gender = 'M';
+
+statement ok
+CREATE VIEW males(name) AS
+SELECT name
+FROM persons
+WHERE gender = 'M';
+
+statement ok
+CREATE VIEW females(name) AS
+SELECT name
+FROM persons
+WHERE gender = 'F';
+
+query T
+SELECT * FROM males;
+----
+
+query T
+SELECT * FROM females;
+----
+
+statement ok
+INSERT INTO persons (id, name, gender) VALUES
+(1, 'John', 'M'),
+(2, 'Jane', 'F'),
+(3, 'Mike', 'M');
+
+query T
+SELECT * FROM males;
+----
+John
+Mike
+
+query T
+SELECT * FROM females;
+----
+Jane
+
+statement ok
+DROP VIEW males, females;
+
+statement ok
+DROP TABLE persons;

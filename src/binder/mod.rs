@@ -91,6 +91,8 @@ pub enum BindError {
     CanNotInsert,
     #[error("can only delete from table")]
     CanNotDelete,
+    #[error("VIEW aliases mismatch query result")]
+    ViewAliasesMismatch,
 }
 
 /// The binder resolves all expressions referring to schema objects such as
