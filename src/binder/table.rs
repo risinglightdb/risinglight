@@ -159,7 +159,7 @@ impl Binder {
         }
 
         // find cte
-        if let Some((query, columns)) = self.current_ctx().ctes.get(table_name).cloned() {
+        if let Some((query, columns)) = self.find_cte(table_name).cloned() {
             // add column aliases
             for (column_name, id) in columns {
                 self.add_alias(column_name, table_alias.into(), id);

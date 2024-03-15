@@ -348,6 +348,14 @@ impl Binder {
         context.table_aliases.insert(table_name.into())
     }
 
+    /// Find an CTE.
+    fn find_cte(&self, cte_name: &str) -> Option<&(Id, HashMap<String, Id>)> {
+        self.contexts
+            .iter()
+            .rev()
+            .find_map(|ctx| ctx.ctes.get(cte_name))
+    }
+
     fn type_(&self, id: Id) -> Result<crate::types::DataType> {
         Ok(self.egraph[id].data.type_.clone()?)
     }
