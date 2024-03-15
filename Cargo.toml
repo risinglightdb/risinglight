@@ -16,6 +16,7 @@ jemalloc = ["tikv-jemallocator"]
 python = ["pyo3", "pyo3-build-config"]
 
 [dependencies]
+ahash = "0.8"
 anyhow = "1"
 async-recursion = "1"
 async-stream = "0.3"
@@ -119,3 +120,6 @@ risinglight_proto = { path = "proto" }
 [lib]
 name = "risinglight"
 crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+debug = true

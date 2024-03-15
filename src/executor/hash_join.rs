@@ -1,9 +1,9 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::collections::{HashMap, HashSet};
 use std::marker::ConstParamTy;
 use std::vec::Vec;
 
+use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use futures::TryStreamExt;
 use smallvec::SmallVec;
 

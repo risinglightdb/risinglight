@@ -44,7 +44,7 @@ impl ColumnIndex {
         let checksum = footer.get_u64();
         verify_checksum(checksum_type, index_data, checksum)?;
 
-        let mut indexes = vec![];
+        let mut indexes = Vec::with_capacity(length);
         for _ in 0..length {
             let index = BlockIndex::decode_length_delimited(&mut index_data)?;
             indexes.push(index);
