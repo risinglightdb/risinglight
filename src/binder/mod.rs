@@ -342,12 +342,6 @@ impl Binder {
         // may override the same name
     }
 
-    /// Add a table alias to the current context. Return false if the alias exists.
-    fn add_table_alias(&mut self, table_name: &str) -> bool {
-        let context = self.contexts.last_mut().unwrap();
-        context.table_aliases.insert(table_name.into())
-    }
-
     /// Find an CTE.
     fn find_cte(&self, cte_name: &str) -> Option<&(Id, HashMap<String, Id>)> {
         self.contexts
