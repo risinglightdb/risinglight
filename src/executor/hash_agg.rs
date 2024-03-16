@@ -21,20 +21,54 @@ pub type AggValue = SmallVec<[DataValue; 16]>;
 impl HashAggExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self, child: BoxedExecutor) {
-        let mut states = HashMap::<GroupKeys, AggValue>::new();
+        let mut chunks = Vec::new();
 
         #[for_await]
         for chunk in child {
-            let chunk = chunk?;
-            let keys_chunk = Evaluator::new(&self.group_keys).eval_list(&chunk)?;
-            let args_chunk = Evaluator::new(&self.aggs).eval_list(&chunk)?;
+            chunks.push(chunk?);
+        }
 
-            for i in 0..chunk.cardinality() {
-                let keys = keys_chunk.row(i).values().collect();
+        println!("chunk size {}", chunks.len());
+        let thread_num = 40;
+        // Split chunk into multiple threads
+        let chunk_size = (chunks.len() + thread_num - 1) / thread_num;
+        let chunks = chunks
+            .chunks(chunk_size)
+            .map(|x| x.to_vec())
+            .collect::<Vec<_>>();
+
+        let mut handles = Vec::new();
+        for chunk in chunks {
+            let aggs = self.aggs.clone();
+            let group_keys = self.group_keys.clone();
+            let handle = tokio::spawn(async move {
+                let mut states = HashMap::<GroupKeys, AggValue>::new();
+                for chunk in chunk {
+                    let keys_chunk = Evaluator::new(&group_keys).eval_list(&chunk).unwrap();
+                    let args_chunk = Evaluator::new(&aggs).eval_list(&chunk).unwrap();
+
+                    for i in 0..chunk.cardinality() {
+                        let keys = keys_chunk.row(i).values().collect();
+                        let states = states
+                            .entry(keys)
+                            .or_insert_with(|| Evaluator::new(&aggs).init_agg_states());
+                        Evaluator::new(&aggs).agg_list_append(states, args_chunk.row(i).values());
+                    }
+                }
+                states
+            });
+            handles.push(handle);
+        }
+
+        let mut states = HashMap::<GroupKeys, AggValue>::new();
+
+        for handle in handles {
+            let chunk_states = handle.await.unwrap();
+            for (key, aggs) in chunk_states {
                 let states = states
-                    .entry(keys)
+                    .entry(key)
                     .or_insert_with(|| Evaluator::new(&self.aggs).init_agg_states());
-                Evaluator::new(&self.aggs).agg_list_append(states, args_chunk.row(i).values());
+                Evaluator::new(&self.aggs).agg_list_append(states, aggs.into_iter());
             }
         }
 
