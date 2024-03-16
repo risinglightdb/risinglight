@@ -161,7 +161,7 @@ impl Column {
                     // block has not been in cache, so we fetch it from disk
                     let file = self.file.clone();
                     let info = self.index.index(block_id).clone();
-                    let block = tokio::task::spawn_blocking(move || {
+                    let block = {
                         let data = match file {
                             ColumnReadableFile::PositionedRead(file) => {
                                 let mut data = vec![0; info.length as usize];
@@ -179,9 +179,7 @@ impl Column {
                                 .slice(info.offset as usize..(info.offset + info.length) as usize),
                         };
                         Ok::<_, TracedStorageError>(data)
-                    })
-                    .await
-                    .unwrap();
+                    };
                     // TODO(chi): we should invalidate cache item after a RowSet has been compacted.
                     // self.block_cache.insert(key, block.clone()).await;
 
