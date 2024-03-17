@@ -189,7 +189,7 @@ Projection
                 └── Scan
                     ├── table: lineitem
                     ├── list: [ l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate ]
-                    ├── filter: null
+                    ├── filter: true
                     ├── cost: 42008504
                     └── rows: 6001215
 */
@@ -265,14 +265,14 @@ Projection
                 │       │       └── Scan
                 │       │           ├── table: customer
                 │       │           ├── list: [ c_custkey, c_mktsegment ]
-                │       │           ├── filter: null
+                │       │           ├── filter: true
                 │       │           ├── cost: 300000
                 │       │           └── rows: 150000
                 │       └── Filter { cond: > { lhs: 1995-03-15, rhs: o_orderdate }, cost: 9315000, rows: 750000 }
                 │           └── Scan
                 │               ├── table: orders
                 │               ├── list: [ o_orderkey, o_custkey, o_orderdate, o_shippriority ]
-                │               ├── filter: null
+                │               ├── filter: true
                 │               ├── cost: 6000000
                 │               └── rows: 1500000
                 └── Projection { exprs: [ l_orderkey, l_extendedprice, l_discount ], cost: 37387570, rows: 3000607.5 }
@@ -280,7 +280,7 @@ Projection
                         └── Scan
                             ├── table: lineitem
                             ├── list: [ l_orderkey, l_extendedprice, l_discount, l_shipdate ]
-                            ├── filter: null
+                            ├── filter: true
                             ├── cost: 24004860
                             └── rows: 6001215
 */
@@ -354,19 +354,19 @@ Projection
                 │       │       │       └── Scan
                 │       │       │           ├── table: region
                 │       │       │           ├── list: [ r_regionkey, r_name ]
-                │       │       │           ├── filter: null
+                │       │       │           ├── filter: true
                 │       │       │           ├── cost: 10
                 │       │       │           └── rows: 5
                 │       │       └── Scan
                 │       │           ├── table: nation
                 │       │           ├── list: [ n_nationkey, n_name, n_regionkey ]
-                │       │           ├── filter: null
+                │       │           ├── filter: true
                 │       │           ├── cost: 75
                 │       │           └── rows: 25
                 │       └── Scan
                 │           ├── table: supplier
                 │           ├── list: [ s_suppkey, s_nationkey ]
-                │           ├── filter: null
+                │           ├── filter: true
                 │           ├── cost: 20000
                 │           └── rows: 10000
                 └── Projection
@@ -387,7 +387,7 @@ Projection
                         │       ├── Scan
                         │       │   ├── table: customer
                         │       │   ├── list: [ c_custkey, c_nationkey ]
-                        │       │   ├── filter: null
+                        │       │   ├── filter: true
                         │       │   ├── cost: 300000
                         │       │   └── rows: 150000
                         │       └── Projection { exprs: [ o_orderkey, o_custkey ], cost: 6416250, rows: 375000 }
@@ -400,13 +400,13 @@ Projection
                         │               └── Scan
                         │                   ├── table: orders
                         │                   ├── list: [ o_orderkey, o_custkey, o_orderdate ]
-                        │                   ├── filter: null
+                        │                   ├── filter: true
                         │                   ├── cost: 4500000
                         │                   └── rows: 1500000
                         └── Scan
                             ├── table: lineitem
                             ├── list: [ l_orderkey, l_suppkey, l_extendedprice, l_discount ]
-                            ├── filter: null
+                            ├── filter: true
                             ├── cost: 24004860
                             └── rows: 6001215
 */
@@ -447,7 +447,7 @@ Projection
             └── Scan
                 ├── table: lineitem
                 ├── list: [ l_quantity, l_extendedprice, l_discount, l_shipdate ]
-                ├── filter: null
+                ├── filter: true
                 ├── cost: 24004860
                 └── rows: 6001215
 */
@@ -548,19 +548,19 @@ Projection
                         │       │       ├── Scan
                         │       │       │   ├── table: nation
                         │       │       │   ├── list: [ n_nationkey(1), n_name(1) ]
-                        │       │       │   ├── filter: null
+                        │       │       │   ├── filter: true
                         │       │       │   ├── cost: 50
                         │       │       │   └── rows: 25
                         │       │       └── Scan
                         │       │           ├── table: customer
                         │       │           ├── list: [ c_custkey, c_nationkey ]
-                        │       │           ├── filter: null
+                        │       │           ├── filter: true
                         │       │           ├── cost: 300000
                         │       │           └── rows: 150000
                         │       └── Scan
                         │           ├── table: orders
                         │           ├── list: [ o_orderkey, o_custkey ]
-                        │           ├── filter: null
+                        │           ├── filter: true
                         │           ├── cost: 3000000
                         │           └── rows: 1500000
                         └── Projection
@@ -581,13 +581,13 @@ Projection
                                 │       ├── Scan
                                 │       │   ├── table: nation
                                 │       │   ├── list: [ n_nationkey, n_name ]
-                                │       │   ├── filter: null
+                                │       │   ├── filter: true
                                 │       │   ├── cost: 50
                                 │       │   └── rows: 25
                                 │       └── Scan
                                 │           ├── table: supplier
                                 │           ├── list: [ s_suppkey, s_nationkey ]
-                                │           ├── filter: null
+                                │           ├── filter: true
                                 │           ├── cost: 20000
                                 │           └── rows: 10000
                                 └── Filter
@@ -599,7 +599,7 @@ Projection
                                     └── Scan
                                         ├── table: lineitem
                                         ├── list: [ l_orderkey, l_suppkey, l_extendedprice, l_discount, l_shipdate ]
-                                        ├── filter: null
+                                        ├── filter: true
                                         ├── cost: 30006076
                                         └── rows: 6001215
 */
@@ -695,7 +695,7 @@ Projection
                     │   ├── Scan
                     │   │   ├── table: nation
                     │   │   ├── list: [ n_nationkey(1), n_name(1) ]
-                    │   │   ├── filter: null
+                    │   │   ├── filter: true
                     │   │   ├── cost: 50
                     │   │   └── rows: 25
                     │   └── Projection { exprs: [ r_regionkey ], cost: 16.099998, rows: 2.5 }
@@ -703,7 +703,7 @@ Projection
                     │           └── Scan
                     │               ├── table: region
                     │               ├── list: [ r_regionkey, r_name ]
-                    │               ├── filter: null
+                    │               ├── filter: true
                     │               ├── cost: 10
                     │               └── rows: 5
                     └── Projection
@@ -733,13 +733,13 @@ Projection
                             │       │       ├── Scan
                             │       │       │   ├── table: nation
                             │       │       │   ├── list: [ n_nationkey, n_regionkey ]
-                            │       │       │   ├── filter: null
+                            │       │       │   ├── filter: true
                             │       │       │   ├── cost: 50
                             │       │       │   └── rows: 25
                             │       │       └── Scan
                             │       │           ├── table: customer
                             │       │           ├── list: [ c_custkey, c_nationkey ]
-                            │       │           ├── filter: null
+                            │       │           ├── filter: true
                             │       │           ├── cost: 300000
                             │       │           └── rows: 150000
                             │       └── Filter
@@ -751,7 +751,7 @@ Projection
                             │           └── Scan
                             │               ├── table: orders
                             │               ├── list: [ o_orderkey, o_custkey, o_orderdate ]
-                            │               ├── filter: null
+                            │               ├── filter: true
                             │               ├── cost: 4500000
                             │               └── rows: 1500000
                             └── Projection
@@ -766,7 +766,7 @@ Projection
                                     ├── Scan
                                     │   ├── table: supplier
                                     │   ├── list: [ s_suppkey, s_nationkey ]
-                                    │   ├── filter: null
+                                    │   ├── filter: true
                                     │   ├── cost: 20000
                                     │   └── rows: 10000
                                     └── Projection
@@ -786,7 +786,7 @@ Projection
                                             │       └── Scan
                                             │           ├── table: part
                                             │           ├── list: [ p_partkey, p_type ]
-                                            │           ├── filter: null
+                                            │           ├── filter: true
                                             │           ├── cost: 400000
                                             │           └── rows: 200000
                                             └── Scan
@@ -797,7 +797,7 @@ Projection
                                                 │   ├── l_suppkey
                                                 │   ├── l_extendedprice
                                                 │   └── l_discount
-                                                ├── filter: null
+                                                ├── filter: true
                                                 ├── cost: 30006076
                                                 └── rows: 6001215
 */
@@ -879,7 +879,7 @@ Projection
                 ├── Scan
                 │   ├── table: orders
                 │   ├── list: [ o_orderkey, o_orderdate ]
-                │   ├── filter: null
+                │   ├── filter: true
                 │   ├── cost: 3000000
                 │   └── rows: 1500000
                 └── Projection
@@ -894,7 +894,7 @@ Projection
                         ├── Scan
                         │   ├── table: partsupp
                         │   ├── list: [ ps_partkey, ps_suppkey, ps_supplycost ]
-                        │   ├── filter: null
+                        │   ├── filter: true
                         │   ├── cost: 2400000
                         │   └── rows: 800000
                         └── Projection
@@ -922,13 +922,13 @@ Projection
                                 │       ├── Scan
                                 │       │   ├── table: nation
                                 │       │   ├── list: [ n_nationkey, n_name ]
-                                │       │   ├── filter: null
+                                │       │   ├── filter: true
                                 │       │   ├── cost: 50
                                 │       │   └── rows: 25
                                 │       └── Scan
                                 │           ├── table: supplier
                                 │           ├── list: [ s_suppkey, s_nationkey ]
-                                │           ├── filter: null
+                                │           ├── filter: true
                                 │           ├── cost: 20000
                                 │           └── rows: 10000
                                 └── Projection
@@ -954,7 +954,7 @@ Projection
                                         │       └── Scan
                                         │           ├── table: part
                                         │           ├── list: [ p_partkey, p_name ]
-                                        │           ├── filter: null
+                                        │           ├── filter: true
                                         │           ├── cost: 400000
                                         │           └── rows: 200000
                                         └── Scan
@@ -966,7 +966,7 @@ Projection
                                             │   ├── l_quantity
                                             │   ├── l_extendedprice
                                             │   └── l_discount
-                                            ├── filter: null
+                                            ├── filter: true
                                             ├── cost: 36007290
                                             └── rows: 6001215
 */
@@ -1072,7 +1072,7 @@ Projection
                 │       │       ├── Scan
                 │       │       │   ├── table: nation
                 │       │       │   ├── list: [ n_nationkey, n_name ]
-                │       │       │   ├── filter: null
+                │       │       │   ├── filter: true
                 │       │       │   ├── cost: 50
                 │       │       │   └── rows: 25
                 │       │       └── Scan
@@ -1085,7 +1085,7 @@ Projection
                 │       │           │   ├── c_phone
                 │       │           │   ├── c_acctbal
                 │       │           │   └── c_comment
-                │       │           ├── filter: null
+                │       │           ├── filter: true
                 │       │           ├── cost: 1050000
                 │       │           └── rows: 150000
                 │       └── Projection { exprs: [ o_orderkey, o_custkey ], cost: 6416250, rows: 375000 }
@@ -1098,7 +1098,7 @@ Projection
                 │               └── Scan
                 │                   ├── table: orders
                 │                   ├── list: [ o_orderkey, o_custkey, o_orderdate ]
-                │                   ├── filter: null
+                │                   ├── filter: true
                 │                   ├── cost: 4500000
                 │                   └── rows: 1500000
                 └── Projection { exprs: [ l_orderkey, l_extendedprice, l_discount ], cost: 37387570, rows: 3000607.5 }
@@ -1106,7 +1106,7 @@ Projection
                         └── Scan
                             ├── table: lineitem
                             ├── list: [ l_orderkey, l_extendedprice, l_discount, l_returnflag ]
-                            ├── filter: null
+                            ├── filter: true
                             ├── cost: 24004860
                             └── rows: 6001215
 */
@@ -1206,13 +1206,13 @@ Projection
                 │           └── Scan
                 │               ├── table: lineitem
                 │               ├── list: [ l_orderkey, l_shipdate, l_commitdate, l_receiptdate, l_shipmode ]
-                │               ├── filter: null
+                │               ├── filter: true
                 │               ├── cost: 30006076
                 │               └── rows: 6001215
                 └── Scan
                     ├── table: orders
                     ├── list: [ o_orderkey, o_orderpriority ]
-                    ├── filter: null
+                    ├── filter: true
                     ├── cost: 3000000
                     └── rows: 1500000
 */
@@ -1281,7 +1281,7 @@ Projection
                         ├── on: = { lhs: [ c_custkey ], rhs: [ o_custkey ] }
                         ├── cost: 9792252
                         ├── rows: 750000
-                        ├── Scan { table: customer, list: [ c_custkey ], filter: null, cost: 150000, rows: 150000 }
+                        ├── Scan { table: customer, list: [ c_custkey ], filter: true, cost: 150000, rows: 150000 }
                         └── Projection { exprs: [ o_orderkey, o_custkey ], cost: 7237500, rows: 750000 }
                             └── Filter
                                 ├── cond:not
@@ -1291,7 +1291,7 @@ Projection
                                 └── Scan
                                     ├── table: orders
                                     ├── list: [ o_orderkey, o_custkey, o_comment ]
-                                    ├── filter: null
+                                    ├── filter: true
                                     ├── cost: 4500000
                                     └── rows: 1500000
 */
@@ -1344,7 +1344,7 @@ Projection
     ├── rows: 1
     └── Projection { exprs: [ p_type, l_extendedprice, l_discount ], cost: 41447668, rows: 1500303.8 }
         └── HashJoin { type: inner, on: = { lhs: [ p_partkey ], rhs: [ l_partkey ] }, cost: 41387656, rows: 1500303.8 }
-            ├── Scan { table: part, list: [ p_partkey, p_type ], filter: null, cost: 400000, rows: 200000 }
+            ├── Scan { table: part, list: [ p_partkey, p_type ], filter: true, cost: 400000, rows: 200000 }
             └── Projection { exprs: [ l_partkey, l_extendedprice, l_discount ], cost: 33186720, rows: 1500303.8 }
                 └── Filter
                     ├── cond:and
@@ -1355,7 +1355,7 @@ Projection
                     └── Scan
                         ├── table: lineitem
                         ├── list: [ l_partkey, l_extendedprice, l_discount, l_shipdate ]
-                        ├── filter: null
+                        ├── filter: true
                         ├── cost: 24004860
                         └── rows: 6001215
 */
@@ -1460,7 +1460,7 @@ Projection
                     │   └── Scan
                     │       ├── table: part
                     │       ├── list: [ p_partkey, p_brand, p_size, p_container ]
-                    │       ├── filter: null
+                    │       ├── filter: true
                     │       ├── cost: 800000
                     │       └── rows: 200000
                     └── Projection
@@ -1484,7 +1484,7 @@ Projection
                                 │   ├── l_discount
                                 │   ├── l_shipinstruct
                                 │   └── l_shipmode
-                                ├── filter: null
+                                ├── filter: true
                                 ├── cost: 36007290
                                 └── rows: 6001215
 */
