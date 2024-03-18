@@ -4,6 +4,7 @@ use super::*;
 use crate::parser::{Expr, Query, SelectItem, SetExpr};
 
 impl Binder {
+    /// Binds a query in a new sub-context.
     pub(super) fn bind_query(&mut self, query: Query) -> Result<(Id, Context)> {
         self.contexts.push(Context::default());
         let ret = self.bind_query_internal(query);
@@ -11,11 +12,20 @@ impl Binder {
         ret.map(|id| (id, ctx))
     }
 
+    /// Binds a query in the current context.
     pub(super) fn bind_query_internal(&mut self, query: Query) -> Result {
+        if let Some(with) = query.with {
+            if with.recursive {
+                return Err(BindError::Todo("recursive CTE".into()));
+            }
+            for cte in with.cte_tables {
+                self.bind_cte(cte)?;
+            }
+        }
         let child = match *query.body {
             SetExpr::Select(select) => self.bind_select(*select, query.order_by)?,
             SetExpr::Values(values) => self.bind_values(values)?,
-            _ => todo!("handle query ???"),
+            _ => return Err(BindError::Todo("unknown set expr".into())),
         };
         let limit = match query.limit {
             Some(expr) => self.bind_expr(expr)?,
@@ -26,6 +36,47 @@ impl Binder {
             None => self.egraph.add(Node::zero()),
         };
         Ok(self.egraph.add(Node::Limit([limit, offset, child])))
+    }
+
+    /// Binds a CTE definition: `alias AS query`.
+    ///
+    /// Returns a node of query and adds the CTE to the context.
+    fn bind_cte(&mut self, Cte { alias, query, .. }: Cte) -> Result {
+        let table_alias = alias.name.value.to_lowercase();
+        if self.current_ctx().ctes.contains_key(&table_alias) {
+            return Err(BindError::DuplicatedCteName(table_alias.clone()));
+        }
+        let (query, ctx) = self.bind_query(*query)?;
+        let mut columns = HashMap::new();
+        if !alias.columns.is_empty() {
+            // `with t(a, b, ..)`
+            // check column count
+            let expected_column_num = self.schema(query).len();
+            let actual_column_num = alias.columns.len();
+            if actual_column_num != expected_column_num {
+                return Err(BindError::ColumnCountMismatch(
+                    table_alias.clone(),
+                    expected_column_num,
+                    actual_column_num,
+                ));
+            }
+            for (column, id) in alias.columns.iter().zip(self.schema(query)) {
+                columns.insert(column.value.to_lowercase(), id);
+            }
+        } else {
+            // `with t`
+            for (name, mut id) in ctx.output_aliases {
+                // wrap with `Ref` if the node is not a column unit.
+                if !matches!(self.node(id), Node::Column(_) | Node::Ref(_)) {
+                    id = self.egraph.add(Node::Ref(id));
+                }
+                columns.insert(name, id);
+            }
+        }
+        self.current_ctx_mut()
+            .ctes
+            .insert(table_alias, (query, columns));
+        Ok(query)
     }
 
     fn bind_select(&mut self, select: Select, order_by: Vec<OrderByExpr>) -> Result {

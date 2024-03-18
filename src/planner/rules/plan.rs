@@ -263,7 +263,11 @@ fn columns_is(
                 .data
                 .columns
                 .iter()
-                .map(|e| egraph.lookup(e.clone()).unwrap())
+                .map(|e| {
+                    egraph
+                        .lookup(e.clone())
+                        .unwrap_or_else(|| panic!("node not found in egraph: {}", e))
+                })
                 .collect()
         };
         f(&get_set(var1), &get_set(var2))
