@@ -45,6 +45,10 @@ pub enum BindError {
     ColumnExists(String),
     #[error("duplicated alias {0:?}")]
     DuplicatedAlias(String),
+    #[error("duplicate CTE name {0:?}")]
+    DuplicatedCteName(String),
+    #[error("table {0:?} has {1} columns available but {2} columns specified")]
+    ColumnCountMismatch(String, usize, usize),
     #[error("invalid expression {0}")]
     InvalidExpression(String),
     #[error("not nullable column {0:?}")]
@@ -233,16 +237,22 @@ pub fn bind_header(mut chunk: array::Chunk, stmt: &Statement) -> array::Chunk {
     chunk
 }
 
-/// The context of binder execution.
+/// A set of current accessible table and column aliases.
+///
+/// Context can be nested to represent subqueries.
+/// Binder maintains a stack of contexts.
 #[derive(Debug, Default)]
 struct Context {
-    /// Table names that can be accessed from the current query.
+    /// Defined CTEs.
+    /// cte_name -> (query_id, column_alias -> id)
+    ctes: HashMap<String, (Id, HashMap<String, Id>)>,
+    /// Table aliases that can be accessed from the current query.
     table_aliases: HashSet<String>,
-    /// Column names that can be accessed from the current query.
-    /// column_name -> (table_name -> id)
-    aliases: HashMap<String, HashMap<String, Id>>,
-    /// Column names that can be accessed from the outside query.
-    /// column_name -> id
+    /// Column aliases that can be accessed from the current query.
+    /// column_alias -> (table_alias -> id)
+    column_aliases: HashMap<String, HashMap<String, Id>>,
+    /// Column aliases that can be accessed from the outside query.
+    /// column_alias -> id
     output_aliases: HashMap<String, Id>,
 }
 
@@ -321,15 +331,23 @@ impl Binder {
         self.contexts.last_mut().unwrap()
     }
 
-    /// Add an alias to the current context.
+    /// Add a column alias to the current context.
     fn add_alias(&mut self, column_name: String, table_name: String, id: Id) {
         let context = self.contexts.last_mut().unwrap();
         context
-            .aliases
+            .column_aliases
             .entry(column_name)
             .or_default()
             .insert(table_name, id);
         // may override the same name
+    }
+
+    /// Find an CTE.
+    fn find_cte(&self, cte_name: &str) -> Option<&(Id, HashMap<String, Id>)> {
+        self.contexts
+            .iter()
+            .rev()
+            .find_map(|ctx| ctx.ctes.get(cte_name))
     }
 
     fn type_(&self, id: Id) -> Result<crate::types::DataType> {

@@ -1,0 +1,60 @@
+# FIXME: panic
+# # create a CTE called "cte" and use it in the main query
+# query I
+# WITH cte AS (SELECT 42 AS x)
+# SELECT * FROM cte;
+# ----
+# 42
+# 
+# # create two CTEs, where the second CTE references the first CTE
+# query I
+# WITH cte AS (SELECT 42 AS i),
+#      cte2 AS (SELECT i*100 AS x FROM cte)
+# SELECT * FROM cte2;
+# ----
+# 4200
+
+
+statement ok
+create table t(a int);
+
+statement ok
+insert into t values (42);
+
+query I
+with cte as (select a from t)
+select * from cte;
+----
+42
+
+# FIXME: panic
+# query I
+# with cte as (select a as i from t),
+#      cte2 as (select i*100 as x from cte)
+# select * from cte2;
+# ----
+# 4200
+
+statement ok
+insert into t values (43);
+
+# FIXME: correct column reference when join cte with itself
+#        now it can not distinguish between t1.a and t2.a
+# query II rowsort
+# with cte as (select a from t)
+# select * from cte as t1, cte as t2 where t1.a = t2.a;
+# ----
+# 42 42
+# 43 43
+
+statement ok
+drop table t;
+
+query error duplicate CTE name
+with cte as (select 42 as x),
+     cte as (select * from cte)
+select * from cte;
+
+query error table "cte" has 1 columns available but 2 columns specified
+with cte(a, b) as (select 42 as x)
+select * from cte;

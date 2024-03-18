@@ -59,13 +59,7 @@ impl Binder {
     /// - `bind_table_factor(select 1)` => `(values (1))`
     fn bind_table_factor(&mut self, table: TableFactor) -> Result {
         match table {
-            TableFactor::Table { name, alias, .. } => {
-                let (table_id, _) = self.bind_table_id(&name)?;
-                let cols = self.bind_table_def(&name, alias, false)?;
-                let null = self.egraph.add(Node::null());
-                let id = self.egraph.add(Node::Scan([table_id, cols, null]));
-                Ok(id)
-            }
+            TableFactor::Table { name, alias, .. } => self.bind_table_def(&name, alias, false),
             TableFactor::Derived {
                 subquery, alias, ..
             } => {
@@ -76,7 +70,7 @@ impl Binder {
                     // 'as t(a, b, ..)'
                     let table_name = &alias.name.value;
                     for (column, id) in alias.columns.iter().zip(self.schema(id)) {
-                        self.add_alias(column.value.clone(), table_name.clone(), id);
+                        self.add_alias(column.value.to_lowercase(), table_name.clone(), id);
                     }
                 } else {
                     // move `output_aliases` to current context
@@ -135,12 +129,13 @@ impl Binder {
         }
     }
 
-    /// Returns a list of all columns in the table.
+    /// Defines the table name so that it can be referred later.
+    /// Returns a `Scan` node if the table is a base table, or a subquery if it is a CTE.
     ///
     /// This function defines the table name so that it can be referred later.
     ///
     /// # Example
-    /// - `bind_table_def(t)` => `(list $1.1 $1.2)`
+    /// - `bind_table_def(t)` => `(scan $1 (list $1.1 $1.2) null)`
     pub(super) fn bind_table_def(
         &mut self,
         name: &ObjectName,
@@ -149,11 +144,8 @@ impl Binder {
     ) -> Result {
         let name = lower_case_name(name);
         let (schema_name, table_name) = split_name(&name)?;
-        let ref_id = self
-            .catalog
-            .get_table_id_by_name(schema_name, table_name)
-            .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
 
+        // check duplicated alias
         let table_alias = match &alias {
             Some(alias) => &alias.name.value,
             None => table_name,
@@ -165,6 +157,21 @@ impl Binder {
         {
             return Err(BindError::DuplicatedAlias(table_alias.into()));
         }
+
+        // find cte
+        if let Some((query, columns)) = self.find_cte(table_name).cloned() {
+            // add column aliases
+            for (column_name, id) in columns {
+                self.add_alias(column_name, table_alias.into(), id);
+            }
+            return Ok(query);
+        }
+
+        // find table in catalog
+        let ref_id = self
+            .catalog
+            .get_table_id_by_name(schema_name, table_name)
+            .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
 
         let table = self.catalog.get_table(&ref_id).unwrap();
         let table_occurence = {
@@ -183,8 +190,13 @@ impl Binder {
             self.add_alias(column.name().into(), table_alias.into(), id);
             ids.push(id);
         }
-        let id = self.egraph.add(Node::List(ids.into()));
-        Ok(id)
+
+        // return a Scan node
+        let table = self.egraph.add(Node::Table(ref_id));
+        let cols = self.egraph.add(Node::List(ids.into()));
+        let null = self.egraph.add(Node::null());
+        let scan = self.egraph.add(Node::Scan([table, cols, null]));
+        Ok(scan)
     }
 
     /// Returns a list of given columns in the table.

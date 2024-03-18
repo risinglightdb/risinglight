@@ -108,7 +108,7 @@ impl Binder {
 
         let map = self
             .current_ctx()
-            .aliases
+            .column_aliases
             .get(column_name)
             .ok_or_else(|| BindError::InvalidColumn(column_name.into()))?;
         if let Some(table_name) = table_name {
