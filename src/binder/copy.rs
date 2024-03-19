@@ -85,9 +85,9 @@ impl Binder {
                     table_name,
                     columns,
                 } => {
-                    let (table, is_internal, is_view) = self.bind_table_id(&table_name)?;
-                    if is_internal {
-                        return Err(BindError::CopyTo("internal table".into()));
+                    let (table, is_system, is_view) = self.bind_table_id(&table_name)?;
+                    if is_system {
+                        return Err(BindError::CopyTo("system table".into()));
                     } else if is_view {
                         return Err(BindError::CopyTo("view".into()));
                     }
@@ -96,7 +96,7 @@ impl Binder {
                 }
                 CopySource::Query(_) => return Err(BindError::CopyTo("query".into())),
             };
-            let types = self.type_(cols)?.kind();
+            let types = self.type_(cols)?;
             let types = self.egraph.add(Node::Type(types));
             let copy = self.egraph.add(Node::CopyFrom([ext_source, types]));
             self.egraph.add(Node::Insert([table, cols, copy]))

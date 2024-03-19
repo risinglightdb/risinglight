@@ -148,19 +148,19 @@ impl DataValue {
     /// Get the type of value.
     pub fn data_type(&self) -> DataType {
         match self {
-            Self::Null => DataTypeKind::Null.nullable(),
-            Self::Bool(_) => DataTypeKind::Bool.not_null(),
-            Self::Int16(_) => DataTypeKind::Int16.not_null(),
-            Self::Int32(_) => DataTypeKind::Int32.not_null(),
-            Self::Int64(_) => DataTypeKind::Int64.not_null(),
-            Self::Float64(_) => DataTypeKind::Float64.not_null(),
-            Self::String(_) => DataTypeKind::String.not_null(),
-            Self::Blob(_) => DataTypeKind::Blob.not_null(),
-            Self::Decimal(_) => DataTypeKind::Decimal(None, None).not_null(),
-            Self::Date(_) => DataTypeKind::Date.not_null(),
-            Self::Timestamp(_) => DataTypeKind::Timestamp.not_null(),
-            Self::TimestampTz(_) => DataTypeKind::TimestampTz.not_null(),
-            Self::Interval(_) => DataTypeKind::Interval.not_null(),
+            Self::Null => DataType::Null,
+            Self::Bool(_) => DataType::Bool,
+            Self::Int16(_) => DataType::Int16,
+            Self::Int32(_) => DataType::Int32,
+            Self::Int64(_) => DataType::Int64,
+            Self::Float64(_) => DataType::Float64,
+            Self::String(_) => DataType::String,
+            Self::Blob(_) => DataType::Blob,
+            Self::Decimal(_) => DataType::Decimal(None, None),
+            Self::Date(_) => DataType::Date,
+            Self::Timestamp(_) => DataType::Timestamp,
+            Self::TimestampTz(_) => DataType::TimestampTz,
+            Self::Interval(_) => DataType::Interval,
         }
     }
 
@@ -187,7 +187,7 @@ impl DataValue {
     }
 
     /// Cast the value to another type.
-    pub fn cast(&self, ty: &DataTypeKind) -> Result<Self, ConvertError> {
+    pub fn cast(&self, ty: &DataType) -> Result<Self, ConvertError> {
         Ok(ArrayImpl::from(self).cast(ty)?.get(0))
     }
 }

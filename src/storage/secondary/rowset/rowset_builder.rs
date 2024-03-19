@@ -31,7 +31,11 @@ impl RowsetBuilder {
             builders: columns
                 .iter()
                 .map(|column| {
-                    ColumnBuilderImpl::new_from_datatype(&column.datatype(), column_options.clone())
+                    ColumnBuilderImpl::new_from_datatype(
+                        &column.data_type(),
+                        column.is_nullable(),
+                        column_options.clone(),
+                    )
                 })
                 .collect_vec(),
             columns,

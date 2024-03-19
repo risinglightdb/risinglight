@@ -25,7 +25,7 @@ impl<S: Storage> SystemTableScan<S> {
         assert_eq!(self.columns.len(), table.all_columns().len());
 
         yield match table.name() {
-            "contributor" => contributors(),
+            "contributors" => contributors(),
             "pg_tables" => pg_tables(self.catalog),
             "pg_attribute" => pg_attribute(self.catalog),
             "pg_stat" => pg_stat(self.catalog, &*self.storage).await?,
@@ -46,48 +46,56 @@ fn contributors() -> DataChunk {
         "TennyZhuang",
         "xxchan",
         "st1page",
+        "caicancai",
         "Fedomn",
         "arkbriar",
         "likg227",
         "lokax",
-        "BaymaxHWY",
         "zzl200012",
+        "unconsolable",
+        "BaymaxHWY",
         "alissa-tung",
         "ludics",
-        "shmiwy",
+        "Sunt-ing",
         "yinfredyue",
-        "unconsolable",
         "xiaoyong-z",
         "Kikkon",
-        "eliasyaoyc",
-        "GoGim1",
-        "kwannoel",
         "D2Lark",
-        "tabVersion",
-        "WindowsXp-Beta",
-        "chaixuqing",
-        "yingjunwu",
-        "adlternative",
+        "xzhseh",
+        "ice1000",
+        "kwannoel",
+        "GoGim1",
+        "eliasyaoyc",
         "wangqiim",
-        "yeya24",
-        "PsiACE",
-        "JayiceZ",
-        "chowc",
-        "noneback",
-        "RinChanNOWWW",
+        "silver-ymz",
+        "adlternative",
+        "yingjunwu",
+        "chaixuqing",
+        "WindowsXp-Beta",
+        "tabVersion",
         "SkyFan2002",
-        "Y7n05h",
-        "Ted-Jiang",
-        "LiuYuHui",
-        "rapiz1",
-        "zehaowei",
-        "Gun9niR",
-        "cadl",
-        "nanderstabel",
-        "sundy-li",
-        "xinchengxx",
-        "yuzi-neko",
+        "FANNG1",
         "XieJiann",
+        "yuzi-neko",
+        "xinchengxx",
+        "sundy-li",
+        "nanderstabel",
+        "jetjinser",
+        "cadl",
+        "Gun9niR",
+        "zehaowei",
+        "rapiz1",
+        "LiuYuHui",
+        "Ted-Jiang",
+        "Y7n05h",
+        "RinChanNOWWW",
+        "noneback",
+        "chowc",
+        "xiaguan",
+        "JayiceZ",
+        "danipozo",
+        "PsiACE",
+        "yeya24",
     ];
     [ArrayImpl::new_string(StringArray::from_iter(
         contributors.iter().map(|s| Some(*s)).sorted(),
@@ -108,7 +116,7 @@ fn pg_tables(catalog: RootCatalogRef) -> DataChunk {
             schema_id.push(Some(&(schema.id() as i32)));
             table_id.push(Some(&(table.id() as i32)));
             schema_name.push(Some(&schema.name()));
-            table_name.push(Some(&table.name()));
+            table_name.push(Some(table.name()));
         }
     }
     [
@@ -136,13 +144,13 @@ fn pg_attribute(catalog: RootCatalogRef) -> DataChunk {
         for (_, table) in schema.all_tables() {
             for (_, column) in table.all_columns() {
                 let name = column.name();
-                let data_type = column.datatype().kind().to_string().to_ascii_lowercase();
+                let data_type = column.data_type().to_string().to_ascii_lowercase();
                 let not_null = !column.is_nullable();
 
                 // schema_id.push(Some(&(sid as i32)));
                 // table_id.push(Some(&(tid as i32)));
                 schema_name.push(Some(&schema.name()));
-                table_name.push(Some(&table.name()));
+                table_name.push(Some(table.name()));
                 column_id.push(Some(&(column.id() as i32)));
                 column_name.push(Some(name));
                 column_type.push(Some(&data_type));
@@ -201,7 +209,7 @@ async fn pg_stat(catalog: RootCatalogRef, storage: &impl Storage) -> Result<Data
                     // table_id.push(Some(&(tid as i32)));
                     // column_id.push(Some(&(cid as i32)));
                     schema_name.push(Some(&schema.name()));
-                    table_name.push(Some(&table.name()));
+                    table_name.push(Some(table.name()));
                     column_name.push(Some(column.name()));
                     n_row.push(Some(&row));
                     n_distinct.push(Some(&distinct));

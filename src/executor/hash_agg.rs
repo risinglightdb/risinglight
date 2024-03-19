@@ -1,7 +1,6 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::collections::HashMap;
-
+use ahash::{HashMap, HashMapExt};
 use iter_chunks::IterChunks;
 use smallvec::SmallVec;
 

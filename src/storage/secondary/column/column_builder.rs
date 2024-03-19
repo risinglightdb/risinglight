@@ -14,7 +14,7 @@ use crate::array::ArrayImpl;
 use crate::storage::secondary::column::{
     IntervalColumnBuilder, TimestampColumnBuilder, TimestampTzColumnBuilder,
 };
-use crate::types::{DataType, DataTypeKind};
+use crate::types::DataType;
 
 /// [`ColumnBuilder`] of all types
 pub enum ColumnBuilderImpl {
@@ -33,24 +33,26 @@ pub enum ColumnBuilderImpl {
 }
 
 impl ColumnBuilderImpl {
-    pub fn new_from_datatype(datatype: &DataType, options: ColumnBuilderOptions) -> Self {
-        use DataTypeKind::*;
-        match datatype.kind() {
+    pub fn new_from_datatype(
+        datatype: &DataType,
+        nullable: bool,
+        options: ColumnBuilderOptions,
+    ) -> Self {
+        use DataType::*;
+        match datatype {
             Null => panic!("column type should not be null"),
-            Int16 => Self::Int16(I16ColumnBuilder::new(datatype.nullable, options)),
-            Int32 => Self::Int32(I32ColumnBuilder::new(datatype.nullable, options)),
-            Int64 => Self::Int64(I64ColumnBuilder::new(datatype.nullable, options)),
-            Bool => Self::Bool(BoolColumnBuilder::new(datatype.nullable, options)),
-            Float64 => Self::Float64(F64ColumnBuilder::new(datatype.nullable, options)),
-            String => Self::String(CharColumnBuilder::new(datatype.nullable, None, options)),
-            Decimal(_, _) => Self::Decimal(DecimalColumnBuilder::new(datatype.nullable, options)),
-            Date => Self::Date(DateColumnBuilder::new(datatype.nullable, options)),
-            Timestamp => Self::Timestamp(TimestampColumnBuilder::new(datatype.nullable, options)),
-            TimestampTz => {
-                Self::TimestampTz(TimestampTzColumnBuilder::new(datatype.nullable, options))
-            }
-            Interval => Self::Interval(IntervalColumnBuilder::new(datatype.nullable, options)),
-            Blob => Self::Blob(BlobColumnBuilder::new(datatype.nullable, options)),
+            Int16 => Self::Int16(I16ColumnBuilder::new(nullable, options)),
+            Int32 => Self::Int32(I32ColumnBuilder::new(nullable, options)),
+            Int64 => Self::Int64(I64ColumnBuilder::new(nullable, options)),
+            Bool => Self::Bool(BoolColumnBuilder::new(nullable, options)),
+            Float64 => Self::Float64(F64ColumnBuilder::new(nullable, options)),
+            String => Self::String(CharColumnBuilder::new(nullable, None, options)),
+            Decimal(_, _) => Self::Decimal(DecimalColumnBuilder::new(nullable, options)),
+            Date => Self::Date(DateColumnBuilder::new(nullable, options)),
+            Timestamp => Self::Timestamp(TimestampColumnBuilder::new(nullable, options)),
+            TimestampTz => Self::TimestampTz(TimestampTzColumnBuilder::new(nullable, options)),
+            Interval => Self::Interval(IntervalColumnBuilder::new(nullable, options)),
+            Blob => Self::Blob(BlobColumnBuilder::new(nullable, options)),
             Struct(_) => todo!("struct column builder"),
         }
     }

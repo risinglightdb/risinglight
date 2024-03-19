@@ -22,7 +22,7 @@ impl Binder {
 
         // check duplicated column names
         let mut set = HashSet::new();
-        for col in columns.iter() {
+        for col in &columns {
             if !set.insert(col.value.to_lowercase()) {
                 return Err(BindError::ColumnExists(col.value.to_lowercase()));
             }
@@ -30,15 +30,21 @@ impl Binder {
 
         let (query, _) = self.bind_query(query)?;
         let query_type = self.type_(query)?;
+        let output_types = query_type.as_struct();
+
+        // TODO: support inferring column names from query
+        if columns.len() != output_types.len() {
+            return Err(BindError::ViewAliasesMismatch);
+        }
 
         let columns: Vec<ColumnCatalog> = columns
             .into_iter()
-            .zip(query_type.kind().as_struct())
+            .zip(output_types)
             .enumerate()
             .map(|(idx, (name, ty))| {
                 ColumnCatalog::new(
                     idx as ColumnId,
-                    ColumnDesc::new(ty.clone(), name.value, false),
+                    ColumnDesc::new(name.value, ty.clone(), true),
                 )
             })
             .collect();

@@ -13,7 +13,6 @@ use crate::catalog::function::FunctionCatalog;
 use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
 use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
-use crate::types::{DataTypeKind, DataValue};
 
 pub mod copy;
 mod create_function;
@@ -46,6 +45,10 @@ pub enum BindError {
     ColumnExists(String),
     #[error("duplicated alias {0:?}")]
     DuplicatedAlias(String),
+    #[error("duplicate CTE name {0:?}")]
+    DuplicatedCteName(String),
+    #[error("table {0:?} has {1} columns available but {2} columns specified")]
+    ColumnCountMismatch(String, usize, usize),
     #[error("invalid expression {0}")]
     InvalidExpression(String),
     #[error("not nullable column {0:?}")]
@@ -59,7 +62,7 @@ pub enum BindError {
     #[error("invalid SQL")]
     InvalidSQL,
     #[error("cannot cast {0:?} to {1:?}")]
-    CastError(DataValue, DataTypeKind),
+    CastError(crate::types::DataValue, crate::types::DataType),
     #[error("{0}")]
     BindFunctionError(String),
     #[error("type error: {0}")]
@@ -92,6 +95,8 @@ pub enum BindError {
     CanNotInsert,
     #[error("can only delete from table")]
     CanNotDelete,
+    #[error("VIEW aliases mismatch query result")]
+    ViewAliasesMismatch,
 }
 
 /// The binder resolves all expressions referring to schema objects such as
@@ -238,16 +243,22 @@ pub fn bind_header(mut chunk: array::Chunk, stmt: &Statement) -> array::Chunk {
     chunk
 }
 
-/// The context of binder execution.
+/// A set of current accessible table and column aliases.
+///
+/// Context can be nested to represent subqueries.
+/// Binder maintains a stack of contexts.
 #[derive(Debug, Default)]
 struct Context {
-    /// Table names that can be accessed from the current query.
+    /// Defined CTEs.
+    /// cte_name -> (query_id, column_alias -> id)
+    ctes: HashMap<String, (Id, HashMap<String, Id>)>,
+    /// Table aliases that can be accessed from the current query.
     table_aliases: HashSet<String>,
-    /// Column names that can be accessed from the current query.
-    /// column_name -> (table_name -> id)
-    aliases: HashMap<String, HashMap<String, Id>>,
-    /// Column names that can be accessed from the outside query.
-    /// column_name -> id
+    /// Column aliases that can be accessed from the current query.
+    /// column_alias -> (table_alias -> id)
+    column_aliases: HashMap<String, HashMap<String, Id>>,
+    /// Column aliases that can be accessed from the outside query.
+    /// column_alias -> id
     output_aliases: HashMap<String, Id>,
 }
 
@@ -324,11 +335,11 @@ impl Binder {
         }
     }
 
-    /// Add an alias to the current context.
+    /// Add an column alias to the current context.
     fn add_alias(&mut self, column_name: String, table_name: String, id: Id) {
         let context = self.contexts.last_mut().unwrap();
         context
-            .aliases
+            .column_aliases
             .entry(column_name)
             .or_default()
             .insert(table_name, id);
@@ -350,10 +361,19 @@ impl Binder {
         context.output_aliases.insert(column_name, id);
     }
 
+    /// Add a CTE to the current context.
+    fn add_cte(&mut self, table_name: &str, query: Id, columns: HashMap<String, Id>) -> Result<()> {
+        let context = self.contexts.last_mut().unwrap();
+        if context.ctes.insert(table_name.into(), (query, columns)).is_some() {
+            return Err(BindError::DuplicatedCteName(table_name.into()));
+        }
+        Ok(())
+    }
+
     /// Find an alias.
     fn find_alias(&self, column_name: &str, table_name: Option<&str>) -> Result {
         for context in self.contexts.iter().rev() {
-            if let Some(map) = context.aliases.get(column_name) {
+            if let Some(map) = context.column_aliases.get(column_name) {
                 if let Some(table_name) = table_name {
                     if let Some(id) = map.get(table_name) {
                         return Ok(*id);
@@ -370,6 +390,14 @@ impl Binder {
             }
         }
         Err(BindError::InvalidColumn(column_name.into()))
+    }
+
+    /// Find an CTE.
+    fn find_cte(&self, cte_name: &str) -> Option<&(Id, HashMap<String, Id>)> {
+        self.contexts
+            .iter()
+            .rev()
+            .find_map(|ctx| ctx.ctes.get(cte_name))
     }
 
     fn type_(&self, id: Id) -> Result<crate::types::DataType> {

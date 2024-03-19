@@ -23,7 +23,7 @@ use itertools::Itertools;
 // use minitrace::prelude::*;
 use self::copy_from_file::*;
 use self::copy_to_file::*;
-use self::create_function::CreateFunctionExecutor;
+use self::create_function::*;
 use self::create_table::*;
 use self::create_view::*;
 use self::delete::*;
@@ -124,7 +124,7 @@ impl<S: Storage> Builder<S> {
             if let Expr::Table(tid) = node
                 && let Some(query) = optimizer.catalog().get_table(tid).unwrap().query()
             {
-                let builder = Self::new(optimizer.clone(), storage.clone(), &query);
+                let builder = Self::new(optimizer.clone(), storage.clone(), query);
                 let subscriber = builder.build_subscriber();
                 views.insert(*tid, subscriber);
             }
@@ -153,7 +153,7 @@ impl<S: Storage> Builder<S> {
     /// Returns the output types of a plan node.
     fn plan_types(&self, id: Id) -> &[DataType] {
         let ty = self.egraph[id].data.type_.as_ref().unwrap();
-        ty.kind.as_struct()
+        ty.as_struct()
     }
 
     /// Resolve the column index of `expr` in `plan`.
