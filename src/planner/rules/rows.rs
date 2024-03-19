@@ -51,7 +51,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
             let contains_primary_key = |list: &Id| {
                 let catalog = &egraph.analysis.catalog;
                 egraph[*list].as_list().iter().any(|cid| {
-                    for node in egraph[*cid].nodes.iter() {
+                    for node in &egraph[*cid].nodes {
                         if let Column(cid) = node {
                             return match catalog.get_column(cid) {
                                 Some(col) => col.is_primary(),

@@ -523,7 +523,7 @@ fn apply_proj(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
         children: ["?child", "?left", "?right"]
             .into_iter()
             .filter(|s| pattern_str.contains(s))
-            .map(|s| var(s))
+            .map(var)
             .collect(),
     }
 }

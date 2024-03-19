@@ -64,7 +64,7 @@ impl Optimizer {
     ) {
         for _ in 0..iteration {
             let runner = egg::Runner::<_, _, ()>::new(self.analysis.clone())
-                .with_expr(&expr)
+                .with_expr(expr)
                 .with_iter_limit(iter_limit)
                 .run(rules.clone());
             let cost_fn = cost::CostFn {
