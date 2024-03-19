@@ -1,0 +1,71 @@
+statement ok
+CREATE TABLE persons (
+    id INT,
+    name VARCHAR,
+    gender VARCHAR -- M or F
+);
+
+# FIXME: creating a view without column aliases is not supported
+# statement ok
+# CREATE VIEW males AS
+# SELECT id, name
+# FROM persons
+# WHERE gender = 'M';
+
+statement ok
+CREATE VIEW males(id, name) AS
+SELECT id, name
+FROM persons
+WHERE gender = 'M';
+
+statement ok
+CREATE VIEW females(id, name) AS
+SELECT id, name
+FROM persons
+WHERE gender = 'F';
+
+statement ok
+CREATE VIEW male_females(mname, fname) AS
+SELECT m.name, f.name
+FROM males m, females f;
+
+query T
+SELECT name FROM males;
+----
+
+query T
+SELECT name FROM females;
+----
+
+query TT
+SELECT * FROM male_females;
+----
+
+statement ok
+INSERT INTO persons (id, name, gender) VALUES
+(1, 'John', 'M'),
+(2, 'Jane', 'F'),
+(3, 'Mike', 'M');
+
+query T
+SELECT name FROM males;
+----
+John
+Mike
+
+query T
+SELECT name FROM females;
+----
+Jane
+
+query TT rowsort
+SELECT * FROM male_females;
+----
+John Jane
+Mike Jane
+
+statement ok
+DROP VIEW male_females, males, females;
+
+statement ok
+DROP TABLE persons;

@@ -84,7 +84,6 @@ impl Storage for InMemoryStorage {
                 schema_id,
                 table_name.into(),
                 column_descs.to_vec(),
-                false,
                 ordered_pk_ids.to_vec(),
             )
             .map_err(|_| StorageError::Duplicated("table", table_name.into()))?;

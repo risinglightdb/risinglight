@@ -3,6 +3,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use super::*;
+use crate::planner::RecExpr;
 
 /// The catalog of a table.
 pub struct TableCatalog {
@@ -12,11 +13,15 @@ pub struct TableCatalog {
     column_idxs: HashMap<String, ColumnId>,
     columns: BTreeMap<ColumnId, ColumnCatalog>,
 
-    #[allow(dead_code)]
-    is_materialized_view: bool,
+    kind: TableKind,
     next_column_id: ColumnId,
-    #[allow(dead_code)]
-    ordered_pk_ids: Vec<ColumnId>,
+    primary_key: Vec<ColumnId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TableKind {
+    Table,
+    View(RecExpr),
 }
 
 impl TableCatalog {
@@ -24,17 +29,35 @@ impl TableCatalog {
         id: TableId,
         name: String,
         columns: Vec<ColumnCatalog>,
-        is_materialized_view: bool,
-        ordered_pk_ids: Vec<ColumnId>,
+        primary_key: Vec<ColumnId>,
+    ) -> TableCatalog {
+        Self::new_(id, name, columns, TableKind::Table, primary_key)
+    }
+
+    pub fn new_view(
+        id: TableId,
+        name: String,
+        columns: Vec<ColumnCatalog>,
+        query: RecExpr,
+    ) -> TableCatalog {
+        Self::new_(id, name, columns, TableKind::View(query), vec![])
+    }
+
+    fn new_(
+        id: TableId,
+        name: String,
+        columns: Vec<ColumnCatalog>,
+        kind: TableKind,
+        primary_key: Vec<ColumnId>,
     ) -> TableCatalog {
         let mut table_catalog = TableCatalog {
             id,
             name,
             column_idxs: HashMap::new(),
             columns: BTreeMap::new(),
-            is_materialized_view,
+            kind,
             next_column_id: 0,
-            ordered_pk_ids,
+            primary_key,
         };
         table_catalog
             .add_column(ColumnCatalog::new(
@@ -102,7 +125,19 @@ impl TableCatalog {
     }
 
     pub fn primary_keys(&self) -> Vec<ColumnId> {
-        self.ordered_pk_ids.clone()
+        self.primary_key.clone()
+    }
+
+    pub fn is_view(&self) -> bool {
+        matches!(self.kind, TableKind::View(_))
+    }
+
+    /// Returns the query if it is a view.
+    pub fn query(&self) -> Option<&RecExpr> {
+        match &self.kind {
+            TableKind::Table => None,
+            TableKind::View(query) => Some(query),
+        }
     }
 }
 
@@ -116,7 +151,7 @@ mod tests {
         let col1 = ColumnCatalog::new(1, ColumnDesc::new("b", DataType::Bool, false));
 
         let col_catalogs = vec![col0, col1];
-        let table_catalog = TableCatalog::new(0, "t".into(), col_catalogs, false, vec![]);
+        let table_catalog = TableCatalog::new(0, "t".into(), col_catalogs, vec![]);
 
         assert!(!table_catalog.contains_column("c"));
         assert!(table_catalog.contains_column("a"));

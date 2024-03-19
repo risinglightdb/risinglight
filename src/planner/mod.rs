@@ -3,7 +3,7 @@
 use egg::{define_language, Id, Symbol};
 
 use crate::binder::copy::ExtSource;
-use crate::binder::{BoundDrop, CreateFunction, CreateTable};
+use crate::binder::{CreateFunction, CreateTable};
 use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataType, DataValue, DateTimeField};
@@ -31,7 +31,6 @@ define_language! {
         Column(ColumnRefId),            // $1.2, $2.1, ...
         Table(TableRefId),              // $1, $2, ...
         ColumnIndex(ColumnIndex),       // #0, #1, ...
-        ExtSource(ExtSource),
 
         // utilities
         "ref" = Ref(Id),                // (ref expr)
@@ -117,11 +116,13 @@ define_language! {
                                                     // output = child || exprs
         CreateTable(CreateTable),
         CreateFunction(CreateFunction),
-        Drop(BoundDrop),
+        "create_view" = CreateView([Id; 2]),    // (create_view create_table child)
+        "drop" = Drop(Id),                      // (drop [table..])
         "insert" = Insert([Id; 3]),             // (insert table [column..] child)
         "delete" = Delete([Id; 2]),             // (delete table child)
         "copy_from" = CopyFrom([Id; 2]),        // (copy_from dest types)
         "copy_to" = CopyTo([Id; 2]),            // (copy_to dest child)
+            ExtSource(ExtSource),
         "explain" = Explain(Id),                // (explain child)
 
         // internal functions
@@ -179,6 +180,13 @@ impl Expr {
             panic!("not a type: {self}")
         };
         t
+    }
+
+    pub fn as_create_table(&self) -> CreateTable {
+        let Self::CreateTable(v) = self else {
+            panic!("not a create table: {self}")
+        };
+        v.clone()
     }
 
     pub fn as_ext_source(&self) -> ExtSource {

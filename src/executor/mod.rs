@@ -12,19 +12,24 @@
 //!
 //! [`try_stream`]: async_stream::try_stream
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use egg::{Id, Language};
-use futures::stream::{BoxStream, Stream, StreamExt};
+use futures::stream::{BoxStream, StreamExt};
 use futures_async_stream::try_stream;
 use itertools::Itertools;
 
 // use minitrace::prelude::*;
 use self::copy_from_file::*;
 use self::copy_to_file::*;
-use self::create::*;
+use self::create_function::*;
+use self::create_table::*;
+use self::create_view::*;
 use self::delete::*;
 use self::drop::*;
+pub use self::error::Error as ExecutorError;
+use self::error::*;
 use self::evaluator::*;
 use self::explain::*;
 use self::filter::*;
@@ -46,16 +51,16 @@ use self::top_n::TopNExecutor;
 use self::values::*;
 use self::window::*;
 use crate::array::DataChunk;
-use crate::catalog::RootCatalog;
-use crate::executor::create_function::CreateFunctionExecutor;
+use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
 use crate::planner::{Expr, ExprAnalysis, Optimizer, RecExpr, TypeSchemaAnalysis};
-use crate::storage::{Storage, TracedStorageError};
-use crate::types::{ColumnIndex, ConvertError, DataType};
+use crate::storage::Storage;
+use crate::types::{ColumnIndex, DataType};
 
 mod copy_from_file;
 mod copy_to_file;
-mod create;
 mod create_function;
+mod create_table;
+mod create_view;
 mod delete;
 mod drop;
 mod evaluator;
@@ -69,6 +74,7 @@ mod nested_loop_join;
 mod order;
 mod system_table_scan;
 // mod perfect_hash_agg;
+mod error;
 mod merge_join;
 mod projection;
 mod simple_agg;
@@ -77,40 +83,6 @@ mod table_scan;
 mod top_n;
 mod values;
 mod window;
-
-/// The error type of execution.
-#[derive(thiserror::Error, Debug)]
-pub enum ExecutorError {
-    #[error("storage error: {0}")]
-    Storage(
-        #[from]
-        #[backtrace]
-        #[source]
-        TracedStorageError,
-    ),
-    #[error("conversion error: {0}")]
-    Convert(#[from] ConvertError),
-    #[error("tuple length mismatch: expected {expected} but got {actual}")]
-    LengthMismatch { expected: usize, actual: usize },
-    #[error("io error")]
-    Io(
-        #[from]
-        #[source]
-        std::io::Error,
-    ),
-    #[error("csv error")]
-    Csv(
-        #[from]
-        #[source]
-        csv::Error,
-    ),
-    #[error("value can not be null")]
-    NotNullable,
-    #[error("exceed char/varchar length limit: item length {length} > char/varchar width {width}")]
-    ExceedLengthLimit { length: u64, width: u64 },
-    #[error("abort")]
-    Abort,
-}
 
 /// The maximum chunk length produced by executor at a time.
 const PROCESSING_WINDOW_SIZE: usize = 1024;
@@ -121,7 +93,7 @@ const PROCESSING_WINDOW_SIZE: usize = 1024;
 ///
 /// It consumes one or more streams from its child executors,
 /// and produces a stream to its parent.
-pub type BoxedExecutor = BoxStream<'static, Result<DataChunk, ExecutorError>>;
+pub type BoxedExecutor = BoxStream<'static, Result<DataChunk>>;
 
 pub fn build(optimizer: Optimizer, storage: Arc<impl Storage>, plan: &RecExpr) -> BoxedExecutor {
     Builder::new(optimizer, storage, plan).build()
@@ -133,6 +105,9 @@ struct Builder<S: Storage> {
     optimizer: Optimizer,
     egraph: egg::EGraph<Expr, TypeSchemaAnalysis>,
     root: Id,
+    /// For scans on views, we prebuild their executors and store them here.
+    /// Multiple scans on the same view will share the same executor.
+    views: HashMap<TableRefId, StreamSubscriber>,
 }
 
 impl<S: Storage> Builder<S> {
@@ -142,15 +117,31 @@ impl<S: Storage> Builder<S> {
             catalog: optimizer.catalog().clone(),
         });
         let root = egraph.add_expr(plan);
+
+        // recursively build for all views
+        let mut views = HashMap::new();
+        for node in plan.as_ref() {
+            if let Expr::Table(tid) = node
+                && let Some(query) = optimizer.catalog().get_table(tid).unwrap().query()
+            {
+                let builder = Self::new(optimizer.clone(), storage.clone(), query);
+                let subscriber = builder.build_subscriber();
+                views.insert(*tid, subscriber);
+            }
+        }
+
         Builder {
             storage,
             optimizer,
             egraph,
             root,
+            views,
         }
     }
 
+    /// Get the node from id.
     fn node(&self, id: Id) -> &Expr {
+        // each e-class has exactly one node since there is no rewrite or union.
         &self.egraph[id].nodes[0]
     }
 
@@ -179,22 +170,64 @@ impl<S: Storage> Builder<S> {
         })
     }
 
+    /// Returns the catalog.
+    fn catalog(&self) -> &RootCatalogRef {
+        self.optimizer.catalog()
+    }
+
+    /// Builds the executor.
     fn build(self) -> BoxedExecutor {
         self.build_id(self.root)
     }
 
+    /// Builds the executor and returns its subscriber.
+    fn build_subscriber(self) -> StreamSubscriber {
+        self.build_id_subscriber(self.root)
+    }
+
+    /// Builds the executor for the given id.
     fn build_id(&self, id: Id) -> BoxedExecutor {
+        self.build_id_subscriber(id).subscribe()
+    }
+
+    /// Builds the executor for the given id and returns its subscriber.
+    fn build_id_subscriber(&self, id: Id) -> StreamSubscriber {
         use Expr::*;
         let stream = match self.node(id).clone() {
             Scan([table, list, filter]) => {
                 let table_id = self.node(table).as_table();
                 let columns = (self.node(list).as_list().iter())
                     .map(|id| self.node(*id).as_column())
-                    .collect();
+                    .collect_vec();
+                // analyze range filter
+                let filter = {
+                    let mut egraph = egg::EGraph::new(ExprAnalysis::default());
+                    let root = egraph.add_expr(&self.recexpr(filter));
+                    egraph[root].data.range.clone().map(|(_, r)| r)
+                };
 
-                if table_id.schema_id == RootCatalog::SYSTEM_SCHEMA_ID {
+                if let Some(subscriber) = self.views.get(&table_id) {
+                    // scan a view
+                    assert!(
+                        filter.is_none(),
+                        "range filter is not supported in view scan"
+                    );
+
+                    // resolve column index
+                    // child schema: [$v.0, $v.1, ...]
+                    let mut projs = RecExpr::default();
+                    let lists = columns
+                        .iter()
+                        .map(|c| {
+                            projs.add(ColumnIndex(crate::types::ColumnIndex(c.column_id as _)))
+                        })
+                        .collect();
+                    projs.add(List(lists));
+
+                    ProjectionExecutor { projs }.execute(subscriber.subscribe())
+                } else if table_id.schema_id == RootCatalog::SYSTEM_SCHEMA_ID {
                     SystemTableScan {
-                        catalog: self.optimizer.catalog().clone(),
+                        catalog: self.catalog().clone(),
                         storage: self.storage.clone(),
                         table_id,
                         columns,
@@ -204,12 +237,7 @@ impl<S: Storage> Builder<S> {
                     TableScanExecutor {
                         table_id,
                         columns,
-                        filter: {
-                            // analyze range for the filter
-                            let mut egraph = egg::EGraph::new(ExprAnalysis::default());
-                            let root = egraph.add_expr(&self.recexpr(filter));
-                            egraph[root].data.range.clone().map(|(_, r)| r)
-                        },
+                        filter,
                         storage: self.storage.clone(),
                     }
                     .execute()
@@ -309,9 +337,16 @@ impl<S: Storage> Builder<S> {
             }
             .execute(self.build_id(child)),
 
-            CreateTable(plan) => CreateTableExecutor {
-                plan,
+            CreateTable(table) => CreateTableExecutor {
+                table,
                 storage: self.storage.clone(),
+            }
+            .execute(),
+
+            CreateView([table, query]) => CreateViewExecutor {
+                table: self.node(table).as_create_table(),
+                query: self.recexpr(query),
+                catalog: self.catalog().clone(),
             }
             .execute(),
 
@@ -321,8 +356,11 @@ impl<S: Storage> Builder<S> {
             }
             .execute(),
 
-            Drop(plan) => DropExecutor {
-                plan,
+            Drop(tables) => DropExecutor {
+                tables: (self.node(tables).as_list().iter())
+                    .map(|id| self.node(*id).as_table())
+                    .collect(),
+                catalog: self.catalog().clone(),
                 storage: self.storage.clone(),
             }
             .execute(),
@@ -390,34 +428,57 @@ impl<S: Storage> Builder<S> {
 }
 
 /// Spawn a new task to execute the given stream.
-fn spawn(name: &str, mut stream: BoxedExecutor) -> BoxedExecutor {
-    let (tx, rx) = tokio::sync::mpsc::channel(16);
+fn spawn(name: &str, mut stream: BoxedExecutor) -> StreamSubscriber {
+    let (tx, rx) = async_broadcast::broadcast(16);
     let handle = tokio::task::Builder::default()
         .name(name)
         .spawn(async move {
             while let Some(item) = stream.next().await {
-                if tx.send(item).await.is_err() {
+                if tx.broadcast(item).await.is_err() {
+                    // all receivers are dropped, stop the task.
                     return;
                 }
             }
         })
         .expect("failed to spawn task");
-    use std::pin::Pin;
-    use std::task::{Context, Poll};
-    struct SpawnedStream {
-        rx: tokio::sync::mpsc::Receiver<Result<DataChunk, ExecutorError>>,
-        handle: tokio::task::JoinHandle<()>,
+
+    StreamSubscriber {
+        rx: rx.deactivate(),
+        handle: Arc::new(AbortOnDropHandle(handle)),
     }
-    impl Stream for SpawnedStream {
-        type Item = Result<DataChunk, ExecutorError>;
-        fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-            self.rx.poll_recv(cx)
+}
+
+/// A subscriber of an executor's output stream.
+///
+/// New streams can be created by calling `subscribe`.
+struct StreamSubscriber {
+    rx: async_broadcast::InactiveReceiver<Result<DataChunk>>,
+    handle: Arc<AbortOnDropHandle>,
+}
+
+impl StreamSubscriber {
+    /// Subscribes an output stream from the executor.
+    fn subscribe(&self) -> BoxedExecutor {
+        #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+        async fn to_stream(
+            rx: async_broadcast::Receiver<Result<DataChunk>>,
+            handle: Arc<AbortOnDropHandle>,
+        ) {
+            #[for_await]
+            for chunk in rx {
+                yield chunk?;
+            }
+            drop(handle);
         }
+        to_stream(self.rx.activate_cloned(), self.handle.clone())
     }
-    impl Drop for SpawnedStream {
-        fn drop(&mut self) {
-            self.handle.abort();
-        }
+}
+
+/// A wrapper over `JoinHandle` that aborts the task when dropped.
+struct AbortOnDropHandle(tokio::task::JoinHandle<()>);
+
+impl Drop for AbortOnDropHandle {
+    fn drop(&mut self) {
+        self.0.abort();
     }
-    Box::pin(SpawnedStream { rx, handle })
 }

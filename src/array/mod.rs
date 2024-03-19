@@ -407,7 +407,7 @@ macro_rules! impl_array_builder {
                         (Self::$Abc(a), DataValue::$Value(v)) => a.push(Some(v)),
                         (Self::$Abc(a), DataValue::Null) => a.push(None),
                     )*
-                    _ => panic!("failed to push value: type mismatch"),
+                    (b, v) => panic!("failed to push value: type mismatch. builder: {}, value: {:?}", b.type_string(), v),
                 }
             }
 
@@ -419,7 +419,7 @@ macro_rules! impl_array_builder {
                         (Self::$Abc(a), DataValue::$Value(v)) => a.push_n(n, Some(v)),
                         (Self::$Abc(a), DataValue::Null) => a.push_n(n, None),
                     )*
-                    _ => panic!("failed to push value: type mismatch"),
+                    (b, v) => panic!("failed to push value: type mismatch. builder: {}, value: {:?}", b.type_string(), v),
                 }
             }
 
@@ -450,7 +450,17 @@ macro_rules! impl_array_builder {
                     $(
                         (Self::$Abc(builder), ArrayImpl::$Abc(arr)) => builder.append(arr),
                     )*
-                    _ => panic!("failed to push value: type mismatch"),
+                    (b, a) => panic!("failed to append array: type mismatch. builder: {}, array: {}", b.type_string(), a.type_string()),
+                }
+            }
+
+            /// Return a string describing the type of this array.
+            fn type_string(&self) -> &'static str {
+                match self {
+                    Self::Null(_) => "NULL",
+                    $(
+                        Self::$Abc(_) => stringify!($Abc),
+                    )*
                 }
             }
         }

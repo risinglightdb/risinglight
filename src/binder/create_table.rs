@@ -116,7 +116,6 @@ impl Binder {
             .collect();
 
         for &index in &ordered_pk_ids {
-            columns[index as usize].set_primary(true);
             columns[index as usize].set_nullable(false);
         }
 
