@@ -19,7 +19,14 @@ use crate::storage::{
 pub struct Database {
     catalog: RootCatalogRef,
     storage: StorageImpl,
-    mock_stat: Mutex<Option<Statistics>>,
+    config: Mutex<Config>,
+}
+
+/// The configuration of the database.
+#[derive(Debug, Default)]
+struct Config {
+    disable_optimizer: bool,
+    mock_stat: Option<Statistics>,
 }
 
 impl Database {
@@ -29,7 +36,7 @@ impl Database {
         Database {
             catalog: storage.catalog().clone(),
             storage: StorageImpl::InMemoryStorage(Arc::new(storage)),
-            mock_stat: Default::default(),
+            config: Default::default(),
         }
     }
 
@@ -40,7 +47,7 @@ impl Database {
         Database {
             catalog: storage.catalog().clone(),
             storage: StorageImpl::SecondaryStorage(storage),
-            mock_stat: Default::default(),
+            config: Default::default(),
         }
     }
 
@@ -93,14 +100,16 @@ impl Database {
             }
 
             let mut binder = crate::binder::Binder::new(self.catalog.clone());
-            let bound = binder.bind(stmt.clone())?;
-            let optimized = optimizer.optimize(bound);
+            let mut plan = binder.bind(stmt.clone())?;
+            if !self.config.lock().unwrap().disable_optimizer {
+                plan = optimizer.optimize(plan);
+            }
             let executor = match self.storage.clone() {
                 StorageImpl::InMemoryStorage(s) => {
-                    crate::executor::build(optimizer.clone(), s, &optimized)
+                    crate::executor::build(optimizer.clone(), s, &plan)
                 }
                 StorageImpl::SecondaryStorage(s) => {
-                    crate::executor::build(optimizer.clone(), s, &optimized)
+                    crate::executor::build(optimizer.clone(), s, &plan)
                 }
             };
             let output = executor.try_collect().await?;
@@ -112,7 +121,7 @@ impl Database {
     }
 
     async fn get_storage_statistics(&self) -> Result<Statistics, Error> {
-        if let Some(mock) = &*self.mock_stat.lock().unwrap() {
+        if let Some(mock) = &self.config.lock().unwrap().mock_stat {
             return Ok(mock.clone());
         }
         let mut stat = Statistics::default();
@@ -144,6 +153,21 @@ impl Database {
 
     /// Mock the row count of a table for planner test.
     fn handle_set(&self, stmt: &Statement) -> Result<bool, Error> {
+        if let Statement::Pragma { name, .. } = stmt {
+            match name.to_string().as_str() {
+                "enable_optimizer" => {
+                    self.config.lock().unwrap().disable_optimizer = false;
+                    return Ok(true);
+                }
+                "disable_optimizer" => {
+                    self.config.lock().unwrap().disable_optimizer = true;
+                    return Ok(true);
+                }
+                name => {
+                    return Err(crate::binder::BindError::NoPragma(name.into()).into());
+                }
+            }
+        }
         let Statement::SetVariable {
             variable, value, ..
         } = stmt
@@ -161,9 +185,10 @@ impl Database {
             .catalog
             .get_table_id_by_name("postgres", table_name)
             .ok_or_else(|| Error::Internal("table not found".into()))?;
-        self.mock_stat
+        self.config
             .lock()
             .unwrap()
+            .mock_stat
             .get_or_insert_with(Default::default)
             .add_row_count(table_id, count);
         Ok(true)

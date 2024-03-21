@@ -97,6 +97,8 @@ pub enum BindError {
     CanNotDelete,
     #[error("VIEW aliases mismatch query result")]
     ViewAliasesMismatch,
+    #[error("pragma does not exist: {0}")]
+    NoPragma(String),
 }
 
 /// The binder resolves all expressions referring to schema objects such as
