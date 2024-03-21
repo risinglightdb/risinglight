@@ -330,7 +330,7 @@ impl Binder {
         }
         let aggs = self.egraph.add(Node::List(aggs.into()));
         *projection = self.egraph.add(Node::List(projs.into()));
-        Ok(self.egraph.add(Node::HashAgg([aggs, distinct, plan])))
+        Ok(self.egraph.add(Node::HashAgg([distinct, aggs, plan])))
     }
 
     /// Extracts all over nodes from `projection`, `distinct` and `orderby`.

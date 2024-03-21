@@ -364,7 +364,11 @@ impl Binder {
     /// Add a CTE to the current context.
     fn add_cte(&mut self, table_name: &str, query: Id, columns: HashMap<String, Id>) -> Result<()> {
         let context = self.contexts.last_mut().unwrap();
-        if context.ctes.insert(table_name.into(), (query, columns)).is_some() {
+        if context
+            .ctes
+            .insert(table_name.into(), (query, columns))
+            .is_some()
+        {
             return Err(BindError::DuplicatedCteName(table_name.into()));
         }
         Ok(())
