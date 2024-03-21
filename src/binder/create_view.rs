@@ -49,12 +49,12 @@ impl Binder {
             })
             .collect();
 
-        let table = self.egraph.add(Node::CreateTable(CreateTable {
+        let table = self.egraph.add(Node::CreateTable(Box::new(CreateTable {
             schema_id: schema.id(),
             table_name: table_name.into(),
             columns,
             ordered_pk_ids: vec![],
-        }));
+        })));
         let create_view = self.egraph.add(Node::CreateView([table, query]));
         Ok(create_view)
     }

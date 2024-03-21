@@ -94,7 +94,7 @@ impl Database {
 
             let mut binder = crate::binder::Binder::new(self.catalog.clone());
             let bound = binder.bind(stmt.clone())?;
-            let optimized = optimizer.optimize(&bound);
+            let optimized = optimizer.optimize(bound);
             let executor = match self.storage.clone() {
                 StorageImpl::InMemoryStorage(s) => {
                     crate::executor::build(optimizer.clone(), s, &optimized)

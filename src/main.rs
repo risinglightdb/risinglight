@@ -31,6 +31,10 @@ use tracing_subscriber::prelude::*;
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
+    /// Where to store the database files
+    #[clap()]
+    storage_path: Option<String>,
+
     /// File to execute. Can be either a SQL `sql` file or sqllogictest `slt` file.
     #[clap(short, long)]
     file: Option<String>,
@@ -48,10 +52,6 @@ struct Args {
     /// Whether to use minitrace
     #[clap(long)]
     enable_tracing: bool,
-
-    /// Where to store the database files
-    #[clap(short, long)]
-    storage_path: Option<String>,
 
     /// Whether to use tokio console.
     #[clap(long)]

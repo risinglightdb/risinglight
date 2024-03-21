@@ -43,9 +43,6 @@ impl Binder {
     /// Returns a node of query and adds the CTE to the context.
     fn bind_cte(&mut self, Cte { alias, query, .. }: Cte) -> Result {
         let table_alias = alias.name.value.to_lowercase();
-        if self.current_ctx().ctes.contains_key(&table_alias) {
-            return Err(BindError::DuplicatedCteName(table_alias.clone()));
-        }
         let (query, ctx) = self.bind_query(*query)?;
         let mut columns = HashMap::new();
         if !alias.columns.is_empty() {
@@ -73,16 +70,14 @@ impl Binder {
                 columns.insert(name, id);
             }
         }
-        self.current_ctx_mut()
-            .ctes
-            .insert(table_alias, (query, columns));
+        self.add_cte(&table_alias, query, columns)?;
         Ok(query)
     }
 
     fn bind_select(&mut self, select: Select, order_by: Vec<OrderByExpr>) -> Result {
         let from = self.bind_from(select.from)?;
         let projection = self.bind_projection(select.projection, from)?;
-        let where_ = self.bind_where(select.selection)?;
+        let mut where_ = self.bind_where(select.selection)?;
         let groupby = match select.group_by {
             GroupByExpr::All => return Err(BindError::Todo("group by all".into())),
             GroupByExpr::Expressions(group_by) if group_by.is_empty() => None,
@@ -96,10 +91,13 @@ impl Binder {
             Some(Distinct::On(exprs)) => self.bind_exprs(exprs)?,
         };
 
-        let mut plan = self.egraph.add(Node::Filter([where_, from]));
+        let mut plan = from;
+        self.plan_apply(&mut where_, &mut plan);
+        plan = self.egraph.add(Node::Filter([where_, plan]));
         let mut to_rewrite = [projection, distinct, having, orderby];
         plan = self.plan_agg(&mut to_rewrite, groupby, plan)?;
-        let [mut projection, distinct, having, orderby] = to_rewrite;
+        let [mut projection, distinct, mut having, orderby] = to_rewrite;
+        self.plan_apply(&mut having, &mut plan);
         plan = self.egraph.add(Node::Filter([having, plan]));
         plan = self.plan_window(projection, distinct, orderby, plan)?;
         plan = self.plan_distinct(distinct, orderby, &mut projection, plan)?;
@@ -121,7 +119,7 @@ impl Binder {
                     };
                     let id = self.bind_expr(expr)?;
                     if let Some(ident) = ident {
-                        self.current_ctx_mut().output_aliases.insert(ident, id);
+                        self.add_output_alias(ident, id);
                     }
                     select_list.push(id);
                 }
@@ -129,7 +127,7 @@ impl Binder {
                     let id = self.bind_expr(expr)?;
                     let name = alias.value.to_lowercase();
                     self.add_alias(name.clone(), "".into(), id);
-                    self.current_ctx_mut().output_aliases.insert(name, id);
+                    self.add_output_alias(name, id);
                     select_list.push(id);
                 }
                 SelectItem::Wildcard(_) => {
@@ -239,7 +237,7 @@ impl Binder {
         list.dedup();
         let aggs = self.egraph.add(Node::List(list.into()));
         let plan = self.egraph.add(match groupby {
-            Some(groupby) => Node::HashAgg([aggs, groupby, plan]),
+            Some(groupby) => Node::HashAgg([groupby, aggs, plan]),
             None => Node::Agg([aggs, plan]),
         });
         // check for not aggregated columns
@@ -266,9 +264,13 @@ impl Binder {
     /// ```
     fn rewrite_agg_in_expr(&mut self, id: Id, schema: &[Id]) -> Result {
         let mut expr = self.node(id).clone();
+        // stop at subquery
+        // XXX: maybe wrong
+        if let Node::Max1Row(_) = &expr {
+            return Ok(id);
+        }
         if schema.contains(&id) {
-            // found agg, wrap it with Ref
-            return Ok(self.egraph.add(Node::Ref(id)));
+            return Ok(self.wrap_ref(id));
         }
         if let Node::Column(cid) = &expr {
             let name = self.catalog.get_column(cid).unwrap().name().to_string();
@@ -328,7 +330,7 @@ impl Binder {
         }
         let aggs = self.egraph.add(Node::List(aggs.into()));
         *projection = self.egraph.add(Node::List(projs.into()));
-        Ok(self.egraph.add(Node::HashAgg([aggs, distinct, plan])))
+        Ok(self.egraph.add(Node::HashAgg([distinct, aggs, plan])))
     }
 
     /// Extracts all over nodes from `projection`, `distinct` and `orderby`.
@@ -351,5 +353,25 @@ impl Binder {
         list.dedup();
         let overs = self.egraph.add(Node::List(list.into()));
         Ok(self.egraph.add(Node::Window([overs, plan])))
+    }
+
+    /// Extract all subqueries from `id` and generate [`Apply`](Node::Apply) plans.
+    fn plan_apply(&mut self, id: &mut Id, plan: &mut Id) {
+        let mut expr = self.node(*id).clone();
+        if let Node::Max1Row(subquery) = &expr {
+            // rewrite the plan to a left outer apply
+            let left_outer = self.egraph.add(Node::LeftOuter);
+            *plan = self.egraph.add(Node::Apply([left_outer, *plan, *subquery]));
+
+            // rewrite the subquery to a reference to its first column
+            let column0 = self.schema(*subquery)[0];
+            *id = self.wrap_ref(column0);
+            return;
+        }
+        // recursive rewrite
+        for child in expr.children_mut() {
+            self.plan_apply(child, plan);
+        }
+        *id = self.egraph.add(expr);
     }
 }

@@ -10,13 +10,13 @@ use crate::types::DataValue;
 
 /// The executor of hash aggregation.
 pub struct HashAggExecutor {
+    pub keys: RecExpr,
     pub aggs: RecExpr,
-    pub group_keys: RecExpr,
     pub types: Vec<DataType>,
 }
 
 pub type GroupKeys = SmallVec<[DataValue; 4]>;
-pub type AggValue = SmallVec<[DataValue; 16]>;
+pub type AggValue = SmallVec<[AggState; 4]>;
 
 impl HashAggExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
@@ -26,7 +26,7 @@ impl HashAggExecutor {
         #[for_await]
         for chunk in child {
             let chunk = chunk?;
-            let keys_chunk = Evaluator::new(&self.group_keys).eval_list(&chunk)?;
+            let keys_chunk = Evaluator::new(&self.keys).eval_list(&chunk)?;
             let args_chunk = Evaluator::new(&self.aggs).eval_list(&chunk)?;
 
             for i in 0..chunk.cardinality() {
@@ -41,8 +41,9 @@ impl HashAggExecutor {
         let mut batches = IterChunks::chunks(states.into_iter(), PROCESSING_WINDOW_SIZE);
         while let Some(batch) = batches.next() {
             let mut builder = DataChunkBuilder::new(&self.types, PROCESSING_WINDOW_SIZE);
-            for (key, aggs) in batch {
-                if let Some(chunk) = builder.push_row(aggs.into_iter().chain(key.into_iter())) {
+            for (key, states) in batch {
+                let agg_results = Evaluator::new(&self.aggs).agg_list_take_result(states);
+                if let Some(chunk) = builder.push_row(key.into_iter().chain(agg_results)) {
                     yield chunk;
                 }
             }

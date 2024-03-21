@@ -188,6 +188,9 @@ async fn pg_stat(catalog: RootCatalogRef, storage: &impl Storage) -> Result<Data
                 continue;
             }
             for (tid, table) in schema.all_tables() {
+                if table.is_view() {
+                    continue;
+                }
                 let stable = storage.get_table(TableRefId::new(sid, tid))?;
 
                 for (cid, column) in table.all_columns() {

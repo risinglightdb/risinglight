@@ -24,7 +24,8 @@ impl WindowExecutor {
             let mut builder = DataChunkBuilder::new(&self.types, chunk.cardinality() + 1);
             for i in 0..chunk.cardinality() {
                 Evaluator::new(&self.exprs).agg_list_append(&mut states, chunk.row(i).values());
-                _ = builder.push_row(states.clone());
+                let results = Evaluator::new(&self.exprs).agg_list_get_result(&states);
+                _ = builder.push_row(results);
             }
             let window_chunk = builder.take().unwrap();
             yield chunk.row_concat(window_chunk);

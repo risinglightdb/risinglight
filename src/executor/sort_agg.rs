@@ -4,8 +4,8 @@ use super::*;
 use crate::array::DataChunkBuilder;
 
 pub struct SortAggExecutor {
+    pub keys: RecExpr,
     pub aggs: RecExpr,
-    pub group_keys: RecExpr,
     pub types: Vec<DataType>,
 }
 
@@ -19,14 +19,16 @@ impl SortAggExecutor {
         #[for_await]
         for chunk in child {
             let chunk = chunk?;
-            let keys_chunk = Evaluator::new(&self.group_keys).eval_list(&chunk)?;
+            let keys_chunk = Evaluator::new(&self.keys).eval_list(&chunk)?;
             let args_chunk = Evaluator::new(&self.aggs).eval_list(&chunk)?;
 
             for i in 0..chunk.cardinality() {
                 let keys = keys_chunk.row(i);
                 if !matches!(&last_keys, Some(last_keys) if keys == last_keys) {
                     if let Some(keys) = last_keys.take() {
-                        if let Some(chunk) = builder.push_row(states.drain(..).chain(keys)) {
+                        let results =
+                            Evaluator::new(&self.aggs).agg_list_take_result(states.drain(..));
+                        if let Some(chunk) = builder.push_row(keys.into_iter().chain(results)) {
                             yield chunk;
                         }
                     }
@@ -37,7 +39,8 @@ impl SortAggExecutor {
             }
         }
         if let Some(keys) = last_keys.take() {
-            if let Some(chunk) = builder.push_row(states.drain(..).chain(keys)) {
+            let results = Evaluator::new(&self.aggs).agg_list_take_result(states);
+            if let Some(chunk) = builder.push_row(keys.into_iter().chain(results)) {
                 yield chunk;
             } else if let Some(chunk) = builder.take() {
                 yield chunk;

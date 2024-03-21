@@ -1,20 +1,18 @@
 - id: prepare
   sql: |
       CREATE TABLE NATION  (
-          N_NATIONKEY  INT NOT NULL,
+          N_NATIONKEY  INT PRIMARY KEY,
           N_NAME       CHAR(25) NOT NULL,
           N_REGIONKEY  INT NOT NULL,
           N_COMMENT    VARCHAR(152)
       );
-
       CREATE TABLE REGION  (
-          R_REGIONKEY  INT NOT NULL,
+          R_REGIONKEY  INT PRIMARY KEY,
           R_NAME       CHAR(25) NOT NULL,
           R_COMMENT    VARCHAR(152)
       );
-
       CREATE TABLE PART  (
-          P_PARTKEY     INT NOT NULL,
+          P_PARTKEY     INT PRIMARY KEY,
           P_NAME        VARCHAR(55) NOT NULL,
           P_MFGR        CHAR(25) NOT NULL,
           P_BRAND       CHAR(10) NOT NULL,
@@ -24,9 +22,8 @@
           P_RETAILPRICE DECIMAL(15,2) NOT NULL,
           P_COMMENT     VARCHAR(23) NOT NULL
       );
-
       CREATE TABLE SUPPLIER (
-          S_SUPPKEY     INT NOT NULL,
+          S_SUPPKEY     INT PRIMARY KEY,
           S_NAME        CHAR(25) NOT NULL,
           S_ADDRESS     VARCHAR(40) NOT NULL,
           S_NATIONKEY   INT NOT NULL,
@@ -34,17 +31,16 @@
           S_ACCTBAL     DECIMAL(15,2) NOT NULL,
           S_COMMENT     VARCHAR(101) NOT NULL
       );
-
       CREATE TABLE PARTSUPP (
           PS_PARTKEY     INT NOT NULL,
           PS_SUPPKEY     INT NOT NULL,
           PS_AVAILQTY    INT NOT NULL,
           PS_SUPPLYCOST  DECIMAL(15,2)  NOT NULL,
           PS_COMMENT     VARCHAR(199) NOT NULL
+          -- PRIMARY KEY (PS_PARTKEY, PS_SUPPKEY)
       );
-
       CREATE TABLE CUSTOMER (
-          C_CUSTKEY     INT NOT NULL,
+          C_CUSTKEY     INT PRIMARY KEY,
           C_NAME        VARCHAR(25) NOT NULL,
           C_ADDRESS     VARCHAR(40) NOT NULL,
           C_NATIONKEY   INT NOT NULL,
@@ -53,9 +49,8 @@
           C_MKTSEGMENT  CHAR(10) NOT NULL,
           C_COMMENT     VARCHAR(117) NOT NULL
       );
-
       CREATE TABLE ORDERS (
-          O_ORDERKEY       INT NOT NULL,
+          O_ORDERKEY       INT PRIMARY KEY,
           O_CUSTKEY        INT NOT NULL,
           O_ORDERSTATUS    CHAR(1) NOT NULL,
           O_TOTALPRICE     DECIMAL(15,2) NOT NULL,
@@ -65,7 +60,6 @@
           O_SHIPPRIORITY   INT NOT NULL,
           O_COMMENT        VARCHAR(79) NOT NULL
       );
-
       CREATE TABLE LINEITEM (
           L_ORDERKEY      INT NOT NULL,
           L_PARTKEY       INT NOT NULL,
@@ -83,6 +77,7 @@
           L_SHIPINSTRUCT  CHAR(25) NOT NULL,
           L_SHIPMODE      CHAR(10) NOT NULL,
           L_COMMENT       VARCHAR(44) NOT NULL
+          -- PRIMARY KEY (L_ORDERKEY, L_LINENUMBER)
       );
 
       SET mock_rowcount_customer =  150000;
@@ -122,6 +117,56 @@
   tasks:
       - print
 
+- id: tpch-q2
+  sql: |
+    explain select
+        s_acctbal,
+        s_name,
+        n_name,
+        p_partkey,
+        p_mfgr,
+        s_address,
+        s_phone,
+        s_comment
+    from
+        part,
+        supplier,
+        partsupp,
+        nation,
+        region
+    where
+        p_partkey = ps_partkey
+        and s_suppkey = ps_suppkey
+        and p_size = 15
+        and p_type like '%BRASS'
+        and s_nationkey = n_nationkey
+        and n_regionkey = r_regionkey
+        and r_name = 'EUROPE'
+        and ps_supplycost = (
+            select
+                min(ps_supplycost)
+            from
+                partsupp,
+                supplier,
+                nation,
+                region
+            where
+                p_partkey = ps_partkey
+                and s_suppkey = ps_suppkey
+                and s_nationkey = n_nationkey
+                and n_regionkey = r_regionkey
+                and r_name = 'EUROPE'
+        )
+    order by
+        s_acctbal desc,
+        n_name,
+        s_name,
+        p_partkey
+    limit 100;
+  before: ["*prepare"]
+  tasks:
+      - print
+
 - id: tpch-q3
   sql: |
       explain select
@@ -148,6 +193,33 @@
           o_orderdate
       limit 10;
   desc: TPC-H Q3
+  before: ["*prepare"]
+  tasks:
+      - print
+
+- id: tpch-q4
+  sql: |
+    explain select
+        o_orderpriority,
+        count(*) as order_count
+    from
+        orders
+    where
+        o_orderdate >= date '1993-07-01'
+        and o_orderdate < date '1993-07-01' + interval '3' month
+        and exists (
+            select
+                *
+            from
+                lineitem
+            where
+                l_orderkey = o_orderkey
+                and l_commitdate < l_receiptdate
+        )
+    group by
+        o_orderpriority
+    order by
+        o_orderpriority;
   before: ["*prepare"]
   tasks:
       - print
@@ -363,6 +435,39 @@
   tasks:
       - print
 
+- id: tpch-q11
+  sql: |
+    explain select
+        ps_partkey,
+        sum(ps_supplycost * ps_availqty) as value
+    from
+        partsupp,
+        supplier,
+        nation
+    where
+        ps_suppkey = s_suppkey
+        and s_nationkey = n_nationkey
+        and n_name = 'GERMANY'
+    group by
+        ps_partkey having
+            sum(ps_supplycost * ps_availqty) > (
+                select
+                    sum(ps_supplycost * ps_availqty) * 0.0001000000
+                from
+                    partsupp,
+                    supplier,
+                    nation
+                where
+                    ps_suppkey = s_suppkey
+                    and s_nationkey = n_nationkey
+                    and n_name = 'GERMANY'
+            )
+    order by
+        value desc;
+  before: ["*prepare"]
+  tasks:
+      - print
+
 - id: tpch-q12
   sql: |
     explain select
@@ -442,6 +547,141 @@
   tasks:
       - print
 
+- id: tpch-q15
+  sql: |
+    create view revenue0 (supplier_no, total_revenue) as
+        select
+            l_suppkey,
+            sum(l_extendedprice * (1 - l_discount))
+        from
+            lineitem
+        where
+            l_shipdate >= date '1996-01-01'
+            and l_shipdate < date '1996-01-01' + interval '3' month
+        group by
+            l_suppkey;
+
+    explain select
+        s_suppkey,
+        s_name,
+        s_address,
+        s_phone,
+        total_revenue
+    from
+        supplier,
+        revenue0
+    where
+        s_suppkey = supplier_no
+        and total_revenue = (
+            select
+                max(total_revenue)
+            from
+                revenue0
+        )
+    order by
+        s_suppkey;
+  before: ["*prepare"]
+  tasks:
+      - print
+
+- id: tpch-q16
+  sql: |
+    explain select
+        p_brand,
+        p_type,
+        p_size,
+        count(distinct ps_suppkey) as supplier_cnt
+    from
+        partsupp,
+        part
+    where
+        p_partkey = ps_partkey
+        and p_brand <> 'Brand#45'
+        and p_type not like 'MEDIUM POLISHED%'
+        and p_size in (49, 14, 23, 45, 19, 3, 36, 9)
+        and ps_suppkey not in (
+            select
+                s_suppkey
+            from
+                supplier
+            where
+                s_comment like '%Customer%Complaints%'
+        )
+    group by
+        p_brand,
+        p_type,
+        p_size
+    order by
+        supplier_cnt desc,
+        p_brand,
+        p_type,
+        p_size;
+  before: ["*prepare"]
+  tasks:
+      - print
+
+- id: tpch-q17
+  sql: |
+    explain select
+        sum(l_extendedprice) / 7.0 as avg_yearly
+    from
+        lineitem,
+        part
+    where
+        p_partkey = l_partkey
+        and p_brand = 'Brand#23'
+        and p_container = 'MED BOX'
+        and l_quantity < (
+            select
+                0.2 * avg(l_quantity)
+            from
+                lineitem
+            where
+                l_partkey = p_partkey
+        );
+  before: ["*prepare"]
+  tasks:
+      - print
+
+- id: tpch-q18
+  sql: |
+    explain select
+        c_name,
+        c_custkey,
+        o_orderkey,
+        o_orderdate,
+        o_totalprice,
+        sum(l_quantity)
+    from
+        customer,
+        orders,
+        lineitem
+    where
+        o_orderkey in (
+            select
+                l_orderkey
+            from
+                lineitem
+            group by
+                l_orderkey having
+                    sum(l_quantity) > 300
+        )
+        and c_custkey = o_custkey
+        and o_orderkey = l_orderkey
+    group by
+        c_name,
+        c_custkey,
+        o_orderkey,
+        o_orderdate,
+        o_totalprice
+    order by
+        o_totalprice desc,
+        o_orderdate
+    limit 100;
+  before: ["*prepare"]
+  tasks:
+      - print
+
 - id: tpch-q19
   sql: |
     explain select
@@ -479,6 +719,138 @@
             and l_shipmode in ('AIR', 'AIR REG')
             and l_shipinstruct = 'DELIVER IN PERSON'
         );
+  before: ["*prepare"]
+  tasks:
+      - print
+
+- id: tpch-q20
+  sql: |
+    explain select
+        s_name,
+        s_address
+    from
+        supplier,
+        nation
+    where
+        s_suppkey in (
+            select
+                ps_suppkey
+            from
+                partsupp
+            where
+                ps_partkey in (
+                    select
+                        p_partkey
+                    from
+                        part
+                    where
+                        p_name like 'forest%'
+                )
+                and ps_availqty > (
+                    select
+                        0.5 * sum(l_quantity)
+                    from
+                        lineitem
+                    where
+                        l_partkey = ps_partkey
+                        and l_suppkey = ps_suppkey
+                        and l_shipdate >= date '1994-01-01'
+                        and l_shipdate < date '1994-01-01' + interval '1' year
+                )
+        )
+        and s_nationkey = n_nationkey
+        and n_name = 'CANADA'
+    order by
+        s_name;
+  before: ["*prepare"]
+  tasks:
+      - print
+
+- id: tpch-q21
+  sql: |
+    explain select
+        s_name,
+        count(*) as numwait
+    from
+        supplier,
+        lineitem l1,
+        orders,
+        nation
+    where
+        s_suppkey = l1.l_suppkey
+        and o_orderkey = l1.l_orderkey
+        and o_orderstatus = 'F'
+        and l1.l_receiptdate > l1.l_commitdate
+        and exists (
+            select
+                *
+            from
+                lineitem l2
+            where
+                l2.l_orderkey = l1.l_orderkey
+                and l2.l_suppkey <> l1.l_suppkey
+        )
+        and not exists (
+            select
+                *
+            from
+                lineitem l3
+            where
+                l3.l_orderkey = l1.l_orderkey
+                and l3.l_suppkey <> l1.l_suppkey
+                and l3.l_receiptdate > l3.l_commitdate
+        )
+        and s_nationkey = n_nationkey
+        and n_name = 'SAUDI ARABIA'
+    group by
+        s_name
+    order by
+        numwait desc,
+        s_name
+    limit 100;
+  before: ["*prepare"]
+  tasks:
+      - print
+
+- id: tpch-q22
+  sql: |
+    explain select
+        cntrycode,
+        count(*) as numcust,
+        sum(c_acctbal) as totacctbal
+    from
+        (
+            select
+                substring(c_phone from 1 for 2) as cntrycode,
+                c_acctbal
+            from
+                customer
+            where
+                substring(c_phone from 1 for 2) in
+                    ('13', '31', '23', '29', '30', '18', '17')
+                and c_acctbal > (
+                    select
+                        avg(c_acctbal)
+                    from
+                        customer
+                    where
+                        c_acctbal > 0.00
+                        and substring(c_phone from 1 for 2) in
+                            ('13', '31', '23', '29', '30', '18', '17')
+                )
+                and not exists (
+                    select
+                        *
+                    from
+                        orders
+                    where
+                        o_custkey = c_custkey
+                )
+        ) as custsale
+    group by
+        cntrycode
+    order by
+        cntrycode;
   before: ["*prepare"]
   tasks:
       - print

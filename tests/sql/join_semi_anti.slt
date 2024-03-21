@@ -1,0 +1,49 @@
+statement ok
+create table x(a int, b int);
+
+statement ok
+create table y(c int, d int);
+
+statement ok
+insert into x values (1, 2), (2, 3);
+
+query II
+select a, b from x left semi join y on a = c;
+----
+
+query II
+select a, b from x left anti join y on a = c;
+----
+1   2
+2   3
+
+statement ok
+insert into y values (2, 5), (3, 7);
+
+# hash join
+query II
+select a, b from x left semi join y on a = c;
+----
+2   3
+
+query II
+select a, b from x left anti join y on a = c;
+----
+1   2
+
+# nested loop join
+query II
+select a, b from x left semi join y on a >= c;
+----
+2   3
+
+query II
+select a, b from x left anti join y on a >= c;
+----
+1   2
+
+statement ok
+drop table x;
+
+statement ok
+drop table y;

@@ -6,7 +6,7 @@ use crate::catalog::RootCatalogRef;
 
 /// The executor of `create view` statement.
 pub struct CreateViewExecutor {
-    pub table: CreateTable,
+    pub table: Box<CreateTable>,
     pub query: RecExpr,
     pub catalog: RootCatalogRef,
 }

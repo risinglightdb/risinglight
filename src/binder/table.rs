@@ -76,10 +76,7 @@ impl Binder {
                     // move `output_aliases` to current context
                     let table_name = alias.map_or("".into(), |alias| alias.name.value);
                     for (name, mut id) in ctx.output_aliases {
-                        // wrap with `Ref` if the node is not a column unit.
-                        if !matches!(self.node(id), Node::Column(_) | Node::Ref(_)) {
-                            id = self.egraph.add(Node::Ref(id));
-                        }
+                        id = self.wrap_ref(id);
                         self.add_alias(name, table_name.clone(), id);
                     }
                 }
@@ -117,7 +114,17 @@ impl Binder {
                 let condition = self.egraph.add(Node::true_());
                 Ok((ty, condition))
             }
-            _ => todo!("Support more join types"),
+            LeftSemi(constraint) => {
+                let ty = self.egraph.add(Node::Semi);
+                let condition = self.bind_join_constraint(constraint)?;
+                Ok((ty, condition))
+            }
+            LeftAnti(constraint) => {
+                let ty = self.egraph.add(Node::Anti);
+                let condition = self.bind_join_constraint(constraint)?;
+                Ok((ty, condition))
+            }
+            op => todo!("unsupported join operator: {op:?}"),
         }
     }
 
@@ -150,13 +157,7 @@ impl Binder {
             Some(alias) => &alias.name.value,
             None => table_name,
         };
-        if !self
-            .current_ctx_mut()
-            .table_aliases
-            .insert(table_alias.into())
-        {
-            return Err(BindError::DuplicatedAlias(table_alias.into()));
-        }
+        self.add_table_alias(table_alias)?;
 
         // find cte
         if let Some((query, columns)) = self.find_cte(table_name).cloned() {

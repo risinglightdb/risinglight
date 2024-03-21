@@ -140,7 +140,7 @@ impl<'a> Explain<'a> {
             // TODO: use object
             ExtSource(src) => format!("path={:?}, format={}", src.path, src.format).into(),
             Symbol(s) => Pretty::display(s),
-            Ref(e) => self.expr(e).pretty(),
+            Ref(e) => Pretty::fieldless_record("ref", vec![self.expr(e).pretty()]),
             List(list) => Pretty::Array(list.iter().map(|e| self.expr(e).pretty()).collect()),
 
             // binary operations
@@ -199,7 +199,8 @@ impl<'a> Explain<'a> {
 
             // aggregations
             RowCount | RowNumber => enode.to_string().into(),
-            Max(a) | Min(a) | Sum(a) | Avg(a) | Count(a) | First(a) | Last(a) => {
+            Max(a) | Min(a) | Sum(a) | Avg(a) | Count(a) | First(a) | Last(a)
+            | CountDistinct(a) => {
                 let name = enode.to_string();
                 let v = vec![self.expr(a).pretty()];
                 Pretty::fieldless_record(name, v)
@@ -292,43 +293,47 @@ impl<'a> Explain<'a> {
                     vec![self.child(left).pretty(), self.child(right).pretty()],
                 )
             }
-            HashJoin([ty, lkeys, rkeys, left, right])
-            | MergeJoin([ty, lkeys, rkeys, left, right]) => {
+            HashJoin([ty, cond, lkeys, rkeys, left, right])
+            | MergeJoin([ty, cond, lkeys, rkeys, left, right]) => {
                 let name = match enode {
                     HashJoin(_) => "HashJoin",
                     MergeJoin(_) => "MergeJoin",
                     _ => unreachable!(),
                 };
                 let fields = vec![
-                    ("lhs", self.expr(lkeys).pretty()),
-                    ("rhs", self.expr(rkeys).pretty()),
-                ];
-                let eq = Pretty::childless_record("=", fields);
-                let fields = vec![("type", self.expr(ty).pretty()), ("on", eq)].with(cost, rows);
+                    ("type", self.expr(ty).pretty()),
+                    ("cond", self.expr(cond).pretty()),
+                    ("lkey", self.expr(lkeys).pretty()),
+                    ("rkey", self.expr(rkeys).pretty()),
+                ]
+                .with(cost, rows);
                 let children = vec![self.child(left).pretty(), self.child(right).pretty()];
                 Pretty::simple_record(name, fields, children)
             }
-            Inner | LeftOuter | RightOuter | FullOuter => Pretty::display(enode),
+            Apply([ty, left, right]) => Pretty::simple_record(
+                "Apply",
+                vec![("type", self.expr(ty).pretty())].with(cost, rows),
+                vec![self.child(left).pretty(), self.child(right).pretty()],
+            ),
+            Inner | LeftOuter | RightOuter | FullOuter | Semi | Anti => Pretty::display(enode),
             Agg([aggs, child]) => Pretty::simple_record(
                 "Agg",
                 vec![("aggs", self.expr(aggs).pretty())].with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
-            HashAgg([aggs, group_keys, child]) | SortAgg([aggs, group_keys, child]) => {
-                Pretty::simple_record(
-                    match enode {
-                        HashAgg(_) => "HashAgg",
-                        SortAgg(_) => "SortAgg",
-                        _ => unreachable!(),
-                    },
-                    vec![
-                        ("aggs", self.expr(aggs).pretty()),
-                        ("group_by", self.expr(group_keys).pretty()),
-                    ]
-                    .with(cost, rows),
-                    vec![self.child(child).pretty()],
-                )
-            }
+            HashAgg([keys, aggs, child]) | SortAgg([keys, aggs, child]) => Pretty::simple_record(
+                match enode {
+                    HashAgg(_) => "HashAgg",
+                    SortAgg(_) => "SortAgg",
+                    _ => unreachable!(),
+                },
+                vec![
+                    ("keys", self.expr(keys).pretty()),
+                    ("aggs", self.expr(aggs).pretty()),
+                ]
+                .with(cost, rows),
+                vec![self.child(child).pretty()],
+            ),
             Window([windows, child]) => Pretty::simple_record(
                 "Window",
                 vec![("windows", self.expr(windows).pretty())].with(cost, rows),
@@ -380,6 +385,7 @@ impl<'a> Explain<'a> {
                 vec![self.child(child).pretty()],
             ),
             Empty(_) => Pretty::childless_record("Empty", vec![].with(cost, rows)),
+            Max1Row(child) => Pretty::fieldless_record("Max1Row", vec![self.expr(child).pretty()]),
         }
     }
 }

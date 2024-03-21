@@ -1,0 +1,133 @@
+query TTII
+select
+    p_brand,
+    p_type,
+    p_size,
+    count(distinct ps_suppkey) as supplier_cnt
+from
+    partsupp,
+    part
+where
+    p_partkey = ps_partkey
+    and p_brand <> 'Brand#45'
+    and p_type not like 'MEDIUM POLISHED%'
+    and p_size in (49, 14, 23, 45, 19, 3, 36, 9)
+    and ps_suppkey not in (
+        select
+            s_suppkey
+        from
+            supplier
+        where
+            s_comment like '%Customer%Complaints%'
+    )
+group by
+    p_brand,
+    p_type,
+    p_size
+order by
+    supplier_cnt desc,
+    p_brand,
+    p_type,
+    p_size
+limit 100; -- original: no limit
+----
+Brand#41        MEDIUM BRUSHED TIN      3       28
+Brand#54        STANDARD BRUSHED COPPER 14      27
+Brand#11        STANDARD BRUSHED TIN    23      24
+Brand#11        STANDARD BURNISHED BRASS        36      24
+Brand#15        MEDIUM ANODIZED NICKEL  3       24
+Brand#15        SMALL ANODIZED BRASS    45      24
+Brand#15        SMALL BURNISHED NICKEL  19      24
+Brand#21        MEDIUM ANODIZED COPPER  3       24
+Brand#22        SMALL BRUSHED NICKEL    3       24
+Brand#22        SMALL BURNISHED BRASS   19      24
+Brand#25        MEDIUM BURNISHED COPPER 36      24
+Brand#31        PROMO POLISHED COPPER   36      24
+Brand#33        LARGE POLISHED TIN      23      24
+Brand#33        PROMO POLISHED STEEL    14      24
+Brand#35        PROMO BRUSHED NICKEL    14      24
+Brand#41        ECONOMY BRUSHED STEEL   9       24
+Brand#41        ECONOMY POLISHED TIN    19      24
+Brand#41        LARGE PLATED COPPER     36      24
+Brand#42        ECONOMY PLATED BRASS    3       24
+Brand#42        STANDARD POLISHED TIN   49      24
+Brand#43        PROMO BRUSHED TIN       3       24
+Brand#43        SMALL ANODIZED COPPER   36      24
+Brand#44        STANDARD POLISHED NICKEL        3       24
+Brand#52        ECONOMY PLATED TIN      14      24
+Brand#52        STANDARD BURNISHED NICKEL       3       24
+Brand#53        MEDIUM ANODIZED STEEL   14      24
+Brand#14        PROMO ANODIZED NICKEL   45      23
+Brand#32        ECONOMY PLATED BRASS    9       23
+Brand#52        SMALL ANODIZED COPPER   3       23
+Brand#11        ECONOMY BRUSHED COPPER  45      20
+Brand#11        ECONOMY PLATED BRASS    23      20
+Brand#11        LARGE BRUSHED COPPER    49      20
+Brand#11        LARGE POLISHED COPPER   49      20
+Brand#12        STANDARD ANODIZED TIN   49      20
+Brand#12        STANDARD PLATED BRASS   19      20
+Brand#13        ECONOMY BRUSHED BRASS   9       20
+Brand#13        ECONOMY BURNISHED STEEL 14      20
+Brand#13        LARGE BURNISHED NICKEL  19      20
+Brand#13        MEDIUM BURNISHED COPPER 36      20
+Brand#13        SMALL BRUSHED TIN       45      20
+Brand#13        STANDARD ANODIZED COPPER        3       20
+Brand#13        STANDARD PLATED NICKEL  23      20
+Brand#14        ECONOMY ANODIZED COPPER 14      20
+Brand#14        ECONOMY PLATED TIN      36      20
+Brand#14        ECONOMY POLISHED NICKEL 3       20
+Brand#14        MEDIUM ANODIZED NICKEL  3       20
+Brand#14        SMALL POLISHED TIN      14      20
+Brand#15        MEDIUM ANODIZED COPPER  9       20
+Brand#15        MEDIUM PLATED TIN       23      20
+Brand#15        PROMO PLATED BRASS      14      20
+Brand#15        SMALL ANODIZED COPPER   45      20
+Brand#15        SMALL PLATED COPPER     49      20
+Brand#15        STANDARD PLATED TIN     3       20
+Brand#21        LARGE ANODIZED COPPER   36      20
+Brand#21        LARGE BRUSHED TIN       3       20
+Brand#21        MEDIUM ANODIZED COPPER  14      20
+Brand#21        PROMO BRUSHED TIN       36      20
+Brand#21        PROMO POLISHED NICKEL   45      20
+Brand#21        SMALL ANODIZED COPPER   9       20
+Brand#21        SMALL POLISHED NICKEL   23      20
+Brand#22        LARGE ANODIZED COPPER   36      20
+Brand#22        LARGE BRUSHED COPPER    49      20
+Brand#22        PROMO ANODIZED TIN      49      20
+Brand#22        PROMO POLISHED BRASS    45      20
+Brand#22        SMALL BURNISHED STEEL   45      20
+Brand#23        MEDIUM ANODIZED STEEL   45      20
+Brand#23        PROMO POLISHED STEEL    23      20
+Brand#23        STANDARD BRUSHED TIN    14      20
+Brand#23        STANDARD PLATED NICKEL  36      20
+Brand#24        PROMO PLATED COPPER     49      20
+Brand#24        PROMO PLATED STEEL      49      20
+Brand#24        PROMO POLISHED STEEL    9       20
+Brand#24        STANDARD BRUSHED TIN    36      20
+Brand#25        LARGE ANODIZED BRASS    3       20
+Brand#25        PROMO BURNISHED TIN     3       20
+Brand#31        ECONOMY POLISHED NICKEL 3       20
+Brand#31        MEDIUM PLATED TIN       45      20
+Brand#31        SMALL ANODIZED STEEL    14      20
+Brand#32        ECONOMY ANODIZED COPPER 36      20
+Brand#32        ECONOMY BRUSHED NICKEL  49      20
+Brand#32        LARGE ANODIZED TIN      19      20
+Brand#32        MEDIUM BURNISHED COPPER 19      20
+Brand#32        SMALL ANODIZED STEEL    45      20
+Brand#33        ECONOMY POLISHED COPPER 19      20
+Brand#33        PROMO PLATED NICKEL     14      20
+Brand#33        SMALL POLISHED TIN      9       20
+Brand#33        STANDARD ANODIZED BRASS 49      20
+Brand#33        STANDARD BURNISHED BRASS        45      20
+Brand#34        ECONOMY BRUSHED NICKEL  49      20
+Brand#34        LARGE BRUSHED BRASS     19      20
+Brand#34        SMALL BRUSHED TIN       3       20
+Brand#34        STANDARD PLATED COPPER  9       20
+Brand#35        LARGE ANODIZED NICKEL   3       20
+Brand#35        MEDIUM ANODIZED BRASS   45      20
+Brand#35        MEDIUM ANODIZED STEEL   23      20
+Brand#35        PROMO ANODIZED COPPER   49      20
+Brand#35        SMALL POLISHED COPPER   14      20
+Brand#41        LARGE ANODIZED STEEL    3       20
+Brand#41        LARGE BRUSHED NICKEL    23      20
+Brand#41        LARGE BURNISHED COPPER  3       20

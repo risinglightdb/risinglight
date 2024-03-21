@@ -258,7 +258,7 @@ pub fn datachunk_to_sqllogictest_string(chunk: &Chunk) -> Vec<Vec<String>> {
                     DataValue::Int64(v) => v.to_string(),
                     DataValue::Float64(v) => v.to_string(),
                     DataValue::String(s) if s.is_empty() => "(empty)".to_string(),
-                    DataValue::String(s) => s,
+                    DataValue::String(s) => s.to_string(),
                     DataValue::Blob(s) if s.is_empty() => "(empty)".to_string(),
                     DataValue::Blob(s) => s.to_string(),
                     DataValue::Decimal(v) => v.to_string(),

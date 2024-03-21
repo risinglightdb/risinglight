@@ -71,7 +71,7 @@ pub struct StorageOptions {
 impl StorageOptions {
     pub fn default_for_cli() -> Self {
         Self {
-            path: PathBuf::new().join("risinglight.secondary.db"),
+            path: PathBuf::new().join("risinglight.db"),
             cache_size: 262144,                  // 4GB (16KB * 262144)
             target_rowset_size: 256 * (1 << 20), // 256MB
             target_block_size: 16 * (1 << 10),   // 16KB

@@ -57,7 +57,7 @@ create table b(v3 int, v4 int);
 statement ok
 insert into a values (1, 1), (2, 2), (3, 3);
 
-query IIII
+query IIII rowsort
 select v1, v2, v3, v4 from a left join b on v1 = v3;
 ----
 1 1 NULL NULL
