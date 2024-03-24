@@ -138,7 +138,15 @@ impl RootCatalog {
         let schema_idx = self.get_schema_id_by_name(&schema_name).unwrap();
         let mut inner = self.inner.lock().unwrap();
         let schema = inner.schemas.get_mut(&schema_idx).unwrap();
-        schema.create_function(name, arg_types, arg_names, return_type, language, body, is_recursive);
+        schema.create_function(
+            name,
+            arg_types,
+            arg_names,
+            return_type,
+            language,
+            body,
+            is_recursive,
+        );
     }
 
     pub const DEFAULT_SCHEMA_NAME: &'static str = "postgres";
