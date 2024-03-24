@@ -119,6 +119,7 @@ impl SchemaCatalog {
         return_type: DataType,
         language: String,
         body: String,
+        is_recursive: bool,
     ) {
         self.functions.insert(
             name.clone(),
@@ -129,6 +130,7 @@ impl SchemaCatalog {
                 return_type,
                 language,
                 body,
+                is_recursive,
             }),
         );
     }

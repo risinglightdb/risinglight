@@ -10,6 +10,7 @@ pub struct FunctionCatalog {
     pub return_type: DataType,
     pub language: String,
     pub body: String,
+    pub is_recursive: bool,
 }
 
 impl FunctionCatalog {
@@ -20,6 +21,7 @@ impl FunctionCatalog {
         return_type: DataType,
         language: String,
         body: String,
+        is_recursive: bool,
     ) -> Self {
         Self {
             name,
@@ -28,17 +30,21 @@ impl FunctionCatalog {
             return_type,
             language,
             body,
+            is_recursive,
         }
     }
 
+    #[inline]
     pub fn body(&self) -> String {
         self.body.clone()
     }
 
+    #[inline]
     pub fn name(&self) -> String {
         self.name.clone()
     }
 
+    #[inline]
     pub fn language(&self) -> String {
         self.language.clone()
     }
