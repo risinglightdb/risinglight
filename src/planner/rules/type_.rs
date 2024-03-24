@@ -175,6 +175,9 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
             Ok(DataType::Struct(types))
         }
 
+        // currently for recursive sql udf's type inference
+        Udf(udf) => Ok(udf.return_type.clone()),
+
         // other plan nodes
         _ => Err(TypeError::Unavailable(enode.to_string())),
     }

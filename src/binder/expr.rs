@@ -332,6 +332,18 @@ impl Binder {
         // See if the input function is sql udf
         if let Some(ref function_catalog) = catalog.get_function_by_name(schema_name, function_name)
         {
+            // For recursive sql udf, we will postpone its execution
+            // until reaching backend.
+            // a.k.a. this will not be *inlined* during binding phase
+            if function_catalog.is_recursive {
+                return Ok(self.egraph.add(Node::Udf(Udf {
+                    id: args[0],
+                    name: function_catalog.name.clone(),
+                    body: function_catalog.body.clone(),
+                    return_type: function_catalog.return_type.clone(),
+                })));
+            }
+
             // Create the brand new `udf_context`
             let Ok(context) =
                 UdfContext::create_udf_context(func.args.as_slice(), function_catalog)

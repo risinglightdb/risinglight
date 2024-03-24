@@ -3,7 +3,7 @@
 use egg::{define_language, Id, Symbol};
 
 use crate::binder::copy::ExtSource;
-use crate::binder::{CreateFunction, CreateTable};
+use crate::binder::{CreateFunction, CreateTable, Udf};
 use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataType, DataValue, DateTimeField};
@@ -131,6 +131,9 @@ define_language! {
                                                     // with the same schema as `child`
 
         Symbol(Symbol),
+
+        // currently only used by recursive sql udf
+        Udf(Udf),
     }
 }
 
