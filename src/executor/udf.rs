@@ -1,16 +1,16 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use super::*;
-use crate::catalog::RootCatalogRef;
+use crate::{array::ArrayImpl, binder::Udf, types::ConvertError};
 
 /// The executor of (recursive) sql udf
 pub struct UdfExecutor {
-    pub catalog: RootCatalogRef,
+    pub udf: Udf,
 }
 
 impl UdfExecutor {
-    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
-    pub async fn execute(self) {
-        todo!()
+    pub fn execute(&self, chunk: &DataChunk) -> std::result::Result<ArrayImpl, ConvertError> {
+        println!("udf\n{}", chunk);
+        Ok(ArrayImpl::new_null((0..1).map(|_| ()).collect()))
     }
 }

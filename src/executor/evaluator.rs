@@ -7,6 +7,7 @@ use std::fmt;
 use egg::{Id, Language};
 
 use crate::array::*;
+use crate::executor::udf::UdfExecutor;
 use crate::planner::{Expr, RecExpr};
 use crate::types::{ConvertError, DataValue};
 
@@ -129,6 +130,11 @@ impl<'a> Evaluator<'a> {
                 };
                 a.replace(from, to)
             }
+            // recursive sql udf's actual backend logic
+            Udf(udf) => UdfExecutor {
+                udf: udf.clone(),    
+            }
+            .execute(chunk),
             e => {
                 if let Some((op, a, b)) = e.binary_op() {
                     let left = self.next(a).eval(chunk)?;
