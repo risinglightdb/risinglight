@@ -55,7 +55,7 @@ impl Binder {
     /// Returns a `Scan` plan of table or a plan of subquery.
     ///
     /// # Example
-    /// - `bind_table_factor(t)` => `(scan $1 (list $1.1 $1.2 $1.3) null)`
+    /// - `bind_table_factor(t)` => `(scan $1 (list $1.1 $1.2 $1.3) true)`
     /// - `bind_table_factor(select 1)` => `(values (1))`
     fn bind_table_factor(&mut self, table: TableFactor) -> Result {
         match table {
@@ -135,7 +135,7 @@ impl Binder {
     /// This function defines the table name so that it can be referred later.
     ///
     /// # Example
-    /// - `bind_table_def(t)` => `(scan $1 (list $1.1 $1.2) null)`
+    /// - `bind_table_def(t)` => `(scan $1 (list $1.1 $1.2) true)`
     pub(super) fn bind_table_def(
         &mut self,
         name: &ObjectName,
@@ -194,8 +194,8 @@ impl Binder {
         // return a Scan node
         let table = self.egraph.add(Node::Table(ref_id));
         let cols = self.egraph.add(Node::List(ids.into()));
-        let null = self.egraph.add(Node::null());
-        let scan = self.egraph.add(Node::Scan([table, cols, null]));
+        let true_ = self.egraph.add(Node::true_());
+        let scan = self.egraph.add(Node::Scan([table, cols, true_]));
         Ok(scan)
     }
 

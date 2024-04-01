@@ -106,11 +106,11 @@ fn is_primary_key_range(expr: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool 
         let Some((column, _)) = &egraph[subst[var]].data.range else {
             return false;
         };
-        egraph
-            .analysis
-            .catalog
-            .get_column(column)
-            .unwrap()
-            .is_primary()
+        if let Some(col) = egraph.analysis.catalog.get_column(column) {
+            col.is_primary()
+        } else {
+            // handle the case that catalog is not initialized, like in test cases
+            false
+        }
     }
 }
