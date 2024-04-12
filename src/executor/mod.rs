@@ -214,9 +214,22 @@ impl<S: Storage> Builder<S> {
                     .collect_vec();
                 // analyze range filter
                 let filter = {
+                    use std::ops::Bound;
                     let mut egraph = egg::EGraph::new(ExprAnalysis::default());
                     let root = egraph.add_expr(&self.recexpr(filter));
-                    egraph[root].data.range.clone().map(|(_, r)| r)
+                    let expr: Option<crate::storage::KeyRange> =
+                        egraph[root].data.range.clone().map(|(_, r)| r);
+                    if matches!(
+                        expr,
+                        Some(crate::storage::KeyRange {
+                            start: Bound::Unbounded,
+                            end: Bound::Unbounded
+                        })
+                    ) {
+                        None
+                    } else {
+                        expr
+                    }
                 };
 
                 if let Some(subscriber) = self.views.get(&table_id) {

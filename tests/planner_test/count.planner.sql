@@ -8,7 +8,7 @@ Projection
 ├── cost: 1.13
 ├── rows: 1
 └── Agg { aggs: [ rowcount ], cost: 1.11, rows: 1 }
-    └── Scan { table: t, list: [], filter: null, cost: 0, rows: 1 }
+    └── Scan { table: t, list: [], filter: true, cost: 0, rows: 1 }
 */
 
 -- count(*) with projection
@@ -24,6 +24,6 @@ Projection
 ├── cost: 1.33
 ├── rows: 1
 └── Agg { aggs: [ rowcount ], cost: 1.11, rows: 1 }
-    └── Scan { table: t, list: [], filter: null, cost: 0, rows: 1 }
+    └── Scan { table: t, list: [], filter: true, cost: 0, rows: 1 }
 */
 

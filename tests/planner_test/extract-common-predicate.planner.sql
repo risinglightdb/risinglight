@@ -6,6 +6,6 @@ Filter
 ├── cond: and { lhs: = { lhs: a, rhs: 1 }, rhs: or { lhs: = { lhs: b, rhs: 2 }, rhs: = { lhs: c, rhs: 3 } } }
 ├── cost: 4.955
 ├── rows: 0.375
-└── Scan { table: t, list: [ a, b, c ], filter: null, cost: 3, rows: 1 }
+└── Scan { table: t, list: [ a, b, c ], filter: true, cost: 3, rows: 1 }
 */
 
