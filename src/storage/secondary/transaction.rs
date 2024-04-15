@@ -19,16 +19,11 @@ use super::{
 use crate::array::DataChunk;
 use crate::catalog::find_sort_key_id;
 use crate::storage::secondary::statistics::create_statistics_global_aggregator;
-use crate::storage::{ScanOptions, StorageColumnRef, StorageResult, Transaction};
+use crate::storage::{RowHandler, ScanOptions, StorageColumnRef, StorageResult, Transaction};
 use crate::types::DataValue;
 
 /// A transaction running on `SecondaryStorage`.
 pub struct SecondaryTransaction {
-    /// Indicates whether the transaction is committed or aborted. If
-    /// the [`SecondaryTransaction`] object is dropped without finishing,
-    /// the transaction will panic.
-    finished: bool,
-
     /// Includes all to-be-committed data.
     mem: Option<SecondaryMemRowsetImpl>,
 
@@ -71,7 +66,6 @@ impl SecondaryTransaction {
         // pin a snapshot at version manager
         let pin_version = table.version.pin();
         Ok(Self {
-            finished: false,
             mem: None,
             delete_buffer: vec![],
             table: table.clone(),
@@ -351,10 +345,6 @@ impl SecondaryTransaction {
 }
 
 impl Transaction for SecondaryTransaction {
-    type TxnIteratorType = SecondaryTableTxnIterator;
-
-    type RowHandlerType = SecondaryRowHandler;
-
     async fn scan(
         &self,
         col_idx: &[StorageColumnRef],
@@ -367,21 +357,18 @@ impl Transaction for SecondaryTransaction {
         self.append_inner(columns).await
     }
 
-    async fn delete(&mut self, id: &Self::RowHandlerType) -> StorageResult<()> {
+    async fn delete(&mut self, ids: &[RowHandler]) -> StorageResult<()> {
         assert!(
             self.delete_lock.is_some(),
             "delete lock is not held for this txn"
         );
-        self.delete_buffer.push(*id);
+        for id in ids {
+            self.delete_buffer.push(id.into());
+        }
         Ok(())
     }
 
     async fn commit(self) -> StorageResult<()> {
         self.commit_inner().await
-    }
-
-    async fn abort(mut self) -> StorageResult<()> {
-        self.finished = true;
-        Ok(())
     }
 }

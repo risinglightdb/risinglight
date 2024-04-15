@@ -12,11 +12,6 @@ use crate::storage::{ScanOptions, StorageColumnRef, StorageResult, Table, Transa
 
 /// A transaction running on `InMemoryStorage`.
 pub struct InMemoryTransaction {
-    /// Indicates whether the transaction is committed or aborted. If
-    /// the [`InMemoryTransaction`] object is dropped without finishing,
-    /// the transaction will panic.
-    finished: bool,
-
     /// Includes all to-be-committed data.
     buffer: Vec<DataChunk>,
 
@@ -52,7 +47,6 @@ impl InMemoryTransaction {
             })
             .collect_vec();
         Ok(Self {
-            finished: false,
             buffer: vec![],
             delete_buffer: vec![],
             table: table.inner.clone(),
@@ -144,8 +138,10 @@ impl Transaction for InMemoryTransaction {
         Ok(())
     }
 
-    async fn delete(&mut self, id: &Self::RowHandlerType) -> StorageResult<()> {
-        self.delete_buffer.push(id.0 as usize);
+    async fn delete(&mut self, ids: &[RowHandler]) -> StorageResult<()> {
+        for id in ids {
+            self.delete_buffer.push(id as usize);
+        }
         Ok(())
     }
 
@@ -157,13 +153,6 @@ impl Transaction for InMemoryTransaction {
         for deletion in self.delete_buffer.drain(..) {
             table.delete(deletion)?;
         }
-
-        self.finished = true;
-        Ok(())
-    }
-
-    async fn abort(mut self) -> StorageResult<()> {
-        self.finished = true;
         Ok(())
     }
 }
