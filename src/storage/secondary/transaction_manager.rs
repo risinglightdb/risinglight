@@ -46,6 +46,7 @@ impl TransactionManager {
     }
 
     /// Get a lock for compaction
+    #[allow(dead_code)]
     pub async fn lock_for_compaction(&self, table: u32) -> OwnedMutexGuard<()> {
         self.lock(table).await
     }
