@@ -7,16 +7,14 @@ use std::vec::Vec;
 use super::*;
 use crate::array::DataChunk;
 use crate::catalog::TableRefId;
-use crate::storage::Table;
+use crate::storage::{BoxTransaction, Table};
 
-/// A table in in-memory engine. This struct can be freely cloned, as it
-/// only serves as a reference to a table.
-#[derive(Clone)]
+/// A table in in-memory engine.
 pub struct InMemoryTable {
     pub(super) table_ref_id: TableRefId,
     pub(super) columns: Arc<[ColumnCatalog]>,
     pub(super) inner: InMemoryTableInnerRef,
-    pub(super) ordered_pk_ids: Vec<ColumnId>,
+    pub(super) primary_key: Vec<ColumnId>,
 }
 
 pub(super) struct InMemoryTableInner {
@@ -59,14 +57,13 @@ impl InMemoryTable {
             table_ref_id,
             columns: columns.into(),
             inner: Arc::new(RwLock::new(InMemoryTableInner::new())),
-            ordered_pk_ids: Vec::new(),
+            primary_key: Vec::new(),
         }
     }
 }
 
+#[async_trait::async_trait]
 impl Table for InMemoryTable {
-    type Transaction = InMemoryTransaction;
-
     fn columns(&self) -> StorageResult<Arc<[ColumnCatalog]>> {
         Ok(self.columns.clone())
     }
@@ -75,19 +72,19 @@ impl Table for InMemoryTable {
         self.table_ref_id
     }
 
-    async fn write(&self) -> StorageResult<InMemoryTransaction> {
-        InMemoryTransaction::start(self)
+    async fn write(&self) -> StorageResult<BoxTransaction> {
+        Ok(Box::new(InMemoryTransaction::start(self)?))
     }
 
-    async fn read(&self) -> StorageResult<InMemoryTransaction> {
-        InMemoryTransaction::start(self)
+    async fn read(&self) -> StorageResult<BoxTransaction> {
+        Ok(Box::new(InMemoryTransaction::start(self)?))
     }
 
-    async fn update(&self) -> StorageResult<InMemoryTransaction> {
-        InMemoryTransaction::start(self)
+    async fn update(&self) -> StorageResult<BoxTransaction> {
+        Ok(Box::new(InMemoryTransaction::start(self)?))
     }
 
-    fn ordered_pk_ids(&self) -> Vec<ColumnId> {
-        self.ordered_pk_ids.clone()
+    fn primary_key(&self) -> Vec<ColumnId> {
+        self.primary_key.clone()
     }
 }

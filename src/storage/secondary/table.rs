@@ -2,21 +2,20 @@
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, AtomicU64};
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use moka::future::Cache;
 use tokio::sync::OwnedMutexGuard;
 
 use super::*;
 use crate::catalog::TableRefId;
-use crate::storage::Table;
+use crate::storage::{BoxTransaction, Table};
 
 /// A table in Secondary engine.
 ///
 /// As `SecondaryStorage` holds the reference to `SecondaryTable`, we cannot store
 /// `Arc<SecondaryStorage>` inside `SecondaryTable`. This struct only contains necessary information
 /// to decode the columns of the table.
-#[derive(Clone)]
 pub struct SecondaryTable {
     /// Table id
     pub table_ref_id: TableRefId,
@@ -46,6 +45,9 @@ pub struct SecondaryTable {
 
     /// Next RowSet Id and DV Id of the current storage engine
     next_id: Arc<(AtomicU32, AtomicU64)>,
+
+    /// A weak reference to itself.
+    pub self_ref: Weak<SecondaryTable>,
 }
 
 impl SecondaryTable {
@@ -59,8 +61,8 @@ impl SecondaryTable {
         block_cache: Cache<BlockCacheKey, Block>,
         txn_mgr: Arc<TransactionManager>,
         ordered_pk_ids: Vec<ColumnId>,
-    ) -> Self {
-        Self {
+    ) -> Arc<Self> {
+        Arc::new_cyclic(|weak| Self {
             columns: columns.into(),
             column_map: columns
                 .iter()
@@ -74,7 +76,8 @@ impl SecondaryTable {
             block_cache,
             txn_mgr,
             ordered_pk_ids,
-        }
+            self_ref: weak.clone(),
+        })
     }
 
     pub fn generate_rowset_id(&self) -> u32 {
@@ -110,9 +113,8 @@ impl SecondaryTable {
     }
 }
 
+#[async_trait::async_trait]
 impl Table for SecondaryTable {
-    type Transaction = SecondaryTransaction;
-
     fn columns(&self) -> StorageResult<Arc<[ColumnCatalog]>> {
         Ok(self.columns.clone())
     }
@@ -121,19 +123,25 @@ impl Table for SecondaryTable {
         self.table_ref_id
     }
 
-    async fn write(&self) -> StorageResult<SecondaryTransaction> {
-        SecondaryTransaction::start(self, false, false).await
+    async fn write(&self) -> StorageResult<BoxTransaction> {
+        Ok(Box::new(
+            SecondaryTransaction::start(self, false, false).await?,
+        ))
     }
 
-    async fn read(&self) -> StorageResult<SecondaryTransaction> {
-        SecondaryTransaction::start(self, true, false).await
+    async fn read(&self) -> StorageResult<BoxTransaction> {
+        Ok(Box::new(
+            SecondaryTransaction::start(self, true, false).await?,
+        ))
     }
 
-    async fn update(&self) -> StorageResult<SecondaryTransaction> {
-        SecondaryTransaction::start(self, false, true).await
+    async fn update(&self) -> StorageResult<BoxTransaction> {
+        Ok(Box::new(
+            SecondaryTransaction::start(self, false, true).await?,
+        ))
     }
 
-    fn ordered_pk_ids(&self) -> Vec<ColumnId> {
+    fn primary_key(&self) -> Vec<ColumnId> {
         self.ordered_pk_ids.clone()
     }
 }

@@ -11,14 +11,13 @@ use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
 use crate::parser::{parse, ParserError, Statement};
 use crate::planner::Statistics;
 use crate::storage::{
-    InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
-    StorageImpl, Table,
+    InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, StorageColumnRef, StorageRef,
 };
 
 /// The database instance.
 pub struct Database {
     catalog: RootCatalogRef,
-    storage: StorageImpl,
+    storage: StorageRef,
     config: Mutex<Config>,
 }
 
@@ -32,10 +31,10 @@ struct Config {
 impl Database {
     /// Create a new in-memory database instance.
     pub fn new_in_memory() -> Self {
-        let storage = InMemoryStorage::new();
+        let storage = Arc::new(InMemoryStorage::new());
         Database {
             catalog: storage.catalog().clone(),
-            storage: StorageImpl::InMemoryStorage(Arc::new(storage)),
+            storage,
             config: Default::default(),
         }
     }
@@ -46,15 +45,13 @@ impl Database {
         storage.spawn_compactor().await;
         Database {
             catalog: storage.catalog().clone(),
-            storage: StorageImpl::SecondaryStorage(storage),
+            storage,
             config: Default::default(),
         }
     }
 
     pub async fn shutdown(&self) -> Result<(), Error> {
-        if let StorageImpl::SecondaryStorage(storage) = &self.storage {
-            storage.shutdown().await?;
-        }
+        self.storage.shutdown().await?;
         Ok(())
     }
 
@@ -104,14 +101,7 @@ impl Database {
             if !self.config.lock().unwrap().disable_optimizer {
                 plan = optimizer.optimize(plan);
             }
-            let executor = match self.storage.clone() {
-                StorageImpl::InMemoryStorage(s) => {
-                    crate::executor::build(optimizer.clone(), s, &plan)
-                }
-                StorageImpl::SecondaryStorage(s) => {
-                    crate::executor::build(optimizer.clone(), s, &plan)
-                }
-            };
+            let executor = crate::executor::build(optimizer.clone(), self.storage.clone(), &plan);
             let output = executor.try_collect().await?;
             let mut chunk = Chunk::new(output);
             chunk = bind_header(chunk, &stmt);
@@ -126,9 +116,9 @@ impl Database {
         }
         let mut stat = Statistics::default();
         // only secondary storage supports statistics
-        let StorageImpl::SecondaryStorage(storage) = self.storage.clone() else {
+        if !self.storage.as_any().is::<SecondaryStorage>() {
             return Ok(stat);
-        };
+        }
         for schema in self.catalog.all_schemas().values() {
             // skip internal schema
             if schema.name() == RootCatalog::SYSTEM_SCHEMA_NAME {
@@ -139,12 +129,10 @@ impl Database {
                     continue;
                 }
                 let table_id = TableRefId::new(schema.id(), table.id());
-                let table = storage.get_table(table_id)?;
+                let table = self.storage.get_table(table_id).await?;
                 let txn = table.read().await?;
-                let values = txn.aggreagate_block_stat(&[(
-                    BlockStatisticsType::RowCount,
-                    StorageColumnRef::Idx(0),
-                )]);
+                let values =
+                    txn.get_stats(&[(BlockStatisticsType::RowCount, StorageColumnRef::Idx(0))]);
                 stat.add_row_count(table_id, values[0].as_usize().unwrap().unwrap() as u32);
             }
         }

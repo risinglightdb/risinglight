@@ -19,7 +19,9 @@ use super::{
 use crate::array::DataChunk;
 use crate::catalog::find_sort_key_id;
 use crate::storage::secondary::statistics::create_statistics_global_aggregator;
-use crate::storage::{RowHandler, ScanOptions, StorageColumnRef, StorageResult, Transaction};
+use crate::storage::{
+    BoxTxnIterator, RowHandler, ScanOptions, StorageColumnRef, StorageResult, Transaction,
+};
 use crate::types::DataValue;
 
 /// A transaction running on `SecondaryStorage`.
@@ -31,7 +33,7 @@ pub struct SecondaryTransaction {
     delete_buffer: Vec<SecondaryRowHandler>,
 
     /// Reference table.
-    table: SecondaryTable,
+    table: Arc<SecondaryTable>,
 
     /// Reference version manager.
     version: Arc<VersionManager>,
@@ -68,7 +70,7 @@ impl SecondaryTransaction {
         Ok(Self {
             mem: None,
             delete_buffer: vec![],
-            table: table.clone(),
+            table: table.self_ref.upgrade().unwrap(),
             version: table.version.clone(),
             snapshot: pin_version.snapshot.clone(),
             delete_lock: if update {
@@ -111,7 +113,7 @@ impl SecondaryTransaction {
         Ok(())
     }
 
-    async fn commit_inner(mut self) -> StorageResult<()> {
+    async fn commit_inner(&mut self) -> StorageResult<()> {
         self.flush_rowset().await?;
 
         // flush deletes to disk
@@ -204,8 +206,6 @@ impl SecondaryTransaction {
 
         // Commit changeset
         self.version.commit_changes(changeset).await?;
-
-        self.finished = true;
 
         Ok(())
     }
@@ -344,13 +344,14 @@ impl SecondaryTransaction {
     }
 }
 
+#[async_trait::async_trait]
 impl Transaction for SecondaryTransaction {
     async fn scan(
         &self,
         col_idx: &[StorageColumnRef],
         options: ScanOptions,
-    ) -> StorageResult<SecondaryTableTxnIterator> {
-        self.scan_inner(col_idx, options).await
+    ) -> StorageResult<BoxTxnIterator> {
+        Ok(Box::new(self.scan_inner(col_idx, options).await?))
     }
 
     async fn append(&mut self, columns: DataChunk) -> StorageResult<()> {
@@ -362,13 +363,17 @@ impl Transaction for SecondaryTransaction {
             self.delete_lock.is_some(),
             "delete lock is not held for this txn"
         );
-        for id in ids {
+        for &id in ids {
             self.delete_buffer.push(id.into());
         }
         Ok(())
     }
 
-    async fn commit(self) -> StorageResult<()> {
+    async fn commit(&mut self) -> StorageResult<()> {
         self.commit_inner().await
+    }
+
+    fn get_stats(&self, ty: &[(BlockStatisticsType, StorageColumnRef)]) -> Vec<DataValue> {
+        self.aggreagate_block_stat(ty)
     }
 }

@@ -50,6 +50,7 @@ impl SecondaryIterator {
     }
 }
 
+#[async_trait::async_trait]
 impl TxnIterator for SecondaryTableTxnIterator {
     async fn next_batch(
         &mut self,

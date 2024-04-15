@@ -6,9 +6,11 @@ use std::sync::Arc;
 use itertools::Itertools;
 
 use super::table::InMemoryTableInnerRef;
-use super::{InMemoryRowHandler, InMemoryTable, InMemoryTxnIterator};
+use super::{InMemoryTable, InMemoryTxnIterator};
 use crate::array::{ArrayBuilderImpl, ArrayImplBuilderPickExt, DataChunk};
-use crate::storage::{ScanOptions, StorageColumnRef, StorageResult, Table, Transaction};
+use crate::storage::{
+    BoxTxnIterator, RowHandler, ScanOptions, StorageColumnRef, StorageResult, Table, Transaction,
+};
 
 /// A transaction running on `InMemoryStorage`.
 pub struct InMemoryTransaction {
@@ -36,7 +38,7 @@ impl InMemoryTransaction {
     pub(super) fn start(table: &InMemoryTable) -> StorageResult<Self> {
         let inner = table.inner.read().unwrap();
         let ordered_pk_idx = table
-            .ordered_pk_ids()
+            .primary_key()
             .iter()
             .map(|id| {
                 table
@@ -106,17 +108,14 @@ fn sort_datachunk_by_pk(
     }
 }
 
+#[async_trait::async_trait]
 impl Transaction for InMemoryTransaction {
-    type TxnIteratorType = InMemoryTxnIterator;
-
-    type RowHandlerType = InMemoryRowHandler;
-
     // TODO: remove this unused variable
     async fn scan(
         &self,
         col_idx: &[StorageColumnRef],
         opts: ScanOptions,
-    ) -> StorageResult<InMemoryTxnIterator> {
+    ) -> StorageResult<BoxTxnIterator> {
         assert!(opts.filter.is_none(), "MemTxn doesn't support filter scan");
         assert!(!opts.reversed, "reverse iterator is not supported for now");
 
@@ -126,11 +125,11 @@ impl Transaction for InMemoryTransaction {
             self.snapshot.clone()
         };
 
-        Ok(InMemoryTxnIterator::new(
+        Ok(Box::new(InMemoryTxnIterator::new(
             snapshot,
             self.deleted_rows.clone(),
             col_idx,
-        ))
+        )))
     }
 
     async fn append(&mut self, columns: DataChunk) -> StorageResult<()> {
@@ -140,12 +139,12 @@ impl Transaction for InMemoryTransaction {
 
     async fn delete(&mut self, ids: &[RowHandler]) -> StorageResult<()> {
         for id in ids {
-            self.delete_buffer.push(id as usize);
+            self.delete_buffer.push(*id as usize);
         }
         Ok(())
     }
 
-    async fn commit(mut self) -> StorageResult<()> {
+    async fn commit(&mut self) -> StorageResult<()> {
         let mut table = self.table.write().unwrap();
         for chunk in self.buffer.drain(..) {
             table.append(chunk)?;

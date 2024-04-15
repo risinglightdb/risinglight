@@ -98,6 +98,14 @@ impl<T: NativeType> Array for PrimitiveArray<T> {
     }
 }
 
+impl<T: NativeType> PrimitiveArray<T> {
+    /// Return the values of the array.
+    pub fn values(&self) -> &[T] {
+        assert!(self.valid.all(), "not all values are non-null");
+        &self.data
+    }
+}
+
 impl<T: NativeType> ArrayValidExt for PrimitiveArray<T> {
     fn get_valid_bitmap(&self) -> &BitVec {
         &self.valid

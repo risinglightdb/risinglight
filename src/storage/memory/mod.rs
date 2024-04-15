@@ -20,7 +20,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use super::{Storage, StorageError, StorageResult, TracedStorageError};
+use super::{Storage, StorageError, StorageResult, TableRef, TracedStorageError};
 use crate::catalog::{ColumnCatalog, ColumnId, RootCatalog, RootCatalogRef, SchemaId, TableRefId};
 
 mod table;
@@ -32,13 +32,10 @@ pub use transaction::InMemoryTransaction;
 mod iterator;
 pub use iterator::InMemoryTxnIterator;
 
-mod row_handler;
-pub use row_handler::InMemoryRowHandler;
-
-/// In-memory storage of RisingLight.
+/// In-memory storage engine.
 pub struct InMemoryStorage {
     catalog: RootCatalogRef,
-    tables: Mutex<HashMap<TableRefId, InMemoryTable>>,
+    tables: Mutex<HashMap<TableRefId, Arc<InMemoryTable>>>,
 }
 
 impl Default for InMemoryStorage {
@@ -60,10 +57,8 @@ impl InMemoryStorage {
     }
 }
 
+#[async_trait::async_trait]
 impl Storage for InMemoryStorage {
-    type Transaction = InMemoryTransaction;
-    type Table = InMemoryTable;
-
     async fn create_table(
         &self,
         schema_id: SchemaId,
@@ -92,12 +87,12 @@ impl Storage for InMemoryStorage {
             schema_id,
             table_id,
         };
-        let table = InMemoryTable::new(id, column_descs);
+        let table = Arc::new(InMemoryTable::new(id, column_descs));
         self.tables.lock().unwrap().insert(id, table);
         Ok(())
     }
 
-    fn get_table(&self, table_id: TableRefId) -> StorageResult<InMemoryTable> {
+    async fn get_table(&self, table_id: TableRefId) -> StorageResult<TableRef> {
         let table = self
             .tables
             .lock()
@@ -118,7 +113,11 @@ impl Storage for InMemoryStorage {
         Ok(())
     }
 
-    fn as_disk(&self) -> Option<&super::SecondaryStorage> {
-        None
+    async fn shutdown(&self) -> StorageResult<()> {
+        Ok(())
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

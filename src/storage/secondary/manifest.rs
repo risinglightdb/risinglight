@@ -9,6 +9,7 @@
 
 use std::io::SeekFrom;
 use std::path::Path;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Deserializer;
@@ -253,7 +254,10 @@ impl SecondaryStorage {
         Ok(())
     }
 
-    pub(super) fn get_table_inner(&self, table_id: TableRefId) -> StorageResult<SecondaryTable> {
+    pub(super) fn get_table_inner(
+        &self,
+        table_id: TableRefId,
+    ) -> StorageResult<Arc<SecondaryTable>> {
         let table = self
             .tables
             .read()

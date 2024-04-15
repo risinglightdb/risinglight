@@ -3,9 +3,11 @@
 //! Traits and basic data structures for RisingLight's all storage engines.
 
 mod memory;
+use async_trait::async_trait;
 pub use memory::InMemoryStorage;
 
 mod secondary;
+use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 pub use secondary::{SecondaryStorage, StorageOptions as SecondaryStorageOptions};
 
 mod error;
@@ -13,102 +15,71 @@ pub use error::{StorageError, StorageResult, TracedStorageError};
 use serde::Serialize;
 
 mod chunk;
-use std::future::Future;
 use std::ops::{Bound, RangeBounds};
 use std::sync::Arc;
 
 pub use chunk::*;
-use enum_dispatch::enum_dispatch;
 
-use crate::array::{ArrayImpl, DataChunk};
+use crate::array::DataChunk;
 use crate::catalog::{ColumnCatalog, ColumnId, SchemaId, TableRefId};
 use crate::types::DataValue;
 
-#[enum_dispatch(StorageDispatch)]
-#[derive(Clone)]
-pub enum StorageImpl {
-    InMemoryStorage(Arc<InMemoryStorage>),
-    SecondaryStorage(Arc<SecondaryStorage>),
-}
+/// A reference to a storage engine.
+pub type StorageRef = Arc<dyn Storage>;
 
-/// A trait for implementing `From` and `Into` [`StorageImpl`] with `enum_dispatch`.
-#[enum_dispatch]
-pub trait StorageDispatch {}
-
-impl<S: Storage> StorageDispatch for S {}
-
-#[cfg(test)]
-impl StorageImpl {
-    pub fn as_in_memory_storage(&self) -> Arc<InMemoryStorage> {
-        self.clone().try_into().unwrap()
-    }
-}
-
-impl StorageImpl {
-    /// Returns true if the storage engine supports range filter scan.
-    pub fn support_range_filter_scan(&self) -> bool {
-        match self {
-            Self::SecondaryStorage(_) => true,
-            Self::InMemoryStorage(_) => false,
-        }
-    }
-
-    /// Returns true if scanned table is sorted by primary key.
-    pub fn table_is_sorted_by_primary_key(&self) -> bool {
-        match self {
-            Self::SecondaryStorage(_) => true,
-            Self::InMemoryStorage(_) => false,
-        }
-    }
-}
-
-/// Represents a storage engine.
+/// A storage engine.
+#[async_trait]
 pub trait Storage: Sync + Send + 'static {
-    /// Type of the transaction.
-    type Transaction: Transaction;
-
-    /// Type of the table belonging to this storage engine.
-    type Table: Table<Transaction = Self::Transaction>;
-
-    fn create_table(
+    async fn create_table(
         &self,
         schema_id: SchemaId,
         table_name: &str,
         column_descs: &[ColumnCatalog],
         ordered_pk_ids: &[ColumnId],
-    ) -> impl Future<Output = StorageResult<()>> + Send;
+    ) -> StorageResult<()>;
 
-    fn get_table(&self, table_id: TableRefId) -> StorageResult<Self::Table>;
+    async fn get_table(&self, table_id: TableRefId) -> StorageResult<TableRef>;
 
-    fn drop_table(&self, table_id: TableRefId) -> impl Future<Output = StorageResult<()>> + Send;
+    async fn drop_table(&self, table_id: TableRefId) -> StorageResult<()>;
 
-    // XXX: remove this
-    fn as_disk(&self) -> Option<&SecondaryStorage>;
+    async fn shutdown(&self) -> StorageResult<()>;
+
+    fn as_any(&self) -> &dyn std::any::Any;
+
+    /// Returns true if the storage engine supports range filter scan.
+    fn support_range_filter_scan(&self) -> bool {
+        false
+    }
+
+    /// Returns true if scanned table is sorted by primary key.
+    fn table_is_sorted_by_primary_key(&self) -> bool {
+        false
+    }
 }
+
+pub type TableRef = Arc<dyn Table>;
 
 /// A table in the storage engine. [`Table`] is by default a reference to a table,
 /// so you could clone it and manipulate in different threads as you like.
-pub trait Table: Sync + Send + Clone + 'static {
-    /// Type of the transaction.
-    type Transaction: Transaction;
-
+#[async_trait]
+pub trait Table: Sync + Send + 'static {
     /// Get schema of the current table
     fn columns(&self) -> StorageResult<Arc<[ColumnCatalog]>>;
 
     /// Begin a read-write-only txn
-    fn write(&self) -> impl Future<Output = StorageResult<Self::Transaction>> + Send + '_;
+    async fn write(&self) -> StorageResult<BoxTransaction>;
 
     /// Begin a read-only txn
-    fn read(&self) -> impl Future<Output = StorageResult<Self::Transaction>> + Send + '_;
+    async fn read(&self) -> StorageResult<BoxTransaction>;
 
     /// Begin a txn that might delete or update rows
-    fn update(&self) -> impl Future<Output = StorageResult<Self::Transaction>> + Send + '_;
+    async fn update(&self) -> StorageResult<BoxTransaction>;
 
     /// Get table id
     fn table_id(&self) -> TableRefId;
 
     /// Get primary key
-    fn ordered_pk_ids(&self) -> Vec<ColumnId>;
+    fn primary_key(&self) -> Vec<ColumnId>;
 }
 
 /// Reference to a column.
@@ -124,42 +95,36 @@ pub enum StorageColumnRef {
 }
 
 /// A temporary reference to a row in table.
-pub trait RowHandler: Sync + Send + 'static {
-    fn from_column(column: &ArrayImpl, idx: usize) -> Self;
-}
+pub type RowHandler = i64;
+
+pub type BoxTransaction = Box<dyn Transaction>;
 
 /// Represents a transaction in storage engine.
 ///
 /// Dropping a [`Transaction`] implicitly aborts it.
+#[async_trait]
 pub trait Transaction: Sync + Send + 'static {
-    /// Type of the table iterator
-    type TxnIteratorType: TxnIterator;
-
-    /// Type of the unique reference to a row
-    type RowHandlerType: RowHandler;
-
     /// Scan one or multiple columns.
-    fn scan(
+    async fn scan(
         &self,
         col_idx: &[StorageColumnRef],
         options: ScanOptions,
-    ) -> impl Future<Output = StorageResult<Self::TxnIteratorType>> + Send;
+    ) -> StorageResult<BoxTxnIterator>;
 
     /// Append data to the table. Generally, `columns` should be in the same order as
     /// [`ColumnCatalog`] when constructing the [`Table`].
-    fn append(&mut self, columns: DataChunk) -> impl Future<Output = StorageResult<()>> + Send;
+    async fn append(&mut self, columns: DataChunk) -> StorageResult<()>;
 
-    /// Delete a record.
-    fn delete(
-        &mut self,
-        id: &Self::RowHandlerType,
-    ) -> impl Future<Output = StorageResult<()>> + Send;
+    /// Delete a batch of records.
+    async fn delete(&mut self, ids: &[RowHandler]) -> StorageResult<()>;
 
     /// Commit a transaction.
-    fn commit(self) -> impl Future<Output = StorageResult<()>> + Send;
+    async fn commit(&mut self) -> StorageResult<()>;
 
-    /// Abort a transaction.
-    fn abort(self) -> impl Future<Output = StorageResult<()>> + Send;
+    /// Get statistics, such as row count, distinct count, etc.
+    fn get_stats(&self, _ty: &[(BlockStatisticsType, StorageColumnRef)]) -> Vec<DataValue> {
+        vec![]
+    }
 }
 
 /// Options for scanning.
@@ -225,11 +190,14 @@ impl RangeBounds<DataValue> for KeyRange {
     }
 }
 
+pub type BoxTxnIterator = Box<dyn TxnIterator>;
+
 /// An iterator over table in a transaction.
+#[async_trait]
 pub trait TxnIterator: Send {
     /// get next batch of elements
-    fn next_batch(
+    async fn next_batch(
         &mut self,
         expected_size: Option<usize>,
-    ) -> impl Future<Output = StorageResult<Option<DataChunk>>> + Send + '_;
+    ) -> StorageResult<Option<DataChunk>>;
 }

@@ -194,7 +194,7 @@ async fn pg_stat(catalog: RootCatalogRef, storage: &StorageRef) -> Result<DataCh
 
             for (cid, column) in table.all_columns() {
                 let txn = stable.read().await?;
-                let values = txn.aggreagate_block_stat(&[
+                let values = txn.get_stats(&[
                     (BlockStatisticsType::RowCount, StorageColumnRef::Idx(cid)),
                     (
                         BlockStatisticsType::DistinctValue,

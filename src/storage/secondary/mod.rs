@@ -31,7 +31,7 @@ use transaction_manager::*;
 pub use txn_iterator::*;
 use version_manager::*;
 
-use super::{Storage, StorageResult, TracedStorageError};
+use super::{Storage, StorageResult, TableRef, TracedStorageError};
 use crate::catalog::{ColumnCatalog, ColumnId, RootCatalogRef, SchemaId, TableRefId};
 
 // public modules and structures
@@ -64,13 +64,13 @@ const MANIFEST_FILE_NAME: &str = "manifest.json";
 #[cfg(test)]
 mod tests;
 
-/// Secondary storage of RisingLight.
+/// Disk storage engine.
 pub struct SecondaryStorage {
     /// Catalog of the database
     catalog: RootCatalogRef,
 
     /// All tables in the storage engine
-    tables: RwLock<HashMap<TableRefId, SecondaryTable>>,
+    tables: RwLock<HashMap<TableRefId, Arc<SecondaryTable>>>,
 
     /// Options of the current engine
     options: Arc<StorageOptions>,
@@ -109,10 +109,7 @@ impl SecondaryStorage {
             tokio::task::Builder::default()
                 .name("compactor")
                 .spawn(async move {
-                    Compactor::new(storage)
-                        .run()
-                        .await
-                        .expect("compactor stopped unexpectedly");
+                    Compactor::new(storage).run().await;
                 })
                 .expect("failed to spawn task"),
         );
@@ -145,10 +142,8 @@ impl SecondaryStorage {
     }
 }
 
+#[async_trait::async_trait]
 impl Storage for SecondaryStorage {
-    type Transaction = SecondaryTransaction;
-    type Table = SecondaryTable;
-
     async fn create_table(
         &self,
         schema_id: SchemaId,
@@ -160,15 +155,29 @@ impl Storage for SecondaryStorage {
             .await
     }
 
-    fn get_table(&self, table_id: TableRefId) -> StorageResult<SecondaryTable> {
-        self.get_table_inner(table_id)
+    async fn get_table(&self, table_id: TableRefId) -> StorageResult<TableRef> {
+        Ok(self.get_table_inner(table_id)?)
     }
 
     async fn drop_table(&self, table_id: TableRefId) -> StorageResult<()> {
         self.drop_table_inner(table_id).await
     }
 
-    fn as_disk(&self) -> Option<&SecondaryStorage> {
-        Some(self)
+    async fn shutdown(&self) -> StorageResult<()> {
+        self.shutdown_inner().await
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    /// Returns true if the storage engine supports range filter scan.
+    fn support_range_filter_scan(&self) -> bool {
+        true
+    }
+
+    /// Returns true if scanned table is sorted by primary key.
+    fn table_is_sorted_by_primary_key(&self) -> bool {
+        true
     }
 }

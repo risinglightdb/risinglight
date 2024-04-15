@@ -35,8 +35,11 @@ impl InMemoryTxnIterator {
             deleted_rows,
         }
     }
+}
 
-    async fn next_batch_inner(
+#[async_trait::async_trait]
+impl TxnIterator for InMemoryTxnIterator {
+    async fn next_batch(
         &mut self,
         _expected_size: Option<usize>,
     ) -> StorageResult<Option<DataChunk>> {
@@ -73,14 +76,5 @@ impl InMemoryTxnIterator {
 
             Ok(Some(chunk))
         }
-    }
-}
-
-impl TxnIterator for InMemoryTxnIterator {
-    async fn next_batch(
-        &mut self,
-        expected_size: Option<usize>,
-    ) -> StorageResult<Option<DataChunk>> {
-        self.next_batch_inner(expected_size).await
     }
 }

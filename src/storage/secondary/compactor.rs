@@ -30,7 +30,11 @@ impl Compactor {
         Self { storage }
     }
 
-    async fn compact_table(&self, snapshot: &Snapshot, table: SecondaryTable) -> StorageResult<()> {
+    async fn compact_table(
+        &self,
+        snapshot: &Snapshot,
+        table: &SecondaryTable,
+    ) -> StorageResult<()> {
         let rowsets = if let Some(rowsets) = snapshot.get_rowsets_of(table.table_id()) {
             rowsets
         } else {
@@ -206,7 +210,7 @@ impl Compactor {
     /// Run the compactor.
     ///
     /// Drop the future to stop the compactor.
-    pub async fn run(mut self) -> ! {
+    pub async fn run(self) -> ! {
         loop {
             let tables = self.storage.tables.read().clone();
             let pin_version = self.storage.version.pin();
@@ -216,7 +220,7 @@ impl Compactor {
                     .txn_mgr
                     .try_lock_for_compaction(table.table_id())
                 {
-                    if let Err(err) = self.compact_table(&pin_version.snapshot, table).await {
+                    if let Err(err) = self.compact_table(&pin_version.snapshot, &table).await {
                         warn!("failed to compact: {:?}", err);
                     }
                 }

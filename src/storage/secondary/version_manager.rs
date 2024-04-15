@@ -384,7 +384,7 @@ impl VersionManager {
     /// Drop the future to stop the vacuum process.
     pub async fn run(self: &Arc<Self>) -> StorageResult<()> {
         let mut vacuum_notifier = self.rx.lock().take().unwrap();
-        while let Some(_) = vacuum_notifier.recv() {
+        while let Some(_) = vacuum_notifier.recv().await {
             self.do_vacuum().await?;
         }
         Ok(())
@@ -412,7 +412,8 @@ impl Drop for Version {
 
             if self.epoch != inner.epoch {
                 // TODO: precisely pass the epoch number that can be vacuum.
-                self.tx.send(()).unwrap();
+                // send may fail if the vacuum process is stopped.
+                _ = self.tx.send(());
             }
         }
     }
