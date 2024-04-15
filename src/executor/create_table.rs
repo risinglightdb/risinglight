@@ -1,18 +1,15 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::sync::Arc;
-
 use super::*;
 use crate::binder::CreateTable;
-use crate::storage::Storage;
 
 /// The executor of `create table` statement.
-pub struct CreateTableExecutor<S: Storage> {
+pub struct CreateTableExecutor {
     pub table: Box<CreateTable>,
-    pub storage: Arc<S>,
+    pub storage: StorageRef,
 }
 
-impl<S: Storage> CreateTableExecutor<S> {
+impl CreateTableExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         self.storage

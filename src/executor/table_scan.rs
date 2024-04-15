@@ -1,26 +1,22 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::sync::Arc;
-
 use super::*;
 use crate::array::DataChunk;
 use crate::catalog::{ColumnRefId, TableRefId};
-use crate::storage::{
-    KeyRange, ScanOptions, Storage, StorageColumnRef, Table, Transaction, TxnIterator,
-};
+use crate::storage::{KeyRange, ScanOptions, StorageColumnRef};
 
 /// The executor of table scan operation.
-pub struct TableScanExecutor<S: Storage> {
+pub struct TableScanExecutor {
     pub table_id: TableRefId,
     pub columns: Vec<ColumnRefId>,
     pub filter: Option<KeyRange>,
-    pub storage: Arc<S>,
+    pub storage: StorageRef,
 }
 
-impl<S: Storage> TableScanExecutor<S> {
+impl TableScanExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
-        let table = self.storage.get_table(self.table_id)?;
+        let table = self.storage.get_table(self.table_id).await?;
 
         let mut col_idx = self
             .columns

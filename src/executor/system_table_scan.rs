@@ -5,17 +5,17 @@ use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use super::*;
 use crate::array::*;
 use crate::catalog::{ColumnRefId, RootCatalogRef, TableRefId};
-use crate::storage::{Storage, StorageColumnRef, Table};
+use crate::storage::StorageColumnRef;
 
 /// Scan a system table.
-pub struct SystemTableScan<S: Storage> {
+pub struct SystemTableScan {
     pub catalog: RootCatalogRef,
-    pub storage: Arc<S>,
+    pub storage: StorageRef,
     pub table_id: TableRefId,
     pub columns: Vec<ColumnRefId>,
 }
 
-impl<S: Storage> SystemTableScan<S> {
+impl SystemTableScan {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self) {
         let table = self
@@ -28,7 +28,7 @@ impl<S: Storage> SystemTableScan<S> {
             "contributors" => contributors(),
             "pg_tables" => pg_tables(self.catalog),
             "pg_attribute" => pg_attribute(self.catalog),
-            "pg_stat" => pg_stat(self.catalog, &*self.storage).await?,
+            "pg_stat" => pg_stat(self.catalog, &self.storage).await?,
             name => panic!("unknown system table: {:?}", name),
         };
     }
@@ -172,7 +172,7 @@ fn pg_attribute(catalog: RootCatalogRef) -> DataChunk {
 }
 
 /// Returns `pg_stat` table.
-async fn pg_stat(catalog: RootCatalogRef, storage: &impl Storage) -> Result<DataChunk> {
+async fn pg_stat(catalog: RootCatalogRef, storage: &StorageRef) -> Result<DataChunk> {
     // let mut schema_id = I32ArrayBuilder::new();
     // let mut table_id = I32ArrayBuilder::new();
     // let mut column_id = I32ArrayBuilder::new();
@@ -182,38 +182,36 @@ async fn pg_stat(catalog: RootCatalogRef, storage: &impl Storage) -> Result<Data
     let mut n_row = I32ArrayBuilder::new();
     let mut n_distinct = I32ArrayBuilder::new();
 
-    if let Some(storage) = storage.as_disk() {
-        for (sid, schema) in catalog.all_schemas() {
-            if sid == RootCatalog::SYSTEM_SCHEMA_ID {
+    for (sid, schema) in catalog.all_schemas() {
+        if sid == RootCatalog::SYSTEM_SCHEMA_ID {
+            continue;
+        }
+        for (tid, table) in schema.all_tables() {
+            if table.is_view() {
                 continue;
             }
-            for (tid, table) in schema.all_tables() {
-                if table.is_view() {
-                    continue;
-                }
-                let stable = storage.get_table(TableRefId::new(sid, tid))?;
+            let stable = storage.get_table(TableRefId::new(sid, tid)).await?;
 
-                for (cid, column) in table.all_columns() {
-                    let txn = stable.read().await?;
-                    let values = txn.aggreagate_block_stat(&[
-                        (BlockStatisticsType::RowCount, StorageColumnRef::Idx(cid)),
-                        (
-                            BlockStatisticsType::DistinctValue,
-                            StorageColumnRef::Idx(cid),
-                        ),
-                    ]);
-                    let row = values[0].as_usize().unwrap().unwrap() as i32;
-                    let distinct = values[1].as_usize().unwrap().unwrap() as i32;
+            for (cid, column) in table.all_columns() {
+                let txn = stable.read().await?;
+                let values = txn.aggreagate_block_stat(&[
+                    (BlockStatisticsType::RowCount, StorageColumnRef::Idx(cid)),
+                    (
+                        BlockStatisticsType::DistinctValue,
+                        StorageColumnRef::Idx(cid),
+                    ),
+                ]);
+                let row = values[0].as_usize().unwrap().unwrap() as i32;
+                let distinct = values[1].as_usize().unwrap().unwrap() as i32;
 
-                    // schema_id.push(Some(&(sid as i32)));
-                    // table_id.push(Some(&(tid as i32)));
-                    // column_id.push(Some(&(cid as i32)));
-                    schema_name.push(Some(&schema.name()));
-                    table_name.push(Some(table.name()));
-                    column_name.push(Some(column.name()));
-                    n_row.push(Some(&row));
-                    n_distinct.push(Some(&distinct));
-                }
+                // schema_id.push(Some(&(sid as i32)));
+                // table_id.push(Some(&(tid as i32)));
+                // column_id.push(Some(&(cid as i32)));
+                schema_name.push(Some(&schema.name()));
+                table_name.push(Some(table.name()));
+                column_name.push(Some(column.name()));
+                n_row.push(Some(&row));
+                n_distinct.push(Some(&distinct));
             }
         }
     }

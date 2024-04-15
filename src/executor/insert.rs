@@ -1,24 +1,21 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::sync::Arc;
-
 use super::*;
 use crate::array::DataChunk;
 use crate::catalog::{ColumnId, TableRefId};
-use crate::storage::{Storage, Table, Transaction};
 use crate::types::ColumnIndex;
 
 /// The executor of `insert` statement.
-pub struct InsertExecutor<S: Storage> {
+pub struct InsertExecutor {
     pub table_id: TableRefId,
     pub column_ids: Vec<ColumnId>,
-    pub storage: Arc<S>,
+    pub storage: StorageRef,
 }
 
-impl<S: Storage> InsertExecutor<S> {
+impl InsertExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self, child: BoxedExecutor) {
-        let table = self.storage.get_table(self.table_id)?;
+        let table = self.storage.get_table(self.table_id).await?;
         let columns = table.columns()?;
 
         // construct an expression
@@ -59,7 +56,7 @@ mod tests {
     use super::*;
     use crate::array::ArrayImpl;
     use crate::catalog::{ColumnCatalog, ColumnDesc, TableRefId};
-    use crate::storage::{InMemoryStorage, StorageImpl};
+    use crate::storage::{InMemoryStorage, Storage, StorageRef};
     use crate::types::DataType;
 
     #[tokio::test]
@@ -68,7 +65,7 @@ mod tests {
         let executor = InsertExecutor {
             table_id: TableRefId::new(1, 0),
             column_ids: vec![0, 1],
-            storage: storage.as_in_memory_storage(),
+            storage,
         };
         let source = async_stream::try_stream! {
             yield [
@@ -82,10 +79,9 @@ mod tests {
         executor.execute(source).next().await.unwrap().unwrap();
     }
 
-    async fn create_table() -> StorageImpl {
-        let storage = StorageImpl::InMemoryStorage(Arc::new(InMemoryStorage::new()));
+    async fn create_table() -> StorageRef {
+        let storage = Arc::new(InMemoryStorage::new());
         storage
-            .as_in_memory_storage()
             .create_table(
                 1,
                 "t",

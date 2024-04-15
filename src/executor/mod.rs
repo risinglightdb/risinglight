@@ -53,7 +53,7 @@ use self::window::*;
 use crate::array::DataChunk;
 use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
 use crate::planner::{Expr, ExprAnalysis, Optimizer, RecExpr, TypeSchemaAnalysis};
-use crate::storage::Storage;
+use crate::storage::StorageRef;
 use crate::types::{ColumnIndex, DataType};
 
 mod copy_from_file;
@@ -95,13 +95,13 @@ const PROCESSING_WINDOW_SIZE: usize = 1024;
 /// and produces a stream to its parent.
 pub type BoxedExecutor = BoxStream<'static, Result<DataChunk>>;
 
-pub fn build(optimizer: Optimizer, storage: Arc<impl Storage>, plan: &RecExpr) -> BoxedExecutor {
+pub fn build(optimizer: Optimizer, storage: StorageRef, plan: &RecExpr) -> BoxedExecutor {
     Builder::new(optimizer, storage, plan).build()
 }
 
 /// The builder of executor.
-struct Builder<S: Storage> {
-    storage: Arc<S>,
+struct Builder {
+    storage: StorageRef,
     optimizer: Optimizer,
     egraph: egg::EGraph<Expr, TypeSchemaAnalysis>,
     root: Id,
@@ -110,9 +110,9 @@ struct Builder<S: Storage> {
     views: HashMap<TableRefId, StreamSubscriber>,
 }
 
-impl<S: Storage> Builder<S> {
+impl Builder {
     /// Create a new executor builder.
-    fn new(optimizer: Optimizer, storage: Arc<S>, plan: &RecExpr) -> Self {
+    fn new(optimizer: Optimizer, storage: StorageRef, plan: &RecExpr) -> Self {
         let mut egraph = egg::EGraph::new(TypeSchemaAnalysis {
             catalog: optimizer.catalog().clone(),
         });
