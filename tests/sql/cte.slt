@@ -1,18 +1,17 @@
-# FIXME: panic
-# # create a CTE called "cte" and use it in the main query
-# query I
-# WITH cte AS (SELECT 42 AS x)
-# SELECT * FROM cte;
-# ----
-# 42
-# 
-# # create two CTEs, where the second CTE references the first CTE
-# query I
-# WITH cte AS (SELECT 42 AS i),
-#      cte2 AS (SELECT i*100 AS x FROM cte)
-# SELECT * FROM cte2;
-# ----
-# 4200
+# create a CTE called "cte" and use it in the main query
+query I
+WITH cte AS (SELECT 42 AS x)
+SELECT * FROM cte;
+----
+42
+
+# create two CTEs, where the second CTE references the first CTE
+query I
+WITH cte AS (SELECT 42 AS i),
+     cte2 AS (SELECT i*100 AS x FROM cte)
+SELECT * FROM cte2;
+----
+4200
 
 
 statement ok
@@ -27,13 +26,12 @@ select * from cte;
 ----
 42
 
-# FIXME: panic
-# query I
-# with cte as (select a as i from t),
-#      cte2 as (select i*100 as x from cte)
-# select * from cte2;
-# ----
-# 4200
+query I
+with cte as (select a as i from t),
+     cte2 as (select i*100 as x from cte)
+select * from cte2;
+----
+4200
 
 statement ok
 insert into t values (43);

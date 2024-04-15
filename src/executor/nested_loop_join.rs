@@ -5,7 +5,10 @@ use std::vec::Vec;
 use futures::TryStreamExt;
 
 use super::*;
-use crate::array::{Array, ArrayBuilder, ArrayImpl, BoolArrayBuilder, DataChunk, DataChunkBuilder};
+use crate::array::{
+    Array, ArrayBuilder, ArrayBuilderImpl, ArrayImpl, BoolArrayBuilder, DataChunk,
+    DataChunkBuilder, RowRef,
+};
 use crate::types::{DataType, DataValue};
 
 /// The executor for nested loop join.
@@ -19,7 +22,7 @@ pub struct NestedLoopJoinExecutor {
 impl NestedLoopJoinExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self, left_child: BoxedExecutor, right_child: BoxedExecutor) {
-        if matches!(self.op, Expr::RightOuter | Expr::FullOuter) {
+        if !matches!(self.op, Expr::Inner | Expr::LeftOuter) {
             todo!("unsupported join type: {:?}", self.op);
         }
         let left_chunks = left_child.try_collect::<Vec<DataChunk>>().await?;
@@ -93,5 +96,67 @@ impl NestedLoopJoinExecutor {
         if let Some(chunk) = builder.take() {
             yield chunk;
         }
+    }
+}
+
+/// The executor for nested loop semi/anti join.
+pub struct NestedLoopSemiJoinExecutor {
+    pub anti: bool,
+    pub condition: RecExpr,
+    pub left_types: Vec<DataType>,
+}
+
+impl NestedLoopSemiJoinExecutor {
+    #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+    pub async fn execute(self, left_child: BoxedExecutor, right_child: BoxedExecutor) {
+        let right_chunks = right_child.try_collect::<Vec<DataChunk>>().await?;
+
+        let mut builder = DataChunkBuilder::new(&self.left_types, PROCESSING_WINDOW_SIZE);
+
+        #[for_await]
+        for left_chunk in left_child {
+            let left_chunk = left_chunk?;
+            'left_row: for left_row in left_chunk.rows() {
+                let mut exists = false;
+                for right_chunk in &right_chunks {
+                    let left_chunk = self.left_row_to_chunk(&left_row, right_chunk.cardinality());
+                    let join_chunk = left_chunk.row_concat(right_chunk.clone());
+                    // evaluate filter bitmap
+                    let ArrayImpl::Bool(a) = Evaluator::new(&self.condition).eval(&join_chunk)?
+                    else {
+                        panic!("join condition should return bool");
+                    };
+                    exists |= a.true_array().iter().any(|v| *v);
+                    if exists && !self.anti {
+                        if let Some(chunk) = builder.push_row(left_row.values()) {
+                            yield chunk;
+                        }
+                        continue 'left_row;
+                    }
+                    tokio::task::consume_budget().await;
+                }
+                if exists ^ self.anti {
+                    if let Some(chunk) = builder.push_row(left_row.values()) {
+                        yield chunk;
+                    }
+                }
+            }
+        }
+        if let Some(chunk) = builder.take() {
+            yield chunk;
+        }
+    }
+
+    /// Expand the left row to a chunk with given length.
+    fn left_row_to_chunk(&self, row: &RowRef<'_>, len: usize) -> DataChunk {
+        self.left_types
+            .iter()
+            .zip(row.values())
+            .map(|(ty, value)| {
+                let mut builder = ArrayBuilderImpl::with_capacity(len, ty);
+                builder.push_n(len, &value);
+                builder.finish()
+            })
+            .collect()
     }
 }

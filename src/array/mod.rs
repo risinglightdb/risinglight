@@ -575,11 +575,16 @@ macro_rules! impl_array {
                     Self::Null(_) => DataValue::Null,
                     $(
                         Self::$Abc(a) => match a.get(idx) {
-                            Some(val) => DataValue::$Value(val.to_owned()),
+                            Some(val) => DataValue::$Value(val.to_owned().into()),
                             None => DataValue::Null,
                         },
                     )*
                 }
+            }
+
+            /// Get iterator of current array.
+            pub fn iter(&self) -> impl DoubleEndedIterator<Item = DataValue> + '_ {
+                (0..self.len()).map(|i| self.get(i))
             }
 
             /// Number of items of array.

@@ -74,6 +74,13 @@ impl Binder {
                 list,
                 negated,
             } => self.bind_in_list(*expr, list, negated),
+            Expr::InSubquery {
+                expr,
+                subquery,
+                negated,
+            } => self.bind_in_subquery(*expr, *subquery, negated),
+            Expr::Exists { subquery, negated } => self.bind_exists(*subquery, negated),
+            Expr::Subquery(query) => self.bind_subquery(*query),
             _ => todo!("bind expression: {:?}", expr),
         }?;
         self.type_(id)?;
@@ -89,7 +96,7 @@ impl Binder {
         Ok(self.egraph.add(Node::List(list)))
     }
 
-    fn bind_ident(&mut self, idents: impl IntoIterator<Item = Ident>) -> Result {
+    fn bind_ident(&self, idents: impl IntoIterator<Item = Ident>) -> Result {
         let idents = idents
             .into_iter()
             .map(|ident| Ident::new(ident.value.to_lowercase()))
@@ -106,24 +113,7 @@ impl Binder {
             return Ok(*id);
         }
 
-        let map = self
-            .current_ctx()
-            .column_aliases
-            .get(column_name)
-            .ok_or_else(|| BindError::InvalidColumn(column_name.into()))?;
-        if let Some(table_name) = table_name {
-            map.get(table_name)
-                .cloned()
-                .ok_or_else(|| BindError::InvalidTable(table_name.clone()))
-        } else if map.len() == 1 {
-            Ok(*map.values().next().unwrap())
-        } else {
-            let use_ = map
-                .keys()
-                .map(|table_name| format!("\"{table_name}.{column_name}\""))
-                .join(" or ");
-            Err(BindError::AmbiguousColumn(column_name.into(), use_))
-        }
+        self.find_alias(column_name, table_name.map(|s| s.as_str()))
     }
 
     fn bind_binary_op(&mut self, left: Expr, op: BinaryOperator, right: Expr) -> Result {
@@ -184,14 +174,17 @@ impl Binder {
         match data_type {
             DataType::Date => {
                 let date = value.parse().map_err(|_| {
-                    BindError::CastError(DataValue::String(value), crate::types::DataType::Date)
+                    BindError::CastError(
+                        DataValue::String(value.into()),
+                        crate::types::DataType::Date,
+                    )
                 })?;
                 Ok(self.egraph.add(Node::Constant(DataValue::Date(date))))
             }
             DataType::Timestamp(_, _) => {
                 let timestamp = value.parse().map_err(|_| {
                     BindError::CastError(
-                        DataValue::String(value),
+                        DataValue::String(value.into()),
                         crate::types::DataType::Timestamp,
                     )
                 })?;
@@ -282,6 +275,32 @@ impl Binder {
         } else {
             Ok(in_list)
         }
+    }
+
+    fn bind_in_subquery(&mut self, expr: Expr, subquery: Query, negated: bool) -> Result {
+        let expr = self.bind_expr(expr)?;
+        let (subquery, _) = self.bind_query(subquery)?;
+        let in_subquery = self.egraph.add(Node::In([expr, subquery]));
+        if negated {
+            Ok(self.egraph.add(Node::Not(in_subquery)))
+        } else {
+            Ok(in_subquery)
+        }
+    }
+
+    fn bind_exists(&mut self, subquery: Query, negated: bool) -> Result {
+        let (subquery, _) = self.bind_query(subquery)?;
+        let exists = self.egraph.add(Node::Exists(subquery));
+        if negated {
+            Ok(self.egraph.add(Node::Not(exists)))
+        } else {
+            Ok(exists)
+        }
+    }
+
+    fn bind_subquery(&mut self, subquery: Query) -> Result {
+        let (id, _) = self.bind_query(subquery)?;
+        Ok(self.egraph.add(Node::Max1Row(id)))
     }
 
     fn bind_substring(
@@ -386,6 +405,7 @@ impl Binder {
 
         let node = match func.name.to_string().to_lowercase().as_str() {
             "count" if args.is_empty() => Node::RowCount,
+            "count" if func.distinct => Node::CountDistinct(args[0]),
             "count" => Node::Count(args[0]),
             "max" => Node::Max(args[0]),
             "min" => Node::Min(args[0]),
@@ -459,8 +479,8 @@ impl From<Value> for DataValue {
                     panic!("invalid digit: {}", n);
                 }
             }
-            Value::SingleQuotedString(s) => Self::String(s),
-            Value::DoubleQuotedString(s) => Self::String(s),
+            Value::SingleQuotedString(s) => Self::String(s.into()),
+            Value::DoubleQuotedString(s) => Self::String(s.into()),
             Value::Boolean(b) => Self::Bool(b),
             Value::Null => Self::Null,
             _ => todo!("parse value: {:?}", v),

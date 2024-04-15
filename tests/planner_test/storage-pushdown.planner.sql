@@ -45,7 +45,7 @@ Scan { table: t1, list: [ a, b ], filter: false, cost: 10, rows: 5 }
 explain select * from t1 where a > 1 and a > 3 and b > 1;
 
 /*
-Filter { cond: > { lhs: b, rhs: 1 }, cost: 16.05, rows: 2.5 }
-└── Scan { table: t1, list: [ a, b ], filter: > { lhs: a, rhs: 3 }, cost: 10, rows: 5 }
+Filter { cond: and { lhs: > { lhs: a, rhs: 3 }, rhs: > { lhs: b, rhs: 1 } }, cost: 15.1, rows: 1.25 }
+└── Scan { table: t1, list: [ a, b ], filter: > { lhs: a, rhs: 1 }, cost: 10, rows: 5 }
 */
 

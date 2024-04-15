@@ -1,0 +1,39 @@
+query TIITRR
+select
+    c_name,
+    c_custkey,
+    o_orderkey,
+    o_orderdate,
+    o_totalprice,
+    sum(l_quantity)
+from
+    customer,
+    orders,
+    lineitem
+where
+    o_orderkey in (
+        select
+            l_orderkey
+        from
+            lineitem
+        group by
+            l_orderkey having
+                sum(l_quantity) > 250 -- original: 300
+    )
+    and c_custkey = o_custkey
+    and o_orderkey = l_orderkey
+group by
+    c_name,
+    c_custkey,
+    o_orderkey,
+    o_orderdate,
+    o_totalprice
+order by
+    o_totalprice desc,
+    o_orderdate
+limit 100;
+----
+Customer#000000070      70      2567    1998-02-27      263411.29       266.00
+Customer#000000010      10      4421    1997-04-04      258779.02       255.00
+Customer#000000082      82      3460    1995-10-03      245976.74       254.00
+Customer#000000068      68      2208    1995-05-01      245388.06       256.00

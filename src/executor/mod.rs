@@ -159,6 +159,19 @@ impl<S: Storage> Builder<S> {
     /// Resolve the column index of `expr` in `plan`.
     fn resolve_column_index(&self, expr: Id, plan: Id) -> RecExpr {
         let schema = &self.egraph[plan].data.schema;
+        self.resolve_column_index_on_schema(expr, schema)
+    }
+
+    /// Resolve the column index of `expr` in `left` || `right`.
+    fn resolve_column_index2(&self, expr: Id, left: Id, right: Id) -> RecExpr {
+        let left = &self.egraph[left].data.schema;
+        let right = &self.egraph[right].data.schema;
+        let schema = left.iter().chain(right.iter()).cloned().collect_vec();
+        self.resolve_column_index_on_schema(expr, &schema)
+    }
+
+    /// Resolve the column index of `expr` in `schema`.
+    fn resolve_column_index_on_schema(&self, expr: Id, schema: &[Id]) -> RecExpr {
         self.node(expr).build_recexpr(|id| {
             if let Some(idx) = schema.iter().position(|x| *x == id) {
                 return Expr::ColumnIndex(ColumnIndex(idx as _));
@@ -301,19 +314,30 @@ impl<S: Storage> Builder<S> {
             }
             .execute(self.build_id(child)),
 
-            Join([op, on, left, right]) => NestedLoopJoinExecutor {
-                op: self.node(op).clone(),
-                condition: self.resolve_column_index(on, id),
-                left_types: self.plan_types(left).to_vec(),
-                right_types: self.plan_types(right).to_vec(),
-            }
-            .execute(self.build_id(left), self.build_id(right)),
+            Join([op, on, left, right]) => match self.node(op) {
+                Inner | LeftOuter | RightOuter | FullOuter => NestedLoopJoinExecutor {
+                    op: self.node(op).clone(),
+                    condition: self.resolve_column_index2(on, left, right),
+                    left_types: self.plan_types(left).to_vec(),
+                    right_types: self.plan_types(right).to_vec(),
+                }
+                .execute(self.build_id(left), self.build_id(right)),
+                op @ Semi | op @ Anti => NestedLoopSemiJoinExecutor {
+                    anti: matches!(op, Anti),
+                    condition: self.resolve_column_index2(on, left, right),
+                    left_types: self.plan_types(left).to_vec(),
+                }
+                .execute(self.build_id(left), self.build_id(right)),
+                t => panic!("invalid join type: {t:?}"),
+            },
 
             HashJoin(args @ [op, ..]) => match self.node(op) {
                 Inner => self.build_hashjoin::<{ JoinType::Inner }>(args),
                 LeftOuter => self.build_hashjoin::<{ JoinType::LeftOuter }>(args),
                 RightOuter => self.build_hashjoin::<{ JoinType::RightOuter }>(args),
                 FullOuter => self.build_hashjoin::<{ JoinType::FullOuter }>(args),
+                Semi => self.build_hashsemijoin(args, false),
+                Anti => self.build_hashsemijoin(args, true),
                 t => panic!("invalid join type: {t:?}"),
             },
 
@@ -325,21 +349,26 @@ impl<S: Storage> Builder<S> {
                 t => panic!("invalid join type: {t:?}"),
             },
 
+            Apply(_) => {
+                panic!("Apply is not supported in executor. It should be rewritten to join by optimizer.")
+            }
+
             Agg([aggs, child]) => SimpleAggExecutor {
                 aggs: self.resolve_column_index(aggs, child),
-            }
-            .execute(self.build_id(child)),
-
-            HashAgg([aggs, group_keys, child]) => HashAggExecutor {
-                aggs: self.resolve_column_index(aggs, child),
-                group_keys: self.resolve_column_index(group_keys, child),
                 types: self.plan_types(id).to_vec(),
             }
             .execute(self.build_id(child)),
 
-            SortAgg([aggs, group_keys, child]) => SortAggExecutor {
+            HashAgg([keys, aggs, child]) => HashAggExecutor {
+                keys: self.resolve_column_index(keys, child),
                 aggs: self.resolve_column_index(aggs, child),
-                group_keys: self.resolve_column_index(group_keys, child),
+                types: self.plan_types(id).to_vec(),
+            }
+            .execute(self.build_id(child)),
+
+            SortAgg([keys, aggs, child]) => SortAggExecutor {
+                keys: self.resolve_column_index(keys, child),
+                aggs: self.resolve_column_index(aggs, child),
                 types: self.plan_types(id).to_vec(),
             }
             .execute(self.build_id(child)),
@@ -417,8 +446,9 @@ impl<S: Storage> Builder<S> {
         spawn(&self.node(id).to_string(), stream)
     }
 
-    fn build_hashjoin<const T: JoinType>(&self, args: [Id; 5]) -> BoxedExecutor {
-        let [_, lkeys, rkeys, left, right] = args;
+    fn build_hashjoin<const T: JoinType>(&self, args: [Id; 6]) -> BoxedExecutor {
+        let [_, cond, lkeys, rkeys, left, right] = args;
+        assert_eq!(self.node(cond), &Expr::true_());
         HashJoinExecutor::<T> {
             left_keys: self.resolve_column_index(lkeys, left),
             right_keys: self.resolve_column_index(rkeys, right),
@@ -428,8 +458,32 @@ impl<S: Storage> Builder<S> {
         .execute(self.build_id(left), self.build_id(right))
     }
 
-    fn build_mergejoin<const T: JoinType>(&self, args: [Id; 5]) -> BoxedExecutor {
-        let [_, lkeys, rkeys, left, right] = args;
+    fn build_hashsemijoin(&self, args: [Id; 6], anti: bool) -> BoxedExecutor {
+        let [_, cond, lkeys, rkeys, left, right] = args;
+        if self.node(cond) == &Expr::true_() {
+            HashSemiJoinExecutor {
+                left_keys: self.resolve_column_index(lkeys, left),
+                right_keys: self.resolve_column_index(rkeys, right),
+                left_types: self.plan_types(left).to_vec(),
+                anti,
+            }
+            .execute(self.build_id(left), self.build_id(right))
+        } else {
+            HashSemiJoinExecutor2 {
+                left_keys: self.resolve_column_index(lkeys, left),
+                right_keys: self.resolve_column_index(rkeys, right),
+                condition: self.resolve_column_index2(cond, left, right),
+                left_types: self.plan_types(left).to_vec(),
+                right_types: self.plan_types(right).to_vec(),
+                anti,
+            }
+            .execute(self.build_id(left), self.build_id(right))
+        }
+    }
+
+    fn build_mergejoin<const T: JoinType>(&self, args: [Id; 6]) -> BoxedExecutor {
+        let [_, cond, lkeys, rkeys, left, right] = args;
+        assert_eq!(self.node(cond), &Expr::true_());
         MergeJoinExecutor::<T> {
             left_keys: self.resolve_column_index(lkeys, left),
             right_keys: self.resolve_column_index(rkeys, right),

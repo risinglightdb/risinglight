@@ -39,7 +39,7 @@ impl CreateTable {
     }
 }
 
-impl FromStr for CreateTable {
+impl FromStr for Box<CreateTable> {
     type Err = ();
 
     fn from_str(_s: &str) -> std::result::Result<Self, Self::Err> {
@@ -119,12 +119,12 @@ impl Binder {
             columns[index as usize].set_nullable(false);
         }
 
-        let create = self.egraph.add(Node::CreateTable(CreateTable {
+        let create = self.egraph.add(Node::CreateTable(Box::new(CreateTable {
             schema_id: schema.id(),
             table_name: table_name.into(),
             columns,
             ordered_pk_ids,
-        }));
+        })));
         Ok(create)
     }
 

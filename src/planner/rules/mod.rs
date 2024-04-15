@@ -92,7 +92,11 @@ impl Analysis<Expr> for ExprAnalysis {
             constant: expr::eval_constant(egraph, enode),
             range: range::analyze_range(egraph, enode),
             columns: plan::analyze_columns(egraph, enode),
-            schema: schema::analyze_schema(enode, |id| egraph[*id].data.schema.clone()),
+            schema: schema::analyze_schema(
+                enode,
+                |id| egraph[*id].data.schema.clone(),
+                |id| egraph[*id].nodes[0].clone(),
+            ),
             rows: rows::analyze_rows(egraph, enode),
             orderby: order::analyze_order(egraph, enode),
         }
@@ -159,9 +163,14 @@ impl Analysis<Expr> for TypeSchemaAnalysis {
             type_: type_::analyze_type(
                 enode,
                 |i| egraph[*i].data.type_.clone(),
+                |id| egraph[*id].nodes[0].clone(),
                 &egraph.analysis.catalog,
             ),
-            schema: schema::analyze_schema(enode, |i| egraph[*i].data.schema.clone()),
+            schema: schema::analyze_schema(
+                enode,
+                |i| egraph[*i].data.schema.clone(),
+                |id| egraph[*id].nodes[0].clone(),
+            ),
             aggs: agg::analyze_aggs(enode, |i| egraph[*i].data.aggs.clone()),
             overs: agg::analyze_overs(enode, |i| egraph[*i].data.overs.clone()),
         }

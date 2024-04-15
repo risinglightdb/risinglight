@@ -97,6 +97,8 @@ pub enum BindError {
     CanNotDelete,
     #[error("VIEW aliases mismatch query result")]
     ViewAliasesMismatch,
+    #[error("pragma does not exist: {0}")]
+    NoPragma(String),
 }
 
 /// The binder resolves all expressions referring to schema objects such as
@@ -335,15 +337,7 @@ impl Binder {
         }
     }
 
-    fn current_ctx(&self) -> &Context {
-        self.contexts.last().unwrap()
-    }
-
-    fn current_ctx_mut(&mut self) -> &mut Context {
-        self.contexts.last_mut().unwrap()
-    }
-
-    /// Add a column alias to the current context.
+    /// Add an column alias to the current context.
     fn add_alias(&mut self, column_name: String, table_name: String, id: Id) {
         let context = self.contexts.last_mut().unwrap();
         context
@@ -352,6 +346,56 @@ impl Binder {
             .or_default()
             .insert(table_name, id);
         // may override the same name
+    }
+
+    /// Add a table alias.
+    fn add_table_alias(&mut self, table_name: &str) -> Result<()> {
+        let context = self.contexts.last_mut().unwrap();
+        if !context.table_aliases.insert(table_name.into()) {
+            return Err(BindError::DuplicatedAlias(table_name.into()));
+        }
+        Ok(())
+    }
+
+    /// Add an alias so that it can be accessed from the outside query.
+    fn add_output_alias(&mut self, column_name: String, id: Id) {
+        let context = self.contexts.last_mut().unwrap();
+        context.output_aliases.insert(column_name, id);
+    }
+
+    /// Add a CTE to the current context.
+    fn add_cte(&mut self, table_name: &str, query: Id, columns: HashMap<String, Id>) -> Result<()> {
+        let context = self.contexts.last_mut().unwrap();
+        if context
+            .ctes
+            .insert(table_name.into(), (query, columns))
+            .is_some()
+        {
+            return Err(BindError::DuplicatedCteName(table_name.into()));
+        }
+        Ok(())
+    }
+
+    /// Find an alias.
+    fn find_alias(&self, column_name: &str, table_name: Option<&str>) -> Result {
+        for context in self.contexts.iter().rev() {
+            if let Some(map) = context.column_aliases.get(column_name) {
+                if let Some(table_name) = table_name {
+                    if let Some(id) = map.get(table_name) {
+                        return Ok(*id);
+                    }
+                } else if map.len() == 1 {
+                    return Ok(*map.values().next().unwrap());
+                } else {
+                    let use_ = map
+                        .keys()
+                        .map(|table_name| format!("\"{table_name}.{column_name}\""))
+                        .join(" or ");
+                    return Err(BindError::AmbiguousColumn(column_name.into(), use_));
+                }
+            }
+        }
+        Err(BindError::InvalidColumn(column_name.into()))
     }
 
     /// Find an CTE.
@@ -380,6 +424,19 @@ impl Binder {
 
     fn node(&self, id: Id) -> &Node {
         &self.egraph[id].nodes[0]
+    }
+
+    #[allow(dead_code)]
+    fn recexpr(&self, id: Id) -> RecExpr {
+        self.node(id).build_recexpr(|id| self.node(id).clone())
+    }
+
+    /// Wrap the node with `Ref` if it is not a column unit.
+    fn wrap_ref(&mut self, id: Id) -> Id {
+        match self.node(id) {
+            Node::Column(_) | Node::Ref(_) => id,
+            _ => self.egraph.add(Node::Ref(id)),
+        }
     }
 
     fn _udf_context_mut(&mut self) -> &mut UdfContext {

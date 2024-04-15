@@ -40,7 +40,7 @@ impl std::fmt::Display for FileFormat {
     }
 }
 
-impl FromStr for ExtSource {
+impl FromStr for Box<ExtSource> {
     type Err = ();
     fn from_str(_s: &str) -> std::result::Result<Self, Self::Err> {
         Err(())
@@ -55,37 +55,47 @@ impl Binder {
         target: CopyTarget,
         options: &[CopyOption],
     ) -> Result {
-        let (table_name, columns) = match source {
-            CopySource::Table {
-                table_name,
-                columns,
-            } => (table_name, columns),
-            CopySource::Query(_) => return Err(BindError::Todo("copy from query".into())),
-        };
-        let (table, is_system, is_view) = self.bind_table_id(&table_name)?;
-
-        let cols = self.bind_table_columns(&table_name, &columns)?;
-
-        let ext_source = self.egraph.add(Node::ExtSource(ExtSource {
+        let ext_source = self.egraph.add(Node::ExtSource(Box::new(ExtSource {
             path: match target {
                 CopyTarget::File { filename } => filename.into(),
                 t => todo!("unsupported copy target: {:?}", t),
             },
             format: FileFormat::from_options(options),
-        }));
+        })));
 
         let copy = if to {
             // COPY <source_table> TO <dest_file>
-            let true_ = self.egraph.add(Node::true_());
-            let scan = self.egraph.add(Node::Scan([table, cols, true_]));
-            self.egraph.add(Node::CopyTo([ext_source, scan]))
+            let query = match source {
+                CopySource::Table {
+                    table_name,
+                    columns,
+                } => {
+                    let (table, _, _) = self.bind_table_id(&table_name)?;
+                    let cols = self.bind_table_columns(&table_name, &columns)?;
+                    let true_ = self.egraph.add(Node::true_());
+                    self.egraph.add(Node::Scan([table, cols, true_]))
+                }
+                CopySource::Query(query) => self.bind_query(*query)?.0,
+            };
+            self.egraph.add(Node::CopyTo([ext_source, query]))
         } else {
             // COPY <dest_table> FROM <source_file>
-            if is_system {
-                return Err(BindError::CopyTo("system table".into()));
-            } else if is_view {
-                return Err(BindError::CopyTo("view".into()));
-            }
+            let (table, cols) = match source {
+                CopySource::Table {
+                    table_name,
+                    columns,
+                } => {
+                    let (table, is_system, is_view) = self.bind_table_id(&table_name)?;
+                    if is_system {
+                        return Err(BindError::CopyTo("system table".into()));
+                    } else if is_view {
+                        return Err(BindError::CopyTo("view".into()));
+                    }
+                    let cols = self.bind_table_columns(&table_name, &columns)?;
+                    (table, cols)
+                }
+                CopySource::Query(_) => return Err(BindError::CopyTo("query".into())),
+            };
             let types = self.type_(cols)?;
             let types = self.egraph.add(Node::Type(types));
             let copy = self.egraph.add(Node::CopyFrom([ext_source, types]));

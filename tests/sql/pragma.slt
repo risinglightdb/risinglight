@@ -1,0 +1,8 @@
+statement ok
+pragma disable_optimizer;
+
+statement ok
+pragma enable_optimizer;
+
+statement error
+pragma invalid;

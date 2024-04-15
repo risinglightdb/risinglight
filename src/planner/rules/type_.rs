@@ -17,7 +17,12 @@ pub enum TypeError {
 }
 
 /// Returns data type of the expression.
-pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalogRef) -> Type {
+pub fn analyze_type(
+    enode: &Expr,
+    x: impl Fn(&Id) -> Type,
+    node0: impl Fn(&Id) -> Expr,
+    catalog: &RootCatalogRef,
+) -> Type {
     use Expr::*;
     let concat_struct = |t1: DataType, t2: DataType| match (t1, t2) {
         (DataType::Struct(l), DataType::Struct(r)) => {
@@ -104,6 +109,7 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
             }
             Ok(DataType::Bool)
         }
+        Exists(_) => Ok(DataType::Bool),
 
         // null ops
         IsNull(_) => Ok(DataType::Bool),
@@ -125,7 +131,7 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         Avg(a) => check(enode, x(a)?, |a| a.is_number()),
 
         // agg
-        RowCount | RowNumber | Count(_) => Ok(DataType::Int32),
+        RowCount | RowNumber | Count(_) | CountDistinct(_) => Ok(DataType::Int32),
         First(a) | Last(a) => x(a),
         Over([f, _, _]) => x(f),
 
@@ -136,11 +142,14 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         }),
 
         // equal to child
-        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(c),
+        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) | Empty(c) => x(c),
 
         // concat 2 children
-        Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) | MergeJoin([_, _, _, l, r]) => {
-            concat_struct(x(l)?, x(r)?)
+        Join([t, _, l, r]) | HashJoin([t, _, _, _, l, r]) | MergeJoin([t, _, _, _, l, r]) => {
+            match node0(t) {
+                Semi | Anti => x(l),
+                _ => concat_struct(x(l)?, x(r)?),
+            }
         }
 
         // plans that change schema
@@ -161,19 +170,8 @@ pub fn analyze_type(enode: &Expr, x: impl Fn(&Id) -> Type, catalog: &RootCatalog
         }
         Proj([exprs, _]) | Agg([exprs, _]) => x(exprs),
         Window([exprs, c]) => concat_struct(x(c)?, x(exprs)?),
-        HashAgg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
-            concat_struct(x(exprs)?, x(group_keys)?)
-        }
-        Empty(ids) => {
-            let mut types = vec![];
-            for id in ids.iter() {
-                let DataType::Struct(list) = x(id)? else {
-                    panic!("not struct type")
-                };
-                types.extend(list);
-            }
-            Ok(DataType::Struct(types))
-        }
+        HashAgg([keys, aggs, _]) | SortAgg([keys, aggs, _]) => concat_struct(x(keys)?, x(aggs)?),
+        Max1Row(c) => Ok(x(c)?.as_struct()[0].clone()),
 
         // other plan nodes
         _ => Err(TypeError::Unavailable(enode.to_string())),

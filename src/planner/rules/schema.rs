@@ -8,17 +8,25 @@ use super::*;
 pub type Schema = Vec<Id>;
 
 /// Returns the output expressions for plan node.
-pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
+pub fn analyze_schema(
+    enode: &Expr,
+    x: impl Fn(&Id) -> Schema,
+    node0: impl Fn(&Id) -> Expr,
+) -> Schema {
     use Expr::*;
     let concat = |v1: Vec<Id>, v2: Vec<Id>| v1.into_iter().chain(v2).collect();
     match enode {
         // equal to child
-        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) => x(c),
+        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) | Empty(c) => x(c),
 
         // concat 2 children
-        Join([_, _, l, r]) | HashJoin([_, _, _, l, r]) | MergeJoin([_, _, _, l, r]) => {
-            concat(x(l), x(r))
-        }
+        Join([t, _, l, r])
+        | HashJoin([t, _, _, _, l, r])
+        | MergeJoin([t, _, _, _, l, r])
+        | Apply([t, l, r]) => match node0(t) {
+            Semi | Anti => x(l),
+            _ => concat(x(l), x(r)),
+        },
 
         // list is the source for the following nodes
         List(ids) => ids.to_vec(),
@@ -28,16 +36,7 @@ pub fn analyze_schema(enode: &Expr, x: impl Fn(&Id) -> Schema) -> Schema {
         Values(vs) => x(&vs[0]),
         Proj([exprs, _]) | Agg([exprs, _]) => x(exprs),
         Window([exprs, child]) => concat(x(child), x(exprs)),
-        HashAgg([exprs, group_keys, _]) | SortAgg([exprs, group_keys, _]) => {
-            concat(x(exprs), x(group_keys))
-        }
-        Empty(ids) => {
-            let mut s = vec![];
-            for id in ids.iter() {
-                s.extend(x(id));
-            }
-            s
-        }
+        HashAgg([keys, aggs, _]) | SortAgg([keys, aggs, _]) => concat(x(keys), x(aggs)),
 
         // not plan node
         _ => vec![],

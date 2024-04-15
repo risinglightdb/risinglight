@@ -34,15 +34,48 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         }
         Proj([_, c]) | Order([_, c]) | Window([_, c]) => x(c),
         Agg(_) => 1.0,
-        HashAgg([_, group, _]) | SortAgg([_, group, _]) => {
+        HashAgg([keys, _, c]) | SortAgg([keys, _, c]) => {
             // TODO: consider distinct values of group keys
-            10_u32.pow(list_len(group) as u32) as f32
+            10_f32.powi(list_len(keys) as i32).min(x(c))
         }
         Filter([cond, c]) => x(c) * x(cond),
         Limit([limit, _, c]) | TopN([limit, _, _, c]) => x(c).min(get_limit_num(limit)),
-        Join([_, on, l, r]) => x(l) * x(r) * x(on),
-        HashJoin([_, _, _, l, r]) | MergeJoin([_, _, _, l, r]) => x(l).max(x(r)),
+        Join([t, on, l, r]) => match egraph[*t].nodes[0] {
+            Semi | Anti => x(l) * x(on),
+            _ => x(l) * x(r) * x(on),
+        },
+        HashJoin([t, on, lkey, rkey, l, r]) | MergeJoin([t, on, lkey, rkey, l, r]) => {
+            if let Semi | Anti = egraph[*t].nodes[0] {
+                return x(l) * x(on) * 0.5f32.powi(list_len(lkey) as i32);
+            }
+            let contains_primary_key = |list: &Id| {
+                let catalog = &egraph.analysis.catalog;
+                egraph[*list].as_list().iter().any(|cid| {
+                    for node in &egraph[*cid].nodes {
+                        if let Column(cid) = node {
+                            return match catalog.get_column(cid) {
+                                Some(col) => col.is_primary(),
+                                None => false,
+                            };
+                        }
+                    }
+                    false
+                })
+            };
+            if contains_primary_key(lkey) {
+                x(r) * x(on)
+            } else if contains_primary_key(rkey) {
+                x(l) * x(on)
+            } else {
+                x(l) * x(r) * x(on) * 0.5f32.powi(list_len(lkey) as i32)
+            }
+        }
+        Apply([t, l, r]) => match egraph[*t].nodes[0] {
+            Semi | Anti => x(l),
+            _ => x(l) * x(r),
+        },
         Empty(_) => 0.0,
+        Max1Row(_) => 1.0,
 
         // for boolean expressions, the result represents selectivity
         Ref(a) => x(a),
@@ -53,7 +86,8 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         Xor([a, b]) => x(a) + x(b) - 2.0 * x(a) * x(b),
         Not(a) => 1.0 - x(a),
         Gt(_) | Lt(_) | GtEq(_) | LtEq(_) | Eq(_) | NotEq(_) | Like(_) => 0.5,
-        In([_, b]) => 1.0 - 1.0 / (list_len(b) as f32 + 1.0),
+        In([_, b]) => 1.0 / x(b),
+        Exists(_) => 0.5,
 
         _ => 1.0,
     }

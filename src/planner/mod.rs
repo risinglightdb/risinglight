@@ -75,6 +75,7 @@ define_language! {
         "sum" = Sum(Id),
         "avg" = Avg(Id),
         "count" = Count(Id),
+        "count-distinct" = CountDistinct(Id),
         "rowcount" = RowCount,
         "first" = First(Id),
         "last" = Last(Id),
@@ -85,8 +86,8 @@ define_language! {
         "row_number" = RowNumber,
 
         // subquery related
-        "exists" = Exists(Id),
-        "in" = In([Id; 2]),                     // (in expr list)
+        "exists" = Exists(Id),                  // (exists plan)
+        "in" = In([Id; 2]),                     // (in expr plan)
 
         "cast" = Cast([Id; 2]),                 // (cast type expr)
 
@@ -99,36 +100,41 @@ define_language! {
             "desc" = Desc(Id),                      // (desc key)
         "limit" = Limit([Id; 3]),               // (limit limit offset child)
         "topn" = TopN([Id; 4]),                 // (topn limit offset [order_key..] child)
-        "join" = Join([Id; 4]),                 // (join join_type expr left right)
-        "hashjoin" = HashJoin([Id; 5]),         // (hashjoin join_type [left_expr..] [right_expr..] left right)
-        "mergejoin" = MergeJoin([Id; 5]),       // (mergejoin join_type [left_expr..] [right_expr..] left right)
+        "join" = Join([Id; 4]),                 // (join join_type cond left right)
+        "hashjoin" = HashJoin([Id; 6]),         // (hashjoin  join_type cond [lkey..] [rkey..] left right)
+        "mergejoin" = MergeJoin([Id; 6]),       // (mergejoin join_type cond [lkey..] [rkey..] left right)
+        "apply" = Apply([Id; 3]),               // (apply type left right)
             "inner" = Inner,
             "left_outer" = LeftOuter,
             "right_outer" = RightOuter,
             "full_outer" = FullOuter,
+            "semi" = Semi,
+            "anti" = Anti,
         "agg" = Agg([Id; 2]),                   // (agg aggs=[expr..] child)
                                                     // expressions must be aggregate functions
-        "hashagg" = HashAgg([Id; 3]),           // (hashagg aggs=[expr..] group_keys=[expr..] child)
-                                                    // output = aggs || group_keys
-        "sortagg" = SortAgg([Id; 3]),           // (sortagg aggs=[expr..] group_keys=[expr..] child)
-                                                    // child must be ordered by group_keys
+        "hashagg" = HashAgg([Id; 3]),           // (hashagg keys=[expr..] aggs=[expr..] child)
+                                                    // output = keys || aggs
+        "sortagg" = SortAgg([Id; 3]),           // (sortagg keys=[expr..] aggs=[expr..] child)
+                                                    // child must be ordered by keys
         "window" = Window([Id; 2]),             // (window [over..] child)
                                                     // output = child || exprs
-        CreateTable(CreateTable),
-        CreateFunction(CreateFunction),
+        CreateTable(Box<CreateTable>),
         "create_view" = CreateView([Id; 2]),    // (create_view create_table child)
+        CreateFunction(CreateFunction),
         "drop" = Drop(Id),                      // (drop [table..])
         "insert" = Insert([Id; 3]),             // (insert table [column..] child)
         "delete" = Delete([Id; 2]),             // (delete table child)
         "copy_from" = CopyFrom([Id; 2]),        // (copy_from dest types)
         "copy_to" = CopyTo([Id; 2]),            // (copy_to dest child)
-            ExtSource(ExtSource),
+            ExtSource(Box<ExtSource>),
         "explain" = Explain(Id),                // (explain child)
 
         // internal functions
-        "empty" = Empty(Box<[Id]>),             // (empty child..)
+        "empty" = Empty(Id),                    // (empty child)
                                                     // returns empty chunk
                                                     // with the same schema as `child`
+        "max1row" = Max1Row(Id),                // (max1row child)
+                                                    // convert table to scalar
 
         Symbol(Symbol),
     }
@@ -182,7 +188,7 @@ impl Expr {
         t
     }
 
-    pub fn as_create_table(&self) -> CreateTable {
+    pub fn as_create_table(&self) -> Box<CreateTable> {
         let Self::CreateTable(v) = self else {
             panic!("not a create table: {self}")
         };
@@ -193,7 +199,7 @@ impl Expr {
         let Self::ExtSource(v) = self else {
             panic!("not an external source: {self}")
         };
-        v.clone()
+        *v.clone()
     }
 
     pub const fn binary_op(&self) -> Option<(BinaryOperator, Id, Id)> {
@@ -233,7 +239,15 @@ impl Expr {
         use Expr::*;
         matches!(
             self,
-            RowCount | Max(_) | Min(_) | Sum(_) | Avg(_) | Count(_) | First(_) | Last(_)
+            RowCount
+                | Max(_)
+                | Min(_)
+                | Sum(_)
+                | Avg(_)
+                | Count(_)
+                | CountDistinct(_)
+                | First(_)
+                | Last(_)
         )
     }
 

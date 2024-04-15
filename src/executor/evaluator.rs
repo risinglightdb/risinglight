@@ -2,6 +2,7 @@
 
 //! Apply expressions on data chunks.
 
+use std::collections::HashSet;
 use std::fmt;
 
 use egg::{Id, Language};
@@ -114,7 +115,9 @@ impl<'a> Evaluator<'a> {
             RowCount => Ok(ArrayImpl::new_null(
                 (0..chunk.cardinality()).map(|_| ()).collect(),
             )),
-            Count(a) | Sum(a) | Min(a) | Max(a) | First(a) | Last(a) => self.next(*a).eval(chunk),
+            Count(a) | Sum(a) | Min(a) | Max(a) | First(a) | Last(a) | CountDistinct(a) => {
+                self.next(*a).eval(chunk)
+            }
             Replace([a, from, to]) => {
                 let a = self.next(*a).eval(chunk)?;
                 let from = self.next(*from);
@@ -145,19 +148,20 @@ impl<'a> Evaluator<'a> {
     }
 
     /// Returns the initial aggregation states.
-    pub fn init_agg_states<B: FromIterator<DataValue>>(&self) -> B {
+    pub fn init_agg_states<B: FromIterator<AggState>>(&self) -> B {
         (self.node().as_list().iter())
             .map(|id| self.next(*id).init_agg_state())
             .collect()
     }
 
     /// Returns the initial aggregation state.
-    fn init_agg_state(&self) -> DataValue {
+    fn init_agg_state(&self) -> AggState {
         use Expr::*;
         match self.node() {
             Over([window, _, _]) => self.next(*window).init_agg_state(),
-            RowCount | RowNumber | Count(_) => DataValue::Int32(0),
-            Sum(_) | Min(_) | Max(_) | First(_) | Last(_) => DataValue::Null,
+            CountDistinct(_) => AggState::DistinctValue(HashSet::default()),
+            RowCount | RowNumber | Count(_) => AggState::Value(DataValue::Int32(0)),
+            Sum(_) | Min(_) | Max(_) | First(_) | Last(_) => AggState::Value(DataValue::Null),
             t => panic!("not aggregation: {t}"),
         }
     }
@@ -165,12 +169,13 @@ impl<'a> Evaluator<'a> {
     /// Evaluate a list of aggregations.
     pub fn eval_agg_list(
         &self,
-        states: &mut [DataValue],
+        states: &mut [AggState],
         chunk: &DataChunk,
     ) -> Result<(), ConvertError> {
         let list = self.node().as_list();
         for (state, id) in states.iter_mut().zip(list) {
-            *state = self.next(*id).eval_agg(state.clone(), chunk)?;
+            let s = std::mem::take(state);
+            *state = self.next(*id).eval_agg(s, chunk)?;
         }
         Ok(())
     }
@@ -178,17 +183,34 @@ impl<'a> Evaluator<'a> {
     /// Append a list of values to a list of agg states.
     pub fn agg_list_append(
         &self,
-        states: &mut [DataValue],
+        states: &mut [AggState],
         values: impl Iterator<Item = DataValue>,
     ) {
         let list = self.node().as_list();
         for ((state, id), value) in states.iter_mut().zip(list).zip(values) {
-            *state = self.next(*id).agg_append(state.clone(), value);
+            let s = std::mem::take(state);
+            *state = self.next(*id).agg_append(s, value);
         }
     }
 
+    /// Consume a list of agg states and return their results.
+    pub fn agg_list_take_result(
+        &self,
+        states: impl IntoIterator<Item = AggState>,
+    ) -> impl Iterator<Item = DataValue> {
+        states.into_iter().map(|s| s.into_result())
+    }
+
+    /// Get the results of a list of agg states.
+    pub fn agg_list_get_result(
+        &self,
+        states: impl IntoIterator<Item = &'a AggState> + 'a,
+    ) -> impl Iterator<Item = DataValue> + 'a {
+        states.into_iter().map(|s| s.result())
+    }
+
     /// Evaluate the aggregation.
-    fn eval_agg(&self, state: DataValue, chunk: &DataChunk) -> Result<DataValue, ConvertError> {
+    fn eval_agg(&self, state: AggState, chunk: &DataChunk) -> Result<AggState, ConvertError> {
         impl DataValue {
             fn add(self, other: Self) -> Self {
                 if self.is_null() {
@@ -206,31 +228,51 @@ impl<'a> Evaluator<'a> {
             }
         }
         use Expr::*;
-        match self.node() {
-            RowCount => Ok(state.add(DataValue::Int32(chunk.cardinality() as _))),
-            Count(a) => Ok(state.add(DataValue::Int32(self.next(*a).eval(chunk)?.count() as _))),
-            Sum(a) => Ok(state.add(self.next(*a).eval(chunk)?.sum())),
-            Min(a) => Ok(state.min(self.next(*a).eval(chunk)?.min_())),
-            Max(a) => Ok(state.max(self.next(*a).eval(chunk)?.max_())),
-            First(a) => Ok(state.or(self.next(*a).eval(chunk)?.first())),
-            Last(a) => Ok(self.next(*a).eval(chunk)?.last().or(state)),
-            t => panic!("not aggregation: {t}"),
-        }
+        Ok(match state {
+            AggState::Value(state) => AggState::Value(match self.node() {
+                RowCount => state.add(DataValue::Int32(chunk.cardinality() as _)),
+                Count(a) => state.add(DataValue::Int32(self.next(*a).eval(chunk)?.count() as _)),
+                Sum(a) => state.add(self.next(*a).eval(chunk)?.sum()),
+                Min(a) => state.min(self.next(*a).eval(chunk)?.min_()),
+                Max(a) => state.max(self.next(*a).eval(chunk)?.max_()),
+                First(a) => state.or(self.next(*a).eval(chunk)?.first()),
+                Last(a) => self.next(*a).eval(chunk)?.last().or(state),
+                t => panic!("not aggregation: {t}"),
+            }),
+            AggState::DistinctValue(mut values) => match self.node() {
+                CountDistinct(a) => {
+                    let array = self.next(*a).eval(chunk)?;
+                    for value in array.iter() {
+                        values.insert(value);
+                    }
+                    AggState::DistinctValue(values)
+                }
+                t => panic!("invalid aggregation: {t}"),
+            },
+        })
     }
 
     /// Append a value to agg state.
-    fn agg_append(&self, state: DataValue, value: DataValue) -> DataValue {
+    fn agg_append(&self, state: AggState, value: DataValue) -> AggState {
         use Expr::*;
-        match self.node() {
-            Over([window, _, _]) => self.next(*window).agg_append(state, value),
-            RowCount | RowNumber => state.add(DataValue::Int32(1)),
-            Count(_) => state.add(DataValue::Int32(!value.is_null() as _)),
-            Sum(_) => state.add(value),
-            Min(_) => state.min(value),
-            Max(_) => state.max(value),
-            First(_) => state.or(value),
-            Last(_) => value,
-            t => panic!("not aggregation: {t}"),
+        if let Over([window, _, _]) = self.node() {
+            return self.next(*window).agg_append(state, value);
+        }
+        match state {
+            AggState::Value(state) => AggState::Value(match self.node() {
+                RowCount | RowNumber => state.add(DataValue::Int32(1)),
+                Count(_) => state.add(DataValue::Int32(!value.is_null() as _)),
+                Sum(_) => state.add(value),
+                Min(_) => state.min(value),
+                Max(_) => state.max(value),
+                First(_) => state.or(value),
+                Last(_) => value,
+                t => panic!("not aggregation: {t}"),
+            }),
+            AggState::DistinctValue(mut values) => {
+                values.insert(value);
+                AggState::DistinctValue(values)
+            }
         }
     }
 
@@ -241,5 +283,34 @@ impl<'a> Evaluator<'a> {
         (self.node().as_list().iter())
             .map(|id| matches!(self.next(*id).node(), Expr::Desc(_)))
             .collect()
+    }
+}
+
+/// The aggregate state.
+#[derive(Debug, PartialEq, Eq)]
+pub enum AggState {
+    Value(DataValue),
+    DistinctValue(HashSet<DataValue>),
+}
+
+impl Default for AggState {
+    fn default() -> Self {
+        AggState::Value(DataValue::Null)
+    }
+}
+
+impl AggState {
+    fn into_result(self) -> DataValue {
+        match self {
+            AggState::Value(v) => v,
+            AggState::DistinctValue(v) => DataValue::Int32(v.len() as _),
+        }
+    }
+
+    fn result(&self) -> DataValue {
+        match self {
+            AggState::Value(v) => v.clone(),
+            AggState::DistinctValue(v) => DataValue::Int32(v.len() as _),
+        }
     }
 }
