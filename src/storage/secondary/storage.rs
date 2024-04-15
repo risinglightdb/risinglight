@@ -55,8 +55,8 @@ impl SecondaryStorage {
             options: options.clone(),
             next_id: Arc::new((AtomicU32::new(0), AtomicU64::new(0))),
             version: Arc::new(VersionManager::new(manifest, options.clone())),
-            compactor_handler: Mutex::new((None, None)),
-            vacuum_handler: Mutex::new((None, None)),
+            compactor_handle: Mutex::new((None, None)),
+            vacuum_handle: Mutex::new((None, None)),
             txn_mgr: Arc::new(TransactionManager::default()),
         };
 

@@ -7,7 +7,6 @@ use std::sync::Arc;
 use futures::lock::Mutex;
 use parking_lot::Mutex as PLMutex;
 use tokio::fs::OpenOptions;
-use tokio::select;
 use tracing::{info, warn};
 
 use super::manifest::*;
@@ -380,16 +379,13 @@ impl VersionManager {
         Ok(())
     }
 
-    pub async fn run(
-        self: &Arc<Self>,
-        mut stop: tokio::sync::mpsc::UnboundedReceiver<()>,
-    ) -> StorageResult<()> {
+    /// Run the vacuum process.
+    ///
+    /// Drop the future to stop the vacuum process.
+    pub async fn run(self: &Arc<Self>) -> StorageResult<()> {
         let mut vacuum_notifier = self.rx.lock().take().unwrap();
-        loop {
-            select! {
-                Some(_) = vacuum_notifier.recv() => self.do_vacuum().await?,
-                Some(_) = stop.recv() => break
-            }
+        while let Some(_) = vacuum_notifier.recv() {
+            self.do_vacuum().await?;
         }
         Ok(())
     }

@@ -5,7 +5,6 @@ use std::time::Duration;
 
 use itertools::Itertools;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
-use tokio::sync::oneshot::Receiver;
 use tracing::{info, warn};
 
 use super::{SecondaryStorage, SecondaryTable, Snapshot};
@@ -24,12 +23,11 @@ use crate::types::DataValue;
 /// Manages all compactions happening in the storage engine.
 pub struct Compactor {
     storage: Arc<SecondaryStorage>,
-    stop: Receiver<()>,
 }
 
 impl Compactor {
-    pub fn new(storage: Arc<SecondaryStorage>, stop: Receiver<()>) -> Self {
-        Self { storage, stop }
+    pub fn new(storage: Arc<SecondaryStorage>) -> Self {
+        Self { storage }
     }
 
     async fn compact_table(&self, snapshot: &Snapshot, table: SecondaryTable) -> StorageResult<()> {
@@ -205,31 +203,25 @@ impl Compactor {
         Ok(())
     }
 
-    pub async fn run(mut self) -> StorageResult<()> {
+    /// Run the compactor.
+    ///
+    /// Drop the future to stop the compactor.
+    pub async fn run(mut self) -> ! {
         loop {
-            {
-                let tables = self.storage.tables.read().clone();
-                let pin_version = self.storage.version.pin();
-                for (_, table) in tables {
-                    if let Some(_guard) = self
-                        .storage
-                        .txn_mgr
-                        .try_lock_for_compaction(table.table_id())
-                    {
-                        if let Err(err) = self.compact_table(&pin_version.snapshot, table).await {
-                            warn!("failed to compact: {:?}", err);
-                        }
+            let tables = self.storage.tables.read().clone();
+            let pin_version = self.storage.version.pin();
+            for (_, table) in tables {
+                if let Some(_guard) = self
+                    .storage
+                    .txn_mgr
+                    .try_lock_for_compaction(table.table_id())
+                {
+                    if let Err(err) = self.compact_table(&pin_version.snapshot, table).await {
+                        warn!("failed to compact: {:?}", err);
                     }
-                }
-                match self.stop.try_recv() {
-                    Ok(_) => break,
-                    Err(tokio::sync::oneshot::error::TryRecvError::Closed) => break,
-                    _ => {}
                 }
             }
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
-
-        Ok(())
     }
 }

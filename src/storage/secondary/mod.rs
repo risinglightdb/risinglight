@@ -23,7 +23,6 @@ use parking_lot::RwLock;
 pub use row_handler::*;
 use rowset::*;
 pub use table::*;
-use tokio::sync::oneshot::Sender;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -82,16 +81,11 @@ pub struct SecondaryStorage {
     /// Next RowSet Id and DV Id of the current storage engine
     next_id: Arc<(AtomicU32, AtomicU64)>,
 
-    /// Compactor handler used to cancel compactor run
-    #[allow(clippy::type_complexity)]
-    compactor_handler: Mutex<(Option<Sender<()>>, Option<JoinHandle<()>>)>,
+    /// Compactor handle used to cancel compactor run
+    compactor_handle: Mutex<Option<JoinHandle<()>>>,
 
-    /// Vacuum handler used to cancel version manager run
-    #[allow(clippy::type_complexity)]
-    vacuum_handler: Mutex<(
-        Option<tokio::sync::mpsc::UnboundedSender<()>>,
-        Option<JoinHandle<()>>,
-    )>,
+    /// Vacuum handle used to cancel version manager run
+    vacuum_handle: Mutex<Option<JoinHandle<()>>>,
 
     /// Manages all history states and vacuum unused files.
     version: Arc<VersionManager>,
@@ -110,53 +104,43 @@ impl SecondaryStorage {
     }
 
     pub async fn spawn_compactor(self: &Arc<Self>) {
-        let (tx, rx) = tokio::sync::oneshot::channel();
         let storage = self.clone();
-        *self.compactor_handler.lock().await = (
-            Some(tx),
-            Some(
-                tokio::task::Builder::default()
-                    .name("compactor")
-                    .spawn(async move {
-                        Compactor::new(storage, rx)
-                            .run()
-                            .await
-                            .expect("compactor stopped unexpectedly");
-                    })
-                    .expect("failed to spawn task"),
-            ),
+        *self.compactor_handle.lock().await = Some(
+            tokio::task::Builder::default()
+                .name("compactor")
+                .spawn(async move {
+                    Compactor::new(storage)
+                        .run()
+                        .await
+                        .expect("compactor stopped unexpectedly");
+                })
+                .expect("failed to spawn task"),
         );
 
         let storage = self.clone();
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        *self.vacuum_handler.lock().await = (
-            Some(tx),
-            Some(
-                tokio::task::Builder::default()
-                    .name("vacuum")
-                    .spawn(async move {
-                        storage
-                            .version
-                            .run(rx)
-                            .await
-                            .expect("vacuum stopped unexpectedly");
-                    })
-                    .expect("failed to spawn task"),
-            ),
+        *self.vacuum_handle.lock().await = Some(
+            tokio::task::Builder::default()
+                .name("vacuum")
+                .spawn(async move {
+                    storage
+                        .version
+                        .run()
+                        .await
+                        .expect("vacuum stopped unexpectedly");
+                })
+                .expect("failed to spawn task"),
         );
     }
 
-    pub async fn shutdown(self: &Arc<Self>) -> StorageResult<()> {
-        let mut handler = self.compactor_handler.lock().await;
-        info!("shutting down compactor");
-        handler.0.take().unwrap().send(()).unwrap();
-        handler.1.take().unwrap().await.unwrap();
-
-        let mut handler = self.vacuum_handler.lock().await;
-        info!("shutting down vacuum");
-        handler.0.take().unwrap().send(()).unwrap();
-        handler.1.take().unwrap().await.unwrap();
-
+    async fn shutdown_inner(&self) -> StorageResult<()> {
+        if let Some(handle) = self.compactor_handle.lock().await.take() {
+            info!("shutting down compactor");
+            handle.abort();
+        }
+        if let Some(handle) = self.vacuum_handle.lock().await.take() {
+            info!("shutting down vacuum");
+            handle.abort();
+        }
         Ok(())
     }
 }
