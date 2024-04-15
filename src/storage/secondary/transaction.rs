@@ -20,7 +20,7 @@ use crate::array::DataChunk;
 use crate::catalog::find_sort_key_id;
 use crate::storage::secondary::statistics::create_statistics_global_aggregator;
 use crate::storage::{
-    BoxTxnIterator, RowHandler, ScanOptions, StorageColumnRef, StorageResult, Transaction,
+    BoxChunkStream, RowHandler, ScanOptions, StorageColumnRef, StorageResult, Transaction,
 };
 use crate::types::DataValue;
 
@@ -350,8 +350,8 @@ impl Transaction for SecondaryTransaction {
         &self,
         col_idx: &[StorageColumnRef],
         options: ScanOptions,
-    ) -> StorageResult<BoxTxnIterator> {
-        Ok(Box::new(self.scan_inner(col_idx, options).await?))
+    ) -> StorageResult<BoxChunkStream> {
+        Ok(self.scan_inner(col_idx, options).await?.into_stream())
     }
 
     async fn append(&mut self, columns: DataChunk) -> StorageResult<()> {

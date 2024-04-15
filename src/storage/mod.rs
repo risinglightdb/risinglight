@@ -4,6 +4,7 @@
 
 mod memory;
 use async_trait::async_trait;
+use futures::stream::BoxStream;
 pub use memory::InMemoryStorage;
 
 mod secondary;
@@ -109,7 +110,7 @@ pub trait Transaction: Sync + Send + 'static {
         &self,
         col_idx: &[StorageColumnRef],
         options: ScanOptions,
-    ) -> StorageResult<BoxTxnIterator>;
+    ) -> StorageResult<BoxChunkStream>;
 
     /// Append data to the table. Generally, `columns` should be in the same order as
     /// [`ColumnCatalog`] when constructing the [`Table`].
@@ -190,14 +191,5 @@ impl RangeBounds<DataValue> for KeyRange {
     }
 }
 
-pub type BoxTxnIterator = Box<dyn TxnIterator>;
-
-/// An iterator over table in a transaction.
-#[async_trait]
-pub trait TxnIterator: Send {
-    /// get next batch of elements
-    async fn next_batch(
-        &mut self,
-        expected_size: Option<usize>,
-    ) -> StorageResult<Option<DataChunk>>;
-}
+/// A stream of data chunks.
+pub type BoxChunkStream = BoxStream<'static, StorageResult<DataChunk>>;

@@ -34,18 +34,20 @@ impl TableScanExecutor {
 
         let txn = table.read().await?;
 
-        let mut it = txn
+        let stream = txn
             .scan(
                 &col_idx,
                 ScanOptions::default().with_filter_opt(self.filter),
             )
             .await?;
 
-        while let Some(mut x) = it.next_batch(None).await? {
+        #[for_await]
+        for chunk in stream {
+            let mut chunk = chunk?;
             if self.columns.is_empty() {
-                x = DataChunk::no_column(x.cardinality());
+                chunk = DataChunk::no_column(chunk.cardinality());
             }
-            yield x;
+            yield chunk;
         }
     }
 }

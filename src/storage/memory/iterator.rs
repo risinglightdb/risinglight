@@ -4,9 +4,10 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use bitvec::prelude::BitVec;
+use futures_async_stream::try_stream;
 
 use crate::array::{ArrayImpl, DataChunk, I64Array};
-use crate::storage::{StorageColumnRef, StorageResult, TxnIterator};
+use crate::storage::{StorageColumnRef, TracedStorageError};
 
 /// An iterator over all data in a transaction.
 ///
@@ -17,8 +18,6 @@ pub struct InMemoryTxnIterator {
     chunks: Arc<Vec<DataChunk>>,
     deleted_rows: Arc<HashSet<usize>>,
     col_idx: Vec<StorageColumnRef>,
-    cnt: usize,
-    row_cnt: usize,
 }
 
 impl InMemoryTxnIterator {
@@ -30,25 +29,15 @@ impl InMemoryTxnIterator {
         Self {
             chunks,
             col_idx: col_idx.to_vec(),
-            cnt: 0,
-            row_cnt: 0,
             deleted_rows,
         }
     }
-}
 
-#[async_trait::async_trait]
-impl TxnIterator for InMemoryTxnIterator {
-    async fn next_batch(
-        &mut self,
-        _expected_size: Option<usize>,
-    ) -> StorageResult<Option<DataChunk>> {
-        if self.cnt >= self.chunks.len() {
-            Ok(None)
-        } else {
-            let selected_chunk = &self.chunks[self.cnt];
-
-            let batch_range = self.row_cnt..(selected_chunk.cardinality() + self.row_cnt);
+    #[try_stream(boxed, ok = DataChunk, error = TracedStorageError)]
+    pub async fn into_stream(self) {
+        let mut row_cnt = 0;
+        for selected_chunk in self.chunks.iter() {
+            let batch_range = row_cnt..(selected_chunk.cardinality() + row_cnt);
             let visibility = batch_range
                 .clone()
                 .map(|x| !self.deleted_rows.contains(&x))
@@ -71,10 +60,9 @@ impl TxnIterator for InMemoryTxnIterator {
                     .collect::<DataChunk>()
             };
 
-            self.cnt += 1;
-            self.row_cnt += selected_chunk.cardinality();
+            row_cnt += selected_chunk.cardinality();
 
-            Ok(Some(chunk))
+            yield chunk;
         }
     }
 }

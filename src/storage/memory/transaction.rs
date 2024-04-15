@@ -9,7 +9,7 @@ use super::table::InMemoryTableInnerRef;
 use super::{InMemoryTable, InMemoryTxnIterator};
 use crate::array::{ArrayBuilderImpl, ArrayImplBuilderPickExt, DataChunk};
 use crate::storage::{
-    BoxTxnIterator, RowHandler, ScanOptions, StorageColumnRef, StorageResult, Table, Transaction,
+    BoxChunkStream, RowHandler, ScanOptions, StorageColumnRef, StorageResult, Table, Transaction,
 };
 
 /// A transaction running on `InMemoryStorage`.
@@ -115,7 +115,7 @@ impl Transaction for InMemoryTransaction {
         &self,
         col_idx: &[StorageColumnRef],
         opts: ScanOptions,
-    ) -> StorageResult<BoxTxnIterator> {
+    ) -> StorageResult<BoxChunkStream> {
         assert!(opts.filter.is_none(), "MemTxn doesn't support filter scan");
         assert!(!opts.reversed, "reverse iterator is not supported for now");
 
@@ -125,11 +125,7 @@ impl Transaction for InMemoryTransaction {
             self.snapshot.clone()
         };
 
-        Ok(Box::new(InMemoryTxnIterator::new(
-            snapshot,
-            self.deleted_rows.clone(),
-            col_idx,
-        )))
+        Ok(InMemoryTxnIterator::new(snapshot, self.deleted_rows.clone(), col_idx).into_stream())
     }
 
     async fn append(&mut self, columns: DataChunk) -> StorageResult<()> {
