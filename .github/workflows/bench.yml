@@ -36,6 +36,8 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ env.CACHE_KEY_SUFFIX }}
+      - name: Generate TPC-H 1GB dataset
+        run: make tpch
       - name: Run benchmark
         run: cargo bench --bench tpch -- --output-format bencher | tee output.txt
       - name: Store benchmark result
