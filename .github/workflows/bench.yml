@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,6 +22,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: arduino/setup-protoc@v1
+        with:
+          version: "3.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -32,6 +39,7 @@ jobs:
       - name: Run benchmark
         run: cargo bench --bench tpch -- --output-format bencher | tee output.txt
       - name: Store benchmark result
+        if: github.event_name != 'pull_request'
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Rust Benchmark
