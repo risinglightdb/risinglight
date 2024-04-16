@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,6 +22,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: arduino/setup-protoc@v1
+        with:
+          version: "3.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -29,9 +36,13 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ env.CACHE_KEY_SUFFIX }}
+      - name: Generate TPC-H 1GB dataset
+        run: make tpch
       - name: Run benchmark
-        run: cargo bench --bench tpch -- --output-format bencher | tee output.txt
+        # FIXME: skip q21 as it will run out of memory
+        run: cargo bench --bench tpch -- --output-format bencher "q(1?\d|2[02])$" | tee output.txt
       - name: Store benchmark result
+        if: github.event_name != 'pull_request'
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Rust Benchmark
