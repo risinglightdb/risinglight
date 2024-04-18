@@ -3,11 +3,11 @@
 use super::*;
 
 impl Binder {
-    pub(super) fn bind_delete(
-        &mut self,
-        from: Vec<TableWithJoins>,
-        selection: Option<Expr>,
-    ) -> Result {
+    pub(super) fn bind_delete(&mut self, from: FromTable, selection: Option<Expr>) -> Result {
+        let from = match from {
+            FromTable::WithFromKeyword(t) => t,
+            FromTable::WithoutKeyword(t) => t,
+        };
         if from.len() != 1 || !from[0].joins.is_empty() {
             return Err(BindError::Todo(format!("delete from {from:?}")));
         }

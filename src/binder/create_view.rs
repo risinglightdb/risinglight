@@ -7,7 +7,7 @@ impl Binder {
     pub(super) fn bind_create_view(
         &mut self,
         name: ObjectName,
-        columns: Vec<Ident>,
+        columns: Vec<ViewColumnDef>,
         query: Query,
     ) -> Result {
         let name = lower_case_name(&name);
@@ -23,8 +23,8 @@ impl Binder {
         // check duplicated column names
         let mut set = HashSet::new();
         for col in &columns {
-            if !set.insert(col.value.to_lowercase()) {
-                return Err(BindError::ColumnExists(col.value.to_lowercase()));
+            if !set.insert(col.name.value.to_lowercase()) {
+                return Err(BindError::ColumnExists(col.name.value.to_lowercase()));
             }
         }
 
@@ -41,10 +41,10 @@ impl Binder {
             .into_iter()
             .zip(output_types)
             .enumerate()
-            .map(|(idx, (name, ty))| {
+            .map(|(idx, (column, ty))| {
                 ColumnCatalog::new(
                     idx as ColumnId,
-                    ColumnDesc::new(name.value, ty.clone(), true),
+                    ColumnDesc::new(column.name.value, ty.clone(), true),
                 )
             })
             .collect();

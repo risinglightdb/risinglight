@@ -144,7 +144,7 @@ impl Display for Date {
     }
 }
 
-#[derive(Debug, parse_display::Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, parse_display::Display, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[display("{0}")]
 pub struct DateTimeField(pub sqlparser::ast::DateTimeField);
 
@@ -162,7 +162,7 @@ impl FromStr for DateTimeField {
         Ok(Self(match s {
             "YEAR" => Year,
             "MONTH" => Month,
-            "WEEK" => Week,
+            "WEEK" => Week(None),
             "DAY" => Day,
             "DATE" => Date,
             "HOUR" => Hour,

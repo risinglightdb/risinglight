@@ -242,9 +242,9 @@ impl ArrayImpl {
         })))
     }
 
-    pub fn extract(&self, field: DateTimeField) -> Result {
+    pub fn extract(&self, field: &DateTimeField) -> Result {
         Ok(match self {
-            A::Date(a) => match field.0 {
+            A::Date(a) => match &field.0 {
                 sqlparser::ast::DateTimeField::Year => {
                     A::new_int32(unary_op(a.as_ref(), |d| d.year()))
                 }

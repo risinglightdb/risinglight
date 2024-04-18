@@ -55,7 +55,7 @@ paste = "1"
 pgwire = "0.15"
 pretty-xmlish = "0.1"
 prost = "0.12"
-pyo3 = { version = "0.20", features = ["extension-module"], optional = true }
+pyo3 = { version = "0.21", features = ["extension-module"], optional = true }
 ref-cast = "1.0"
 regex = "1"
 risinglight_proto = "0.2"
@@ -65,7 +65,7 @@ serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 smallvec = { version = "1", features = ["serde"] }
 sqllogictest = "0.14"
-sqlparser = { version = "0.41", features = ["serde"] }
+sqlparser = { version = "0.45", features = ["serde"] }
 thiserror = "1"
 tikv-jemallocator = { version = "0.5", optional = true, features = [
     "disable_initial_exec_tls",
@@ -86,7 +86,7 @@ tempfile = "3"
 test-case = "3"
 
 [build-dependencies]
-pyo3-build-config = { version = "0.20", optional = true }
+pyo3-build-config = { version = "0.21", optional = true }
 
 [[test]]
 name = "sqllogictest"
