@@ -45,7 +45,7 @@ indicatif = "0.17"
 indoc = "2"
 iter-chunks = "0.2"
 itertools = "0.12"
-minitrace = "0.4"
+minitrace = { version = "0.6", features = ["enable"] }
 moka = { version = "0.12", features = ["future"] }
 num-traits = "0.2"
 ordered-float = { version = "4", features = ["serde"] }
