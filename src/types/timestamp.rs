@@ -58,8 +58,9 @@ impl Timestamp {
 impl Display for Timestamp {
     /// ISO 8601 format: `YYYY-MM-DD HH:MM:SS`
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let dt = NaiveDateTime::from_timestamp_millis((self.0 - THIRTY_YEARS_MICROSECONDS) / 1000)
-            .ok_or(std::fmt::Error)?;
+        let dt = DateTime::from_timestamp_millis((self.0 - THIRTY_YEARS_MICROSECONDS) / 1000)
+            .ok_or(std::fmt::Error)?
+            .naive_utc();
         naive_sys_fmt(&dt, f)
     }
 }
@@ -92,8 +93,9 @@ impl TimestampTz {
 
 impl Display for TimestampTz {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let dt = NaiveDateTime::from_timestamp_millis((self.0 - THIRTY_YEARS_MICROSECONDS) / 1000)
-            .ok_or(std::fmt::Error)?;
+        let dt = DateTime::from_timestamp_millis((self.0 - THIRTY_YEARS_MICROSECONDS) / 1000)
+            .ok_or(std::fmt::Error)?
+            .naive_utc();
         let sys_tz = TIME_ZONE.get_or_init(|| FixedOffset::east_opt(DEFALUT_TZ * 3600).unwrap());
         let dt = dt + *sys_tz;
         naive_sys_fmt(&dt, f)?;
@@ -146,7 +148,7 @@ fn naive_utc_to_timestamp(dt: &NaiveDateTime, is_bc: bool) -> Result<i64, ParseT
             .with_year(-dt.year())
             .ok_or_else(|| ParseTimestampError::InvalidYear(-dt.year()))?;
         let new_dt = NaiveDateTime::new(new_date, dt.time());
-        return Ok(new_dt.timestamp_micros() + THIRTY_YEARS_MICROSECONDS);
+        return Ok(new_dt.and_utc().timestamp_micros() + THIRTY_YEARS_MICROSECONDS);
     }
-    Ok(dt.timestamp_micros() + THIRTY_YEARS_MICROSECONDS)
+    Ok(dt.and_utc().timestamp_micros() + THIRTY_YEARS_MICROSECONDS)
 }
