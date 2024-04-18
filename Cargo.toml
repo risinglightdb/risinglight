@@ -50,9 +50,9 @@ moka = { version = "0.12", features = ["future"] }
 num-traits = "0.2"
 ordered-float = { version = "4", features = ["serde"] }
 parking_lot = "0.12"
-parse-display = "0.8"
+parse-display = "0.9"
 paste = "1"
-pgwire = "0.15"
+pgwire = "0.20"
 pretty-xmlish = "0.1"
 prost = "0.12"
 pyo3 = { version = "0.21", features = ["extension-module"], optional = true }
@@ -60,7 +60,7 @@ ref-cast = "1.0"
 regex = "1"
 risinglight_proto = "0.2"
 rust_decimal = "1"
-rustyline = "13"
+rustyline = "14"
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 smallvec = { version = "1", features = ["serde"] }
