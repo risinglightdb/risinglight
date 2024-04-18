@@ -81,8 +81,7 @@ async fn test(filename: impl AsRef<Path>, engine: Engine) -> Result<()> {
     };
 
     let db = DatabaseWrapper(db);
-    let mut tester = sqllogictest::Runner::new(&db);
-    tester.enable_testdir();
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(&db) });
 
     // Uncomment the following lines to update the test files.
     // if engine == Engine::Disk {

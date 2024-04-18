@@ -64,7 +64,7 @@ rustyline = "14"
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 smallvec = { version = "1", features = ["serde"] }
-sqllogictest = "0.14"
+sqllogictest = "0.20"
 sqlparser = { version = "0.45", features = ["serde"] }
 thiserror = "1"
 tikv-jemallocator = { version = "0.5", optional = true, features = [

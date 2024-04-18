@@ -247,7 +247,7 @@ struct DatabaseWrapper {
 }
 
 #[async_trait]
-impl sqllogictest::AsyncDB for DatabaseWrapper {
+impl sqllogictest::AsyncDB for &DatabaseWrapper {
     type ColumnType = DefaultColumnType;
     type Error = risinglight::Error;
     async fn run(
@@ -293,7 +293,8 @@ impl sqllogictest::AsyncDB for DatabaseWrapper {
 
 /// Run a sqllogictest file in RisingLight
 async fn run_sqllogictest(db: Database, path: &str, output_format: Option<String>) -> Result<()> {
-    let mut tester = sqllogictest::Runner::new(DatabaseWrapper { db, output_format });
+    let db = DatabaseWrapper { db, output_format };
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(&db) });
     let path = path.to_string();
 
     tester
