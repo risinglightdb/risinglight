@@ -14,7 +14,6 @@ use async_trait::async_trait;
 use clap::Parser;
 use humantime::format_duration;
 use itertools::Itertools;
-use minitrace::prelude::*;
 use risinglight::array::{datachunk_to_sqllogictest_string, Chunk};
 use risinglight::server::run_server;
 use risinglight::storage::SecondaryStorageOptions;
@@ -124,31 +123,15 @@ fn print_execution_time(start_time: Instant) {
     }
 }
 
-async fn run_query_in_background(
-    db: Arc<Database>,
-    sql: String,
-    output_format: Option<String>,
-    enable_tracing: bool,
-) {
+async fn run_query_in_background(db: Arc<Database>, sql: String, output_format: Option<String>) {
     let start_time = Instant::now();
-    let task = async move {
-        if enable_tracing {
-            let (root, collector) = Span::root("root");
-            let result = db.run(&sql).in_span(root).await;
-            let records: Vec<SpanRecord> = collector.collect().await;
-            println!("{records:#?}");
-            result
-        } else {
-            db.run(&sql).await
-        }
-    };
 
     select! {
         _ = signal::ctrl_c() => {
             // we simply drop the future `task` to cancel the query.
             println!("Interrupted");
         }
-        ret = task => {
+        ret = db.run(&sql) => {
             match ret {
                 Ok(chunks) => {
                     for chunk in chunks {
@@ -190,11 +173,7 @@ fn read_sql(rl: &mut DefaultEditor) -> Result<String, ReadlineError> {
 }
 
 /// Run RisingLight interactive mode
-async fn interactive(
-    db: Database,
-    output_format: Option<String>,
-    enable_tracing: bool,
-) -> Result<()> {
+async fn interactive(db: Database, output_format: Option<String>) -> Result<()> {
     let mut rl = DefaultEditor::new()?;
     let history_path = dirs::cache_dir().map(|p| {
         let cache_dir = p.join("risinglight");
@@ -220,8 +199,7 @@ async fn interactive(
             Ok(sql) => {
                 if !sql.trim().is_empty() {
                     rl.add_history_entry(sql.as_str())?;
-                    run_query_in_background(db.clone(), sql, output_format.clone(), enable_tracing)
-                        .await;
+                    run_query_in_background(db.clone(), sql, output_format.clone()).await;
                 }
             }
             Err(ReadlineError::Interrupted) => {
@@ -248,25 +226,12 @@ async fn interactive(
 }
 
 /// Run a SQL file in RisingLight
-async fn run_sql(
-    db: Database,
-    path: &str,
-    output_format: Option<String>,
-    enable_tracing: bool,
-) -> Result<()> {
+async fn run_sql(db: Database, path: &str, output_format: Option<String>) -> Result<()> {
     let lines = std::fs::read_to_string(path)?;
 
     info!("{}", lines);
 
-    let chunks = if enable_tracing {
-        let (root, collector) = Span::root("root");
-        let chunk = db.run(&lines).in_span(root).await?;
-        let records: Vec<SpanRecord> = collector.collect().await;
-        println!("{records:#?}");
-        chunk
-    } else {
-        db.run(&lines).await?
-    };
+    let chunks = db.run(&lines).await?;
 
     for chunk in chunks {
         print_chunk(&chunk, &output_format);
@@ -279,11 +244,10 @@ async fn run_sql(
 struct DatabaseWrapper {
     db: Database,
     output_format: Option<String>,
-    enable_tracing: bool,
 }
 
 #[async_trait]
-impl sqllogictest::AsyncDB for DatabaseWrapper {
+impl sqllogictest::AsyncDB for &DatabaseWrapper {
     type ColumnType = DefaultColumnType;
     type Error = risinglight::Error;
     async fn run(
@@ -302,15 +266,7 @@ impl sqllogictest::AsyncDB for DatabaseWrapper {
         };
 
         info!("{}", sql);
-        let chunks = if self.enable_tracing {
-            let (root, collector) = Span::root("root");
-            let chunk = self.db.run(sql).in_span(root).await?;
-            let records: Vec<SpanRecord> = collector.collect().await;
-            println!("{records:#?}");
-            chunk
-        } else {
-            self.db.run(sql).await?
-        };
+        let chunks = self.db.run(sql).await?;
 
         for chunk in &chunks {
             print_chunk(chunk, &self.output_format);
@@ -336,17 +292,9 @@ impl sqllogictest::AsyncDB for DatabaseWrapper {
 }
 
 /// Run a sqllogictest file in RisingLight
-async fn run_sqllogictest(
-    db: Database,
-    path: &str,
-    output_format: Option<String>,
-    enable_tracing: bool,
-) -> Result<()> {
-    let mut tester = sqllogictest::Runner::new(DatabaseWrapper {
-        db,
-        output_format,
-        enable_tracing,
-    });
+async fn run_sqllogictest(db: Database, path: &str, output_format: Option<String>) -> Result<()> {
+    let db = DatabaseWrapper { db, output_format };
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(&db) });
     let path = path.to_string();
 
     tester
@@ -373,6 +321,10 @@ async fn main() -> Result<()> {
             .with(fmt_layer)
             .init();
     }
+    if args.enable_tracing {
+        use minitrace::collector::{Config, ConsoleReporter};
+        minitrace::set_reporter(ConsoleReporter, Config::default());
+    }
 
     let db = if args.memory {
         info!("using memory engine");
@@ -388,18 +340,19 @@ async fn main() -> Result<()> {
 
     if let Some(file) = args.file {
         if file.ends_with(".sql") {
-            run_sql(db, &file, args.output_format, args.enable_tracing).await?;
+            run_sql(db, &file, args.output_format).await?;
         } else if file.ends_with(".slt") {
-            run_sqllogictest(db, &file, args.output_format, args.enable_tracing).await?;
+            run_sqllogictest(db, &file, args.output_format).await?;
         } else {
             warn!("No suffix detected, assume sql file");
-            run_sql(db, &file, args.output_format, args.enable_tracing).await?;
+            run_sql(db, &file, args.output_format).await?;
         }
     } else if args.server {
         run_server(args.host, args.port, db).await;
     } else {
-        interactive(db, args.output_format, args.enable_tracing).await?;
+        interactive(db, args.output_format).await?;
     }
 
+    minitrace::flush();
     Ok(())
 }

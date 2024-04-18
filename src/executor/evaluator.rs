@@ -83,7 +83,7 @@ impl<'a> Evaluator<'a> {
             },
             Extract([field, a]) => {
                 let a = self.next(*a).eval(chunk)?;
-                let Expr::Field(field) = self.expr[*field] else {
+                let Expr::Field(field) = &self.expr[*field] else {
                     panic!("not a field")
                 };
                 a.extract(field)

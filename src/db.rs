@@ -3,6 +3,8 @@
 use std::sync::{Arc, Mutex};
 
 use futures::TryStreamExt;
+use minitrace::collector::SpanContext;
+use minitrace::Span;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 
 use crate::array::Chunk;
@@ -77,6 +79,8 @@ impl Database {
 
     /// Run SQL queries and return the outputs.
     pub async fn run(&self, sql: &str) -> Result<Vec<Chunk>, Error> {
+        let _root = Span::root("run_sql", SpanContext::random());
+
         let sql = if let Some(cmd) = sql.trim().strip_prefix('\\') {
             self.command_to_sql(cmd)?
         } else {

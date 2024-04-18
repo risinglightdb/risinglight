@@ -72,7 +72,7 @@ use pyo3::{prelude::*, wrap_pyfunction};
 /// The entry point of python module must be in the lib.rs
 #[cfg(feature = "python")]
 #[pymodule]
-fn risinglight(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn risinglight(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(open, m)?)?;
     Ok(())
 }

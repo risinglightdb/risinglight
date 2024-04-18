@@ -26,7 +26,7 @@ impl Processor {
 impl SimpleQueryHandler for Processor {
     async fn do_query<'a, 'b: 'a, C>(
         &'b self,
-        _client: &C,
+        _client: &mut C,
         query: &'a str,
     ) -> PgWireResult<Vec<Response<'a>>>
     where
@@ -40,9 +40,7 @@ impl SimpleQueryHandler for Processor {
             .map_err(|e| PgWireError::ApiError(Box::new(e)))?;
 
         if !query.to_uppercase().starts_with("SELECT") {
-            return Ok(vec![Response::Execution(Tag::new_for_execution(
-                "OK", None,
-            ))]);
+            return Ok(vec![Response::Execution(Tag::new("OK"))]);
         }
         let mut results = Vec::new();
         let mut headers = None;

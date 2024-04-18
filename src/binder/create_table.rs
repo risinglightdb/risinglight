@@ -135,7 +135,8 @@ impl Binder {
 
         for (index, col_def) in columns.iter().enumerate() {
             for option_def in &col_def.options {
-                let is_primary_ = if let ColumnOption::Unique { is_primary } = option_def.option {
+                let is_primary_ = if let ColumnOption::Unique { is_primary, .. } = option_def.option
+                {
                     is_primary
                 } else {
                     false
@@ -150,21 +151,19 @@ impl Binder {
 
     /// get the primary keys' name sorted by declaration order in "primary key(c1, c2..)" syntax.
     fn pks_name_from_constraints(constraints: &[TableConstraint]) -> Vec<String> {
-        let mut pks_name_from_constraints = vec![];
-
         for constraint in constraints {
             match constraint {
-                TableConstraint::Unique {
-                    is_primary,
-                    columns,
-                    ..
-                } if *is_primary => columns.iter().for_each(|ident| {
-                    pks_name_from_constraints.push(ident.value.to_lowercase());
-                }),
+                TableConstraint::PrimaryKey { columns, .. } => {
+                    return columns
+                        .iter()
+                        .map(|ident| ident.value.to_lowercase())
+                        .collect()
+                }
                 _ => continue,
             }
         }
-        pks_name_from_constraints
+        // no primary key
+        vec![]
     }
 }
 
@@ -176,7 +175,7 @@ impl From<&ColumnDef> for ColumnCatalog {
             match opt.option {
                 ColumnOption::Null => is_nullable = true,
                 ColumnOption::NotNull => is_nullable = false,
-                ColumnOption::Unique { is_primary: p } => is_primary = p,
+                ColumnOption::Unique { is_primary: p, .. } => is_primary = p,
                 _ => todo!("column options"),
             }
         }
