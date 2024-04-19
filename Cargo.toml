@@ -108,10 +108,6 @@ name = "array"
 harness = false
 name = "tpch"
 
-[profile.bench]
-codegen-units = 1
-lto = 'thin'
-
 [workspace]
 members = ["proto"]
 
