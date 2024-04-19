@@ -12,7 +12,7 @@ use crate::planner::Explain;
 pub struct AnalyzeExecutor {
     pub plan: RecExpr,
     pub catalog: RootCatalogRef,
-    pub profiler: Profiler,
+    pub metrics: Metrics,
 }
 
 impl AnalyzeExecutor {
@@ -27,8 +27,8 @@ impl AnalyzeExecutor {
         // explain the plan
         let get_metadata = |id| {
             vec![
-                ("rows", self.profiler.get_rows(id).to_string()),
-                ("time", format!("{:?}", self.profiler.get_time(id))),
+                ("rows", self.metrics.get_rows(id).to_string()),
+                ("time", format!("{:?}", self.metrics.get_time(id))),
             ]
         };
         let explain_obj = Explain::of(&self.plan)
@@ -49,38 +49,44 @@ impl AnalyzeExecutor {
     }
 }
 
-/// A collection of profiling information for each node in the query plan.
+/// A collection of profiling information for a query.
 #[derive(Default)]
-pub struct Profiler {
+pub struct Metrics {
     spans: HashMap<Id, TimeSpan>,
     rows: HashMap<Id, Counter>,
 }
 
-impl Profiler {
+impl Metrics {
+    /// Register metrics for a node.
     pub fn register(&mut self, id: Id, span: TimeSpan, rows: Counter) {
         self.spans.insert(id, span);
         self.rows.insert(id, rows);
     }
 
+    /// Get the running time for a node.
     pub fn get_time(&self, id: Id) -> Duration {
         self.spans.get(&id).map(|span| span.busy_time()).unwrap()
     }
 
+    /// Get the number of rows produced by a node.
     pub fn get_rows(&self, id: Id) -> u64 {
         self.rows.get(&id).map(|rows| rows.get()).unwrap()
     }
 }
 
+/// A counter.
 #[derive(Default, Clone)]
 pub struct Counter {
     count: Arc<AtomicU64>,
 }
 
 impl Counter {
+    /// Increments the counter.
     pub fn inc(&self, value: u64) {
         self.count.fetch_add(value, Ordering::Relaxed);
     }
 
+    /// Gets the current value of the counter.
     pub fn get(&self) -> u64 {
         self.count.load(Ordering::Relaxed)
     }

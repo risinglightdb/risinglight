@@ -113,7 +113,7 @@ struct Builder<S: Storage> {
     /// For scans on views, we prebuild their executors and store them here.
     /// Multiple scans on the same view will share the same executor.
     views: HashMap<TableRefId, StreamSubscriber>,
-    profiler: Profiler,
+    metrics: Metrics,
 }
 
 impl<S: Storage> Builder<S> {
@@ -142,7 +142,7 @@ impl<S: Storage> Builder<S> {
             egraph,
             root,
             views,
-            profiler: Profiler::default(),
+            metrics: Metrics::default(),
         }
     }
 
@@ -451,7 +451,7 @@ impl<S: Storage> Builder<S> {
                 AnalyzeExecutor {
                     plan: self.recexpr(child),
                     catalog: self.optimizer.catalog().clone(),
-                    profiler: std::mem::take(&mut self.profiler),
+                    metrics: std::mem::take(&mut self.metrics),
                 }
                 .execute(stream)
             }
@@ -516,12 +516,12 @@ impl<S: Storage> Builder<S> {
         let span = TimeSpan::default();
         let output_row_counter = Counter::default();
 
-        self.profiler
+        self.metrics
             .register(id, span.clone(), output_row_counter.clone());
 
         let (tx, rx) = async_broadcast::broadcast(16);
         let handle = tokio::task::Builder::default()
-            .name(&format!("{name}({id})"))
+            .name(&format!("{id}.{name}"))
             .spawn(
                 async move {
                     while let Some(item) = stream.next().await {
