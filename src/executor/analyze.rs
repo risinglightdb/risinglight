@@ -23,15 +23,17 @@ impl AnalyzeExecutor {
         for chunk in child {
             _ = chunk?;
         }
-        // take profiling information
-        let busy_time = self.profiler.busy_time();
-        let rows = self.profiler.rows();
 
         // explain the plan
+        let get_metadata = |id| {
+            vec![
+                ("rows", self.profiler.get_rows(id).to_string()),
+                ("time", format!("{:?}", self.profiler.get_time(id))),
+            ]
+        };
         let explain_obj = Explain::of(&self.plan)
-            .with_rows(&rows)
-            .with_times(&busy_time)
-            .with_catalog(&self.catalog);
+            .with_catalog(&self.catalog)
+            .with_metadata(&get_metadata);
         let explainer = explain_obj.pretty();
         let mut explain = String::with_capacity(4096);
         let mut config = PrettyConfig {
@@ -60,18 +62,12 @@ impl Profiler {
         self.rows.insert(id, rows);
     }
 
-    pub fn busy_time(&self) -> HashMap<Id, Duration> {
-        self.spans
-            .iter()
-            .map(|(&id, span)| (id, span.busy_time()))
-            .collect()
+    pub fn get_time(&self, id: Id) -> Duration {
+        self.spans.get(&id).map(|span| span.busy_time()).unwrap()
     }
 
-    pub fn rows(&self) -> HashMap<Id, u64> {
-        self.rows
-            .iter()
-            .map(|(&id, rows)| (id, rows.get()))
-            .collect()
+    pub fn get_rows(&self, id: Id) -> u64 {
+        self.rows.get(&id).map(|rows| rows.get()).unwrap()
     }
 }
 

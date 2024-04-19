@@ -1,8 +1,6 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::collections::HashMap;
 use std::fmt;
-use std::time::Duration;
 
 use egg::Id;
 use pretty_xmlish::helper::delegate_fmt;
@@ -23,10 +21,7 @@ pub struct Explain<'a> {
     expr: &'a RecExpr,
     id: Id,
     // additional context
-    costs: Option<&'a [f32]>,
-    estimated_rows: Option<&'a [f32]>,
-    times: Option<&'a HashMap<Id, Duration>>,
-    rows: Option<&'a HashMap<Id, u64>>,
+    metadata: Option<&'a (dyn Fn(Id) -> Vec<(&'static str, String)> + Send + Sync)>,
     catalog: Option<&'a RootCatalog>,
 }
 
@@ -36,35 +31,19 @@ impl<'a> Explain<'a> {
         Self {
             expr,
             id: Id::from(expr.as_ref().len() - 1),
-            costs: None,
-            estimated_rows: None,
-            times: None,
-            rows: None,
+            metadata: None,
             catalog: None,
         }
     }
 
-    /// Explain with costs.
-    pub fn with_costs(mut self, costs: &'a [f32]) -> Self {
-        self.costs = Some(costs);
-        self
-    }
-
-    /// Explain with estimated rows.
-    pub fn with_estimated_rows(mut self, rows: &'a [f32]) -> Self {
-        self.estimated_rows = Some(rows);
-        self
-    }
-
-    /// Explain with times.
-    pub fn with_times(mut self, times: &'a HashMap<Id, Duration>) -> Self {
-        self.times = Some(times);
-        self
-    }
-
-    /// Explain with rows.
-    pub fn with_rows(mut self, rows: &'a HashMap<Id, u64>) -> Self {
-        self.rows = Some(rows);
+    /// Append metadata to each plan node.
+    ///
+    /// You should give a function that returns a map of metadata for the given node.
+    pub fn with_metadata(
+        mut self,
+        f: &'a (dyn Fn(Id) -> Vec<(&'static str, String)> + Send + Sync),
+    ) -> Self {
+        self.metadata = Some(f);
         self
     }
 
@@ -80,10 +59,7 @@ impl<'a> Explain<'a> {
         Explain {
             expr: self.expr,
             id: *id,
-            costs: self.costs,
-            estimated_rows: self.estimated_rows,
-            times: self.times,
-            rows: self.rows,
+            metadata: self.metadata,
             catalog: self.catalog,
         }
     }
@@ -94,10 +70,7 @@ impl<'a> Explain<'a> {
         Explain {
             expr: self.expr,
             id: *id,
-            costs: self.costs,
-            estimated_rows: self.estimated_rows,
-            times: self.times,
-            rows: self.rows,
+            metadata: self.metadata,
             catalog: self.catalog,
         }
     }
@@ -116,17 +89,9 @@ impl<'a> Explain<'a> {
 
         // helper function to add metadata to the fields
         let with_meta = |mut fields: Vec<(&'a str, Pretty<'a>)>| {
-            if let Some(value) = self.costs.map(|xs| xs[usize::from(self.id)]) {
-                fields.push(("cost", Pretty::display(&value)));
-            }
-            if let Some(value) = self.estimated_rows.map(|xs| xs[usize::from(self.id)]) {
-                fields.push(("estimated_rows", Pretty::display(&value)));
-            }
-            if let Some(value) = self.rows.and_then(|xs| xs.get(&self.id).cloned()) {
-                fields.push(("rows", Pretty::display(&value)));
-            }
-            if let Some(value) = self.times.and_then(|xs| xs.get(&self.id).cloned()) {
-                fields.push(("time", Pretty::debug(&value)));
+            if let Some(f) = self.metadata {
+                let meta = f(self.id);
+                fields.extend(meta.into_iter().map(|(k, v)| (k, v.into())));
             }
             fields
         };
