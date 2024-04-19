@@ -514,8 +514,10 @@ impl<S: Storage> Builder<S> {
     fn spawn(&mut self, id: Id, mut stream: BoxedExecutor) -> StreamSubscriber {
         let name = self.node(id).to_string();
         let span = TimeSpan::default();
+        let output_row_counter = Counter::default();
 
-        self.profiler.add(id, span.clone());
+        self.profiler
+            .register(id, span.clone(), output_row_counter.clone());
 
         let (tx, rx) = async_broadcast::broadcast(16);
         let handle = tokio::task::Builder::default()
@@ -523,6 +525,9 @@ impl<S: Storage> Builder<S> {
             .spawn(
                 async move {
                     while let Some(item) = stream.next().await {
+                        if let Ok(chunk) = &item {
+                            output_row_counter.inc(chunk.cardinality() as _);
+                        }
                         if tx.broadcast(item).await.is_err() {
                             // all receivers are dropped, stop the task.
                             return;
@@ -573,23 +578,5 @@ struct AbortOnDropHandle(tokio::task::JoinHandle<()>);
 impl Drop for AbortOnDropHandle {
     fn drop(&mut self) {
         self.0.abort();
-    }
-}
-
-#[derive(Debug, Default)]
-struct Profiler {
-    spans: HashMap<Id, TimeSpan>,
-}
-
-impl Profiler {
-    fn add(&mut self, id: Id, span: TimeSpan) {
-        self.spans.insert(id, span);
-    }
-
-    fn busy_time(&self) -> HashMap<Id, Duration> {
-        self.spans
-            .iter()
-            .map(|(&id, span)| (id, span.busy_time()))
-            .collect()
     }
 }

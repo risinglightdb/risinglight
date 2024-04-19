@@ -19,7 +19,7 @@ impl ExplainExecutor {
         let rows = self.optimizer.rows(&self.plan);
         let explain_obj = Explain::of(&self.plan)
             .with_costs(&costs)
-            .with_rows(&rows)
+            .with_estimated_rows(&rows)
             .with_catalog(self.optimizer.catalog());
         let explainer = explain_obj.pretty();
         let mut explain = String::with_capacity(4096);
