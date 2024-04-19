@@ -92,27 +92,4 @@ jobs:
         run: |
           ./target/release/risinglight -f tests/sql/tpch/create.sql
           ./target/release/risinglight -f tests/sql/tpch/import.sql
-          ./target/release/risinglight -f tests/sql/tpch-full/_q1.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q2.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q3.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q4.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q5.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q6.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q7.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q8.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q9.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q10.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q11.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q12.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q13.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q14.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q15.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q16.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q17.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q18.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q19.slt
-          # FIXME: sqllogictest says the query result is mismatch, but it is actually correct
-          # ./target/release/risinglight -f tests/sql/tpch-full/_q20.slt
-          # FIXME: q21 runs out of memory
-          # ./target/release/risinglight -f tests/sql/tpch-full/_q21.slt
-          ./target/release/risinglight -f tests/sql/tpch-full/_q22.slt
+          ./target/release/risinglight -f tests/sql/tpch-full/_tpch_full.slt

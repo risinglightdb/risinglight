@@ -26,6 +26,16 @@ impl DataChunkBuilder {
         }
     }
 
+    /// Create a [`DataChunkBuilder`] with unbounded capacity.
+    pub fn unbounded<'a>(data_types: impl IntoIterator<Item = &'a DataType>) -> Self {
+        let array_builders = data_types.into_iter().map(ArrayBuilderImpl::new).collect();
+        DataChunkBuilder {
+            array_builders,
+            size: 0,
+            capacity: usize::MAX,
+        }
+    }
+
     /// Push a row in the Iterator.
     ///
     /// The row is accepted as an iterator of [`DataValue`], and it's required that the size of row
@@ -86,7 +96,9 @@ impl DataChunkBuilder {
                     .iter_mut()
                     .map(|builder| {
                         let chunk = builder.take();
-                        builder.reserve(capacity);
+                        if capacity != usize::MAX {
+                            builder.reserve(capacity);
+                        }
                         chunk
                     })
                     .collect(),

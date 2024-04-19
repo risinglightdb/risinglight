@@ -161,7 +161,7 @@ impl HashSemiJoinExecutor2 {
             for (key, row) in keys_chunk.rows().zip(chunk.rows()) {
                 let chunk = key_set
                     .entry(key.values().collect())
-                    .or_insert_with(|| DataChunkBuilder::new(&self.right_types, 1024))
+                    .or_insert_with(|| DataChunkBuilder::unbounded(&self.right_types))
                     .push_row(row.values());
                 assert!(chunk.is_none());
             }
