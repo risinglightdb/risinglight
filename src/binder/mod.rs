@@ -329,7 +329,9 @@ impl Binder {
                 ..
             } => self.bind_copy(source, to, target, &options),
             Statement::Query(query) => self.bind_query(*query).map(|(id, _)| id),
-            Statement::Explain { statement, .. } => self.bind_explain(*statement),
+            Statement::Explain {
+                statement, analyze, ..
+            } => self.bind_explain(*statement, analyze),
             Statement::ShowVariable { .. }
             | Statement::ShowCreate { .. }
             | Statement::ShowColumns { .. } => Err(BindError::NotSupportedTSQL),
@@ -447,9 +449,12 @@ impl Binder {
         self.catalog.clone()
     }
 
-    fn bind_explain(&mut self, query: Statement) -> Result {
+    fn bind_explain(&mut self, query: Statement, analyze: bool) -> Result {
         let id = self.bind_stmt(query)?;
-        let id = self.egraph.add(Node::Explain(id));
+        let id = self.egraph.add(match analyze {
+            false => Node::Explain(id),
+            true => Node::Analyze(id),
+        });
         Ok(id)
     }
 }
