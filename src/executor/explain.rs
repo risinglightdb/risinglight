@@ -19,8 +19,8 @@ impl ExplainExecutor {
         let rows = self.optimizer.rows(&self.plan);
         let get_metadata = |id| {
             vec![
-                ("rows", rows[usize::from(id)].to_string()),
                 ("cost", costs[usize::from(id)].to_string()),
+                ("rows", rows[usize::from(id)].to_string()),
             ]
         };
         let explain_obj = Explain::of(&self.plan)
