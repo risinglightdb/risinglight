@@ -16,7 +16,7 @@ use crate::types::{NativeType, F32, F64};
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct PrimitiveArray<T: NativeType> {
     valid: BitVec,
-    data: Vec<T>,
+    data: Box<[T]>,
 }
 
 // Enable `collect()` an array from iterator of `Option<T>`.
@@ -34,7 +34,7 @@ impl<T: NativeType> FromIterator<Option<T>> for PrimitiveArray<T> {
 // Enable `collect()` an array from iterator of `T`.
 impl<T: NativeType> FromIterator<T> for PrimitiveArray<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let data: Vec<T> = iter.into_iter().collect();
+        let data: Box<[T]> = iter.into_iter().collect();
         let size = data.len();
         Self {
             data,
@@ -45,7 +45,7 @@ impl<T: NativeType> FromIterator<T> for PrimitiveArray<T> {
 
 impl FromIterator<f32> for PrimitiveArray<F32> {
     fn from_iter<I: IntoIterator<Item = f32>>(iter: I) -> Self {
-        let data: Vec<F32> = iter.into_iter().map(F32::from).collect();
+        let data: Box<[F32]> = iter.into_iter().map(F32::from).collect();
         let size = data.len();
         Self {
             data,
@@ -56,7 +56,7 @@ impl FromIterator<f32> for PrimitiveArray<F32> {
 
 impl FromIterator<f64> for PrimitiveArray<F64> {
     fn from_iter<I: IntoIterator<Item = f64>>(iter: I) -> Self {
-        let data: Vec<F64> = iter.into_iter().map(F64::from).collect();
+        let data: Box<[F64]> = iter.into_iter().map(F64::from).collect();
         let size = data.len();
         Self {
             data,
@@ -172,7 +172,7 @@ impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
     fn take(&mut self) -> PrimitiveArray<T> {
         PrimitiveArray {
             valid: mem::take(&mut self.valid),
-            data: mem::take(&mut self.data),
+            data: mem::take(&mut self.data).into(),
         }
     }
 }
@@ -192,7 +192,7 @@ impl PrimitiveArray<bool> {
 impl PrimitiveArray<Decimal> {
     /// Rescale the decimals.
     pub fn rescale(&mut self, scale: u8) {
-        for v in &mut self.data {
+        for v in self.data.iter_mut() {
             v.rescale(scale as u32);
         }
     }

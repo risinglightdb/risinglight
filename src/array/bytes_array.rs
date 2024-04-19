@@ -14,9 +14,9 @@ use crate::types::BlobRef;
 /// A collection of variable-length values.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct BytesArray<T: ValueRef + ?Sized> {
-    offset: Vec<usize>,
+    offset: Box<[usize]>,
     valid: BitVec,
-    data: Vec<u8>,
+    data: Box<[u8]>,
     _type: PhantomData<T>,
 }
 
@@ -108,8 +108,8 @@ impl<T: ValueRef + ?Sized> ArrayFromDataExt for BytesArray<T> {
         }
         Self {
             valid,
-            data,
-            offset,
+            data: data.into(),
+            offset: offset.into(),
             _type: PhantomData,
         }
     }
@@ -197,8 +197,8 @@ impl<T: ValueRef + ?Sized> ArrayBuilder for BytesArrayBuilder<T> {
     fn take(&mut self) -> BytesArray<T> {
         BytesArray {
             valid: mem::take(&mut self.valid),
-            data: mem::take(&mut self.data),
-            offset: mem::replace(&mut self.offset, vec![0]),
+            data: mem::take(&mut self.data).into(),
+            offset: mem::replace(&mut self.offset, vec![0]).into(),
             _type: PhantomData,
         }
     }
