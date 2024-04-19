@@ -161,12 +161,9 @@ impl HashSemiJoinExecutor2 {
             for (key, row) in keys_chunk.rows().zip(chunk.rows()) {
                 let chunk = key_set
                     .entry(key.values().collect())
-                    .or_insert_with(|| DataChunkBuilder::new(&self.right_types, 8))
+                    .or_insert_with(|| DataChunkBuilder::unbounded(&self.right_types))
                     .push_row(row.values());
-                assert!(
-                    chunk.is_none(),
-                    "FIXME: more than 8 rows with the same key is not supported"
-                );
+                assert!(chunk.is_none());
             }
             tokio::task::consume_budget().await;
         }
