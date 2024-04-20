@@ -344,7 +344,10 @@ impl<'a> Explain<'a> {
                 vec![("dist", self.expr(dist).pretty())].with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
-            Broadcast => Pretty::display(enode),
+            ToDist(child) => {
+                Pretty::simple_record("ToDist", vec![], vec![self.child(child).pretty()])
+            }
+            Single | Broadcast | Random => Pretty::display(enode),
             Hash(keys) => {
                 Pretty::childless_record("Hash", vec![("keys", self.expr(keys).pretty())])
             }

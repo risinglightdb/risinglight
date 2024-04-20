@@ -11,7 +11,6 @@ use crate::types::{ColumnIndex, DataType, DataValue, DateTimeField};
 mod cost;
 mod explain;
 mod optimizer;
-mod partition;
 mod rules;
 
 pub use explain::Explain;
