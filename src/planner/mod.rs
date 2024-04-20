@@ -11,6 +11,7 @@ use crate::types::{ColumnIndex, DataType, DataValue, DateTimeField};
 mod cost;
 mod explain;
 mod optimizer;
+mod partition;
 mod rules;
 
 pub use explain::Explain;
@@ -118,6 +119,15 @@ define_language! {
                                                     // child must be ordered by keys
         "window" = Window([Id; 2]),             // (window [over..] child)
                                                     // output = child || exprs
+
+        // parallelism
+        "exchange" = Exchange([Id; 2]),         // (exchange dist child)
+        "to_dist" = ToDist(Id),                 // (to_dist child)
+            "single" = Single,                      // (single)             merge all to one
+            "broadcast" = Broadcast,                // (broadcast)          broadcast to all
+            "random" = Random,                      // (random)             random partition
+            "hash" = Hash(Id),                      // (hash key=[expr..])  partition by hash of key
+
         CreateTable(Box<CreateTable>),
         "create_view" = CreateView([Id; 2]),    // (create_view create_table child)
         CreateFunction(CreateFunction),

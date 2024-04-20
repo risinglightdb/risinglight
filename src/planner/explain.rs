@@ -339,6 +339,16 @@ impl<'a> Explain<'a> {
                 vec![("windows", self.expr(windows).pretty())].with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
+            Exchange([dist, child]) => Pretty::simple_record(
+                "Exchange",
+                vec![("dist", self.expr(dist).pretty())].with(cost, rows),
+                vec![self.child(child).pretty()],
+            ),
+            Broadcast => Pretty::display(enode),
+            Hash(keys) => {
+                Pretty::childless_record("Hash", vec![("keys", self.expr(keys).pretty())])
+            }
+
             CreateTable(t) => {
                 let fields = t.pretty_table().with(cost, rows);
                 Pretty::childless_record("CreateTable", fields)
