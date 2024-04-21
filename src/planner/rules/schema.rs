@@ -17,7 +17,8 @@ pub fn analyze_schema(
     let concat = |v1: Vec<Id>, v2: Vec<Id>| v1.into_iter().chain(v2).collect();
     match enode {
         // equal to child
-        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) | Empty(c) => x(c),
+        Filter([_, c]) | Order([_, c]) | Limit([_, _, c]) | TopN([_, _, _, c]) | Empty(c)
+        | Exchange([_, c]) => x(c),
 
         // concat 2 children
         Join([t, _, l, r])

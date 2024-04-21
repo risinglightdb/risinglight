@@ -4,6 +4,7 @@ use std::sync::LazyLock;
 
 use egg::CostFunction;
 
+use self::rules::partition::to_parallel_plan;
 use super::*;
 use crate::catalog::RootCatalogRef;
 
@@ -18,6 +19,7 @@ pub struct Optimizer {
 pub struct Config {
     pub enable_range_filter_scan: bool,
     pub table_is_sorted_by_primary_key: bool,
+    pub generate_parallel_plan: bool,
 }
 
 impl Optimizer {
@@ -49,6 +51,10 @@ impl Optimizer {
         self.optimize_stage(&mut expr, &mut cost, rules, 4, 6);
         // 3. join reorder and hashjoin
         self.optimize_stage(&mut expr, &mut cost, STAGE3_RULES.iter(), 3, 8);
+
+        if self.analysis.config.generate_parallel_plan {
+            expr = to_parallel_plan(expr);
+        }
         expr
     }
 

@@ -344,8 +344,8 @@ impl<'a> Explain<'a> {
                 vec![("dist", self.expr(dist).pretty())].with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
-            ToDist(child) => {
-                Pretty::simple_record("ToDist", vec![], vec![self.child(child).pretty()])
+            ToParallel(child) => {
+                Pretty::simple_record("ToParallel", vec![], vec![self.child(child).pretty()])
             }
             Single | Broadcast | Random => Pretty::display(enode),
             Hash(keys) => {

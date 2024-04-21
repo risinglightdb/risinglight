@@ -69,6 +69,7 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
             Insert([_, _, c]) | CopyTo([_, c]) => rows(c) * cols(c) + costs(c),
             Empty(_) => 0.0,
             Max1Row(c) => costs(c),
+            Exchange([_, c]) => costs(c),
             // expressions
             Column(_) | Ref(_) => 0.01, // column reference is almost free
             List(_) => enode.fold(0.01, |sum, id| sum + costs(&id)), // list is almost free

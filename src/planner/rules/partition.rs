@@ -1,9 +1,9 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-//! This module converts physical plans into distributed plans.
+//! This module converts physical plans into parallel plans.
 //!
-//! In a distributed query plan, each node represents one or more physical operators, with each
-//! operator processing data from one partition. Each node has a [`Distribution`] property that
+//! In a parallel query plan, each node represents one or more physical operators, with each
+//! operator processing data from one partition. Each node has a [`Partition`] property that
 //! describes how the data is partitioned.
 //!
 //! After the conversion, [`Exchange`](Expr::Exchange) nodes will be inserted when necessary to
@@ -16,29 +16,29 @@ use egg::{rewrite as rw, Analysis, EGraph, Language};
 use super::*;
 use crate::planner::RecExpr;
 
-/// Converts a physical plan into a distributed plan.
-pub fn to_distributed(mut plan: RecExpr) -> RecExpr {
-    // add to_dist to the root node
+/// Converts a physical plan into a parallel plan.
+pub fn to_parallel_plan(mut plan: RecExpr) -> RecExpr {
+    // add to_parallel to the root node
     let root_id = Id::from(plan.as_ref().len() - 1);
-    plan.add(Expr::ToDist(root_id));
+    plan.add(Expr::ToParallel(root_id));
 
     let runner = egg::Runner::<_, _, ()>::new(PartitionAnalysis)
         .with_expr(&plan)
-        .run(TO_DIST_RULES.iter());
-    let extractor = egg::Extractor::new(&runner.egraph, ExtractDistributedPlan);
+        .run(TO_PARALLEL_RULES.iter());
+    let extractor = egg::Extractor::new(&runner.egraph, NoToParallel);
     let (_, expr) = extractor.find_best(runner.roots[0]);
     expr
 }
 
-struct ExtractDistributedPlan;
+struct NoToParallel;
 
-impl egg::CostFunction<Expr> for ExtractDistributedPlan {
+impl egg::CostFunction<Expr> for NoToParallel {
     type Cost = usize;
     fn cost<C>(&mut self, enode: &Expr, mut costs: C) -> Self::Cost
     where
         C: FnMut(Id) -> Self::Cost,
     {
-        if let Expr::ToDist(_) = enode {
+        if let Expr::ToParallel(_) = enode {
             return usize::MAX;
         }
         enode.fold(1, |sum, id| sum.saturating_add(costs(id)))
@@ -47,92 +47,99 @@ impl egg::CostFunction<Expr> for ExtractDistributedPlan {
 
 type Rewrite = egg::Rewrite<Expr, PartitionAnalysis>;
 
-static TO_DIST_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
+static TO_PARALLEL_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     vec![
         // scan is not partitioned
         rw!("scan-to-dist";
-            "(to_dist (scan ?table ?columns ?filter))" =>
+            "(to_parallel (scan ?table ?columns ?filter))" =>
             "(exchange random (scan ?table ?columns ?filter))"
         ),
         // values is not partitioned
         rw!("values-to-dist";
-            "(to_dist (values ?values))" =>
+            "(to_parallel (values ?values))" =>
             "(exchange random (values ?values))"
         ),
         // projection does not change distribution
         rw!("proj-to-dist";
-            "(to_dist (proj ?projs ?child))" =>
-            "(proj ?projs (to_dist ?child))"
+            "(to_parallel (proj ?projs ?child))" =>
+            "(proj ?projs (to_parallel ?child))"
         ),
         // filter does not change distribution
         rw!("filter-to-dist";
-            "(to_dist (filter ?cond ?child))" =>
-            "(filter ?cond (to_dist ?child))"
+            "(to_parallel (filter ?cond ?child))" =>
+            "(filter ?cond (to_parallel ?child))"
         ),
-        // 2-phase ordering
+        // order can not be partitioned
         rw!("order-to-dist";
-            "(to_dist (order ?key ?child))" =>
-            "(order ?key (exchange single (order ?key (to_dist ?child))))"
+            "(to_parallel (order ?key ?child))" =>
+            "(order ?key (exchange single (to_parallel ?child)))"
+            // TODO: 2-phase ordering
+            // "(order ?key (exchange single (order ?key (to_parallel ?child))))"
             // TODO: merge sort in the second phase?
         ),
         // limit can not be partitioned
         rw!("limit-to-dist";
-            "(to_dist (limit ?limit ?offset ?child))" =>
-            "(limit ?limit ?offset (exchange single (to_dist ?child)))"
+            "(to_parallel (limit ?limit ?offset ?child))" =>
+            "(limit ?limit ?offset (exchange single (to_parallel ?child)))"
         ),
         // topn can not be partitioned
         rw!("topn-to-dist";
-            "(to_dist (topn ?limit ?offset ?key ?child))" =>
-            "(topn ?limit ?offset ?key (exchange single (to_dist ?child)))"
+            "(to_parallel (topn ?limit ?offset ?key ?child))" =>
+            "(topn ?limit ?offset ?key (exchange single (to_parallel ?child)))"
         ),
         // inner join is partitioned by left
         // as the left side is materialized in memory
         rw!("inner-join-to-dist";
-            "(to_dist (join inner ?cond ?left ?right))" =>
+            "(to_parallel (join inner ?cond ?left ?right))" =>
             "(join inner ?cond
-                (exchange random (to_dist ?left))
-                (exchange broadcast (to_dist ?right)))"
+                (exchange random (to_parallel ?left))
+                (exchange broadcast (to_parallel ?right)))"
         ),
         // outer join can not be partitioned
         rw!("join-to-dist";
-            "(to_dist (join full_outer ?cond ?left ?right))" =>
+            "(to_parallel (join full_outer ?cond ?left ?right))" =>
             "(join full_outer ?cond
-                (exchange single (to_dist ?left))
-                (exchange single (to_dist ?right)))"
+                (exchange single (to_parallel ?left))
+                (exchange single (to_parallel ?right)))"
         ),
         // hash join can be partitioned by join key
         rw!("hashjoin-to-dist";
-            "(to_dist (hashjoin ?type ?cond ?lkey ?rkey ?left ?right))" =>
+            "(to_parallel (hashjoin ?type ?cond ?lkey ?rkey ?left ?right))" =>
             "(hashjoin ?type ?cond ?lkey ?rkey
-                (exchange (hash ?lkey) (to_dist ?left))
-                (exchange (hash ?rkey) (to_dist ?right)))"
+                (exchange (hash ?lkey) (to_parallel ?left))
+                (exchange (hash ?rkey) (to_parallel ?right)))"
         ),
         // merge join can be partitioned by join key
         rw!("mergejoin-to-dist";
-            "(to_dist (mergejoin ?type ?cond ?lkey ?rkey ?left ?right))" =>
+            "(to_parallel (mergejoin ?type ?cond ?lkey ?rkey ?left ?right))" =>
             "(mergejoin ?type ?cond ?lkey ?rkey
-                (exchange (hash ?lkey) (to_dist ?left))
-                (exchange (hash ?rkey) (to_dist ?right)))"
+                (exchange (hash ?lkey) (to_parallel ?left))
+                (exchange (hash ?rkey) (to_parallel ?right)))"
         ),
         // 2-phase aggregation
         rw!("agg-to-dist";
-            "(to_dist (agg ?exprs ?child))" =>
-            "(agg ?exprs (exchange single (agg ?exprs (exchange random (to_dist ?child)))))"
+            "(to_parallel (agg ?exprs ?child))" =>
+            "(agg ?exprs (exchange single (agg ?exprs (exchange random (to_parallel ?child)))))"
         ),
         // hash aggregation can be partitioned by group key
         rw!("hashagg-to-dist";
-            "(to_dist (hashagg ?keys ?aggs ?child))" =>
-            "(hashagg ?keys ?aggs (exchange (hash ?keys) (to_dist ?child)))"
+            "(to_parallel (hashagg ?keys ?aggs ?child))" =>
+            "(hashagg ?keys ?aggs (exchange (hash ?keys) (to_parallel ?child)))"
         ),
         // sort aggregation can be partitioned by group key
         rw!("sortagg-to-dist";
-            "(to_dist (sortagg ?keys ?aggs ?child))" =>
-            "(sortagg ?keys ?aggs (exchange (hash ?keys) (to_dist ?child)))"
+            "(to_parallel (sortagg ?keys ?aggs ?child))" =>
+            "(sortagg ?keys ?aggs (exchange (hash ?keys) (to_parallel ?child)))"
         ),
         // window function can not be partitioned for now
         rw!("window-to-dist";
-            "(to_dist (window ?exprs ?child))" =>
-            "(window ?exprs (exchange single (to_dist ?child)))"
+            "(to_parallel (window ?exprs ?child))" =>
+            "(window ?exprs (exchange single (to_parallel ?child)))"
+        ),
+        // explain
+        rw!("explain-to-dist";
+            "(to_parallel (explain ?child))" =>
+            "(explain (to_parallel ?child))"
         ),
         // unnecessary exchange can be removed
         rw!("remove-exchange";
@@ -239,7 +246,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_to_distributed() {
+    fn test_to_parallel() {
         let input = "
             (hashjoin inner true (list a) (list b)
                 (scan t1 (list a) true)
@@ -254,7 +261,7 @@ mod tests {
                     (scan t2 (list b) true))
             )
         ";
-        let output = to_distributed(input.parse().unwrap());
+        let output = to_parallel_plan(input.parse().unwrap());
         let expected: RecExpr = distributed.parse().unwrap();
         assert_eq!(output.to_string(), expected.to_string());
     }

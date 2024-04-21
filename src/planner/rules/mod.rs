@@ -15,7 +15,7 @@
 //! | [`type_`]  |                       | data type                     | [`Type`]           |
 //! | [`rows`]   |                       | estimated rows                | [`Rows`]           |
 //! | [`order`]  | merge join            | ordered keys                  | [`OrderKey`]       |
-//! | [`partition`] | to_distributed     | data partition                | [`Partition`]      |
+//! | [`partition`] | to_parallel        | data partition                | [`Partition`]      |
 //!
 //! It would be best if you have a background in program analysis.
 //! Here is a recommended course: <https://pascal-group.bitbucket.io/teaching.html>.

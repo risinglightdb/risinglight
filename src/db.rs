@@ -93,6 +93,8 @@ impl Database {
             crate::planner::Config {
                 enable_range_filter_scan: self.storage.support_range_filter_scan(),
                 table_is_sorted_by_primary_key: self.storage.table_is_sorted_by_primary_key(),
+                generate_parallel_plan: tokio::runtime::Handle::current().metrics().num_workers()
+                    > 1,
             },
         );
 

@@ -120,8 +120,8 @@ define_language! {
                                                     // output = child || exprs
 
         // parallelism
+        "to_parallel" = ToParallel(Id),         // (to_parallel child)
         "exchange" = Exchange([Id; 2]),         // (exchange dist child)
-        "to_dist" = ToDist(Id),                 // (to_dist child)
             "single" = Single,                      // (single)             merge all to one
             "broadcast" = Broadcast,                // (broadcast)          broadcast to all
             "random" = Random,                      // (random)             random partition
