@@ -21,6 +21,7 @@ fn cancel_rules() -> Vec<Rewrite> { vec![
     rw!("limit-null";       "(limit null 0 ?child)"     => "?child"),
     rw!("order-null";       "(order (list) ?child)"     => "?child"),
     rw!("filter-true";      "(filter true ?child)"      => "?child"),
+    rw!("filter-false";     "(filter false ?child)"     => "(empty ?child)"),
     rw!("window-null";      "(window (list) ?child)"    => "?child"),
 ]}
 
@@ -580,6 +581,47 @@ mod tests {
         rules.append(&mut plan::join_reorder_rules());
         rules.append(&mut plan::hash_join_rules());
         rules
+    }
+
+    egg::test_fn! {
+        cancel_limit,
+        rules(),
+        // SELECT name
+        // FROM student
+        // WHERE true
+        // LIMIT 0
+        "
+        (proj (list $1.2)
+        (limit null 0
+            (filter true
+                (scan $1 (list $1.1 $1.2) null)
+            )
+        ))" => "
+        (proj
+            (list $1.2)
+            (scan $1 (list $1.1 $1.2) null))
+        "
+    }
+
+    egg::test_fn! {
+        merge_filter,
+        rules(),
+        // SELECT name
+        // FROM student
+        // LIMIT 10
+        // Order by name
+        "
+        proj (list $1.2)
+        (limit 10 0
+            (order (list) 
+                (scan $1 (list $1.1 $1.2) null)
+            )
+        )" => "
+        proj (list $1.2)
+        （topn 10 0 (list) 
+            (scan $1 (list $1.1 $1.2) null)
+        )
+        "
     }
 
     egg::test_fn! {
