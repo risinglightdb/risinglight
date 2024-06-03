@@ -613,7 +613,7 @@ mod tests {
         "
         proj (list $1.2)
         (limit 10 0
-            (order (list) 
+            (order (list $1.2) 
                 (scan $1 (list $1.1 $1.2) null)
             )
         )" => "
