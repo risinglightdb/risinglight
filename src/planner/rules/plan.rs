@@ -618,7 +618,7 @@ mod tests {
             )
         )" => "
         proj (list $1.2)
-        （topn 10 0 (list) 
+        （topn 10 0 (list $1.2) 
             (scan $1 (list $1.1 $1.2) null)
         )
         "
