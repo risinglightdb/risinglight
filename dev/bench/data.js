@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1713549056022,
+  "lastUpdate": 1717746379342,
   "repoUrl": "https://github.com/risinglightdb/risinglight",
   "entries": {
     "Rust Benchmark": [
@@ -839,6 +839,294 @@ window.BENCHMARK_DATA = {
             "name": "run-q22",
             "value": 182399605,
             "range": "± 3555398",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "77189278+caicancai@users.noreply.github.com",
+            "name": "Cancai Cai",
+            "username": "caicancai"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "50b2556995f889d34b5e0dc0d3e7f281a91cf558",
+          "message": "chore: add rule and test (#851)\n\nI noticed that risinglight uses egg for CBO optimization, but it looks\nviolent at the moment. I will try to optimize it.\n\n---------\n\nSigned-off-by: caicancai <2356672992@qq.com>\nSigned-off-by: Cancai Cai <77189278+caicancai@users.noreply.github.com>\nCo-authored-by: Runji Wang <wangrunji0408@163.com>",
+          "timestamp": "2024-06-07T07:18:13Z",
+          "tree_id": "1a245f524b1b092b1b331e83a3228cf43b77bb71",
+          "url": "https://github.com/risinglightdb/risinglight/commit/50b2556995f889d34b5e0dc0d3e7f281a91cf558"
+        },
+        "date": 1717746378445,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "explain-q1",
+            "value": 2522350,
+            "range": "± 6702",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q2",
+            "value": 398402870,
+            "range": "± 8899220",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q3",
+            "value": 57451756,
+            "range": "± 670091",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q4",
+            "value": 4289068,
+            "range": "± 18148",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q5",
+            "value": 311412515,
+            "range": "± 3781364",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q6",
+            "value": 25147046,
+            "range": "± 218151",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q7",
+            "value": 237501540,
+            "range": "± 2608944",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q8",
+            "value": 437312465,
+            "range": "± 6106478",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q9",
+            "value": 293439653,
+            "range": "± 5400743",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q10",
+            "value": 190064834,
+            "range": "± 4204826",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q11",
+            "value": 64878693,
+            "range": "± 206811",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q12",
+            "value": 71310185,
+            "range": "± 470018",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q13",
+            "value": 3053525,
+            "range": "± 7075",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q14",
+            "value": 8761658,
+            "range": "± 27993",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q15",
+            "value": 1851318,
+            "range": "± 4450",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q16",
+            "value": 17440646,
+            "range": "± 144040",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q17",
+            "value": 29243278,
+            "range": "± 494199",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q18",
+            "value": 33474796,
+            "range": "± 237717",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q19",
+            "value": 33782635,
+            "range": "± 174606",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q20",
+            "value": 16010759,
+            "range": "± 96296",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q21",
+            "value": 200778930,
+            "range": "± 3731882",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q22",
+            "value": 9319284,
+            "range": "± 319833",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q1",
+            "value": 3913501068,
+            "range": "± 10924980",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q2",
+            "value": 740398511,
+            "range": "± 9909174",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q3",
+            "value": 706156404,
+            "range": "± 14681371",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q4",
+            "value": 573800838,
+            "range": "± 9923020",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q5",
+            "value": 1067661338,
+            "range": "± 9351733",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q6",
+            "value": 282759978,
+            "range": "± 2137218",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q7",
+            "value": 3353677415,
+            "range": "± 73890219",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q8",
+            "value": 5135277717,
+            "range": "± 53113874",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q9",
+            "value": 1368327897,
+            "range": "± 14257463",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q10",
+            "value": 984293868,
+            "range": "± 11044992",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q11",
+            "value": 147451500,
+            "range": "± 1494250",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q12",
+            "value": 511559983,
+            "range": "± 2210500",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q13",
+            "value": 653127049,
+            "range": "± 13236539",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q14",
+            "value": 316074409,
+            "range": "± 28148221",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q15",
+            "value": 227597791,
+            "range": "± 5574164",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q16",
+            "value": 218606817,
+            "range": "± 3361137",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q17",
+            "value": 8668543460,
+            "range": "± 181097040",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q18",
+            "value": 4361056663,
+            "range": "± 51624001",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q19",
+            "value": 818449375,
+            "range": "± 6027956",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q20",
+            "value": 2140873756,
+            "range": "± 24969504",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q21",
+            "value": 4302595570,
+            "range": "± 56650828",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q22",
+            "value": 193736118,
+            "range": "± 6982518",
             "unit": "ns/iter"
           }
         ]
