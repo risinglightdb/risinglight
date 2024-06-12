@@ -21,6 +21,7 @@ impl CreateFunctionExecutor {
             return_type,
             language,
             body,
+            is_recursive,
         } = self.f;
 
         self.catalog.create_function(
@@ -31,6 +32,7 @@ impl CreateFunctionExecutor {
             return_type,
             language,
             body,
+            is_recursive,
         );
     }
 }

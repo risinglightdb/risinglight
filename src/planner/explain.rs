@@ -384,6 +384,10 @@ impl<'a> Explain<'a> {
                 vec![].with(cost, rows),
                 vec![self.child(child).pretty()],
             ),
+            Udf(udf) => {
+                let v = udf.pretty_function();
+                Pretty::childless_record("Udf", v)
+            }
             Empty(_) => Pretty::childless_record("Empty", vec![].with(cost, rows)),
             Max1Row(child) => Pretty::fieldless_record("Max1Row", vec![self.expr(child).pretty()]),
         }

@@ -173,6 +173,9 @@ pub fn analyze_type(
         HashAgg([keys, aggs, _]) | SortAgg([keys, aggs, _]) => concat_struct(x(keys)?, x(aggs)?),
         Max1Row(c) => Ok(x(c)?.as_struct()[0].clone()),
 
+        // currently for recursive sql udf's type inference
+        Udf(udf) => Ok(udf.return_type.clone()),
+
         // other plan nodes
         _ => Err(TypeError::Unavailable(enode.to_string())),
     }

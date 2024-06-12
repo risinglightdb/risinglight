@@ -16,6 +16,8 @@ impl ProjectionExecutor {
     pub async fn execute(self, child: BoxedExecutor) {
         #[for_await]
         for batch in child {
+            println!("[project]\n{}", batch.clone().unwrap());
+            println!("projs: {:#?}", self.projs);
             yield Evaluator::new(&self.projs).eval_list(&batch?)?;
         }
     }

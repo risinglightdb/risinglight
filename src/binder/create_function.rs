@@ -3,6 +3,7 @@
 use std::fmt;
 use std::str::FromStr;
 
+use fancy_regex::Regex;
 use pretty_xmlish::helper::delegate_fmt;
 use pretty_xmlish::Pretty;
 use serde::{Deserialize, Serialize};
@@ -18,6 +19,7 @@ pub struct CreateFunction {
     pub return_type: crate::types::DataType,
     pub language: String,
     pub body: String,
+    pub is_recursive: bool,
 }
 
 impl fmt::Display for CreateFunction {
@@ -42,6 +44,35 @@ impl CreateFunction {
             ("language", Pretty::display(&self.language)),
             ("body", Pretty::display(&self.body)),
         ]
+    }
+}
+
+/// Find the pattern for recursive sql udf
+/// return the exact index where the pattern first appears
+/// Source: <https://github.com/risingwavelabs/risingwave/blob/a16a230a297aa620fdf6d04d7cd3f9e236f73fdd/src/frontend/src/handler/create_sql_function.rs#L89>
+fn find_target(input: &str, target: &str) -> Option<usize> {
+    // Regex pattern to find `target` not preceded or followed by an ASCII letter
+    // The pattern uses negative lookbehind (?<!...) and lookahead (?!...) to ensure
+    // the target is not surrounded by ASCII alphabetic characters
+    let pattern = format!(r"(?<![A-Za-z]){0}(?![A-Za-z])", fancy_regex::escape(target));
+    let Ok(re) = Regex::new(&pattern) else {
+        return None;
+    };
+
+    let Ok(Some(ma)) = re.find(input) else {
+        return None;
+    };
+
+    Some(ma.start())
+}
+
+/// TODO: the current implementation is a "bit" hacky
+/// I will try bring a more general & robust solution in the future
+fn is_recursive(body: &str, func_name: &str) -> bool {
+    if let Some(_) = find_target(body, func_name) {
+        true
+    } else {
+        false
     }
 }
 
@@ -102,6 +133,8 @@ impl Binder {
             arg_names.push(arg.name.map_or("".to_string(), |n| n.to_string()));
         }
 
+        let is_recursive = is_recursive(&body, &name);
+
         let f = self.egraph.add(Node::CreateFunction(CreateFunction {
             schema_name,
             name,
@@ -110,6 +143,7 @@ impl Binder {
             return_type,
             language,
             body,
+            is_recursive,
         }));
 
         Ok(f)

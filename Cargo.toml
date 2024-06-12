@@ -58,6 +58,7 @@ prost = "0.12"
 pyo3 = { version = "0.21", features = ["extension-module"], optional = true }
 ref-cast = "1.0"
 regex = "1"
+fancy-regex = "0.13"
 risinglight_proto = "0.2"
 rust_decimal = "1"
 rustyline = "14"

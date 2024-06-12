@@ -83,6 +83,7 @@ mod table_scan;
 mod top_n;
 mod values;
 mod window;
+mod udf;
 
 /// The maximum chunk length produced by executor at a time.
 const PROCESSING_WINDOW_SIZE: usize = 1024;
@@ -394,7 +395,7 @@ impl<S: Storage> Builder<S> {
 
             CreateFunction(f) => CreateFunctionExecutor {
                 f,
-                catalog: self.optimizer.catalog().clone(),
+                catalog: self.catalog().clone(),
             }
             .execute(),
 

@@ -24,9 +24,11 @@ mod expr;
 mod insert;
 mod select;
 mod table;
+mod udf;
 
 pub use self::create_function::*;
 pub use self::create_table::*;
+pub use self::udf::*;
 
 pub type Result<T = Id> = std::result::Result<T, BindError>;
 

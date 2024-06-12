@@ -324,6 +324,7 @@ impl Binder {
     fn bind_function(&mut self, func: Function) -> Result {
         let mut args = vec![];
         for arg in func.args.clone() {
+            println!("arg: {:#?}", arg);
             // ignore argument name
             let arg = match arg {
                 FunctionArg::Named { arg, .. } => arg,
@@ -351,6 +352,21 @@ impl Binder {
         // See if the input function is sql udf
         if let Some(ref function_catalog) = catalog.get_function_by_name(schema_name, function_name)
         {
+            // For recursive sql udf, we will postpone its execution
+            // until reaching backend.
+            // a.k.a. this will not be *inlined* during binding phase
+            if function_catalog.is_recursive {
+                return Ok(self.egraph.add(Node::Udf(Udf {
+                    // TODO: presumably there could be multiple arguments
+                    // but for simplicity reason, currently only
+                    // a single argument is supported
+                    id: args[0],
+                    name: function_catalog.name.clone(),
+                    body: function_catalog.body.clone(),
+                    return_type: function_catalog.return_type.clone(),
+                })));
+            }
+
             // Create the brand new `udf_context`
             let Ok(context) =
                 UdfContext::create_udf_context(func.args.as_slice(), function_catalog)
