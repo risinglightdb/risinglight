@@ -18,7 +18,7 @@ pub fn always_better_rules() -> Vec<Rewrite> {
 
 #[rustfmt::skip]
 fn cancel_rules() -> Vec<Rewrite> { vec![
-    rw!("limit-null";       "(limit null 0 ?child)"     => "?child"),
+    rw!("limit-null";       "(limit null 0 ?child)"     => "(empty ?child)"),
     rw!("order-null";       "(order (list) ?child)"     => "?child"),
     rw!("filter-true";      "(filter true ?child)"      => "?child"),
     rw!("filter-false";     "(filter false ?child)"     => "(empty ?child)"),
@@ -599,8 +599,30 @@ mod tests {
         ))" => "
         (proj
             (list $1.2)
-            (scan $1 (list $1.1 $1.2) null))
+            (empty (scan $1 (list $1.1 $1.2) null)))
         "
+
+    }
+
+    egg::test_fn! {
+        cancel_filter,
+        rules(),
+        // SELECT name
+        // FROM student
+        // WHERE false
+        // LIMIT 0
+        "
+        (proj (list $1.2)
+        (limit null 0
+            (filter false
+                (scan $1 (list $1.1 $1.2) null)
+            )
+        ))" => "
+        (proj (list $1.2)
+            (empty
+              (empty (scan $1 (list $1.1 $1.2) null))))
+        "
+
     }
 
     egg::test_fn! {
