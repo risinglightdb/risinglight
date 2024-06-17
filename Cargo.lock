@@ -2560,6 +2560,7 @@ dependencies = [
  "parse-display",
  "paste",
  "pgwire",
+ "pin-project",
  "pretty-xmlish",
  "prost",
  "pyo3",

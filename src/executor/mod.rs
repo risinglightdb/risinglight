@@ -14,13 +14,16 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use egg::{Id, Language};
 use futures::stream::{BoxStream, StreamExt};
 use futures_async_stream::try_stream;
 use itertools::Itertools;
+use tracing::Instrument;
 
 // use minitrace::prelude::*;
+use self::analyze::*;
 use self::copy_from_file::*;
 use self::copy_to_file::*;
 use self::create_function::*;
@@ -55,7 +58,9 @@ use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
 use crate::planner::{Expr, ExprAnalysis, Optimizer, RecExpr, TypeSchemaAnalysis};
 use crate::storage::Storage;
 use crate::types::{ColumnIndex, DataType};
+use crate::utils::timed::{FutureExt as _, Span as TimeSpan};
 
+mod analyze;
 mod copy_from_file;
 mod copy_to_file;
 mod create_function;
@@ -108,6 +113,7 @@ struct Builder<S: Storage> {
     /// For scans on views, we prebuild their executors and store them here.
     /// Multiple scans on the same view will share the same executor.
     views: HashMap<TableRefId, StreamSubscriber>,
+    metrics: Metrics,
 }
 
 impl<S: Storage> Builder<S> {
@@ -136,6 +142,7 @@ impl<S: Storage> Builder<S> {
             egraph,
             root,
             views,
+            metrics: Metrics::default(),
         }
     }
 
@@ -189,22 +196,22 @@ impl<S: Storage> Builder<S> {
     }
 
     /// Builds the executor.
-    fn build(self) -> BoxedExecutor {
+    fn build(mut self) -> BoxedExecutor {
         self.build_id(self.root)
     }
 
     /// Builds the executor and returns its subscriber.
-    fn build_subscriber(self) -> StreamSubscriber {
+    fn build_subscriber(mut self) -> StreamSubscriber {
         self.build_id_subscriber(self.root)
     }
 
     /// Builds the executor for the given id.
-    fn build_id(&self, id: Id) -> BoxedExecutor {
+    fn build_id(&mut self, id: Id) -> BoxedExecutor {
         self.build_id_subscriber(id).subscribe()
     }
 
     /// Builds the executor for the given id and returns its subscriber.
-    fn build_id_subscriber(&self, id: Id) -> StreamSubscriber {
+    fn build_id_subscriber(&mut self, id: Id) -> StreamSubscriber {
         use Expr::*;
         let stream = match self.node(id).clone() {
             Scan([table, list, filter]) => {
@@ -439,14 +446,24 @@ impl<S: Storage> Builder<S> {
             }
             .execute(),
 
+            Analyze(child) => {
+                let stream = self.build_id(child);
+                AnalyzeExecutor {
+                    plan: self.recexpr(child),
+                    catalog: self.optimizer.catalog().clone(),
+                    metrics: std::mem::take(&mut self.metrics),
+                }
+                .execute(stream)
+            }
+
             Empty(_) => futures::stream::empty().boxed(),
 
             node => panic!("not a plan: {node:?}"),
         };
-        spawn(&self.node(id).to_string(), stream)
+        self.spawn(id, stream)
     }
 
-    fn build_hashjoin<const T: JoinType>(&self, args: [Id; 6]) -> BoxedExecutor {
+    fn build_hashjoin<const T: JoinType>(&mut self, args: [Id; 6]) -> BoxedExecutor {
         let [_, cond, lkeys, rkeys, left, right] = args;
         assert_eq!(self.node(cond), &Expr::true_());
         HashJoinExecutor::<T> {
@@ -458,7 +475,7 @@ impl<S: Storage> Builder<S> {
         .execute(self.build_id(left), self.build_id(right))
     }
 
-    fn build_hashsemijoin(&self, args: [Id; 6], anti: bool) -> BoxedExecutor {
+    fn build_hashsemijoin(&mut self, args: [Id; 6], anti: bool) -> BoxedExecutor {
         let [_, cond, lkeys, rkeys, left, right] = args;
         if self.node(cond) == &Expr::true_() {
             HashSemiJoinExecutor {
@@ -481,7 +498,7 @@ impl<S: Storage> Builder<S> {
         }
     }
 
-    fn build_mergejoin<const T: JoinType>(&self, args: [Id; 6]) -> BoxedExecutor {
+    fn build_mergejoin<const T: JoinType>(&mut self, args: [Id; 6]) -> BoxedExecutor {
         let [_, cond, lkeys, rkeys, left, right] = args;
         assert_eq!(self.node(cond), &Expr::true_());
         MergeJoinExecutor::<T> {
@@ -492,26 +509,40 @@ impl<S: Storage> Builder<S> {
         }
         .execute(self.build_id(left), self.build_id(right))
     }
-}
 
-/// Spawn a new task to execute the given stream.
-fn spawn(name: &str, mut stream: BoxedExecutor) -> StreamSubscriber {
-    let (tx, rx) = async_broadcast::broadcast(16);
-    let handle = tokio::task::Builder::default()
-        .name(name)
-        .spawn(async move {
-            while let Some(item) = stream.next().await {
-                if tx.broadcast(item).await.is_err() {
-                    // all receivers are dropped, stop the task.
-                    return;
+    /// Spawn a new task to execute the given stream.
+    fn spawn(&mut self, id: Id, mut stream: BoxedExecutor) -> StreamSubscriber {
+        let name = self.node(id).to_string();
+        let span = TimeSpan::default();
+        let output_row_counter = Counter::default();
+
+        self.metrics
+            .register(id, span.clone(), output_row_counter.clone());
+
+        let (tx, rx) = async_broadcast::broadcast(16);
+        let handle = tokio::task::Builder::default()
+            .name(&format!("{id}.{name}"))
+            .spawn(
+                async move {
+                    while let Some(item) = stream.next().await {
+                        if let Ok(chunk) = &item {
+                            output_row_counter.inc(chunk.cardinality() as _);
+                        }
+                        if tx.broadcast(item).await.is_err() {
+                            // all receivers are dropped, stop the task.
+                            return;
+                        }
+                    }
                 }
-            }
-        })
-        .expect("failed to spawn task");
+                .instrument(tracing::info_span!("executor", id = usize::from(id), name))
+                .timed(span),
+            )
+            .expect("failed to spawn task");
 
-    StreamSubscriber {
-        rx: rx.deactivate(),
-        handle: Arc::new(AbortOnDropHandle(handle)),
+        StreamSubscriber {
+            rx: rx.deactivate(),
+            handle: Arc::new(AbortOnDropHandle(handle)),
+        }
     }
 }
 

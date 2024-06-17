@@ -128,6 +128,7 @@ define_language! {
         "copy_to" = CopyTo([Id; 2]),            // (copy_to dest child)
             ExtSource(Box<ExtSource>),
         "explain" = Explain(Id),                // (explain child)
+        "analyze" = Analyze(Id),                // (analyze child)
 
         // internal functions
         "empty" = Empty(Id),                    // (empty child)
