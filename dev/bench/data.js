@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717746379342,
+  "lastUpdate": 1718594477320,
   "repoUrl": "https://github.com/risinglightdb/risinglight",
   "entries": {
     "Rust Benchmark": [
@@ -1127,6 +1127,294 @@ window.BENCHMARK_DATA = {
             "name": "run-q22",
             "value": 193736118,
             "range": "± 6982518",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wangrunji0408@163.com",
+            "name": "Runji Wang",
+            "username": "wangrunji0408"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8b19a09130ed059a8b10cccdc4d0fc0c3991d9ee",
+          "message": "feat: support `EXPLAIN ANALYZE` to profile queries (#849)\n\nSigned-off-by: Runji Wang <wangrunji0408@163.com>\n\nInspired by duckdb's [EXPLAIN\nANALYZE](https://duckdb.org/docs/guides/meta/explain_analyze.html).\n\n<details>\n  <summary>Example of TPCH Q6</summary>\n\n```sql\nexplain analyze select\n    sum(l_extendedprice * l_discount) as revenue\nfrom\n    lineitem\nwhere\n    l_shipdate >= date '1994-01-01'\n    and l_shipdate < date '1994-01-01' + interval '1' year\n    and l_discount between 0.08 - 0.01 and 0.08 + 0.01\n    and l_quantity < 24;\n\nProjection\n├── exprs:ref\n│   └── sum\n│       └── * { lhs: l_discount, rhs: l_extendedprice }\n├── rows: 1\n├── time: 91.042µs\n└── Agg\n    ├── aggs:sum\n    │   └── * { lhs: l_discount, rhs: l_extendedprice }\n    ├── rows: 1\n    ├── time: 4.525204ms\n    └── Filter\n        ├── cond: and { lhs: >= { lhs: 0.09, rhs: l_discount }, rhs: >= { lhs: l_discount, rhs: 0.07 } }\n        ├── rows: 113920\n        ├── time: 14.407315ms\n        └── Projection { exprs: [ l_extendedprice, l_discount ], rows: 417809, time: 2.277959ms }\n            └── Filter\n                ├── cond:and\n                │   ├── lhs: > { lhs: 24, rhs: l_quantity }\n                │   └── rhs:and\n                │       ├── lhs: > { lhs: 1995-01-01, rhs: l_shipdate }\n                │       └── rhs: >= { lhs: l_shipdate, rhs: 1994-01-01 }\n                ├── rows: 417809\n                ├── time: 69.414093ms\n                └── Scan\n                    ├── table: lineitem\n                    ├── list: [ l_quantity, l_extendedprice, l_discount, l_shipdate ]\n                    ├── filter: true\n                    ├── rows: 6001215\n                    └── time: 289.72746ms\n```\n</details>\n\n---------\n\nSigned-off-by: Runji Wang <wangrunji0408@163.com>",
+          "timestamp": "2024-06-17T02:52:48Z",
+          "tree_id": "7fdf7fd2ea6460a68583b439483965f43bf1dd0f",
+          "url": "https://github.com/risinglightdb/risinglight/commit/8b19a09130ed059a8b10cccdc4d0fc0c3991d9ee"
+        },
+        "date": 1718594476381,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "explain-q1",
+            "value": 2544669,
+            "range": "± 13187",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q2",
+            "value": 385028746,
+            "range": "± 1896805",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q3",
+            "value": 55799524,
+            "range": "± 489078",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q4",
+            "value": 4338428,
+            "range": "± 20982",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q5",
+            "value": 299847461,
+            "range": "± 1750617",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q6",
+            "value": 24892449,
+            "range": "± 334465",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q7",
+            "value": 229487657,
+            "range": "± 3048336",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q8",
+            "value": 420916068,
+            "range": "± 3344860",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q9",
+            "value": 286534820,
+            "range": "± 2075094",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q10",
+            "value": 183584265,
+            "range": "± 1608709",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q11",
+            "value": 64414132,
+            "range": "± 119219",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q12",
+            "value": 70769003,
+            "range": "± 347754",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q13",
+            "value": 3059272,
+            "range": "± 15426",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q14",
+            "value": 8794498,
+            "range": "± 29679",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q15",
+            "value": 1875601,
+            "range": "± 13455",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q16",
+            "value": 17251400,
+            "range": "± 55290",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q17",
+            "value": 28456087,
+            "range": "± 93537",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q18",
+            "value": 33373317,
+            "range": "± 98705",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q19",
+            "value": 34126876,
+            "range": "± 181122",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q20",
+            "value": 16028522,
+            "range": "± 30003",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q21",
+            "value": 200502325,
+            "range": "± 2969693",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q22",
+            "value": 9339925,
+            "range": "± 61039",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q1",
+            "value": 4383145902,
+            "range": "± 8828898",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q2",
+            "value": 750442997,
+            "range": "± 6393228",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q3",
+            "value": 699607811,
+            "range": "± 10239025",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q4",
+            "value": 577505518,
+            "range": "± 3843339",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q5",
+            "value": 1062484937,
+            "range": "± 8776523",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q6",
+            "value": 290837678,
+            "range": "± 1663108",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q7",
+            "value": 3322019372,
+            "range": "± 37444774",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q8",
+            "value": 4969983751,
+            "range": "± 39402951",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q9",
+            "value": 1367736123,
+            "range": "± 14131033",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q10",
+            "value": 970552830,
+            "range": "± 8297668",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q11",
+            "value": 147769709,
+            "range": "± 1541863",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q12",
+            "value": 510166442,
+            "range": "± 2267503",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q13",
+            "value": 620472930,
+            "range": "± 22712160",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q14",
+            "value": 311117780,
+            "range": "± 18114306",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q15",
+            "value": 234527832,
+            "range": "± 4355384",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q16",
+            "value": 203768101,
+            "range": "± 2442009",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q17",
+            "value": 8582050784,
+            "range": "± 337319479",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q18",
+            "value": 4354475324,
+            "range": "± 53000364",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q19",
+            "value": 810941540,
+            "range": "± 5761125",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q20",
+            "value": 2027101805,
+            "range": "± 33607214",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q21",
+            "value": 4077888587,
+            "range": "± 114627105",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q22",
+            "value": 187134075,
+            "range": "± 4559546",
             "unit": "ns/iter"
           }
         ]
