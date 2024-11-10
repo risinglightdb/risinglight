@@ -50,27 +50,27 @@ type Rewrite = egg::Rewrite<Expr, PartitionAnalysis>;
 static TO_PARALLEL_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     vec![
         // scan is not partitioned
-        rw!("scan-to-dist";
+        rw!("scan-to-parallel";
             "(to_parallel (scan ?table ?columns ?filter))" =>
             "(exchange random (scan ?table ?columns ?filter))"
         ),
         // values is not partitioned
-        rw!("values-to-dist";
+        rw!("values-to-parallel";
             "(to_parallel (values ?values))" =>
             "(exchange random (values ?values))"
         ),
         // projection does not change distribution
-        rw!("proj-to-dist";
+        rw!("proj-to-parallel";
             "(to_parallel (proj ?projs ?child))" =>
             "(proj ?projs (to_parallel ?child))"
         ),
         // filter does not change distribution
-        rw!("filter-to-dist";
+        rw!("filter-to-parallel";
             "(to_parallel (filter ?cond ?child))" =>
             "(filter ?cond (to_parallel ?child))"
         ),
         // order can not be partitioned
-        rw!("order-to-dist";
+        rw!("order-to-parallel";
             "(to_parallel (order ?key ?child))" =>
             "(order ?key (exchange single (to_parallel ?child)))"
             // TODO: 2-phase ordering
@@ -78,66 +78,66 @@ static TO_PARALLEL_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
             // TODO: merge sort in the second phase?
         ),
         // limit can not be partitioned
-        rw!("limit-to-dist";
+        rw!("limit-to-parallel";
             "(to_parallel (limit ?limit ?offset ?child))" =>
             "(limit ?limit ?offset (exchange single (to_parallel ?child)))"
         ),
         // topn can not be partitioned
-        rw!("topn-to-dist";
+        rw!("topn-to-parallel";
             "(to_parallel (topn ?limit ?offset ?key ?child))" =>
             "(topn ?limit ?offset ?key (exchange single (to_parallel ?child)))"
         ),
         // inner join is partitioned by left
         // as the left side is materialized in memory
-        rw!("inner-join-to-dist";
+        rw!("inner-join-to-parallel";
             "(to_parallel (join inner ?cond ?left ?right))" =>
             "(join inner ?cond
                 (exchange random (to_parallel ?left))
                 (exchange broadcast (to_parallel ?right)))"
         ),
         // outer join can not be partitioned
-        rw!("join-to-dist";
+        rw!("join-to-parallel";
             "(to_parallel (join full_outer ?cond ?left ?right))" =>
             "(join full_outer ?cond
                 (exchange single (to_parallel ?left))
                 (exchange single (to_parallel ?right)))"
         ),
         // hash join can be partitioned by join key
-        rw!("hashjoin-to-dist";
+        rw!("hashjoin-to-parallel";
             "(to_parallel (hashjoin ?type ?cond ?lkey ?rkey ?left ?right))" =>
             "(hashjoin ?type ?cond ?lkey ?rkey
                 (exchange (hash ?lkey) (to_parallel ?left))
                 (exchange (hash ?rkey) (to_parallel ?right)))"
         ),
         // merge join can be partitioned by join key
-        rw!("mergejoin-to-dist";
+        rw!("mergejoin-to-parallel";
             "(to_parallel (mergejoin ?type ?cond ?lkey ?rkey ?left ?right))" =>
             "(mergejoin ?type ?cond ?lkey ?rkey
                 (exchange (hash ?lkey) (to_parallel ?left))
                 (exchange (hash ?rkey) (to_parallel ?right)))"
         ),
         // 2-phase aggregation
-        rw!("agg-to-dist";
+        rw!("agg-to-parallel";
             "(to_parallel (agg ?exprs ?child))" =>
             "(agg ?exprs (exchange single (agg ?exprs (exchange random (to_parallel ?child)))))"
         ),
         // hash aggregation can be partitioned by group key
-        rw!("hashagg-to-dist";
+        rw!("hashagg-to-parallel";
             "(to_parallel (hashagg ?keys ?aggs ?child))" =>
             "(hashagg ?keys ?aggs (exchange (hash ?keys) (to_parallel ?child)))"
         ),
         // sort aggregation can be partitioned by group key
-        rw!("sortagg-to-dist";
+        rw!("sortagg-to-parallel";
             "(to_parallel (sortagg ?keys ?aggs ?child))" =>
             "(sortagg ?keys ?aggs (exchange (hash ?keys) (to_parallel ?child)))"
         ),
         // window function can not be partitioned for now
-        rw!("window-to-dist";
+        rw!("window-to-parallel";
             "(to_parallel (window ?exprs ?child))" =>
             "(window ?exprs (exchange single (to_parallel ?child)))"
         ),
         // explain
-        rw!("explain-to-dist";
+        rw!("explain-to-parallel";
             "(to_parallel (explain ?child))" =>
             "(explain (to_parallel ?child))"
         ),
