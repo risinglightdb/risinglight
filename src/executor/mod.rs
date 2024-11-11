@@ -497,13 +497,17 @@ impl<S: Storage> Builder<S> {
             .execute()
             .into(),
 
-            Analyze(child) => AnalyzeExecutor {
-                plan: self.recexpr(child),
-                catalog: self.optimizer.catalog().clone(),
-                metrics: std::mem::take(&mut self.metrics),
+            Analyze(child) => {
+                let stream = self.build_id(child).spawn_merge();
+                AnalyzeExecutor {
+                    plan: self.recexpr(child),
+                    catalog: self.optimizer.catalog().clone(),
+                    // note: make sure to take the metrics after building the child stream
+                    metrics: std::mem::take(&mut self.metrics),
+                }
+                .execute(stream)
+                .into()
             }
-            .execute(self.build_id(child).spawn_merge())
-            .into(),
 
             Empty(_) => futures::stream::empty().boxed().into(),
 
@@ -558,8 +562,8 @@ impl<S: Storage> Builder<S> {
     fn instrument(&mut self, id: Id, stream: PartitionedStream) -> PartitionedStream {
         // let name = self.node(id).to_string();
         let partitions = stream.streams.len();
-        let spans = vec![TimeSpan::default(); partitions];
-        let output_row_counters = vec![Counter::default(); partitions];
+        let spans = (0..partitions).map(|_| TimeSpan::default()).collect_vec();
+        let output_row_counters = (0..partitions).map(|_| Counter::default()).collect_vec();
 
         self.metrics
             .register(id, spans.clone(), output_row_counters.clone());

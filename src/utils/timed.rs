@@ -1,3 +1,4 @@
+use std::fmt::{self, Debug};
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::{Duration, Instant};
@@ -53,9 +54,18 @@ impl<T: Stream> Stream for Timed<T> {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct Span {
     inner: Arc<Mutex<SpanInner>>,
+}
+
+impl Debug for Span {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Span")
+            .field("busy_time", &self.busy_time())
+            .field("last_poll_time", &self.last_poll_time())
+            .finish()
+    }
 }
 
 #[derive(Debug, Default)]

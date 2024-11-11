@@ -1,5 +1,6 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use std::fmt::{self, Debug};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use pretty_xmlish::PrettyConfig;
@@ -26,10 +27,16 @@ impl AnalyzeExecutor {
 
         // explain the plan
         let get_metadata = |id| {
-            vec![
-                ("rows", self.metrics.get_rows(id).to_string()),
-                ("time", format!("{:?}", self.metrics.get_time(id))),
-            ]
+            let mut metadata = Vec::new();
+            if let Some(rows) = self.metrics.get_rows(id) {
+                let total = rows.iter().sum::<u64>();
+                metadata.push(("rows", format!("{total} = {rows:?}")));
+            }
+            if let Some(time) = self.metrics.get_time(id) {
+                let total = time.iter().sum::<Duration>();
+                metadata.push(("time", format!("{total:?} = {time:?}")));
+            }
+            metadata
         };
         let explain_obj = Explain::of(&self.plan)
             .with_catalog(&self.catalog)
@@ -50,7 +57,7 @@ impl AnalyzeExecutor {
 }
 
 /// A collection of profiling information for a query.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Metrics {
     spans: HashMap<Id, Vec<TimeSpan>>,
     rows: HashMap<Id, Vec<Counter>>,
@@ -64,19 +71,17 @@ impl Metrics {
     }
 
     /// Get the running time for a node.
-    pub fn get_time(&self, id: Id) -> Duration {
+    pub fn get_time(&self, id: Id) -> Option<Vec<Duration>> {
         self.spans
             .get(&id)
-            .map(|spans| spans.iter().map(|span| span.busy_time()).sum())
-            .unwrap()
+            .map(|spans| spans.iter().map(|span| span.busy_time()).collect())
     }
 
     /// Get the number of rows produced by a node.
-    pub fn get_rows(&self, id: Id) -> u64 {
+    pub fn get_rows(&self, id: Id) -> Option<Vec<u64>> {
         self.rows
             .get(&id)
-            .map(|rows| rows.iter().map(|counter| counter.get()).sum())
-            .unwrap()
+            .map(|rows| rows.iter().map(|counter| counter.get()).collect())
     }
 }
 
@@ -84,6 +89,12 @@ impl Metrics {
 #[derive(Default, Clone)]
 pub struct Counter {
     count: Arc<AtomicU64>,
+}
+
+impl Debug for Counter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.get())
+    }
 }
 
 impl Counter {
