@@ -141,6 +141,11 @@ static TO_PARALLEL_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
             "(to_parallel (explain ?child))" =>
             "(explain (to_parallel ?child))"
         ),
+        // analyze
+        rw!("analyze-to-parallel";
+            "(to_parallel (analyze ?child))" =>
+            "(analyze (to_parallel ?child))"
+        ),
         // unnecessary exchange can be removed
         rw!("remove-exchange";
             "(exchange ?dist ?child)" => "?child"

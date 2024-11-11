@@ -14,13 +14,16 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use egg::{Id, Language};
 use futures::stream::{BoxStream, StreamExt};
+use futures::Stream;
 use futures_async_stream::try_stream;
 use itertools::Itertools;
 
 // use minitrace::prelude::*;
+use self::analyze::*;
 use self::copy_from_file::*;
 use self::copy_to_file::*;
 use self::create_function::*;
@@ -56,7 +59,9 @@ use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
 use crate::planner::{Expr, ExprAnalysis, Optimizer, RecExpr, TypeSchemaAnalysis};
 use crate::storage::Storage;
 use crate::types::{ColumnIndex, DataType};
+use crate::utils::timed::{Span as TimeSpan, StreamExt as _};
 
+mod analyze;
 mod copy_from_file;
 mod copy_to_file;
 mod create_function;
@@ -112,6 +117,7 @@ struct Builder<S: Storage> {
     /// For scans on views, we prebuild their executors and store them here.
     /// Multiple scans on the same view will share the same executor.
     views: HashMap<TableRefId, PartitionedStreamSubscriber>,
+    metrics: Metrics,
 }
 
 impl<S: Storage> Builder<S> {
@@ -140,6 +146,7 @@ impl<S: Storage> Builder<S> {
             egraph,
             root,
             views,
+            metrics: Metrics::default(),
         }
     }
 
@@ -193,19 +200,19 @@ impl<S: Storage> Builder<S> {
     }
 
     /// Builds the executor.
-    fn build(self) -> BoxedExecutor {
+    fn build(mut self) -> BoxedExecutor {
         self.build_id(self.root).spawn_merge()
     }
 
     /// Builds the executor and returns its subscriber.
-    fn build_subscriber(self) -> PartitionedStreamSubscriber {
+    fn build_subscriber(mut self) -> PartitionedStreamSubscriber {
         self.build_id(self.root).spawn()
     }
 
     /// Builds stream for the given plan.
-    fn build_id(&self, id: Id) -> PartitionedStream {
+    fn build_id(&mut self, id: Id) -> PartitionedStream {
         use Expr::*;
-        match self.node(id).clone() {
+        let stream = match self.node(id).clone() {
             Scan([table, list, filter]) => {
                 let table_id = self.node(table).as_table();
                 let columns = (self.node(list).as_list().iter())
@@ -490,6 +497,14 @@ impl<S: Storage> Builder<S> {
             .execute()
             .into(),
 
+            Analyze(child) => AnalyzeExecutor {
+                plan: self.recexpr(child),
+                catalog: self.optimizer.catalog().clone(),
+                metrics: std::mem::take(&mut self.metrics),
+            }
+            .execute(self.build_id(child).spawn_merge())
+            .into(),
+
             Empty(_) => futures::stream::empty().boxed().into(),
 
             Exchange([dist, child]) => match self.node(dist) {
@@ -536,6 +551,40 @@ impl<S: Storage> Builder<S> {
             },
 
             node => panic!("not a plan: {node:?}"),
+        };
+        self.instrument(id, stream)
+    }
+
+    fn instrument(&mut self, id: Id, stream: PartitionedStream) -> PartitionedStream {
+        // let name = self.node(id).to_string();
+        let partitions = stream.streams.len();
+        let spans = vec![TimeSpan::default(); partitions];
+        let output_row_counters = vec![Counter::default(); partitions];
+
+        self.metrics
+            .register(id, spans.clone(), output_row_counters.clone());
+
+        #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
+        async fn instrument(
+            stream: impl Stream<Item = Result<DataChunk>> + Send + 'static,
+            output_row_counter: Counter,
+        ) {
+            #[for_await]
+            for chunk in stream {
+                let chunk = chunk?;
+                output_row_counter.inc(chunk.cardinality() as u64);
+                yield chunk;
+            }
+        }
+
+        PartitionedStream {
+            streams: stream
+                .streams
+                .into_iter()
+                .zip(spans)
+                .zip(output_row_counters)
+                .map(|((stream, span), counter)| instrument(stream.timed(span), counter))
+                .collect(),
         }
     }
 
