@@ -2,6 +2,8 @@
 
 use std::hash::{DefaultHasher, Hasher};
 
+use rand::{Rng, SeedableRng};
+
 use super::*;
 
 /// Distribute the input data to multiple partitions by hash partitioning.
@@ -59,6 +61,12 @@ pub struct RandomPartitionProducer {
 impl RandomPartitionProducer {
     #[try_stream(boxed, ok = (DataChunk, usize), error = ExecutorError)]
     pub async fn execute(self, child: BoxedExecutor) {
-        todo!()
+        let mut rng = rand::rngs::SmallRng::from_entropy();
+        #[for_await]
+        for batch in child {
+            let batch = batch?;
+            let partition = rng.gen_range(0..self.num_partitions);
+            yield (batch, partition);
+        }
     }
 }

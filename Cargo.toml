@@ -56,6 +56,7 @@ pgwire = "0.20"
 pretty-xmlish = "0.1"
 prost = "0.12"
 pyo3 = { version = "0.21", features = ["extension-module"], optional = true }
+rand = "0.8"
 ref-cast = "1.0"
 regex = "1"
 risinglight_proto = "0.2"

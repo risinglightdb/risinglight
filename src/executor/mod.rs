@@ -503,15 +503,29 @@ impl<S: Storage> Builder<S> {
                             .collect(),
                     }
                 }
+                Random => {
+                    let num_partitions = tokio::runtime::Handle::current().metrics().num_workers();
+                    self.build_id(child)
+                        .spawn_dispatch(num_partitions, |c| {
+                            RandomPartitionProducer { num_partitions }.execute(c)
+                        })
+                        .subscribe()
+                }
                 Hash(keys) => {
-                    let parallism = tokio::runtime::Handle::current().metrics().num_workers();
-                    let hash_key = (self.node(keys).as_list().iter())
-                        .map(|id| self.node(*id).as_column().column_id as usize)
+                    let num_partitions = tokio::runtime::Handle::current().metrics().num_workers();
+                    let child_schema = &self.egraph[child].data.schema;
+                    let hash_key = (self.node(*keys).as_list().iter())
+                        .map(|id| {
+                            child_schema
+                                .iter()
+                                .position(|&x| x == *id)
+                                .expect("hash key not found in child's schema")
+                        })
                         .collect_vec();
                     self.build_id(child)
-                        .spawn_dispatch(|c| {
+                        .spawn_dispatch(num_partitions, |c| {
                             HashPartitionProducer {
-                                num_partitions: parallism,
+                                num_partitions,
                                 hash_key: hash_key.clone(),
                             }
                             .execute(c)
@@ -602,19 +616,21 @@ fn spawn(mut stream: BoxedExecutor) -> StreamSubscriber {
 
     StreamSubscriber {
         rx: rx.deactivate(),
-        handle: Arc::new(AbortOnDropHandle(handle)),
+        task_handle: Arc::new(AbortOnDropHandle(handle)),
     }
 }
 
 /// Spawn new tasks to execute the given dispatchers.
 /// Dispatch the output to multiple partitions by the associated partition index.
-fn spawn_dispatchers(mut streams: Vec<BoxedDispatcher>) -> PartitionedStreamSubscriber {
-    let (txs, rxs): (Vec<_>, Vec<_>) = streams
-        .into_iter()
+fn spawn_dispatchers(
+    streams: Vec<BoxedDispatcher>,
+    num_partitions: usize,
+) -> PartitionedStreamSubscriber {
+    let (txs, rxs): (Vec<_>, Vec<_>) = (0..num_partitions)
         .map(|_| async_broadcast::broadcast(16))
         .unzip();
     let mut handles = Vec::with_capacity(streams.len());
-    for stream in streams {
+    for mut stream in streams {
         let txs = txs.clone();
         let handle = tokio::task::Builder::default()
             .spawn(async move {
@@ -634,11 +650,13 @@ fn spawn_dispatchers(mut streams: Vec<BoxedDispatcher>) -> PartitionedStreamSubs
             .expect("failed to spawn task");
         handles.push(handle);
     }
+    let handles = Arc::new(handles);
     PartitionedStreamSubscriber {
-        subscribers: (rxs.into_iter().zip(handles))
-            .map(|(rx, handle)| StreamSubscriber {
+        subscribers: rxs
+            .into_iter()
+            .map(|rx| StreamSubscriber {
                 rx: rx.deactivate(),
-                handle: Arc::new(AbortOnDropHandle(handle)),
+                task_handle: handles.clone(), // all task handles are shared by all subscribers
             })
             .collect(),
     }
@@ -666,11 +684,23 @@ impl PartitionedStream {
     }
 
     /// Merges the partitioned streams into a single stream.
+    ///
+    /// ```text
+    /// A0 -++-> A
+    /// A1 -+|
+    /// A2 --+
+    /// ```
     fn spawn_merge(self) -> BoxedExecutor {
         futures::stream::select_all(self.spawn().subscribe().streams).boxed()
     }
 
     /// Maps each stream with the given function.
+    ///
+    /// ```text
+    /// A0 --f-> B0
+    /// A1 --f-> B1
+    /// A2 --f-> B2
+    /// ```
     fn map(self, f: impl Fn(BoxedExecutor) -> BoxedExecutor) -> PartitionedStream {
         PartitionedStream {
             streams: self.streams.into_iter().map(f).collect(),
@@ -678,6 +708,16 @@ impl PartitionedStream {
     }
 
     /// Zips up two sets of partitioned streams.
+    ///
+    /// ```text
+    /// A0 -+---> (A0,B0)
+    /// A1 -|+--> (A1,B1)
+    /// A2 -||+-> (A2,B2)
+    ///     |||
+    /// B0 -+||
+    /// B1 --+|
+    /// B2 ---+
+    /// ```
     fn zip(self, other: PartitionedStream) -> ZippedPartitionedStream {
         ZippedPartitionedStream {
             left: self.streams,
@@ -685,19 +725,21 @@ impl PartitionedStream {
         }
     }
 
-    /// Spawns each stream with the given name.
+    /// Spawns each partitioned stream as a tokio task.
     fn spawn(self) -> PartitionedStreamSubscriber {
         PartitionedStreamSubscriber {
             subscribers: self.streams.into_iter().map(spawn).collect(),
         }
     }
 
-    /// Spawns each stream and dispatches the output to multiple partitions.
+    /// Spawns each partitioned stream and dispatches the output to `num_partitions` partitions.
+    /// Returns a set of subscribers of `num_partitions` partitions.
     fn spawn_dispatch(
         self,
+        num_partitions: usize,
         f: impl Fn(BoxedExecutor) -> BoxedDispatcher,
     ) -> PartitionedStreamSubscriber {
-        spawn_dispatchers(self.streams.into_iter().map(f).collect())
+        spawn_dispatchers(self.streams.into_iter().map(f).collect(), num_partitions)
     }
 }
 
@@ -744,7 +786,7 @@ impl PartitionedStreamSubscriber {
 /// New streams can be created by calling `subscribe`.
 struct StreamSubscriber {
     rx: async_broadcast::InactiveReceiver<Result<DataChunk>>,
-    handle: Arc<AbortOnDropHandle>,
+    task_handle: Arc<dyn Send + Sync>,
 }
 
 impl StreamSubscriber {
@@ -753,15 +795,15 @@ impl StreamSubscriber {
         #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
         async fn to_stream(
             rx: async_broadcast::Receiver<Result<DataChunk>>,
-            handle: Arc<AbortOnDropHandle>,
+            task_handle: Arc<dyn Send + Sync>,
         ) {
             #[for_await]
             for chunk in rx {
                 yield chunk?;
             }
-            drop(handle);
+            drop(task_handle);
         }
-        to_stream(self.rx.activate_cloned(), self.handle.clone())
+        to_stream(self.rx.activate_cloned(), self.task_handle.clone())
     }
 }
 
