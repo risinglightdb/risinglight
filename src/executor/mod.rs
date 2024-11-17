@@ -212,7 +212,7 @@ impl<S: Storage> Builder<S> {
     /// Builds stream for the given plan.
     fn build_id(&mut self, id: Id) -> PartitionedStream {
         use Expr::*;
-        let stream = match self.node(id).clone() {
+        let mut stream = match self.node(id).clone() {
             Scan([table, list, filter]) => {
                 let table_id = self.node(table).as_table();
                 let columns = (self.node(list).as_list().iter())
@@ -556,6 +556,12 @@ impl<S: Storage> Builder<S> {
 
             node => panic!("not a plan: {node:?}"),
         };
+        // if parallel plan is enabled, each executor will be partitioned and consecutive
+        // executors may be fused into a single task. otherwise, we spawn a new task for each
+        // executor so that executors can be executed in parallel.
+        if !self.optimizer.config().generate_parallel_plan {
+            stream = stream.spawn().subscribe();
+        }
         self.instrument(id, stream)
     }
 

@@ -27,8 +27,12 @@ pub struct Database {
 /// The configuration of the database.
 #[derive(Debug, Default)]
 struct Config {
+    /// If true, no optimization will be applied to the query.
     disable_optimizer: bool,
     mock_stat: Option<Statistics>,
+    /// If true, each operator will be parallelized and partitioned.
+    /// WARN: This feature is under development and may not work properly.
+    enable_parallel_execution: bool,
 }
 
 impl Database {
@@ -93,8 +97,7 @@ impl Database {
             crate::planner::Config {
                 enable_range_filter_scan: self.storage.support_range_filter_scan(),
                 table_is_sorted_by_primary_key: self.storage.table_is_sorted_by_primary_key(),
-                generate_parallel_plan: tokio::runtime::Handle::current().metrics().num_workers()
-                    > 1,
+                generate_parallel_plan: self.config.lock().unwrap().enable_parallel_execution,
             },
         );
 
@@ -160,19 +163,15 @@ impl Database {
     /// Mock the row count of a table for planner test.
     fn handle_set(&self, stmt: &Statement) -> Result<bool, Error> {
         if let Statement::Pragma { name, .. } = stmt {
+            let mut config = self.config.lock().unwrap();
             match name.to_string().as_str() {
-                "enable_optimizer" => {
-                    self.config.lock().unwrap().disable_optimizer = false;
-                    return Ok(true);
-                }
-                "disable_optimizer" => {
-                    self.config.lock().unwrap().disable_optimizer = true;
-                    return Ok(true);
-                }
-                name => {
-                    return Err(crate::binder::BindError::NoPragma(name.into()).into());
-                }
+                "enable_optimizer" => config.disable_optimizer = false,
+                "disable_optimizer" => config.disable_optimizer = true,
+                "enable_parallel_execution" => config.enable_parallel_execution = true,
+                "disable_parallel_execution" => config.enable_parallel_execution = false,
+                name => return Err(crate::binder::BindError::NoPragma(name.into()).into()),
             }
+            return Ok(true);
         }
         let Statement::SetVariable {
             variable, value, ..

@@ -8,7 +8,7 @@ use self::rules::partition::to_parallel_plan;
 use super::*;
 use crate::catalog::RootCatalogRef;
 
-/// Plan optimizer.
+/// Optimizer transforms the query plan into a more efficient one.
 #[derive(Clone)]
 pub struct Optimizer {
     analysis: ExprAnalysis,
@@ -16,9 +16,11 @@ pub struct Optimizer {
 
 /// Optimizer configurations.
 #[derive(Debug, Clone, Default)]
+#[non_exhaustive]
 pub struct Config {
     pub enable_range_filter_scan: bool,
     pub table_is_sorted_by_primary_key: bool,
+    /// If true, the optimizer will insert exchange operators to the plan.
     pub generate_parallel_plan: bool,
 }
 
@@ -113,6 +115,11 @@ impl Optimizer {
     /// Returns the catalog.
     pub fn catalog(&self) -> &RootCatalogRef {
         &self.analysis.catalog
+    }
+
+    /// Returns the configurations.
+    pub fn config(&self) -> &Config {
+        &self.analysis.config
     }
 }
 
