@@ -386,6 +386,7 @@ impl<'a> Explain<'a> {
             ),
             Empty(_) => Pretty::childless_record("Empty", with_meta(vec![])),
             Max1Row(child) => Pretty::fieldless_record("Max1Row", vec![self.expr(child).pretty()]),
+            Schema([_, child]) => self.child(child).pretty(),
         }
     }
 }

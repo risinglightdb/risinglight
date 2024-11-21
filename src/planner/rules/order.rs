@@ -37,6 +37,7 @@ pub fn analyze_order(egraph: &EGraph, enode: &Expr) -> OrderKey {
         MergeJoin([_, _, _, _, _, r]) => x(r).clone(),
         SortAgg([_, _, c]) => x(c).clone(),
         Exchange([_, c]) => x(c).clone(),
+        Schema([_, c]) => x(c).clone(),
         // unordered for other plans
         _ => Box::new([]),
     }

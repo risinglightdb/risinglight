@@ -511,6 +511,8 @@ impl<S: Storage> Builder<S> {
 
             Empty(_) => futures::stream::empty().boxed().into(),
 
+            Schema([_, child]) => self.build_id(child), // schema node is just pass-through
+
             Exchange([dist, child]) => match self.node(dist) {
                 Single => self.build_id(child).spawn_merge().into(),
                 Broadcast => {
@@ -556,13 +558,14 @@ impl<S: Storage> Builder<S> {
 
             node => panic!("not a plan: {node:?}"),
         };
+        stream = self.instrument(id, stream);
         // if parallel plan is enabled, each executor will be partitioned and consecutive
         // executors may be fused into a single task. otherwise, we spawn a new task for each
         // executor so that executors can be executed in parallel.
         if !self.optimizer.config().generate_parallel_plan {
             stream = stream.spawn().subscribe();
         }
-        self.instrument(id, stream)
+        stream
     }
 
     fn instrument(&mut self, id: Id, stream: PartitionedStream) -> PartitionedStream {

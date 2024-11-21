@@ -145,6 +145,9 @@ define_language! {
                                                     // with the same schema as `child`
         "max1row" = Max1Row(Id),                // (max1row child)
                                                     // convert table to scalar
+        "schema" = Schema([Id; 2]),             // (schema [expr..] child)
+                                                    // reset schema of child to [expr..]
+                                                    // this node is just pass-through in execution
 
         Symbol(Symbol),
     }

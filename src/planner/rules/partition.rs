@@ -118,8 +118,13 @@ static TO_PARALLEL_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
         ),
         // 2-phase aggregation
         rw!("agg-to-parallel";
-            "(to_parallel (agg ?exprs ?child))" =>
-            "(agg ?exprs (exchange single (agg ?exprs (exchange random (to_parallel ?child)))))"
+            "(to_parallel (agg ?aggs ?child))" =>
+            { apply_global_aggs("
+                (schema ?aggs (agg ?global_aggs (exchange single 
+                    (agg ?aggs (exchange random (to_parallel ?child))))))
+            ") }
+            // to keep the schema unchanged, we add a `schema` node
+            // FIXME: check if all aggs are supported in 2-phase aggregation
         ),
         // hash aggregation can be partitioned by group key
         rw!("hashagg-to-parallel";
@@ -166,6 +171,62 @@ fn partition_is_same(
     let a = var(a);
     let b = var(b);
     move |egraph, _, subst| egraph[subst[a]].data == egraph[subst[b]].data
+}
+
+/// Returns an applier that replaces `?global_aggs` with the nested `?aggs`.
+///
+/// ```text
+/// ?aggs        = (list (sum a) (count b))
+/// ?global_aggs = (list (sum (ref (sum a))) (count (ref (count b))))
+/// ```
+fn apply_global_aggs(pattern_str: &str) -> impl Applier<Expr, PartitionAnalysis> {
+    struct ApplyGlobalAggs {
+        pattern: Pattern,
+        aggs: Var,
+        global_aggs: Var,
+    }
+    impl Applier<Expr, PartitionAnalysis> for ApplyGlobalAggs {
+        fn apply_one(
+            &self,
+            egraph: &mut EGraph<Expr, PartitionAnalysis>,
+            eclass: Id,
+            subst: &Subst,
+            searcher_ast: Option<&PatternAst<Expr>>,
+            rule_name: Symbol,
+        ) -> Vec<Id> {
+            let aggs = egraph[subst[self.aggs]].as_list().to_vec();
+            let mut global_aggs = vec![];
+            for agg in aggs {
+                use Expr::*;
+                let ref_id = egraph.add(Expr::Ref(agg));
+                let global_agg = match &egraph[agg].nodes[0] {
+                    RowCount => RowCount,
+                    Max(_) => Max(ref_id),
+                    Min(_) => Min(ref_id),
+                    Sum(_) => Sum(ref_id),
+                    Avg(_) => panic!("avg is not supported in 2-phase aggregation"),
+                    Count(_) => Count(ref_id),
+                    CountDistinct(_) => {
+                        panic!("count distinct is not supported in 2-phase aggregation")
+                    }
+                    First(_) => First(ref_id),
+                    Last(_) => Last(ref_id),
+                    node => panic!("invalid agg: {}", node),
+                };
+                global_aggs.push(egraph.add(global_agg));
+            }
+            let id = egraph.add(Expr::List(global_aggs.into()));
+            let mut subst = subst.clone();
+            subst.insert(self.global_aggs, id);
+            self.pattern
+                .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
+        }
+    }
+    ApplyGlobalAggs {
+        pattern: pattern(pattern_str),
+        aggs: var("?aggs"),
+        global_aggs: var("?global_aggs"),
+    }
 }
 
 /// Describes how data is partitioned.
@@ -265,6 +326,25 @@ mod tests {
                 (exchange (hash (list b)) 
                     (scan t2 (list b) true))
             )
+        ";
+        let output = to_parallel_plan(input.parse().unwrap());
+        let expected: RecExpr = distributed.parse().unwrap();
+        assert_eq!(output.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_two_phase_agg() {
+        let input = "
+            (agg (list (sum a)) 
+                (scan t1 (list a) true))
+        ";
+        let distributed = "
+            (schema (list (sum a))
+                (agg (list (sum (ref (sum a))))
+                    (exchange single
+                        (agg (list (sum a))
+                            (exchange random
+                                (scan t1 (list a) true))))))
         ";
         let output = to_parallel_plan(input.parse().unwrap());
         let expected: RecExpr = distributed.parse().unwrap();

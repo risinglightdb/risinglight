@@ -76,6 +76,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         },
         Empty(_) => 0.0,
         Max1Row(_) => 1.0,
+        Schema([_, c]) => x(c),
         // FIXME: broadcast distribution should multiply the number of rows
         Exchange([_, c]) => x(c),
 
