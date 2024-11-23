@@ -65,7 +65,7 @@ define_language! {
 
         // functions
         "extract" = Extract([Id; 2]),           // (extract field expr)
-            Field(DateTimeField),
+            Field(Box<DateTimeField>),
         "replace" = Replace([Id; 3]),           // (replace expr pattern replacement)
         "substring" = Substring([Id; 3]),       // (substring expr start length)
 
@@ -301,5 +301,16 @@ impl<D> ExprExt for egg::EClass<Expr, D> {
                 _ => None,
             })
             .expect("not a column")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_expr_size() {
+        // the size of Expr should be as small as possible
+        assert_eq!(std::mem::size_of::<Expr>(), 32);
     }
 }
