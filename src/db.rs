@@ -201,7 +201,12 @@ impl Database {
 
     /// Return all available pragma options.
     fn pragma_options() -> &'static [&'static str] {
-        &["enable_optimizer", "disable_optimizer"]
+        &[
+            "enable_optimizer",
+            "disable_optimizer",
+            "enable_parallel_execution",
+            "disable_parallel_execution",
+        ]
     }
 }
 

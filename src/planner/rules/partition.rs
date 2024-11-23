@@ -18,6 +18,11 @@ use crate::planner::RecExpr;
 
 /// Converts a physical plan into a parallel plan.
 pub fn to_parallel_plan(mut plan: RecExpr) -> RecExpr {
+    // DDL statements are not parallelizable
+    if plan.as_ref()[plan.as_ref().len() - 1].is_ddl() {
+        return plan;
+    }
+
     // add to_parallel to the root node
     let root_id = Id::from(plan.as_ref().len() - 1);
     plan.add(Expr::ToParallel(root_id));
@@ -27,6 +32,14 @@ pub fn to_parallel_plan(mut plan: RecExpr) -> RecExpr {
         .run(TO_PARALLEL_RULES.iter());
     let extractor = egg::Extractor::new(&runner.egraph, NoToParallel);
     let (_, expr) = extractor.find_best(runner.roots[0]);
+
+    assert!(
+        expr.as_ref()
+            .iter()
+            .all(|node| !matches!(node, Expr::ToParallel(_))),
+        "unexpected ToParallel in the parallel plan:\n{}",
+        expr.pretty(60)
+    );
     expr
 }
 
@@ -38,10 +51,12 @@ impl egg::CostFunction<Expr> for NoToParallel {
     where
         C: FnMut(Id) -> Self::Cost,
     {
+        let cost = enode.fold(1usize, |sum, id| sum.saturating_add(costs(id)));
+        // if all candidates contain ToParallel, the one with the deepest ToParallel will be chosen.
         if let Expr::ToParallel(_) = enode {
-            return usize::MAX;
+            return cost * 1024;
         }
-        enode.fold(1, |sum, id| sum.saturating_add(costs(id)))
+        cost
     }
 }
 
@@ -87,7 +102,7 @@ static TO_PARALLEL_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
             "(to_parallel (topn ?limit ?offset ?key ?child))" =>
             "(topn ?limit ?offset ?key (exchange single (to_parallel ?child)))"
         ),
-        // inner join is partitioned by left
+        // inner join and left outer join are partitioned by left
         // as the left side is materialized in memory
         rw!("inner-join-to-parallel";
             "(to_parallel (join inner ?cond ?left ?right))" =>
@@ -95,12 +110,11 @@ static TO_PARALLEL_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
                 (exchange random (to_parallel ?left))
                 (exchange broadcast (to_parallel ?right)))"
         ),
-        // outer join can not be partitioned
-        rw!("join-to-parallel";
-            "(to_parallel (join full_outer ?cond ?left ?right))" =>
-            "(join full_outer ?cond
-                (exchange single (to_parallel ?left))
-                (exchange single (to_parallel ?right)))"
+        rw!("left-outer-join-to-parallel";
+            "(to_parallel (join left_outer ?cond ?left ?right))" =>
+            "(join left_outer ?cond
+                (exchange random (to_parallel ?left))
+                (exchange broadcast (to_parallel ?right)))"
         ),
         // hash join can be partitioned by join key
         rw!("hashjoin-to-parallel";
@@ -140,6 +154,26 @@ static TO_PARALLEL_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
         rw!("window-to-parallel";
             "(to_parallel (window ?exprs ?child))" =>
             "(window ?exprs (exchange single (to_parallel ?child)))"
+        ),
+        // insert
+        rw!("insert-to-parallel";
+            "(to_parallel (insert ?table ?columns ?child))" =>
+            "(insert ?table ?columns (to_parallel ?child))"
+        ),
+        // delete
+        rw!("delete-to-parallel";
+            "(to_parallel (delete ?table ?child))" =>
+            "(delete ?table (to_parallel ?child))"
+        ),
+        // copy_from
+        rw!("copy_from-to-parallel";
+            "(to_parallel (copy_from ?dest ?types))" =>
+            "(copy_from ?dest ?types)"
+        ),
+        // copy_to
+        rw!("copy_to-to-parallel";
+            "(to_parallel (copy_to ?dest ?child))" =>
+            "(copy_to ?dest (to_parallel ?child))"
         ),
         // explain
         rw!("explain-to-parallel";

@@ -467,14 +467,14 @@ impl<S: Storage> Builder<S> {
                     .collect(),
                 storage: self.storage.clone(),
             }
-            .execute(self.build_id(child).assume_single())
+            .execute(self.build_id(child).spawn_merge())
             .into(),
 
             Delete([table, child]) => DeleteExecutor {
                 table_id: self.node(table).as_table(),
                 storage: self.storage.clone(),
             }
-            .execute(self.build_id(child).assume_single())
+            .execute(self.build_id(child).spawn_merge())
             .into(),
 
             CopyFrom([src, types]) => CopyFromFileExecutor {
@@ -487,7 +487,7 @@ impl<S: Storage> Builder<S> {
             CopyTo([src, child]) => CopyToFileExecutor {
                 source: self.node(src).as_ext_source(),
             }
-            .execute(self.build_id(child).assume_single())
+            .execute(self.build_id(child).spawn_merge())
             .into(),
 
             Explain(plan) => ExplainExecutor {
@@ -556,7 +556,7 @@ impl<S: Storage> Builder<S> {
                 node => panic!("invalid exchange type: {node:?}"),
             },
 
-            node => panic!("not a plan: {node:?}"),
+            node => panic!("not a plan: {node:?}\n{:?}", self.egraph.dump()),
         };
         stream = self.instrument(id, stream);
         // if parallel plan is enabled, each executor will be partitioned and consecutive
@@ -738,12 +738,6 @@ impl From<BoxedExecutor> for PartitionedStream {
 }
 
 impl PartitionedStream {
-    /// Assume that there is only one stream and returns it.
-    fn assume_single(self) -> BoxedExecutor {
-        assert_eq!(self.streams.len(), 1);
-        self.streams.into_iter().next().unwrap()
-    }
-
     /// Merges the partitioned streams into a single stream.
     ///
     /// ```text

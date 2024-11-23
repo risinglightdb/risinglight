@@ -268,6 +268,14 @@ impl Expr {
         use Expr::*;
         matches!(self, RowNumber) || self.is_aggregate_function()
     }
+
+    pub const fn is_ddl(&self) -> bool {
+        use Expr::*;
+        matches!(
+            self,
+            CreateTable(_) | CreateView(_) | CreateFunction(_) | Drop(_)
+        )
+    }
 }
 
 trait ExprExt {
