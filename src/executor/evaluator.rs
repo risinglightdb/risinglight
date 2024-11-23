@@ -211,22 +211,6 @@ impl<'a> Evaluator<'a> {
 
     /// Evaluate the aggregation.
     fn eval_agg(&self, state: AggState, chunk: &DataChunk) -> Result<AggState, ConvertError> {
-        impl DataValue {
-            fn add(self, other: Self) -> Self {
-                if self.is_null() {
-                    other
-                } else {
-                    self + other
-                }
-            }
-            fn or(self, other: Self) -> Self {
-                if self.is_null() {
-                    other
-                } else {
-                    self
-                }
-            }
-        }
         use Expr::*;
         Ok(match state {
             AggState::Value(state) => AggState::Value(match self.node() {
@@ -311,6 +295,29 @@ impl AggState {
         match self {
             AggState::Value(v) => v.clone(),
             AggState::DistinctValue(v) => DataValue::Int32(v.len() as _),
+        }
+    }
+}
+
+trait Ext {
+    fn add(self, other: Self) -> Self;
+    fn or(self, other: Self) -> Self;
+}
+
+impl Ext for DataValue {
+    fn add(self, other: Self) -> Self {
+        if self.is_null() {
+            other
+        } else {
+            self + other
+        }
+    }
+
+    fn or(self, other: Self) -> Self {
+        if self.is_null() {
+            other
+        } else {
+            self
         }
     }
 }

@@ -107,7 +107,6 @@ impl<const T: JoinType> HashJoinExecutor<T> {
 pub struct HashSemiJoinExecutor {
     pub left_keys: RecExpr,
     pub right_keys: RecExpr,
-    pub left_types: Vec<DataType>,
     pub anti: bool,
 }
 

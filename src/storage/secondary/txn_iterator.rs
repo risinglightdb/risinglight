@@ -17,6 +17,7 @@ pub enum SecondaryIterator {
 }
 
 #[enum_dispatch(SecondaryIterator)]
+#[allow(dead_code)]
 pub trait SecondaryIteratorImpl {}
 
 /// An iterator over all data in a transaction.
