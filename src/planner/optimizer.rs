@@ -20,8 +20,9 @@ pub struct Optimizer {
 pub struct Config {
     pub enable_range_filter_scan: bool,
     pub table_is_sorted_by_primary_key: bool,
-    /// If true, the optimizer will insert exchange operators to the plan.
-    pub generate_parallel_plan: bool,
+    /// The number of partitions of each operator.
+    /// If set to >1, exchange operators will be inserted into the plan.
+    pub parallelism: usize,
 }
 
 impl Optimizer {
@@ -54,7 +55,7 @@ impl Optimizer {
         // 3. join reorder and hashjoin
         self.optimize_stage(&mut expr, &mut cost, STAGE3_RULES.iter(), 3, 8);
 
-        if self.analysis.config.generate_parallel_plan {
+        if self.analysis.config.parallelism > 1 {
             expr = to_parallel_plan(expr);
         }
         expr

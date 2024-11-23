@@ -63,7 +63,7 @@ pub struct RandomPartitionProducer {
 impl RandomPartitionProducer {
     #[try_stream(boxed, ok = (DataChunk, usize), error = ExecutorError)]
     pub async fn execute(self, child: BoxedExecutor) {
-        let mut rng = rand::rngs::SmallRng::from_entropy();
+        let mut rng = rand::rngs::SmallRng::from_seed([0; 32]);
         #[for_await]
         for batch in child {
             let batch = batch?;

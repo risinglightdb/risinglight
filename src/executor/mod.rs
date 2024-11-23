@@ -212,7 +212,7 @@ impl<S: Storage> Builder<S> {
     /// Builds stream for the given plan.
     fn build_id(&mut self, id: Id) -> PartitionedStream {
         use Expr::*;
-        let mut stream = match self.node(id).clone() {
+        let stream = match self.node(id).clone() {
             Scan([table, list, filter]) => {
                 let table_id = self.node(table).as_table();
                 let columns = (self.node(list).as_list().iter())
@@ -517,15 +517,15 @@ impl<S: Storage> Builder<S> {
                 Single => self.build_id(child).spawn_merge().into(),
                 Broadcast => {
                     let subscriber = self.build_id(child).spawn();
-                    let parallism = tokio::runtime::Handle::current().metrics().num_workers();
+                    let num_partitions = self.optimizer.config().parallelism;
                     PartitionedStream {
-                        streams: (0..parallism)
+                        streams: (0..num_partitions)
                             .map(|_| subscriber.subscribe_merge())
                             .collect(),
                     }
                 }
                 Random => {
-                    let num_partitions = tokio::runtime::Handle::current().metrics().num_workers();
+                    let num_partitions = self.optimizer.config().parallelism;
                     self.build_id(child)
                         .spawn_dispatch(num_partitions, |c| {
                             RandomPartitionProducer { num_partitions }.execute(c)
@@ -533,7 +533,7 @@ impl<S: Storage> Builder<S> {
                         .subscribe()
                 }
                 Hash(keys) => {
-                    let num_partitions = tokio::runtime::Handle::current().metrics().num_workers();
+                    let num_partitions = self.optimizer.config().parallelism;
                     let keys = self.resolve_column_index(keys, child);
                     self.build_id(child)
                         .spawn_dispatch(num_partitions, |c| {
@@ -550,14 +550,7 @@ impl<S: Storage> Builder<S> {
 
             node => panic!("not a plan: {node:?}\n{:?}", self.egraph.dump()),
         };
-        stream = self.instrument(id, stream);
-        // if parallel plan is enabled, each executor will be partitioned and consecutive
-        // executors may be fused into a single task. otherwise, we spawn a new task for each
-        // executor so that executors can be executed in parallel.
-        if !self.optimizer.config().generate_parallel_plan {
-            stream = stream.spawn().subscribe();
-        }
-        stream
+        self.instrument(id, stream)
     }
 
     fn instrument(&mut self, id: Id, stream: PartitionedStream) -> PartitionedStream {
