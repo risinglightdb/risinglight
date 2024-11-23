@@ -18,11 +18,6 @@ use crate::planner::RecExpr;
 
 /// Converts a physical plan into a parallel plan.
 pub fn to_parallel_plan(mut plan: RecExpr) -> RecExpr {
-    // DDL statements are not parallelizable
-    if plan.as_ref()[plan.as_ref().len() - 1].is_ddl() {
-        return plan;
-    }
-
     // add to_parallel to the root node
     let root_id = Id::from(plan.as_ref().len() - 1);
     plan.add(Expr::ToParallel(root_id));
@@ -179,6 +174,11 @@ static TO_PARALLEL_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
         rw!("analyze-to-parallel";
             "(to_parallel (analyze ?child))" =>
             "(analyze (to_parallel ?child))"
+        ),
+        // no parallel for DDL
+        rw!("ddl-to-parallel";
+            "(to_parallel ?child)" => "?child"
+            if node_is("?child", &["create_table", "create_view", "create_function", "drop"])
         ),
         // unnecessary exchange can be removed
         rw!("remove-exchange";

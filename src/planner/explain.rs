@@ -335,19 +335,21 @@ impl<'a> Explain<'a> {
                 Pretty::childless_record("Hash", vec![("keys", self.expr(keys).pretty())])
             }
 
-            CreateTable(t) => {
-                let fields = with_meta(t.pretty_table());
-                Pretty::childless_record("CreateTable", fields)
-            }
+            CreateTable(table) => Pretty::childless_record(
+                "CreateTable",
+                with_meta(vec![("table", self.expr(table).pretty())]),
+            ),
             CreateView([table, query]) => Pretty::simple_record(
                 "CreateView",
                 with_meta(vec![("table", self.expr(table).pretty())]),
                 vec![self.expr(query).pretty()],
             ),
-            CreateFunction(f) => {
-                let v = f.pretty_function();
-                Pretty::childless_record("CreateFunction", v)
-            }
+            TableDef(t) => Pretty::childless_record("TableDef", t.pretty_table()),
+            CreateFunction(f) => Pretty::childless_record(
+                "CreateFunction",
+                with_meta(vec![("function", self.expr(f).pretty())]),
+            ),
+            FunctionDef(f) => Pretty::childless_record("FunctionDef", f.pretty_function()),
             Drop(tables) => {
                 let fields = with_meta(vec![("objects", self.expr(tables).pretty())]);
                 Pretty::childless_record("Drop", fields)

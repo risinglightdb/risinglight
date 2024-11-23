@@ -3,7 +3,7 @@
 use egg::{define_language, Id, Symbol};
 
 use crate::binder::copy::ExtSource;
-use crate::binder::{CreateFunction, CreateTable};
+use crate::binder::{FunctionDef, TableDef};
 use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataType, DataValue, DateTimeField};
@@ -127,9 +127,11 @@ define_language! {
             "random" = Random,                      // (random)             random partition
             "hash" = Hash(Id),                      // (hash key=[expr..])  partition by hash of key
 
-        CreateTable(Box<CreateTable>),
-        "create_view" = CreateView([Id; 2]),    // (create_view create_table child)
-        CreateFunction(CreateFunction),
+        "create_table" = CreateTable(Id),       // (create_table table_def)
+        "create_view" = CreateView([Id; 2]),    // (create_view table_def child)
+            TableDef(Box<TableDef>),
+        "create_function" = CreateFunction(Id), // (create_function func_def)
+            FunctionDef(Box<FunctionDef>),
         "drop" = Drop(Id),                      // (drop [table..])
         "insert" = Insert([Id; 3]),             // (insert table [column..] child)
         "delete" = Delete([Id; 2]),             // (delete table child)
@@ -201,9 +203,16 @@ impl Expr {
         t
     }
 
-    pub fn as_create_table(&self) -> Box<CreateTable> {
-        let Self::CreateTable(v) = self else {
+    pub fn as_table_def(&self) -> Box<TableDef> {
+        let Self::TableDef(v) = self else {
             panic!("not a create table: {self}")
+        };
+        v.clone()
+    }
+
+    pub fn as_function_def(&self) -> Box<FunctionDef> {
+        let Self::FunctionDef(v) = self else {
+            panic!("not a function definition: {self}")
         };
         v.clone()
     }
@@ -267,14 +276,6 @@ impl Expr {
     pub const fn is_window_function(&self) -> bool {
         use Expr::*;
         matches!(self, RowNumber) || self.is_aggregate_function()
-    }
-
-    pub const fn is_ddl(&self) -> bool {
-        use Expr::*;
-        matches!(
-            self,
-            CreateTable(_) | CreateView(_) | CreateFunction(_) | Drop(_)
-        )
     }
 }
 

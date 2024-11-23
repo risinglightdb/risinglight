@@ -3,12 +3,12 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::binder::CreateTable;
+use crate::binder::TableDef;
 use crate::storage::Storage;
 
 /// The executor of `create table` statement.
 pub struct CreateTableExecutor<S: Storage> {
-    pub table: Box<CreateTable>,
+    pub table: Box<TableDef>,
     pub storage: Arc<S>,
 }
 

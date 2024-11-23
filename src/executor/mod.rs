@@ -429,14 +429,14 @@ impl<S: Storage> Builder<S> {
             }),
 
             CreateTable(table) => CreateTableExecutor {
-                table,
+                table: self.node(table).as_table_def(),
                 storage: self.storage.clone(),
             }
             .execute()
             .into(),
 
             CreateView([table, query]) => CreateViewExecutor {
-                table: self.node(table).as_create_table(),
+                table: self.node(table).as_table_def(),
                 query: self.recexpr(query),
                 catalog: self.catalog().clone(),
             }
@@ -444,7 +444,7 @@ impl<S: Storage> Builder<S> {
             .into(),
 
             CreateFunction(f) => CreateFunctionExecutor {
-                f,
+                function: self.node(f).as_function_def(),
                 catalog: self.optimizer.catalog().clone(),
             }
             .execute()
