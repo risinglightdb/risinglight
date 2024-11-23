@@ -20,7 +20,8 @@ use risinglight::storage::SecondaryStorageOptions;
 use risinglight::utils::time::RoundingDuration;
 use risinglight::Database;
 use rustyline::error::ReadlineError;
-use rustyline::DefaultEditor;
+use rustyline::history::DefaultHistory;
+use rustyline::Editor;
 use sqllogictest::DefaultColumnType;
 use tokio::{select, signal};
 use tracing::{info, warn, Level};
@@ -149,7 +150,7 @@ async fn run_query_in_background(db: Arc<Database>, sql: String, output_format: 
 ///
 /// Note that `;` in string literals will also be treated as a terminator
 /// as long as it is at the end of a line.
-fn read_sql(rl: &mut DefaultEditor) -> Result<String, ReadlineError> {
+fn read_sql(rl: &mut Editor<&Database, DefaultHistory>) -> Result<String, ReadlineError> {
     let mut sql = String::new();
     loop {
         let prompt = if sql.is_empty() { "> " } else { "? " };
@@ -174,7 +175,7 @@ fn read_sql(rl: &mut DefaultEditor) -> Result<String, ReadlineError> {
 
 /// Run RisingLight interactive mode
 async fn interactive(db: Database, output_format: Option<String>) -> Result<()> {
-    let mut rl = DefaultEditor::new()?;
+    let mut rl = Editor::<&Database, DefaultHistory>::new()?;
     let history_path = dirs::cache_dir().map(|p| {
         let cache_dir = p.join("risinglight");
         std::fs::create_dir_all(cache_dir.as_path()).ok();
@@ -192,6 +193,7 @@ async fn interactive(db: Database, output_format: Option<String>) -> Result<()> 
     }
 
     let db = Arc::new(db);
+    rl.set_helper(Some(&db));
 
     loop {
         let read_sql = read_sql(&mut rl);
