@@ -2,8 +2,6 @@
 
 //! A simple interactive shell of the database.
 
-#![feature(div_duration)]
-
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::Arc;
