@@ -234,12 +234,12 @@ fn apply_global_aggs(pattern_str: &str) -> impl Applier<Expr, PartitionAnalysis>
                 use Expr::*;
                 let ref_id = egraph.add(Expr::Ref(agg));
                 let global_agg = match &egraph[agg].nodes[0] {
-                    RowCount => RowCount,
                     Max(_) => Max(ref_id),
                     Min(_) => Min(ref_id),
                     Sum(_) => Sum(ref_id),
                     Avg(_) => panic!("avg is not supported in 2-phase aggregation"),
-                    Count(_) => Count(ref_id),
+                    RowCount => Sum(ref_id),
+                    Count(_) => Sum(ref_id),
                     CountDistinct(_) => {
                         panic!("count distinct is not supported in 2-phase aggregation")
                     }
