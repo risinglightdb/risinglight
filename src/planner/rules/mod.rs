@@ -118,7 +118,7 @@ impl Analysis<Expr> for ExprAnalysis {
         let merge_columns = merge_small_set(&mut to.columns, from.columns);
         let merge_schema = egg::merge_max(&mut to.schema, from.schema);
         let merge_rows = egg::merge_min(
-            unsafe { std::mem::transmute(&mut to.rows) },
+            unsafe { std::mem::transmute::<&mut f32, &mut F32>(&mut to.rows) },
             F32::from(from.rows),
         );
         let merge_order = egg::merge_max(&mut to.orderby, from.orderby);
