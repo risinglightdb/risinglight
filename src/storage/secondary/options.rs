@@ -61,7 +61,7 @@ pub struct StorageOptions {
     /// Encode type
     pub encode_type: EncodeType,
 
-    /// Whether record first_key of each block into block_index
+    /// Whether record `first_key` of each block into `block_index`
     pub record_first_key: bool,
 
     /// Whether to disable all disk operations, only for test use
@@ -117,7 +117,7 @@ pub struct ColumnBuilderOptions {
     /// Encode type
     pub encode_type: EncodeType,
 
-    /// Whether record first_key of each block
+    /// Whether record `first_key` of each block
     pub record_first_key: bool,
 }
 

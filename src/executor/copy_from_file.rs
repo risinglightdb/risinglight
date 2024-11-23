@@ -94,7 +94,7 @@ impl CopyFromFileExecutor {
                 return Err(Error::length_mismatch(column_count, record.len()));
             }
 
-            size_count += record.as_slice().as_bytes().len();
+            size_count += record.as_slice().len();
 
             // push a raw str row and send it if necessary
             if let Some(chunk) = chunk_builder.push_str_row(record.iter())? {

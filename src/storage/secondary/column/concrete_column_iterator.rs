@@ -25,16 +25,17 @@ pub trait BlockIteratorFactory<A: Array>: Send + Sync + 'static {
 
     /// Create a [`FakeBlockIterator`](super::super::block::FakeBlockIterator) from block index and
     /// seek to `start_pos`.
+    #[allow(dead_code)]
     fn get_fake_iterator(&self, index: &BlockIndex, start_pos: usize) -> Self::BlockIteratorImpl;
 }
 
 /// `ConcreteColumnIterator` Statistics
 #[derive(Debug, Default)]
 pub struct Statistics {
-    /// next_batch call times
+    /// `next_batch` call times
     next_batch_count: u32,
 
-    /// get_block call times
+    /// `get_block` call times
     fetched_block_count: u32,
 }
 
@@ -49,7 +50,7 @@ pub struct ConcreteColumnIterator<A: Array, F: BlockIteratorFactory<A>> {
     /// Block iterator.
     block_iterator: F::BlockIteratorImpl,
 
-    /// RowID of the current column.
+    /// `RowID` of the current column.
     current_row_id: u32,
 
     /// Indicates whether this iterator has finished or not.
@@ -58,7 +59,7 @@ pub struct ConcreteColumnIterator<A: Array, F: BlockIteratorFactory<A>> {
     /// The factory for creating iterators.
     factory: F,
 
-    /// Indicate whether current_block_iter is fake.
+    /// Indicate whether `current_block_iter` is fake.
     is_fake_iter: bool,
 
     /// Statistics which used for reporting.

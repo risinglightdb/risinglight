@@ -106,10 +106,10 @@ pub struct VersionManagerInner {
     /// MVCC structure for this, and only record changes compared with last epoch.
     status: HashMap<u64, Arc<Snapshot>>,
 
-    /// (TableId, RowSetId) -> Object mapping
+    /// (`TableId`, `RowSetId`) -> Object mapping
     rowsets: HashMap<(u32, u32), Arc<DiskRowset>>,
 
-    /// (TableId, DVId) -> Object mapping
+    /// (`TableId`, `DVId`) -> Object mapping
     dvs: HashMap<(u32, u64), Arc<DeleteVector>>,
 
     /// Reference count of each epoch.
