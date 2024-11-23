@@ -69,10 +69,11 @@ static TO_PARALLEL_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
             "(to_parallel (scan ?table ?columns ?filter))" =>
             "(exchange random (scan ?table ?columns ?filter))"
         ),
-        // values is not partitioned
+        // values and empty are not partitioned
         rw!("values-to-parallel";
-            "(to_parallel (values ?values))" =>
-            "(exchange random (values ?values))"
+            "(to_parallel ?child)" =>
+            "(exchange random ?child)"
+            if node_is("?child", &["values", "empty"])
         ),
         // projection does not change distribution
         rw!("proj-to-parallel";
@@ -102,19 +103,13 @@ static TO_PARALLEL_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
             "(to_parallel (topn ?limit ?offset ?key ?child))" =>
             "(topn ?limit ?offset ?key (exchange single (to_parallel ?child)))"
         ),
-        // inner join and left outer join are partitioned by left
-        // as the left side is materialized in memory
-        rw!("inner-join-to-parallel";
-            "(to_parallel (join inner ?cond ?left ?right))" =>
-            "(join inner ?cond
+        // join is partitioned by left
+        rw!("join-to-parallel";
+            "(to_parallel (join ?type ?cond ?left ?right))" =>
+            "(join ?type ?cond
                 (exchange random (to_parallel ?left))
                 (exchange broadcast (to_parallel ?right)))"
-        ),
-        rw!("left-outer-join-to-parallel";
-            "(to_parallel (join left_outer ?cond ?left ?right))" =>
-            "(join left_outer ?cond
-                (exchange random (to_parallel ?left))
-                (exchange broadcast (to_parallel ?right)))"
+            if node_is("?type", &["inner", "left_outer", "semi", "anti"])
         ),
         // hash join can be partitioned by join key
         rw!("hashjoin-to-parallel";
@@ -205,6 +200,15 @@ fn partition_is_same(
     let a = var(a);
     let b = var(b);
     move |egraph, _, subst| egraph[subst[a]].data == egraph[subst[b]].data
+}
+
+/// Returns true if the given node is one of the candidates.
+fn node_is(
+    a: &str,
+    candidates: &'static [&'static str],
+) -> impl Fn(&mut EGraph<Expr, PartitionAnalysis>, Id, &Subst) -> bool {
+    let a = var(a);
+    move |egraph, _, subst| candidates.contains(&egraph[subst[a]].nodes[0].to_string().as_str())
 }
 
 /// Returns an applier that replaces `?global_aggs` with the nested `?aggs`.

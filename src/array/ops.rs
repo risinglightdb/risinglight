@@ -621,12 +621,48 @@ impl ArrayImpl {
     /// Returns the sum of values.
     pub fn sum(&self) -> DataValue {
         match self {
-            Self::Int16(a) => DataValue::Int16(a.raw_iter().sum()),
-            Self::Int32(a) => DataValue::Int32(a.raw_iter().sum()),
-            Self::Int64(a) => DataValue::Int64(a.raw_iter().sum()),
-            Self::Float64(a) => DataValue::Float64(a.raw_iter().sum()),
-            Self::Decimal(a) => DataValue::Decimal(a.raw_iter().sum()),
-            Self::Interval(a) => DataValue::Interval(a.raw_iter().sum()),
+            Self::Int16(a) => {
+                if a.null_count() == a.len() {
+                    DataValue::Null
+                } else {
+                    DataValue::Int16(a.raw_iter().sum())
+                }
+            }
+            Self::Int32(a) => {
+                if a.null_count() == a.len() {
+                    DataValue::Null
+                } else {
+                    DataValue::Int32(a.raw_iter().sum())
+                }
+            }
+            Self::Int64(a) => {
+                if a.null_count() == a.len() {
+                    DataValue::Null
+                } else {
+                    DataValue::Int64(a.raw_iter().sum())
+                }
+            }
+            Self::Float64(a) => {
+                if a.null_count() == a.len() {
+                    DataValue::Null
+                } else {
+                    DataValue::Float64(a.raw_iter().sum())
+                }
+            }
+            Self::Decimal(a) => {
+                if a.null_count() == a.len() {
+                    DataValue::Null
+                } else {
+                    DataValue::Decimal(a.raw_iter().sum())
+                }
+            }
+            Self::Interval(a) => {
+                if a.null_count() == a.len() {
+                    DataValue::Null
+                } else {
+                    DataValue::Interval(a.raw_iter().sum())
+                }
+            }
             _ => panic!("can not sum array"),
         }
     }
