@@ -302,33 +302,37 @@ mod tests {
     fn test_completion() {
         let db = Database::new_in_memory();
         assert_complete(&db, "sel", "SELECT ");
-        assert_complete(&db, "sel|ect", "SELECT ect");
+        assert_complete(&db, "sel|ect", "SELECT |ect");
         assert_complete(&db, "select a f", "select a FROM ");
         assert_complete(&db, "pragma en", "pragma enable_optimizer");
     }
 
-    /// Assert that if complete (e.g. press tab) the given `line_with_cursor`, the result will be
+    /// Assert that if complete (e.g. press tab) the given `line`, the result will be
     /// `completed_line`.
     ///
-    /// `line_with_cursor` can optionally contain a `|` which indicates the cursor position.
-    /// If not provided, the cursor is assumed to be at the end of the line.
+    /// Both `line` and `completed_line` can optionally contain a `|` which indicates the cursor
+    /// position. If not provided, the cursor is assumed to be at the end of the line.
     #[track_caller]
-    fn assert_complete(db: &Database, line_with_cursor: &str, completed_line: &str) {
-        // find cursor
-        let (before_cursor, after_cursor) = line_with_cursor
-            .split_once('|')
-            .unwrap_or((line_with_cursor, ""));
-        let pos = before_cursor.len();
-        let mut line = format!("{before_cursor}{after_cursor}");
+    fn assert_complete(db: &Database, line: &str, completed_line: &str) {
+        /// Find cursor position and remove it from the line.
+        fn get_line_and_cursor(line: &str) -> (String, usize) {
+            let (before_cursor, after_cursor) = line.split_once('|').unwrap_or((line, ""));
+            let pos = before_cursor.len();
+            (format!("{before_cursor}{after_cursor}"), pos)
+        }
+        let (mut line, pos) = get_line_and_cursor(line);
 
         // complete
         use rustyline::completion::Completer;
-        let (complete_pos, candidates) = db
+        let (start_pos, candidates) = db
             .complete(&line, pos, &rustyline::Context::new(&DefaultHistory::new()))
             .unwrap();
+        let replacement = &candidates[0].replacement;
+        line.replace_range(start_pos..pos, replacement);
 
         // assert
-        line.replace_range(complete_pos..pos, &candidates[0].replacement);
+        let (completed_line, completed_cursor_pos) = get_line_and_cursor(completed_line);
         assert_eq!(line, completed_line);
+        assert_eq!(start_pos + replacement.len(), completed_cursor_pos);
     }
 }
