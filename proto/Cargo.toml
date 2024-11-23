@@ -11,7 +11,7 @@ keywords = ["sql", "database", "embedded", "cli"]
 
 [dependencies]
 bytes = "1"
-prost = "0.12"
+prost = "0.13"
 
 [build-dependencies]
-prost-build = "0.12"
+prost-build = "0.13"

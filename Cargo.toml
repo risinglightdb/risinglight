@@ -23,14 +23,14 @@ async-recursion = "1"
 async-stream = "0.3"
 async-trait = "0.1"
 binary-heap-plus = "0.5"
-bit-set = "0.5"
+bit-set = "0.8"
 bitvec = { version = "1", features = ["serde"] }
 btreemultimap = "0.1"
 bytes = "1"
 chrono = { version = "0.4", features = ["clock", "std", "wasmbind"] }
 clap = { version = "4", features = ["derive"] }
 comfy-table = { version = "7", default-features = false }
-console-subscriber = "0.2"
+console-subscriber = "0.4"
 crc32fast = "1"
 csv = "1"
 dirs = "5"
@@ -44,32 +44,32 @@ humantime = "2"
 indicatif = "0.17"
 indoc = "2"
 iter-chunks = "0.2"
-itertools = "0.12"
+itertools = "0.13"
 minitrace = { version = "0.6", features = ["enable"] }
 moka = { version = "0.12", features = ["future"] }
 num-traits = "0.2"
 ordered-float = { version = "4", features = ["serde"] }
 parking_lot = "0.12"
-parse-display = "0.9"
+parse-display = "0.10"
 paste = "1"
 pgwire = "0.20"
 pin-project = "1"
 pretty-xmlish = "0.1"
-prost = "0.12"
-pyo3 = { version = "0.21", features = ["extension-module"], optional = true }
+prost = "0.13"
+pyo3 = { version = "0.23", features = ["extension-module"], optional = true }
 rand = "0.8"
 ref-cast = "1.0"
 regex = "1"
 risinglight_proto = "0.2"
 rust_decimal = "1"
-rustyline = "14"
+rustyline = "15"
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 smallvec = { version = "1", features = ["serde"] }
-sqllogictest = "0.20"
+sqllogictest = "0.23"
 sqlparser = { version = "0.45", features = ["serde"] }
-thiserror = "1"
-tikv-jemallocator = { version = "0.5", optional = true, features = [
+thiserror = "2"
+tikv-jemallocator = { version = "0.6", optional = true, features = [
     "disable_initial_exec_tls",
 ] }
 tokio = { version = "1", features = ["full"] }
@@ -82,13 +82,13 @@ tracing-subscriber = { version = "0.3", features = [
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_tokio"] }
 glob = "0.3"
-libtest-mimic = "0.7"
-sqlplannertest = "0.1"
+libtest-mimic = "0.8"
+sqlplannertest = "0.2"
 tempfile = "3"
 test-case = "3"
 
 [build-dependencies]
-pyo3-build-config = { version = "0.21", optional = true }
+pyo3-build-config = { version = "0.23", optional = true }
 
 [[test]]
 name = "sqllogictest"

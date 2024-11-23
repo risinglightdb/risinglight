@@ -33,13 +33,13 @@ where
     /// Indicates current position in the rle block
     cur_row: usize,
 
-    /// Indicates how many rows get scanned for cur_row
+    /// Indicates how many rows get scanned for `cur_row`
     cur_scanned_count: usize,
 
     /// Indicates the number of rows in the rle block
     rle_row_count: usize,
 
-    /// Indicates the element of current row get from block_iter
+    /// Indicates the element of current row get from `block_iter`
     cur_element: Option<<A::Item as ToOwned>::Owned>,
 
     /// Indicates how many rows get scanned for this iterator
@@ -48,7 +48,7 @@ where
     /// Total count of elements in block
     row_count: usize,
 
-    /// If never_used is true, get an item from child iter in the beginning of next_batch()
+    /// If `never_used` is true, get an item from child iter in the beginning of `next_batch()`
     never_used: bool,
 }
 

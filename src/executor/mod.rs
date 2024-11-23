@@ -628,7 +628,6 @@ impl<S: Storage> Builder<S> {
             HashSemiJoinExecutor {
                 left_keys: self.resolve_column_index(lkeys, left),
                 right_keys: self.resolve_column_index(rkeys, right),
-                left_types: self.plan_types(left).to_vec(),
                 anti,
             }
             .execute(l, r)

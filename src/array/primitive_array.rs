@@ -192,7 +192,7 @@ impl PrimitiveArray<bool> {
 impl PrimitiveArray<Decimal> {
     /// Rescale the decimals.
     pub fn rescale(&mut self, scale: u8) {
-        for v in self.data.iter_mut() {
+        for v in &mut self.data {
             v.rescale(scale as u32);
         }
     }
