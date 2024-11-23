@@ -252,15 +252,15 @@ pub fn bind_header(mut chunk: array::Chunk, stmt: &Statement) -> array::Chunk {
 #[derive(Debug, Default)]
 struct Context {
     /// Defined CTEs.
-    /// cte_name -> (query_id, column_alias -> id)
+    /// `cte_name` -> (`query_id`, `column_alias` -> id)
     ctes: HashMap<String, (Id, HashMap<String, Id>)>,
     /// Table aliases that can be accessed from the current query.
     table_aliases: HashSet<String>,
     /// Column aliases that can be accessed from the current query.
-    /// column_alias -> (table_alias -> id)
+    /// `column_alias` -> (`table_alias` -> id)
     column_aliases: HashMap<String, HashMap<String, Id>>,
     /// Column aliases that can be accessed from the outside query.
-    /// column_alias -> id
+    /// `column_alias` -> id
     output_aliases: HashMap<String, Id>,
 }
 

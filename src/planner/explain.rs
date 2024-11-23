@@ -377,7 +377,7 @@ impl<'a> Explain<'a> {
     }
 }
 
-impl<'a> fmt::Display for Explain<'a> {
+impl fmt::Display for Explain<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         delegate_fmt(&self.pretty(), f, String::with_capacity(4096))
     }
