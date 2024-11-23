@@ -513,7 +513,7 @@ impl<S: Storage> Builder<S> {
 
             Schema([_, child]) => self.build_id(child), // schema node is just pass-through
 
-            Exchange([dist, child]) => match self.node(dist) {
+            Exchange([dist, child]) => match self.node(dist).clone() {
                 Single => self.build_id(child).spawn_merge().into(),
                 Broadcast => {
                     let subscriber = self.build_id(child).spawn();
@@ -534,20 +534,12 @@ impl<S: Storage> Builder<S> {
                 }
                 Hash(keys) => {
                     let num_partitions = tokio::runtime::Handle::current().metrics().num_workers();
-                    let child_schema = &self.egraph[child].data.schema;
-                    let hash_key = (self.node(*keys).as_list().iter())
-                        .map(|id| {
-                            child_schema
-                                .iter()
-                                .position(|&x| x == *id)
-                                .expect("hash key not found in child's schema")
-                        })
-                        .collect_vec();
+                    let keys = self.resolve_column_index(keys, child);
                     self.build_id(child)
                         .spawn_dispatch(num_partitions, |c| {
                             HashPartitionProducer {
+                                keys: keys.clone(),
                                 num_partitions,
-                                hash_key: hash_key.clone(),
                             }
                             .execute(c)
                         })

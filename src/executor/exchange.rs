@@ -8,9 +8,10 @@ use super::*;
 
 /// Distribute the input data to multiple partitions by hash partitioning.
 pub struct HashPartitionProducer {
-    /// The indices of the columns to hash.
-    pub hash_key: Vec<usize>,
-    /// The number of partitions.
+    /// The expression to extract the keys.
+    /// e.g. `(list #0 #1)`
+    pub keys: RecExpr,
+    /// The number of partitions to produce.
     pub num_partitions: usize,
 }
 
@@ -33,8 +34,9 @@ impl HashPartitionProducer {
             visibility.resize(batch.cardinality(), false);
 
             // calculate the hash
-            for index in &self.hash_key {
-                batch.array_at(*index).hash(&mut hashers);
+            let keys_chunk = Evaluator::new(&self.keys).eval_list(&batch)?;
+            for column in keys_chunk.arrays() {
+                column.hash(&mut hashers);
             }
             for (hasher, target) in hashers.iter().zip(&mut partition_indices) {
                 *target = hasher.finish() as usize % self.num_partitions;
