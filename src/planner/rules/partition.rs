@@ -346,7 +346,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_to_parallel() {
+    fn test_hash_join_to_parallel() {
         let input = "
             (hashjoin inner true (list a) (list b)
                 (scan t1 (list a) true)
@@ -355,10 +355,12 @@ mod tests {
         ";
         let distributed = "
             (hashjoin inner true (list a) (list b)
-                (exchange (hash (list a)) 
-                    (scan t1 (list a) true))
-                (exchange (hash (list b)) 
-                    (scan t2 (list b) true))
+                (exchange (hash (list a))
+                    (exchange random
+                        (scan t1 (list a) true)))
+                (exchange (hash (list b))
+                    (exchange random
+                        (scan t2 (list b) true)))
             )
         ";
         let output = to_parallel_plan(input.parse().unwrap());

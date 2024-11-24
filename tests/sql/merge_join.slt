@@ -10,7 +10,7 @@ insert into t1 values (1, 10), (1, 11), (2, 20);
 statement ok
 insert into t2 values (1, -10), (1, -11), (3, -30);
 
-query IIII
+query IIII rowsort
 select *
 from (select a, b from t1 order by a, b) 
 join (select c, d from t2 order by c, d desc) on a = c;
@@ -20,7 +20,7 @@ join (select c, d from t2 order by c, d desc) on a = c;
 1 11 1 -10
 1 11 1 -11
 
-query IIII
+query IIII rowsort
 select *
 from (select a, b from t1 order by a) 
 left join (select c, d from t2 order by c) on a = c;
@@ -31,7 +31,7 @@ left join (select c, d from t2 order by c) on a = c;
 1 11 1    -11 
 2 20 NULL NULL
 
-query IIII
+query IIII rowsort
 select *
 from (select a, b from t1 order by a) 
 right join (select c, d from t2 order by c) on a = c;
@@ -42,7 +42,7 @@ right join (select c, d from t2 order by c) on a = c;
 1    11   1 -11
 NULL NULL 3 -30
 
-query IIII
+query IIII rowsort
 select *
 from (select a, b from t1 order by a) 
 full join (select c, d from t2 order by c) on a = c;
