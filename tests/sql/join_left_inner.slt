@@ -71,12 +71,12 @@ select v1, v2, v3, v4 from a, b;
 statement ok
 insert into b values (1, 100), (3, 300), (4, 400);
 
-query IIII
+query IIII rowsort
 select v1, v2, v3, v4 from a left join b on v1 = v3;
 ----
 1 1 1 100
-3 3 3 300
 2 2 NULL NULL
+3 3 3 300
 
 statement ok
 drop table a;
@@ -96,19 +96,19 @@ insert into a values (1, 1), (2, 2), (3, 3);
 statement ok
 insert into b values (1, 1, 1), (2, 2, 2), (3, 3, 4), (1, 1, 5);
 
-query IIIII
+query IIIII rowsort
 select v1, v2, v3, v4, v5 from a join b on v1 = v3 and v2 = v4;
 ----
 1   1   1   1   1
+1   1   1   1   5
 2   2   2   2   2
 3   3   3   3   4
-1   1   1   1   5
 
-query IIIII
+query IIIII rowsort
 select v1, v2, v3, v4, v5 from a join b on v1 = v3 and v2 = v4 and v1 < v5;
 ----
-3   3   3   3   4
 1   1   1   1   5
+3   3   3   3   4
 
 statement ok
 drop table a;

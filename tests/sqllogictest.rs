@@ -79,6 +79,7 @@ async fn test(filename: impl AsRef<Path>, engine: Engine) -> Result<()> {
         Engine::Disk => Database::new_on_disk(SecondaryStorageOptions::default_for_test()).await,
         Engine::Mem => Database::new_in_memory(),
     };
+    db.run("set parallelism = 2;").await?; // enable data partitioning
 
     let db = DatabaseWrapper(db);
     let mut tester = sqllogictest::Runner::new(|| async { Ok(&db) });

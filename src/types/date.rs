@@ -193,3 +193,11 @@ impl FromStr for DateTimeField {
         }))
     }
 }
+
+impl FromStr for Box<DateTimeField> {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        DateTimeField::from_str(s).map(Box::new)
+    }
+}

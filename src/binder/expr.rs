@@ -238,7 +238,7 @@ impl Binder {
 
     fn bind_extract(&mut self, field: DateTimeField, expr: Expr) -> Result {
         let expr = self.bind_expr(expr)?;
-        let field = self.egraph.add(Node::Field(field.into()));
+        let field = self.egraph.add(Node::Field(Box::new(field.into())));
         Ok(self.egraph.add(Node::Extract([field, expr])))
     }
 

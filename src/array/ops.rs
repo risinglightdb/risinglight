@@ -3,6 +3,7 @@
 //! Array operations.
 
 use std::borrow::Borrow;
+use std::hash::{Hash, Hasher};
 
 use num_traits::ToPrimitive;
 use regex::Regex;
@@ -202,6 +203,26 @@ impl ArrayImpl {
             return Err(ConvertError::NoUnaryOp("not".into(), self.type_string()));
         };
         Ok(A::new_bool(clear_null(unary_op(a.as_ref(), |b| !b))))
+    }
+
+    /// Hash the array into the given hasher.
+    pub fn hash_to(&self, hasher: &mut [impl Hasher]) {
+        assert_eq!(hasher.len(), self.len());
+        match self {
+            A::Null(a) => a.iter().zip(hasher).for_each(|(v, h)| v.hash(h)),
+            A::Bool(a) => a.iter().zip(hasher).for_each(|(v, h)| v.hash(h)),
+            A::Int16(a) => a.iter().zip(hasher).for_each(|(v, h)| v.hash(h)),
+            A::Int32(a) => a.iter().zip(hasher).for_each(|(v, h)| v.hash(h)),
+            A::Int64(a) => a.iter().zip(hasher).for_each(|(v, h)| v.hash(h)),
+            A::Float64(a) => a.iter().zip(hasher).for_each(|(v, h)| v.hash(h)),
+            A::Decimal(a) => a.iter().zip(hasher).for_each(|(v, h)| v.hash(h)),
+            A::String(a) => a.iter().zip(hasher).for_each(|(v, h)| v.hash(h)),
+            A::Date(a) => a.iter().zip(hasher).for_each(|(v, h)| v.hash(h)),
+            A::Timestamp(a) => a.iter().zip(hasher).for_each(|(v, h)| v.hash(h)),
+            A::TimestampTz(a) => a.iter().zip(hasher).for_each(|(v, h)| v.hash(h)),
+            A::Interval(a) => a.iter().zip(hasher).for_each(|(v, h)| v.hash(h)),
+            A::Blob(a) => a.iter().zip(hasher).for_each(|(v, h)| v.hash(h)),
+        }
     }
 
     pub fn like(&self, pattern: &str) -> Result {
@@ -600,12 +621,48 @@ impl ArrayImpl {
     /// Returns the sum of values.
     pub fn sum(&self) -> DataValue {
         match self {
-            Self::Int16(a) => DataValue::Int16(a.raw_iter().sum()),
-            Self::Int32(a) => DataValue::Int32(a.raw_iter().sum()),
-            Self::Int64(a) => DataValue::Int64(a.raw_iter().sum()),
-            Self::Float64(a) => DataValue::Float64(a.raw_iter().sum()),
-            Self::Decimal(a) => DataValue::Decimal(a.raw_iter().sum()),
-            Self::Interval(a) => DataValue::Interval(a.raw_iter().sum()),
+            Self::Int16(a) => {
+                if a.null_count() == a.len() {
+                    DataValue::Null
+                } else {
+                    DataValue::Int16(a.raw_iter().sum())
+                }
+            }
+            Self::Int32(a) => {
+                if a.null_count() == a.len() {
+                    DataValue::Null
+                } else {
+                    DataValue::Int32(a.raw_iter().sum())
+                }
+            }
+            Self::Int64(a) => {
+                if a.null_count() == a.len() {
+                    DataValue::Null
+                } else {
+                    DataValue::Int64(a.raw_iter().sum())
+                }
+            }
+            Self::Float64(a) => {
+                if a.null_count() == a.len() {
+                    DataValue::Null
+                } else {
+                    DataValue::Float64(a.raw_iter().sum())
+                }
+            }
+            Self::Decimal(a) => {
+                if a.null_count() == a.len() {
+                    DataValue::Null
+                } else {
+                    DataValue::Decimal(a.raw_iter().sum())
+                }
+            }
+            Self::Interval(a) => {
+                if a.null_count() == a.len() {
+                    DataValue::Null
+                } else {
+                    DataValue::Interval(a.raw_iter().sum())
+                }
+            }
             _ => panic!("can not sum array"),
         }
     }

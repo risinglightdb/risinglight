@@ -25,7 +25,12 @@ impl NestedLoopJoinExecutor {
         if !matches!(self.op, Expr::Inner | Expr::LeftOuter) {
             todo!("unsupported join type: {:?}", self.op);
         }
+
+        // materialize left child
         let left_chunks = left_child.try_collect::<Vec<DataChunk>>().await?;
+        if left_chunks.is_empty() {
+            return Ok(());
+        }
 
         let left_rows = || left_chunks.iter().flat_map(|chunk| chunk.rows());
 

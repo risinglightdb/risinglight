@@ -12,6 +12,11 @@ use crate::for_all_variants;
 pub trait ArrayValidExt: Array {
     fn get_valid_bitmap(&self) -> &BitVec;
     fn get_valid_bitmap_mut(&mut self) -> &mut BitVec;
+
+    /// Returns the number of null values in this array.
+    fn null_count(&self) -> usize {
+        self.get_valid_bitmap().count_zeros()
+    }
 }
 
 pub trait ArrayImplValidExt {
