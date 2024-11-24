@@ -1,7 +1,8 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::hash::{DefaultHasher, Hasher};
+use std::hash::Hasher;
 
+use ahash::AHasher;
 use rand::{Rng, SeedableRng};
 
 use super::*;
@@ -19,7 +20,7 @@ impl HashPartitionProducer {
     #[try_stream(boxed, ok = (DataChunk, usize), error = ExecutorError)]
     pub async fn execute(self, child: BoxedExecutor) {
         // preallocate buffers for reuse
-        let mut hashers = vec![DefaultHasher::default(); PROCESSING_WINDOW_SIZE];
+        let mut hashers = vec![AHasher::default(); PROCESSING_WINDOW_SIZE];
         let mut partition_indices = vec![0; PROCESSING_WINDOW_SIZE];
         let mut visibility = vec![false; PROCESSING_WINDOW_SIZE];
 
@@ -29,7 +30,7 @@ impl HashPartitionProducer {
 
             // reset buffers
             hashers.clear();
-            hashers.resize(batch.cardinality(), DefaultHasher::default());
+            hashers.resize(batch.cardinality(), AHasher::default());
             partition_indices.resize(batch.cardinality(), 0);
             visibility.resize(batch.cardinality(), false);
 
