@@ -185,10 +185,6 @@ static TO_PARALLEL_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
             "(exchange ?dist ?child)" => "?child"
             if partition_is_same("?child", "?dist")
         ),
-        rw!("dedup-exchange";
-            "(exchange ?dist (exchange ?dist2 ?child))" =>
-            "(exchange ?dist ?child)"
-        ),
     ]
 });
 
