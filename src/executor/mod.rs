@@ -510,63 +510,45 @@ impl<S: Storage> Builder<S> {
 
             Exchange([dist, child]) => match self.node(dist).clone() {
                 Single => self.build_id(child).spawn_merge().into(),
-                Broadcast => {
-                    let subscriber = self.build_id(child).spawn();
-                    let num_partitions = self.optimizer.config().parallelism;
-                    PartitionedStream {
-                        streams: (0..num_partitions)
-                            .map(|_| subscriber.subscribe_merge())
-                            .collect(),
-                    }
-                }
+                Broadcast => self
+                    .build_id(child)
+                    .spawn_broadcast(self.optimizer.config().parallelism),
                 Random => {
+                    let stream = self.build_id(child);
                     let num_partitions = self.optimizer.config().parallelism;
-                    self.build_id(child)
-                        .spawn_dispatch(num_partitions, |c| {
+                    let (spans, counters) = self.metrics.add(id, stream.len());
+                    return stream
+                        .dispatch(num_partitions, |c| {
                             RandomPartitionProducer { num_partitions }.execute(c)
                         })
-                        .subscribe()
+                        .instrument(spans, counters)
+                        .spawn()
+                        .subscribe();
                 }
                 Hash(keys) => {
-                    let num_partitions = self.optimizer.config().parallelism;
                     let keys = self.resolve_column_index(keys, child);
-                    self.build_id(child)
-                        .spawn_dispatch(num_partitions, |c| {
+                    let num_partitions = self.optimizer.config().parallelism;
+                    let stream = self.build_id(child);
+                    let (spans, counters) = self.metrics.add(id, stream.len());
+                    return stream
+                        .dispatch(num_partitions, |c| {
                             HashPartitionProducer {
                                 keys: keys.clone(),
                                 num_partitions,
                             }
                             .execute(c)
                         })
-                        .subscribe()
+                        .instrument(spans, counters)
+                        .spawn()
+                        .subscribe();
                 }
                 node => panic!("invalid exchange type: {node:?}"),
             },
 
             node => panic!("not a plan: {node:?}\n{:?}", self.egraph.dump()),
         };
-        self.instrument(id, stream)
-    }
-
-    /// Attaches metrics to the stream.
-    fn instrument(&mut self, id: Id, stream: PartitionedStream) -> PartitionedStream {
-        // let name = self.node(id).to_string();
-        let partitions = stream.streams.len();
-        let spans = (0..partitions).map(|_| TimeSpan::default()).collect_vec();
-        let output_row_counters = (0..partitions).map(|_| Counter::default()).collect_vec();
-
-        self.metrics
-            .register(id, spans.clone(), output_row_counters.clone());
-
-        PartitionedStream {
-            streams: stream
-                .streams
-                .into_iter()
-                .zip(spans)
-                .zip(output_row_counters)
-                .map(|((stream, span), counter)| stream.timed(span).counted(counter).boxed())
-                .collect(),
-        }
+        let (spans, counters) = self.metrics.add(id, stream.len());
+        stream.instrument(spans, counters)
     }
 
     fn build_hashjoin<const T: JoinType>(
@@ -649,48 +631,6 @@ fn spawn(mut stream: BoxedExecutor) -> StreamSubscriber {
     }
 }
 
-/// Spawn new tasks to execute the given dispatchers.
-/// Dispatch the output to multiple partitions by the associated partition index.
-fn spawn_dispatchers(
-    streams: Vec<BoxedDispatcher>,
-    num_partitions: usize,
-) -> PartitionedStreamSubscriber {
-    let (txs, rxs): (Vec<_>, Vec<_>) = (0..num_partitions)
-        .map(|_| async_broadcast::broadcast(16))
-        .unzip();
-    let mut handles = Vec::with_capacity(streams.len());
-    for mut stream in streams {
-        let txs = txs.clone();
-        let handle = tokio::task::Builder::default()
-            .spawn(async move {
-                while let Some(item) = stream.next().await {
-                    match item {
-                        // send the chunk to the corresponding partition (ignore error)
-                        Ok((chunk, partition)) => _ = txs[partition].broadcast(Ok(chunk)).await,
-                        // broadcast the error to all partitions
-                        Err(e) => {
-                            for tx in txs.iter() {
-                                tx.broadcast(Err(e.clone())).await.unwrap();
-                            }
-                        }
-                    }
-                }
-            })
-            .expect("failed to spawn task");
-        handles.push(handle);
-    }
-    let handles = Arc::new(handles);
-    PartitionedStreamSubscriber {
-        subscribers: rxs
-            .into_iter()
-            .map(|rx| StreamSubscriber {
-                rx: rx.deactivate(),
-                task_handle: handles.clone(), // all task handles are shared by all subscribers
-            })
-            .collect(),
-    }
-}
-
 /// A set of partitioned output streams.
 struct PartitionedStream {
     streams: Vec<BoxedExecutor>,
@@ -706,6 +646,11 @@ impl From<BoxedExecutor> for PartitionedStream {
 }
 
 impl PartitionedStream {
+    /// Returns the number of partitions.
+    fn len(&self) -> usize {
+        self.streams.len()
+    }
+
     /// Merges the partitioned streams into a single stream.
     ///
     /// ```text
@@ -715,6 +660,22 @@ impl PartitionedStream {
     /// ```
     fn spawn_merge(self) -> BoxedExecutor {
         futures::stream::select_all(self.spawn().subscribe().streams).boxed()
+    }
+
+    /// Broadcasts each stream to `num_partitions` partitions.
+    ///
+    /// ```text
+    /// A0 -+-> A
+    /// A1 -+-> A
+    ///     +-> A
+    /// ```
+    fn spawn_broadcast(self, num_partitions: usize) -> PartitionedStream {
+        let subscriber = self.spawn();
+        PartitionedStream {
+            streams: (0..num_partitions)
+                .map(|_| subscriber.subscribe_merge())
+                .collect(),
+        }
     }
 
     /// Maps each stream with the given function.
@@ -727,6 +688,18 @@ impl PartitionedStream {
     fn map(self, f: impl Fn(BoxedExecutor) -> BoxedExecutor) -> PartitionedStream {
         PartitionedStream {
             streams: self.streams.into_iter().map(f).collect(),
+        }
+    }
+
+    /// Dispatches each stream to `num_partitions` partitions with the given function.
+    fn dispatch(
+        self,
+        num_partitions: usize,
+        f: impl Fn(BoxedExecutor) -> BoxedDispatcher,
+    ) -> PartitionedDispatcher {
+        PartitionedDispatcher {
+            streams: self.streams.into_iter().map(f).collect(),
+            num_partitions,
         }
     }
 
@@ -755,14 +728,84 @@ impl PartitionedStream {
         }
     }
 
-    /// Spawns each partitioned stream and dispatches the output to `num_partitions` partitions.
-    /// Returns a set of subscribers of `num_partitions` partitions.
-    fn spawn_dispatch(
-        self,
-        num_partitions: usize,
-        f: impl Fn(BoxedExecutor) -> BoxedDispatcher,
-    ) -> PartitionedStreamSubscriber {
-        spawn_dispatchers(self.streams.into_iter().map(f).collect(), num_partitions)
+    /// Attaches metrics to the streams.
+    fn instrument(self, spans: Vec<TimeSpan>, counters: Vec<Counter>) -> Self {
+        assert_eq!(self.streams.len(), spans.len());
+        assert_eq!(self.streams.len(), counters.len());
+        PartitionedStream {
+            streams: self
+                .streams
+                .into_iter()
+                .zip(spans)
+                .zip(counters)
+                .map(|((stream, span), counter)| stream.timed(span).counted(counter).boxed())
+                .collect(),
+        }
+    }
+}
+
+/// The return type of `PartitionedStream::dispatch`.
+///
+/// This is the end of the pipeline. Call `spawn` to execute the streams and collect the results.
+struct PartitionedDispatcher {
+    streams: Vec<BoxedDispatcher>,
+    num_partitions: usize,
+}
+
+impl PartitionedDispatcher {
+    /// Attaches metrics to the streams.
+    fn instrument(self, spans: Vec<TimeSpan>, counters: Vec<Counter>) -> Self {
+        assert_eq!(self.streams.len(), spans.len());
+        assert_eq!(self.streams.len(), counters.len());
+        PartitionedDispatcher {
+            streams: self
+                .streams
+                .into_iter()
+                .zip(spans)
+                .zip(counters)
+                .map(|((stream, span), counter)| stream.timed(span).counted(counter).boxed())
+                .collect(),
+            num_partitions: self.num_partitions,
+        }
+    }
+
+    /// Spawn new tasks to execute the given dispatchers.
+    /// Dispatch the output to multiple partitions by the associated partition index.
+    fn spawn(self) -> PartitionedStreamSubscriber {
+        let (txs, rxs): (Vec<_>, Vec<_>) = (0..self.num_partitions)
+            .map(|_| async_broadcast::broadcast(16))
+            .unzip();
+        let mut handles = Vec::with_capacity(self.streams.len());
+        for mut stream in self.streams {
+            let txs = txs.clone();
+            let handle = tokio::task::Builder::default()
+                .spawn(async move {
+                    while let Some(item) = stream.next().await {
+                        match item {
+                            // send the chunk to the corresponding partition (ignore error)
+                            Ok((chunk, partition)) => _ = txs[partition].broadcast(Ok(chunk)).await,
+                            // broadcast the error to all partitions
+                            Err(e) => {
+                                for tx in txs.iter() {
+                                    tx.broadcast(Err(e.clone())).await.unwrap();
+                                }
+                            }
+                        }
+                    }
+                })
+                .expect("failed to spawn task");
+            handles.push(handle);
+        }
+        let handles = Arc::new(handles);
+        PartitionedStreamSubscriber {
+            subscribers: rxs
+                .into_iter()
+                .map(|rx| StreamSubscriber {
+                    rx: rx.deactivate(),
+                    task_handle: handles.clone(), // all task handles are shared by all subscribers
+                })
+                .collect(),
+        }
     }
 }
 

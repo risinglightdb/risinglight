@@ -61,10 +61,13 @@ pub struct Metrics {
 }
 
 impl Metrics {
-    /// Register metrics for a node.
-    pub fn register(&mut self, id: Id, spans: Vec<TimeSpan>, rows: Vec<Counter>) {
-        self.spans.insert(id, spans);
-        self.rows.insert(id, rows);
+    /// Create metrics for a node.
+    pub fn add(&mut self, id: Id, parallelism: usize) -> (Vec<TimeSpan>, Vec<Counter>) {
+        let spans = (0..parallelism).map(|_| TimeSpan::default()).collect_vec();
+        let counters = (0..parallelism).map(|_| Counter::default()).collect_vec();
+        self.spans.insert(id, spans.clone());
+        self.rows.insert(id, counters.clone());
+        (spans, counters)
     }
 
     /// Get the running time for a node.

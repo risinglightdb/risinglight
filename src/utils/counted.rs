@@ -29,7 +29,7 @@ pub struct Counted<T> {
     counter: Counter,
 }
 
-impl<E, T: Stream<Item = Result<DataChunk, E>>> Stream for Counted<T> {
+impl<E, D: AsDataChunk, T: Stream<Item = Result<D, E>>> Stream for Counted<T> {
     type Item = T::Item;
 
     fn poll_next(
@@ -39,7 +39,7 @@ impl<E, T: Stream<Item = Result<DataChunk, E>>> Stream for Counted<T> {
         let this = self.project();
         let result = this.inner.poll_next(cx);
         if let Poll::Ready(Some(Ok(chunk))) = &result {
-            this.counter.inc(chunk.cardinality() as u64);
+            this.counter.inc(chunk.as_data_chunk().cardinality() as u64);
         }
         result
     }
@@ -47,6 +47,20 @@ impl<E, T: Stream<Item = Result<DataChunk, E>>> Stream for Counted<T> {
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+pub trait AsDataChunk {
+    fn as_data_chunk(&self) -> &DataChunk;
+}
+impl AsDataChunk for DataChunk {
+    fn as_data_chunk(&self) -> &DataChunk {
+        self
+    }
+}
+impl AsDataChunk for (DataChunk, usize) {
+    fn as_data_chunk(&self) -> &DataChunk {
+        &self.0
     }
 }
 
