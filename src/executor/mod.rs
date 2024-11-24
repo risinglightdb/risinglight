@@ -789,7 +789,7 @@ impl PartitionedDispatcher {
                             Ok((chunk, partition)) => _ = txs[partition].broadcast(Ok(chunk)).await,
                             // broadcast the error to all partitions
                             Err(e) => {
-                                for tx in txs.iter() {
+                                for tx in &txs {
                                     tx.broadcast(Err(e.clone())).await.unwrap();
                                 }
                             }
@@ -826,7 +826,7 @@ impl ZippedPartitionedStream {
             streams: self
                 .left
                 .into_iter()
-                .zip(self.right.into_iter())
+                .zip(self.right)
                 .map(|(l, r)| f(l, r))
                 .collect(),
         }

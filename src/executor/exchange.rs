@@ -37,7 +37,7 @@ impl HashPartitionProducer {
             // calculate the hash
             let keys_chunk = Evaluator::new(&self.keys).eval_list(&batch)?;
             for column in keys_chunk.arrays() {
-                column.hash(&mut hashers);
+                column.hash_to(&mut hashers);
             }
             for (hasher, target) in hashers.iter().zip(&mut partition_indices) {
                 *target = hasher.finish() as usize % self.num_partitions;

@@ -206,7 +206,7 @@ impl ArrayImpl {
     }
 
     /// Hash the array into the given hasher.
-    pub fn hash(&self, hasher: &mut [impl Hasher]) {
+    pub fn hash_to(&self, hasher: &mut [impl Hasher]) {
         assert_eq!(hasher.len(), self.len());
         match self {
             A::Null(a) => a.iter().zip(hasher).for_each(|(v, h)| v.hash(h)),
