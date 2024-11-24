@@ -18,7 +18,6 @@ use std::time::Duration;
 
 use egg::{Id, Language};
 use futures::stream::{BoxStream, StreamExt};
-use futures::Stream;
 use futures_async_stream::try_stream;
 use itertools::Itertools;
 
@@ -59,6 +58,7 @@ use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
 use crate::planner::{Expr, ExprAnalysis, Optimizer, RecExpr, TypeSchemaAnalysis};
 use crate::storage::Storage;
 use crate::types::{ColumnIndex, DataType};
+use crate::utils::counted::{Counter, StreamExt as _};
 use crate::utils::timed::{Span as TimeSpan, StreamExt as _};
 
 mod analyze;
@@ -340,32 +340,29 @@ impl<S: Storage> Builder<S> {
                 .execute(c)
             }),
 
-            Join([op, on, left, right]) => self
-                .build_id(left)
-                .spawn() // ends the pipeline of left side
-                .subscribe()
-                .zip(self.build_id(right))
-                .map(|l, r| match self.node(op) {
-                    Inner | LeftOuter | RightOuter | FullOuter => NestedLoopJoinExecutor {
-                        op: self.node(op).clone(),
-                        condition: self.resolve_column_index2(on, left, right),
-                        left_types: self.plan_types(left).to_vec(),
-                        right_types: self.plan_types(right).to_vec(),
-                    }
-                    .execute(l, r),
-                    op @ Semi | op @ Anti => NestedLoopSemiJoinExecutor {
-                        anti: matches!(op, Anti),
-                        condition: self.resolve_column_index2(on, left, right),
-                        left_types: self.plan_types(left).to_vec(),
-                    }
-                    .execute(l, r),
-                    t => panic!("invalid join type: {t:?}"),
-                }),
+            Join([op, on, left, right]) => {
+                self.build_id(left)
+                    .zip(self.build_id(right))
+                    .map(|l, r| match self.node(op) {
+                        Inner | LeftOuter | RightOuter | FullOuter => NestedLoopJoinExecutor {
+                            op: self.node(op).clone(),
+                            condition: self.resolve_column_index2(on, left, right),
+                            left_types: self.plan_types(left).to_vec(),
+                            right_types: self.plan_types(right).to_vec(),
+                        }
+                        .execute(l, r),
+                        op @ Semi | op @ Anti => NestedLoopSemiJoinExecutor {
+                            anti: matches!(op, Anti),
+                            condition: self.resolve_column_index2(on, left, right),
+                            left_types: self.plan_types(left).to_vec(),
+                        }
+                        .execute(l, r),
+                        t => panic!("invalid join type: {t:?}"),
+                    })
+            }
 
             HashJoin(args @ [op, _, _, _, left, right]) => self
                 .build_id(left)
-                .spawn() // ends the pipeline of left side
-                .subscribe()
                 .zip(self.build_id(right))
                 .map(|l, r| match self.node(op) {
                     Inner => self.build_hashjoin::<{ JoinType::Inner }>(args, l, r),
@@ -379,8 +376,6 @@ impl<S: Storage> Builder<S> {
 
             MergeJoin(args @ [op, _, _, _, left, right]) => self
                 .build_id(left)
-                .spawn() // ends the pipeline of left side
-                .subscribe()
                 .zip(self.build_id(right))
                 .map(|l, r| match self.node(op) {
                     Inner => self.build_mergejoin::<{ JoinType::Inner }>(args, l, r),
@@ -553,6 +548,7 @@ impl<S: Storage> Builder<S> {
         self.instrument(id, stream)
     }
 
+    /// Attaches metrics to the stream.
     fn instrument(&mut self, id: Id, stream: PartitionedStream) -> PartitionedStream {
         // let name = self.node(id).to_string();
         let partitions = stream.streams.len();
@@ -562,26 +558,13 @@ impl<S: Storage> Builder<S> {
         self.metrics
             .register(id, spans.clone(), output_row_counters.clone());
 
-        #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
-        async fn instrument(
-            stream: impl Stream<Item = Result<DataChunk>> + Send + 'static,
-            output_row_counter: Counter,
-        ) {
-            #[for_await]
-            for chunk in stream {
-                let chunk = chunk?;
-                output_row_counter.inc(chunk.cardinality() as u64);
-                yield chunk;
-            }
-        }
-
         PartitionedStream {
             streams: stream
                 .streams
                 .into_iter()
                 .zip(spans)
                 .zip(output_row_counters)
-                .map(|((stream, span), counter)| instrument(stream.timed(span), counter))
+                .map(|((stream, span), counter)| stream.timed(span).counted(counter).boxed())
                 .collect(),
         }
     }

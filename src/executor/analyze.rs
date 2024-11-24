@@ -1,8 +1,5 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use std::fmt::{self, Debug};
-use std::sync::atomic::{AtomicU64, Ordering};
-
 use pretty_xmlish::PrettyConfig;
 
 use super::*;
@@ -82,29 +79,5 @@ impl Metrics {
         self.rows
             .get(&id)
             .map(|rows| rows.iter().map(|counter| counter.get()).collect())
-    }
-}
-
-/// A counter.
-#[derive(Default, Clone)]
-pub struct Counter {
-    count: Arc<AtomicU64>,
-}
-
-impl Debug for Counter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.get())
-    }
-}
-
-impl Counter {
-    /// Increments the counter.
-    pub fn inc(&self, value: u64) {
-        self.count.fetch_add(value, Ordering::Relaxed);
-    }
-
-    /// Gets the current value of the counter.
-    pub fn get(&self) -> u64 {
-        self.count.load(Ordering::Relaxed)
     }
 }
