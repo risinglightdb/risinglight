@@ -33,8 +33,8 @@ impl AnalyzeExecutor {
                 metadata.push(("rows", format!("{total} = {rows:?}")));
             }
             if let Some(time) = self.metrics.get_time(id) {
-                let total = time.iter().sum::<Duration>();
-                metadata.push(("time", format!("{total:?} = {time:?}")));
+                let max = time.iter().max().unwrap();
+                metadata.push(("time", format!("{max:?} = {time:?}")));
             }
             metadata
         };

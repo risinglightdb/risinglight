@@ -38,14 +38,13 @@ impl<T: Stream> Stream for Timed<T> {
         let this = self.project();
         let _guard = this.span.as_ref().map(|s| s.enter());
 
-        match this.inner.poll_next(cx) {
-            r @ Poll::Pending => r,
-            other => {
-                drop(_guard);
-                this.span.take();
-                other
-            }
+        let result = this.inner.poll_next(cx);
+        if let Poll::Ready(None) = result {
+            // stream is finished
+            drop(_guard);
+            this.span.take();
         }
+        result
     }
 
     #[inline]
@@ -63,7 +62,7 @@ impl Debug for Span {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Span")
             .field("busy_time", &self.busy_time())
-            .field("last_poll_time", &self.last_poll_time())
+            .field("finish_time", &self.finish_time())
             .finish()
     }
 }
@@ -71,7 +70,7 @@ impl Debug for Span {
 #[derive(Debug, Default)]
 struct SpanInner {
     busy_time: Duration,
-    last_poll_time: Option<Instant>,
+    finish_time: Option<Instant>,
 }
 
 impl Span {
@@ -86,8 +85,8 @@ impl Span {
         self.inner.lock().busy_time
     }
 
-    pub fn last_poll_time(&self) -> Option<Instant> {
-        self.inner.lock().last_poll_time
+    pub fn finish_time(&self) -> Option<Instant> {
+        self.inner.lock().finish_time
     }
 }
 
@@ -101,6 +100,6 @@ impl Drop for Guard<'_> {
         let now = Instant::now();
         let mut span = self.span.inner.lock();
         span.busy_time += now - self.start_time;
-        span.last_poll_time = Some(now);
+        span.finish_time = Some(now);
     }
 }
