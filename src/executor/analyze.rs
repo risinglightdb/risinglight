@@ -62,9 +62,14 @@ pub struct Metrics {
 
 impl Metrics {
     /// Create metrics for a node.
-    pub fn add(&mut self, id: Id, parallelism: usize) -> (Vec<TimeSpan>, Vec<Counter>) {
-        let spans = (0..parallelism).map(|_| TimeSpan::default()).collect_vec();
-        let counters = (0..parallelism).map(|_| Counter::default()).collect_vec();
+    pub fn add(
+        &mut self,
+        id: Id,
+        num_spans: usize,
+        num_counters: usize,
+    ) -> (Vec<TimeSpan>, Vec<Counter>) {
+        let spans = (0..num_spans).map(|_| TimeSpan::default()).collect_vec();
+        let counters = (0..num_counters).map(|_| Counter::default()).collect_vec();
         self.spans.insert(id, spans.clone());
         self.rows.insert(id, counters.clone());
         (spans, counters)

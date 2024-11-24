@@ -516,20 +516,21 @@ impl<S: Storage> Builder<S> {
                 Random => {
                     let stream = self.build_id(child);
                     let num_partitions = self.optimizer.config().parallelism;
-                    let (spans, counters) = self.metrics.add(id, stream.len());
+                    let (spans, counters) = self.metrics.add(id, stream.len(), num_partitions);
                     return stream
                         .dispatch(num_partitions, |c| {
                             RandomPartitionProducer { num_partitions }.execute(c)
                         })
-                        .instrument(spans, counters)
+                        .instrument(spans)
                         .spawn()
-                        .subscribe();
+                        .subscribe()
+                        .counted(counters);
                 }
                 Hash(keys) => {
                     let keys = self.resolve_column_index(keys, child);
                     let num_partitions = self.optimizer.config().parallelism;
                     let stream = self.build_id(child);
-                    let (spans, counters) = self.metrics.add(id, stream.len());
+                    let (spans, counters) = self.metrics.add(id, stream.len(), num_partitions);
                     return stream
                         .dispatch(num_partitions, |c| {
                             HashPartitionProducer {
@@ -538,16 +539,17 @@ impl<S: Storage> Builder<S> {
                             }
                             .execute(c)
                         })
-                        .instrument(spans, counters)
+                        .instrument(spans)
                         .spawn()
-                        .subscribe();
+                        .subscribe()
+                        .counted(counters);
                 }
                 node => panic!("invalid exchange type: {node:?}"),
             },
 
             node => panic!("not a plan: {node:?}\n{:?}", self.egraph.dump()),
         };
-        let (spans, counters) = self.metrics.add(id, stream.len());
+        let (spans, counters) = self.metrics.add(id, stream.len(), stream.len());
         stream.instrument(spans, counters)
     }
 
@@ -733,12 +735,18 @@ impl PartitionedStream {
         assert_eq!(self.streams.len(), spans.len());
         assert_eq!(self.streams.len(), counters.len());
         PartitionedStream {
-            streams: self
-                .streams
-                .into_iter()
-                .zip(spans)
-                .zip(counters)
+            streams: (self.streams.into_iter().zip(spans).zip(counters))
                 .map(|((stream, span), counter)| stream.timed(span).counted(counter).boxed())
+                .collect(),
+        }
+    }
+
+    /// Attaches metrics to the streams.
+    fn counted(self, counters: Vec<Counter>) -> Self {
+        assert_eq!(self.streams.len(), counters.len());
+        PartitionedStream {
+            streams: (self.streams.into_iter().zip(counters))
+                .map(|(stream, counter)| stream.counted(counter).boxed())
                 .collect(),
         }
     }
@@ -754,16 +762,11 @@ struct PartitionedDispatcher {
 
 impl PartitionedDispatcher {
     /// Attaches metrics to the streams.
-    fn instrument(self, spans: Vec<TimeSpan>, counters: Vec<Counter>) -> Self {
+    fn instrument(self, spans: Vec<TimeSpan>) -> Self {
         assert_eq!(self.streams.len(), spans.len());
-        assert_eq!(self.streams.len(), counters.len());
         PartitionedDispatcher {
-            streams: self
-                .streams
-                .into_iter()
-                .zip(spans)
-                .zip(counters)
-                .map(|((stream, span), counter)| stream.timed(span).counted(counter).boxed())
+            streams: (self.streams.into_iter().zip(spans))
+                .map(|(stream, span)| stream.timed(span).boxed())
                 .collect(),
             num_partitions: self.num_partitions,
         }
