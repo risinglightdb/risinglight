@@ -29,17 +29,14 @@ use tracing_subscriber::prelude::*;
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-    /// Where to store the database files
-    #[clap()]
-    storage_path: Option<String>,
+    /// The name of an RisingLight database.
+    /// A new database is created if the file does not previously exist.
+    #[clap(default_value = ":memory:")]
+    filename: String,
 
     /// File to execute. Can be either a SQL `sql` file or sqllogictest `slt` file.
     #[clap(short, long)]
     file: Option<String>,
-
-    /// Whether to use in-memory engine
-    #[clap(long)]
-    memory: bool,
 
     /// Control the output format
     /// - `text`: plain text
@@ -326,15 +323,12 @@ async fn main() -> Result<()> {
         minitrace::set_reporter(ConsoleReporter, Config::default());
     }
 
-    let db = if args.memory {
-        info!("using memory engine");
+    let db = if args.filename == ":memory:" {
+        info!("Connected to a transient in-memory database.");
         Database::new_in_memory()
     } else {
-        info!("using Secondary engine");
         let mut options = SecondaryStorageOptions::default_for_cli();
-        if let Some(path) = args.storage_path {
-            options.path = PathBuf::new().join(path);
-        }
+        options.path = PathBuf::new().join(args.filename);
         Database::new_on_disk(options).await
     };
 
