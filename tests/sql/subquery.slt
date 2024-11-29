@@ -88,3 +88,34 @@ select t.a + t1.a from t, t as t1;
 4
 4
 6
+
+# subquery in select
+query IB
+select a, a > (select avg(a) from t) from t;
+----
+1 false
+3 true
+
+# subquery in where
+query I
+select a from t where a > (select avg(a) from t);
+----
+3
+
+# subquery in having
+# FIXME: bind error: column "a" must appear in the GROUP BY clause or be used in an aggregate function
+# query I
+# select a from t group by a having a > (select avg(a) from t);
+# ----
+# 3
+
+# subquery in order by
+# FIXME: bind error: column "a" must appear in the GROUP BY clause or be used in an aggregate function
+# query I
+# select a from t order by (select t.a + avg(t1.b) from t as t1);
+# ----
+# 1
+# 3
+
+statement ok
+drop table t;

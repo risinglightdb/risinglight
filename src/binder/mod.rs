@@ -99,6 +99,8 @@ pub enum BindError {
     ViewAliasesMismatch,
     #[error("pragma does not exist: {0}")]
     NoPragma(String),
+    #[error("subquery returns {0} columns - expected 1")]
+    SubqueryMustHaveOneColumn(usize),
 }
 
 /// The binder resolves all expressions referring to schema objects such as
@@ -262,6 +264,8 @@ struct Context {
     /// A set of columns that have been generated in `FROM` clause.
     /// Used to check confliction and add `Prime` if conflicted.
     from_columns: HashSet<Id>,
+    /// The plan of subqueries found in the expression.
+    subqueries: Vec<Id>,
 }
 
 impl Binder {

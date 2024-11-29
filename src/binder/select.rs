@@ -75,7 +75,7 @@ impl Binder {
     fn bind_select(&mut self, select: Select, order_by: Vec<OrderByExpr>) -> Result {
         let from = self.bind_from(select.from)?;
         let projection = self.bind_projection(select.projection, from)?;
-        let mut where_ = self.bind_where(select.selection)?;
+        let where_ = self.bind_where(select.selection)?;
         let groupby = match select.group_by {
             GroupByExpr::All => return Err(BindError::Todo("group by all".into())),
             GroupByExpr::Expressions(group_by) if group_by.is_empty() => None,
@@ -90,14 +90,13 @@ impl Binder {
         };
 
         let mut plan = from;
-        self.plan_apply(&mut where_, &mut plan);
+        plan = self.plan_apply(plan)?;
         if self.node(where_) != &Node::true_() {
             plan = self.egraph.add(Node::Filter([where_, plan]));
         }
         let mut to_rewrite = [projection, distinct, having, orderby];
         plan = self.plan_agg(&mut to_rewrite, groupby, plan)?;
-        let [mut projection, distinct, mut having, orderby] = to_rewrite;
-        self.plan_apply(&mut having, &mut plan);
+        let [mut projection, distinct, having, orderby] = to_rewrite;
         if self.node(having) != &Node::true_() {
             plan = self.egraph.add(Node::Filter([having, plan]));
         }
@@ -360,23 +359,12 @@ impl Binder {
         Ok(self.egraph.add(Node::Window([overs, plan])))
     }
 
-    /// Extract all subqueries from `id` and generate [`Apply`](Node::Apply) plans.
-    fn plan_apply(&mut self, id: &mut Id, plan: &mut Id) {
-        let mut expr = self.node(*id).clone();
-        if let Node::Max1Row(subquery) = &expr {
-            // rewrite the plan to a left outer apply
-            let left_outer = self.egraph.add(Node::LeftOuter);
-            *plan = self.egraph.add(Node::Apply([left_outer, *plan, *subquery]));
-
-            // rewrite the subquery to a reference to its first column
-            let column0 = self.schema(*subquery)[0];
-            *id = self.wrap_ref(column0);
-            return;
+    /// Generate an [`Apply`](Node::Apply) plan for each subquery in the current context.
+    fn plan_apply(&mut self, mut plan: Id) -> Result {
+        let left_outer = self.egraph.add(Node::LeftOuter);
+        for subquery in self.contexts.last().unwrap().subqueries.iter() {
+            plan = self.egraph.add(Node::Apply([left_outer, plan, *subquery]));
         }
-        // recursive rewrite
-        for child in expr.children_mut() {
-            self.plan_apply(child, plan);
-        }
-        *id = self.egraph.add(expr);
+        Ok(plan)
     }
 }

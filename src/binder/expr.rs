@@ -300,7 +300,12 @@ impl Binder {
 
     fn bind_subquery(&mut self, subquery: Query) -> Result {
         let (id, _) = self.bind_query(subquery)?;
-        Ok(self.egraph.add(Node::Max1Row(id)))
+        let schema = self.schema(id);
+        let &[col0] = schema.as_slice() else {
+            return Err(BindError::SubqueryMustHaveOneColumn(schema.len()));
+        };
+        self.contexts.last_mut().unwrap().subqueries.push(id);
+        Ok(self.wrap_ref(col0))
     }
 
     fn bind_substring(
