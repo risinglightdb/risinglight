@@ -404,7 +404,13 @@ impl Binder {
         }
 
         let node = match func.name.to_string().to_lowercase().as_str() {
-            "count" if args.is_empty() => Node::RowCount,
+            "count" if args.is_empty() => {
+                let num: usize = self.context().from.unwrap().into();
+                let id = self
+                    .egraph
+                    .add(Node::Constant(DataValue::Int32(num as i32)));
+                Node::CountStar(id)
+            }
             "count" if func.distinct => Node::CountDistinct(args[0]),
             "count" => Node::Count(args[0]),
             "max" => Node::Max(args[0]),

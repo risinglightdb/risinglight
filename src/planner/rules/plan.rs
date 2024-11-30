@@ -464,7 +464,7 @@ pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
     use Expr::*;
     let columns = |i: &Id| &egraph[*i].data.columns;
     match enode {
-        Column(_) | Ref(_) => [enode.clone()].into_iter().collect(),
+        Column(_) | Ref(_) => [enode.clone()].into(),
         // others: merge from all children
         _ => (enode.children().iter())
             .flat_map(|id| columns(id).iter().cloned())

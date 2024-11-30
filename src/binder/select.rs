@@ -75,8 +75,10 @@ impl Binder {
     }
 
     fn bind_select(&mut self, select: Select, order_by: Vec<OrderByExpr>) -> Result {
-        let from = self.bind_from(select.from)?;
-        let projection = self.bind_projection(select.projection, from)?;
+        let mut plan = self.bind_from(select.from)?;
+        self.contexts.last_mut().unwrap().from = Some(plan);
+
+        let projection = self.bind_projection(select.projection, plan)?;
         let mut where_ = self.bind_where(select.selection)?;
         let groupby = match select.group_by {
             GroupByExpr::All => return Err(BindError::Todo("group by all".into())),
@@ -91,7 +93,6 @@ impl Binder {
             Some(Distinct::On(exprs)) => self.bind_exprs(exprs)?,
         };
 
-        let mut plan = from;
         self.plan_apply(&mut where_, &mut plan);
         plan = self.egraph.add(Node::Filter([where_, plan]));
         let mut to_rewrite = [projection, distinct, having, orderby];

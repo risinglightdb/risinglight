@@ -34,6 +34,14 @@ select count(*) as 'total' from t where v > 5
 ----
 3
 
+# count(*) from different tables should be distinct
+query II
+select c2, c1 from
+    (select count(*) as c1 from t where v <= 1),
+    (select count(*) as c2 from t);
+----
+8 1
+
 statement ok
 delete from t where v = 7
 

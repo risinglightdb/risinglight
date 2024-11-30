@@ -75,8 +75,11 @@ define_language! {
         "sum" = Sum(Id),
         "avg" = Avg(Id),
         "count" = Count(Id),
-        "count-distinct" = CountDistinct(Id),
-        "rowcount" = RowCount,
+        "count_distinct" = CountDistinct(Id),
+        "count_star" = CountStar(Id),           // (count_star num)
+                                                //     count the number of rows of the input table
+                                                //     `num` is a integer literal, which is only used to
+                                                //     distinguish count(*) from different tables
         "first" = First(Id),
         "last" = Last(Id),
         // window functions
@@ -240,7 +243,7 @@ impl Expr {
         use Expr::*;
         matches!(
             self,
-            RowCount
+            CountStar(_)
                 | Max(_)
                 | Min(_)
                 | Sum(_)
