@@ -424,7 +424,13 @@ impl Binder {
             "first" => Node::First(args[0]),
             "last" => Node::Last(args[0]),
             "replace" => Node::Replace([args[0], args[1], args[2]]),
-            "row_number" => Node::RowNumber,
+            "row_number" => {
+                let num: usize = self.context().from.unwrap().into();
+                let id = self
+                    .egraph
+                    .add(Node::Constant(DataValue::Int32(num as i32)));
+                Node::RowNumber(id)
+            }
             name => todo!("Unsupported function: {}", name),
         };
         let mut id = self.egraph.add(node);

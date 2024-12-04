@@ -131,7 +131,7 @@ pub fn analyze_type(
         Avg(a) => check(enode, x(a)?, |a| a.is_number()),
 
         // agg
-        CountStar(_) | RowNumber | Count(_) | CountDistinct(_) => Ok(DataType::Int32),
+        CountStar(_) | RowNumber(_) | Count(_) | CountDistinct(_) => Ok(DataType::Int32),
         First(a) | Last(a) => x(a),
         Over([f, _, _]) => x(f),
 

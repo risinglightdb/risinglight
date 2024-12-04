@@ -160,7 +160,7 @@ impl<'a> Evaluator<'a> {
         match self.node() {
             Over([window, _, _]) => self.next(*window).init_agg_state(),
             CountDistinct(_) => AggState::DistinctValue(HashSet::default()),
-            CountStar(_) | RowNumber | Count(_) => AggState::Value(DataValue::Int32(0)),
+            CountStar(_) | RowNumber(_) | Count(_) => AggState::Value(DataValue::Int32(0)),
             Sum(_) | Min(_) | Max(_) | First(_) | Last(_) => AggState::Value(DataValue::Null),
             t => panic!("not aggregation: {t}"),
         }
@@ -244,7 +244,7 @@ impl<'a> Evaluator<'a> {
         }
         match state {
             AggState::Value(state) => AggState::Value(match self.node() {
-                CountStar(_) | RowNumber => state.add(DataValue::Int32(1)),
+                CountStar(_) | RowNumber(_) => state.add(DataValue::Int32(1)),
                 Count(_) => state.add(DataValue::Int32(!value.is_null() as _)),
                 Sum(_) => state.add(value),
                 Min(_) => state.min(value),

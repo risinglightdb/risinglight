@@ -33,3 +33,12 @@ SELECT a FROM t HAVING sum(a) OVER () > 0;
 
 statement error window function calls cannot be nested
 SELECT sum(sum(a) over ()) over () FROM t;
+
+# row_number() from different tables should be distinct
+query II rowsort
+SELECT c2, c1 FROM
+    (SELECT row_number() OVER () as c1 FROM t WHERE a = 1),
+    (SELECT row_number() OVER () as c2 FROM t WHERE a > 1);
+----
+1 1
+2 1

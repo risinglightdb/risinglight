@@ -86,7 +86,10 @@ define_language! {
         "over" = Over([Id; 3]),                 // (over window_function [partition_key..] [order_key..])
         // TODO: support frame clause
             // "range" = Range([Id; 2]),               // (range start end)
-        "row_number" = RowNumber,
+        "row_number" = RowNumber(Id),           // (row_number num)
+                                                //     generate a sequence of numbers starting from 1
+                                                //     `num` is a integer literal, which is only used to
+                                                //     distinguish row_number() from different tables
 
         // subquery related
         "exists" = Exists(Id),                  // (exists plan)
@@ -257,7 +260,7 @@ impl Expr {
 
     pub const fn is_window_function(&self) -> bool {
         use Expr::*;
-        matches!(self, RowNumber) || self.is_aggregate_function()
+        matches!(self, RowNumber(_)) || self.is_aggregate_function()
     }
 }
 
