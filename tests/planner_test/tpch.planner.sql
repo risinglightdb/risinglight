@@ -159,10 +159,10 @@ Projection
 │   │   │       └── l_discount
 
 │   └── ref
-│       └── rowcount
-├── cost: 70266880
+│       └── count(*)_19
+├── cost: 70566940
 ├── rows: 100
-└── Order { by: [ l_returnflag, l_linestatus ], cost: 70266840, rows: 100 }
+└── Order { by: [ l_returnflag, l_linestatus ], cost: 70566904, rows: 100 }
     └── HashAgg
         ├── keys: [ l_returnflag, l_linestatus ]
         ├── aggs:
@@ -184,8 +184,8 @@ Projection
         │   │   └── l_discount
         │   ├── count
         │   │   └── l_discount
-        │   └── rowcount
-        ├── cost: 70265070
+        │   └── count(*)_19
+        ├── cost: 70565140
         ├── rows: 100
         └── Projection
             ├── exprs: [ l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus ]
@@ -682,11 +682,11 @@ Projection
 ├── exprs:
 │   ┌── o_orderpriority
 │   └── ref
-│       └── rowcount
-├── cost: 35742960
+│       └── count(*)_12
+├── cost: 35761710
 ├── rows: 10
-└── Order { by: [ o_orderpriority ], cost: 35742960, rows: 10 }
-    └── HashAgg { keys: [ o_orderpriority ], aggs: [ rowcount ], cost: 35742904, rows: 10 }
+└── Order { by: [ o_orderpriority ], cost: 35761710, rows: 10 }
+    └── HashAgg { keys: [ o_orderpriority ], aggs: [ count(*)_12 ], cost: 35761656, rows: 10 }
         └── Projection { exprs: [ o_orderpriority ], cost: 35712024, rows: 187500 }
             └── HashJoin
                 ├── type: semi
@@ -1952,26 +1952,26 @@ Projection
 │   │   └── count
 │   │       └── o_orderkey
 │   └── ref
-│       └── rowcount
-├── cost: 10053795
+│       └── count(*)_46
+├── cost: 10053796
 ├── rows: 10
 └── Order
     ├── by:
     │   ┌── desc
     │   │   └── ref
-    │   │       └── rowcount
+    │   │       └── count(*)_46
     │   └── desc
     │       └── ref
     │           └── count
     │               └── o_orderkey
-    ├── cost: 10053795
+    ├── cost: 10053796
     ├── rows: 10
     └── HashAgg
         ├── keys:ref
         │   └── count
         │       └── o_orderkey
-        ├── aggs: [ rowcount ]
-        ├── cost: 10053740
+        ├── aggs: [ count(*)_46 ]
+        ├── cost: 10053741
         ├── rows: 10
         └── Projection
             ├── exprs:
@@ -2204,7 +2204,7 @@ Projection
 │   ├── p_type
 │   ├── p_size
 │   └── ref
-│       └── count-distinct
+│       └── count_distinct
 │           └── ps_suppkey
 ├── cost: 9952286
 ├── rows: 1000
@@ -2212,7 +2212,7 @@ Projection
     ├── by:
     │   ┌── desc
     │   │   └── ref
-    │   │       └── count-distinct
+    │   │       └── count_distinct
     │   │           └── ps_suppkey
     │   ├── p_brand
     │   ├── p_type
@@ -2221,7 +2221,7 @@ Projection
     ├── rows: 1000
     └── HashAgg
         ├── keys: [ p_brand, p_type, p_size ]
-        ├── aggs:count-distinct
+        ├── aggs:count_distinct
         │   └── ps_suppkey
         ├── cost: 9938269
         ├── rows: 1000
@@ -2961,8 +2961,8 @@ Projection
 ├── exprs:
 │   ┌── s_name
 │   └── ref
-│       └── rowcount
-├── cost: 124247200
+│       └── count(*)_52
+├── cost: 124265950
 ├── rows: 10
 └── TopN
     ├── limit: 100
@@ -2970,11 +2970,11 @@ Projection
     ├── order_by:
     │   ┌── desc
     │   │   └── ref
-    │   │       └── rowcount
+    │   │       └── count(*)_52
     │   └── s_name
-    ├── cost: 124247200
+    ├── cost: 124265950
     ├── rows: 10
-    └── HashAgg { keys: [ s_name ], aggs: [ rowcount ], cost: 124247144, rows: 10 }
+    └── HashAgg { keys: [ s_name ], aggs: [ count(*)_52 ], cost: 124265896, rows: 10 }
         └── Projection { exprs: [ s_name ], cost: 124216260, rows: 187537.97 }
             └── HashJoin
                 ├── type: semi
@@ -3120,25 +3120,25 @@ Projection
 │   ┌── ref
 │   │   └── Substring { str: c_phone, start: 1, length: 2 }
 │   ├── ref
-│   │   └── rowcount
+│   │   └── count(*)_95
 │   └── ref
 │       └── sum
 │           └── c_acctbal
-├── cost: 4399655
+├── cost: 4403405
 ├── rows: 10
 └── Order
     ├── by:ref
     │   └── Substring { str: c_phone, start: 1, length: 2 }
-    ├── cost: 4399654.5
+    ├── cost: 4403404.5
     ├── rows: 10
     └── HashAgg
         ├── keys:ref
         │   └── Substring { str: c_phone, start: 1, length: 2 }
         ├── aggs:
-        │   ┌── rowcount
+        │   ┌── count(*)_95
         │   └── sum
         │       └── c_acctbal
-        ├── cost: 4399590
+        ├── cost: 4403340
         ├── rows: 10
         └── Projection
             ├── exprs: [ Substring { str: c_phone, start: 1, length: 2 }, c_acctbal ]
