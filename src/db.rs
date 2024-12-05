@@ -27,8 +27,12 @@ pub struct Database {
 /// The configuration of the database.
 #[derive(Debug, Default)]
 struct Config {
+    /// If true, no optimization will be applied to the query.
     disable_optimizer: bool,
     mock_stat: Option<Statistics>,
+    /// The number of partitions of each operator.
+    /// If set to 0, it will be automatically determined by the number of worker threads.
+    parallelism: usize,
 }
 
 impl Database {
@@ -93,6 +97,11 @@ impl Database {
             crate::planner::Config {
                 enable_range_filter_scan: self.storage.support_range_filter_scan(),
                 table_is_sorted_by_primary_key: self.storage.table_is_sorted_by_primary_key(),
+                parallelism: if self.config.lock().unwrap().parallelism > 0 {
+                    self.config.lock().unwrap().parallelism
+                } else {
+                    tokio::runtime::Handle::current().metrics().num_workers()
+                },
             },
         );
 
@@ -158,19 +167,13 @@ impl Database {
     /// Mock the row count of a table for planner test.
     fn handle_set(&self, stmt: &Statement) -> Result<bool, Error> {
         if let Statement::Pragma { name, .. } = stmt {
+            let mut config = self.config.lock().unwrap();
             match name.to_string().as_str() {
-                "enable_optimizer" => {
-                    self.config.lock().unwrap().disable_optimizer = false;
-                    return Ok(true);
-                }
-                "disable_optimizer" => {
-                    self.config.lock().unwrap().disable_optimizer = true;
-                    return Ok(true);
-                }
-                name => {
-                    return Err(crate::binder::BindError::NoPragma(name.into()).into());
-                }
+                "enable_optimizer" => config.disable_optimizer = false,
+                "disable_optimizer" => config.disable_optimizer = true,
+                name => return Err(crate::binder::BindError::NoPragma(name.into()).into()),
             }
+            return Ok(true);
         }
         let Statement::SetVariable {
             variable, value, ..
@@ -178,6 +181,14 @@ impl Database {
         else {
             return Ok(false);
         };
+        if variable.0[0].value == "parallelism" {
+            let mut config = self.config.lock().unwrap();
+            config.parallelism = value[0]
+                .to_string()
+                .parse::<usize>()
+                .map_err(|_| Error::Internal("invalid parallelism".into()))?;
+            return Ok(true);
+        }
         let Some(table_name) = variable.0[0].value.strip_prefix("mock_rowcount_") else {
             return Ok(false);
         };
@@ -201,6 +212,11 @@ impl Database {
     /// Return all available pragma options.
     fn pragma_options() -> &'static [&'static str] {
         &["enable_optimizer", "disable_optimizer"]
+    }
+
+    /// Return all available set variables.
+    fn set_variables() -> &'static [&'static str] {
+        &["parallelism"]
     }
 }
 
@@ -258,6 +274,19 @@ impl rustyline::completion::Completer for &Database {
         // completion for pragma options
         if prefix.trim().eq_ignore_ascii_case("pragma") {
             let candidates = Database::pragma_options()
+                .iter()
+                .filter(|option| option.starts_with(last_word))
+                .map(|option| rustyline::completion::Pair {
+                    display: option.to_string(),
+                    replacement: option.to_string(),
+                })
+                .collect();
+            return Ok((pos - last_word.len(), candidates));
+        }
+
+        // completion for set variable
+        if prefix.trim().eq_ignore_ascii_case("set") {
+            let candidates = Database::set_variables()
                 .iter()
                 .filter(|option| option.starts_with(last_word))
                 .map(|option| rustyline::completion::Pair {

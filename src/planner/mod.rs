@@ -3,7 +3,7 @@
 use egg::{define_language, Id, Symbol};
 
 use crate::binder::copy::ExtSource;
-use crate::binder::{CreateFunction, CreateTable};
+use crate::binder::{FunctionDef, TableDef};
 use crate::catalog::{ColumnRefId, TableRefId};
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{ColumnIndex, DataType, DataValue, DateTimeField};
@@ -65,7 +65,7 @@ define_language! {
 
         // functions
         "extract" = Extract([Id; 2]),           // (extract field expr)
-            Field(DateTimeField),
+            Field(Box<DateTimeField>),
         "replace" = Replace([Id; 3]),           // (replace expr pattern replacement)
         "substring" = Substring([Id; 3]),       // (substring expr start length)
 
@@ -118,9 +118,20 @@ define_language! {
                                                     // child must be ordered by keys
         "window" = Window([Id; 2]),             // (window [over..] child)
                                                     // output = child || exprs
-        CreateTable(Box<CreateTable>),
-        "create_view" = CreateView([Id; 2]),    // (create_view create_table child)
-        CreateFunction(CreateFunction),
+
+        // parallelism
+        "to_parallel" = ToParallel(Id),         // (to_parallel child)
+        "exchange" = Exchange([Id; 2]),         // (exchange dist child)
+            "single" = Single,                      // (single)             merge all to one
+            "broadcast" = Broadcast,                // (broadcast)          broadcast to all
+            "random" = Random,                      // (random)             random partition
+            "hash" = Hash(Id),                      // (hash key=[expr..])  partition by hash of key
+
+        "create_table" = CreateTable(Id),       // (create_table table_def)
+        "create_view" = CreateView([Id; 2]),    // (create_view table_def child)
+            TableDef(Box<TableDef>),
+        "create_function" = CreateFunction(Id), // (create_function func_def)
+            FunctionDef(Box<FunctionDef>),
         "drop" = Drop(Id),                      // (drop [table..])
         "insert" = Insert([Id; 3]),             // (insert table [column..] child)
         "delete" = Delete([Id; 2]),             // (delete table child)
@@ -136,6 +147,9 @@ define_language! {
                                                     // with the same schema as `child`
         "max1row" = Max1Row(Id),                // (max1row child)
                                                     // convert table to scalar
+        "schema" = Schema([Id; 2]),             // (schema [expr..] child)
+                                                    // reset schema of child to [expr..]
+                                                    // this node is just pass-through in execution
 
         Symbol(Symbol),
     }
@@ -189,9 +203,16 @@ impl Expr {
         t
     }
 
-    pub fn as_create_table(&self) -> Box<CreateTable> {
-        let Self::CreateTable(v) = self else {
+    pub fn as_table_def(&self) -> Box<TableDef> {
+        let Self::TableDef(v) = self else {
             panic!("not a create table: {self}")
+        };
+        v.clone()
+    }
+
+    pub fn as_function_def(&self) -> Box<FunctionDef> {
+        let Self::FunctionDef(v) = self else {
+            panic!("not a function definition: {self}")
         };
         v.clone()
     }
@@ -280,5 +301,16 @@ impl<D> ExprExt for egg::EClass<Expr, D> {
                 _ => None,
             })
             .expect("not a column")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_expr_size() {
+        // the size of Expr should be as small as possible
+        assert_eq!(std::mem::size_of::<Expr>(), 32);
     }
 }

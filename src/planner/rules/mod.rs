@@ -14,7 +14,8 @@
 //! | [`schema`] | column id to index    | output schema of a plan       | [`Schema`]         |
 //! | [`type_`]  |                       | data type                     | [`Type`]           |
 //! | [`rows`]   |                       | estimated rows                | [`Rows`]           |
-//! | [`order`]  | merge join            | ordered keys                  | [`OrderKey`]   |
+//! | [`order`]  | merge join            | ordered keys                  | [`OrderKey`]       |
+//! | [`partition`] | to parallel plan   | data partition                | [`Partition`]      |
 //!
 //! It would be best if you have a background in program analysis.
 //! Here is a recommended course: <https://pascal-group.bitbucket.io/teaching.html>.
@@ -27,6 +28,7 @@
 //! [`Type`]: type_::Type
 //! [`Rows`]: rows::Rows
 //! [`OrderKey`]: order::OrderKey
+//! [`Partition`]: partition::Partition
 
 use std::collections::HashSet;
 use std::hash::Hash;
@@ -40,6 +42,7 @@ use crate::types::F32;
 pub mod agg;
 pub mod expr;
 pub mod order;
+pub mod partition;
 pub mod plan;
 pub mod range;
 pub mod rows;

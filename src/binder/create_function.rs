@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use super::*;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
-pub struct CreateFunction {
+pub struct FunctionDef {
     pub schema_name: String,
     pub name: String,
     pub arg_types: Vec<crate::types::DataType>,
@@ -20,14 +20,14 @@ pub struct CreateFunction {
     pub body: String,
 }
 
-impl fmt::Display for CreateFunction {
+impl fmt::Display for Box<FunctionDef> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let explainer = Pretty::childless_record("CreateFunction", self.pretty_function());
+        let explainer = Pretty::childless_record("FunctionDef", self.pretty_function());
         delegate_fmt(&explainer, f, String::with_capacity(1000))
     }
 }
 
-impl FromStr for CreateFunction {
+impl FromStr for Box<FunctionDef> {
     type Err = ();
 
     fn from_str(_s: &str) -> std::result::Result<Self, Self::Err> {
@@ -35,7 +35,7 @@ impl FromStr for CreateFunction {
     }
 }
 
-impl CreateFunction {
+impl FunctionDef {
     pub fn pretty_function<'a>(&self) -> Vec<(&'a str, Pretty<'a>)> {
         vec![
             ("name", Pretty::display(&self.name)),
@@ -102,7 +102,7 @@ impl Binder {
             arg_names.push(arg.name.map_or("".to_string(), |n| n.to_string()));
         }
 
-        let f = self.egraph.add(Node::CreateFunction(CreateFunction {
+        let func_def = self.egraph.add(Node::FunctionDef(Box::new(FunctionDef {
             schema_name,
             name,
             arg_types,
@@ -110,8 +110,8 @@ impl Binder {
             return_type,
             language,
             body,
-        }));
-
-        Ok(f)
+        })));
+        let id = self.egraph.add(Node::CreateFunction(func_def));
+        Ok(id)
     }
 }

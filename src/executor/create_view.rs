@@ -1,12 +1,12 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use super::*;
-use crate::binder::CreateTable;
+use crate::binder::TableDef;
 use crate::catalog::RootCatalogRef;
 
 /// The executor of `create view` statement.
 pub struct CreateViewExecutor {
-    pub table: Box<CreateTable>,
+    pub table: Box<TableDef>,
     pub query: RecExpr,
     pub catalog: RootCatalogRef,
 }

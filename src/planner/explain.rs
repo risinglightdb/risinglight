@@ -322,19 +322,34 @@ impl<'a> Explain<'a> {
                 with_meta(vec![("windows", self.expr(windows).pretty())]),
                 vec![self.child(child).pretty()],
             ),
-            CreateTable(t) => {
-                let fields = with_meta(t.pretty_table());
-                Pretty::childless_record("CreateTable", fields)
+            Exchange([dist, child]) => Pretty::simple_record(
+                "Exchange",
+                with_meta(vec![("dist", self.expr(dist).pretty())]),
+                vec![self.child(child).pretty()],
+            ),
+            ToParallel(child) => {
+                Pretty::simple_record("ToParallel", vec![], vec![self.child(child).pretty()])
             }
+            Single | Broadcast | Random => Pretty::display(enode),
+            Hash(keys) => {
+                Pretty::childless_record("Hash", vec![("keys", self.expr(keys).pretty())])
+            }
+
+            CreateTable(table) => Pretty::childless_record(
+                "CreateTable",
+                with_meta(vec![("table", self.expr(table).pretty())]),
+            ),
             CreateView([table, query]) => Pretty::simple_record(
                 "CreateView",
                 with_meta(vec![("table", self.expr(table).pretty())]),
                 vec![self.expr(query).pretty()],
             ),
-            CreateFunction(f) => {
-                let v = f.pretty_function();
-                Pretty::childless_record("CreateFunction", v)
-            }
+            TableDef(t) => Pretty::childless_record("TableDef", t.pretty_table()),
+            CreateFunction(f) => Pretty::childless_record(
+                "CreateFunction",
+                with_meta(vec![("function", self.expr(f).pretty())]),
+            ),
+            FunctionDef(f) => Pretty::childless_record("FunctionDef", f.pretty_function()),
             Drop(tables) => {
                 let fields = with_meta(vec![("objects", self.expr(tables).pretty())]);
                 Pretty::childless_record("Drop", fields)
@@ -373,6 +388,7 @@ impl<'a> Explain<'a> {
             ),
             Empty(_) => Pretty::childless_record("Empty", with_meta(vec![])),
             Max1Row(child) => Pretty::fieldless_record("Max1Row", vec![self.expr(child).pretty()]),
+            Schema([_, child]) => self.child(child).pretty(),
         }
     }
 }

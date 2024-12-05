@@ -57,6 +57,7 @@ pin-project = "1"
 pretty-xmlish = "0.1"
 prost = "0.13"
 pyo3 = { version = "0.22", features = ["extension-module"], optional = true }
+rand = "0.8"
 ref-cast = "1.0"
 regex = "1"
 risinglight_proto = "0.2"

@@ -1,15 +1,16 @@
-use std::future::Future;
+use std::fmt::{self, Debug};
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::{Duration, Instant};
 
+use futures::Stream;
 use parking_lot::Mutex;
 
-impl<T: Future> FutureExt for T {}
+impl<T: Stream> StreamExt for T {}
 
-/// An extension trait for `Futures` that provides tracing instrument adapters.
-pub trait FutureExt: Future + Sized {
-    /// Binds a [`Span`] to the [`Future`] that continues to record until the future is dropped.
+/// An extension trait for `Streams` that provides tracing instrument adapters.
+pub trait StreamExt: Stream + Sized {
+    /// Binds a [`Span`] to the [`Stream`] that continues to record until the Stream is dropped.
     #[inline]
     fn timed(self, span: Span) -> Timed<Self> {
         Timed {
@@ -19,7 +20,7 @@ pub trait FutureExt: Future + Sized {
     }
 }
 
-/// Adapter for [`FutureExt::timed()`](FutureExt::timed).
+/// Adapter for [`StreamExt::timed()`](StreamExt::timed).
 #[pin_project::pin_project]
 pub struct Timed<T> {
     #[pin]
@@ -27,33 +28,49 @@ pub struct Timed<T> {
     span: Option<Span>,
 }
 
-impl<T: Future> Future for Timed<T> {
-    type Output = T::Output;
+impl<T: Stream> Stream for Timed<T> {
+    type Item = T::Item;
 
-    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+    fn poll_next(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         let this = self.project();
         let _guard = this.span.as_ref().map(|s| s.enter());
 
-        match this.inner.poll(cx) {
-            r @ Poll::Pending => r,
-            other => {
-                drop(_guard);
-                this.span.take();
-                other
-            }
+        let result = this.inner.poll_next(cx);
+        if let Poll::Ready(None) = result {
+            // stream is finished
+            drop(_guard);
+            this.span.take();
         }
+        result
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct Span {
     inner: Arc<Mutex<SpanInner>>,
+}
+
+impl Debug for Span {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Span")
+            .field("busy_time", &self.busy_time())
+            .field("finish_time", &self.finish_time())
+            .finish()
+    }
 }
 
 #[derive(Debug, Default)]
 struct SpanInner {
     busy_time: Duration,
-    last_poll_time: Option<Instant>,
+    finish_time: Option<Instant>,
 }
 
 impl Span {
@@ -68,8 +85,8 @@ impl Span {
         self.inner.lock().busy_time
     }
 
-    pub fn last_poll_time(&self) -> Option<Instant> {
-        self.inner.lock().last_poll_time
+    pub fn finish_time(&self) -> Option<Instant> {
+        self.inner.lock().finish_time
     }
 }
 
@@ -83,6 +100,6 @@ impl Drop for Guard<'_> {
         let now = Instant::now();
         let mut span = self.span.inner.lock();
         span.busy_time += now - self.start_time;
-        span.last_poll_time = Some(now);
+        span.finish_time = Some(now);
     }
 }

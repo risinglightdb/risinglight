@@ -305,14 +305,18 @@ trait Ext {
 }
 
 impl Ext for DataValue {
+    /// Add two values. The result is null only if both values are null.
     fn add(self, other: Self) -> Self {
         if self.is_null() {
             other
+        } else if other.is_null() {
+            self
         } else {
             self + other
         }
     }
 
+    /// Returns the first non-null value.
     fn or(self, other: Self) -> Self {
         if self.is_null() {
             other
