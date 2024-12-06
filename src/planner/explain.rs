@@ -184,7 +184,8 @@ impl<'a> Explain<'a> {
             ),
 
             // aggregations
-            CountStar | RowNumber => enode.to_string().into(),
+            CountStar => "count(*)".into(),
+            RowNumber => "row_number()".into(),
             Max(a) | Min(a) | Sum(a) | Avg(a) | Count(a) | First(a) | Last(a)
             | CountDistinct(a) => {
                 let name = enode.to_string();
