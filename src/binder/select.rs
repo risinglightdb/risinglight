@@ -47,8 +47,7 @@ impl Binder {
     fn bind_cte(&mut self, Cte { alias, query, .. }: Cte) -> Result {
         let table_alias = alias.name.value.to_lowercase();
         let (query, ctx) = self.bind_query(*query)?;
-        let mut columns = HashMap::new();
-        if !alias.columns.is_empty() {
+        let column_aliases = if !alias.columns.is_empty() {
             // `with t(a, b, ..)`
             // check column count
             let expected_column_num = self.schema(query).len();
@@ -60,17 +59,16 @@ impl Binder {
                     actual_column_num,
                 ));
             }
-            for (column, id) in alias.columns.iter().zip(self.schema(query)) {
-                columns.insert(column.value.to_lowercase(), id);
-            }
+            alias
+                .columns
+                .iter()
+                .map(|c| Some(c.value.to_lowercase()))
+                .collect()
         } else {
             // `with t`
-            for (name, mut id) in ctx.output_aliases {
-                id = self.wrap_ref(id);
-                columns.insert(name, id);
-            }
-        }
-        self.add_cte(&table_alias, query, columns)?;
+            ctx.output_aliases
+        };
+        self.add_cte(&table_alias, query, column_aliases)?;
         Ok(query)
     }
 
@@ -115,6 +113,7 @@ impl Binder {
     /// Binds the select list. Returns a list of expressions.
     fn bind_projection(&mut self, projection: Vec<SelectItem>, from: Id) -> Result {
         let mut select_list = vec![];
+        let mut aliases = vec![];
         for item in projection {
             match item {
                 SelectItem::UnnamedExpr(expr) => {
@@ -124,24 +123,24 @@ impl Binder {
                         None
                     };
                     let id = self.bind_expr(expr)?;
-                    if let Some(ident) = ident {
-                        self.add_output_alias(ident, id);
-                    }
+                    aliases.push(ident);
                     select_list.push(id);
                 }
                 SelectItem::ExprWithAlias { expr, alias } => {
                     let id = self.bind_expr(expr)?;
                     let name = alias.value.to_lowercase();
                     self.add_alias(name.clone(), "".into(), id);
-                    self.add_output_alias(name, id);
+                    aliases.push(Some(name));
                     select_list.push(id);
                 }
                 SelectItem::Wildcard(_) => {
                     select_list.append(&mut self.schema(from));
+                    aliases.resize(select_list.len(), None);
                 }
-                _ => todo!("bind select list"),
+                _ => return Err(BindError::Todo("bind select list".into())),
             }
         }
+        self.contexts.last_mut().unwrap().output_aliases = aliases;
         Ok(self.egraph.add(Node::List(select_list.into())))
     }
 

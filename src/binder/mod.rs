@@ -250,16 +250,15 @@ pub fn bind_header(mut chunk: array::Chunk, stmt: &Statement) -> array::Chunk {
 #[derive(Debug, Default)]
 struct Context {
     /// Defined CTEs.
-    /// `cte_name` -> (`query_id`, `column_alias` -> id)
-    ctes: HashMap<String, (Id, HashMap<String, Id>)>,
+    /// `cte_name` -> (`query_id`, [`column_alias`])
+    ctes: HashMap<String, (Id, Vec<Option<String>>)>,
     /// Table aliases that can be accessed from the current query.
     table_aliases: HashSet<String>,
     /// Column aliases that can be accessed from the current query.
     /// `column_alias` -> (`table_alias` -> id)
     column_aliases: HashMap<String, HashMap<String, Id>>,
     /// Column aliases that can be accessed from the outside query.
-    /// `column_alias` -> id
-    output_aliases: HashMap<String, Id>,
+    output_aliases: Vec<Option<String>>,
     /// A set of columns that have been generated in `FROM` clause.
     /// Used to check confliction and add `Prime` if conflicted.
     from_columns: HashSet<Id>,
@@ -364,18 +363,12 @@ impl Binder {
         Ok(())
     }
 
-    /// Add an alias so that it can be accessed from the outside query.
-    fn add_output_alias(&mut self, column_name: String, id: Id) {
-        let context = self.contexts.last_mut().unwrap();
-        context.output_aliases.insert(column_name, id);
-    }
-
     /// Add a CTE to the current context.
-    fn add_cte(&mut self, table_name: &str, query: Id, columns: HashMap<String, Id>) -> Result<()> {
+    fn add_cte(&mut self, table_name: &str, query: Id, aliases: Vec<Option<String>>) -> Result<()> {
         let context = self.contexts.last_mut().unwrap();
         if context
             .ctes
-            .insert(table_name.into(), (query, columns))
+            .insert(table_name.into(), (query, aliases))
             .is_some()
         {
             return Err(BindError::DuplicatedCteName(table_name.into()));
@@ -406,7 +399,7 @@ impl Binder {
     }
 
     /// Find an CTE.
-    fn find_cte(&self, cte_name: &str) -> Option<&(Id, HashMap<String, Id>)> {
+    fn find_cte(&self, cte_name: &str) -> Option<&(Id, Vec<Option<String>>)> {
         self.contexts
             .iter()
             .rev()

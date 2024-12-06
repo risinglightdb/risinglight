@@ -58,34 +58,56 @@ impl Binder {
     /// - `bind_table_factor(t)` => `(scan $1 (list $1.1 $1.2 $1.3) true)`
     /// - `bind_table_factor(select 1)` => `(values (1))`
     fn bind_table_factor(&mut self, table: TableFactor) -> Result {
-        let id = match table {
-            TableFactor::Table { name, alias, .. } => self.bind_table_def(&name, alias, false)?,
+        let (id, column_aliases, table_alias) = match table {
+            TableFactor::Table { name, alias, .. } => {
+                let name = lower_case_name(&name);
+                let (_, table_name) = split_name(&name)?;
+
+                // check duplicated alias
+                let table_alias = match &alias {
+                    Some(alias) => &alias.name.value, // t as [t1]
+                    None => table_name,               // [t]
+                };
+                self.add_table_alias(table_alias)?;
+
+                let (id, column_aliases) = self.bind_table_def(&name, false)?;
+                (id, column_aliases, table_alias.to_string())
+            }
             TableFactor::Derived {
                 subquery, alias, ..
             } => {
                 let (id, ctx) = self.bind_query(*subquery)?;
-                let id = self.add_proj_if_conflict(id);
-                if let Some(alias) = &alias
+                let table_alias = match &alias {
+                    Some(alias) => {
+                        self.add_table_alias(&alias.name.value)?;
+                        &alias.name.value
+                    }
+                    None => "",
+                };
+                let column_aliases = if let Some(alias) = &alias
                     && !alias.columns.is_empty()
                 {
                     // 'as t(a, b, ..)'
-                    let table_name = &alias.name.value;
-                    for (column, mut id) in alias.columns.iter().zip(self.schema(id)) {
-                        id = self.wrap_ref(id);
-                        self.add_alias(column.value.to_lowercase(), table_name.clone(), id);
-                    }
+                    alias
+                        .columns
+                        .iter()
+                        .map(|c| Some(c.value.to_lowercase()))
+                        .collect()
                 } else {
-                    // move `output_aliases` to current context
-                    let table_name = alias.map_or("".into(), |alias| alias.name.value);
-                    for (name, mut id) in ctx.output_aliases {
-                        id = self.wrap_ref(id);
-                        self.add_alias(name, table_name.clone(), id);
-                    }
-                }
-                id
+                    ctx.output_aliases
+                };
+                (id, column_aliases, table_alias.to_string())
             }
-            _ => panic!("bind table ref"),
+            _ => return Err(BindError::Todo("bind table factor".into())),
         };
+        // resolve column conflicts
+        let id = self.add_proj_if_conflict(id);
+        for (alias, mut id) in column_aliases.into_iter().zip(self.schema(id)) {
+            if let Some(alias) = alias {
+                id = self.wrap_ref(id);
+                self.add_alias(alias, table_alias.clone(), id);
+            }
+        }
         // add columns to context so that later TableFactor can resolve column conflict
         let schema = self.schema(id);
         self.contexts
@@ -147,35 +169,23 @@ impl Binder {
     }
 
     /// Defines the table name so that it can be referred later.
-    /// Returns a `Scan` node if the table is a base table, or a subquery if it is a CTE.
-    ///
-    /// This function defines the table name so that it can be referred later.
+    /// Returns 2 values:
+    /// - the plan node: `Scan` if the table is a base table, or a subquery if it is a CTE.
+    /// - the column aliases.
     ///
     /// # Example
     /// - `bind_table_def(t)` => `(scan $1 (list $1.1 $1.2) true)`
     pub(super) fn bind_table_def(
         &mut self,
         name: &ObjectName,
-        alias: Option<TableAlias>,
         with_rowid: bool,
-    ) -> Result {
+    ) -> Result<(Id, Vec<Option<String>>)> {
         let name = lower_case_name(name);
         let (schema_name, table_name) = split_name(&name)?;
 
-        // check duplicated alias
-        let table_alias = match &alias {
-            Some(alias) => &alias.name.value,
-            None => table_name,
-        };
-        self.add_table_alias(table_alias)?;
-
         // find cte
-        if let Some((query, columns)) = self.find_cte(table_name).cloned() {
-            // add column aliases
-            for (column_name, id) in columns {
-                self.add_alias(column_name, table_alias.into(), id);
-            }
-            return Ok(query);
+        if let Some((query, aliases)) = self.find_cte(table_name).cloned() {
+            return Ok((query, aliases));
         }
 
         // find table in catalog
@@ -186,18 +196,16 @@ impl Binder {
 
         let table = self.catalog.get_table(&table_ref_id).unwrap();
         let mut column_ids = vec![];
+        let mut aliases = vec![];
         for (cid, column) in if with_rowid {
             table.all_columns_with_rowid()
         } else {
             table.all_columns()
         } {
-            let mut id = self.egraph.add(Node::Column(table_ref_id.with_column(cid)));
-            while self.context().from_columns.contains(&id) {
-                id = self.egraph.add(Node::Prime(id));
-            }
-            // TODO: handle column aliases
-            self.add_alias(column.name().into(), table_alias.into(), id);
+            let id = self.egraph.add(Node::Column(table_ref_id.with_column(cid)));
             column_ids.push(id);
+            // TODO: handle column aliases
+            aliases.push(Some(column.name().to_owned()));
         }
 
         // return a Scan node
@@ -205,7 +213,7 @@ impl Binder {
         let cols = self.egraph.add(Node::List(column_ids.into()));
         let true_ = self.egraph.add(Node::true_());
         let scan = self.egraph.add(Node::Scan([table, cols, true_]));
-        Ok(scan)
+        Ok((scan, aliases))
     }
 
     /// Returns a list of given columns in the table.
@@ -288,7 +296,6 @@ impl Binder {
         let mut schema = self.schema(table);
         let mut need_proj = false;
         for id in &mut schema {
-            *id = self.wrap_ref(*id);
             while self.context().from_columns.contains(id) {
                 *id = self.egraph.add(Node::Prime(*id));
                 need_proj = true;
