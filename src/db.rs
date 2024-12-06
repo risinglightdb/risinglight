@@ -276,8 +276,8 @@ impl rustyline::completion::Completer for &Database {
         // they should be ordered in principle that frequently used ones come first
         const KEYWORDS: &[&str] = &[
             "AS", "ALL", "ANALYZE", "CREATE", "COPY", "DELETE", "DROP", "EXPLAIN", "FROM",
-            "FUNCTION", "INSERT", "JOIN", "ON", "PRAGMA", "SET", "SELECT", "TABLE", "UNION",
-            "VIEW", "WHERE", "WITH",
+            "FUNCTION", "INSERT", "INTO", "JOIN", "ON", "PRAGMA", "SET", "SELECT", "TABLE",
+            "UNION", "VALUES", "VIEW", "WHERE", "WITH",
         ];
         let last_word_upper = last_word.to_uppercase();
         let candidates = KEYWORDS
