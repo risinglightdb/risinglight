@@ -75,8 +75,8 @@ define_language! {
         "sum" = Sum(Id),
         "avg" = Avg(Id),
         "count" = Count(Id),
-        "count-distinct" = CountDistinct(Id),
-        "rowcount" = RowCount,
+        "count_distinct" = CountDistinct(Id),
+        "count_star" = CountStar,
         "first" = First(Id),
         "last" = Last(Id),
         // window functions
@@ -240,7 +240,7 @@ impl Expr {
         use Expr::*;
         matches!(
             self,
-            RowCount
+            CountStar
                 | Max(_)
                 | Min(_)
                 | Sum(_)

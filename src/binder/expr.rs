@@ -404,7 +404,7 @@ impl Binder {
         }
 
         let node = match func.name.to_string().to_lowercase().as_str() {
-            "count" if args.is_empty() => Node::RowCount,
+            "count" if args.is_empty() => Node::CountStar,
             "count" if func.distinct => Node::CountDistinct(args[0]),
             "count" => Node::Count(args[0]),
             "max" => Node::Max(args[0]),

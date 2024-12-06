@@ -112,7 +112,7 @@ impl<'a> Evaluator<'a> {
             }
             Desc(a) | Ref(a) => self.next(*a).eval(chunk),
             // for aggs, evaluate its children
-            RowCount => Ok(ArrayImpl::new_null(
+            CountStar => Ok(ArrayImpl::new_null(
                 (0..chunk.cardinality()).map(|_| ()).collect(),
             )),
             Count(a) | Sum(a) | Min(a) | Max(a) | First(a) | Last(a) | CountDistinct(a) => {
@@ -160,7 +160,7 @@ impl<'a> Evaluator<'a> {
         match self.node() {
             Over([window, _, _]) => self.next(*window).init_agg_state(),
             CountDistinct(_) => AggState::DistinctValue(HashSet::default()),
-            RowCount | RowNumber | Count(_) => AggState::Value(DataValue::Int32(0)),
+            CountStar | RowNumber | Count(_) => AggState::Value(DataValue::Int32(0)),
             Sum(_) | Min(_) | Max(_) | First(_) | Last(_) => AggState::Value(DataValue::Null),
             t => panic!("not aggregation: {t}"),
         }
@@ -214,7 +214,7 @@ impl<'a> Evaluator<'a> {
         use Expr::*;
         Ok(match state {
             AggState::Value(state) => AggState::Value(match self.node() {
-                RowCount => state.add(DataValue::Int32(chunk.cardinality() as _)),
+                CountStar => state.add(DataValue::Int32(chunk.cardinality() as _)),
                 Count(a) => state.add(DataValue::Int32(self.next(*a).eval(chunk)?.count() as _)),
                 Sum(a) => state.add(self.next(*a).eval(chunk)?.sum()),
                 Min(a) => state.min(self.next(*a).eval(chunk)?.min_()),
@@ -244,7 +244,7 @@ impl<'a> Evaluator<'a> {
         }
         match state {
             AggState::Value(state) => AggState::Value(match self.node() {
-                RowCount | RowNumber => state.add(DataValue::Int32(1)),
+                CountStar | RowNumber => state.add(DataValue::Int32(1)),
                 Count(_) => state.add(DataValue::Int32(!value.is_null() as _)),
                 Sum(_) => state.add(value),
                 Min(_) => state.min(value),
