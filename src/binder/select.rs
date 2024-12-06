@@ -22,20 +22,23 @@ impl Binder {
                 self.bind_cte(cte)?;
             }
         }
-        let child = match *query.body {
+        let mut child = match *query.body {
             SetExpr::Select(select) => self.bind_select(*select, query.order_by)?,
             SetExpr::Values(values) => self.bind_values(values)?,
             _ => return Err(BindError::Todo("unknown set expr".into())),
         };
-        let limit = match query.limit {
-            Some(expr) => self.bind_expr(expr)?,
-            None => self.egraph.add(Node::null()),
-        };
-        let offset = match query.offset {
-            Some(offset) => self.bind_expr(offset.value)?,
-            None => self.egraph.add(Node::zero()),
-        };
-        Ok(self.egraph.add(Node::Limit([limit, offset, child])))
+        if query.limit.is_some() || query.offset.is_some() {
+            let limit = match query.limit {
+                Some(expr) => self.bind_expr(expr)?,
+                None => self.egraph.add(Node::null()),
+            };
+            let offset = match query.offset {
+                Some(offset) => self.bind_expr(offset.value)?,
+                None => self.egraph.add(Node::zero()),
+            };
+            child = self.egraph.add(Node::Limit([limit, offset, child]));
+        }
+        Ok(child)
     }
 
     /// Binds a CTE definition: `alias AS query`.
@@ -63,10 +66,7 @@ impl Binder {
         } else {
             // `with t`
             for (name, mut id) in ctx.output_aliases {
-                // wrap with `Ref` if the node is not a column unit.
-                if !matches!(self.node(id), Node::Column(_) | Node::Ref(_)) {
-                    id = self.egraph.add(Node::Ref(id));
-                }
+                id = self.wrap_ref(id);
                 columns.insert(name, id);
             }
         }
@@ -93,15 +93,21 @@ impl Binder {
 
         let mut plan = from;
         self.plan_apply(&mut where_, &mut plan);
-        plan = self.egraph.add(Node::Filter([where_, plan]));
+        if self.node(where_) != &Node::true_() {
+            plan = self.egraph.add(Node::Filter([where_, plan]));
+        }
         let mut to_rewrite = [projection, distinct, having, orderby];
         plan = self.plan_agg(&mut to_rewrite, groupby, plan)?;
         let [mut projection, distinct, mut having, orderby] = to_rewrite;
         self.plan_apply(&mut having, &mut plan);
-        plan = self.egraph.add(Node::Filter([having, plan]));
+        if self.node(having) != &Node::true_() {
+            plan = self.egraph.add(Node::Filter([having, plan]));
+        }
         plan = self.plan_window(projection, distinct, orderby, plan)?;
         plan = self.plan_distinct(distinct, orderby, &mut projection, plan)?;
-        plan = self.egraph.add(Node::Order([orderby, plan]));
+        if self.node(orderby) != &Node::List([].into()) {
+            plan = self.egraph.add(Node::Order([orderby, plan]));
+        }
         plan = self.egraph.add(Node::Proj([projection, plan]));
         Ok(plan)
     }
