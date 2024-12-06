@@ -80,6 +80,7 @@ pub fn analyze_range(egraph: &EGraph, enode: &Expr) -> RangeCondition {
             };
             Some((*ka, KeyRange { start, end }))
         }
+        Prime(e) => range(e).cloned(),
         _ => None,
     }
 }

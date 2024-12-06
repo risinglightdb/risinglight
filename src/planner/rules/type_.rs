@@ -38,7 +38,7 @@ pub fn analyze_type(
             .get_column(col)
             .ok_or_else(|| TypeError::Unavailable(enode.to_string()))?
             .data_type()),
-        Ref(a) => x(a),
+        Ref(a) | Prime(a) => x(a),
         List(list) => Ok(DataType::Struct(list.iter().map(x).try_collect()?)),
 
         // cast

@@ -3,7 +3,7 @@
 use std::vec::Vec;
 
 use super::*;
-use crate::catalog::{ColumnRefId, RootCatalog};
+use crate::catalog::RootCatalog;
 
 impl Binder {
     /// Binds the FROM clause. Returns a nested [`Join`](Node::Join) plan of tables.
@@ -33,7 +33,7 @@ impl Binder {
     /// Returns a nested [`Join`](Node::Join) plan of tables.
     ///
     /// # Example
-    /// ```ignore
+    /// ```text
     /// (join inner true
     ///     (join inner (= $1.1 $2.1)
     ///        (scan $1 (list $1.1 $1.2) null)
@@ -58,18 +58,20 @@ impl Binder {
     /// - `bind_table_factor(t)` => `(scan $1 (list $1.1 $1.2 $1.3) true)`
     /// - `bind_table_factor(select 1)` => `(values (1))`
     fn bind_table_factor(&mut self, table: TableFactor) -> Result {
-        match table {
-            TableFactor::Table { name, alias, .. } => self.bind_table_def(&name, alias, false),
+        let id = match table {
+            TableFactor::Table { name, alias, .. } => self.bind_table_def(&name, alias, false)?,
             TableFactor::Derived {
                 subquery, alias, ..
             } => {
                 let (id, ctx) = self.bind_query(*subquery)?;
+                let id = self.add_proj_if_conflict(id);
                 if let Some(alias) = &alias
                     && !alias.columns.is_empty()
                 {
                     // 'as t(a, b, ..)'
                     let table_name = &alias.name.value;
-                    for (column, id) in alias.columns.iter().zip(self.schema(id)) {
+                    for (column, mut id) in alias.columns.iter().zip(self.schema(id)) {
+                        id = self.wrap_ref(id);
                         self.add_alias(column.value.to_lowercase(), table_name.clone(), id);
                     }
                 } else {
@@ -80,10 +82,18 @@ impl Binder {
                         self.add_alias(name, table_name.clone(), id);
                     }
                 }
-                Ok(id)
+                id
             }
             _ => panic!("bind table ref"),
-        }
+        };
+        // add columns to context so that later TableFactor can resolve column conflict
+        let schema = self.schema(id);
+        self.contexts
+            .last_mut()
+            .unwrap()
+            .from_columns
+            .extend(schema);
+        Ok(id)
     }
 
     fn bind_join_op(&mut self, op: JoinOperator) -> Result<(Id, Id)> {
@@ -169,28 +179,30 @@ impl Binder {
         }
 
         // find table in catalog
-        let ref_id = self
+        let table_ref_id = self
             .catalog
             .get_table_id_by_name(schema_name, table_name)
             .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
 
-        let table = self.catalog.get_table(&ref_id).unwrap();
-        let mut ids = vec![];
+        let table = self.catalog.get_table(&table_ref_id).unwrap();
+        let mut column_ids = vec![];
         for (cid, column) in if with_rowid {
             table.all_columns_with_rowid()
         } else {
             table.all_columns()
         } {
-            let column_ref_id = ColumnRefId::from_table(ref_id, cid);
-            let id = self.egraph.add(Node::Column(column_ref_id));
+            let mut id = self.egraph.add(Node::Column(table_ref_id.with_column(cid)));
+            while self.context().from_columns.contains(&id) {
+                id = self.egraph.add(Node::Prime(id));
+            }
             // TODO: handle column aliases
             self.add_alias(column.name().into(), table_alias.into(), id);
-            ids.push(id);
+            column_ids.push(id);
         }
 
         // return a Scan node
-        let table = self.egraph.add(Node::Table(ref_id));
-        let cols = self.egraph.add(Node::List(ids.into()));
+        let table = self.egraph.add(Node::Table(table_ref_id));
+        let cols = self.egraph.add(Node::List(column_ids.into()));
         let true_ = self.egraph.add(Node::true_());
         let scan = self.egraph.add(Node::Scan([table, cols, true_]));
         Ok(scan)
@@ -235,10 +247,7 @@ impl Binder {
         };
         let ids = column_ids
             .into_iter()
-            .map(|id| {
-                let column_ref_id = ColumnRefId::from_table(table_ref_id, id);
-                self.egraph.add(Node::Column(column_ref_id))
-            })
+            .map(|cid| self.egraph.add(Node::Column(table_ref_id.with_column(cid))))
             .collect();
         let id = self.egraph.add(Node::List(ids));
         Ok(id)
@@ -263,6 +272,34 @@ impl Binder {
             table_ref_id.schema_id == RootCatalog::SYSTEM_SCHEMA_ID,
             table.is_view(),
         ))
+    }
+
+    /// If any column from `table` has conflicted with existing columns,
+    /// add a [`Proj`](Node::Proj) node to the table to distinguish columns.
+    ///
+    /// # Example
+    /// ```text
+    /// from_columns: [$1.1]
+    /// table:        (scan $1 (list $1.1 $1.2) true)   # $1.1 is conflicted with existing columns
+    /// return:       (proj (list (' $1.1) $1.2)        # wrap it with '
+    ///                   (scan $1 (list $1.1 $1.2) true))
+    /// ```
+    fn add_proj_if_conflict(&mut self, table: Id) -> Id {
+        let mut schema = self.schema(table);
+        let mut need_proj = false;
+        for id in &mut schema {
+            *id = self.wrap_ref(*id);
+            while self.context().from_columns.contains(id) {
+                *id = self.egraph.add(Node::Prime(*id));
+                need_proj = true;
+            }
+        }
+        if need_proj {
+            let projs = self.egraph.add(Node::List(schema.into()));
+            self.egraph.add(Node::Proj([projs, table]))
+        } else {
+            table
+        }
     }
 }
 

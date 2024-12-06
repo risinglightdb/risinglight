@@ -76,6 +76,10 @@ impl TableRefId {
             table_id,
         }
     }
+
+    pub const fn with_column(self, column_id: ColumnId) -> ColumnRefId {
+        ColumnRefId::new(self.schema_id, self.table_id, column_id)
+    }
 }
 
 /// An unique ID to a column in the query.
@@ -87,14 +91,6 @@ pub struct ColumnRefId {
 }
 
 impl ColumnRefId {
-    pub const fn from_table(table: TableRefId, column_id: ColumnId) -> Self {
-        ColumnRefId {
-            schema_id: table.schema_id,
-            table_id: table.table_id,
-            column_id,
-        }
-    }
-
     pub const fn new(schema_id: SchemaId, table_id: TableId, column_id: ColumnId) -> Self {
         ColumnRefId {
             schema_id,

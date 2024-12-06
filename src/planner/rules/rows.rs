@@ -78,7 +78,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         Max1Row(_) => 1.0,
 
         // for boolean expressions, the result represents selectivity
-        Ref(a) => x(a),
+        Ref(a) | Prime(a) => x(a),
         Constant(DataValue::Bool(false)) => 0.0,
         Constant(DataValue::Bool(true)) => 1.0,
         And([a, b]) => x(a) * x(b), // TODO: consider dependency

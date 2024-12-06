@@ -36,6 +36,11 @@ define_language! {
         "ref" = Ref(Id),                // (ref expr)
                                             // refer the expr as a column
                                             // it can also prevent optimization
+        "'" = Prime(Id),                // (' expr)
+                                            // an identity function that used to distinguish
+                                            // the same column from different tables
+                                            // for example, when join left=[a, b] with right=[a, b],
+                                            // the right side should be rewritten as ['a, 'b]
         "list" = List(Box<[Id]>),       // (list ...)
 
         // binary operations

@@ -110,7 +110,7 @@ impl<'a> Evaluator<'a> {
                 }
                 Ok(in_)
             }
-            Desc(a) | Ref(a) => self.next(*a).eval(chunk),
+            Desc(a) | Ref(a) | Prime(a) => self.next(*a).eval(chunk),
             // for aggs, evaluate its children
             CountStar => Ok(ArrayImpl::new_null(
                 (0..chunk.cardinality()).map(|_| ()).collect(),

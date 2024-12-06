@@ -260,6 +260,9 @@ struct Context {
     /// Column aliases that can be accessed from the outside query.
     /// `column_alias` -> id
     output_aliases: HashMap<String, Id>,
+    /// A set of columns that have been generated in `FROM` clause.
+    /// Used to check confliction and add `Prime` if conflicted.
+    from_columns: HashSet<Id>,
 }
 
 impl Binder {
@@ -334,6 +337,11 @@ impl Binder {
             | Statement::ShowColumns { .. } => Err(BindError::NotSupportedTSQL),
             _ => Err(BindError::InvalidSQL),
         }
+    }
+
+    /// Get the current context.
+    fn context(&self) -> &Context {
+        self.contexts.last().unwrap()
     }
 
     /// Add an column alias to the current context.
