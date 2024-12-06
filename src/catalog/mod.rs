@@ -83,32 +83,22 @@ impl TableRefId {
 pub struct ColumnRefId {
     pub schema_id: SchemaId,
     pub table_id: TableId,
-    /// How many times this table occurs in the query.
-    /// This field is used to distinguish the same table in different places.
-    pub table_occurrence: u32,
     pub column_id: ColumnId,
 }
 
 impl ColumnRefId {
-    pub const fn from_table(table: TableRefId, table_occurrence: u32, column_id: ColumnId) -> Self {
+    pub const fn from_table(table: TableRefId, column_id: ColumnId) -> Self {
         ColumnRefId {
             schema_id: table.schema_id,
             table_id: table.table_id,
-            table_occurrence,
             column_id,
         }
     }
 
-    pub const fn new(
-        schema_id: SchemaId,
-        table_id: TableId,
-        table_occurrence: u32,
-        column_id: ColumnId,
-    ) -> Self {
+    pub const fn new(schema_id: SchemaId, table_id: TableId, column_id: ColumnId) -> Self {
         ColumnRefId {
             schema_id,
             table_id,
-            table_occurrence,
             column_id,
         }
     }
@@ -124,11 +114,7 @@ impl ColumnRefId {
 impl std::fmt::Debug for ColumnRefId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // TODO: print schema id
-        write!(f, "${}.{}", self.table_id, self.column_id)?;
-        if self.table_occurrence != 0 {
-            write!(f, "({})", self.table_occurrence)?;
-        }
-        Ok(())
+        write!(f, "${}.{}", self.table_id, self.column_id)
     }
 }
 
@@ -163,7 +149,6 @@ impl FromStr for ColumnRefId {
         Ok(ColumnRefId {
             schema_id,
             table_id,
-            table_occurrence: 0,
             column_id,
         })
     }

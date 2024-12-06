@@ -111,13 +111,11 @@ impl Statistics {
         self.row_counts.get(&table_id).copied()
     }
 
-    pub fn add_distinct_values(&mut self, mut column_id: ColumnRefId, count: u32) {
-        column_id.table_occurrence = 0;
+    pub fn add_distinct_values(&mut self, column_id: ColumnRefId, count: u32) {
         self.distinct_values.insert(column_id, count);
     }
 
-    pub fn get_distinct_values(&self, mut column_id: ColumnRefId) -> Option<u32> {
-        column_id.table_occurrence = 0;
+    pub fn get_distinct_values(&self, column_id: ColumnRefId) -> Option<u32> {
         self.distinct_values.get(&column_id).copied()
     }
 }

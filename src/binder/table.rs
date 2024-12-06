@@ -175,17 +175,13 @@ impl Binder {
             .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
 
         let table = self.catalog.get_table(&ref_id).unwrap();
-        let table_occurence = {
-            let count = self.table_occurrences.entry(ref_id).or_default();
-            std::mem::replace(count, *count + 1)
-        };
         let mut ids = vec![];
         for (cid, column) in if with_rowid {
             table.all_columns_with_rowid()
         } else {
             table.all_columns()
         } {
-            let column_ref_id = ColumnRefId::from_table(ref_id, table_occurence, cid);
+            let column_ref_id = ColumnRefId::from_table(ref_id, cid);
             let id = self.egraph.add(Node::Column(column_ref_id));
             // TODO: handle column aliases
             self.add_alias(column.name().into(), table_alias.into(), id);
@@ -240,7 +236,7 @@ impl Binder {
         let ids = column_ids
             .into_iter()
             .map(|id| {
-                let column_ref_id = ColumnRefId::from_table(table_ref_id, 0, id);
+                let column_ref_id = ColumnRefId::from_table(table_ref_id, id);
                 self.egraph.add(Node::Column(column_ref_id))
             })
             .collect();

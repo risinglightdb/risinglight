@@ -10,7 +10,7 @@ use itertools::Itertools;
 
 use crate::array;
 use crate::catalog::function::FunctionCatalog;
-use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
+use crate::catalog::{RootCatalog, RootCatalogRef};
 use crate::parser::*;
 use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
 
@@ -107,8 +107,6 @@ pub struct Binder {
     egraph: egg::EGraph<Node, TypeSchemaAnalysis>,
     catalog: Arc<RootCatalog>,
     contexts: Vec<Context>,
-    /// The number of occurrences of each table in the query.
-    table_occurrences: HashMap<TableRefId, u32>,
     /// The context used in sql udf binding
     udf_context: UdfContext,
 }
@@ -271,7 +269,6 @@ impl Binder {
             catalog: catalog.clone(),
             egraph: egg::EGraph::new(TypeSchemaAnalysis { catalog }),
             contexts: vec![Context::default()],
-            table_occurrences: HashMap::new(),
             udf_context: UdfContext::new(),
         }
     }
