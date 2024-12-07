@@ -32,4 +32,7 @@ statement error HAVING clause cannot contain window functions
 SELECT a FROM t HAVING sum(a) OVER () > 0;
 
 statement error window function calls cannot be nested
-SELECT sum(sum(a) over ()) over () FROM t;
+SELECT sum(sum(a) OVER ()) OVER () FROM t;
+
+statement error aggregate function calls cannot contain window function calls
+SELECT sum(sum(a) OVER ()) FROM t;

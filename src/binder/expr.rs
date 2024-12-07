@@ -417,7 +417,9 @@ impl Binder {
             "sum" => Node::Sum(args[0]),
             "avg" => {
                 let sum = self.egraph.add(Node::Sum(args[0]));
+                let sum = self.add_aggregation(sum)?;
                 let count = self.egraph.add(Node::Count(args[0]));
+                let count = self.add_aggregation(count)?;
                 Node::Div([sum, count])
             }
             "first" => Node::First(args[0]),
@@ -430,8 +432,7 @@ impl Binder {
         if let Some(window) = func.over {
             id = self.bind_window_function(id, window)?;
         } else if node.is_aggregate_function() {
-            self.add_aggregation(id);
-            id = self.wrap_ref(id);
+            id = self.add_aggregation(id)?;
         }
         Ok(id)
     }
@@ -444,7 +445,7 @@ impl Binder {
         if !self.node(func).is_window_function() {
             return Err(BindError::NotAgg(self.node(func).to_string()));
         }
-        if !self.overs(func).is_empty() {
+        if !self.refs(func).is_disjoint(&self.context().over_windows) {
             return Err(BindError::NestedWindow);
         }
         let partitionby = self.bind_exprs(window.partition_by)?;

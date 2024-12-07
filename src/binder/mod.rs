@@ -75,6 +75,8 @@ pub enum BindError {
     AggInGroupBy,
     #[error("window function calls cannot be nested")]
     NestedWindow,
+    #[error("aggregate function calls cannot contain window function calls")]
+    WindowInAgg,
     #[error("WHERE clause cannot contain window functions")]
     WindowInWhere,
     #[error("HAVING clause cannot contain window functions")]
@@ -267,11 +269,11 @@ struct Context {
     /// Used to check confliction and add `Prime` if conflicted.
     from_columns: HashSet<Id>,
     /// Aggregations found in the expression.
-    aggregates: Vec<Id>,
+    aggregates: HashSet<Id>,
     /// Over windows found in the expression.
-    over_windows: Vec<Id>,
+    over_windows: HashSet<Id>,
     /// Subqueries found in the expression.
-    subqueries: Vec<Id>,
+    subqueries: HashSet<Id>,
 }
 
 impl Binder {
@@ -386,19 +388,31 @@ impl Binder {
         Ok(())
     }
 
-    /// Add an aggregation to the current context.
-    fn add_aggregation(&mut self, id: Id) {
-        self.contexts.last_mut().unwrap().aggregates.push(id);
+    /// Check and add an aggregation to the current context.
+    /// Return a `Ref` node if successful.
+    /// If the aggregation is nested, return an error.
+    fn add_aggregation(&mut self, id: Id) -> Result<Id> {
+        // check for nested aggs and window functions
+        let refs = self.refs(id);
+        if !refs.is_disjoint(&self.context().aggregates) {
+            return Err(BindError::NestedAgg);
+        }
+        if !refs.is_disjoint(&self.context().over_windows) {
+            return Err(BindError::WindowInAgg);
+        }
+        // add to context and return a ref
+        self.contexts.last_mut().unwrap().aggregates.insert(id);
+        Ok(self.wrap_ref(id))
     }
 
     /// Add an over window to the current context.
     fn add_over_window(&mut self, id: Id) {
-        self.contexts.last_mut().unwrap().over_windows.push(id);
+        self.contexts.last_mut().unwrap().over_windows.insert(id);
     }
 
     /// Add a subquery to the current context.
     fn add_subquery(&mut self, id: Id) {
-        self.contexts.last_mut().unwrap().subqueries.push(id);
+        self.contexts.last_mut().unwrap().subqueries.insert(id);
     }
 
     /// The number of aggregations in the current context.
@@ -449,14 +463,6 @@ impl Binder {
         self.egraph[id].data.schema.clone()
     }
 
-    fn aggs(&self, id: Id) -> &[Node] {
-        &self.egraph[id].data.aggs
-    }
-
-    fn overs(&self, id: Id) -> &[Node] {
-        &self.egraph[id].data.overs
-    }
-
     fn node(&self, id: Id) -> &Node {
         &self.egraph[id].nodes[0]
     }
@@ -464,6 +470,26 @@ impl Binder {
     #[allow(dead_code)]
     fn recexpr(&self, id: Id) -> RecExpr {
         self.node(id).build_recexpr(|id| self.node(id).clone())
+    }
+
+    /// Get all referenced node Ids in the expression.
+    ///
+    /// # Example
+    /// ```text
+    /// id = (+ (ref 1) (ref 2))
+    /// returns {1, 2}
+    /// ```
+    fn refs(&self, id: Id) -> HashSet<Id> {
+        let node = self.node(id);
+        if let Node::Ref(id) = node {
+            [*id].into()
+        } else {
+            node.children()
+                .iter()
+                .map(|id| self.refs(*id))
+                .flatten()
+                .collect()
+        }
     }
 
     /// Wrap the node with `Ref` if it is not a column unit.

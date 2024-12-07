@@ -10,7 +10,6 @@
 //! | [`expr`]   | expr simplification   | constant value                | [`ConstValue`]     |
 //! | [`range`]  | filter scan rule      | range condition               | [`RangeCondition`] |
 //! | [`plan`]   | plan optimization     | use and defination of columns | [`ColumnSet`]      |
-//! | [`agg`]    | agg extraction        | aggregations in an expr       | [`AggSet`]         |
 //! | [`schema`] | column id to index    | output schema of a plan       | [`Schema`]         |
 //! | [`type_`]  |                       | data type                     | [`Type`]           |
 //! | [`rows`]   |                       | estimated rows                | [`Rows`]           |
@@ -37,7 +36,6 @@ use super::{Config, EGraph, Expr, ExprExt, Pattern, Rewrite};
 use crate::catalog::RootCatalogRef;
 use crate::types::F32;
 
-pub mod agg;
 pub mod expr;
 pub mod order;
 pub mod plan;
@@ -147,12 +145,6 @@ pub struct TypeSchema {
     /// For non-plan node, it always be None.
     /// For plan node, it may be None if the schema is unknown due to unresolved `prune`.
     pub schema: schema::Schema,
-
-    /// All aggragations in the tree.
-    pub aggs: agg::AggSet,
-
-    /// All over nodes in the tree.
-    pub overs: agg::OverSet,
 }
 
 impl Analysis<Expr> for TypeSchemaAnalysis {
@@ -171,17 +163,13 @@ impl Analysis<Expr> for TypeSchemaAnalysis {
                 |i| egraph[*i].data.schema.clone(),
                 |id| egraph[*id].nodes[0].clone(),
             ),
-            aggs: agg::analyze_aggs(enode, |i| egraph[*i].data.aggs.clone()),
-            overs: agg::analyze_overs(enode, |i| egraph[*i].data.overs.clone()),
         }
     }
 
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         let merge_type = egg::merge_max(&mut to.type_, from.type_);
         let merge_schema = egg::merge_max(&mut to.schema, from.schema);
-        let merge_aggs = egg::merge_max(&mut to.aggs, from.aggs);
-        let merge_overs = egg::merge_max(&mut to.overs, from.overs);
-        merge_type | merge_schema | merge_aggs | merge_overs
+        merge_type | merge_schema
     }
 }
 

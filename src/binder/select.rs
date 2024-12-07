@@ -237,19 +237,13 @@ impl Binder {
     /// Extracts all aggregations from `exprs` and generates an [`Agg`](Node::Agg) plan.
     /// If no aggregation is found and no `groupby` keys, returns the original `plan`.
     fn plan_agg(&mut self, groupby: Option<Id>, plan: Id) -> Result {
-        let mut aggs = self.contexts.last().unwrap().aggregates.clone();
+        let aggs = &self.contexts.last().unwrap().aggregates;
         if aggs.is_empty() && groupby.is_none() {
             return Ok(plan);
         }
-        // check nested agg
-        // for child in aggs.iter().flat_map(|agg| agg.children()) {
-        //     if !self.aggs(*child).is_empty() {
-        //         return Err(BindError::NestedAgg);
-        //     }
-        // }
         // make sure the order of the aggs is deterministic
+        let mut aggs = aggs.iter().cloned().collect_vec();
         aggs.sort();
-        aggs.dedup();
         let aggs = self.egraph.add(Node::List(aggs.into()));
         let plan = self.egraph.add(match groupby {
             Some(groupby) => Node::HashAgg([groupby, aggs, plan]),
@@ -306,7 +300,7 @@ impl Binder {
     /// If `distinct` is an empty list, returns the original `plan`.
     ///
     /// # Example
-    /// ```ignore
+    /// ```text
     /// distinct=(list a b)
     /// projection=(list b c)
     /// output=(hashagg (list b (first c)) (list a b) plan)
@@ -351,12 +345,12 @@ impl Binder {
     /// Generates an [`Window`](Plan::Window) plan if any over node is found in the current context.
     /// Otherwise returns the original `plan`.
     fn plan_window(&mut self, plan: Id) -> Result {
-        let mut overs = self.contexts.last().unwrap().over_windows.clone();
+        let overs = &self.contexts.last().unwrap().over_windows;
         if overs.is_empty() {
             return Ok(plan);
         }
+        let mut overs = overs.iter().cloned().collect_vec();
         overs.sort();
-        overs.dedup();
         let overs = self.egraph.add(Node::List(overs.into()));
         Ok(self.egraph.add(Node::Window([overs, plan])))
     }
