@@ -122,85 +122,83 @@ impl<'a> Explain<'a> {
             }
             ColumnIndex(i) => Pretty::display(i),
 
-            // TODO: use object
-            ExtSource(src) => format!("path={:?}, format={}", src.path, src.format).into(),
+            ExtSource(src) => Pretty::debug(src),
             Symbol(s) => Pretty::display(s),
-            Ref(e) => Pretty::fieldless_record("ref", vec![self.expr(e).pretty()]),
-            Prime(e) => Pretty::fieldless_record("'", vec![self.expr(e).pretty()]),
-            List(list) => Pretty::Array(list.iter().map(|e| self.expr(e).pretty()).collect()),
+            Ref(e) => format!("#{}", usize::from(*e)).into(),
+            Prime(e) => format!("{}'", self.expr(e).pretty().to_str()).into(),
+            List(list) => Pretty::Array(
+                list.iter()
+                    .map(|e| {
+                        let pretty = self.expr(e).pretty();
+                        if let Expr::Column(_) | Expr::Ref(_) | Expr::Desc(_) = self.expr[*e] {
+                            pretty.into()
+                        } else {
+                            format!("{} as #{}", pretty.to_str(), usize::from(*e)).into()
+                        }
+                    })
+                    .collect(),
+            ),
 
             // binary operations
             Add([a, b]) | Sub([a, b]) | Mul([a, b]) | Div([a, b]) | Mod([a, b])
             | StringConcat([a, b]) | Gt([a, b]) | Lt([a, b]) | GtEq([a, b]) | LtEq([a, b])
             | Eq([a, b]) | NotEq([a, b]) | And([a, b]) | Or([a, b]) | Xor([a, b])
-            | Like([a, b]) => Pretty::childless_record(
-                enode.to_string(),
-                vec![
-                    ("lhs", self.expr(a).pretty()),
-                    ("rhs", self.expr(b).pretty()),
-                ],
-            ),
+            | Like([a, b]) => format!(
+                "({} {} {})",
+                self.expr(a).pretty().to_str(),
+                enode,
+                self.expr(b).pretty().to_str()
+            )
+            .into(),
 
             // unary operations
             Neg(a) | Not(a) | IsNull(a) => {
-                let name = enode.to_string();
-                let v = vec![self.expr(a).pretty()];
-                Pretty::fieldless_record(name, v)
+                format!("({} {})", enode, self.expr(a).pretty().to_str()).into()
             }
 
-            If([cond, then, else_]) => Pretty::childless_record(
-                "If",
-                vec![
-                    ("cond", self.expr(cond).pretty()),
-                    ("then", self.expr(then).pretty()),
-                    ("else", self.expr(else_).pretty()),
-                ],
-            ),
+            If([cond, then, else_]) => format!(
+                "(if {} then {} else {})",
+                self.expr(cond).pretty().to_str(),
+                self.expr(then).pretty().to_str(),
+                self.expr(else_).pretty().to_str()
+            )
+            .into(),
 
             // functions
-            Extract([field, e]) => Pretty::childless_record(
-                "Extract",
-                vec![
-                    ("from", self.expr(e).pretty()),
-                    ("field", self.expr(field).pretty()),
-                ],
-            ),
+            Extract([field, e]) => format!(
+                "extract({} from {})",
+                self.expr(field).pretty().to_str(),
+                self.expr(e).pretty().to_str()
+            )
+            .into(),
             Field(field) => Pretty::display(field),
-            Replace([a, b, c]) => Pretty::childless_record(
-                "Replace",
-                vec![
-                    ("in", self.expr(a).pretty()),
-                    ("from", self.expr(b).pretty()),
-                    ("to", self.expr(c).pretty()),
-                ],
-            ),
-            Substring([str, start, len]) => Pretty::childless_record(
-                "Substring",
-                vec![
-                    ("str", self.expr(str).pretty()),
-                    ("start", self.expr(start).pretty()),
-                    ("length", self.expr(len).pretty()),
-                ],
-            ),
+            Replace([a, b, c]) => format!(
+                "replace({}, {}, {})",
+                self.expr(a).pretty().to_str(),
+                self.expr(b).pretty().to_str(),
+                self.expr(c).pretty().to_str()
+            )
+            .into(),
+            Substring([str, start, len]) => format!(
+                "substring({} from {} for {})",
+                self.expr(str).pretty().to_str(),
+                self.expr(start).pretty().to_str(),
+                self.expr(len).pretty().to_str()
+            )
+            .into(),
 
             // aggregations
             CountStar => "count(*)".into(),
             RowNumber => "row_number()".into(),
             Max(a) | Min(a) | Sum(a) | Avg(a) | Count(a) | First(a) | Last(a)
-            | CountDistinct(a) => {
-                let name = enode.to_string();
-                let v = vec![self.expr(a).pretty()];
-                Pretty::fieldless_record(name, v)
-            }
-            Over([f, orderby, partitionby]) => Pretty::simple_record(
-                "Over",
-                vec![
-                    ("order_by", self.expr(orderby).pretty()),
-                    ("partition_by", self.expr(partitionby).pretty()),
-                ],
-                vec![self.expr(f).pretty()],
-            ),
-
+            | CountDistinct(a) => format!("{}({})", enode, self.expr(a).pretty().to_str()).into(),
+            Over([f, orderby, partitionby]) => format!(
+                "{} over (partition by {} order by {})",
+                self.expr(f).pretty().to_str(),
+                self.expr(partitionby).pretty().to_str(),
+                self.expr(orderby).pretty().to_str(),
+            )
+            .into(),
             Exists(a) => {
                 let v = vec![self.expr(a).pretty()];
                 Pretty::fieldless_record("Exists", v)
@@ -379,5 +377,16 @@ impl<'a> Explain<'a> {
 impl fmt::Display for Explain<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         delegate_fmt(&self.pretty(), f, String::with_capacity(4096))
+    }
+}
+
+trait AsStr {
+    fn to_str(&self) -> String;
+}
+
+impl AsStr for Pretty<'_> {
+    #[track_caller]
+    fn to_str(&self) -> String {
+        self.to_one_line_string(false)
     }
 }
