@@ -99,6 +99,8 @@ pub enum BindError {
     ViewAliasesMismatch,
     #[error("pragma does not exist: {0}")]
     NoPragma(String),
+    #[error("function does not exist: {0}")]
+    NoFunction(String),
     #[error("subquery returns {0} columns - expected 1")]
     SubqueryMustHaveOneColumn(usize),
 }
@@ -264,7 +266,11 @@ struct Context {
     /// A set of columns that have been generated in `FROM` clause.
     /// Used to check confliction and add `Prime` if conflicted.
     from_columns: HashSet<Id>,
-    /// The plan of subqueries found in the expression.
+    /// Aggregations found in the expression.
+    aggregates: Vec<Id>,
+    /// Over windows found in the expression.
+    over_windows: Vec<Id>,
+    /// Subqueries found in the expression.
     subqueries: Vec<Id>,
 }
 
@@ -378,6 +384,31 @@ impl Binder {
             return Err(BindError::DuplicatedCteName(table_name.into()));
         }
         Ok(())
+    }
+
+    /// Add an aggregation to the current context.
+    fn add_aggregation(&mut self, id: Id) {
+        self.contexts.last_mut().unwrap().aggregates.push(id);
+    }
+
+    /// Add an over window to the current context.
+    fn add_over_window(&mut self, id: Id) {
+        self.contexts.last_mut().unwrap().over_windows.push(id);
+    }
+
+    /// Add a subquery to the current context.
+    fn add_subquery(&mut self, id: Id) {
+        self.contexts.last_mut().unwrap().subqueries.push(id);
+    }
+
+    /// The number of aggregations in the current context.
+    fn num_aggregations(&self) -> usize {
+        self.contexts.last().unwrap().aggregates.len()
+    }
+
+    /// The number of over windows in the current context.
+    fn num_over_windows(&self) -> usize {
+        self.contexts.last().unwrap().over_windows.len()
     }
 
     /// Find an alias.

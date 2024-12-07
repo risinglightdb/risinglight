@@ -74,13 +74,12 @@ impl Binder {
 
     fn bind_select(&mut self, select: Select, order_by: Vec<OrderByExpr>) -> Result {
         let from = self.bind_from(select.from)?;
-        let projection = self.bind_projection(select.projection, from)?;
+
+        // bind expressions
+        // aggregations, over windows and subqueries will be extracted to the current context
+        let mut projection = self.bind_projection(select.projection, from)?;
         let where_ = self.bind_where(select.selection)?;
-        let groupby = match select.group_by {
-            GroupByExpr::All => return Err(BindError::Todo("group by all".into())),
-            GroupByExpr::Expressions(group_by) if group_by.is_empty() => None,
-            GroupByExpr::Expressions(group_by) => Some(self.bind_groupby(group_by)?),
-        };
+        let groupby = self.bind_groupby(select.group_by)?;
         let having = self.bind_having(select.having)?;
         let orderby = self.bind_orderby(order_by)?;
         let distinct = match select.distinct {
@@ -94,13 +93,11 @@ impl Binder {
         if self.node(where_) != &Node::true_() {
             plan = self.egraph.add(Node::Filter([where_, plan]));
         }
-        let mut to_rewrite = [projection, distinct, having, orderby];
-        plan = self.plan_agg(&mut to_rewrite, groupby, plan)?;
-        let [mut projection, distinct, having, orderby] = to_rewrite;
+        plan = self.plan_agg(groupby, plan)?;
         if self.node(having) != &Node::true_() {
             plan = self.egraph.add(Node::Filter([having, plan]));
         }
-        plan = self.plan_window(projection, distinct, orderby, plan)?;
+        plan = self.plan_window(plan)?;
         plan = self.plan_distinct(distinct, orderby, &mut projection, plan)?;
         if self.node(orderby) != &Node::List([].into()) {
             plan = self.egraph.add(Node::Order([orderby, plan]));
@@ -145,22 +142,31 @@ impl Binder {
 
     /// Binds the WHERE clause. Returns an expression for condition.
     ///
-    /// There should be no aggregation in the expression, otherwise an error will be returned.
+    /// Raises an error if there is an aggregation or over window in the expression.
     pub(super) fn bind_where(&mut self, selection: Option<Expr>) -> Result {
+        let num_aggs = self.num_aggregations();
+        let num_overs = self.num_over_windows();
+
         let id = self.bind_selection(selection)?;
-        if !self.aggs(id).is_empty() {
+
+        if self.num_aggregations() > num_aggs {
             return Err(BindError::AggInWhere);
         }
-        if !self.overs(id).is_empty() {
+        if self.num_over_windows() > num_overs {
             return Err(BindError::WindowInWhere);
         }
         Ok(id)
     }
 
     /// Binds the HAVING clause. Returns an expression for condition.
+    ///
+    /// Raises an error if there is an over window in the expression.
     fn bind_having(&mut self, selection: Option<Expr>) -> Result {
+        let num_overs = self.num_over_windows();
+
         let id = self.bind_selection(selection)?;
-        if !self.overs(id).is_empty() {
+
+        if self.num_over_windows() > num_overs {
             return Err(BindError::WindowInHaving);
         }
         Ok(id)
@@ -176,13 +182,20 @@ impl Binder {
 
     /// Binds the GROUP BY clause. Returns a list of expressions.
     ///
-    /// There should be no aggregation in the expressions, otherwise an error will be returned.
-    fn bind_groupby(&mut self, group_by: Vec<Expr>) -> Result {
-        let id = self.bind_exprs(group_by)?;
-        if !self.aggs(id).is_empty() {
-            return Err(BindError::AggInGroupBy);
+    /// Raises an error if there is an aggregation in the expressions.
+    fn bind_groupby(&mut self, group_by: GroupByExpr) -> Result<Option<Id>> {
+        match group_by {
+            GroupByExpr::All => return Err(BindError::Todo("group by all".into())),
+            GroupByExpr::Expressions(group_by) if group_by.is_empty() => return Ok(None),
+            GroupByExpr::Expressions(group_by) => {
+                let num_aggs = self.num_aggregations();
+                let id = self.bind_exprs(group_by)?;
+                if self.num_aggregations() > num_aggs {
+                    return Err(BindError::AggInGroupBy);
+                }
+                Ok(Some(id))
+            }
         }
-        Ok(id)
     }
 
     /// Binds the ORDER BY clause. Returns a list of expressions.
@@ -223,33 +236,31 @@ impl Binder {
 
     /// Extracts all aggregations from `exprs` and generates an [`Agg`](Node::Agg) plan.
     /// If no aggregation is found and no `groupby` keys, returns the original `plan`.
-    fn plan_agg(&mut self, exprs: &mut [Id], groupby: Option<Id>, plan: Id) -> Result {
-        let expr_list = self.egraph.add(Node::List(exprs.to_vec().into()));
-        let aggs = self.aggs(expr_list).to_vec();
+    fn plan_agg(&mut self, groupby: Option<Id>, plan: Id) -> Result {
+        let mut aggs = self.contexts.last().unwrap().aggregates.clone();
         if aggs.is_empty() && groupby.is_none() {
             return Ok(plan);
         }
         // check nested agg
-        for child in aggs.iter().flat_map(|agg| agg.children()) {
-            if !self.aggs(*child).is_empty() {
-                return Err(BindError::NestedAgg);
-            }
-        }
-        let mut list: Vec<_> = aggs.into_iter().map(|agg| self.egraph.add(agg)).collect();
+        // for child in aggs.iter().flat_map(|agg| agg.children()) {
+        //     if !self.aggs(*child).is_empty() {
+        //         return Err(BindError::NestedAgg);
+        //     }
+        // }
         // make sure the order of the aggs is deterministic
-        list.sort();
-        list.dedup();
-        let aggs = self.egraph.add(Node::List(list.into()));
+        aggs.sort();
+        aggs.dedup();
+        let aggs = self.egraph.add(Node::List(aggs.into()));
         let plan = self.egraph.add(match groupby {
             Some(groupby) => Node::HashAgg([groupby, aggs, plan]),
             None => Node::Agg([aggs, plan]),
         });
         // check for not aggregated columns
         // rewrite the expressions with a wrapper over agg or group keys
-        let schema = self.schema(plan);
-        for id in exprs {
-            *id = self.rewrite_agg_in_expr(*id, &schema)?;
-        }
+        // let schema = self.schema(plan);
+        // for id in exprs {
+        //     *id = self.rewrite_agg_in_expr(*id, &schema)?;
+        // }
         Ok(plan)
     }
 
@@ -337,25 +348,16 @@ impl Binder {
         Ok(self.egraph.add(Node::HashAgg([distinct, aggs, plan])))
     }
 
-    /// Extracts all over nodes from `projection`, `distinct` and `orderby`.
-    /// Generates an [`Window`](Node::Window) plan if any over node is found.
+    /// Generates an [`Window`](Plan::Window) plan if any over node is found in the current context.
     /// Otherwise returns the original `plan`.
-    fn plan_window(&mut self, projection: Id, distinct: Id, orderby: Id, plan: Id) -> Result {
-        let mut overs = vec![];
-        overs.extend_from_slice(self.overs(projection));
-        overs.extend_from_slice(self.overs(distinct));
-        overs.extend_from_slice(self.overs(orderby));
-
+    fn plan_window(&mut self, plan: Id) -> Result {
+        let mut overs = self.contexts.last().unwrap().over_windows.clone();
         if overs.is_empty() {
             return Ok(plan);
         }
-        let mut list: Vec<_> = overs
-            .into_iter()
-            .map(|over| self.egraph.add(over))
-            .collect();
-        list.sort();
-        list.dedup();
-        let overs = self.egraph.add(Node::List(list.into()));
+        overs.sort();
+        overs.dedup();
+        let overs = self.egraph.add(Node::List(overs.into()));
         Ok(self.egraph.add(Node::Window([overs, plan])))
     }
 

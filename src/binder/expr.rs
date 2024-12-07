@@ -299,12 +299,12 @@ impl Binder {
     }
 
     fn bind_subquery(&mut self, subquery: Query) -> Result {
-        let (id, _) = self.bind_query(subquery)?;
-        let schema = self.schema(id);
+        let (subquery, _) = self.bind_query(subquery)?;
+        let schema = self.schema(subquery);
         let &[col0] = schema.as_slice() else {
             return Err(BindError::SubqueryMustHaveOneColumn(schema.len()));
         };
-        self.contexts.last_mut().unwrap().subqueries.push(id);
+        self.add_subquery(subquery);
         Ok(self.wrap_ref(col0))
     }
 
@@ -424,11 +424,14 @@ impl Binder {
             "last" => Node::Last(args[0]),
             "replace" => Node::Replace([args[0], args[1], args[2]]),
             "row_number" => Node::RowNumber,
-            name => todo!("Unsupported function: {}", name),
+            name => return Err(BindError::NoFunction(name.to_string())),
         };
-        let mut id = self.egraph.add(node);
+        let mut id = self.egraph.add(node.clone());
         if let Some(window) = func.over {
             id = self.bind_window_function(id, window)?;
+        } else if node.is_aggregate_function() {
+            self.add_aggregation(id);
+            id = self.wrap_ref(id);
         }
         Ok(id)
     }
@@ -447,9 +450,11 @@ impl Binder {
         let partitionby = self.bind_exprs(window.partition_by)?;
         let orderby = self.bind_orderby(window.order_by)?;
         if window.window_frame.is_some() {
-            todo!("support window frame");
+            return Err(BindError::Todo("window frame".into()));
         }
-        Ok(self.egraph.add(Node::Over([func, partitionby, orderby])))
+        let id = self.egraph.add(Node::Over([func, partitionby, orderby]));
+        self.add_over_window(id);
+        Ok(self.wrap_ref(id))
     }
 
     /// Add optional type cast to the expressions to make them return the same type.
