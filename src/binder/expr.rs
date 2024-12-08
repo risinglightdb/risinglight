@@ -300,12 +300,14 @@ impl Binder {
 
     fn bind_subquery(&mut self, subquery: Query) -> Result {
         let (subquery, _) = self.bind_query(subquery)?;
+        let subquery = self.add_proj_if_conflict(subquery);
         let schema = self.schema(subquery);
         let &[col0] = schema.as_slice() else {
             return Err(BindError::SubqueryMustHaveOneColumn(schema.len()));
         };
+        let col0 = self.wrap_ref(col0);
         self.add_subquery(subquery);
-        Ok(self.wrap_ref(col0))
+        Ok(col0)
     }
 
     fn bind_substring(

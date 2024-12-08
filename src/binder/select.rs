@@ -358,8 +358,8 @@ impl Binder {
     /// Generate an [`Apply`](Node::Apply) plan for each subquery in the current context.
     fn plan_apply(&mut self, mut plan: Id) -> Result {
         let left_outer = self.egraph.add(Node::LeftOuter);
-        for subquery in self.contexts.last().unwrap().subqueries.iter() {
-            plan = self.egraph.add(Node::Apply([left_outer, plan, *subquery]));
+        for subquery in self.context().subqueries.clone() {
+            plan = self.egraph.add(Node::Apply([left_outer, plan, subquery]));
         }
         Ok(plan)
     }

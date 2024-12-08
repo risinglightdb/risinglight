@@ -263,11 +263,10 @@ struct Context {
     /// Column aliases that can be accessed from the current query.
     /// `column_alias` -> (`table_alias` -> id)
     column_aliases: HashMap<String, HashMap<String, Id>>,
+    /// All Ids in the above `column_aliases`.
+    column_aliases_ids: HashSet<Id>,
     /// Column aliases that can be accessed from the outside query.
     output_aliases: Vec<Option<String>>,
-    /// A set of columns that have been generated in `FROM` clause.
-    /// Used to check confliction and add `Prime` if conflicted.
-    from_columns: HashSet<Id>,
     /// Aggregations found in the expression.
     aggregates: HashSet<Id>,
     /// Over windows found in the expression.
@@ -355,6 +354,11 @@ impl Binder {
         self.contexts.last().unwrap()
     }
 
+    /// Get the current context mutably.
+    fn context_mut(&mut self) -> &mut Context {
+        self.contexts.last_mut().unwrap()
+    }
+
     /// Add an column alias to the current context.
     fn add_alias(&mut self, column_name: String, table_name: String, id: Id) {
         let context = self.contexts.last_mut().unwrap();
@@ -362,8 +366,8 @@ impl Binder {
             .column_aliases
             .entry(column_name)
             .or_default()
-            .insert(table_name, id);
-        // may override the same name
+            .insert(table_name, id); // may override the same name
+        context.column_aliases_ids.insert(id);
     }
 
     /// Add a table alias.

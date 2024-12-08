@@ -108,13 +108,6 @@ impl Binder {
                 self.add_alias(alias, table_alias.clone(), id);
             }
         }
-        // add columns to context so that later TableFactor can resolve column conflict
-        let schema = self.schema(id);
-        self.contexts
-            .last_mut()
-            .unwrap()
-            .from_columns
-            .extend(schema);
         Ok(id)
     }
 
@@ -287,16 +280,17 @@ impl Binder {
     ///
     /// # Example
     /// ```text
-    /// from_columns: [$1.1]
-    /// table:        (scan $1 (list $1.1 $1.2) true)   # $1.1 is conflicted with existing columns
-    /// return:       (proj (list (' $1.1) $1.2)        # wrap it with '
-    ///                   (scan $1 (list $1.1 $1.2) true))
+    /// column_aliases_ids: [$1.1]
+    /// table:  (scan $1 (list $1.1 $1.2) true)   # $1.1 is conflicted with existing columns
+    /// return: (proj (list (' $1.1) $1.2)        # wrap it with '
+    ///             (scan $1 (list $1.1 $1.2) true))
     /// ```
-    fn add_proj_if_conflict(&mut self, table: Id) -> Id {
+    pub(super) fn add_proj_if_conflict(&mut self, table: Id) -> Id {
         let mut schema = self.schema(table);
         let mut need_proj = false;
         for id in &mut schema {
-            while self.context().from_columns.contains(id) {
+            *id = self.wrap_ref(*id);
+            while self.context().column_aliases_ids.contains(id) {
                 *id = self.egraph.add(Node::Prime(*id));
                 need_proj = true;
             }
