@@ -67,6 +67,7 @@ define_language! {
         "isnull" = IsNull(Id),
 
         "if" = If([Id; 3]),                     // (if cond then else)
+        "in" = In([Id; 2]),                     // (in expr [expr..])
 
         // functions
         "extract" = Extract([Id; 2]),           // (extract field expr)
@@ -90,10 +91,6 @@ define_language! {
             // "range" = Range([Id; 2]),               // (range start end)
         "row_number" = RowNumber,
 
-        // subquery related
-        "exists" = Exists(Id),                  // (exists plan)
-        "in" = In([Id; 2]),                     // (in expr plan)
-
         "cast" = Cast([Id; 2]),                 // (cast type expr)
 
         // plans
@@ -115,6 +112,7 @@ define_language! {
             "full_outer" = FullOuter,
             "semi" = Semi,
             "anti" = Anti,
+            "mark" = Mark,
         "agg" = Agg([Id; 2]),                   // (agg aggs=[expr..] child)
                                                     // expressions must be aggregate functions
         "hashagg" = HashAgg([Id; 3]),           // (hashagg keys=[expr..] aggs=[expr..] child)

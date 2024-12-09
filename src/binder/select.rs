@@ -361,6 +361,10 @@ impl Binder {
         for subquery in self.context().subqueries.clone() {
             plan = self.egraph.add(Node::Apply([left_outer, plan, subquery]));
         }
+        let mark = self.egraph.add(Node::Mark);
+        for subquery in self.context().exists_subqueries.clone() {
+            plan = self.egraph.add(Node::Apply([mark, plan, subquery]));
+        }
         Ok(plan)
     }
 }

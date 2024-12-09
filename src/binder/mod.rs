@@ -273,6 +273,8 @@ struct Context {
     over_windows: HashSet<Id>,
     /// Subqueries found in the expression.
     subqueries: HashSet<Id>,
+    /// Subqueries found in the EXISTS expression.
+    exists_subqueries: HashSet<Id>,
 }
 
 impl Binder {
@@ -417,6 +419,15 @@ impl Binder {
     /// Add a subquery to the current context.
     fn add_subquery(&mut self, id: Id) {
         self.contexts.last_mut().unwrap().subqueries.insert(id);
+    }
+
+    /// Add a EXISTS subquery to the current context.
+    fn add_exists_subquery(&mut self, id: Id) {
+        self.contexts
+            .last_mut()
+            .unwrap()
+            .exists_subqueries
+            .insert(id);
     }
 
     /// The number of aggregations in the current context.

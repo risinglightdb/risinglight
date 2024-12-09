@@ -201,22 +201,15 @@ pub fn hash_join_rules() -> Vec<Rewrite> { vec![
 
 #[rustfmt::skip]
 pub fn subquery_rules() -> Vec<Rewrite> { vec![
-    // in -> exists
-    rw!("in-to-exists";
-        "(in ?expr ?subquery)" =>
-        { apply_column0("(exists (filter (= ?expr ?column0) ?subquery))") }
-        if is_not_list("?subquery")
+    rw!("mark-apply-to-semi-apply";
+        "(proj ?proj (filter (ref mark) (apply mark ?child ?subquery)))" =>
+        "(proj ?proj (apply semi ?child ?subquery))"
+        if not_depend_on_column("?proj", "(ref mark)")
     ),
-    // exists -> semi apply
-    rw!("exists-to-semi-apply";
-        "(filter (exists ?subquery) ?child)" =>
-        "(apply semi ?child ?subquery)"
-        if is_not_list("?subquery")
-    ),
-    rw!("not-exists-to-anti-apply";
-        "(filter (not (exists ?subquery)) ?child)" =>
-        "(apply anti ?child ?subquery)"
-        if is_not_list("?subquery")
+    rw!("mark-apply-to-anti-apply";
+        "(proj ?proj (filter (not (ref mark)) (apply mark ?child ?subquery)))" =>
+        "(proj ?proj (apply anti ?child ?subquery))"
+        if not_depend_on_column("?proj", "(ref mark)")
     ),
     rw!("left-outer-apply-to-inner-apply";
         "(filter ?cond (apply left_outer ?left ?right))" =>
@@ -257,6 +250,10 @@ pub fn subquery_rules() -> Vec<Rewrite> { vec![
         "(apply anti ?left (proj ?proj ?right))" =>
         "(apply anti ?left ?right)"
     ),
+    rw!("pushdown-mark-apply-proj";
+        "(apply mark ?left (proj ?proj ?right))" =>
+        "(apply mark ?left ?right)"
+    ),
     // Figure 4 Rule (8)
     rw!("pushdown-apply-group-agg";
         "(apply inner ?left (hashagg ?keys ?aggs ?right))" =>
@@ -276,43 +273,6 @@ pub fn subquery_rules() -> Vec<Rewrite> { vec![
         // 2. the left table has a key
     ),
 ]}
-
-/// Returns an applier that replaces `?column0` with the first column of `?subquery`.
-fn apply_column0(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
-    struct ApplyColumn0 {
-        pattern: Pattern,
-        subquery: Var,
-        column0: Var,
-    }
-    impl Applier<Expr, ExprAnalysis> for ApplyColumn0 {
-        fn apply_one(
-            &self,
-            egraph: &mut EGraph,
-            eclass: Id,
-            subst: &Subst,
-            searcher_ast: Option<&PatternAst<Expr>>,
-            rule_name: Symbol,
-        ) -> Vec<Id> {
-            let mut id = egraph[subst[self.subquery]].data.schema[0];
-            if !egraph[id]
-                .nodes
-                .iter()
-                .any(|e| matches!(e, Expr::Column(_) | Expr::Ref(_)))
-            {
-                id = egraph.add(Expr::Ref(id));
-            }
-            let mut subst = subst.clone();
-            subst.insert(self.column0, id);
-            self.pattern
-                .apply_one(egraph, eclass, &subst, searcher_ast, rule_name)
-        }
-    }
-    ApplyColumn0 {
-        pattern: pattern(pattern_str),
-        subquery: var("?subquery"),
-        column0: var("?column0"),
-    }
-}
 
 /// Returns an applier that replaces `?new_keys` with the schema of `?left` (|| `?keys`).
 fn extract_key(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
@@ -398,6 +358,18 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
     ),
 ]}
 
+/// Returns true if the column `column` is not used in `expr`.
+fn not_depend_on_column(expr: &str, column: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let expr = var(expr);
+    let column_expr = column.parse().unwrap();
+    move |egraph, _, subst| {
+        let column = egraph.add_expr(&column_expr);
+        let columns = &egraph[column].data.columns;
+        let used = &egraph[subst[expr]].data.columns;
+        used.is_disjoint(columns)
+    }
+}
+
 /// Returns true if the columns used in `expr` is disjoint from columns produced by `plan`.
 fn not_depend_on(expr: &str, plan: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let expr = var(expr);
@@ -440,17 +412,6 @@ fn produced(egraph: &EGraph, plan: Id) -> impl Iterator<Item = Expr> + '_ {
             .cloned()
             .unwrap_or(Expr::Ref(*id))
     })
-}
-
-/// Returns true if the node `var1` is not a list.
-fn is_not_list(var1: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    let var1 = var(var1);
-    move |egraph, _, subst| {
-        !egraph[subst[var1]]
-            .nodes
-            .iter()
-            .any(|e| matches!(e, Expr::List(_)))
-    }
 }
 
 /// The data type of column analysis.

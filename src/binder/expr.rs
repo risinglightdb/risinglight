@@ -278,24 +278,41 @@ impl Binder {
     }
 
     fn bind_in_subquery(&mut self, expr: Expr, subquery: Query, negated: bool) -> Result {
+        // (in expr subquery)
+        // => (exists (filter (= expr column0) subquery))
         let expr = self.bind_expr(expr)?;
         let (subquery, _) = self.bind_query(subquery)?;
-        let in_subquery = self.egraph.add(Node::In([expr, subquery]));
-        if negated {
-            Ok(self.egraph.add(Node::Not(in_subquery)))
-        } else {
-            Ok(in_subquery)
-        }
+        let subquery = self.add_proj_if_conflict(subquery);
+        let schema = self.schema(subquery);
+        let &[col0] = schema.as_slice() else {
+            return Err(BindError::SubqueryMustHaveOneColumn(schema.len()));
+        };
+        let col0 = self.wrap_ref(col0);
+        let compare = self.egraph.add(Node::Eq([expr, col0]));
+        let filter = self.egraph.add(Node::Filter([compare, subquery]));
+        self.bind_exists_id(filter, negated)
     }
 
+    /// Bind the `EXISTS(subquery)` expression.
     fn bind_exists(&mut self, subquery: Query, negated: bool) -> Result {
         let (subquery, _) = self.bind_query(subquery)?;
-        let exists = self.egraph.add(Node::Exists(subquery));
-        if negated {
-            Ok(self.egraph.add(Node::Not(exists)))
-        } else {
-            Ok(exists)
+        let subquery = self.add_proj_if_conflict(subquery);
+        self.bind_exists_id(subquery, negated)
+    }
+
+    fn bind_exists_id(&mut self, subquery: Id, negated: bool) -> Result {
+        self.add_exists_subquery(subquery);
+        if self.context().exists_subqueries.len() > 1 {
+            return Err(BindError::Todo(
+                "multiple EXISTS are not supported yet".into(),
+            ));
         }
+        let mut id = self.egraph.add(Node::Mark);
+        id = self.egraph.add(Node::Ref(id));
+        if negated {
+            id = self.egraph.add(Node::Not(id));
+        }
+        Ok(id)
     }
 
     fn bind_subquery(&mut self, subquery: Query) -> Result {

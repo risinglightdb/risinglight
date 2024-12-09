@@ -87,7 +87,6 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         Not(a) => 1.0 - x(a),
         Gt(_) | Lt(_) | GtEq(_) | LtEq(_) | Eq(_) | NotEq(_) | Like(_) => 0.5,
         In([_, b]) => 1.0 / x(b),
-        Exists(_) => 0.5,
 
         _ => 1.0,
     }

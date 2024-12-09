@@ -109,7 +109,7 @@ pub fn analyze_type(
             }
             Ok(DataType::Bool)
         }
-        Exists(_) => Ok(DataType::Bool),
+        Mark => Ok(DataType::Bool),
 
         // null ops
         IsNull(_) => Ok(DataType::Bool),
@@ -148,6 +148,14 @@ pub fn analyze_type(
         Join([t, _, l, r]) | HashJoin([t, _, _, _, l, r]) | MergeJoin([t, _, _, _, l, r]) => {
             match node0(t) {
                 Semi | Anti => x(l),
+                Mark => Ok(DataType::Struct(
+                    x(l)?
+                        .as_struct()
+                        .into_iter()
+                        .cloned()
+                        .chain([DataType::Bool])
+                        .collect(),
+                )),
                 _ => concat_struct(x(l)?, x(r)?),
             }
         }

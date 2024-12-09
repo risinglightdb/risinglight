@@ -199,10 +199,6 @@ impl<'a> Explain<'a> {
                 self.expr(orderby).pretty().to_str(),
             )
             .into(),
-            Exists(a) => {
-                let v = vec![self.expr(a).pretty()];
-                Pretty::fieldless_record("Exists", v)
-            }
             In([a, b]) => Pretty::simple_record(
                 "In",
                 vec![("in", self.expr(b).pretty())],
@@ -297,6 +293,7 @@ impl<'a> Explain<'a> {
                 vec![self.child(left).pretty(), self.child(right).pretty()],
             ),
             Inner | LeftOuter | RightOuter | FullOuter | Semi | Anti => Pretty::display(enode),
+            Mark => format!("Mark as #{}", usize::from(self.id)).into(),
             Agg([aggs, child]) => Pretty::simple_record(
                 "Agg",
                 with_meta(vec![("aggs", self.expr(aggs).pretty())]),

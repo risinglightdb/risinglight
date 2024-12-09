@@ -25,6 +25,7 @@ pub fn analyze_schema(
         | MergeJoin([t, _, _, _, l, r])
         | Apply([t, l, r]) => match node0(t) {
             Semi | Anti => x(l),
+            Mark => concat(x(l), vec![*t]), // child || Mark
             _ => concat(x(l), x(r)),
         },
 
