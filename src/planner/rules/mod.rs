@@ -113,7 +113,7 @@ impl Analysis<Expr> for ExprAnalysis {
         // if both are Some, choose arbitrary one. not sure whether it is safe.
         let merge_range =
             egg::merge_option(&mut to.range, from.range, |_, _| DidMerge(false, true));
-        let merge_columns = merge_small_set(&mut to.columns, from.columns);
+        let merge_columns = merge_intersection(&mut to.columns, from.columns);
         let merge_schema = egg::merge_max(&mut to.schema, from.schema);
         let merge_rows = egg::merge_min(
             unsafe { std::mem::transmute::<&mut f32, &mut F32>(&mut to.rows) },
@@ -173,14 +173,11 @@ impl Analysis<Expr> for TypeSchemaAnalysis {
     }
 }
 
-/// Merge two result set and keep the smaller one.
-fn merge_small_set<T: Eq + Hash>(to: &mut HashSet<T>, from: HashSet<T>) -> DidMerge {
-    if from.len() < to.len() {
-        *to = from;
-        DidMerge(true, false)
-    } else {
-        DidMerge(false, true)
-    }
+/// Merge two sets and keep the intersection.
+fn merge_intersection<T: Eq + Hash + Clone>(to: &mut HashSet<T>, from: HashSet<T>) -> DidMerge {
+    let to_len = to.len();
+    *to = to.intersection(&from).cloned().collect();
+    DidMerge(to.len() < to_len, to.len() < from.len())
 }
 
 /// Create a [`Var`] from string.
