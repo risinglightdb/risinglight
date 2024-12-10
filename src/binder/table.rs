@@ -46,8 +46,13 @@ impl Binder {
         let mut node = self.bind_table_factor(tables.relation)?;
         for join in tables.joins {
             let table = self.bind_table_factor(join.relation)?;
-            let (ty, condition) = self.bind_join_op(join.join_operator)?;
-            node = self.egraph.add(Node::Join([ty, condition, node, table]));
+            let (ty, join_or_apply) = self.bind_join_op(join.join_operator)?;
+            node = match join_or_apply {
+                JoinOrApply::Join(condition) => {
+                    self.egraph.add(Node::Join([ty, condition, node, table]))
+                }
+                JoinOrApply::Apply => self.egraph.add(Node::Apply([ty, node, table])),
+            };
         }
         Ok(node)
     }
@@ -111,45 +116,57 @@ impl Binder {
         Ok(id)
     }
 
-    fn bind_join_op(&mut self, op: JoinOperator) -> Result<(Id, Id)> {
+    fn bind_join_op(&mut self, op: JoinOperator) -> Result<(Id, JoinOrApply)> {
         use JoinOperator::*;
         match op {
             Inner(constraint) => {
                 let ty = self.egraph.add(Node::Inner);
                 let condition = self.bind_join_constraint(constraint)?;
-                Ok((ty, condition))
+                Ok((ty, JoinOrApply::Join(condition)))
             }
             LeftOuter(constraint) => {
                 let ty = self.egraph.add(Node::LeftOuter);
                 let condition = self.bind_join_constraint(constraint)?;
-                Ok((ty, condition))
+                Ok((ty, JoinOrApply::Join(condition)))
             }
             RightOuter(constraint) => {
                 let ty = self.egraph.add(Node::RightOuter);
                 let condition = self.bind_join_constraint(constraint)?;
-                Ok((ty, condition))
+                Ok((ty, JoinOrApply::Join(condition)))
             }
             FullOuter(constraint) => {
                 let ty = self.egraph.add(Node::FullOuter);
                 let condition = self.bind_join_constraint(constraint)?;
-                Ok((ty, condition))
+                Ok((ty, JoinOrApply::Join(condition)))
             }
             CrossJoin => {
                 let ty = self.egraph.add(Node::Inner);
                 let condition = self.egraph.add(Node::true_());
-                Ok((ty, condition))
+                Ok((ty, JoinOrApply::Join(condition)))
             }
             LeftSemi(constraint) => {
                 let ty = self.egraph.add(Node::Semi);
                 let condition = self.bind_join_constraint(constraint)?;
-                Ok((ty, condition))
+                Ok((ty, JoinOrApply::Join(condition)))
             }
             LeftAnti(constraint) => {
                 let ty = self.egraph.add(Node::Anti);
                 let condition = self.bind_join_constraint(constraint)?;
-                Ok((ty, condition))
+                Ok((ty, JoinOrApply::Join(condition)))
             }
-            op => todo!("unsupported join operator: {op:?}"),
+            CrossApply => {
+                let ty = self.egraph.add(Node::Inner);
+                Ok((ty, JoinOrApply::Apply))
+            }
+            OuterApply => {
+                let ty = self.egraph.add(Node::LeftOuter);
+                Ok((ty, JoinOrApply::Apply))
+            }
+            op => {
+                return Err(BindError::Todo(format!(
+                    "unsupported join operator: {op:?}"
+                )))
+            }
         }
     }
 
@@ -302,6 +319,11 @@ impl Binder {
             table
         }
     }
+}
+
+enum JoinOrApply {
+    Join(Id), // id of condition
+    Apply,
 }
 
 #[cfg(test)]
