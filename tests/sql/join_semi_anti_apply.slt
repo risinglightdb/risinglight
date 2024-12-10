@@ -42,6 +42,18 @@ select a, b from x left anti join y on a >= c;
 ----
 1   2
 
+query IIII
+select * from x cross apply (select * from y where a = c);
+----
+2 3 2 5
+
+# FIXME: can not optimize to join
+# query IIII
+# select * from x outer apply (select * from y where a = c);
+# ----
+# 1 2 NULL NULL
+# 2 3 2 5
+
 statement ok
 drop table x;
 
