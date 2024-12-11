@@ -4,7 +4,6 @@
 
 use itertools::Itertools;
 
-use super::schema::schema_is_eq;
 use super::*;
 use crate::planner::ExprExt;
 
@@ -315,7 +314,7 @@ fn extract_key(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
 pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
     rw!("identical-proj";
         "(proj ?expr ?child)" => "?child" 
-        if schema_is_eq("?expr", "?child")
+        if produced_eq("?expr", "?child")
     ),
     rw!("pushdown-proj-proj";
         "(proj ?proj1 (proj ?proj2 ?child))" =>
@@ -412,6 +411,25 @@ fn produced(egraph: &EGraph, plan: Id) -> impl Iterator<Item = Expr> + '_ {
             .cloned()
             .unwrap_or(Expr::Ref(*id))
     })
+}
+
+/// Returns true if the columns produced by the two expressions are equal.
+///
+/// # Example
+///
+/// The following two expressions produce the same columns:
+/// ```text
+/// (proj (list $1.1 (ref (+ $1.1 $1.2))) ?child)
+/// (list $1.1 (+ $1.1 $1.2))
+/// ```
+fn produced_eq(expr1: &str, expr2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let expr1 = var(expr1);
+    let expr2 = var(expr2);
+    move |egraph, _, subst| {
+        let produced1 = produced(egraph, subst[expr1]).collect_vec();
+        let produced2 = produced(egraph, subst[expr2]).collect_vec();
+        produced1 == produced2
+    }
 }
 
 /// The data type of column analysis.

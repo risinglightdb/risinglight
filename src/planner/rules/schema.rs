@@ -51,14 +51,3 @@ pub fn analyze_schema(
         _ => vec![],
     }
 }
-
-/// Returns true if the schema of two nodes is equal.
-pub fn schema_is_eq(v1: &str, v2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    let v1 = var(v1);
-    let v2 = var(v2);
-    move |egraph, _, subst| {
-        let s1 = &egraph[subst[v1]].data.schema;
-        let s2 = &egraph[subst[v2]].data.schema;
-        s1 == s2
-    }
-}
