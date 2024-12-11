@@ -307,7 +307,7 @@ impl Binder {
         let mut need_proj = false;
         for id in &mut schema {
             *id = self.wrap_ref(*id);
-            while self.context().column_aliases_ids.contains(id) {
+            while self.context().all_variable_ids.contains(id) {
                 *id = self.egraph.add(Node::Prime(*id));
                 need_proj = true;
             }

@@ -263,8 +263,8 @@ struct Context {
     /// Column aliases that can be accessed from the current query.
     /// `column_alias` -> (`table_alias` -> id)
     column_aliases: HashMap<String, HashMap<String, Id>>,
-    /// All Ids in the above `column_aliases`.
-    column_aliases_ids: HashSet<Id>,
+    /// All Ids in `column_aliases` of this context and its ancestors.
+    all_variable_ids: HashSet<Id>,
     /// Column aliases that can be accessed from the outside query.
     output_aliases: Vec<Option<String>>,
     /// Aggregations found in the expression.
@@ -369,7 +369,7 @@ impl Binder {
             .entry(column_name)
             .or_default()
             .insert(table_name, id); // may override the same name
-        context.column_aliases_ids.insert(id);
+        context.all_variable_ids.insert(id);
     }
 
     /// Add a table alias.

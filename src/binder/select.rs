@@ -6,7 +6,12 @@ use crate::parser::{Expr, Query, SelectItem, SetExpr};
 impl Binder {
     /// Binds a query in a new sub-context.
     pub(super) fn bind_query(&mut self, query: Query) -> Result<(Id, Context)> {
-        self.contexts.push(Context::default());
+        let context = Context {
+            // inherit all variable ids from the parent context
+            all_variable_ids: self.context().all_variable_ids.clone(),
+            ..Default::default()
+        };
+        self.contexts.push(context);
         let ret = self.bind_query_internal(query);
         let ctx = self.contexts.pop().unwrap();
         ret.map(|id| (id, ctx))

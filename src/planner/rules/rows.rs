@@ -41,11 +41,11 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
         Filter([cond, c]) => x(c) * x(cond),
         Limit([limit, _, c]) | TopN([limit, _, _, c]) => x(c).min(get_limit_num(limit)),
         Join([t, on, l, r]) => match egraph[*t].nodes[0] {
-            Semi | Anti => x(l) * x(on),
+            Semi | Anti | Mark => x(l) * x(on),
             _ => x(l) * x(r) * x(on),
         },
         HashJoin([t, on, lkey, rkey, l, r]) | MergeJoin([t, on, lkey, rkey, l, r]) => {
-            if let Semi | Anti = egraph[*t].nodes[0] {
+            if let Semi | Anti | Mark = egraph[*t].nodes[0] {
                 return x(l) * x(on) * 0.5f32.powi(list_len(lkey) as i32);
             }
             let contains_primary_key = |list: &Id| {
@@ -71,7 +71,7 @@ pub fn analyze_rows(egraph: &EGraph, enode: &Expr) -> Rows {
             }
         }
         Apply([t, l, r]) => match egraph[*t].nodes[0] {
-            Semi | Anti => x(l),
+            Semi | Anti | Mark => x(l),
             _ => x(l) * x(r),
         },
         Empty(_) => 0.0,
