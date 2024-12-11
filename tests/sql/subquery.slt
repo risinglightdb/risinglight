@@ -102,20 +102,50 @@ select a from t where a > (select avg(a) from t);
 ----
 3
 
+# IN subquery in select
+query I
+select a in (select b + 1 from t) from t;
+----
+false
+true
+
+# NOT IN subquery in select
+query I
+select a not in (select b + 1 from t) from t;
+----
+true
+false
+
+# IN subquery in where
+query I
+select a from t where a in (select b + 1 from t);
+----
+3
+
+# NOT IN subquery in where
+query I
+select a from t where a not in (select b + 1 from t);
+----
+1
+
+# EXISTS subquery in where
+query I
+select a from t where exists (select 1 from t as t1 where t1.b = t.a + 1);
+----
+3
+
 # subquery in having
-# FIXME: bind error: column "a" must appear in the GROUP BY clause or be used in an aggregate function
-# query I
-# select a from t group by a having a > (select avg(a) from t);
-# ----
-# 3
+query I
+select a from t group by a having a > (select avg(a) from t);
+----
+3
 
 # subquery in order by
-# FIXME: bind error: column "a" must appear in the GROUP BY clause or be used in an aggregate function
-# query I
-# select a from t order by (select t.a + avg(t1.b) from t as t1);
-# ----
-# 1
-# 3
+query I
+select a from t order by (select avg(t1.b) from t as t1 where t1.a = t.a);
+----
+1
+3
 
 statement ok
 drop table t;

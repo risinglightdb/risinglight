@@ -232,12 +232,17 @@ pub fn subquery_rules() -> Vec<Rewrite> { vec![
         "(proj ?proj (apply anti ?child ?subquery))"
         if not_depend_on_column("?proj", "(ref mark)")
     ),
-    rw!("left-outer-apply-to-inner-apply";
+    rw!("outer-apply-to-cross-apply-filter";
         "(filter ?cond (apply left_outer ?left ?right))" =>
         "(filter ?cond (apply inner ?left ?right))"
         // FIXME: should be
         // if null_reject("?right", "?cond")
         if depend_on("?cond", "?right")
+    ),
+    rw!("outer-apply-to-cross-apply-agg";
+        // agg always returns a single row
+        "(apply left_outer ?left (proj ?proj (agg ?aggs ?right)))" =>
+        "(apply inner ?left (proj ?proj (agg ?aggs ?right)))"
     ),
     // Orthogonal Optimization of Subqueries and Aggregation
     // https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.563.8492&rep=rep1&type=pdf
