@@ -2,9 +2,8 @@
 explain select count(*) from t
 
 /*
-Projection { exprs: [ #4 ], cost: 1.13, rows: 1 }
-└── Agg { aggs: [ count(*) as #4 ], cost: 1.11, rows: 1 }
-    └── Scan { table: t, list: [], filter: true, cost: 0, rows: 1 }
+Agg { aggs: [ count(*) as #4 ], cost: 1.11, rows: 1 }
+└── Scan { table: t, list: [], filter: true, cost: 0, rows: 1 }
 */
 
 -- count(*) with projection

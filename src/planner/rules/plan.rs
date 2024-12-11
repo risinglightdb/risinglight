@@ -98,6 +98,28 @@ pub fn predicate_pushdown_rules() -> Vec<Rewrite> { vec![
         "(apply ?type (filter ?cond ?left) ?right)"
         if not_depend_on("?cond", "?right")
     ),
+    rw!("pushdown-filter-mark-join-to-semi";
+        "(proj ?proj (filter (ref mark) (join mark ?on ?child ?subquery)))" =>
+        "(proj ?proj (join semi ?on ?child ?subquery))"
+        if not_depend_on_column("?proj", "(ref mark)")
+    ),
+    rw!("pushdown-filter-mark-join-to-semi-1";
+        "(proj ?proj (filter (and (ref mark) ?cond) (join mark ?on ?child ?subquery)))" =>
+        "(proj ?proj (filter ?cond (join semi ?on ?child ?subquery)))"
+        if not_depend_on_column("?proj", "(ref mark)")
+        if not_depend_on_column("?cond", "(ref mark)")
+    ),
+    rw!("pushdown-filter-mark-join-to-anti";
+        "(proj ?proj (filter (not (ref mark)) (join mark ?on ?child ?subquery)))" =>
+        "(proj ?proj (join anti ?on ?child ?subquery))"
+        if not_depend_on_column("?proj", "(ref mark)")
+    ),
+    rw!("pushdown-filter-mark-join-to-anti-1";
+        "(proj ?proj (filter (and (not (ref mark)) ?cond) (join mark ?on ?child ?subquery)))" =>
+        "(proj ?proj (filter ?cond (join anti ?on ?child ?subquery)))"
+        if not_depend_on_column("?proj", "(ref mark)")
+        if not_depend_on_column("?cond", "(ref mark)")
+    ),
 ]}
 
 /// Returns a rule to pushdown plan `a` through `b`.

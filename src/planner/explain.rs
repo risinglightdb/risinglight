@@ -238,10 +238,7 @@ impl<'a> Explain<'a> {
                 with_meta(vec![("by", self.expr(orderby).pretty())]),
                 vec![self.child(child).pretty()],
             ),
-            Desc(a) => {
-                let v = vec![self.expr(a).pretty()];
-                Pretty::fieldless_record("desc", v)
-            }
+            Desc(a) => format!("{} desc", self.expr(a).pretty().to_str()).into(),
             Limit([limit, offset, child]) => Pretty::simple_record(
                 "Limit",
                 with_meta(vec![
@@ -293,7 +290,7 @@ impl<'a> Explain<'a> {
                 vec![self.child(left).pretty(), self.child(right).pretty()],
             ),
             Inner | LeftOuter | RightOuter | FullOuter | Semi | Anti => Pretty::display(enode),
-            Mark => format!("Mark as #{}", usize::from(self.id)).into(),
+            Mark => format!("mark as #{}", usize::from(self.id)).into(),
             Agg([aggs, child]) => Pretty::simple_record(
                 "Agg",
                 with_meta(vec![("aggs", self.expr(aggs).pretty())]),
