@@ -433,18 +433,66 @@ fn produced_eq(expr1: &str, expr2: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> 
 }
 
 /// The data type of column analysis.
-///
-/// It is the set of columns used in the expression or plan.
-/// The elements of the set are either `Column` or `Ref`.
 pub type ColumnSet = HashSet<Expr>;
 
-/// Returns all columns involved in the node.
+/// Returns all columns referenced in the node.
+///
+/// For expressions, it is the set of all used columns.
+/// For plans, it is the set of all external columns,
+/// i.e., columns that are used but not produced by the plan.
+///
+/// The elements of the set are either `Column` or `Ref`.
+///
+/// # Example
+///
+/// ```text
+/// (list $1.1 (+ $1.2 (ref (- $1.1))))
+/// => { $1.1, $1.2, (ref (- $1.1)) }
+///
+/// (proj (list $1.1 $2.1)
+///     (scan $1 (list $1.1) true))
+/// => { $2.1 }
+/// ```
 pub fn analyze_columns(egraph: &EGraph, enode: &Expr) -> ColumnSet {
     use Expr::*;
     let columns = |i: &Id| &egraph[*i].data.columns;
+    let external = |exprs: &[Id], children: &[Id]| {
+        let mut set = HashSet::new();
+        for id in exprs {
+            set.extend(columns(id).clone());
+        }
+        for id in children {
+            for col in produced(egraph, *id) {
+                set.remove(&col);
+            }
+        }
+        for id in children {
+            set.extend(columns(id).clone());
+        }
+        set
+    };
     match enode {
-        Column(_) | Ref(_) => [enode.clone()].into_iter().collect(),
-        // others: merge from all children
+        // columns
+        Column(_) | Ref(_) => [enode.clone()].into(),
+
+        // plans
+        Scan(_) => [].into(),
+        Values(_) => [].into(),
+        Proj([exprs, c]) => external(&[*exprs], &[*c]),
+        Filter([cond, c]) => external(&[*cond], &[*c]),
+        Order([keys, c]) => external(&[*keys], &[*c]),
+        Limit([limit, offset, c]) => external(&[*limit, *offset], &[*c]),
+        TopN([limit, offset, keys, c]) => external(&[*limit, *offset, *keys], &[*c]),
+        Join([_, on, l, r]) => external(&[*on], &[*l, *r]),
+        HashJoin([_, on, lkeys, rkeys, l, r]) | MergeJoin([_, on, lkeys, rkeys, l, r]) => {
+            external(&[*on, *lkeys, *rkeys], &[*l, *r])
+        }
+        Apply([_, l, r]) => external(&[], &[*l, *r]),
+        Agg([exprs, c]) => external(&[*exprs], &[*c]),
+        HashAgg([keys, aggs, c]) | SortAgg([keys, aggs, c]) => external(&[*keys, *aggs], &[*c]),
+        Window([exprs, c]) => external(&[*exprs], &[*c]),
+
+        // other expressions: union columns from all children
         _ => (enode.children().iter())
             .flat_map(|id| columns(id).iter().cloned())
             .collect(),
@@ -551,7 +599,10 @@ fn column_prune(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
 
 #[cfg(test)]
 mod tests {
+    use test_case::test_case;
+
     use super::*;
+
     fn rules() -> Vec<Rewrite> {
         let mut rules = vec![];
         rules.append(&mut expr::rules());
@@ -683,5 +734,34 @@ mod tests {
             (scan $1 (list $1.1 $1.2) null)
             (scan $2 (list $2.1 $2.2) null)
         ))))"
+    }
+
+    #[test_case(
+        "(list $1.1 (+ $1.2 (ref (- $1.1))))",
+        "(list $1.1 $1.2 (ref (- $1.1)))"
+    )]
+    #[test_case(
+        "(agg (list (sum $2.4))
+            (window (list (over (sum $2.3) list list))
+                (filter (= $1.1 $2.2)
+                    (proj (list $1.1 $2.1)
+                        (scan $1 (list $1.1) true)))))",
+        "(list $2.1 $2.2 $2.3 $2.4)"
+    )]
+    #[test_case(
+        "(join inner (= $1.1 $3.3)
+            (filter (= $1.1 $3.1)
+                (scan $1 (list $1.1) true))
+            (filter (= $2.1 $3.2)
+                (scan $2 (list $2.1) true)))",
+        "(list $3.1 $3.2 $3.3)"
+    )]
+    fn column_analysis(expr1: &str, expr2: &str) {
+        let mut egraph = EGraph::new(Default::default());
+        let id1 = egraph.add_expr(&expr1.parse().unwrap());
+        let id2 = egraph.add_expr(&expr2.parse().unwrap());
+        let columns1 = &egraph[id1].data.columns;
+        let columns2 = &egraph[id2].data.columns;
+        assert_eq!(columns1, columns2);
     }
 }
