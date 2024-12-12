@@ -343,11 +343,6 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
         "(proj ?expr ?child)" => "?child" 
         if produced_eq("?expr", "?child")
     ),
-    rw!("pushdown-proj-proj";
-        "(proj ?proj1 (proj ?proj2 ?child))" =>
-        "(proj ?proj1 ?child)"
-        if all_depend_on("?proj1", "?child")
-    ),
     pushdown("proj", "?exprs", "limit", "?limit ?offset"),
     pushdown("limit", "?limit ?offset", "proj", "?exprs"),
     rw!("pushdown-proj-order";
@@ -378,9 +373,17 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
         "(proj ?exprs (apply ?type ?left ?right))" =>
         { apply_proj("(proj [?exprs] (apply ?type ?left [?right]))") }
     ),
-    rw!("pushdown-proj-scan";
+    rw!("pushdown-proj-prune-scan";
         "(proj ?exprs (scan ?table ?columns ?filter))" =>
-        { column_prune("(proj ?exprs (scan ?table ?columns ?filter))") }
+        { column_prune("(proj [?exprs] (scan ?table ?columns [?filter]))") }
+    ),
+    rw!("pushdown-proj-prune-agg";
+        "(proj ?exprs (agg ?columns ?child))" =>
+        { column_prune("(proj [?exprs] (agg ?columns ?child))") }
+    ),
+    rw!("pushdown-proj-prune-proj";
+        "(proj ?exprs (proj ?columns ?child))" =>
+        { column_prune("(proj [?exprs] (proj ?columns ?child))") }
     ),
 ]}
 
@@ -431,13 +434,16 @@ fn all_depend_on(expr: &str, plan: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> 
 
 /// Returns the columns produced by the plan.
 fn produced(egraph: &EGraph, plan: Id) -> impl Iterator<Item = Expr> + '_ {
-    (egraph[plan].data.schema.iter()).map(|id| {
-        egraph[*id]
-            .iter()
-            .find(|e| matches!(e, Expr::Column(_) | Expr::Ref(_)))
-            .cloned()
-            .unwrap_or(Expr::Ref(*id))
-    })
+    (egraph[plan].data.schema.iter()).map(|id| wrap_ref(egraph, *id))
+}
+
+/// Wraps the node with `Ref` if it is not already a `Ref` or `Column`.
+fn wrap_ref(egraph: &EGraph, expr: Id) -> Expr {
+    egraph[expr]
+        .iter()
+        .find(|e| matches!(e, Expr::Column(_) | Expr::Ref(_)))
+        .cloned()
+        .unwrap_or(Expr::Ref(expr))
 }
 
 /// Returns true if the columns produced by the two expressions are equal.
@@ -584,13 +590,13 @@ fn apply_proj(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
 }
 
 /// Returns an applier that:
-/// 1. collect all used columns from `?exprs` and `?filter`.
+/// 1. collect all used columns from `[?vars]`.
 /// 2. filter out unused columns from `?columns`.
 /// 3. apply the rest `pattern`.
 fn column_prune(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
     struct ColumnPrune {
         pattern: Pattern,
-        used: [Var; 2],
+        used: Vec<Var>,
         columns: Var,
     }
     impl Applier<Expr, ExprAnalysis> for ColumnPrune {
@@ -602,12 +608,13 @@ fn column_prune(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
             searcher_ast: Option<&PatternAst<Expr>>,
             rule_name: Symbol,
         ) -> Vec<Id> {
-            let used1 = &egraph[subst[self.used[0]]].data.columns;
-            let used2 = &egraph[subst[self.used[1]]].data.columns;
-            let used = used1.union(used2).cloned().collect();
+            let used = (self.used.iter())
+                .flat_map(|v| &egraph[subst[*v]].data.columns)
+                .cloned()
+                .collect::<HashSet<Expr>>();
             let columns = egraph[subst[self.columns]].as_list();
             let filtered = (columns.iter().cloned())
-                .filter(|id| egraph[*id].data.columns.is_subset(&used))
+                .filter(|id| used.contains(&wrap_ref(egraph, *id)))
                 .collect();
             let id = egraph.add(Expr::List(filtered));
 
@@ -618,8 +625,12 @@ fn column_prune(pattern_str: &str) -> impl Applier<Expr, ExprAnalysis> {
         }
     }
     ColumnPrune {
-        pattern: pattern(pattern_str),
-        used: [var("?exprs"), var("?filter")],
+        pattern: pattern(&pattern_str.replace(['[', ']'], "")),
+        used: pattern_str
+            .split_whitespace()
+            .filter(|s| s.starts_with('[') && s.ends_with(']'))
+            .map(|s| var(&s[1..s.len() - 1]))
+            .collect(),
         columns: var("?columns"),
     }
 }
@@ -746,21 +757,24 @@ mod tests {
     egg::test_fn! {
         projection_pushdown,
         projection_pushdown_rules(),
-        // SELECT a FROM t1(id, a, b) JOIN t2(id, c, d) ON t1.id = t2.id WHERE a + c > 1;
+        // SELECT sum(a) FROM t1(id, a, b) JOIN t2(id, c, d) ON t1.id = t2.id WHERE a + c > 1;
         "
-        (proj (list $1.2)
-        (filter (> (+ $1.2 $2.2) 1)
-        (join inner (= $1.1 $2.1)
-            (scan $1 (list $1.1 $1.2 $1.3) null)
-            (scan $2 (list $2.1 $2.2 $2.3) null)
-        )))" => "
-        (proj (list $1.2)
-        (filter (> (+ $1.2 $2.2) 1)
-        (proj (list $1.2 $2.2)
-        (join inner (= $1.1 $2.1)
-            (scan $1 (list $1.1 $1.2) null)
-            (scan $2 (list $2.1 $2.2) null)
-        ))))"
+        (proj (list (ref (sum $1.2)))
+            (agg (list (sum $1.2) (sum $2.3))
+                (filter (> (+ $1.2 $2.2) 1)
+                    (join inner (= $1.1 $2.1)
+                        (scan $1 (list $1.1 $1.2 $1.3) null)
+                        (scan $2 (list $2.1 $2.2 $2.3) null)
+        ))))" => "
+        (proj (list (ref (sum $1.2)))
+            (agg (list (sum $1.2))
+                (proj (list $1.2)
+                    (filter (> (+ $1.2 $2.2) 1)
+                        (proj (list $1.2 $2.2)
+                            (join inner (= $1.1 $2.1)
+                                (scan $1 (list $1.1 $1.2) null)
+                                (scan $2 (list $2.1 $2.2) null)
+        ))))))"
     }
 
     #[test_case(
