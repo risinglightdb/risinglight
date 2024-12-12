@@ -135,7 +135,10 @@ impl Binder {
                     select_list.push(id);
                 }
                 SelectItem::Wildcard(_) => {
-                    select_list.append(&mut self.schema(from));
+                    for id in self.schema(from) {
+                        let id = self.wrap_ref(id);
+                        select_list.push(id);
+                    }
                     aliases.resize(select_list.len(), None);
                 }
                 _ => return Err(BindError::Todo("bind select list".into())),
