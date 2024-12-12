@@ -155,13 +155,13 @@ struct Context {
     /// Column aliases that can be accessed from the outside query.
     output_aliases: Vec<Option<String>>,
     /// Aggregations found in the expression.
-    aggregates: HashSet<Id>,
+    aggregates: Vec<Id>,
     /// Over windows found in the expression.
-    over_windows: HashSet<Id>,
+    over_windows: Vec<Id>,
     /// Subqueries found in the expression.
-    subqueries: HashSet<Id>,
+    subqueries: Vec<Id>,
     /// Subqueries found in the EXISTS expression.
-    exists_subqueries: HashSet<Id>,
+    exists_subqueries: Vec<Id>,
 }
 
 impl Binder {
@@ -281,40 +281,25 @@ impl Binder {
         Ok(())
     }
 
-    /// Check and add an aggregation to the current context.
-    /// Return a `Ref` node if successful.
-    /// If the aggregation is nested, return an error.
-    fn add_aggregation(&mut self, id: Id) -> Result<Id> {
-        // check for nested aggs and window functions
-        let refs = self.refs(id);
-        if !refs.is_disjoint(&self.context().aggregates) {
-            return Err(BindError::NestedAgg);
-        }
-        if !refs.is_disjoint(&self.context().over_windows) {
-            return Err(BindError::WindowInAgg);
-        }
-        // add to context and return a ref
-        self.contexts.last_mut().unwrap().aggregates.insert(id);
-        Ok(self.wrap_ref(id))
+    /// Add an aggregation to the current context.
+    fn add_aggregation(&mut self, id: Id) -> Id {
+        self.contexts.last_mut().unwrap().aggregates.push(id);
+        self.wrap_ref(id)
     }
 
     /// Add an over window to the current context.
     fn add_over_window(&mut self, id: Id) {
-        self.contexts.last_mut().unwrap().over_windows.insert(id);
+        self.contexts.last_mut().unwrap().over_windows.push(id);
     }
 
     /// Add a subquery to the current context.
     fn add_subquery(&mut self, id: Id) {
-        self.contexts.last_mut().unwrap().subqueries.insert(id);
+        self.contexts.last_mut().unwrap().subqueries.push(id);
     }
 
     /// Add a EXISTS subquery to the current context.
     fn add_exists_subquery(&mut self, id: Id) {
-        self.contexts
-            .last_mut()
-            .unwrap()
-            .exists_subqueries
-            .insert(id);
+        self.contexts.last_mut().unwrap().exists_subqueries.push(id);
     }
 
     /// The number of aggregations in the current context.
@@ -372,26 +357,6 @@ impl Binder {
     #[allow(dead_code)]
     fn recexpr(&self, id: Id) -> RecExpr {
         self.node(id).build_recexpr(|id| self.node(id).clone())
-    }
-
-    /// Get all referenced node Ids in the expression.
-    ///
-    /// # Example
-    /// ```text
-    /// id = (+ (ref 1) (ref 2))
-    /// returns {1, 2}
-    /// ```
-    fn refs(&self, id: Id) -> HashSet<Id> {
-        let node = self.node(id);
-        if let Node::Ref(id) = node {
-            [*id].into()
-        } else {
-            node.children()
-                .iter()
-                .map(|id| self.refs(*id))
-                .flatten()
-                .collect()
-        }
     }
 
     /// Wrap the node with `Ref` if it is not a column unit.

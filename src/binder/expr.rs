@@ -81,7 +81,7 @@ impl Binder {
             } => self.bind_in_subquery(*expr, *subquery, negated),
             Expr::Exists { subquery, negated } => self.bind_exists(*subquery, negated),
             Expr::Subquery(query) => self.bind_subquery(*query),
-            _ => todo!("bind expression: {:?}", expr),
+            _ => return Err(BindError::Todo(format!("bind expression: {:?}", expr))),
         }?;
         self.type_(id)?;
         Ok(id)
@@ -137,7 +137,7 @@ impl Binder {
             And => Node::And([l, r]),
             Or => Node::Or([l, r]),
             Xor => Node::Xor([l, r]),
-            _ => todo!("bind binary op: {:?}", op),
+            _ => return Err(BindError::Todo(format!("bind binary op: {:?}", op))),
         };
         Ok(self.egraph.add(node))
     }
@@ -149,7 +149,7 @@ impl Binder {
             Plus => expr,
             Minus => self.egraph.add(Node::Neg(expr)),
             Not => self.egraph.add(Node::Not(expr)),
-            _ => todo!("bind unary operator: {:?}", op),
+            _ => return Err(BindError::Todo(format!("bind unary operator: {:?}", op))),
         })
     }
 
@@ -192,7 +192,7 @@ impl Binder {
                     .egraph
                     .add(Node::Constant(DataValue::Timestamp(timestamp))))
             }
-            t => todo!("support typed string: {:?}", t),
+            t => return Err(BindError::Todo(format!("typed string: {:?}", t))),
         }
     }
 
@@ -224,14 +224,20 @@ impl Binder {
     fn bind_interval(&mut self, interval: parser::Interval) -> Result {
         let Expr::Value(Value::Number(v, _) | Value::SingleQuotedString(v)) = *interval.value
         else {
-            panic!("interval value must be number or string");
+            return Err(BindError::InvalidExpression(
+                "interval value must be number or string".into(),
+            ));
         };
         let num = v.parse().expect("interval value is not a number");
         let value = DataValue::Interval(match interval.leading_field {
             Some(DateTimeField::Day) => Interval::from_days(num),
             Some(DateTimeField::Month) => Interval::from_months(num),
             Some(DateTimeField::Year) => Interval::from_years(num),
-            f => todo!("Support interval with leading field: {f:?}"),
+            f => {
+                return Err(BindError::Todo(format!(
+                    "interval with leading field: {f:?}"
+                )))
+            }
         });
         Ok(self.egraph.add(Node::Constant(value)))
     }
@@ -346,6 +352,8 @@ impl Binder {
     }
 
     fn bind_function(&mut self, func: Function) -> Result {
+        let num_aggs = self.num_aggregations();
+        let num_windows = self.num_over_windows();
         let mut args = vec![];
         for arg in func.args.clone() {
             // ignore argument name
@@ -360,9 +368,13 @@ impl Binder {
                     args.clear();
                     break;
                 }
-                FunctionArgExpr::QualifiedWildcard(_) => todo!("support qualified wildcard"),
+                FunctionArgExpr::QualifiedWildcard(_) => {
+                    return Err(BindError::Todo("qualified wildcard like `t.*`".into()))
+                }
             }
         }
+        let args_contain_agg = self.num_aggregations() > num_aggs;
+        let args_contain_window = self.num_over_windows() > num_windows;
 
         let catalog = self.catalog();
         let Ok((schema_name, function_name)) = split_name(&func.name) else {
@@ -435,10 +447,15 @@ impl Binder {
             "min" => Node::Min(args[0]),
             "sum" => Node::Sum(args[0]),
             "avg" => {
+                if args_contain_agg {
+                    return Err(BindError::NestedAgg);
+                } else if args_contain_window {
+                    return Err(BindError::WindowInAgg);
+                }
                 let sum = self.egraph.add(Node::Sum(args[0]));
-                let sum = self.add_aggregation(sum)?;
+                let sum = self.add_aggregation(sum);
                 let count = self.egraph.add(Node::Count(args[0]));
-                let count = self.add_aggregation(count)?;
+                let count = self.add_aggregation(count);
                 Node::Div([sum, count])
             }
             "first" => Node::First(args[0]),
@@ -449,9 +466,17 @@ impl Binder {
         };
         let mut id = self.egraph.add(node.clone());
         if let Some(window) = func.over {
+            if args_contain_window {
+                return Err(BindError::NestedWindow);
+            }
             id = self.bind_window_function(id, window)?;
         } else if node.is_aggregate_function() {
-            id = self.add_aggregation(id)?;
+            if args_contain_agg {
+                return Err(BindError::NestedAgg);
+            } else if args_contain_window {
+                return Err(BindError::WindowInAgg);
+            }
+            id = self.add_aggregation(id);
         }
         Ok(id)
     }
@@ -463,9 +488,6 @@ impl Binder {
         };
         if !self.node(func).is_window_function() {
             return Err(BindError::NotAgg(self.node(func).to_string()));
-        }
-        if !self.refs(func).is_disjoint(&self.context().over_windows) {
-            return Err(BindError::NestedWindow);
         }
         let partitionby = self.bind_exprs(window.partition_by)?;
         let orderby = self.bind_orderby(window.order_by)?;

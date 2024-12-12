@@ -157,6 +157,10 @@ impl Expr {
         Self::Constant(DataValue::Int32(0))
     }
 
+    pub const fn is_true(&self) -> bool {
+        matches!(self, Self::Constant(DataValue::Bool(true)))
+    }
+
     pub fn as_const(&self) -> DataValue {
         let Self::Constant(v) = self else {
             panic!("not a constant: {self}")

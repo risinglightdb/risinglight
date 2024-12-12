@@ -82,7 +82,7 @@ impl Binder {
 
         // bind expressions
         // aggregations, over windows and subqueries will be extracted to the current context
-        let mut projection = self.bind_projection(select.projection, from)?;
+        let projection = self.bind_projection(select.projection, from)?;
         let where_ = self.bind_where(select.selection)?;
         let groupby = self.bind_groupby(select.group_by)?;
         let having = self.bind_having(select.having)?;
@@ -95,16 +95,18 @@ impl Binder {
 
         let mut plan = from;
         plan = self.plan_apply(plan)?;
-        if self.node(where_) != &Node::true_() {
+        if !self.node(where_).is_true() {
             plan = self.egraph.add(Node::Filter([where_, plan]));
         }
-        plan = self.plan_agg(groupby, plan)?;
-        if self.node(having) != &Node::true_() {
+        let mut to_rewrite = [projection, distinct, having, orderby];
+        plan = self.plan_agg(&mut to_rewrite, groupby, plan)?;
+        let [mut projection, distinct, having, orderby] = to_rewrite;
+        if !self.node(having).is_true() {
             plan = self.egraph.add(Node::Filter([having, plan]));
         }
         plan = self.plan_window(plan)?;
         plan = self.plan_distinct(distinct, orderby, &mut projection, plan)?;
-        if self.node(orderby) != &Node::List([].into()) {
+        if !self.node(orderby).as_list().is_empty() {
             plan = self.egraph.add(Node::Order([orderby, plan]));
         }
         plan = self.egraph.add(Node::Proj([projection, plan]));
@@ -150,7 +152,7 @@ impl Binder {
 
     /// Binds the WHERE clause. Returns an expression for condition.
     ///
-    /// Raises an error if there is an aggregation or over window in the expression.
+    /// Aggregate functions and window functions are not allowed.
     pub(super) fn bind_where(&mut self, selection: Option<Expr>) -> Result {
         let num_aggs = self.num_aggregations();
         let num_overs = self.num_over_windows();
@@ -168,7 +170,7 @@ impl Binder {
 
     /// Binds the HAVING clause. Returns an expression for condition.
     ///
-    /// Raises an error if there is an over window in the expression.
+    /// Window functions are not allowed.
     fn bind_having(&mut self, selection: Option<Expr>) -> Result {
         let num_overs = self.num_over_windows();
 
@@ -194,10 +196,10 @@ impl Binder {
     fn bind_groupby(&mut self, group_by: GroupByExpr) -> Result<Option<Id>> {
         match group_by {
             GroupByExpr::All => return Err(BindError::Todo("group by all".into())),
-            GroupByExpr::Expressions(group_by) if group_by.is_empty() => return Ok(None),
-            GroupByExpr::Expressions(group_by) => {
+            GroupByExpr::Expressions(exprs) if exprs.is_empty() => return Ok(None),
+            GroupByExpr::Expressions(exprs) => {
                 let num_aggs = self.num_aggregations();
-                let id = self.bind_exprs(group_by)?;
+                let id = self.bind_exprs(exprs)?;
                 if self.num_aggregations() > num_aggs {
                     return Err(BindError::AggInGroupBy);
                 }
@@ -244,25 +246,27 @@ impl Binder {
 
     /// Extracts all aggregations from `exprs` and generates an [`Agg`](Node::Agg) plan.
     /// If no aggregation is found and no `groupby` keys, returns the original `plan`.
-    fn plan_agg(&mut self, groupby: Option<Id>, plan: Id) -> Result {
-        let aggs = &self.contexts.last().unwrap().aggregates;
+    fn plan_agg(&mut self, exprs: &mut [Id], groupby: Option<Id>, plan: Id) -> Result {
+        let mut aggs = self.context().aggregates.clone();
         if aggs.is_empty() && groupby.is_none() {
             return Ok(plan);
         }
         // make sure the order of the aggs is deterministic
-        let mut aggs = aggs.iter().cloned().collect_vec();
         aggs.sort();
+        aggs.dedup();
         let aggs = self.egraph.add(Node::List(aggs.into()));
         let plan = self.egraph.add(match groupby {
             Some(groupby) => Node::HashAgg([groupby, aggs, plan]),
             None => Node::Agg([aggs, plan]),
         });
         // check for not aggregated columns
-        // rewrite the expressions with a wrapper over agg or group keys
-        // let schema = self.schema(plan);
-        // for id in exprs {
-        //     *id = self.rewrite_agg_in_expr(*id, &schema)?;
-        // }
+        // rewrite the expressions with a wrapper over group keys
+        if let Some(groupby) = groupby {
+            let groupby = self.schema(groupby);
+            for id in exprs {
+                *id = self.rewrite_agg_in_expr(*id, &groupby)?;
+            }
+        }
         Ok(plan)
     }
 
@@ -281,13 +285,15 @@ impl Binder {
     /// ```
     fn rewrite_agg_in_expr(&mut self, id: Id, schema: &[Id]) -> Result {
         let mut expr = self.node(id).clone();
-        // stop at subquery
-        // XXX: maybe wrong
-        if let Node::Max1Row(_) = &expr {
-            return Ok(id);
-        }
         if schema.contains(&id) {
             return Ok(self.wrap_ref(id));
+        }
+        if let Node::Ref(ref_id) = &expr {
+            if self.context().aggregates.contains(ref_id) {
+                return Ok(id);
+            } else {
+                return Err(BindError::ColumnNotInAgg(format!("#{ref_id}")));
+            }
         }
         if let Node::Column(cid) = &expr {
             let name = self.catalog.get_column(cid).unwrap().name().to_string();
@@ -353,12 +359,12 @@ impl Binder {
     /// Generates an [`Window`](Plan::Window) plan if any over node is found in the current context.
     /// Otherwise returns the original `plan`.
     fn plan_window(&mut self, plan: Id) -> Result {
-        let overs = &self.contexts.last().unwrap().over_windows;
+        let mut overs = self.contexts.last().unwrap().over_windows.clone();
         if overs.is_empty() {
             return Ok(plan);
         }
-        let mut overs = overs.iter().cloned().collect_vec();
         overs.sort();
+        overs.dedup();
         let overs = self.egraph.add(Node::List(overs.into()));
         Ok(self.egraph.add(Node::Window([overs, plan])))
     }
