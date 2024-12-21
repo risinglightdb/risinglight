@@ -6,7 +6,7 @@ use futures::TryStreamExt;
 
 use super::*;
 use crate::array::{
-    Array, ArrayBuilder, ArrayBuilderImpl, ArrayImpl, BoolArrayBuilder, DataChunk,
+    Array, ArrayBuilder, ArrayBuilderImpl, ArrayImpl, BoolArray, BoolArrayBuilder, DataChunk,
     DataChunkBuilder, RowRef,
 };
 use crate::types::{DataType, DataValue};
@@ -99,9 +99,9 @@ impl NestedLoopJoinExecutor {
     }
 }
 
-/// The executor for nested loop semi/anti join.
+/// The executor for nested loop semi/anti/mark join.
 pub struct NestedLoopSemiJoinExecutor {
-    pub anti: bool,
+    pub op: Expr,
     pub condition: RecExpr,
     pub left_types: Vec<DataType>,
 }
@@ -109,14 +109,14 @@ pub struct NestedLoopSemiJoinExecutor {
 impl NestedLoopSemiJoinExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self, left_child: BoxedExecutor, right_child: BoxedExecutor) {
+        let is_anti = matches!(self.op, Expr::Anti);
         let right_chunks = right_child.try_collect::<Vec<DataChunk>>().await?;
-
-        let mut builder = DataChunkBuilder::new(&self.left_types, PROCESSING_WINDOW_SIZE);
 
         #[for_await]
         for left_chunk in left_child {
             let left_chunk = left_chunk?;
-            'left_row: for left_row in left_chunk.rows() {
+            let mut exists_column = Vec::with_capacity(left_chunk.cardinality());
+            for left_row in left_chunk.rows() {
                 let mut exists = false;
                 for right_chunk in &right_chunks {
                     let left_chunk = self.left_row_to_chunk(&left_row, right_chunk.cardinality());
@@ -126,24 +126,25 @@ impl NestedLoopSemiJoinExecutor {
                     else {
                         panic!("join condition should return bool");
                     };
-                    exists |= a.true_array().iter().any(|v| *v);
-                    if exists && !self.anti {
-                        if let Some(chunk) = builder.push_row(left_row.values()) {
-                            yield chunk;
-                        }
-                        continue 'left_row;
-                    }
                     tokio::task::consume_budget().await;
-                }
-                if exists ^ self.anti {
-                    if let Some(chunk) = builder.push_row(left_row.values()) {
-                        yield chunk;
+                    exists |= a.true_array().iter().any(|v| *v);
+                    if exists && !is_anti {
+                        // found match for semi and mark join
+                        break;
                     }
                 }
+                exists_column.push(exists ^ is_anti);
             }
-        }
-        if let Some(chunk) = builder.take() {
-            yield chunk;
+            if self.op == Expr::Mark {
+                yield left_chunk
+                    .arrays()
+                    .iter()
+                    .cloned()
+                    .chain([BoolArray::from_iter(exists_column).into()])
+                    .collect();
+            } else {
+                yield left_chunk.filter(&exists_column);
+            }
         }
     }
 

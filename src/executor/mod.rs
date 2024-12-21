@@ -329,8 +329,8 @@ impl<S: Storage> Builder<S> {
                     right_types: self.plan_types(right).to_vec(),
                 }
                 .execute(self.build_id(left), self.build_id(right)),
-                op @ Semi | op @ Anti => NestedLoopSemiJoinExecutor {
-                    anti: matches!(op, Anti),
+                Semi | Anti | Mark => NestedLoopSemiJoinExecutor {
+                    op: self.node(op).clone(),
                     condition: self.resolve_column_index2(on, left, right),
                     left_types: self.plan_types(left).to_vec(),
                 }
