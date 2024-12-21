@@ -7,7 +7,7 @@ use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use smallvec::SmallVec;
 
 use super::*;
-use crate::array::{ArrayBuilderImpl, ArrayImpl, DataChunk, DataChunkBuilder, RowRef};
+use crate::array::{ArrayBuilderImpl, ArrayImpl, BoolArray, DataChunk, DataChunkBuilder, RowRef};
 use crate::types::{DataType, DataValue, Row};
 
 /// The executor for hash join
@@ -25,6 +25,9 @@ pub enum JoinType {
     LeftOuter,
     RightOuter,
     FullOuter,
+    Semi,
+    Anti,
+    Mark,
 }
 
 pub type JoinKeys = SmallVec<[DataValue; 2]>;
@@ -103,16 +106,29 @@ impl<const T: JoinType> HashJoinExecutor<T> {
     }
 }
 
-/// The executor for hash semi/anti join
+/// The executor for hash semi/anti/mark join with no condition.
+///
+/// For each row in the left table, check if there are matching rows in the right table.
+/// (left_keys == right_keys)
+///
+/// - If `join_type` is `Semi`, return the rows that have matching rows.
+/// - If `join_type` is `Anti`, return the rows that do not have matching rows.
+/// - If `join_type` is `Mark`, append a boolean column indicating whether there are matching rows.
 pub struct HashSemiJoinExecutor {
     pub left_keys: RecExpr,
     pub right_keys: RecExpr,
-    pub anti: bool,
+    pub join_type: JoinType,
 }
 
 impl HashSemiJoinExecutor {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self, left: BoxedExecutor, right: BoxedExecutor) {
+        assert!(matches!(
+            self.join_type,
+            JoinType::Semi | JoinType::Anti | JoinType::Mark
+        ));
+        let is_anti = self.join_type == JoinType::Anti;
+
         let mut key_set: HashSet<JoinKeys> = HashSet::new();
         // build
         #[for_await]
@@ -131,26 +147,48 @@ impl HashSemiJoinExecutor {
             let keys_chunk = Evaluator::new(&self.left_keys).eval_list(&chunk)?;
             let exists = keys_chunk
                 .rows()
-                .map(|key| key_set.contains(&key.values().collect::<JoinKeys>()) ^ self.anti)
+                .map(|key| key_set.contains(&key.values().collect::<JoinKeys>()) ^ is_anti)
                 .collect::<Vec<bool>>();
-            yield chunk.filter(&exists);
+            if self.join_type == JoinType::Mark {
+                let exists = BoolArray::from_iter(exists);
+                yield chunk
+                    .arrays()
+                    .iter()
+                    .cloned()
+                    .chain([exists.into()])
+                    .collect();
+            } else {
+                yield chunk.filter(&exists);
+            }
         }
     }
 }
 
-/// The executor for hash semi/anti join
+/// The executor for hash semi/anti/mark join with a condition.
+///
+/// For each row in the left table, check if there are matching rows in the right table.
+/// (left_keys == right_keys AND condition)
+///
+/// - If `join_type` is `Semi`, return the rows that have matching rows.
+/// - If `join_type` is `Anti`, return the rows that do not have matching rows.
+/// - If `join_type` is `Mark`, append a boolean column indicating whether there are matching rows.
 pub struct HashSemiJoinExecutor2 {
     pub left_keys: RecExpr,
     pub right_keys: RecExpr,
     pub condition: RecExpr,
     pub left_types: Vec<DataType>,
     pub right_types: Vec<DataType>,
-    pub anti: bool,
+    pub join_type: JoinType,
 }
 
 impl HashSemiJoinExecutor2 {
     #[try_stream(boxed, ok = DataChunk, error = ExecutorError)]
     pub async fn execute(self, left: BoxedExecutor, right: BoxedExecutor) {
+        assert!(matches!(
+            self.join_type,
+            JoinType::Semi | JoinType::Anti | JoinType::Mark
+        ));
+        let is_anti = self.join_type == JoinType::Anti;
         let mut key_set: HashMap<JoinKeys, DataChunkBuilder> = HashMap::new();
         // build
         #[for_await]
@@ -188,9 +226,19 @@ impl HashSemiJoinExecutor2 {
                 } else {
                     false
                 };
-                exists.push(b ^ self.anti);
+                exists.push(b ^ is_anti);
             }
-            yield chunk.filter(&exists);
+            if self.join_type == JoinType::Mark {
+                let exists = BoolArray::from_iter(exists);
+                yield chunk
+                    .arrays()
+                    .iter()
+                    .cloned()
+                    .chain([exists.into()])
+                    .collect();
+            } else {
+                yield chunk.filter(&exists);
+            }
         }
     }
 

@@ -343,8 +343,9 @@ impl<S: Storage> Builder<S> {
                 LeftOuter => self.build_hashjoin::<{ JoinType::LeftOuter }>(args),
                 RightOuter => self.build_hashjoin::<{ JoinType::RightOuter }>(args),
                 FullOuter => self.build_hashjoin::<{ JoinType::FullOuter }>(args),
-                Semi => self.build_hashsemijoin(args, false),
-                Anti => self.build_hashsemijoin(args, true),
+                Semi => self.build_hashsemijoin(args, JoinType::Semi),
+                Anti => self.build_hashsemijoin(args, JoinType::Anti),
+                Mark => self.build_hashsemijoin(args, JoinType::Mark),
                 t => panic!("invalid join type: {t:?}"),
             },
 
@@ -465,7 +466,10 @@ impl<S: Storage> Builder<S> {
 
     fn build_hashjoin<const T: JoinType>(&mut self, args: [Id; 6]) -> BoxedExecutor {
         let [_, cond, lkeys, rkeys, left, right] = args;
-        assert_eq!(self.node(cond), &Expr::true_());
+        assert!(
+            self.node(cond).is_true(),
+            "hash join with condition is not supported yet"
+        );
         HashJoinExecutor::<T> {
             left_keys: self.resolve_column_index(lkeys, left),
             right_keys: self.resolve_column_index(rkeys, right),
@@ -475,13 +479,13 @@ impl<S: Storage> Builder<S> {
         .execute(self.build_id(left), self.build_id(right))
     }
 
-    fn build_hashsemijoin(&mut self, args: [Id; 6], anti: bool) -> BoxedExecutor {
+    fn build_hashsemijoin(&mut self, args: [Id; 6], join_type: JoinType) -> BoxedExecutor {
         let [_, cond, lkeys, rkeys, left, right] = args;
-        if self.node(cond) == &Expr::true_() {
+        if self.node(cond).is_true() {
             HashSemiJoinExecutor {
                 left_keys: self.resolve_column_index(lkeys, left),
                 right_keys: self.resolve_column_index(rkeys, right),
-                anti,
+                join_type,
             }
             .execute(self.build_id(left), self.build_id(right))
         } else {
@@ -491,7 +495,7 @@ impl<S: Storage> Builder<S> {
                 condition: self.resolve_column_index2(cond, left, right),
                 left_types: self.plan_types(left).to_vec(),
                 right_types: self.plan_types(right).to_vec(),
-                anti,
+                join_type,
             }
             .execute(self.build_id(left), self.build_id(right))
         }
@@ -499,7 +503,10 @@ impl<S: Storage> Builder<S> {
 
     fn build_mergejoin<const T: JoinType>(&mut self, args: [Id; 6]) -> BoxedExecutor {
         let [_, cond, lkeys, rkeys, left, right] = args;
-        assert_eq!(self.node(cond), &Expr::true_());
+        assert!(
+            self.node(cond).is_true(),
+            "merge join with condition is not supported yet"
+        );
         MergeJoinExecutor::<T> {
             left_keys: self.resolve_column_index(lkeys, left),
             right_keys: self.resolve_column_index(rkeys, right),

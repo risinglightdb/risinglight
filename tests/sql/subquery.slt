@@ -132,6 +132,7 @@ select a from t where a not in (select b + 1 from t);
 query I
 select a from t where exists (select 1 from t as t1 where t1.b = t.a + 1);
 ----
+1
 3
 
 # subquery in having
