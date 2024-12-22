@@ -1,0 +1,18 @@
+statement ok
+create table t(a int, b int);
+
+statement ok
+insert into t values (1, 2), (3, 4);
+
+query I
+select a from t where a > any (select b from t);
+----
+3
+
+query I
+select a from t where a < all (select b from t);
+----
+1
+
+query error ANY and ALL operators require one of =,<>,>,<,>=,<= comparisons!
+select a from t where a + all (select b from t);

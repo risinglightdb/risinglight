@@ -109,6 +109,10 @@ pub enum BindError {
     NoFunction(String),
     #[error("subquery returns {0} columns - expected 1")]
     SubqueryMustHaveOneColumn(usize),
+    #[error("ANY and ALL operators require one of =,<>,>,<,>=,<= comparisons!")]
+    InvalidAnyAllOp,
+    #[error("ANY and ALL operators require a subquery")]
+    InvalidAnyAllSubquery,
 }
 
 /// The binder resolves all expressions referring to schema objects such as

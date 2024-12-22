@@ -80,6 +80,16 @@ impl Binder {
                 negated,
             } => self.bind_in_subquery(*expr, *subquery, negated),
             Expr::Exists { subquery, negated } => self.bind_exists(*subquery, negated),
+            Expr::AnyOp {
+                left,
+                compare_op,
+                right,
+            } => self.bind_any_all_op(*left, compare_op, *right, false),
+            Expr::AllOp {
+                left,
+                compare_op,
+                right,
+            } => self.bind_any_all_op(*left, compare_op, *right, true),
             Expr::Subquery(query) => self.bind_subquery(*query),
             _ => return Err(BindError::Todo(format!("bind expression: {:?}", expr))),
         }?;
@@ -296,6 +306,49 @@ impl Binder {
         let compare = self.egraph.add(Node::Eq([expr, col0]));
         let filter = self.egraph.add(Node::Filter([compare, subquery]));
         self.bind_exists_id(filter, negated)
+    }
+
+    /// Bind the `expr {=,<>,>,>=,<,<=} {ANY,ALL}(subquery)` expression.
+    fn bind_any_all_op(
+        &mut self,
+        left: Expr,
+        op: BinaryOperator,
+        right: Expr,
+        all: bool,
+    ) -> Result {
+        // ANY => (exists (filter (op expr column0) subquery))
+        // ALL => (not (exists (filter (not (op expr column0)) subquery)))
+        use BinaryOperator::*;
+
+        let Expr::Subquery(subquery) = right else {
+            return Err(BindError::InvalidAnyAllSubquery);
+        };
+        let expr = self.bind_expr(left)?;
+        let (subquery, _) = self.bind_query(*subquery)?;
+        let schema = self.schema(subquery);
+        let &[col0] = schema.as_slice() else {
+            return Err(BindError::SubqueryMustHaveOneColumn(schema.len()));
+        };
+        let col0 = self.wrap_ref(col0);
+        let compare = self.egraph.add(match op {
+            Gt => Node::Gt([expr, col0]),
+            Lt => Node::Lt([expr, col0]),
+            GtEq => Node::GtEq([expr, col0]),
+            LtEq => Node::LtEq([expr, col0]),
+            Eq => Node::Eq([expr, col0]),
+            NotEq => Node::NotEq([expr, col0]),
+            _ => return Err(BindError::InvalidAnyAllOp),
+        });
+
+        if all {
+            let neg_compare = self.egraph.add(Node::Not(compare));
+            let filter = self.egraph.add(Node::Filter([neg_compare, subquery]));
+            self.bind_exists_id(filter, true)
+        } else {
+            // any
+            let filter = self.egraph.add(Node::Filter([compare, subquery]));
+            self.bind_exists_id(filter, false)
+        }
     }
 
     /// Bind the `EXISTS(subquery)` expression.
