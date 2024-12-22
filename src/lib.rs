@@ -19,6 +19,7 @@
 #![feature(let_chains)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(coroutines)]
+#![feature(extract_if)]
 #![allow(incomplete_features)]
 
 /// Top-level structure of the database.

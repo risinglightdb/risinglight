@@ -288,7 +288,6 @@ impl Binder {
         // => (exists (filter (= expr column0) subquery))
         let expr = self.bind_expr(expr)?;
         let (subquery, _) = self.bind_query(subquery)?;
-        let subquery = self.add_proj_if_conflict(subquery);
         let schema = self.schema(subquery);
         let &[col0] = schema.as_slice() else {
             return Err(BindError::SubqueryMustHaveOneColumn(schema.len()));
@@ -302,19 +301,18 @@ impl Binder {
     /// Bind the `EXISTS(subquery)` expression.
     fn bind_exists(&mut self, subquery: Query, negated: bool) -> Result {
         let (subquery, _) = self.bind_query(subquery)?;
-        let subquery = self.add_proj_if_conflict(subquery);
         self.bind_exists_id(subquery, negated)
     }
 
     fn bind_exists_id(&mut self, subquery: Id, negated: bool) -> Result {
-        self.add_exists_subquery(subquery);
-        if self.context().exists_subqueries.len() > 1 {
-            return Err(BindError::Todo(
-                "multiple EXISTS are not supported yet".into(),
-            ));
-        }
+        let subquery = self.add_proj_if_conflict(subquery);
         let mut id = self.egraph.add(Node::Mark);
         id = self.egraph.add(Node::Ref(id));
+        self.add_subquery(Subquery {
+            query_id: subquery,
+            exists: true,
+            in_agg: self.context().in_agg,
+        });
         if negated {
             id = self.egraph.add(Node::Not(id));
         }
@@ -329,7 +327,11 @@ impl Binder {
             return Err(BindError::SubqueryMustHaveOneColumn(schema.len()));
         };
         let col0 = self.wrap_ref(col0);
-        self.add_subquery(subquery);
+        self.add_subquery(Subquery {
+            query_id: subquery,
+            exists: false,
+            in_agg: self.context().in_agg,
+        });
         Ok(col0)
     }
 
@@ -352,8 +354,26 @@ impl Binder {
     }
 
     fn bind_function(&mut self, func: Function) -> Result {
-        let num_aggs = self.num_aggregations();
-        let num_windows = self.num_over_windows();
+        let is_agg = matches!(
+            func.name.to_string().to_lowercase().as_str(),
+            "count" | "max" | "min" | "sum" | "avg" | "first" | "last"
+        );
+        // pre-argument check
+        if func.over.is_some() {
+            if self.context().in_window {
+                return Err(BindError::NestedWindow);
+            } else if self.context().in_agg {
+                return Err(BindError::WindowInAgg);
+            }
+            self.context_mut().in_window = true;
+        }
+        if is_agg {
+            if self.context().in_agg {
+                return Err(BindError::NestedAgg);
+            }
+            self.context_mut().in_agg = true;
+        }
+        // bind arguments
         let mut args = vec![];
         for arg in func.args.clone() {
             // ignore argument name
@@ -373,8 +393,13 @@ impl Binder {
                 }
             }
         }
-        let args_contain_agg = self.num_aggregations() > num_aggs;
-        let args_contain_window = self.num_over_windows() > num_windows;
+        // post-argument check
+        if func.over.is_some() {
+            self.context_mut().in_window = false;
+        }
+        if is_agg {
+            self.context_mut().in_agg = false;
+        }
 
         let catalog = self.catalog();
         let Ok((schema_name, function_name)) = split_name(&func.name) else {
@@ -447,11 +472,6 @@ impl Binder {
             "min" => Node::Min(args[0]),
             "sum" => Node::Sum(args[0]),
             "avg" => {
-                if args_contain_agg {
-                    return Err(BindError::NestedAgg);
-                } else if args_contain_window {
-                    return Err(BindError::WindowInAgg);
-                }
                 let sum = self.egraph.add(Node::Sum(args[0]));
                 let sum = self.add_aggregation(sum);
                 let count = self.egraph.add(Node::Count(args[0]));
@@ -466,16 +486,8 @@ impl Binder {
         };
         let mut id = self.egraph.add(node.clone());
         if let Some(window) = func.over {
-            if args_contain_window {
-                return Err(BindError::NestedWindow);
-            }
             id = self.bind_window_function(id, window)?;
         } else if node.is_aggregate_function() {
-            if args_contain_agg {
-                return Err(BindError::NestedAgg);
-            } else if args_contain_window {
-                return Err(BindError::WindowInAgg);
-            }
             id = self.add_aggregation(id);
         }
         Ok(id)

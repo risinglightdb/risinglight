@@ -83,8 +83,10 @@ impl Binder {
         // bind expressions
         // aggregations, over windows and subqueries will be extracted to the current context
         let projection = self.bind_projection(select.projection, from)?;
+        let mut subqueries = self.take_subqueries();
         let where_ = self.bind_where(select.selection)?;
         let groupby = self.bind_groupby(select.group_by)?;
+        let mut subqueries_in_agg = self.take_subqueries();
         let having = self.bind_having(select.having)?;
         let orderby = self.bind_orderby(order_by)?;
         let distinct = match select.distinct {
@@ -92,18 +94,17 @@ impl Binder {
             Some(Distinct::Distinct) => projection,
             Some(Distinct::On(exprs)) => self.bind_exprs(exprs)?,
         };
+        subqueries.extend(self.take_subqueries());
+        subqueries_in_agg.extend(subqueries.extract_if(|s| s.in_agg));
 
         let mut plan = from;
-        plan = self.plan_apply(plan)?;
-        if !self.node(where_).is_true() {
-            plan = self.egraph.add(Node::Filter([where_, plan]));
-        }
+        plan = self.plan_apply(subqueries_in_agg, plan)?;
+        plan = self.plan_filter(where_, plan)?;
         let mut to_rewrite = [projection, distinct, having, orderby];
         plan = self.plan_agg(&mut to_rewrite, groupby, plan)?;
         let [mut projection, distinct, having, orderby] = to_rewrite;
-        if !self.node(having).is_true() {
-            plan = self.egraph.add(Node::Filter([having, plan]));
-        }
+        plan = self.plan_apply(subqueries, plan)?;
+        plan = self.plan_filter(having, plan)?;
         plan = self.plan_window(plan)?;
         plan = self.plan_distinct(distinct, orderby, &mut projection, plan)?;
         if !self.node(orderby).as_list().is_empty() {
@@ -153,6 +154,7 @@ impl Binder {
     /// Binds the WHERE clause. Returns an expression for condition.
     ///
     /// Aggregate functions and window functions are not allowed.
+    /// Subqueries will be extracted to the current context.
     pub(super) fn bind_where(&mut self, selection: Option<Expr>) -> Result {
         let num_aggs = self.num_aggregations();
         let num_overs = self.num_over_windows();
@@ -171,6 +173,7 @@ impl Binder {
     /// Binds the HAVING clause. Returns an expression for condition.
     ///
     /// Window functions are not allowed.
+    /// Aggregate functions and subqueries will be extracted to the current context.
     fn bind_having(&mut self, selection: Option<Expr>) -> Result {
         let num_overs = self.num_over_windows();
 
@@ -192,16 +195,20 @@ impl Binder {
 
     /// Binds the GROUP BY clause. Returns a list of expressions.
     ///
-    /// Raises an error if there is an aggregation in the expressions.
+    /// Aggregate functions and window functions are not allowed.
     fn bind_groupby(&mut self, group_by: GroupByExpr) -> Result<Option<Id>> {
         match group_by {
             GroupByExpr::All => return Err(BindError::Todo("group by all".into())),
             GroupByExpr::Expressions(exprs) if exprs.is_empty() => return Ok(None),
             GroupByExpr::Expressions(exprs) => {
                 let num_aggs = self.num_aggregations();
+                let num_overs = self.num_over_windows();
                 let id = self.bind_exprs(exprs)?;
                 if self.num_aggregations() > num_aggs {
                     return Err(BindError::AggInGroupBy);
+                }
+                if self.num_over_windows() > num_overs {
+                    return Err(BindError::WindowInGroupBy);
                 }
                 Ok(Some(id))
             }
@@ -242,6 +249,13 @@ impl Binder {
         let id = self.egraph.add(Node::Values(bound_values.into()));
         self.type_(id)?;
         Ok(id)
+    }
+
+    pub(super) fn plan_filter(&mut self, predicate: Id, plan: Id) -> Result {
+        if self.node(predicate).is_true() {
+            return Ok(plan);
+        }
+        Ok(self.egraph.add(Node::Filter([predicate, plan])))
     }
 
     /// Extracts all aggregations from `exprs` and generates an [`Agg`](Node::Agg) plan.
@@ -288,12 +302,8 @@ impl Binder {
         if schema.contains(&id) {
             return Ok(self.wrap_ref(id));
         }
-        if let Node::Ref(ref_id) = &expr {
-            if self.context().aggregates.contains(ref_id) {
-                return Ok(id);
-            } else {
-                return Err(BindError::ColumnNotInAgg(format!("#{ref_id}")));
-            }
+        if let Node::Ref(_) = &expr {
+            return Ok(id);
         }
         if let Node::Column(cid) = &expr {
             let name = self.catalog.get_column(cid).unwrap().name().to_string();
@@ -370,14 +380,16 @@ impl Binder {
     }
 
     /// Generate an [`Apply`](Node::Apply) plan for each subquery in the current context.
-    fn plan_apply(&mut self, mut plan: Id) -> Result {
-        let left_outer = self.egraph.add(Node::LeftOuter);
-        for subquery in self.context().subqueries.clone() {
-            plan = self.egraph.add(Node::Apply([left_outer, plan, subquery]));
-        }
-        let mark = self.egraph.add(Node::Mark);
-        for subquery in self.context().exists_subqueries.clone() {
-            plan = self.egraph.add(Node::Apply([mark, plan, subquery]));
+    pub(super) fn plan_apply(&mut self, subqueries: Vec<Subquery>, mut plan: Id) -> Result {
+        for subquery in subqueries {
+            let type_id = self.egraph.add(if subquery.exists {
+                Node::Mark
+            } else {
+                Node::LeftOuter
+            });
+            plan = self
+                .egraph
+                .add(Node::Apply([type_id, plan, subquery.query_id]));
         }
         Ok(plan)
     }

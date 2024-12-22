@@ -83,6 +83,8 @@ pub enum BindError {
     WindowInWhere,
     #[error("HAVING clause cannot contain window functions")]
     WindowInHaving,
+    #[error("GROUP BY clause cannot contain window functions")]
+    WindowInGroupBy,
     #[error("column {0:?} must appear in the GROUP BY clause or be used in an aggregate function")]
     ColumnNotInAgg(String),
     #[error("ORDER BY items must appear in the select list if DISTINCT is specified")]
@@ -159,9 +161,22 @@ struct Context {
     /// Over windows found in the expression.
     over_windows: Vec<Id>,
     /// Subqueries found in the expression.
-    subqueries: Vec<Id>,
-    /// Subqueries found in the EXISTS expression.
-    exists_subqueries: Vec<Id>,
+    subqueries: Vec<Subquery>,
+    /// Whether the current context is in an aggregation.
+    in_agg: bool,
+    /// Whether the current context is in an over window.
+    in_window: bool,
+}
+
+/// A subquery found in expression.
+#[derive(Debug)]
+struct Subquery {
+    /// The id of the query node.
+    query_id: Id,
+    /// Whether the subquery is an EXISTS subquery.
+    exists: bool,
+    /// Whether the subquery is performed in an aggregation.
+    in_agg: bool,
 }
 
 impl Binder {
@@ -293,13 +308,8 @@ impl Binder {
     }
 
     /// Add a subquery to the current context.
-    fn add_subquery(&mut self, id: Id) {
-        self.contexts.last_mut().unwrap().subqueries.push(id);
-    }
-
-    /// Add a EXISTS subquery to the current context.
-    fn add_exists_subquery(&mut self, id: Id) {
-        self.contexts.last_mut().unwrap().exists_subqueries.push(id);
+    fn add_subquery(&mut self, subquery: Subquery) {
+        self.contexts.last_mut().unwrap().subqueries.push(subquery);
     }
 
     /// The number of aggregations in the current context.
@@ -310,6 +320,11 @@ impl Binder {
     /// The number of over windows in the current context.
     fn num_over_windows(&self) -> usize {
         self.contexts.last().unwrap().over_windows.len()
+    }
+
+    /// Take all subqueries in the current context.
+    fn take_subqueries(&mut self) -> Vec<Subquery> {
+        std::mem::take(&mut self.contexts.last_mut().unwrap().subqueries)
     }
 
     /// Find an alias.

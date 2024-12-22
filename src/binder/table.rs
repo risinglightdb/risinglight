@@ -43,9 +43,9 @@ impl Binder {
     /// )
     /// ```
     fn bind_table_with_joins(&mut self, tables: TableWithJoins) -> Result {
-        let mut node = self.bind_table_factor(tables.relation)?;
+        let mut node = self.bind_table_factor(tables.relation, false)?;
         for join in tables.joins {
-            let table = self.bind_table_factor(join.relation)?;
+            let table = self.bind_table_factor(join.relation, false)?;
             let (ty, join_or_apply) = self.bind_join_op(join.join_operator)?;
             node = match join_or_apply {
                 JoinOrApply::Join(condition) => {
@@ -62,7 +62,7 @@ impl Binder {
     /// # Example
     /// - `bind_table_factor(t)` => `(scan $1 (list $1.1 $1.2 $1.3) true)`
     /// - `bind_table_factor(select 1)` => `(values (1))`
-    fn bind_table_factor(&mut self, table: TableFactor) -> Result {
+    pub(super) fn bind_table_factor(&mut self, table: TableFactor, with_rowid: bool) -> Result {
         let (id, column_aliases, table_alias) = match table {
             TableFactor::Table { name, alias, .. } => {
                 let name = lower_case_name(&name);
@@ -75,7 +75,7 @@ impl Binder {
                 };
                 self.add_table_alias(table_alias)?;
 
-                let (id, column_aliases) = self.bind_table_def(&name, false)?;
+                let (id, column_aliases) = self.bind_table_def(&name, with_rowid)?;
                 (id, column_aliases, table_alias.to_string())
             }
             TableFactor::Derived {
@@ -185,7 +185,7 @@ impl Binder {
     ///
     /// # Example
     /// - `bind_table_def(t)` => `(scan $1 (list $1.1 $1.2) true)`
-    pub(super) fn bind_table_def(
+    fn bind_table_def(
         &mut self,
         name: &ObjectName,
         with_rowid: bool,
