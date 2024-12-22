@@ -25,8 +25,8 @@ mod insert;
 mod select;
 mod table;
 
-pub use self::create_function::*;
-pub use self::create_table::*;
+pub use create_function::CreateFunction;
+pub use create_table::CreateTable;
 
 pub type Result<T = Id> = std::result::Result<T, BindError>;
 
@@ -286,25 +286,16 @@ impl Binder {
 
     fn bind_stmt(&mut self, stmt: Statement) -> Result {
         match stmt {
-            Statement::CreateTable {
-                name,
-                columns,
-                constraints,
-                ..
-            } => self.bind_create_table(name, &columns, &constraints),
+            Statement::CreateTable(create_table) => self.bind_create_table(create_table),
             Statement::CreateView {
                 name,
                 columns,
                 query,
                 ..
             } => self.bind_create_view(name, columns, *query),
-            Statement::CreateFunction {
-                name,
-                args,
-                return_type,
-                params,
-                ..
-            } => self.bind_create_function(name, args, return_type, params),
+            Statement::CreateFunction(create_function) => {
+                self.bind_create_function(create_function)
+            }
             Statement::Drop {
                 object_type,
                 if_exists,
@@ -312,15 +303,8 @@ impl Binder {
                 cascade,
                 ..
             } => self.bind_drop(object_type, if_exists, names, cascade),
-            Statement::Insert {
-                table_name,
-                columns,
-                source: Some(source),
-                ..
-            } => self.bind_insert(table_name, columns, source),
-            Statement::Delete {
-                from, selection, ..
-            } => self.bind_delete(from, selection),
+            Statement::Insert(insert) => self.bind_insert(insert),
+            Statement::Delete(delete) => self.bind_delete(delete),
             Statement::Copy {
                 source,
                 to,

@@ -48,10 +48,14 @@ impl CreateFunction {
 impl Binder {
     pub(super) fn bind_create_function(
         &mut self,
-        name: ObjectName,
-        args: Option<Vec<OperateFunctionArg>>,
-        return_type: Option<DataType>,
-        params: CreateFunctionBody,
+        crate::parser::CreateFunction {
+            name,
+            args,
+            return_type,
+            function_body,
+            language,
+            ..
+        }: crate::parser::CreateFunction,
     ) -> Result {
         let Ok((schema_name, function_name)) = split_name(&name) else {
             return Err(BindError::BindFunctionError(
@@ -70,7 +74,7 @@ impl Binder {
         let return_type = crate::types::DataType::from(&return_type);
 
         // TODO: language check (e.g., currently only support sql)
-        let Some(language) = params.language.clone() else {
+        let Some(language) = language else {
             return Err(BindError::BindFunctionError(
                 "`language` must be specified".to_string(),
             ));
@@ -79,19 +83,18 @@ impl Binder {
 
         // SQL udf function supports both single quote (i.e., as 'select $1 + $2')
         // and double dollar (i.e., as $$select $1 + $2$$) for as clause
-        let body = match &params.as_ {
-            Some(FunctionDefinition::SingleQuotedDef(s)) => s.clone(),
-            Some(FunctionDefinition::DoubleDollarDef(s)) => s.clone(),
-            None => {
-                if params.return_.is_none() {
-                    return Err(BindError::BindFunctionError(
-                        "AS or RETURN must be specified".to_string(),
-                    ));
-                }
-                // Otherwise this is a return expression
+        let body = match function_body {
+            Some(CreateFunctionBody::AsBeforeOptions(expr))
+            | Some(CreateFunctionBody::AsAfterOptions(expr)) => expr.to_string(),
+            Some(CreateFunctionBody::Return(return_expr)) => {
                 // Note: this is a current work around, and we are assuming return sql udf
                 // will NOT involve complex syntax, so just reuse the logic for select definition
-                format!("select {}", &params.return_.unwrap().to_string())
+                format!("select {}", &return_expr.to_string())
+            }
+            None => {
+                return Err(BindError::BindFunctionError(
+                    "AS or RETURN must be specified".to_string(),
+                ));
             }
         };
 

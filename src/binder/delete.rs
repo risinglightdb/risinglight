@@ -3,8 +3,8 @@
 use super::*;
 
 impl Binder {
-    pub(super) fn bind_delete(&mut self, from: FromTable, selection: Option<Expr>) -> Result {
-        let from = match from {
+    pub(super) fn bind_delete(&mut self, delete: Delete) -> Result {
+        let from = match delete.from {
             FromTable::WithFromKeyword(t) => t,
             FromTable::WithoutKeyword(t) => t,
         };
@@ -19,7 +19,7 @@ impl Binder {
             return Err(BindError::CanNotDelete);
         }
         let scan = self.bind_table_def(name, alias.clone(), true)?;
-        let cond = self.bind_where(selection)?;
+        let cond = self.bind_where(delete.selection)?;
         let filter = self.egraph.add(Node::Filter([cond, scan]));
         Ok(self.egraph.add(Node::Delete([table_id, filter])))
     }

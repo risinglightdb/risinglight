@@ -56,7 +56,7 @@ impl Binder {
                 high,
             } => self.bind_between(*expr, negated, *low, *high),
             Expr::Interval(interval) => self.bind_interval(interval),
-            Expr::Extract { field, expr } => self.bind_extract(field, *expr),
+            Expr::Extract { field, expr, .. } => self.bind_extract(field, *expr),
             Expr::Substring {
                 expr,
                 substring_from,
@@ -322,21 +322,35 @@ impl Binder {
     }
 
     fn bind_function(&mut self, func: Function) -> Result {
+        let mut distinct = false;
+        let function_args = match &func.args {
+            FunctionArguments::None => &[],
+            FunctionArguments::Subquery(_) => {
+                return Err(BindError::Todo("subquery argument".into()))
+            }
+            FunctionArguments::List(arg_list) => {
+                distinct = arg_list.duplicate_treatment == Some(DuplicateTreatment::Distinct);
+                arg_list.args.as_slice()
+            }
+        };
         let mut args = vec![];
-        for arg in func.args.clone() {
+        for arg in function_args {
             // ignore argument name
             let arg = match arg {
                 FunctionArg::Named { arg, .. } => arg,
+                FunctionArg::ExprNamed { arg, .. } => arg,
                 FunctionArg::Unnamed(arg) => arg,
             };
             match arg {
-                FunctionArgExpr::Expr(expr) => args.push(self.bind_expr(expr)?),
+                FunctionArgExpr::Expr(expr) => args.push(self.bind_expr(expr.clone())?),
                 FunctionArgExpr::Wildcard => {
                     // No argument in row count
                     args.clear();
                     break;
                 }
-                FunctionArgExpr::QualifiedWildcard(_) => todo!("support qualified wildcard"),
+                FunctionArgExpr::QualifiedWildcard(_) => {
+                    todo!("support qualified wildcard")
+                }
             }
         }
 
@@ -352,8 +366,7 @@ impl Binder {
         if let Some(ref function_catalog) = catalog.get_function_by_name(schema_name, function_name)
         {
             // Create the brand new `udf_context`
-            let Ok(context) =
-                UdfContext::create_udf_context(func.args.as_slice(), function_catalog)
+            let Ok(context) = UdfContext::create_udf_context(function_args, function_catalog)
             else {
                 return Err(BindError::InvalidExpression(
                     "failed to create udf context".to_string(),
@@ -405,7 +418,7 @@ impl Binder {
 
         let node = match func.name.to_string().to_lowercase().as_str() {
             "count" if args.is_empty() => Node::RowCount,
-            "count" if func.distinct => Node::CountDistinct(args[0]),
+            "count" if distinct => Node::CountDistinct(args[0]),
             "count" => Node::Count(args[0]),
             "max" => Node::Max(args[0]),
             "min" => Node::Min(args[0]),

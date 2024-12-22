@@ -58,7 +58,7 @@ impl Binder {
                 ));
             }
             for (column, id) in alias.columns.iter().zip(self.schema(query)) {
-                columns.insert(column.value.to_lowercase(), id);
+                columns.insert(column.name.value.to_lowercase(), id);
             }
         } else {
             // `with t`
@@ -74,17 +74,20 @@ impl Binder {
         Ok(query)
     }
 
-    fn bind_select(&mut self, select: Select, order_by: Vec<OrderByExpr>) -> Result {
+    fn bind_select(&mut self, select: Select, order_by: Option<OrderBy>) -> Result {
         let from = self.bind_from(select.from)?;
         let projection = self.bind_projection(select.projection, from)?;
         let mut where_ = self.bind_where(select.selection)?;
         let groupby = match select.group_by {
-            GroupByExpr::All => return Err(BindError::Todo("group by all".into())),
-            GroupByExpr::Expressions(group_by) if group_by.is_empty() => None,
-            GroupByExpr::Expressions(group_by) => Some(self.bind_groupby(group_by)?),
+            GroupByExpr::All(_) => return Err(BindError::Todo("group by all".into())),
+            GroupByExpr::Expressions(exprs, _) if exprs.is_empty() => None,
+            GroupByExpr::Expressions(exprs, _) => Some(self.bind_groupby(exprs)?),
         };
         let having = self.bind_having(select.having)?;
-        let orderby = self.bind_orderby(order_by)?;
+        let orderby = match order_by {
+            Some(order_by) => self.bind_orderby(order_by.exprs)?,
+            None => self.egraph.add(Node::List([].into())),
+        };
         let distinct = match select.distinct {
             None => self.egraph.add(Node::List([].into())),
             Some(Distinct::Distinct) => projection,
