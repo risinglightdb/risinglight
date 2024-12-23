@@ -85,7 +85,11 @@ impl Binder {
         // and double dollar (i.e., as $$select $1 + $2$$) for as clause
         let body = match function_body {
             Some(CreateFunctionBody::AsBeforeOptions(expr))
-            | Some(CreateFunctionBody::AsAfterOptions(expr)) => expr.to_string(),
+            | Some(CreateFunctionBody::AsAfterOptions(expr)) => match expr {
+                Expr::Value(Value::SingleQuotedString(s)) => s,
+                Expr::Value(Value::DollarQuotedString(s)) => s.value,
+                _ => return Err(BindError::BindFunctionError("expected string".into())),
+            },
             Some(CreateFunctionBody::Return(return_expr)) => {
                 // Note: this is a current work around, and we are assuming return sql udf
                 // will NOT involve complex syntax, so just reuse the logic for select definition
