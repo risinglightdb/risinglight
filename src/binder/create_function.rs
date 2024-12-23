@@ -58,26 +58,28 @@ impl Binder {
         }: crate::parser::CreateFunction,
     ) -> Result {
         let Ok((schema_name, function_name)) = split_name(&name) else {
-            return Err(BindError::BindFunctionError(
+            return Err(ErrorKind::BindFunctionError(
                 "failed to parse the input function name".to_string(),
-            ));
+            )
+            .with_spanned(&name));
         };
 
         let schema_name = schema_name.to_string();
         let name = function_name.to_string();
 
         let Some(return_type) = return_type else {
-            return Err(BindError::BindFunctionError(
+            return Err(ErrorKind::BindFunctionError(
                 "`return type` must be specified".to_string(),
-            ));
+            )
+            .into());
         };
         let return_type = crate::types::DataType::from(&return_type);
 
         // TODO: language check (e.g., currently only support sql)
         let Some(language) = language else {
-            return Err(BindError::BindFunctionError(
-                "`language` must be specified".to_string(),
-            ));
+            return Err(
+                ErrorKind::BindFunctionError("`language` must be specified".to_string()).into(),
+            );
         };
         let language = language.to_string();
 
@@ -88,7 +90,11 @@ impl Binder {
             | Some(CreateFunctionBody::AsAfterOptions(expr)) => match expr {
                 Expr::Value(Value::SingleQuotedString(s)) => s,
                 Expr::Value(Value::DollarQuotedString(s)) => s.value,
-                _ => return Err(BindError::BindFunctionError("expected string".into())),
+                _ => {
+                    return Err(
+                        ErrorKind::BindFunctionError("expected string".into()).with_spanned(&expr)
+                    )
+                }
             },
             Some(CreateFunctionBody::Return(return_expr)) => {
                 // Note: this is a current work around, and we are assuming return sql udf
@@ -96,9 +102,10 @@ impl Binder {
                 format!("select {}", &return_expr.to_string())
             }
             None => {
-                return Err(BindError::BindFunctionError(
+                return Err(ErrorKind::BindFunctionError(
                     "AS or RETURN must be specified".to_string(),
-                ));
+                )
+                .into());
             }
         };
 

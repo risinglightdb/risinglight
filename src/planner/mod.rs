@@ -129,6 +129,8 @@ define_language! {
             ExtSource(Box<ExtSource>),
         "explain" = Explain(Id),                // (explain child)
         "analyze" = Analyze(Id),                // (analyze child)
+        "pragma" = Pragma([Id; 2]),             // (pragma name value)
+        "set" = Set([Id; 2]),                   // (set name value)
 
         // internal functions
         "empty" = Empty(Id),                    // (empty child)
