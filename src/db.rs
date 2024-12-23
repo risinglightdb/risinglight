@@ -173,12 +173,12 @@ impl Database {
             }
         }
         let Statement::SetVariable {
-            variable, value, ..
+            variables, value, ..
         } = stmt
         else {
             return Ok(false);
         };
-        let Some(table_name) = variable.0[0].value.strip_prefix("mock_rowcount_") else {
+        let Some(table_name) = variables[0].0[0].value.strip_prefix("mock_rowcount_") else {
             return Ok(false);
         };
         let count = value[0]

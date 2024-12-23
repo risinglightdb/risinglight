@@ -70,7 +70,7 @@ impl Binder {
                     // 'as t(a, b, ..)'
                     let table_name = &alias.name.value;
                     for (column, id) in alias.columns.iter().zip(self.schema(id)) {
-                        self.add_alias(column.value.to_lowercase(), table_name.clone(), id);
+                        self.add_alias(column.name.value.to_lowercase(), table_name.clone(), id);
                     }
                 } else {
                     // move `output_aliases` to current context

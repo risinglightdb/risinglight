@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use super::create_table::CreateTable;
 use super::*;
 use crate::catalog::{ColumnCatalog, ColumnDesc, ColumnId};
 

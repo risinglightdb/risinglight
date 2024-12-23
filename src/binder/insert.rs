@@ -1,15 +1,20 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use super::*;
-use crate::parser::Query;
 
 impl Binder {
     pub fn bind_insert(
         &mut self,
-        table_name: ObjectName,
-        columns: Vec<Ident>,
-        source: Box<Query>,
+        Insert {
+            table_name,
+            columns,
+            source,
+            ..
+        }: Insert,
     ) -> Result {
+        let Some(source) = source else {
+            return Err(BindError::InvalidSQL);
+        };
         let (table, is_internal, is_view) = self.bind_table_id(&table_name)?;
         if is_internal || is_view {
             return Err(BindError::CanNotInsert);

@@ -50,9 +50,12 @@ impl FromStr for Box<CreateTable> {
 impl Binder {
     pub(super) fn bind_create_table(
         &mut self,
-        name: ObjectName,
-        columns: &[ColumnDef],
-        constraints: &[TableConstraint],
+        crate::parser::CreateTable {
+            name,
+            columns,
+            constraints,
+            ..
+        }: crate::parser::CreateTable,
     ) -> Result {
         let name = lower_case_name(&name);
         let (schema_name, table_name) = split_name(&name)?;
@@ -66,13 +69,13 @@ impl Binder {
 
         // check duplicated column names
         let mut set = HashSet::new();
-        for col in columns {
+        for col in &columns {
             if !set.insert(col.name.value.to_lowercase()) {
                 return Err(BindError::ColumnExists(col.name.value.to_lowercase()));
             }
         }
 
-        let mut ordered_pk_ids = Binder::ordered_pks_from_columns(columns);
+        let mut ordered_pk_ids = Binder::ordered_pks_from_columns(&columns);
         let has_pk_from_column = !ordered_pk_ids.is_empty();
 
         if ordered_pk_ids.len() > 1 {
@@ -80,7 +83,7 @@ impl Binder {
             return Err(BindError::NotSupportedTSQL);
         }
 
-        let pks_name_from_constraints = Binder::pks_name_from_constraints(constraints);
+        let pks_name_from_constraints = Binder::pks_name_from_constraints(&constraints);
         if has_pk_from_column && !pks_name_from_constraints.is_empty() {
             // can't get primary key both from "primary key(c1, c2...)" syntax and
             // column's option
