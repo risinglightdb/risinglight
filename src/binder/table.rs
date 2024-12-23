@@ -172,7 +172,7 @@ impl Binder {
         let ref_id = self
             .catalog
             .get_table_id_by_name(schema_name, table_name)
-            .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
+            .ok_or_else(|| ErrorKind::InvalidTable(table_name.into()))?;
 
         let table = self.catalog.get_table(&ref_id).unwrap();
         let table_occurence = {
@@ -220,7 +220,7 @@ impl Binder {
         let table_ref_id = self
             .catalog
             .get_table_id_by_name(schema_name, table_name)
-            .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
+            .ok_or_else(|| ErrorKind::InvalidTable(table_name.into()))?;
 
         let table = self.catalog.get_table(&table_ref_id).unwrap();
 
@@ -232,7 +232,7 @@ impl Binder {
                 let col_name = col.value.to_lowercase();
                 let col = table
                     .get_column_by_name(&col_name)
-                    .ok_or_else(|| BindError::InvalidColumn(col_name.clone()))?;
+                    .ok_or_else(|| ErrorKind::InvalidColumn(col_name.clone()))?;
                 ids.push(col.id());
             }
             ids
@@ -259,7 +259,7 @@ impl Binder {
         let table_ref_id = self
             .catalog
             .get_table_id_by_name(schema_name, table_name)
-            .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
+            .ok_or_else(|| ErrorKind::InvalidTable(table_name.into()))?;
         let table = self.catalog.get_table(&table_ref_id).unwrap();
         let id = self.egraph.add(Node::Table(table_ref_id));
         Ok((

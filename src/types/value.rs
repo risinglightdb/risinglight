@@ -186,6 +186,14 @@ impl DataValue {
         }))
     }
 
+    /// Get the string value.
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::String(s) => s,
+            _ => panic!("not a string: {:?}", self),
+        }
+    }
+
     /// Cast the value to another type.
     pub fn cast(&self, ty: &DataType) -> Result<Self, ConvertError> {
         Ok(ArrayImpl::from(self).cast(ty)?.get(0))
@@ -237,6 +245,12 @@ for_all_variants_without_null! { impl_min_max }
 impl From<Option<&()>> for DataValue {
     fn from(_: Option<&()>) -> Self {
         Self::Null
+    }
+}
+
+impl From<String> for DataValue {
+    fn from(v: String) -> Self {
+        Self::String(v.into())
     }
 }
 

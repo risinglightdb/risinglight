@@ -87,14 +87,18 @@ impl Binder {
                 } => {
                     let (table, is_system, is_view) = self.bind_table_id(&table_name)?;
                     if is_system {
-                        return Err(BindError::CopyTo("system table".into()));
+                        return Err(
+                            ErrorKind::CopyTo("system table".into()).with_spanned(&table_name)
+                        );
                     } else if is_view {
-                        return Err(BindError::CopyTo("view".into()));
+                        return Err(ErrorKind::CopyTo("view".into()).with_spanned(&table_name));
                     }
                     let cols = self.bind_table_columns(&table_name, &columns)?;
                     (table, cols)
                 }
-                CopySource::Query(_) => return Err(BindError::CopyTo("query".into())),
+                CopySource::Query(query) => {
+                    return Err(ErrorKind::CopyTo("query".into()).with_spanned(&*query));
+                }
             };
             let types = self.type_(cols)?;
             let types = self.egraph.add(Node::Type(types));

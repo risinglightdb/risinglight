@@ -1,5 +1,7 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use sqlparser::tokenizer::Span;
+
 use super::*;
 use crate::parser::{Expr, Query, SelectItem, SetExpr};
 
@@ -16,7 +18,7 @@ impl Binder {
     pub(super) fn bind_query_internal(&mut self, query: Query) -> Result {
         if let Some(with) = query.with {
             if with.recursive {
-                return Err(BindError::Todo("recursive CTE".into()));
+                return Err(ErrorKind::Todo("recursive CTE".into()).with_spanned(&with));
             }
             for cte in with.cte_tables {
                 self.bind_cte(cte)?;
@@ -25,7 +27,7 @@ impl Binder {
         let child = match *query.body {
             SetExpr::Select(select) => self.bind_select(*select, query.order_by)?,
             SetExpr::Values(values) => self.bind_values(values)?,
-            _ => return Err(BindError::Todo("unknown set expr".into())),
+            body => return Err(ErrorKind::Todo("unknown set expr".into()).with_spanned(&body)),
         };
         let limit = match query.limit {
             Some(expr) => self.bind_expr(expr)?,
@@ -51,11 +53,12 @@ impl Binder {
             let expected_column_num = self.schema(query).len();
             let actual_column_num = alias.columns.len();
             if actual_column_num != expected_column_num {
-                return Err(BindError::ColumnCountMismatch(
+                return Err(ErrorKind::ColumnCountMismatch(
                     table_alias.clone(),
                     expected_column_num,
                     actual_column_num,
-                ));
+                )
+                .with_spanned(&alias));
             }
             for (column, id) in alias.columns.iter().zip(self.schema(query)) {
                 columns.insert(column.name.value.to_lowercase(), id);
@@ -70,7 +73,7 @@ impl Binder {
                 columns.insert(name, id);
             }
         }
-        self.add_cte(&table_alias, query, columns)?;
+        self.add_cte(&alias.name, query, columns)?;
         Ok(query)
     }
 
@@ -79,7 +82,9 @@ impl Binder {
         let projection = self.bind_projection(select.projection, from)?;
         let mut where_ = self.bind_where(select.selection)?;
         let groupby = match select.group_by {
-            GroupByExpr::All(_) => return Err(BindError::Todo("group by all".into())),
+            GroupByExpr::All(_) => {
+                return Err(ErrorKind::Todo("group by all".into()).with_spanned(&select.group_by))
+            }
             GroupByExpr::Expressions(exprs, _) if exprs.is_empty() => None,
             GroupByExpr::Expressions(exprs, _) => Some(self.bind_groupby(exprs)?),
         };
@@ -148,10 +153,11 @@ impl Binder {
     pub(super) fn bind_where(&mut self, selection: Option<Expr>) -> Result {
         let id = self.bind_selection(selection)?;
         if !self.aggs(id).is_empty() {
-            return Err(BindError::AggInWhere);
+            return Err(ErrorKind::AggInWhere.into()); // TODO: raise error in `bind_selection` to
+                                                      // get the correct span
         }
         if !self.overs(id).is_empty() {
-            return Err(BindError::WindowInWhere);
+            return Err(ErrorKind::WindowInWhere.into()); // TODO: ditto
         }
         Ok(id)
     }
@@ -160,7 +166,7 @@ impl Binder {
     fn bind_having(&mut self, selection: Option<Expr>) -> Result {
         let id = self.bind_selection(selection)?;
         if !self.overs(id).is_empty() {
-            return Err(BindError::WindowInHaving);
+            return Err(ErrorKind::WindowInHaving.into()); // TODO: ditto
         }
         Ok(id)
     }
@@ -179,7 +185,7 @@ impl Binder {
     fn bind_groupby(&mut self, group_by: Vec<Expr>) -> Result {
         let id = self.bind_exprs(group_by)?;
         if !self.aggs(id).is_empty() {
-            return Err(BindError::AggInGroupBy);
+            return Err(ErrorKind::AggInGroupBy.into()); // TODO: ditto
         }
         Ok(id)
     }
@@ -209,9 +215,11 @@ impl Binder {
         let column_len = values[0].len();
         for row in values {
             if row.len() != column_len {
-                return Err(BindError::InvalidExpression(
+                let span = Span::union_iter(row.iter().map(|e| e.span()));
+                return Err(ErrorKind::InvalidExpression(
                     "VALUES lists must all be the same length".into(),
-                ));
+                )
+                .with_span(span));
             }
             bound_values.push(self.bind_exprs(row)?);
         }
@@ -231,7 +239,7 @@ impl Binder {
         // check nested agg
         for child in aggs.iter().flat_map(|agg| agg.children()) {
             if !self.aggs(*child).is_empty() {
-                return Err(BindError::NestedAgg);
+                return Err(ErrorKind::NestedAgg.into()); // TODO: ditto
             }
         }
         let mut list: Vec<_> = aggs.into_iter().map(|agg| self.egraph.add(agg)).collect();
@@ -277,7 +285,7 @@ impl Binder {
         }
         if let Node::Column(cid) = &expr {
             let name = self.catalog.get_column(cid).unwrap().name().to_string();
-            return Err(BindError::ColumnNotInAgg(name));
+            return Err(ErrorKind::ColumnNotInAgg(name).into());
         }
         for child in expr.children_mut() {
             *child = self.rewrite_agg_in_expr(*child, schema)?;
@@ -318,7 +326,7 @@ impl Binder {
                 _ => id,
             };
             if !distinct_on.contains(key) {
-                return Err(BindError::OrderKeyNotInDistinct);
+                return Err(ErrorKind::OrderKeyNotInDistinct.into());
             }
         }
         // for all projection items that are not in DISTINCT list,
