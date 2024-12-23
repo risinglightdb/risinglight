@@ -1,3 +1,13 @@
+//! The error type of bind operations.
+//!
+//! To raise an error in binder, construct an `ErrorKind` and attach a span if possible:
+//!
+//! ```ignore
+//! return Err(ErrorKind::InvalidTable("table".into()).into());
+//! return Err(ErrorKind::InvalidTable("table".into()).with_span(ident.span));
+//! return Err(ErrorKind::InvalidTable("table".into()).with_spanned(object_name));
+//! ```
+
 use sqlparser::ast::{Ident, ObjectType, Spanned};
 use sqlparser::tokenizer::Span;
 
