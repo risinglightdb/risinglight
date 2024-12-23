@@ -167,9 +167,7 @@ impl Database {
                     self.config.lock().unwrap().disable_optimizer = true;
                     Ok(true)
                 }
-                name => {
-                    Err(Error::Internal(format!("no such pragma: {name}")))
-                }
+                name => Err(Error::Internal(format!("no such pragma: {name}"))),
             },
             Expr::Set([name, value]) => match plan[*name].as_const().as_str() {
                 // Mock the row count of a table for planner test.
