@@ -24,7 +24,8 @@ impl Binder {
             if if_exists && result.is_none() {
                 continue;
             }
-            let table_id = result.ok_or_else(|| ErrorKind::InvalidTable(table_name.into()))?;
+            let table_id = result
+                .ok_or_else(|| ErrorKind::InvalidTable(table_name.into()).with_spanned(&name))?;
             let id = self.egraph.add(Node::Table(table_id));
             table_ids.push(id);
         }

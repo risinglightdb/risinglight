@@ -62,7 +62,7 @@ impl Binder {
         let schema = self
             .catalog
             .get_schema_by_name(schema_name)
-            .ok_or_else(|| ErrorKind::InvalidSchema(schema_name.into()))?;
+            .ok_or_else(|| ErrorKind::InvalidSchema(schema_name.into()).with_spanned(&name))?;
         if schema.get_table_by_name(table_name).is_some() {
             return Err(ErrorKind::TableExists(table_name.into()).with_spanned(&name));
         }
