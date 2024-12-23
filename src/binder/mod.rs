@@ -307,7 +307,7 @@ impl Binder {
             .insert(table_name.clone(), (query, columns))
             .is_some()
         {
-            return Err(ErrorKind::DuplicatedCteName(table_name.into()).with_span(table_ident.span));
+            return Err(ErrorKind::DuplicatedCteName(table_name).with_span(table_ident.span));
         }
         Ok(())
     }

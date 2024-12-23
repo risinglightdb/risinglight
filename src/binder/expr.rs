@@ -23,7 +23,7 @@ impl Binder {
                 // e.g., lambda function support, etc.
                 if let Value::Placeholder(key) = &v {
                     self.udf_context
-                        .get_expr(&key)
+                        .get_expr(key)
                         .cloned()
                         .ok_or_else(|| ErrorKind::InvalidSQL.with_spanned(&v))
                 } else {

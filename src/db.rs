@@ -161,14 +161,14 @@ impl Database {
             Expr::Pragma([name, _value]) => match plan[*name].as_const().as_str() {
                 "enable_optimizer" => {
                     self.config.lock().unwrap().disable_optimizer = false;
-                    return Ok(true);
+                    Ok(true)
                 }
                 "disable_optimizer" => {
                     self.config.lock().unwrap().disable_optimizer = true;
-                    return Ok(true);
+                    Ok(true)
                 }
                 name => {
-                    return Err(Error::Internal(format!("no such pragma: {name}")));
+                    Err(Error::Internal(format!("no such pragma: {name}")))
                 }
             },
             Expr::Set([name, value]) => match plan[*name].as_const().as_str() {

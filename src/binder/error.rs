@@ -27,7 +27,7 @@ impl std::fmt::Display for Inner {
         if let Some(sql) = &self.sql
             && let Some(span) = self.span
         {
-            write!(f, "\n\n{}", highlight_sql(&sql, span))?;
+            write!(f, "\n\n{}", highlight_sql(sql, span))?;
         } else if let Some(span) = self.span {
             // " at Line: {}, Column: {}"
             write!(f, "{}", span.start)?;
@@ -160,7 +160,7 @@ fn highlight_sql(sql: &str, span: Span) -> String {
 
     let error_line = lines[span.start.line as usize - 1];
     let prefix = format!("LINE {}: ", span.start.line);
-    let mut indicator = format!("{}", " ".repeat(prefix.len()));
+    let mut indicator = " ".repeat(prefix.len()).to_string();
 
     if span.start.column > 0 && span.start.column as usize <= error_line.len() {
         for _ in 1..span.start.column {
