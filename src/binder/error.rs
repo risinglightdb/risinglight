@@ -196,6 +196,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_bind_error_size() {
+        assert_eq!(
+            std::mem::size_of::<BindError>(),
+            std::mem::size_of::<usize>(),
+            "the size of BindError should be one pointer"
+        );
+    }
+
+    #[test]
     fn test_highlight_sql() {
         let sql = "SELECT * FROM table WHERE id = 1";
         let span = Span::new(Location::new(1, 15), Location::new(1, 20));
