@@ -12,7 +12,8 @@ use crate::array;
 use crate::catalog::function::FunctionCatalog;
 use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
 use crate::parser::*;
-use crate::planner::{Expr as Node, RecExpr, TypeError, TypeSchemaAnalysis};
+use crate::planner::{Expr as Node, RecExpr, TypeSchemaAnalysis};
+use crate::types::DataValue;
 
 pub mod copy;
 mod create_function;
@@ -20,86 +21,18 @@ mod create_table;
 mod create_view;
 mod delete;
 mod drop;
+mod error;
 mod expr;
 mod insert;
 mod select;
 mod table;
 
-pub use create_function::CreateFunction;
-pub use create_table::CreateTable;
+pub use self::create_function::CreateFunction;
+pub use self::create_table::CreateTable;
+pub use self::error::BindError;
+use self::error::ErrorKind;
 
 pub type Result<T = Id> = std::result::Result<T, BindError>;
-
-/// The error type of bind operations.
-#[derive(thiserror::Error, Debug, PartialEq, Eq)]
-pub enum BindError {
-    #[error("invalid schema {0:?}")]
-    InvalidSchema(String),
-    #[error("invalid table {0:?}")]
-    InvalidTable(String),
-    #[error("invalid column {0:?}")]
-    InvalidColumn(String),
-    #[error("table {0:?} already exists")]
-    TableExists(String),
-    #[error("column {0:?} already exists")]
-    ColumnExists(String),
-    #[error("duplicated alias {0:?}")]
-    DuplicatedAlias(String),
-    #[error("duplicate CTE name {0:?}")]
-    DuplicatedCteName(String),
-    #[error("table {0:?} has {1} columns available but {2} columns specified")]
-    ColumnCountMismatch(String, usize, usize),
-    #[error("invalid expression {0}")]
-    InvalidExpression(String),
-    #[error("not nullable column {0:?}")]
-    NotNullableColumn(String),
-    #[error("ambiguous column {0:?} (use {1})")]
-    AmbiguousColumn(String, String),
-    #[error("invalid table name {0:?}")]
-    InvalidTableName(Vec<Ident>),
-    #[error("SQL not supported")]
-    NotSupportedTSQL,
-    #[error("invalid SQL")]
-    InvalidSQL,
-    #[error("cannot cast {0:?} to {1:?}")]
-    CastError(crate::types::DataValue, crate::types::DataType),
-    #[error("{0}")]
-    BindFunctionError(String),
-    #[error("type error: {0}")]
-    TypeError(#[from] TypeError),
-    #[error("aggregate function calls cannot be nested")]
-    NestedAgg,
-    #[error("WHERE clause cannot contain aggregates")]
-    AggInWhere,
-    #[error("GROUP BY clause cannot contain aggregates")]
-    AggInGroupBy,
-    #[error("window function calls cannot be nested")]
-    NestedWindow,
-    #[error("WHERE clause cannot contain window functions")]
-    WindowInWhere,
-    #[error("HAVING clause cannot contain window functions")]
-    WindowInHaving,
-    #[error("column {0:?} must appear in the GROUP BY clause or be used in an aggregate function")]
-    ColumnNotInAgg(String),
-    #[error("ORDER BY items must appear in the select list if DISTINCT is specified")]
-    OrderKeyNotInDistinct,
-    #[error("{0:?} is not an aggregate function")]
-    NotAgg(String),
-    #[error("unsupported object name: {0:?}")]
-    UnsupportedObjectName(ObjectType),
-    #[error("not supported yet: {0}")]
-    Todo(String),
-    #[error("can not copy to {0}")]
-    CopyTo(String),
-    #[error("can only insert into table")]
-    CanNotInsert,
-    #[error("can only delete from table")]
-    CanNotDelete,
-    #[error("VIEW aliases mismatch query result")]
-    ViewAliasesMismatch,
-    #[error("pragma does not exist: {0}")]
-    NoPragma(String),
-}
 
 /// The binder resolves all expressions referring to schema objects such as
 /// tables or views with their column names and types.
@@ -166,35 +99,40 @@ impl UdfContext {
     /// expression out from the input `ast`
     pub fn extract_udf_expression(ast: Vec<Statement>) -> Result<Expr> {
         if ast.len() != 1 {
-            return Err(BindError::InvalidExpression(
+            return Err(ErrorKind::InvalidExpression(
                 "the query for sql udf should contain only one statement".to_string(),
-            ));
+            )
+            .into());
         }
 
         // Extract the expression out
         let Statement::Query(query) = ast[0].clone() else {
-            return Err(BindError::InvalidExpression(
+            return Err(ErrorKind::InvalidExpression(
                 "invalid function definition, please recheck the syntax".to_string(),
-            ));
+            )
+            .into());
         };
 
         let SetExpr::Select(select) = *query.body else {
-            return Err(BindError::InvalidExpression(
+            return Err(ErrorKind::InvalidExpression(
                 "missing `select` body for sql udf expression, please recheck the syntax"
                     .to_string(),
-            ));
+            )
+            .into());
         };
 
         if select.projection.len() != 1 {
-            return Err(BindError::InvalidExpression(
+            return Err(ErrorKind::InvalidExpression(
                 "`projection` should contain only one `SelectItem`".to_string(),
-            ));
+            )
+            .into());
         }
 
         let SelectItem::UnnamedExpr(expr) = select.projection[0].clone() else {
-            return Err(BindError::InvalidExpression(
+            return Err(ErrorKind::InvalidExpression(
                 "expect `UnnamedExpr` for `projection`".to_string(),
-            ));
+            )
+            .into());
         };
 
         Ok(expr)
@@ -210,7 +148,9 @@ impl UdfContext {
                 match current_arg {
                     FunctionArg::Unnamed(arg) => {
                         let FunctionArgExpr::Expr(e) = arg else {
-                            return Err(BindError::InvalidExpression("invalid syntax".to_string()));
+                            return Err(
+                                ErrorKind::InvalidExpression("invalid syntax".into()).into()
+                            );
                         };
                         if catalog.arg_names[i].is_empty() {
                             ret.insert(format!("${}", i + 1), e.clone());
@@ -220,7 +160,7 @@ impl UdfContext {
                             ret.insert(catalog.arg_names[i].clone(), e.clone());
                         }
                     }
-                    _ => return Err(BindError::InvalidExpression("invalid syntax".to_string())),
+                    _ => return Err(ErrorKind::InvalidExpression("invalid syntax".into()).into()),
                 }
             }
         }
@@ -316,10 +256,14 @@ impl Binder {
             Statement::Explain {
                 statement, analyze, ..
             } => self.bind_explain(*statement, analyze),
+            Statement::Pragma { name, value, .. } => self.bind_pragma(name, value),
+            Statement::SetVariable {
+                variables, value, ..
+            } => self.bind_set(variables.as_ref(), value),
             Statement::ShowVariable { .. }
             | Statement::ShowCreate { .. }
-            | Statement::ShowColumns { .. } => Err(BindError::NotSupportedTSQL),
-            _ => Err(BindError::InvalidSQL),
+            | Statement::ShowColumns { .. } => Err(ErrorKind::NotSupportedTSQL.into()),
+            _ => Err(ErrorKind::InvalidSQL.into()),
         }
     }
 
@@ -338,7 +282,7 @@ impl Binder {
     fn add_table_alias(&mut self, table_name: &str) -> Result<()> {
         let context = self.contexts.last_mut().unwrap();
         if !context.table_aliases.insert(table_name.into()) {
-            return Err(BindError::DuplicatedAlias(table_name.into()));
+            return Err(ErrorKind::DuplicatedAlias(table_name.into()).into());
         }
         Ok(())
     }
@@ -350,24 +294,30 @@ impl Binder {
     }
 
     /// Add a CTE to the current context.
-    fn add_cte(&mut self, table_name: &str, query: Id, columns: HashMap<String, Id>) -> Result<()> {
+    fn add_cte(
+        &mut self,
+        table_ident: &Ident,
+        query: Id,
+        columns: HashMap<String, Id>,
+    ) -> Result<()> {
         let context = self.contexts.last_mut().unwrap();
+        let table_name = table_ident.value.to_lowercase();
         if context
             .ctes
-            .insert(table_name.into(), (query, columns))
+            .insert(table_name.clone(), (query, columns))
             .is_some()
         {
-            return Err(BindError::DuplicatedCteName(table_name.into()));
+            return Err(ErrorKind::DuplicatedCteName(table_name).with_span(table_ident.span));
         }
         Ok(())
     }
 
     /// Find an alias.
-    fn find_alias(&self, column_name: &str, table_name: Option<&str>) -> Result {
+    fn find_alias(&self, column_ident: &Ident, table_ident: Option<&Ident>) -> Result {
         for context in self.contexts.iter().rev() {
-            if let Some(map) = context.column_aliases.get(column_name) {
-                if let Some(table_name) = table_name {
-                    if let Some(id) = map.get(table_name) {
+            if let Some(map) = context.column_aliases.get(&column_ident.value) {
+                if let Some(table_ident) = table_ident {
+                    if let Some(id) = map.get(&table_ident.value) {
                         return Ok(*id);
                     }
                 } else if map.len() == 1 {
@@ -375,13 +325,14 @@ impl Binder {
                 } else {
                     let use_ = map
                         .keys()
-                        .map(|table_name| format!("\"{table_name}.{column_name}\""))
+                        .map(|table_name| format!("\"{table_name}.{column_ident}\""))
                         .join(" or ");
-                    return Err(BindError::AmbiguousColumn(column_name.into(), use_));
+                    return Err(ErrorKind::AmbiguousColumn(column_ident.value.clone(), use_)
+                        .with_span(column_ident.span));
                 }
             }
         }
-        Err(BindError::InvalidColumn(column_name.into()))
+        Err(ErrorKind::InvalidColumn(column_ident.value.clone()).with_span(column_ident.span))
     }
 
     /// Find an CTE.
@@ -441,6 +392,32 @@ impl Binder {
         });
         Ok(id)
     }
+
+    pub fn bind_pragma(&mut self, name: ObjectName, value: Option<Value>) -> Result {
+        let name_string = name.to_string().to_lowercase();
+        match name_string.as_str() {
+            "enable_optimizer" | "disable_optimizer" => {}
+            name_str => return Err(ErrorKind::NoPragma(name_str.into()).with_spanned(&name)),
+        }
+        let name_id = self.egraph.add(Node::Constant(name_string.into()));
+        let value_id = self.egraph.add(Node::Constant(
+            value.map_or(DataValue::Null, DataValue::from),
+        ));
+        let id = self.egraph.add(Node::Pragma([name_id, value_id]));
+        Ok(id)
+    }
+
+    pub fn bind_set(&mut self, variables: &[ObjectName], values: Vec<Expr>) -> Result {
+        if variables.len() != 1 || values.len() != 1 {
+            return Err(ErrorKind::InvalidSQL.into());
+        }
+        let name_id = self
+            .egraph
+            .add(Node::Constant(variables[0].to_string().into()));
+        let value_id = self.bind_expr(values.into_iter().next().unwrap())?;
+        let id = self.egraph.add(Node::Set([name_id, value_id]));
+        Ok(id)
+    }
 }
 
 /// Split an object name into `(schema name, table name)`.
@@ -448,7 +425,7 @@ fn split_name(name: &ObjectName) -> Result<(&str, &str)> {
     Ok(match name.0.as_slice() {
         [table] => (RootCatalog::DEFAULT_SCHEMA_NAME, &table.value),
         [schema, table] => (&schema.value, &table.value),
-        _ => return Err(BindError::InvalidTableName(name.0.clone())),
+        _ => return Err(ErrorKind::InvalidTableName(name.0.clone()).with_spanned(name)),
     })
 }
 
@@ -457,7 +434,7 @@ fn lower_case_name(name: &ObjectName) -> ObjectName {
     ObjectName(
         name.0
             .iter()
-            .map(|ident| Ident::new(ident.value.to_lowercase()))
+            .map(|ident| Ident::with_span(ident.span, ident.value.to_lowercase()))
             .collect::<Vec<_>>(),
     )
 }

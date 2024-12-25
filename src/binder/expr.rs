@@ -3,6 +3,7 @@
 use rust_decimal::Decimal;
 use sqlparser::dialect::GenericDialect;
 use sqlparser::parser::Parser;
+use sqlparser::tokenizer::Span;
 
 use super::*;
 use crate::parser::{
@@ -20,10 +21,11 @@ impl Binder {
                 // parameter-like (i.e., `$1`) values at present
                 // TODO: consider formally `bind_parameter` in the future
                 // e.g., lambda function support, etc.
-                if let Value::Placeholder(key) = v {
+                if let Value::Placeholder(key) = &v {
                     self.udf_context
-                        .get_expr(&key)
-                        .map_or_else(|| Err(BindError::InvalidSQL), |&e| Ok(e))
+                        .get_expr(key)
+                        .cloned()
+                        .ok_or_else(|| ErrorKind::InvalidSQL.with_spanned(&v))
                 } else {
                     Ok(self.egraph.add(Node::Constant(v.into())))
                 }
@@ -99,21 +101,24 @@ impl Binder {
     fn bind_ident(&self, idents: impl IntoIterator<Item = Ident>) -> Result {
         let idents = idents
             .into_iter()
-            .map(|ident| Ident::new(ident.value.to_lowercase()))
+            .map(|ident| Ident::with_span(ident.span, ident.value.to_lowercase()))
             .collect_vec();
-        let (_schema_name, table_name, column_name) = match idents.as_slice() {
-            [column] => (None, None, &column.value),
-            [table, column] => (None, Some(&table.value), &column.value),
-            [schema, table, column] => (Some(&schema.value), Some(&table.value), &column.value),
-            _ => return Err(BindError::InvalidTableName(idents)),
+        let (_schema_ident, table_ident, column_ident) = match idents.as_slice() {
+            [column] => (None, None, column),
+            [table, column] => (None, Some(table), column),
+            [schema, table, column] => (Some(schema), Some(table), column),
+            _ => {
+                let span = Span::union_iter(idents.iter().map(|ident| ident.span));
+                return Err(ErrorKind::InvalidTableName(idents).with_span(span));
+            }
         };
 
         // Special check for sql udf
-        if let Some(id) = self.udf_context.get_expr(column_name) {
+        if let Some(id) = self.udf_context.get_expr(&column_ident.value) {
             return Ok(*id);
         }
 
-        self.find_alias(column_name, table_name.map(|s| s.as_str()))
+        self.find_alias(column_ident, table_ident)
     }
 
     fn bind_binary_op(&mut self, left: Expr, op: BinaryOperator, right: Expr) -> Result {
@@ -174,7 +179,7 @@ impl Binder {
         match data_type {
             DataType::Date => {
                 let date = value.parse().map_err(|_| {
-                    BindError::CastError(
+                    ErrorKind::CastError(
                         DataValue::String(value.into()),
                         crate::types::DataType::Date,
                     )
@@ -183,7 +188,7 @@ impl Binder {
             }
             DataType::Timestamp(_, _) => {
                 let timestamp = value.parse().map_err(|_| {
-                    BindError::CastError(
+                    ErrorKind::CastError(
                         DataValue::String(value.into()),
                         crate::types::DataType::Timestamp,
                     )
@@ -325,8 +330,8 @@ impl Binder {
         let mut distinct = false;
         let function_args = match &func.args {
             FunctionArguments::None => &[],
-            FunctionArguments::Subquery(_) => {
-                return Err(BindError::Todo("subquery argument".into()))
+            FunctionArguments::Subquery(subquery) => {
+                return Err(ErrorKind::Todo("subquery argument".into()).with_spanned(&**subquery));
             }
             FunctionArguments::List(arg_list) => {
                 distinct = arg_list.duplicate_treatment == Some(DuplicateTreatment::Distinct);
@@ -356,10 +361,11 @@ impl Binder {
 
         let catalog = self.catalog();
         let Ok((schema_name, function_name)) = split_name(&func.name) else {
-            return Err(BindError::BindFunctionError(format!(
+            return Err(ErrorKind::BindFunctionError(format!(
                 "failed to parse the function name {}",
                 func.name
-            )));
+            ))
+            .with_spanned(&func.name));
         };
 
         // See if the input function is sql udf
@@ -368,18 +374,20 @@ impl Binder {
             // Create the brand new `udf_context`
             let Ok(context) = UdfContext::create_udf_context(function_args, function_catalog)
             else {
-                return Err(BindError::InvalidExpression(
-                    "failed to create udf context".to_string(),
-                ));
+                return Err(
+                    ErrorKind::InvalidExpression("failed to create udf context".into())
+                        .with_spanned(&func.name),
+                );
             };
 
             let mut udf_context = HashMap::new();
             // Bind each expression in the newly created `udf_context`
             for (c, e) in context {
                 let Ok(e) = self.bind_expr(e) else {
-                    return Err(BindError::BindFunctionError(
-                        "failed to bind arguments within the given sql udf".to_string(),
-                    ));
+                    return Err(ErrorKind::BindFunctionError(
+                        "failed to bind arguments within the given sql udf".into(),
+                    )
+                    .with_spanned(&func.name));
                 };
                 udf_context.insert(c, e);
             }
@@ -387,14 +395,15 @@ impl Binder {
             // Parse the sql body using `function_catalog`
             let dialect = GenericDialect {};
             let Ok(ast) = Parser::parse_sql(&dialect, &function_catalog.body) else {
-                return Err(BindError::InvalidSQL);
+                return Err(ErrorKind::InvalidSQL.with_spanned(&func.name));
             };
 
             // Extract the corresponding udf expression out from `ast`
             let Ok(expr) = UdfContext::extract_udf_expression(ast) else {
-                return Err(BindError::InvalidExpression(
-                    "failed to bind the sql udf expression".to_string(),
-                ));
+                return Err(ErrorKind::InvalidExpression(
+                    "failed to bind the sql udf expression".into(),
+                )
+                .with_spanned(&func.name));
             };
 
             let stashed_udf_context = self.udf_context.get_context();
@@ -404,9 +413,10 @@ impl Binder {
 
             // Bind the expression in sql udf body
             let Ok(bind_result) = self.bind_expr(expr) else {
-                return Err(BindError::InvalidExpression(
-                    "failed to bind the expression".to_string(),
-                ));
+                return Err(
+                    ErrorKind::InvalidExpression("failed to bind the expression".into())
+                        .with_spanned(&func.name),
+                );
             };
 
             // Restore the context after binding
@@ -436,21 +446,23 @@ impl Binder {
         };
         let mut id = self.egraph.add(node);
         if let Some(window) = func.over {
-            id = self.bind_window_function(id, window)?;
+            id = self.bind_window_function(id, window, &func.name)?;
         }
         Ok(id)
     }
 
-    fn bind_window_function(&mut self, func: Id, window: WindowType) -> Result {
+    fn bind_window_function(&mut self, func: Id, window: WindowType, name: &ObjectName) -> Result {
         let window = match window {
             WindowType::WindowSpec(window) => window,
-            WindowType::NamedWindow(_) => return Err(BindError::Todo("named window".into())),
+            WindowType::NamedWindow(name) => {
+                return Err(ErrorKind::Todo("named window".into()).with_span(name.span));
+            }
         };
         if !self.node(func).is_window_function() {
-            return Err(BindError::NotAgg(self.node(func).to_string()));
+            return Err(ErrorKind::NotAgg(self.node(func).to_string()).with_spanned(name));
         }
         if !self.overs(func).is_empty() {
-            return Err(BindError::NestedWindow);
+            return Err(ErrorKind::NestedWindow.with_spanned(name));
         }
         let partitionby = self.bind_exprs(window.partition_by)?;
         let orderby = self.bind_orderby(window.order_by)?;

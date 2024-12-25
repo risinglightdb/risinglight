@@ -10,8 +10,8 @@ use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use crate::array::Chunk;
 use crate::binder::bind_header;
 use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
-use crate::parser::{parse, ParserError, Statement};
-use crate::planner::Statistics;
+use crate::parser::{parse, ParserError};
+use crate::planner::{Expr, RecExpr, Statistics};
 use crate::storage::{
     InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
     StorageImpl, Table,
@@ -99,12 +99,11 @@ impl Database {
         let stmts = parse(&sql)?;
         let mut outputs: Vec<Chunk> = vec![];
         for stmt in stmts {
-            if self.handle_set(&stmt)? {
+            let mut binder = crate::binder::Binder::new(self.catalog.clone());
+            let mut plan = binder.bind(stmt.clone()).map_err(|e| e.with_sql(&sql))?;
+            if self.handle_set(&plan)? {
                 continue;
             }
-
-            let mut binder = crate::binder::Binder::new(self.catalog.clone());
-            let mut plan = binder.bind(stmt.clone())?;
             if !self.config.lock().unwrap().disable_optimizer {
                 plan = optimizer.optimize(plan);
             }
@@ -155,47 +154,42 @@ impl Database {
         Ok(stat)
     }
 
-    /// Mock the row count of a table for planner test.
-    fn handle_set(&self, stmt: &Statement) -> Result<bool, Error> {
-        if let Statement::Pragma { name, .. } = stmt {
-            match name.to_string().as_str() {
+    /// Handle PRAGMA and SET statements.
+    fn handle_set(&self, plan: &RecExpr) -> Result<bool, Error> {
+        let root = &plan.as_ref()[plan.as_ref().len() - 1];
+        match root {
+            Expr::Pragma([name, _value]) => match plan[*name].as_const().as_str() {
                 "enable_optimizer" => {
                     self.config.lock().unwrap().disable_optimizer = false;
-                    return Ok(true);
+                    Ok(true)
                 }
                 "disable_optimizer" => {
                     self.config.lock().unwrap().disable_optimizer = true;
-                    return Ok(true);
+                    Ok(true)
                 }
-                name => {
-                    return Err(crate::binder::BindError::NoPragma(name.into()).into());
+                name => Err(Error::Internal(format!("no such pragma: {name}"))),
+            },
+            Expr::Set([name, value]) => match plan[*name].as_const().as_str() {
+                // Mock the row count of a table for planner test.
+                name if name.starts_with("mock_rowcount_") => {
+                    let table_name = name.strip_prefix("mock_rowcount_").unwrap();
+                    let count = plan[*value].as_const().as_usize().unwrap().unwrap() as u32;
+                    let table_id = self
+                        .catalog
+                        .get_table_id_by_name("postgres", table_name)
+                        .ok_or_else(|| Error::Internal("table not found".into()))?;
+                    self.config
+                        .lock()
+                        .unwrap()
+                        .mock_stat
+                        .get_or_insert_with(Default::default)
+                        .add_row_count(table_id, count);
+                    Ok(true)
                 }
-            }
+                _ => Ok(false),
+            },
+            _ => Ok(false),
         }
-        let Statement::SetVariable {
-            variables, value, ..
-        } = stmt
-        else {
-            return Ok(false);
-        };
-        let Some(table_name) = variables[0].0[0].value.strip_prefix("mock_rowcount_") else {
-            return Ok(false);
-        };
-        let count = value[0]
-            .to_string()
-            .parse::<u32>()
-            .map_err(|_| Error::Internal("invalid count".into()))?;
-        let table_id = self
-            .catalog
-            .get_table_id_by_name("postgres", table_name)
-            .ok_or_else(|| Error::Internal("table not found".into()))?;
-        self.config
-            .lock()
-            .unwrap()
-            .mock_stat
-            .get_or_insert_with(Default::default)
-            .add_row_count(table_id, count);
-        Ok(true)
     }
 
     /// Return all available pragma options.
