@@ -162,17 +162,9 @@ impl Binder {
     /// Aggregate functions and window functions are not allowed.
     /// Subqueries will be extracted to the current context.
     pub(super) fn bind_where(&mut self, selection: Option<Expr>) -> Result {
-        let num_aggs = self.num_aggregations();
-        let num_overs = self.num_over_windows();
-
+        self.context_mut().in_where = true;
         let id = self.bind_selection(selection)?;
-        if self.num_aggregations() > num_aggs {
-            return Err(ErrorKind::AggInWhere.into()); // TODO: raise error in `bind_selection` to
-                                                      // get the correct span
-        }
-        if self.num_over_windows() > num_overs {
-            return Err(ErrorKind::WindowInWhere.into()); // TODO: ditto
-        }
+        self.context_mut().in_where = false;
         Ok(id)
     }
 
@@ -181,13 +173,9 @@ impl Binder {
     /// Window functions are not allowed.
     /// Aggregate functions and subqueries will be extracted to the current context.
     fn bind_having(&mut self, selection: Option<Expr>) -> Result {
-        let num_overs = self.num_over_windows();
-
+        self.context_mut().in_having = true;
         let id = self.bind_selection(selection)?;
-
-        if self.num_over_windows() > num_overs {
-            return Err(ErrorKind::WindowInHaving.into()); // TODO: ditto
-        }
+        self.context_mut().in_having = false;
         Ok(id)
     }
 
@@ -209,15 +197,9 @@ impl Binder {
             }
             GroupByExpr::Expressions(exprs, _) if exprs.is_empty() => return Ok(None),
             GroupByExpr::Expressions(exprs, _) => {
-                let num_aggs = self.num_aggregations();
-                let num_overs = self.num_over_windows();
+                self.context_mut().in_groupby = true;
                 let id = self.bind_exprs(exprs)?;
-                if self.num_aggregations() > num_aggs {
-                    return Err(ErrorKind::AggInGroupBy.into()); // TODO: ditto
-                }
-                if self.num_over_windows() > num_overs {
-                    return Err(ErrorKind::WindowInGroupBy.into()); // TODO: ditto
-                }
+                self.context_mut().in_groupby = false;
                 Ok(Some(id))
             }
         }

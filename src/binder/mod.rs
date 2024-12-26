@@ -91,6 +91,12 @@ struct Context {
     in_agg: bool,
     /// Whether the current context is in an over window.
     in_window: bool,
+    /// Whether the current context is in a where clause.
+    in_where: bool,
+    /// Whether the current context is in a group by clause.
+    in_groupby: bool,
+    /// Whether the current context is in a having clause.
+    in_having: bool,
 }
 
 /// A subquery found in expression.

@@ -427,12 +427,22 @@ impl Binder {
                 return Err(ErrorKind::NestedWindow.with_spanned(&func.name));
             } else if self.context().in_agg {
                 return Err(ErrorKind::WindowInAgg.with_spanned(&func.name));
+            } else if self.context().in_where {
+                return Err(ErrorKind::WindowInWhere.with_spanned(&func.name));
+            } else if self.context().in_groupby {
+                return Err(ErrorKind::WindowInGroupBy.with_spanned(&func.name));
+            } else if self.context().in_having {
+                return Err(ErrorKind::WindowInHaving.with_spanned(&func.name));
             }
             self.context_mut().in_window = true;
         }
         if is_agg {
             if self.context().in_agg {
                 return Err(ErrorKind::NestedAgg.with_spanned(&func.name));
+            } else if self.context().in_where {
+                return Err(ErrorKind::AggInWhere.with_spanned(&func.name));
+            } else if self.context().in_groupby {
+                return Err(ErrorKind::AggInGroupBy.with_spanned(&func.name));
             }
             self.context_mut().in_agg = true;
         }

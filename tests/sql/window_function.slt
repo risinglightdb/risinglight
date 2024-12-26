@@ -25,14 +25,17 @@ SELECT sum(a) OVER () FROM t;
 3
 6
 
-statement error WHERE clause cannot contain window functions
+query error WHERE clause cannot contain window functions
 SELECT a FROM t WHERE sum(a) OVER () > 0;
 
-statement error HAVING clause cannot contain window functions
+query error HAVING clause cannot contain window functions
 SELECT a FROM t HAVING sum(a) OVER () > 0;
 
-statement error window function calls cannot be nested
+query error GROUP BY clause cannot contain window functions
+SELECT a FROM t GROUP BY sum(a) OVER ();
+
+query error window function calls cannot be nested
 SELECT sum(sum(a) OVER ()) OVER () FROM t;
 
-statement error aggregate function calls cannot contain window function calls
+query error aggregate function calls cannot contain window function calls
 SELECT sum(sum(a) OVER ()) FROM t;
