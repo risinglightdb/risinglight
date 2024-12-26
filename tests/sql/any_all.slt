@@ -10,9 +10,62 @@ select a from t where a > any (select b from t);
 3
 
 query I
+select a from t where a > all (select b from t);
+----
+
+query I
+select a from t where a < any (select b from t);
+----
+1
+3
+
+query I
 select a from t where a < all (select b from t);
 ----
 1
 
-query error ANY and ALL operators require one of =,<>,>,<,>=,<= comparisons!
+query I
+select a from t where a >= any (select b from t);
+----
+3
+
+query I
+select a from t where a >= all (select b from t);
+----
+
+query I
+select a from t where a <= any (select b from t);
+----
+1
+3
+
+query I
+select a from t where a <= all (select b from t);
+----
+1
+
+query I
+select a from t where a = any (select b from t);
+----
+
+query I
+select a from t where a = all (select b from t);
+----
+
+query I
+select a from t where a <> any (select b from t);
+----
+1
+3
+
+query I
+select a from t where a <> all (select b from t);
+----
+1
+3
+
+query error comparison operator
 select a from t where a + all (select b from t);
+
+query error subquery returns 2 columns
+select a from t where a < all (select b, b from t);

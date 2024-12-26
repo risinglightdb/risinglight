@@ -123,8 +123,6 @@ pub enum ErrorKind {
     NoFunction(String),
     #[error("subquery returns {0} columns - expected 1")]
     SubqueryMustHaveOneColumn(usize),
-    #[error("ANY and ALL operators require one of =,<>,>,<,>=,<= comparisons!")]
-    InvalidAnyAllOp,
     #[error("ANY and ALL operators require a subquery")]
     InvalidAnyAllSubquery,
 }

@@ -346,7 +346,7 @@ impl Binder {
             LtEq => Node::LtEq([expr, col0]),
             Eq => Node::Eq([expr, col0]),
             NotEq => Node::NotEq([expr, col0]),
-            _ => return Err(ErrorKind::InvalidAnyAllOp.into()),
+            _ => panic!("invalid any/all operator: {:?}", op), // parser should have already checked
         });
 
         if all {
