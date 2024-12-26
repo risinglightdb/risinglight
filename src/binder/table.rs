@@ -96,14 +96,14 @@ impl Binder {
                     alias
                         .columns
                         .iter()
-                        .map(|c| Some(c.value.to_lowercase()))
+                        .map(|c| Some(c.name.value.to_lowercase()))
                         .collect()
                 } else {
                     ctx.output_aliases
                 };
                 (id, column_aliases, table_alias.to_string())
             }
-            _ => return Err(BindError::Todo("bind table factor".into())),
+            _ => return Err(ErrorKind::Todo("bind table factor".into()).with_spanned(&table)),
         };
         // resolve column conflicts
         let id = self.add_proj_if_conflict(id);
@@ -163,9 +163,9 @@ impl Binder {
                 Ok((ty, JoinOrApply::Apply))
             }
             op => {
-                return Err(BindError::Todo(format!(
-                    "unsupported join operator: {op:?}"
-                )))
+                return Err(
+                    ErrorKind::Todo(format!("unsupported join operator: {op:?}")).with_spanned(&op),
+                )
             }
         }
     }
@@ -202,7 +202,7 @@ impl Binder {
         let table_ref_id = self
             .catalog
             .get_table_id_by_name(schema_name, table_name)
-            .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
+            .ok_or_else(|| ErrorKind::InvalidTable(table_name.into()))?;
 
         let table = self.catalog.get_table(&table_ref_id).unwrap();
         let mut column_ids = vec![];
@@ -246,7 +246,7 @@ impl Binder {
         let table_ref_id = self
             .catalog
             .get_table_id_by_name(schema_name, table_name)
-            .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
+            .ok_or_else(|| ErrorKind::InvalidTable(table_name.into()).with_spanned(&name))?;
 
         let table = self.catalog.get_table(&table_ref_id).unwrap();
 
@@ -256,9 +256,9 @@ impl Binder {
             let mut ids = vec![];
             for col in columns {
                 let col_name = col.value.to_lowercase();
-                let col = table
-                    .get_column_by_name(&col_name)
-                    .ok_or_else(|| BindError::InvalidColumn(col_name.clone()))?;
+                let col = table.get_column_by_name(&col_name).ok_or_else(|| {
+                    ErrorKind::InvalidColumn(col_name.clone()).with_span(col.span)
+                })?;
                 ids.push(col.id());
             }
             ids
@@ -282,7 +282,7 @@ impl Binder {
         let table_ref_id = self
             .catalog
             .get_table_id_by_name(schema_name, table_name)
-            .ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
+            .ok_or_else(|| ErrorKind::InvalidTable(table_name.into()).with_spanned(&name))?;
         let table = self.catalog.get_table(&table_ref_id).unwrap();
         let id = self.egraph.add(Node::Table(table_ref_id));
         Ok((

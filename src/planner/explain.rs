@@ -362,6 +362,20 @@ impl<'a> Explain<'a> {
                 with_meta(vec![]),
                 vec![self.child(child).pretty()],
             ),
+            Pragma([name, value]) => Pretty::childless_record(
+                "Pragma",
+                with_meta(vec![
+                    ("name", self.expr(name).pretty()),
+                    ("value", self.expr(value).pretty()),
+                ]),
+            ),
+            Set([name, value]) => Pretty::childless_record(
+                "Set",
+                with_meta(vec![
+                    ("name", self.expr(name).pretty()),
+                    ("value", self.expr(value).pretty()),
+                ]),
+            ),
             Empty(_) => Pretty::childless_record("Empty", with_meta(vec![])),
             Max1Row(child) => Pretty::fieldless_record("Max1Row", vec![self.expr(child).pretty()]),
         }

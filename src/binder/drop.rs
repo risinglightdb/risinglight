@@ -11,10 +11,10 @@ impl Binder {
         cascade: bool,
     ) -> Result {
         if !matches!(object_type, ObjectType::Table | ObjectType::View) {
-            return Err(BindError::Todo(format!("drop {object_type:?}")));
+            return Err(ErrorKind::Todo(format!("drop {object_type:?}")).into());
         }
         if cascade {
-            return Err(BindError::Todo("cascade drop".into()));
+            return Err(ErrorKind::Todo("cascade drop".into()).into());
         }
         let mut table_ids = Vec::with_capacity(names.len());
         for name in names {
@@ -24,7 +24,8 @@ impl Binder {
             if if_exists && result.is_none() {
                 continue;
             }
-            let table_id = result.ok_or_else(|| BindError::InvalidTable(table_name.into()))?;
+            let table_id = result
+                .ok_or_else(|| ErrorKind::InvalidTable(table_name.into()).with_spanned(&name))?;
             let id = self.egraph.add(Node::Table(table_id));
             table_ids.push(id);
         }

@@ -55,35 +55,40 @@ impl UdfContext {
     /// expression out from the input `ast`
     pub fn extract_udf_expression(ast: Vec<Statement>) -> Result<Expr> {
         if ast.len() != 1 {
-            return Err(BindError::InvalidExpression(
+            return Err(ErrorKind::InvalidExpression(
                 "the query for sql udf should contain only one statement".to_string(),
-            ));
+            )
+            .into());
         }
 
         // Extract the expression out
         let Statement::Query(query) = ast[0].clone() else {
-            return Err(BindError::InvalidExpression(
+            return Err(ErrorKind::InvalidExpression(
                 "invalid function definition, please recheck the syntax".to_string(),
-            ));
+            )
+            .into());
         };
 
         let SetExpr::Select(select) = *query.body else {
-            return Err(BindError::InvalidExpression(
+            return Err(ErrorKind::InvalidExpression(
                 "missing `select` body for sql udf expression, please recheck the syntax"
                     .to_string(),
-            ));
+            )
+            .into());
         };
 
         if select.projection.len() != 1 {
-            return Err(BindError::InvalidExpression(
+            return Err(ErrorKind::InvalidExpression(
                 "`projection` should contain only one `SelectItem`".to_string(),
-            ));
+            )
+            .into());
         }
 
         let SelectItem::UnnamedExpr(expr) = select.projection[0].clone() else {
-            return Err(BindError::InvalidExpression(
+            return Err(ErrorKind::InvalidExpression(
                 "expect `UnnamedExpr` for `projection`".to_string(),
-            ));
+            )
+            .into());
         };
 
         Ok(expr)
@@ -99,7 +104,9 @@ impl UdfContext {
                 match current_arg {
                     FunctionArg::Unnamed(arg) => {
                         let FunctionArgExpr::Expr(e) = arg else {
-                            return Err(BindError::InvalidExpression("invalid syntax".to_string()));
+                            return Err(
+                                ErrorKind::InvalidExpression("invalid syntax".into()).into()
+                            );
                         };
                         if catalog.arg_names[i].is_empty() {
                             ret.insert(format!("${}", i + 1), e.clone());
@@ -109,7 +116,7 @@ impl UdfContext {
                             ret.insert(catalog.arg_names[i].clone(), e.clone());
                         }
                     }
-                    _ => return Err(BindError::InvalidExpression("invalid syntax".to_string())),
+                    _ => return Err(ErrorKind::InvalidExpression("invalid syntax".into()).into()),
                 }
             }
         }

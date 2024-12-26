@@ -1,5 +1,7 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
+use sqlparser::tokenizer::Span;
+
 use super::*;
 use crate::parser::{Expr, Query, SelectItem, SetExpr};
 
@@ -21,7 +23,7 @@ impl Binder {
     pub(super) fn bind_query_internal(&mut self, query: Query) -> Result {
         if let Some(with) = query.with {
             if with.recursive {
-                return Err(BindError::Todo("recursive CTE".into()));
+                return Err(ErrorKind::Todo("recursive CTE".into()).with_spanned(&with));
             }
             for cte in with.cte_tables {
                 self.bind_cte(cte)?;
@@ -30,7 +32,7 @@ impl Binder {
         let mut child = match *query.body {
             SetExpr::Select(select) => self.bind_select(*select, query.order_by)?,
             SetExpr::Values(values) => self.bind_values(values)?,
-            _ => return Err(BindError::Todo("unknown set expr".into())),
+            body => return Err(ErrorKind::Todo("unknown set expr".into()).with_spanned(&body)),
         };
         if query.limit.is_some() || query.offset.is_some() {
             let limit = match query.limit {
@@ -58,26 +60,27 @@ impl Binder {
             let expected_column_num = self.schema(query).len();
             let actual_column_num = alias.columns.len();
             if actual_column_num != expected_column_num {
-                return Err(BindError::ColumnCountMismatch(
+                return Err(ErrorKind::ColumnCountMismatch(
                     table_alias.clone(),
                     expected_column_num,
                     actual_column_num,
-                ));
+                )
+                .with_spanned(&alias));
             }
             alias
                 .columns
                 .iter()
-                .map(|c| Some(c.value.to_lowercase()))
+                .map(|c| Some(c.name.value.to_lowercase()))
                 .collect()
         } else {
             // `with t`
             ctx.output_aliases
         };
-        self.add_cte(&table_alias, query, column_aliases)?;
+        self.add_cte(&alias.name, query, column_aliases)?;
         Ok(query)
     }
 
-    fn bind_select(&mut self, select: Select, order_by: Vec<OrderByExpr>) -> Result {
+    fn bind_select(&mut self, select: Select, order_by: Option<OrderBy>) -> Result {
         let from = self.bind_from(select.from)?;
 
         // bind expressions
@@ -88,7 +91,10 @@ impl Binder {
         let groupby = self.bind_groupby(select.group_by)?;
         let mut subqueries_in_agg = self.take_subqueries();
         let having = self.bind_having(select.having)?;
-        let orderby = self.bind_orderby(order_by)?;
+        let orderby = match order_by {
+            Some(order_by) => self.bind_orderby(order_by.exprs)?,
+            None => self.egraph.add(Node::List([].into())),
+        };
         let distinct = match select.distinct {
             None => self.egraph.add(Node::List([].into())),
             Some(Distinct::Distinct) => projection,
@@ -144,7 +150,7 @@ impl Binder {
                     }
                     aliases.resize(select_list.len(), None);
                 }
-                _ => return Err(BindError::Todo("bind select list".into())),
+                _ => return Err(ErrorKind::Todo("bind select list".into()).with_spanned(&item)),
             }
         }
         self.contexts.last_mut().unwrap().output_aliases = aliases;
@@ -160,12 +166,12 @@ impl Binder {
         let num_overs = self.num_over_windows();
 
         let id = self.bind_selection(selection)?;
-
         if self.num_aggregations() > num_aggs {
-            return Err(BindError::AggInWhere);
+            return Err(ErrorKind::AggInWhere.into()); // TODO: raise error in `bind_selection` to
+                                                      // get the correct span
         }
         if self.num_over_windows() > num_overs {
-            return Err(BindError::WindowInWhere);
+            return Err(ErrorKind::WindowInWhere.into()); // TODO: ditto
         }
         Ok(id)
     }
@@ -180,7 +186,7 @@ impl Binder {
         let id = self.bind_selection(selection)?;
 
         if self.num_over_windows() > num_overs {
-            return Err(BindError::WindowInHaving);
+            return Err(ErrorKind::WindowInHaving.into()); // TODO: ditto
         }
         Ok(id)
     }
@@ -198,17 +204,19 @@ impl Binder {
     /// Aggregate functions and window functions are not allowed.
     fn bind_groupby(&mut self, group_by: GroupByExpr) -> Result<Option<Id>> {
         match group_by {
-            GroupByExpr::All => return Err(BindError::Todo("group by all".into())),
-            GroupByExpr::Expressions(exprs) if exprs.is_empty() => return Ok(None),
-            GroupByExpr::Expressions(exprs) => {
+            GroupByExpr::All(_) => {
+                return Err(ErrorKind::Todo("group by all".into()).with_spanned(&group_by))
+            }
+            GroupByExpr::Expressions(exprs, _) if exprs.is_empty() => return Ok(None),
+            GroupByExpr::Expressions(exprs, _) => {
                 let num_aggs = self.num_aggregations();
                 let num_overs = self.num_over_windows();
                 let id = self.bind_exprs(exprs)?;
                 if self.num_aggregations() > num_aggs {
-                    return Err(BindError::AggInGroupBy);
+                    return Err(ErrorKind::AggInGroupBy.into()); // TODO: ditto
                 }
                 if self.num_over_windows() > num_overs {
-                    return Err(BindError::WindowInGroupBy);
+                    return Err(ErrorKind::WindowInGroupBy.into()); // TODO: ditto
                 }
                 Ok(Some(id))
             }
@@ -240,9 +248,11 @@ impl Binder {
         let column_len = values[0].len();
         for row in values {
             if row.len() != column_len {
-                return Err(BindError::InvalidExpression(
+                let span = Span::union_iter(row.iter().map(|e| e.span()));
+                return Err(ErrorKind::InvalidExpression(
                     "VALUES lists must all be the same length".into(),
-                ));
+                )
+                .with_span(span));
             }
             bound_values.push(self.bind_exprs(row)?);
         }
@@ -307,7 +317,7 @@ impl Binder {
         }
         if let Node::Column(cid) = &expr {
             let name = self.catalog.get_column(cid).unwrap().name().to_string();
-            return Err(BindError::ColumnNotInAgg(name));
+            return Err(ErrorKind::ColumnNotInAgg(name).into());
         }
         for child in expr.children_mut() {
             *child = self.rewrite_agg_in_expr(*child, schema)?;
@@ -348,7 +358,7 @@ impl Binder {
                 _ => id,
             };
             if !distinct_on.contains(key) {
-                return Err(BindError::OrderKeyNotInDistinct);
+                return Err(ErrorKind::OrderKeyNotInDistinct.into());
             }
         }
         // for all projection items that are not in DISTINCT list,

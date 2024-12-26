@@ -50,45 +50,52 @@ impl FromStr for Box<CreateTable> {
 impl Binder {
     pub(super) fn bind_create_table(
         &mut self,
-        name: ObjectName,
-        columns: &[ColumnDef],
-        constraints: &[TableConstraint],
+        crate::parser::CreateTable {
+            name,
+            columns,
+            constraints,
+            ..
+        }: crate::parser::CreateTable,
     ) -> Result {
         let name = lower_case_name(&name);
         let (schema_name, table_name) = split_name(&name)?;
         let schema = self
             .catalog
             .get_schema_by_name(schema_name)
-            .ok_or_else(|| BindError::InvalidSchema(schema_name.into()))?;
+            .ok_or_else(|| ErrorKind::InvalidSchema(schema_name.into()).with_spanned(&name))?;
         if schema.get_table_by_name(table_name).is_some() {
-            return Err(BindError::TableExists(table_name.into()));
+            return Err(ErrorKind::TableExists(table_name.into()).with_spanned(&name));
         }
 
         // check duplicated column names
         let mut set = HashSet::new();
-        for col in columns {
+        for col in &columns {
             if !set.insert(col.name.value.to_lowercase()) {
-                return Err(BindError::ColumnExists(col.name.value.to_lowercase()));
+                return Err(
+                    ErrorKind::ColumnExists(col.name.value.to_lowercase()).with_spanned(col)
+                );
             }
         }
 
-        let mut ordered_pk_ids = Binder::ordered_pks_from_columns(columns);
+        let mut ordered_pk_ids = Binder::ordered_pks_from_columns(&columns);
         let has_pk_from_column = !ordered_pk_ids.is_empty();
 
         if ordered_pk_ids.len() > 1 {
             // multi primary key should be declared by "primary key(c1, c2...)" syntax
-            return Err(BindError::NotSupportedTSQL);
+            return Err(ErrorKind::NotSupportedTSQL.into());
         }
 
-        let pks_name_from_constraints = Binder::pks_name_from_constraints(constraints);
+        let pks_name_from_constraints = Binder::pks_name_from_constraints(&constraints);
         if has_pk_from_column && !pks_name_from_constraints.is_empty() {
             // can't get primary key both from "primary key(c1, c2...)" syntax and
             // column's option
-            return Err(BindError::NotSupportedTSQL);
+            return Err(ErrorKind::NotSupportedTSQL.into());
         } else if !has_pk_from_column {
-            for name in &pks_name_from_constraints {
-                if !set.contains(name) {
-                    return Err(BindError::InvalidColumn(name.clone()));
+            for name in pks_name_from_constraints {
+                if !set.contains(&name.value.to_lowercase()) {
+                    return Err(
+                        ErrorKind::InvalidColumn(name.value.to_lowercase()).with_span(name.span)
+                    );
                 }
             }
             // We have used `pks_name_from_constraints` to get the primary keys' name sorted by
@@ -99,7 +106,7 @@ impl Binder {
                 .map(|name| {
                     columns
                         .iter()
-                        .position(|c| c.name.value.eq_ignore_ascii_case(name))
+                        .position(|c| c.name.value.eq_ignore_ascii_case(&name.value))
                         .unwrap() as ColumnId
                 })
                 .collect();
@@ -150,20 +157,15 @@ impl Binder {
     }
 
     /// get the primary keys' name sorted by declaration order in "primary key(c1, c2..)" syntax.
-    fn pks_name_from_constraints(constraints: &[TableConstraint]) -> Vec<String> {
+    fn pks_name_from_constraints(constraints: &[TableConstraint]) -> &[Ident] {
         for constraint in constraints {
             match constraint {
-                TableConstraint::PrimaryKey { columns, .. } => {
-                    return columns
-                        .iter()
-                        .map(|ident| ident.value.to_lowercase())
-                        .collect()
-                }
+                TableConstraint::PrimaryKey { columns, .. } => return columns,
                 _ => continue,
             }
         }
         // no primary key
-        vec![]
+        &[]
     }
 }
 

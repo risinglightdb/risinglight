@@ -167,13 +167,14 @@ impl Inner {
 
         let stmts = parser::parse(CREATE_SYSTEM_TABLE_SQL).unwrap();
         for stmt in stmts {
-            let parser::Statement::CreateTable { name, columns, .. } = stmt else {
+            let parser::Statement::CreateTable(create_table) = stmt else {
                 panic!("invalid system table sql: {stmt}");
             };
             system_schema
                 .add_table(
-                    name.to_string(),
-                    columns
+                    create_table.name.to_string(),
+                    create_table
+                        .columns
                         .into_iter()
                         .enumerate()
                         .map(|(cid, col)| {
