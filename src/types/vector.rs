@@ -12,7 +12,7 @@ pub struct Vector(Box<[F64]>);
 
 impl Vector {
     pub fn new(values: Vec<f64>) -> Self {
-        Self(values.into_iter().map(|v| F64::from(v)).collect())
+        Self(values.into_iter().map(F64::from).collect())
     }
 }
 
@@ -88,7 +88,7 @@ impl FromStr for Vector {
             .split(',')
             .map(|s| s.trim().parse::<F64>())
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| ParseVectorError::Float(e))?;
+            .map_err(ParseVectorError::Float)?;
         Ok(Vector::from(values))
     }
 }

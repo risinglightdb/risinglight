@@ -13,7 +13,7 @@ use crate::types::{BlobRef, VectorRef, F64};
 
 // A collection of variable-length values.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct BytesArray<T: ValueRef<U> + ?Sized, U: PrimitiveValueType = u8> {
+pub struct VarArray<T: ValueRef<U> + ?Sized, U: PrimitiveValueType = u8> {
     offset: Box<[usize]>,
     valid: BitVec,
     data: Box<[U]>,
@@ -54,14 +54,14 @@ impl ValueRef<F64> for VectorRef {
     }
 }
 
-pub type StringArray = BytesArray<str>;
-pub type BlobArray = BytesArray<BlobRef>;
-pub type VectorArray = BytesArray<VectorRef, F64>;
+pub type StringArray = VarArray<str>;
+pub type BlobArray = VarArray<BlobRef>;
+pub type VectorArray = VarArray<VectorRef, F64>;
 pub type StringArrayBuilder = BytesArrayBuilder<str>;
 pub type BlobArrayBuilder = BytesArrayBuilder<BlobRef>;
 pub type VectorArrayBuilder = BytesArrayBuilder<VectorRef, F64>;
 
-impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> Clone for BytesArray<T, U> {
+impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> Clone for VarArray<T, U> {
     fn clone(&self) -> Self {
         Self {
             offset: self.offset.clone(),
@@ -72,7 +72,7 @@ impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> Clone for BytesArray<T, U> 
     }
 }
 
-impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> Array for BytesArray<T, U> {
+impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> Array for VarArray<T, U> {
     type Item = T;
     type Builder = BytesArrayBuilder<T, U>;
 
@@ -101,7 +101,7 @@ impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> Array for BytesArray<T, U> 
     }
 }
 
-impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> ArrayValidExt for BytesArray<T, U> {
+impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> ArrayValidExt for VarArray<T, U> {
     fn get_valid_bitmap(&self) -> &BitVec {
         &self.valid
     }
@@ -110,13 +110,13 @@ impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> ArrayValidExt for BytesArra
     }
 }
 
-impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> ArrayEstimateExt for BytesArray<T, U> {
+impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> ArrayEstimateExt for VarArray<T, U> {
     fn get_estimated_size(&self) -> usize {
         self.data.len() + self.offset.len() + self.valid.len() / 8
     }
 }
 
-impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> ArrayFromDataExt for BytesArray<T, U> {
+impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> ArrayFromDataExt for VarArray<T, U> {
     fn from_data(data_iter: impl Iterator<Item = impl Borrow<Self::Item>>, valid: BitVec) -> Self {
         let mut data = Vec::with_capacity(valid.len());
         let mut offset = Vec::with_capacity(valid.len() + 1);
@@ -143,7 +143,7 @@ pub struct BytesArrayBuilder<T: ValueRef<U> + ?Sized, U: PrimitiveValueType = u8
 }
 
 impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> ArrayBuilder for BytesArrayBuilder<T, U> {
-    type Array = BytesArray<T, U>;
+    type Array = VarArray<T, U>;
 
     fn extend_from_raw_data(&mut self, raws: &[<<Self::Array as Array>::Item as ToOwned>::Owned]) {
         for raw in raws {
@@ -204,7 +204,7 @@ impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> ArrayBuilder for BytesArray
         }
     }
 
-    fn append(&mut self, other: &BytesArray<T, U>) {
+    fn append(&mut self, other: &VarArray<T, U>) {
         self.valid.extend_from_bitslice(&other.valid);
         self.data.extend_from_slice(&other.data);
         let start = *self.offset.last().unwrap();
@@ -213,8 +213,8 @@ impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> ArrayBuilder for BytesArray
         }
     }
 
-    fn take(&mut self) -> BytesArray<T, U> {
-        BytesArray {
+    fn take(&mut self) -> VarArray<T, U> {
+        VarArray {
             valid: mem::take(&mut self.valid),
             data: mem::take(&mut self.data).into(),
             offset: mem::replace(&mut self.offset, vec![0]).into(),
@@ -261,7 +261,7 @@ impl StringArray {
 
 // Enable `collect()` an array from iterator of `Option<&T>` or `Option<T::Owned>`.
 impl<O: AsRef<T>, T: ValueRef<U> + ?Sized, U: PrimitiveValueType> FromIterator<Option<O>>
-    for BytesArray<T, U>
+    for VarArray<T, U>
 {
     fn from_iter<I: IntoIterator<Item = Option<O>>>(iter: I) -> Self {
         let iter = iter.into_iter();
