@@ -17,6 +17,7 @@ use crate::types::DataValue;
 
 pub mod copy;
 mod create_function;
+mod create_index;
 mod create_table;
 mod create_view;
 mod delete;
@@ -28,6 +29,7 @@ mod select;
 mod table;
 
 pub use self::create_function::CreateFunction;
+pub use self::create_index::CreateIndex;
 pub use self::create_table::CreateTable;
 pub use self::error::BindError;
 use self::error::ErrorKind;
@@ -226,6 +228,7 @@ impl Binder {
 
     fn bind_stmt(&mut self, stmt: Statement) -> Result {
         match stmt {
+            Statement::CreateIndex(create_index) => self.bind_create_index(create_index),
             Statement::CreateTable(create_table) => self.bind_create_table(create_table),
             Statement::CreateView {
                 name,

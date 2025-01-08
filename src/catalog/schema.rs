@@ -14,7 +14,9 @@ pub struct SchemaCatalog {
     name: String,
     table_idxs: HashMap<String, TableId>,
     tables: HashMap<TableId, Arc<TableCatalog>>,
-    next_table_id: TableId,
+    indexes_idxs: HashMap<String, IndexId>,
+    indexes: HashMap<IndexId, Arc<IndexCatalog>>,
+    next_id: u32,
     /// Currently indexed by function name
     functions: HashMap<String, Arc<FunctionCatalog>>,
 }
@@ -26,7 +28,9 @@ impl SchemaCatalog {
             name,
             table_idxs: HashMap::new(),
             tables: HashMap::new(),
-            next_table_id: 0,
+            indexes_idxs: HashMap::new(),
+            indexes: HashMap::new(),
+            next_id: 0,
             functions: HashMap::new(),
         }
     }
@@ -40,8 +44,8 @@ impl SchemaCatalog {
         if self.table_idxs.contains_key(&name) {
             return Err(CatalogError::Duplicated("table", name));
         }
-        let table_id = self.next_table_id;
-        self.next_table_id += 1;
+        let table_id = self.next_id;
+        self.next_id += 1;
         let table_catalog = Arc::new(TableCatalog::new(
             table_id,
             name.clone(),
@@ -53,6 +57,23 @@ impl SchemaCatalog {
         Ok(table_id)
     }
 
+    pub(super) fn add_index(
+        &mut self,
+        name: String,
+        table_id: TableId,
+        columns: Vec<ColumnId>,
+    ) -> Result<IndexId, CatalogError> {
+        if self.indexes_idxs.contains_key(&name) {
+            return Err(CatalogError::Duplicated("index", name));
+        }
+        let index_id = self.next_id;
+        self.next_id += 1;
+        let index_catalog = Arc::new(IndexCatalog::new(index_id, name.clone(), table_id, columns));
+        self.indexes_idxs.insert(name, index_id);
+        self.indexes.insert(index_id, index_catalog);
+        Ok(index_id)
+    }
+
     pub(super) fn add_view(
         &mut self,
         name: String,
@@ -62,8 +83,8 @@ impl SchemaCatalog {
         if self.table_idxs.contains_key(&name) {
             return Err(CatalogError::Duplicated("view", name));
         }
-        let table_id = self.next_table_id;
-        self.next_table_id += 1;
+        let table_id = self.next_id;
+        self.next_id += 1;
         let table_catalog = Arc::new(TableCatalog::new_view(
             table_id,
             name.clone(),
@@ -84,12 +105,28 @@ impl SchemaCatalog {
         self.tables.clone()
     }
 
+    pub fn all_indexes(&self) -> HashMap<IndexId, Arc<IndexCatalog>> {
+        self.indexes.clone()
+    }
+
     pub fn get_table_id_by_name(&self, name: &str) -> Option<TableId> {
         self.table_idxs.get(name).cloned()
     }
 
     pub fn get_table_by_id(&self, table_id: TableId) -> Option<Arc<TableCatalog>> {
         self.tables.get(&table_id).cloned()
+    }
+
+    pub fn get_indexes_on_table(&self, table_id: TableId) -> Vec<IndexId> {
+        self.indexes
+            .iter()
+            .filter(|(_, index)| index.table_id() == table_id)
+            .map(|(id, _)| *id)
+            .collect()
+    }
+
+    pub fn get_index_by_id(&self, index_id: IndexId) -> Option<Arc<IndexCatalog>> {
+        self.indexes.get(&index_id).cloned()
     }
 
     pub fn get_table_by_name(&self, name: &str) -> Option<Arc<TableCatalog>> {

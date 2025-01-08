@@ -27,6 +27,7 @@ use self::analyze::*;
 use self::copy_from_file::*;
 use self::copy_to_file::*;
 use self::create_function::*;
+use self::create_index::*;
 use self::create_table::*;
 use self::create_view::*;
 use self::delete::*;
@@ -79,6 +80,7 @@ mod nested_loop_join;
 mod order;
 mod system_table_scan;
 // mod perfect_hash_agg;
+mod create_index;
 mod error;
 mod merge_join;
 mod projection;
@@ -388,6 +390,12 @@ impl<S: Storage> Builder<S> {
 
             CreateTable(table) => CreateTableExecutor {
                 table,
+                storage: self.storage.clone(),
+            }
+            .execute(),
+
+            CreateIndex(index) => CreateIndexExecutor {
+                index,
                 storage: self.storage.clone(),
             }
             .execute(),

@@ -8,6 +8,9 @@ pub use memory::InMemoryStorage;
 mod secondary;
 pub use secondary::{SecondaryStorage, StorageOptions as SecondaryStorageOptions};
 
+mod index;
+pub use index::InMemoryIndex;
+
 mod error;
 pub use error::{StorageError, StorageResult, TracedStorageError};
 use serde::Serialize;
@@ -21,7 +24,9 @@ pub use chunk::*;
 use enum_dispatch::enum_dispatch;
 
 use crate::array::{ArrayImpl, DataChunk};
-use crate::catalog::{ColumnCatalog, ColumnId, SchemaId, TableRefId};
+use crate::catalog::{
+    ColumnCatalog, ColumnId, IndexId, RootCatalog, SchemaId, TableId, TableRefId,
+};
 use crate::types::DataValue;
 
 #[enum_dispatch(StorageDispatch)]
@@ -81,6 +86,25 @@ pub trait Storage: Sync + Send + 'static {
     fn get_table(&self, table_id: TableRefId) -> StorageResult<Self::Table>;
 
     fn drop_table(&self, table_id: TableRefId) -> impl Future<Output = StorageResult<()>> + Send;
+
+    fn create_index(
+        &self,
+        schema_id: SchemaId,
+        index_name: &str,
+        table_id: TableId,
+        column_idxs: &[ColumnId],
+    ) -> impl Future<Output = StorageResult<IndexId>> + Send;
+
+    /// Get the catalog of the storage engine.
+    ///
+    /// TODO: users should not be able to modify the catalog.
+    fn get_catalog(&self) -> Arc<RootCatalog>;
+
+    fn get_index(
+        &self,
+        schema_id: SchemaId,
+        index_id: IndexId,
+    ) -> impl Future<Output = StorageResult<Arc<dyn InMemoryIndex>>> + Send;
 
     // XXX: remove this
     fn as_disk(&self) -> Option<&SecondaryStorage>;

@@ -326,6 +326,10 @@ impl<'a> Explain<'a> {
                 let fields = with_meta(t.pretty_table());
                 Pretty::childless_record("CreateTable", fields)
             }
+            CreateIndex(i) => {
+                let fields = with_meta(i.pretty_index());
+                Pretty::childless_record("CreateIndex", fields)
+            }
             CreateView([table, query]) => Pretty::simple_record(
                 "CreateView",
                 with_meta(vec![("table", self.expr(table).pretty())]),

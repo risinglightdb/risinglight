@@ -6,6 +6,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 pub use self::column::*;
+pub use self::index::*;
 pub use self::root::*;
 pub use self::schema::*;
 pub use self::table::*;
@@ -13,12 +14,14 @@ use crate::types::*;
 
 mod column;
 pub mod function;
+mod index;
 mod root;
 mod schema;
 mod table;
 
 pub type SchemaId = u32;
 pub type TableId = u32;
+pub type IndexId = u32;
 pub type ColumnId = u32;
 
 pub type RootCatalogRef = Arc<RootCatalog>;

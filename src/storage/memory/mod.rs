@@ -20,8 +20,11 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use super::{Storage, StorageError, StorageResult, TracedStorageError};
-use crate::catalog::{ColumnCatalog, ColumnId, RootCatalog, RootCatalogRef, SchemaId, TableRefId};
+use super::index::InMemoryIndexes;
+use super::{InMemoryIndex, Storage, StorageError, StorageResult, TracedStorageError};
+use crate::catalog::{
+    ColumnCatalog, ColumnId, IndexId, RootCatalog, RootCatalogRef, SchemaId, TableId, TableRefId,
+};
 
 mod table;
 pub use table::InMemoryTable;
@@ -39,6 +42,7 @@ pub use row_handler::InMemoryRowHandler;
 pub struct InMemoryStorage {
     catalog: RootCatalogRef,
     tables: Mutex<HashMap<TableRefId, InMemoryTable>>,
+    indexes: Mutex<InMemoryIndexes>,
 }
 
 impl Default for InMemoryStorage {
@@ -52,6 +56,7 @@ impl InMemoryStorage {
         InMemoryStorage {
             catalog: Arc::new(RootCatalog::new()),
             tables: Mutex::new(HashMap::new()),
+            indexes: Mutex::new(InMemoryIndexes::new()),
         }
     }
 
@@ -120,5 +125,42 @@ impl Storage for InMemoryStorage {
 
     fn as_disk(&self) -> Option<&super::SecondaryStorage> {
         None
+    }
+
+    async fn create_index(
+        &self,
+        schema_id: SchemaId,
+        index_name: &str,
+        table_id: TableId,
+        column_idxs: &[ColumnId],
+    ) -> StorageResult<IndexId> {
+        let idx_id = self
+            .catalog
+            .add_index(schema_id, index_name.to_string(), table_id, column_idxs)
+            .map_err(|_| StorageError::Duplicated("index", index_name.into()))?;
+        self.indexes
+            .lock()
+            .unwrap()
+            .add_index(schema_id, idx_id, table_id, column_idxs);
+        // TODO: populate the index
+        Ok(idx_id)
+    }
+
+    async fn get_index(
+        &self,
+        schema_id: SchemaId,
+        index_id: IndexId,
+    ) -> StorageResult<Arc<dyn InMemoryIndex>> {
+        let idx = self
+            .indexes
+            .lock()
+            .unwrap()
+            .get_index(schema_id, index_id)
+            .ok_or_else(|| StorageError::NotFound("index", index_id.to_string()))?;
+        Ok(idx)
+    }
+
+    fn get_catalog(&self) -> Arc<RootCatalog> {
+        self.catalog.clone()
     }
 }
