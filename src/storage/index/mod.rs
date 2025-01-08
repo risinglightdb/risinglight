@@ -1,3 +1,5 @@
+// Copyright 2025 RisingLight Project Authors. Licensed under Apache-2.0.
+
 use std::sync::Arc;
 
 use crate::catalog::{ColumnId, IndexId, SchemaId, TableId};
@@ -18,6 +20,7 @@ impl InMemoryIndexes {
         table_id: TableId,
         column_idxs: &[ColumnId],
     ) {
+        let _ = (schema_id, index_id, table_id, column_idxs);
     }
 
     pub fn get_index(
@@ -25,6 +28,7 @@ impl InMemoryIndexes {
         schema_id: SchemaId,
         index_id: IndexId,
     ) -> Option<Arc<dyn InMemoryIndex>> {
+        let _ = (schema_id, index_id);
         None
     }
 }

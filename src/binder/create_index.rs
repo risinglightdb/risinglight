@@ -1,4 +1,4 @@
-// Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
+// Copyright 2025 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::fmt;
 use std::str::FromStr;
@@ -51,7 +51,7 @@ impl Binder {
     pub(super) fn bind_create_index(&mut self, stat: crate::parser::CreateIndex) -> Result {
         let Some(ref name) = stat.name else {
             return Err(
-                ErrorKind::InvalidIndex(format!("index must have a name")).with_spanned(&stat)
+                ErrorKind::InvalidIndex("index must have a name".to_string()).with_spanned(&stat),
             );
         };
         let crate::parser::CreateIndex {
@@ -59,7 +59,7 @@ impl Binder {
             columns,
             ..
         } = stat;
-        let index_name = lower_case_name(&name);
+        let index_name = lower_case_name(name);
         let (_, index_name) = split_name(&index_name)?;
         let table_obj: ObjectName = table_name.clone();
         let table_name = lower_case_name(&table_name);
