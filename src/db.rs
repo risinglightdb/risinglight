@@ -65,6 +65,7 @@ impl Database {
         let tokens = cmd.split_whitespace().collect::<Vec<_>>();
         Ok(match tokens.as_slice() {
             ["dt"] => "SELECT * FROM pg_catalog.pg_tables".to_string(),
+            ["di"] => "SELECT * FROM pg_catalog.pg_indexes".to_string(),
             ["d", table] => format!(
                 "SELECT * FROM pg_catalog.pg_attribute WHERE table_name = '{table}'",
             ),
