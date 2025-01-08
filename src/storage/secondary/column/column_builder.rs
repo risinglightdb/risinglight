@@ -53,6 +53,7 @@ impl ColumnBuilderImpl {
             TimestampTz => Self::TimestampTz(TimestampTzColumnBuilder::new(nullable, options)),
             Interval => Self::Interval(IntervalColumnBuilder::new(nullable, options)),
             Blob => Self::Blob(BlobColumnBuilder::new(nullable, options)),
+            Vector(_) => todo!("vector column builder"),
             Struct(_) => todo!("struct column builder"),
         }
     }

@@ -41,6 +41,10 @@ pub enum DataValue {
     TimestampTz(TimestampTz),
     #[display("{0}")]
     Interval(Interval),
+    /// Vector is a specialized array type for floating point numbers. In the future, it will be
+    /// replaced by Array.
+    #[display("{0}")]
+    Vector(Vector),
 }
 
 /// memory table row type
@@ -123,6 +127,7 @@ impl DataValue {
             Self::Timestamp(_) => false,
             Self::TimestampTz(_) => false,
             Self::Interval(v) => v.is_positive(),
+            Self::Vector(_) => false,
         }
     }
 
@@ -142,6 +147,7 @@ impl DataValue {
             Self::Timestamp(_) => false,
             Self::TimestampTz(_) => false,
             Self::Interval(v) => v.is_zero(),
+            Self::Vector(_) => false,
         }
     }
 
@@ -161,6 +167,7 @@ impl DataValue {
             Self::Timestamp(_) => DataType::Timestamp,
             Self::TimestampTz(_) => DataType::TimestampTz,
             Self::Interval(_) => DataType::Interval,
+            Self::Vector(vec) => DataType::Vector(vec.len()),
         }
     }
 
@@ -183,6 +190,7 @@ impl DataValue {
             &Self::Interval(_) => return Err(cast_err()),
             Self::String(s) => s.parse::<usize>().map_err(|_| cast_err())?,
             Self::Blob(_) => return Err(cast_err()),
+            Self::Vector(_) => return Err(cast_err()),
         }))
     }
 

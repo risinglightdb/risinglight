@@ -46,3 +46,18 @@ select a + a, a - a, a * a, a / a from t;
 
 statement ok
 drop table t
+
+# vector
+statement ok
+create table t (a vector(3) not null);
+
+statement ok
+insert into t values ('[1, 2.0, 3]');
+
+query V
+select a from t;
+----
+[1,2,3]
+
+statement ok
+drop table t
