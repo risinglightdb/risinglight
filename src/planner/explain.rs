@@ -185,6 +185,29 @@ impl<'a> Explain<'a> {
                 ],
             ),
 
+            // vector functions
+            VectorL2Distance([a, b]) => Pretty::childless_record(
+                "VectorL2Distance",
+                vec![
+                    ("lhs", self.expr(a).pretty()),
+                    ("rhs", self.expr(b).pretty()),
+                ],
+            ),
+            VectorCosineDistance([a, b]) => Pretty::childless_record(
+                "VectorCosineDistance",
+                vec![
+                    ("lhs", self.expr(a).pretty()),
+                    ("rhs", self.expr(b).pretty()),
+                ],
+            ),
+            VectorDotProduct([a, b]) => Pretty::childless_record(
+                "VectorDotProduct",
+                vec![
+                    ("lhs", self.expr(a).pretty()),
+                    ("rhs", self.expr(b).pretty()),
+                ],
+            ),
+
             // aggregations
             RowCount | RowNumber => enode.to_string().into(),
             Max(a) | Min(a) | Sum(a) | Avg(a) | Count(a) | First(a) | Last(a)

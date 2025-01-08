@@ -62,6 +62,40 @@ impl Deref for Vector {
     }
 }
 
+impl VectorRef {
+    pub fn norm(&self) -> F64 {
+        let sum: f64 = self.0.iter().map(|a| a.powi(2)).sum();
+        F64::from(sum.sqrt())
+    }
+
+    pub fn l2_distance(&self, other: &VectorRef) -> F64 {
+        let sum = self
+            .0
+            .iter()
+            .zip(other.0.iter())
+            .map(|(a, b)| (a.0 - b.0).powi(2))
+            .sum::<f64>();
+        F64::from(sum.sqrt())
+    }
+
+    pub fn cosine_distance(&self, other: &VectorRef) -> F64 {
+        let dot_product = self.dot_product(other);
+        let norm_self = self.norm();
+        let norm_other = other.norm();
+        F64::from(dot_product / (norm_self * norm_other))
+    }
+
+    pub fn dot_product(&self, other: &VectorRef) -> F64 {
+        let sum = self
+            .0
+            .iter()
+            .zip(other.0.iter())
+            .map(|(a, b)| a.0 * b.0)
+            .sum::<f64>();
+        F64::from(sum)
+    }
+}
+
 /// An error which can be returned when parsing a blob.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
 pub enum ParseVectorError {

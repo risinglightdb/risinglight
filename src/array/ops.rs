@@ -634,6 +634,72 @@ impl ArrayImpl {
         };
         Ok(A::new_string(unary_op(a.as_ref(), |s| s.replace(from, to))))
     }
+
+    pub fn vector_l2_distance(&self, other: &ArrayImpl) -> Result {
+        let ArrayImpl::Vector(a) = self else {
+            return Err(ConvertError::NoBinaryOp(
+                "vector_l2_distance".into(),
+                self.type_string(),
+                other.type_string(),
+            ));
+        };
+        let ArrayImpl::Vector(b) = other else {
+            return Err(ConvertError::NoBinaryOp(
+                "vector_l2_distance".into(),
+                other.type_string(),
+                self.type_string(),
+            ));
+        };
+        Ok(ArrayImpl::new_float64(binary_op(
+            a.as_ref(),
+            b.as_ref(),
+            |a, b| a.l2_distance(&b),
+        )))
+    }
+
+    pub fn vector_cosine_distance(&self, other: &ArrayImpl) -> Result {
+        let ArrayImpl::Vector(a) = self else {
+            return Err(ConvertError::NoBinaryOp(
+                "vector_cosine_distance".into(),
+                self.type_string(),
+                other.type_string(),
+            ));
+        };
+        let ArrayImpl::Vector(b) = other else {
+            return Err(ConvertError::NoBinaryOp(
+                "vector_cosine_distance".into(),
+                other.type_string(),
+                self.type_string(),
+            ));
+        };
+        Ok(ArrayImpl::new_float64(binary_op(
+            a.as_ref(),
+            b.as_ref(),
+            |a, b| a.cosine_distance(&b),
+        )))
+    }
+
+    pub fn vector_dot_product(&self, other: &ArrayImpl) -> Result {
+        let ArrayImpl::Vector(a) = self else {
+            return Err(ConvertError::NoBinaryOp(
+                "vector_dot_product".into(),
+                self.type_string(),
+                other.type_string(),
+            ));
+        };
+        let ArrayImpl::Vector(b) = other else {
+            return Err(ConvertError::NoBinaryOp(
+                "vector_dot_product".into(),
+                other.type_string(),
+                self.type_string(),
+            ));
+        };
+        Ok(ArrayImpl::new_float64(binary_op(
+            a.as_ref(),
+            b.as_ref(),
+            |a, b| a.dot_product(&b),
+        )))
+    }
 }
 
 /// Implement aggregation functions.
