@@ -15,6 +15,7 @@ mod interval;
 mod native;
 mod timestamp;
 mod value;
+mod vector;
 
 pub use self::blob::*;
 pub use self::date::*;
@@ -22,6 +23,7 @@ pub use self::interval::*;
 pub use self::native::*;
 pub use self::timestamp::*;
 pub use self::value::*;
+pub use self::vector::*;
 
 /// Data type.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -43,6 +45,7 @@ pub enum DataType {
     String,
     Blob,
     Struct(Vec<DataType>),
+    Vector(usize),
 }
 
 impl DataType {
@@ -127,6 +130,16 @@ impl From<&crate::parser::DataType> for DataType {
             Timestamp(_, TimezoneInfo::None) => Self::Timestamp,
             Timestamp(_, TimezoneInfo::Tz) => Self::TimestampTz,
             Interval => Self::Interval,
+            Custom(name, items) => {
+                if name.to_string().to_lowercase() == "vector" {
+                    if items.len() != 1 {
+                        panic!("must specify length for vector");
+                    }
+                    Self::Vector(items[0].parse().unwrap())
+                } else {
+                    todo!("not supported type: {:?}", kind)
+                }
+            }
             _ => todo!("not supported type: {:?}", kind),
         }
     }
@@ -164,6 +177,7 @@ impl std::fmt::Display for DataType {
                 }
                 write!(f, ")")
             }
+            Self::Vector(length) => write!(f, "VECTOR({length})"),
         }
     }
 }
@@ -228,6 +242,8 @@ pub enum ConvertError {
     ParseInterval(String, #[source] ParseIntervalError),
     #[error("failed to convert string {0:?} to blob: {1}")]
     ParseBlob(String, #[source] ParseBlobError),
+    #[error("failed to convert string {0:?} to vector: {1}")]
+    ParseVector(String, #[source] ParseVectorError),
     #[error("failed to convert {0} to decimal")]
     ToDecimalError(DataValue),
     #[error("failed to convert {0} from decimal {1}")]

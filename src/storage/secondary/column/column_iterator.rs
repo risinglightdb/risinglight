@@ -97,6 +97,7 @@ impl ColumnIteratorImpl {
                 )
                 .await?,
             ),
+            Vector(_) => todo!("vector column iterator"),
             Struct(_) => todo!("struct column iterator"),
         };
         Ok(iter)
