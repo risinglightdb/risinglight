@@ -144,8 +144,8 @@ impl Binder {
             Xor => Node::Xor([l, r]),
             Custom(name) => match name.as_str() {
                 "<->" => Node::VectorL2Distance([l, r]),
-                "<#>" => Node::VectorCosineDistance([l, r]),
-                "<*>" => Node::VectorDotProduct([l, r]),
+                "<#>" => Node::VectorNegtiveInnerProduct([l, r]),
+                "<=>" => Node::VectorCosineDistance([l, r]),
                 op => todo!("bind custom binary op: {:?}", op),
             },
             _ => todo!("bind binary op: {:?}", op),

@@ -653,7 +653,7 @@ impl ArrayImpl {
         Ok(ArrayImpl::new_float64(binary_op(
             a.as_ref(),
             b.as_ref(),
-            |a, b| a.l2_distance(&b),
+            |a, b| a.l2_distance(b),
         )))
     }
 
@@ -675,21 +675,21 @@ impl ArrayImpl {
         Ok(ArrayImpl::new_float64(binary_op(
             a.as_ref(),
             b.as_ref(),
-            |a, b| a.cosine_distance(&b),
+            |a, b| a.cosine_distance(b),
         )))
     }
 
-    pub fn vector_dot_product(&self, other: &ArrayImpl) -> Result {
+    pub fn vector_neg_inner_product(&self, other: &ArrayImpl) -> Result {
         let ArrayImpl::Vector(a) = self else {
             return Err(ConvertError::NoBinaryOp(
-                "vector_dot_product".into(),
+                "vector_neg_inner_product".into(),
                 self.type_string(),
                 other.type_string(),
             ));
         };
         let ArrayImpl::Vector(b) = other else {
             return Err(ConvertError::NoBinaryOp(
-                "vector_dot_product".into(),
+                "vector_neg_inner_product".into(),
                 other.type_string(),
                 self.type_string(),
             ));
@@ -697,7 +697,7 @@ impl ArrayImpl {
         Ok(ArrayImpl::new_float64(binary_op(
             a.as_ref(),
             b.as_ref(),
-            |a, b| a.dot_product(&b),
+            |a, b| -a.dot_product(b),
         )))
     }
 }

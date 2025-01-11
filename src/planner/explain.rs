@@ -200,7 +200,7 @@ impl<'a> Explain<'a> {
                     ("rhs", self.expr(b).pretty()),
                 ],
             ),
-            VectorDotProduct([a, b]) => Pretty::childless_record(
+            VectorNegtiveInnerProduct([a, b]) => Pretty::childless_record(
                 "VectorDotProduct",
                 vec![
                     ("lhs", self.expr(a).pretty()),

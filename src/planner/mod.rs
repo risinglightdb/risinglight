@@ -71,8 +71,8 @@ define_language! {
 
         // vector functions
         "<->" = VectorL2Distance([Id; 2]),
-        "<#>" = VectorCosineDistance([Id; 2]),
-        "<*>" = VectorDotProduct([Id; 2]),
+        "<#>" = VectorNegtiveInnerProduct([Id; 2]),
+        "<=>" = VectorCosineDistance([Id; 2]),
 
         // aggregations
         "max" = Max(Id),

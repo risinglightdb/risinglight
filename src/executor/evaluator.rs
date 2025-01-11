@@ -142,10 +142,10 @@ impl<'a> Evaluator<'a> {
                 let b = self.next(*b).eval(chunk)?;
                 a.vector_cosine_distance(&b)
             }
-            VectorDotProduct([a, b]) => {
+            VectorNegtiveInnerProduct([a, b]) => {
                 let a = self.next(*a).eval(chunk)?;
                 let b = self.next(*b).eval(chunk)?;
-                a.vector_dot_product(&b)
+                a.vector_neg_inner_product(&b)
             }
             e => {
                 if let Some((op, a, b)) = e.binary_op() {

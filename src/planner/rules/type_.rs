@@ -78,12 +78,12 @@ pub fn analyze_type(
         }),
 
         // vector ops
-        VectorL2Distance([a, b]) | VectorCosineDistance([a, b]) | VectorDotProduct([a, b]) => {
-            merge(enode, [x(a)?, x(b)?], |[a, b]| {
-                (matches!(a, DataType::Vector(_)) && matches!(b, DataType::Vector(_)))
-                    .then_some(DataType::Float64)
-            })
-        }
+        VectorL2Distance([a, b])
+        | VectorCosineDistance([a, b])
+        | VectorNegtiveInnerProduct([a, b]) => merge(enode, [x(a)?, x(b)?], |[a, b]| {
+            (matches!(a, DataType::Vector(_)) && matches!(b, DataType::Vector(_)))
+                .then_some(DataType::Float64)
+        }),
 
         // bool ops
         Not(a) => check(enode, x(a)?, |a| a == &DataType::Bool),
