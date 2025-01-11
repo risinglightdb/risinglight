@@ -127,10 +127,8 @@ impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> ArrayBuilder for ChunkedArr
         }
     }
 
-    fn extend_from_nulls(&mut self, count: usize) {
-        self.data.extend(
-            std::iter::repeat(U::default()).take(count * self.element_length.unwrap_or_default()),
-        );
+    fn extend_from_nulls(&mut self, _: usize) {
+        panic!("null value in chunked array builder");
     }
 
     fn replace_bitmap(&mut self, valid: BitVec) {
@@ -158,6 +156,8 @@ impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> ArrayBuilder for ChunkedArr
         if let Some(x) = value {
             self.data.extend_from_slice(x.as_ref());
             self.update_element_length(x.as_ref().len());
+        } else {
+            panic!("null value in chunked array builder");
         }
     }
 
@@ -171,9 +171,7 @@ impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> ArrayBuilder for ChunkedArr
                 self.data.extend_from_slice(value.as_ref());
             }
         } else {
-            self.data.extend(
-                std::iter::repeat(U::default()).take(n * self.element_length.unwrap_or_default()),
-            );
+            panic!("null value in chunked array builder");
         }
     }
 
@@ -246,7 +244,11 @@ mod tests {
                     F64::from(i * 3),
                 ])));
             } else {
-                builder.push(None);
+                builder.push(Some(VectorRef::new(&[
+                    F64::from(i * 4),
+                    F64::from(i * 5),
+                    F64::from(i * 6),
+                ])));
             }
         }
         builder.finish();
