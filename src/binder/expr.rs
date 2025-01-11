@@ -142,10 +142,10 @@ impl Binder {
             And => Node::And([l, r]),
             Or => Node::Or([l, r]),
             Xor => Node::Xor([l, r]),
+            Spaceship => Node::VectorCosineDistance([l, r]),
             Custom(name) => match name.as_str() {
                 "<->" => Node::VectorL2Distance([l, r]),
                 "<#>" => Node::VectorNegtiveInnerProduct([l, r]),
-                "<=>" => Node::VectorCosineDistance([l, r]),
                 op => todo!("bind custom binary op: {:?}", op),
             },
             _ => todo!("bind binary op: {:?}", op),
