@@ -63,9 +63,13 @@ impl Deref for Vector {
 }
 
 impl VectorRef {
-    pub fn norm(&self) -> F64 {
+    pub fn norm_squared(&self) -> F64 {
         let sum: f64 = self.0.iter().map(|a| a.powi(2)).sum();
-        F64::from(sum.sqrt())
+        F64::from(sum)
+    }
+
+    pub fn norm(&self) -> F64 {
+        F64::from(self.norm_squared().sqrt())
     }
 
     pub fn l2_distance(&self, other: &VectorRef) -> F64 {
@@ -80,9 +84,9 @@ impl VectorRef {
 
     pub fn cosine_distance(&self, other: &VectorRef) -> F64 {
         let dot_product = self.dot_product(other);
-        let norm_self = self.norm();
-        let norm_other = other.norm();
-        F64::from(dot_product / (norm_self * norm_other))
+        let norm_self_squared = self.norm_squared();
+        let norm_other_squared = other.norm_squared();
+        F64::from(1.0) - dot_product / (norm_self_squared * norm_other_squared).sqrt()
     }
 
     pub fn dot_product(&self, other: &VectorRef) -> F64 {
