@@ -7,6 +7,7 @@ use tokio::runtime::Runtime;
 
 use crate::storage::SecondaryStorageOptions;
 use crate::Database;
+
 #[pyclass]
 pub struct PythonDatabase {
     runtime: Runtime,
@@ -59,6 +60,13 @@ pub fn open_in_memory() -> PyResult<PythonDatabase> {
         .build()?;
     let database = Database::new_in_memory();
     Ok(PythonDatabase { runtime, database })
+}
+
+#[pymodule]
+fn risinglight(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(open, m)?)?;
+    m.add_function(wrap_pyfunction!(open_in_memory, m)?)?;
+    Ok(())
 }
 
 use crate::types::DataValue;

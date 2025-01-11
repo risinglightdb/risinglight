@@ -132,6 +132,21 @@ impl<'a> Evaluator<'a> {
                 };
                 a.replace(from, to)
             }
+            VectorL2Distance([a, b]) => {
+                let a = self.next(*a).eval(chunk)?;
+                let b = self.next(*b).eval(chunk)?;
+                a.vector_l2_distance(&b)
+            }
+            VectorCosineDistance([a, b]) => {
+                let a = self.next(*a).eval(chunk)?;
+                let b = self.next(*b).eval(chunk)?;
+                a.vector_cosine_distance(&b)
+            }
+            VectorNegtiveInnerProduct([a, b]) => {
+                let a = self.next(*a).eval(chunk)?;
+                let b = self.next(*b).eval(chunk)?;
+                a.vector_neg_inner_product(&b)
+            }
             e => {
                 if let Some((op, a, b)) = e.binary_op() {
                     let left = self.next(a).eval(chunk)?;

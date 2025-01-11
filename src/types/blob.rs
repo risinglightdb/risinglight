@@ -159,7 +159,7 @@ impl fmt::Display for BlobRef {
 /// A slice of a vector.
 #[repr(transparent)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, RefCast, Hash)]
-pub struct VectorRef([F64]);
+pub struct VectorRef(pub(crate) [F64]);
 
 impl VectorRef {
     pub fn new(values: &[F64]) -> &Self {

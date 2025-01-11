@@ -77,6 +77,14 @@ pub fn analyze_type(
             (a == DataType::String && b == DataType::String).then_some(DataType::Bool)
         }),
 
+        // vector ops
+        VectorL2Distance([a, b])
+        | VectorCosineDistance([a, b])
+        | VectorNegtiveInnerProduct([a, b]) => merge(enode, [x(a)?, x(b)?], |[a, b]| {
+            (matches!(a, DataType::Vector(_)) && matches!(b, DataType::Vector(_)))
+                .then_some(DataType::Float64)
+        }),
+
         // bool ops
         Not(a) => check(enode, x(a)?, |a| a == &DataType::Bool),
         Gt([a, b]) | Lt([a, b]) | GtEq([a, b]) | LtEq([a, b]) | Eq([a, b]) | NotEq([a, b]) => {

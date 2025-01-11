@@ -69,6 +69,11 @@ define_language! {
         "replace" = Replace([Id; 3]),           // (replace expr pattern replacement)
         "substring" = Substring([Id; 3]),       // (substring expr start length)
 
+        // vector functions
+        "<->" = VectorL2Distance([Id; 2]),
+        "<#>" = VectorNegtiveInnerProduct([Id; 2]),
+        "<=>" = VectorCosineDistance([Id; 2]),
+
         // aggregations
         "max" = Max(Id),
         "min" = Min(Id),
