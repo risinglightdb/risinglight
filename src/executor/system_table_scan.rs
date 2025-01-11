@@ -27,6 +27,7 @@ impl<S: Storage> SystemTableScan<S> {
         yield match table.name() {
             "contributors" => contributors(),
             "pg_tables" => pg_tables(self.catalog),
+            "pg_indexes" => pg_indexes(self.catalog),
             "pg_attribute" => pg_attribute(self.catalog),
             "pg_stat" => pg_stat(self.catalog, &*self.storage).await?,
             name => panic!("unknown system table: {:?}", name),
@@ -100,6 +101,51 @@ fn contributors() -> DataChunk {
     [ArrayImpl::new_string(StringArray::from_iter(
         contributors.iter().map(|s| Some(*s)).sorted(),
     ))]
+    .into_iter()
+    .collect()
+}
+
+/// Returns `pg_indexes` table.
+fn pg_indexes(catalog: RootCatalogRef) -> DataChunk {
+    let mut schema_id = I32ArrayBuilder::new();
+    let mut index_id = I32ArrayBuilder::new();
+    let mut table_id = I32ArrayBuilder::new();
+    let mut schema_name = StringArrayBuilder::new();
+    let mut table_name = StringArrayBuilder::new();
+    let mut index_name = StringArrayBuilder::new();
+    let mut on_columns = StringArrayBuilder::new();
+
+    for (_, schema) in catalog.all_schemas() {
+        for (_, table) in schema.all_tables() {
+            for index in schema.get_indexes_on_table(table.id()) {
+                let index = schema.get_index_by_id(index).unwrap();
+                schema_id.push(Some(&(schema.id() as i32)));
+                table_id.push(Some(&(table.id() as i32)));
+                index_id.push(Some(&(index.id() as i32)));
+                schema_name.push(Some(&schema.name()));
+                table_name.push(Some(table.name()));
+                index_name.push(Some(index.name()));
+                on_columns.push(Some(&format!(
+                    "[{}]",
+                    index
+                        .column_idxs()
+                        .iter()
+                        .map(|c| c.to_string())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                )));
+            }
+        }
+    }
+    [
+        ArrayBuilderImpl::from(schema_id),
+        schema_name.into(),
+        ArrayBuilderImpl::from(table_id),
+        table_name.into(),
+        ArrayBuilderImpl::from(index_id),
+        index_name.into(),
+        on_columns.into(),
+    ]
     .into_iter()
     .collect()
 }

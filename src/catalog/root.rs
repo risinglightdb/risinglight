@@ -98,6 +98,34 @@ impl RootCatalog {
         schema.add_view(name, columns, query)
     }
 
+    pub fn add_index(
+        &self,
+        schema_id: SchemaId,
+        index_name: String,
+        table_id: TableId,
+        column_idxs: &[ColumnId],
+    ) -> Result<IndexId, CatalogError> {
+        let mut inner = self.inner.lock().unwrap();
+        let schema = inner.schemas.get_mut(&schema_id).unwrap();
+        schema.add_index(index_name, table_id, column_idxs.to_vec())
+    }
+
+    pub fn get_index_on_table(&self, schema_id: SchemaId, table_id: TableId) -> Vec<IndexId> {
+        let mut inner = self.inner.lock().unwrap();
+        let schema = inner.schemas.get_mut(&schema_id).unwrap();
+        schema.get_indexes_on_table(table_id)
+    }
+
+    pub fn get_index_by_id(
+        &self,
+        schema_id: SchemaId,
+        index_id: IndexId,
+    ) -> Option<Arc<IndexCatalog>> {
+        let mut inner = self.inner.lock().unwrap();
+        let schema = inner.schemas.get_mut(&schema_id).unwrap();
+        schema.get_index_by_id(index_id)
+    }
+
     pub fn drop_table(&self, table_ref_id: TableRefId) {
         let mut inner = self.inner.lock().unwrap();
         let schema = inner.schemas.get_mut(&table_ref_id.schema_id).unwrap();
@@ -207,6 +235,15 @@ const CREATE_SYSTEM_TABLE_SQL: &str = "
         schema_name string not null,
         table_id int not null,
         table_name string not null
+    );
+    create table pg_indexes (
+        schema_id int not null,
+        schema_name string not null,
+        table_id int not null,
+        table_name string not null,
+        index_id int not null,
+        index_name string not null,
+        on_columns string not null
     );
     create table pg_attribute (
         schema_name string not null,

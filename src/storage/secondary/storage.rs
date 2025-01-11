@@ -12,6 +12,7 @@ use tracing::info;
 
 use super::{DiskRowset, Manifest, SecondaryStorage, StorageOptions, StorageResult};
 use crate::catalog::RootCatalog;
+use crate::storage::index::InMemoryIndexes;
 use crate::storage::secondary::manifest::*;
 use crate::storage::secondary::transaction_manager::TransactionManager;
 use crate::storage::secondary::version_manager::{EpochOp, VersionManager};
@@ -58,6 +59,7 @@ impl SecondaryStorage {
             compactor_handler: Mutex::new((None, None)),
             vacuum_handler: Mutex::new((None, None)),
             txn_mgr: Arc::new(TransactionManager::default()),
+            indexes: Mutex::new(InMemoryIndexes::new()),
         };
 
         info!("applying {} manifest entries", manifest_ops.len());

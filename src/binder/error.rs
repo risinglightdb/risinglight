@@ -53,6 +53,8 @@ pub enum ErrorKind {
     InvalidSchema(String),
     #[error("invalid table {0:?}")]
     InvalidTable(String),
+    #[error("invalid index {0:?}")]
+    InvalidIndex(String),
     #[error("invalid column {0:?}")]
     InvalidColumn(String),
     #[error("table {0:?} already exists")]

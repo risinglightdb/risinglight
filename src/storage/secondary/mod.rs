@@ -32,8 +32,11 @@ use transaction_manager::*;
 pub use txn_iterator::*;
 use version_manager::*;
 
-use super::{Storage, StorageResult, TracedStorageError};
-use crate::catalog::{ColumnCatalog, ColumnId, RootCatalogRef, SchemaId, TableRefId};
+use super::index::InMemoryIndexes;
+use super::{InMemoryIndex, Storage, StorageError, StorageResult, TracedStorageError};
+use crate::catalog::{
+    ColumnCatalog, ColumnId, IndexId, RootCatalog, RootCatalogRef, SchemaId, TableId, TableRefId,
+};
 
 // public modules and structures
 mod options;
@@ -98,6 +101,9 @@ pub struct SecondaryStorage {
 
     /// Manages all ongoing txns
     txn_mgr: Arc<TransactionManager>,
+
+    /// Indexes of the current storage engine
+    indexes: Mutex<InMemoryIndexes>,
 }
 
 impl SecondaryStorage {
@@ -186,5 +192,42 @@ impl Storage for SecondaryStorage {
 
     fn as_disk(&self) -> Option<&SecondaryStorage> {
         Some(self)
+    }
+
+    async fn create_index(
+        &self,
+        schema_id: SchemaId,
+        index_name: &str,
+        table_id: TableId,
+        column_idxs: &[ColumnId],
+    ) -> StorageResult<IndexId> {
+        let idx_id = self
+            .catalog
+            .add_index(schema_id, index_name.to_string(), table_id, column_idxs)
+            .map_err(|_| StorageError::Duplicated("index", index_name.into()))?;
+        self.indexes
+            .lock()
+            .await
+            .add_index(schema_id, idx_id, table_id, column_idxs);
+        // TODO: populate the index
+        Ok(idx_id)
+    }
+
+    async fn get_index(
+        &self,
+        schema_id: SchemaId,
+        index_id: IndexId,
+    ) -> StorageResult<Arc<dyn InMemoryIndex>> {
+        let idx = self
+            .indexes
+            .lock()
+            .await
+            .get_index(schema_id, index_id)
+            .ok_or_else(|| StorageError::NotFound("index", index_id.to_string()))?;
+        Ok(idx)
+    }
+
+    fn get_catalog(&self) -> Arc<RootCatalog> {
+        self.catalog.clone()
     }
 }

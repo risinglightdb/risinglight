@@ -6,6 +6,15 @@ query ITIT rowsort
 ----
 0 pg_catalog 0 contributors
 0 pg_catalog 1 pg_tables
-0 pg_catalog 2 pg_attribute
-0 pg_catalog 3 pg_stat
+0 pg_catalog 2 pg_indexes
+0 pg_catalog 3 pg_attribute
+0 pg_catalog 4 pg_stat
 1 postgres 0 t
+
+statement ok
+create index i1 on t(v1)
+
+query ITITITT rowsort
+\di
+----
+1 postgres 0 t 1 i1 [0]
