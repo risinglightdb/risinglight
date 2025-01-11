@@ -234,10 +234,7 @@ const CREATE_SYSTEM_TABLE_SQL: &str = "
         schema_id int not null,
         schema_name string not null,
         table_id int not null,
-        table_name string not null,
-        index_id int not null,
-        index_name string not null,
-        on_columns string not null
+        table_name string not null
     );
     create table pg_indexes (
         schema_id int not null,
