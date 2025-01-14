@@ -197,6 +197,11 @@ impl Database {
             .add_row_count(table_id, count);
         Ok(true)
     }
+
+    /// Return all available pragma options.
+    fn pragma_options() -> &'static [&'static str] {
+        &["enable_optimizer", "disable_optimizer"]
+    }
 }
 
 /// The error type of database operations.
@@ -229,4 +234,105 @@ pub enum Error {
     ),
     #[error("Internal error: {0}")]
     Internal(String),
+}
+
+impl rustyline::Helper for &Database {}
+impl rustyline::validate::Validator for &Database {}
+impl rustyline::highlight::Highlighter for &Database {}
+impl rustyline::hint::Hinter for &Database {
+    type Hint = String;
+}
+
+/// Implement SQL completion.
+impl rustyline::completion::Completer for &Database {
+    type Candidate = rustyline::completion::Pair;
+    fn complete(
+        &self,
+        line: &str,
+        pos: usize,
+        _ctx: &rustyline::Context<'_>,
+    ) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
+        // find the word before cursor
+        let (prefix, last_word) = line[..pos].rsplit_once(' ').unwrap_or(("", &line[..pos]));
+
+        // completion for pragma options
+        if prefix.trim().eq_ignore_ascii_case("pragma") {
+            let candidates = Database::pragma_options()
+                .iter()
+                .filter(|option| option.starts_with(last_word))
+                .map(|option| rustyline::completion::Pair {
+                    display: option.to_string(),
+                    replacement: option.to_string(),
+                })
+                .collect();
+            return Ok((pos - last_word.len(), candidates));
+        }
+
+        // TODO: complete table and column names
+
+        // completion for keywords
+
+        // for a given prefix, all keywords starting with the prefix are returned as candidates
+        // they should be ordered in principle that frequently used ones come first
+        const KEYWORDS: &[&str] = &[
+            "AS", "ALL", "ANALYZE", "CREATE", "COPY", "DELETE", "DROP", "EXPLAIN", "FROM",
+            "FUNCTION", "INSERT", "JOIN", "ON", "PRAGMA", "SET", "SELECT", "TABLE", "UNION",
+            "VIEW", "WHERE", "WITH",
+        ];
+        let last_word_upper = last_word.to_uppercase();
+        let candidates = KEYWORDS
+            .iter()
+            .filter(|command| command.starts_with(&last_word_upper))
+            .map(|command| rustyline::completion::Pair {
+                display: command.to_string(),
+                replacement: format!("{command} "),
+            })
+            .collect();
+        Ok((pos - last_word.len() - 1, candidates))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rustyline::history::DefaultHistory;
+
+    use super::*;
+
+    #[test]
+    fn test_completion() {
+        let db = Database::new_in_memory();
+        assert_complete(&db, "sel", "SELECT ");
+        assert_complete(&db, "sel|ect", "SELECT |ect");
+        assert_complete(&db, "select a f", "select a FROM ");
+        assert_complete(&db, "pragma en", "pragma enable_optimizer");
+    }
+
+    /// Assert that if complete (e.g. press tab) the given `line`, the result will be
+    /// `completed_line`.
+    ///
+    /// Both `line` and `completed_line` can optionally contain a `|` which indicates the cursor
+    /// position. If not provided, the cursor is assumed to be at the end of the line.
+    #[track_caller]
+    fn assert_complete(db: &Database, line: &str, completed_line: &str) {
+        /// Find cursor position and remove it from the line.
+        fn get_line_and_cursor(line: &str) -> (String, usize) {
+            let (before_cursor, after_cursor) = line.split_once('|').unwrap_or((line, ""));
+            let pos = before_cursor.len();
+            (format!("{before_cursor}{after_cursor}"), pos)
+        }
+        let (mut line, pos) = get_line_and_cursor(line);
+
+        // complete
+        use rustyline::completion::Completer;
+        let (start_pos, candidates) = db
+            .complete(&line, pos, &rustyline::Context::new(&DefaultHistory::new()))
+            .unwrap();
+        let replacement = &candidates[0].replacement;
+        line.replace_range(start_pos..pos, replacement);
+
+        // assert
+        let (completed_line, completed_cursor_pos) = get_line_and_cursor(completed_line);
+        assert_eq!(line, completed_line);
+        assert_eq!(start_pos + replacement.len(), completed_cursor_pos);
+    }
 }
