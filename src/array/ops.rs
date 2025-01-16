@@ -389,6 +389,7 @@ impl ArrayImpl {
                 | Type::TimestampTz
                 | Type::Interval
                 | Type::Blob
+                | Type::Vector(_)
                 | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("BOOLEAN", data_type.clone()));
                 }
@@ -409,6 +410,7 @@ impl ArrayImpl {
                 | Type::TimestampTz
                 | Type::Interval
                 | Type::Blob
+                | Type::Vector(_)
                 | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("SMALLINT", data_type.clone()));
                 }
@@ -432,6 +434,7 @@ impl ArrayImpl {
                 | Type::TimestampTz
                 | Type::Interval
                 | Type::Blob
+                | Type::Vector(_)
                 | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("INT", data_type.clone()));
                 }
@@ -458,6 +461,7 @@ impl ArrayImpl {
                 | Type::TimestampTz
                 | Type::Interval
                 | Type::Blob
+                | Type::Vector(_)
                 | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("BIGINT", data_type.clone()));
                 }
@@ -487,6 +491,7 @@ impl ArrayImpl {
                 | Type::TimestampTz
                 | Type::Interval
                 | Type::Blob
+                | Type::Vector(_)
                 | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("DOUBLE", data_type.clone()));
                 }
@@ -533,11 +538,15 @@ impl ArrayImpl {
                 Type::Blob => Self::new_blob(try_unary_op(a.as_ref(), |s| {
                     Blob::from_str(s).map_err(|e| ConvertError::ParseBlob(s.to_string(), e))
                 })?),
+                Type::Vector(_) => Self::new_vector(try_unary_op(a.as_ref(), |s| {
+                    Vector::from_str(s).map_err(|e| ConvertError::ParseVector(s.to_string(), e))
+                })?),
                 Type::Null | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("VARCHAR", data_type.clone()));
                 }
             },
             Self::Blob(_) => todo!("cast array"),
+            Self::Vector(_) => todo!("cast array"),
             Self::Decimal(a) => match data_type {
                 Type::Bool => Self::new_bool(unary_op(a.as_ref(), |&d| !d.is_zero())),
                 Type::Int16 => Self::new_int16(try_unary_op(a.as_ref(), |&d| {
@@ -565,6 +574,7 @@ impl ArrayImpl {
                 | Type::Timestamp
                 | Type::TimestampTz
                 | Type::Interval
+                | Type::Vector(_)
                 | Type::Struct(_) => {
                     return Err(ConvertError::NoCast("DOUBLE", data_type.clone()));
                 }
@@ -623,6 +633,72 @@ impl ArrayImpl {
             ));
         };
         Ok(A::new_string(unary_op(a.as_ref(), |s| s.replace(from, to))))
+    }
+
+    pub fn vector_l2_distance(&self, other: &ArrayImpl) -> Result {
+        let ArrayImpl::Vector(a) = self else {
+            return Err(ConvertError::NoBinaryOp(
+                "vector_l2_distance".into(),
+                self.type_string(),
+                other.type_string(),
+            ));
+        };
+        let ArrayImpl::Vector(b) = other else {
+            return Err(ConvertError::NoBinaryOp(
+                "vector_l2_distance".into(),
+                other.type_string(),
+                self.type_string(),
+            ));
+        };
+        Ok(ArrayImpl::new_float64(binary_op(
+            a.as_ref(),
+            b.as_ref(),
+            |a, b| a.l2_distance(b),
+        )))
+    }
+
+    pub fn vector_cosine_distance(&self, other: &ArrayImpl) -> Result {
+        let ArrayImpl::Vector(a) = self else {
+            return Err(ConvertError::NoBinaryOp(
+                "vector_cosine_distance".into(),
+                self.type_string(),
+                other.type_string(),
+            ));
+        };
+        let ArrayImpl::Vector(b) = other else {
+            return Err(ConvertError::NoBinaryOp(
+                "vector_cosine_distance".into(),
+                other.type_string(),
+                self.type_string(),
+            ));
+        };
+        Ok(ArrayImpl::new_float64(binary_op(
+            a.as_ref(),
+            b.as_ref(),
+            |a, b| a.cosine_distance(b),
+        )))
+    }
+
+    pub fn vector_neg_inner_product(&self, other: &ArrayImpl) -> Result {
+        let ArrayImpl::Vector(a) = self else {
+            return Err(ConvertError::NoBinaryOp(
+                "vector_neg_inner_product".into(),
+                self.type_string(),
+                other.type_string(),
+            ));
+        };
+        let ArrayImpl::Vector(b) = other else {
+            return Err(ConvertError::NoBinaryOp(
+                "vector_neg_inner_product".into(),
+                other.type_string(),
+                self.type_string(),
+            ));
+        };
+        Ok(ArrayImpl::new_float64(binary_op(
+            a.as_ref(),
+            b.as_ref(),
+            |a, b| -a.dot_product(b),
+        )))
     }
 }
 

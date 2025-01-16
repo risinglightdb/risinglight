@@ -7,6 +7,7 @@ use tokio::runtime::Runtime;
 
 use crate::storage::SecondaryStorageOptions;
 use crate::Database;
+
 #[pyclass]
 pub struct PythonDatabase {
     runtime: Runtime,
@@ -15,6 +16,7 @@ pub struct PythonDatabase {
 use pyo3::exceptions::PyException;
 
 use crate::array::Chunk;
+
 #[pymethods]
 impl PythonDatabase {
     pub fn query(&self, py: Python<'_>, sql: String) -> PyResult<Vec<Vec<PyObject>>> {
@@ -34,6 +36,7 @@ impl PythonDatabase {
         }
     }
 }
+
 use pyo3::conversion::ToPyObject;
 
 /// Open a database for user, user can specify the path of database file
@@ -47,6 +50,23 @@ pub fn open(path: String) -> PyResult<PythonDatabase> {
 
     let database = runtime.block_on(async move { Database::new_on_disk(options).await });
     Ok(PythonDatabase { runtime, database })
+}
+
+/// Open a database for user in memory
+#[pyfunction]
+pub fn open_in_memory() -> PyResult<PythonDatabase> {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
+    let database = Database::new_in_memory();
+    Ok(PythonDatabase { runtime, database })
+}
+
+#[pymodule]
+fn risinglight(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(open, m)?)?;
+    m.add_function(wrap_pyfunction!(open_in_memory, m)?)?;
+    Ok(())
 }
 
 use crate::types::DataValue;
@@ -72,6 +92,11 @@ pub fn datachunk_to_python_list(py: Python, chunk: &Chunk) -> Vec<Vec<PyObject>>
                     DataValue::Timestamp(v) => v.to_string().to_object(py),
                     DataValue::TimestampTz(v) => v.to_string().to_object(py),
                     DataValue::Interval(v) => v.to_string().to_object(py),
+                    DataValue::Vector(v) => v
+                        .iter()
+                        .map(|s| s.to_object(py))
+                        .collect::<Vec<_>>()
+                        .to_object(py),
                 };
                 row_vec.push(s);
             }

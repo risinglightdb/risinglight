@@ -11,19 +11,20 @@ use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
 
 use crate::types::{
-    Blob, ConvertError, DataType, DataValue, Date, Interval, Timestamp, TimestampTz, F32, F64,
+    Blob, ConvertError, DataType, DataValue, Date, Interval, Timestamp, TimestampTz, Vector, F32,
+    F64,
 };
 
-mod bytes_array;
 mod data_chunk;
 mod data_chunk_builder;
 pub mod ops;
 mod primitive_array;
+mod var_array;
 
-pub use self::bytes_array::*;
 pub use self::data_chunk::*;
 pub use self::data_chunk_builder::*;
 pub use self::primitive_array::*;
+pub use self::var_array::*;
 
 mod internal_ext;
 
@@ -199,6 +200,7 @@ pub enum ArrayImpl {
     Float64(Arc<F64Array>),
     String(Arc<StringArray>),
     Blob(Arc<BlobArray>),
+    Vector(Arc<VectorArray>),
     Decimal(Arc<DecimalArray>),
     Date(Arc<DateArray>),
     Timestamp(Arc<TimestampArray>),
@@ -230,6 +232,7 @@ pub enum ArrayBuilderImpl {
     Float64(F64ArrayBuilder),
     String(StringArrayBuilder),
     Blob(BlobArrayBuilder),
+    Vector(VectorArrayBuilder),
     Decimal(DecimalArrayBuilder),
     Date(DateArrayBuilder),
     Timestamp(TimestampArrayBuilder),
@@ -262,7 +265,8 @@ macro_rules! for_all_variants {
             { TimestampTz, TimestampTz, timestamp_tz, TimestampTzArray, TimestampTzArrayBuilder, TimestampTz, TimestampTz },
             { Interval, Interval, interval, IntervalArray, IntervalArrayBuilder, Interval, Interval },
             { String, str, string, StringArray, StringArrayBuilder, String, String },
-            { Blob, BlobRef, blob, BlobArray, BlobArrayBuilder, Blob, Blob }
+            { Blob, BlobRef, blob, BlobArray, BlobArrayBuilder, Blob, Blob },
+            { Vector, VectorRef, vector, VectorArray, VectorArrayBuilder, Vector, Vector }
         }
     };
 }
@@ -283,7 +287,8 @@ macro_rules! for_all_variants_without_null {
             { TimestampTz, TimestampTz, timestamp_tz, TimestampTzArray, TimestampTzArrayBuilder, TimestampTz, TimestampTz },
             { Interval, Interval, interval, IntervalArray, IntervalArrayBuilder, Interval, Interval },
             { String, str, string, StringArray, StringArrayBuilder, String, String },
-            { Blob, BlobRef, blob, BlobArray, BlobArrayBuilder, Blob, Blob }
+            { Blob, BlobRef, blob, BlobArray, BlobArrayBuilder, Blob, Blob },
+            { Vector, VectorRef, vector, VectorArray, VectorArrayBuilder, Vector, Vector(_) }
         }
     };
 }
@@ -487,6 +492,7 @@ impl ArrayBuilderImpl {
             Self::Float64(a) if null => a.push(None),
             Self::String(a) if null => a.push(None),
             Self::Blob(a) if null => a.push(None),
+            Self::Vector(a) if null => a.push(None),
             Self::Decimal(a) if null => a.push(None),
             Self::Date(a) if null => a.push(None),
             Self::Timestamp(a) if null => a.push(None),
@@ -516,6 +522,10 @@ impl ArrayBuilderImpl {
             Self::Blob(a) => a.push(Some(
                 &s.parse::<Blob>()
                     .map_err(|e| ConvertError::ParseBlob(s.to_string(), e))?,
+            )),
+            Self::Vector(a) => a.push(Some(
+                &s.parse::<Vector>()
+                    .map_err(|e| ConvertError::ParseVector(s.to_string(), e))?,
             )),
             Self::Decimal(a) => a.push(Some(
                 &Decimal::from_str(s).map_err(|e| ConvertError::ParseDecimal(s.to_string(), e))?,
@@ -656,6 +666,7 @@ impl From<&DataValue> for ArrayImpl {
             &DataValue::Timestamp(v) => Self::new_timestamp([v].into_iter().collect()),
             &DataValue::TimestampTz(v) => Self::new_timestamp_tz([v].into_iter().collect()),
             &DataValue::Interval(v) => Self::new_interval([v].into_iter().collect()),
+            DataValue::Vector(v) => Self::new_vector([Some(v)].into_iter().collect()),
         }
     }
 }
