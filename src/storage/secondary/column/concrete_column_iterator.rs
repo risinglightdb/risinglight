@@ -168,8 +168,21 @@ impl<A: Array, F: BlockIteratorFactory<A>> ConcreteColumnIterator<A, F> {
             return (0, true);
         }
         let index = self.column.index().index(self.current_block_id);
+        let hint = (index.row_count - (self.current_row_id - index.first_rowid)) as usize;
         (
-            (index.row_count - (self.current_row_id - index.first_rowid)) as usize,
+            if hint == 0 {
+                // the row count of the next block if exists
+                if self.current_block_id + 1 < self.column.index().len() as u32 {
+                    self.column
+                        .index()
+                        .index(self.current_block_id + 1)
+                        .row_count as usize
+                } else {
+                    0
+                }
+            } else {
+                hint
+            },
             false,
         )
     }

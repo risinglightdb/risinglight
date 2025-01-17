@@ -19,7 +19,7 @@ fn main() {
 
     const PATTERN: &str = "tests/sql/**/[!_]*.slt"; // ignore files start with '_'
     const MEM_BLOCKLIST: &[&str] = &["statistics.slt"];
-    const DISK_BLOCKLIST: &[&str] = &["vector.slt", "type.slt"]; // remove after secondary storage is ready
+    const DISK_BLOCKLIST: &[&str] = &[];
 
     let mut tests = vec![];
 

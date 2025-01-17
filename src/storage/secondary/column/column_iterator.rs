@@ -20,6 +20,7 @@ pub enum ColumnIteratorImpl {
     TimestampTz(TimestampTzColumnIterator),
     Interval(IntervalColumnIterator),
     Blob(BlobColumnIterator),
+    Vector(VectorColumnIterator),
     /// Special for row handler and not correspond to any data type
     RowHandler(RowHandlerColumnIterator),
 }
@@ -97,7 +98,9 @@ impl ColumnIteratorImpl {
                 )
                 .await?,
             ),
-            Vector(_) => todo!("vector column iterator"),
+            Vector(_) => Self::Vector(
+                VectorColumnIterator::new(column, start_pos, VectorBlockIteratorFactory()).await?,
+            ),
             Struct(_) => todo!("struct column iterator"),
         };
         Ok(iter)
@@ -135,6 +138,7 @@ impl ColumnIteratorImpl {
             Self::TimestampTz(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
             Self::Interval(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
             Self::Blob(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
+            Self::Vector(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
             Self::RowHandler(it) => Self::erase_concrete_type(it.next_batch(expected_size).await?),
         };
         Ok(result)
@@ -154,6 +158,7 @@ impl ColumnIteratorImpl {
             Self::TimestampTz(it) => it.fetch_hint(),
             Self::Interval(it) => it.fetch_hint(),
             Self::Blob(it) => it.fetch_hint(),
+            Self::Vector(it) => it.fetch_hint(),
             Self::RowHandler(it) => it.fetch_hint(),
         }
     }
@@ -172,6 +177,7 @@ impl ColumnIteratorImpl {
             Self::TimestampTz(it) => it.fetch_current_row_id(),
             Self::Interval(it) => it.fetch_current_row_id(),
             Self::Blob(it) => it.fetch_current_row_id(),
+            Self::Vector(it) => it.fetch_current_row_id(),
             Self::RowHandler(it) => it.fetch_current_row_id(),
         }
     }
@@ -190,6 +196,7 @@ impl ColumnIteratorImpl {
             Self::TimestampTz(it) => it.skip(cnt),
             Self::Interval(it) => it.skip(cnt),
             Self::Blob(it) => it.skip(cnt),
+            Self::Vector(it) => it.skip(cnt),
             Self::RowHandler(it) => it.skip(cnt),
         }
     }

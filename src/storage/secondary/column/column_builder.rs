@@ -14,6 +14,7 @@ use crate::array::ArrayImpl;
 use crate::storage::secondary::column::{
     IntervalColumnBuilder, TimestampColumnBuilder, TimestampTzColumnBuilder,
 };
+use crate::storage::secondary::VectorColumnBuilder;
 use crate::types::DataType;
 
 /// [`ColumnBuilder`] of all types
@@ -30,6 +31,7 @@ pub enum ColumnBuilderImpl {
     TimestampTz(TimestampTzColumnBuilder),
     Interval(IntervalColumnBuilder),
     Blob(BlobColumnBuilder),
+    Vector(VectorColumnBuilder),
 }
 
 impl ColumnBuilderImpl {
@@ -53,7 +55,7 @@ impl ColumnBuilderImpl {
             TimestampTz => Self::TimestampTz(TimestampTzColumnBuilder::new(nullable, options)),
             Interval => Self::Interval(IntervalColumnBuilder::new(nullable, options)),
             Blob => Self::Blob(BlobColumnBuilder::new(nullable, options)),
-            Vector(_) => todo!("vector column builder"),
+            Vector(_) => Self::Vector(VectorColumnBuilder::new(nullable, options)),
             Struct(_) => todo!("struct column builder"),
         }
     }
@@ -72,6 +74,7 @@ impl ColumnBuilderImpl {
             (Self::TimestampTz(builder), ArrayImpl::TimestampTz(array)) => builder.append(array),
             (Self::Interval(builder), ArrayImpl::Interval(array)) => builder.append(array),
             (Self::Blob(builder), ArrayImpl::Blob(array)) => builder.append(array),
+            (Self::Vector(builder), ArrayImpl::Vector(array)) => builder.append(array),
             _ => todo!(),
         }
     }
@@ -90,6 +93,7 @@ impl ColumnBuilderImpl {
             Self::TimestampTz(builder) => builder.finish(),
             Self::Interval(builder) => builder.finish(),
             Self::Blob(builder) => builder.finish(),
+            Self::Vector(builder) => builder.finish(),
         }
     }
 }
