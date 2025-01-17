@@ -2,6 +2,7 @@
 
 use std::borrow::Borrow;
 use std::fmt::{Display, Write};
+use std::hash::Hash;
 use std::marker::PhantomData;
 use std::mem;
 
@@ -20,7 +21,7 @@ pub struct VarArray<T: ValueRef<U> + ?Sized, U: PrimitiveValueType = u8> {
     _type: PhantomData<T>,
 }
 
-pub trait PrimitiveValueType: Send + Sync + 'static + Copy + Clone {}
+pub trait PrimitiveValueType: Send + Sync + 'static + Copy + Clone + PartialEq + Eq + Hash {}
 
 impl PrimitiveValueType for u8 {}
 impl PrimitiveValueType for F64 {}

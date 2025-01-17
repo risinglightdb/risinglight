@@ -14,6 +14,10 @@ impl Vector {
     pub fn new(values: Vec<f64>) -> Self {
         Self(values.into_iter().map(F64::from).collect())
     }
+
+    pub fn new_from_ordered_f64(values: Vec<F64>) -> Self {
+        Self(values.into())
+    }
 }
 
 impl std::fmt::Display for Vector {
@@ -97,6 +101,10 @@ impl VectorRef {
             .map(|(a, b)| a.0 * b.0)
             .sum::<f64>();
         F64::from(sum)
+    }
+
+    pub fn to_vector(&self) -> Vector {
+        Vector::new_from_ordered_f64(self.as_ref().to_vec())
     }
 }
 
