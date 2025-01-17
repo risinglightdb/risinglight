@@ -40,6 +40,8 @@ jobs:
         run: make tpch
       - name: Run benchmark
         run: cargo bench --bench tpch -- --output-format bencher | tee output.txt
+        env:
+          RUST_BACKTRACE: 1
       - name: Store benchmark result
         if: github.event_name != 'pull_request'
         uses: benchmark-action/github-action-benchmark@v1
