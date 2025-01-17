@@ -19,3 +19,18 @@ select * from t order by a <-> '[0, 0, 1]'::VECTOR(3);
 
 statement ok
 drop table t
+
+statement ok
+create table t (id int primary key, a vector(3) not null);
+
+statement ok
+insert into t values (2, '[-1, -2.0, -3]'), (1, '[1, 2.0, 3]');
+
+query IR
+select * from t order by id;
+----
+1 [1,2,3]
+2 [-1,-2,-3]
+
+statement ok
+drop table t
