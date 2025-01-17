@@ -13,8 +13,8 @@ use crate::types::VectorRef;
 /// ```plain
 /// | data | data | data | element_size |
 /// ```
-/// The `element_size` is the size for each vector element, and the data is aligned to the `element_size`.
-/// The length of each element is `element_size * std::mem::size_of::<f64>()`.
+/// The `element_size` is the size for each vector element, and the data is aligned to the
+/// `element_size`. The length of each element is `element_size * std::mem::size_of::<f64>()`.
 pub struct PlainVectorBlockBuilder {
     data: Vec<u8>,
     element_size: Option<usize>,
@@ -95,7 +95,7 @@ impl BlockBuilder<VectorArray> for PlainVectorBlockBuilder {
     }
 
     fn estimated_size(&self) -> usize {
-        self.data.len() + std::mem::size_of::<u32>() /* element_size */
+        self.data.len() + std::mem::size_of::<u32>() // element_size
     }
 
     fn should_finish(&self, next_item: &Option<&VectorRef>) -> bool {
@@ -109,7 +109,7 @@ impl BlockBuilder<VectorArray> for PlainVectorBlockBuilder {
     fn finish(self) -> Vec<u8> {
         let mut encoded_data = vec![];
         encoded_data.extend(self.data);
-        encoded_data.put_u32(self.element_size.unwrap() as u32); /* so that we can likely get vectors aligned */
+        encoded_data.put_u32(self.element_size.unwrap() as u32); // so that we can likely get vectors aligned
         encoded_data
     }
 

@@ -34,7 +34,7 @@ impl PlainVectorBlockIterator {
             row_count,
             next_row: 0,
             vec_buffer: Vec::new(),
-            element_size
+            element_size,
         }
     }
 }
@@ -70,7 +70,8 @@ impl NonNullableBlockIterator<VectorArray> for PlainVectorBlockIterator {
             let to = from + self.element_size * std::mem::size_of::<f64>();
             assert!((to - from) % std::mem::size_of::<f64>() == 0);
             self.vec_buffer.clear();
-            self.vec_buffer.reserve(self.element_size * std::mem::size_of::<f64>());
+            self.vec_buffer
+                .reserve(self.element_size * std::mem::size_of::<f64>());
             let mut buf = &data_buffer[from..to];
             for _ in 0..self.element_size {
                 self.vec_buffer.push(F64::from(buf.get_f64_le()));
