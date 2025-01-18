@@ -15,12 +15,14 @@ use crate::types::{
     F64,
 };
 
+mod chunked_array;
 mod data_chunk;
 mod data_chunk_builder;
 pub mod ops;
 mod primitive_array;
 mod var_array;
 
+pub use self::chunked_array::*;
 pub use self::data_chunk::*;
 pub use self::data_chunk_builder::*;
 pub use self::primitive_array::*;
