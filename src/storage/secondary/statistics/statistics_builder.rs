@@ -5,18 +5,20 @@ use std::collections::HashSet;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use risinglight_proto::rowset::BlockStatistics;
 
-pub struct StatisticsBuilder<'a> {
-    distinct_values: HashSet<&'a [u8]>,
+use crate::array::PrimitiveValueType;
+
+pub struct StatisticsBuilder<'a, U: PrimitiveValueType = u8> {
+    distinct_values: HashSet<&'a [U]>,
 }
 
-impl<'a> StatisticsBuilder<'a> {
+impl<'a, U: PrimitiveValueType> StatisticsBuilder<'a, U> {
     pub fn new() -> Self {
         Self {
-            distinct_values: HashSet::<&'a [u8]>::new(),
+            distinct_values: HashSet::<&'a [U]>::new(),
         }
     }
 
-    pub fn add_item(&mut self, data: Option<&'a [u8]>) {
+    pub fn add_item(&mut self, data: Option<&'a [U]>) {
         if let Some(data) = data {
             self.distinct_values.insert(data);
         }
