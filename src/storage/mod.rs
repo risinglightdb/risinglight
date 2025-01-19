@@ -24,6 +24,7 @@ pub use chunk::*;
 use enum_dispatch::enum_dispatch;
 
 use crate::array::{ArrayImpl, DataChunk};
+use crate::binder::IndexType;
 use crate::catalog::{
     ColumnCatalog, ColumnId, IndexId, RootCatalog, SchemaId, TableId, TableRefId,
 };
@@ -93,6 +94,7 @@ pub trait Storage: Sync + Send + 'static {
         index_name: &str,
         table_id: TableId,
         column_idxs: &[ColumnId],
+        index_type: &IndexType,
     ) -> impl Future<Output = StorageResult<IndexId>> + Send;
 
     /// Get the catalog of the storage engine.

@@ -29,7 +29,7 @@ mod select;
 mod table;
 
 pub use self::create_function::CreateFunction;
-pub use self::create_index::CreateIndex;
+pub use self::create_index::{CreateIndex, IndexType, VectorDistance};
 pub use self::create_table::CreateTable;
 pub use self::error::BindError;
 use self::error::ErrorKind;

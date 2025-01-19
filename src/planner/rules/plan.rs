@@ -6,7 +6,9 @@ use itertools::Itertools;
 
 use super::schema::schema_is_eq;
 use super::*;
+use crate::binder::{IndexType, VectorDistance};
 use crate::planner::ExprExt;
+use crate::types::DataValue;
 
 /// Returns the rules that always improve the plan.
 pub fn always_better_rules() -> Vec<Rewrite> {
@@ -397,6 +399,71 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
         { column_prune("(proj ?exprs (scan ?table ?columns ?filter))") }
     ),
 ]}
+
+/// Pushdown projections and prune unused columns.
+#[rustfmt::skip]
+pub fn index_scan_rules() -> Vec<Rewrite> { vec![
+    rw!("vector-index-scan-1";
+        "(order (list (<-> ?column ?vector)) (scan ?table ?columns ?filter))" => "(vector_index_scan ?table ?columns ?filter <-> ?column ?vector)"
+        if has_vector_index("?column", "<->", "?vector", "?filter")
+    ),
+    rw!("vector-index-scan-2";
+        "(order (list (<#> ?column ?vector)) (scan ?table ?columns ?filter))" => "(vector_index_scan ?table ?columns ?filter <#> ?column ?vector)"
+        if has_vector_index("?column", "<#>", "?vector", "?filter")
+    ),
+    rw!("vector-index-scan-3";
+        "(order (list (<=> ?column ?vector)) (scan ?table ?columns ?filter))" => "(vector_index_scan ?table ?columns ?filter <=> ?column ?vector)"
+        if has_vector_index("?column", "<=>", "?vector", "?filter")
+    ),
+]}
+
+fn has_vector_index(
+    column: &str,
+    op: &str,
+    vector: &str,
+    filter: &str,
+) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let column = var(column);
+    let vector = var(vector);
+    let filter = var(filter);
+    let op = op.to_string();
+    move |egraph, _, subst| {
+        let filter = &egraph[subst[filter]].data;
+        let vector = &egraph[subst[vector]].data;
+        let column = &egraph[subst[column]].data;
+        let Ok(vector_op) = op.parse::<VectorDistance>() else {
+            return false;
+        };
+        // Only support null filter or always true filter for now
+        if !matches!(filter.constant, Some(DataValue::Bool(true)) | None) {
+            return false;
+        }
+        if !matches!(vector.constant, Some(DataValue::Vector(_))) {
+            return false;
+        }
+        if column.columns.len() != 1 {
+            return false;
+        }
+        let column = column.columns.iter().next().unwrap();
+        let Expr::Column(col) = column else {
+            return false;
+        };
+        let catalog = &egraph.analysis.catalog;
+        let indexes = catalog.get_index_on_table(col.schema_id, col.table_id);
+        for index_id in indexes {
+            let index = catalog.get_index_by_id(col.schema_id, index_id).unwrap();
+            if index.column_idxs() != [col.column_id] {
+                continue;
+            }
+            if let IndexType::IvfFlat { distance, .. } = index.index_type() {
+                if distance == vector_op {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+}
 
 /// Returns true if the columns used in `expr` is disjoint from columns produced by `plan`.
 fn not_depend_on(expr: &str, plan: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {

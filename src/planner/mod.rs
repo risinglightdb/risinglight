@@ -98,6 +98,7 @@ define_language! {
 
         // plans
         "scan" = Scan([Id; 3]),                 // (scan table [column..] filter)
+        "vector_index_scan" = IndexScan([Id; 6]), // (vector_index_scan table [column..] filter <op> key vector)
         "values" = Values(Box<[Id]>),           // (values [expr..]..)
         "proj" = Proj([Id; 2]),                 // (proj [expr..] child)
         "filter" = Filter([Id; 2]),             // (filter expr child)
