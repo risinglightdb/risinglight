@@ -11,9 +11,6 @@ query ITIT rowsort
 0 pg_catalog 4 pg_stat
 1 postgres 0 t
 
-statement ok
-create index i1 on t(v1)
-
 query ITITITT rowsort
 \di
 ----

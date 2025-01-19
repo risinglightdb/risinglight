@@ -11,11 +11,46 @@ use super::*;
 use crate::catalog::{ColumnId, SchemaId, TableId};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
+pub enum VectorDistance {
+    Cosine,
+    L2,
+    NegativeDotProduct,
+}
+
+impl FromStr for VectorDistance {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "cosine" => Ok(VectorDistance::Cosine),
+            "<=>" => Ok(VectorDistance::Cosine),
+            "l2" => Ok(VectorDistance::L2),
+            "<->" => Ok(VectorDistance::L2),
+            "dotproduct" => Ok(VectorDistance::NegativeDotProduct),
+            "<#>" => Ok(VectorDistance::NegativeDotProduct),
+            _ => Err(format!("invalid vector distance: {}", s)),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
+pub enum IndexType {
+    Hnsw,
+    IvfFlat {
+        distance: VectorDistance,
+        nlists: usize,
+        nprobe: usize,
+    },
+    Btree,
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize)]
 pub struct CreateIndex {
     pub schema_id: SchemaId,
     pub index_name: String,
     pub table_id: TableId,
     pub columns: Vec<ColumnId>,
+    pub index_type: IndexType,
 }
 
 impl fmt::Display for CreateIndex {
@@ -48,6 +83,79 @@ impl FromStr for Box<CreateIndex> {
 }
 
 impl Binder {
+    fn parse_index_type(&self, using: Option<Ident>, with: Vec<Expr>) -> Result<IndexType> {
+        let Some(using) = using else {
+            return Err(ErrorKind::InvalidIndex("using clause is required".to_string()).into());
+        };
+        match using.to_string().to_lowercase().as_str() {
+            "hnsw" => Ok(IndexType::Hnsw),
+            "ivfflat" => {
+                let mut distfn = None;
+                let mut nlists = None;
+                let mut nprobe = None;
+                for expr in with {
+                    let Expr::BinaryOp { left, op, right } = expr else {
+                        return Err(
+                            ErrorKind::InvalidIndex("invalid with clause".to_string()).into()
+                        );
+                    };
+                    if op != BinaryOperator::Eq {
+                        return Err(
+                            ErrorKind::InvalidIndex("invalid with clause".to_string()).into()
+                        );
+                    }
+                    let Expr::Identifier(Ident { value: key, .. }) = *left else {
+                        return Err(
+                            ErrorKind::InvalidIndex("invalid with clause".to_string()).into()
+                        );
+                    };
+                    let key = key.to_lowercase();
+                    let Expr::Value(v) = *right else {
+                        return Err(
+                            ErrorKind::InvalidIndex("invalid with clause".to_string()).into()
+                        );
+                    };
+                    let v: DataValue = v.into();
+                    match key.as_str() {
+                        "distfn" => {
+                            let v = v.as_str();
+                            distfn = Some(v.to_lowercase());
+                        }
+                        "nlists" => {
+                            let Some(v) = v.as_usize().unwrap() else {
+                                return Err(ErrorKind::InvalidIndex(
+                                    "invalid with clause".to_string(),
+                                )
+                                .into());
+                            };
+                            nlists = Some(v);
+                        }
+                        "nprobe" => {
+                            let Some(v) = v.as_usize().unwrap() else {
+                                return Err(ErrorKind::InvalidIndex(
+                                    "invalid with clause".to_string(),
+                                )
+                                .into());
+                            };
+                            nprobe = Some(v);
+                        }
+                        _ => {
+                            return Err(
+                                ErrorKind::InvalidIndex("invalid with clause".to_string()).into()
+                            );
+                        }
+                    }
+                }
+                Ok(IndexType::IvfFlat {
+                    distance: VectorDistance::from_str(distfn.unwrap().as_str()).unwrap(),
+                    nlists: nlists.unwrap(),
+                    nprobe: nprobe.unwrap(),
+                })
+            }
+            _ => Err(ErrorKind::InvalidIndex("invalid index type".to_string()).into()),
+        }
+    }
+
     pub(super) fn bind_create_index(&mut self, stat: crate::parser::CreateIndex) -> Result {
         let Some(ref name) = stat.name else {
             return Err(
@@ -57,6 +165,8 @@ impl Binder {
         let crate::parser::CreateIndex {
             table_name,
             columns,
+            using,
+            with,
             ..
         } = stat;
         let index_name = lower_case_name(name);
@@ -94,6 +204,7 @@ impl Binder {
             index_name: index_name.into(),
             table_id: table.id(),
             columns: column_ids,
+            index_type: self.parse_index_type(using, with)?,
         })));
         Ok(create)
     }

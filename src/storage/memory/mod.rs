@@ -22,6 +22,7 @@ use std::sync::{Arc, Mutex};
 
 use super::index::InMemoryIndexes;
 use super::{InMemoryIndex, Storage, StorageError, StorageResult, TracedStorageError};
+use crate::binder::IndexType;
 use crate::catalog::{
     ColumnCatalog, ColumnId, IndexId, RootCatalog, RootCatalogRef, SchemaId, TableId, TableRefId,
 };
@@ -133,10 +134,17 @@ impl Storage for InMemoryStorage {
         index_name: &str,
         table_id: TableId,
         column_idxs: &[ColumnId],
+        index_type: &IndexType,
     ) -> StorageResult<IndexId> {
         let idx_id = self
             .catalog
-            .add_index(schema_id, index_name.to_string(), table_id, column_idxs)
+            .add_index(
+                schema_id,
+                index_name.to_string(),
+                table_id,
+                column_idxs,
+                index_type,
+            )
             .map_err(|_| StorageError::Duplicated("index", index_name.into()))?;
         self.indexes
             .lock()

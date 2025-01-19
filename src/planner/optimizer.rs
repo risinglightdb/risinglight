@@ -121,13 +121,14 @@ static STAGE1_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
 });
 
 /// Stage2 rules in the optimizer.
-/// - pushdown predicate and projection
+/// - pushdown predicate, projection, and index scan
 static STAGE2_RULES: LazyLock<Vec<Rewrite>> = LazyLock::new(|| {
     let mut rules = vec![];
     rules.append(&mut rules::expr::rules());
     rules.append(&mut rules::plan::always_better_rules());
     rules.append(&mut rules::plan::predicate_pushdown_rules());
     rules.append(&mut rules::plan::projection_pushdown_rules());
+    rules.append(&mut rules::plan::index_scan_rules());
     rules
 });
 
