@@ -39,10 +39,10 @@ $(TPCH_DBGEN_PATH):
 
 tpch: $(TPCH_DBGEN_PATH)
 	make -C $(TPCH_DBGEN_PATH)
-	cd $(TPCH_DBGEN_PATH) && ./dbgen -f && mkdir -p tbl && mv *.tbl tbl
+	cd $(TPCH_DBGEN_PATH) && ./dbgen -f && mkdir -p tbl && mv *.tbl tbl && chmod -R 755 tbl
 
 tpch-10gb: $(TPCH_DBGEN_PATH)
 	make -C $(TPCH_DBGEN_PATH)
-	cd $(TPCH_DBGEN_PATH) && ./dbgen -f -s 10 && mkdir -p tbl && mv *.tbl tbl
+	cd $(TPCH_DBGEN_PATH) && ./dbgen -f -s 10 && mkdir -p tbl && mv *.tbl tbl && chmod -R 755 tbl
 
 .PHONY: docs check fmt fmt_check clippy clippy_check build test docs_check clean tpch

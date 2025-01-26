@@ -21,7 +21,7 @@ pub struct VarArray<T: ValueRef<U> + ?Sized, U: PrimitiveValueType = u8> {
     _type: PhantomData<T>,
 }
 
-pub trait PrimitiveValueType: Send + Sync + 'static + Copy + Clone + PartialEq + Eq + Hash {}
+pub trait PrimitiveValueType: Send + Sync + 'static + Copy + Clone + Default + PartialEq + Eq + Hash {}
 
 impl PrimitiveValueType for u8 {}
 impl PrimitiveValueType for F64 {}
@@ -57,10 +57,8 @@ impl ValueRef<F64> for VectorRef {
 
 pub type StringArray = VarArray<str>;
 pub type BlobArray = VarArray<BlobRef>;
-pub type VectorArray = VarArray<VectorRef, F64>;
 pub type StringArrayBuilder = BytesArrayBuilder<str>;
 pub type BlobArrayBuilder = BytesArrayBuilder<BlobRef>;
-pub type VectorArrayBuilder = BytesArrayBuilder<VectorRef, F64>;
 
 impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> Clone for VarArray<T, U> {
     fn clone(&self) -> Self {
