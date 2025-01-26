@@ -21,7 +21,10 @@ pub struct VarArray<T: ValueRef<U> + ?Sized, U: PrimitiveValueType = u8> {
     _type: PhantomData<T>,
 }
 
-pub trait PrimitiveValueType: Send + Sync + 'static + Copy + Clone + Default + PartialEq + Eq + Hash {}
+pub trait PrimitiveValueType:
+    Send + Sync + 'static + Copy + Clone + Default + PartialEq + Eq + Hash
+{
+}
 
 impl PrimitiveValueType for u8 {}
 impl PrimitiveValueType for F64 {}
