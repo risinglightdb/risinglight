@@ -16,6 +16,8 @@ mod primitive_block_builder;
 mod primitive_block_iterator;
 mod rle_block_builder;
 mod rle_block_iterator;
+mod vector_block_builder;
+mod vector_block_iterator;
 
 use bitvec::prelude::{BitVec, Lsb0};
 pub use blob_block_builder::*;
@@ -38,6 +40,8 @@ pub use block_index_builder::*;
 use bytes::{Buf, BufMut, Bytes};
 use risinglight_proto::rowset::block_checksum::ChecksumType;
 use risinglight_proto::rowset::block_index::BlockType;
+pub use vector_block_builder::*;
+pub use vector_block_iterator::*;
 
 use super::StorageResult;
 use crate::array::Array;

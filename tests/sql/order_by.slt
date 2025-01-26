@@ -80,5 +80,12 @@ select v1 as a from t order by a
 4
 10
 
+query I
+select v1 as a from t order by -a limit 3
+----
+10
+4
+3
+
 statement ok
 drop table t
