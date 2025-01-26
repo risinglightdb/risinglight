@@ -88,6 +88,7 @@ impl Binder {
             return Err(ErrorKind::InvalidIndex("using clause is required".to_string()).into());
         };
         match using.to_string().to_lowercase().as_str() {
+            "btree" => Ok(IndexType::Btree),
             "hnsw" => Ok(IndexType::Hnsw),
             "ivfflat" => {
                 let mut distfn = None;
