@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737879936824,
+  "lastUpdate": 1737918985802,
   "repoUrl": "https://github.com/risinglightdb/risinglight",
   "entries": {
     "Rust Benchmark": [
@@ -2855,6 +2855,294 @@ window.BENCHMARK_DATA = {
             "name": "run-q22",
             "value": 171874610,
             "range": "± 1912184",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4198311+skyzh@users.noreply.github.com",
+            "name": "Alex Chi Z.",
+            "username": "skyzh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1d646b8f69f21a91d33db8bd67bc9d4d74c77844",
+          "message": "feat(storage): support vector block (#871)\n\nWe added a new block type that stores fixed-size chunk data. The\nin-memory array type is added in\nhttps://github.com/risinglightdb/risinglight/pull/869.\n\nhttps://github.com/risinglightdb/risinglight/issues/864\n\n---------\n\nSigned-off-by: Alex Chi Z <iskyzh@gmail.com>\nSigned-off-by: Runji Wang <wangrunji0408@163.com>\nSigned-off-by: Alex Chi <iskyzh@gmail.com>\nCo-authored-by: Runji Wang <wangrunji0408@163.com>",
+          "timestamp": "2025-01-26T18:49:09Z",
+          "tree_id": "0133114933e7f853775ca626ae4a772a1299cfc8",
+          "url": "https://github.com/risinglightdb/risinglight/commit/1d646b8f69f21a91d33db8bd67bc9d4d74c77844"
+        },
+        "date": 1737918984815,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "explain-q1",
+            "value": 2553120,
+            "range": "± 7505",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q2",
+            "value": 399485611,
+            "range": "± 4483742",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q3",
+            "value": 57141548,
+            "range": "± 264676",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q4",
+            "value": 4311938,
+            "range": "± 16940",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q5",
+            "value": 313678920,
+            "range": "± 1986274",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q6",
+            "value": 25196301,
+            "range": "± 66401",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q7",
+            "value": 240047795,
+            "range": "± 1405747",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q8",
+            "value": 431529343,
+            "range": "± 4398725",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q9",
+            "value": 298042686,
+            "range": "± 2775386",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q10",
+            "value": 190173697,
+            "range": "± 1166062",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q11",
+            "value": 65022368,
+            "range": "± 220378",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q12",
+            "value": 71883930,
+            "range": "± 312590",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q13",
+            "value": 3072980,
+            "range": "± 19147",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q14",
+            "value": 8887003,
+            "range": "± 45009",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q15",
+            "value": 1903121,
+            "range": "± 13864",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q16",
+            "value": 17483356,
+            "range": "± 103013",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q17",
+            "value": 29067119,
+            "range": "± 90320",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q18",
+            "value": 33327545,
+            "range": "± 92759",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q19",
+            "value": 34007920,
+            "range": "± 94043",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q20",
+            "value": 16258277,
+            "range": "± 152176",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q21",
+            "value": 204671346,
+            "range": "± 678172",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q22",
+            "value": 9458800,
+            "range": "± 18878",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q1",
+            "value": 3021396401,
+            "range": "± 132051909",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q2",
+            "value": 708846462,
+            "range": "± 4762935",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q3",
+            "value": 682031985,
+            "range": "± 11070703",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q4",
+            "value": 553563308,
+            "range": "± 7179480",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q5",
+            "value": 993466509,
+            "range": "± 11387101",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q6",
+            "value": 286900056,
+            "range": "± 6153869",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q7",
+            "value": 3209533426,
+            "range": "± 100608325",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q8",
+            "value": 4890880021,
+            "range": "± 54167779",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q9",
+            "value": 1340285654,
+            "range": "± 18772091",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q10",
+            "value": 969626555,
+            "range": "± 11740194",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q11",
+            "value": 141710552,
+            "range": "± 775506",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q12",
+            "value": 499367316,
+            "range": "± 2630819",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q13",
+            "value": 892091582,
+            "range": "± 11255884",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q14",
+            "value": 317758286,
+            "range": "± 15409132",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q15",
+            "value": 233619263,
+            "range": "± 2954631",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q16",
+            "value": 193655283,
+            "range": "± 4119388",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q17",
+            "value": 8807605471,
+            "range": "± 165251980",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q18",
+            "value": 4548540276,
+            "range": "± 133611541",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q19",
+            "value": 806769109,
+            "range": "± 5171561",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q20",
+            "value": 2279445829,
+            "range": "± 51594789",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q21",
+            "value": 4695034630,
+            "range": "± 166086396",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q22",
+            "value": 230886845,
+            "range": "± 5515587",
             "unit": "ns/iter"
           }
         ]
