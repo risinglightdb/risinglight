@@ -404,7 +404,8 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
 #[rustfmt::skip]
 pub fn index_scan_rules() -> Vec<Rewrite> { vec![
     rw!("vector-index-scan-1";
-        "(order (list (<-> ?column ?vector)) (scan ?table ?columns ?filter))" => "(vector_index_scan ?table ?columns ?filter <-> ?column ?vector)"
+        "(order (list (<-> ?column ?vector)) (scan ?table ?columns ?filter))" =>
+        "(vector_index_scan ?table ?columns ?filter <-> ?column ?vector)"
         if has_vector_index("?column", "<->", "?vector", "?filter")
     ),
     rw!("vector-index-scan-2";
