@@ -248,13 +248,12 @@ impl<'a> Explain<'a> {
                     ("filter", self.expr(filter).pretty()),
                 ]),
             ),
-            IndexScan([table, columns, filter, op, key, vector]) => Pretty::childless_record(
+            IndexScan([table, columns, filter, key, vector]) => Pretty::childless_record(
                 "IndexScan",
                 with_meta(vec![
                     ("table", self.expr(table).pretty()),
                     ("columns", self.expr(columns).pretty()),
                     ("filter", self.expr(filter).pretty()),
-                    ("op", self.expr(op).pretty()),
                     ("key", self.expr(key).pretty()),
                     ("vector", self.expr(vector).pretty()),
                 ]),

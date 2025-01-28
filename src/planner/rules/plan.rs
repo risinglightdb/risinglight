@@ -405,19 +405,24 @@ pub fn projection_pushdown_rules() -> Vec<Rewrite> { vec![
 pub fn index_scan_rules() -> Vec<Rewrite> { vec![
     rw!("vector-index-scan-1";
         "(order (list (<-> ?column ?vector)) (scan ?table ?columns ?filter))" =>
-        "(vector_index_scan ?table ?columns ?filter <-> ?column ?vector)"
+        "(index_scan ?table ?columns ?filter ?column ?vector)"
         if has_vector_index("?column", "<->", "?vector", "?filter")
     ),
     rw!("vector-index-scan-2";
-        "(order (list (<#> ?column ?vector)) (scan ?table ?columns ?filter))" => "(vector_index_scan ?table ?columns ?filter <#> ?column ?vector)"
+        "(order (list (<#> ?column ?vector)) (scan ?table ?columns ?filter))" =>
+        "(index_scan ?table ?columns ?filter ?column ?vector)"
         if has_vector_index("?column", "<#>", "?vector", "?filter")
     ),
     rw!("vector-index-scan-3";
-        "(order (list (<=> ?column ?vector)) (scan ?table ?columns ?filter))" => "(vector_index_scan ?table ?columns ?filter <=> ?column ?vector)"
+        "(order (list (<=> ?column ?vector)) (scan ?table ?columns ?filter))" =>
+        "(index_scan ?table ?columns ?filter ?column ?vector)"
         if has_vector_index("?column", "<=>", "?vector", "?filter")
     ),
 ]}
 
+/// Check if there is a vector index matching the statement. i.e.,
+/// `SELECT * FROM t ORDER BY v <-> constant_vector` will match the index
+/// on the table t with the vector column v and using the `<->` distance function.
 fn has_vector_index(
     column: &str,
     op: &str,
@@ -435,13 +440,15 @@ fn has_vector_index(
         let Ok(vector_op) = op.parse::<VectorDistance>() else {
             return false;
         };
-        // Only support null filter or always true filter for now
+        // Only support null filter or always true filter for now. Check if the filter is null or
+        // true.
         if !matches!(filter.constant, Some(DataValue::Bool(true)) | None) {
             return false;
         }
         if !matches!(vector.constant, Some(DataValue::Vector(_))) {
             return false;
         }
+        // Check if the order by statement is in the form of vector column <-> constant vector
         if column.columns.len() != 1 {
             return false;
         }
@@ -452,6 +459,7 @@ fn has_vector_index(
         let catalog = &egraph.analysis.catalog;
         let indexes = catalog.get_index_on_table(col.schema_id, col.table_id);
         for index_id in indexes {
+            // Check if any index matches the exact op and the column
             let index = catalog.get_index_by_id(col.schema_id, index_id).unwrap();
             if index.column_idxs() != [col.column_id] {
                 continue;
