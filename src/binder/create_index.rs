@@ -22,12 +22,9 @@ impl FromStr for VectorDistance {
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
-            "cosine" => Ok(VectorDistance::Cosine),
-            "<=>" => Ok(VectorDistance::Cosine),
-            "l2" => Ok(VectorDistance::L2),
-            "<->" => Ok(VectorDistance::L2),
-            "dotproduct" => Ok(VectorDistance::NegativeDotProduct),
-            "<#>" => Ok(VectorDistance::NegativeDotProduct),
+            "cosine" | "<=>" => Ok(VectorDistance::Cosine),
+            "l2" | "<->" => Ok(VectorDistance::L2),
+            "dotproduct" | "<#>" => Ok(VectorDistance::NegativeDotProduct),
             _ => Err(format!("invalid vector distance: {}", s)),
         }
     }
