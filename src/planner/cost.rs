@@ -31,7 +31,7 @@ impl egg::CostFunction<Expr> for CostFn<'_> {
 
         let c = match enode {
             // plan nodes
-            Scan(_) | Values(_) => build(),
+            Scan(_) | Values(_) | IndexScan(_) => build(),
             Order([_, c]) => nlogn(rows(c)) + build() + costs(c),
             Filter([exprs, c]) => costs(exprs) * rows(c) + build() + costs(c),
             Proj([exprs, c]) | Window([exprs, c]) => costs(exprs) * rows(c) + costs(c),

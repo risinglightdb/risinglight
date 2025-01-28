@@ -12,7 +12,7 @@ query ITIT rowsort
 1 postgres 0 t
 
 statement ok
-create index i1 on t(v1)
+create index i1 on t using btree (v1)
 
 query ITITITT rowsort
 \di

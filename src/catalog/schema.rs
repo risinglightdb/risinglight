@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use super::function::FunctionCatalog;
 use super::*;
+use crate::binder::IndexType;
 use crate::planner::RecExpr;
 
 /// The catalog of a schema.
@@ -62,13 +63,20 @@ impl SchemaCatalog {
         name: String,
         table_id: TableId,
         columns: Vec<ColumnId>,
+        index_type: &IndexType,
     ) -> Result<IndexId, CatalogError> {
         if self.indexes_idxs.contains_key(&name) {
             return Err(CatalogError::Duplicated("index", name));
         }
         let index_id = self.next_id;
         self.next_id += 1;
-        let index_catalog = Arc::new(IndexCatalog::new(index_id, name.clone(), table_id, columns));
+        let index_catalog = Arc::new(IndexCatalog::new(
+            index_id,
+            name.clone(),
+            table_id,
+            columns,
+            index_type.clone(),
+        ));
         self.indexes_idxs.insert(name, index_id);
         self.indexes.insert(index_id, index_catalog);
         Ok(index_id)

@@ -1,0 +1,18 @@
+- sql: |
+    explain select * from t order by a <-> '[0, 0, 1]'::VECTOR(3);
+  desc: match the index
+  before:
+    - CREATE TABLE t (a vector(3) not null, b text not null);
+      INSERT INTO t VALUES ('[0, 0, 1]', 'a'), ('[0, 0, 2]', 'b'), ('[0, 0, 3]', 'c');
+      CREATE INDEX t_ivfflat ON t USING ivfflat (a) WITH (distfn = '<->', nlists = 3, nprobe = 2);
+  tasks:
+    - print
+- sql: |
+    explain select * from t order by a <=> '[0, 0, 1]'::VECTOR(3);
+  desc: match the index
+  before:
+    - CREATE TABLE t (a vector(3) not null, b text not null);
+      INSERT INTO t VALUES ('[0, 0, 1]', 'a'), ('[0, 0, 2]', 'b'), ('[0, 0, 3]', 'c');
+      CREATE INDEX t_ivfflat ON t USING ivfflat (a) WITH (distfn = '<->', nlists = 3, nprobe = 2);
+  tasks:
+    - print
