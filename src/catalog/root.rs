@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use super::function::FunctionCatalog;
 use super::*;
+use crate::binder::IndexType;
 use crate::parser;
 use crate::planner::RecExpr;
 
@@ -104,10 +105,11 @@ impl RootCatalog {
         index_name: String,
         table_id: TableId,
         column_idxs: &[ColumnId],
+        index_type: &IndexType,
     ) -> Result<IndexId, CatalogError> {
         let mut inner = self.inner.lock().unwrap();
         let schema = inner.schemas.get_mut(&schema_id).unwrap();
-        schema.add_index(index_name, table_id, column_idxs.to_vec())
+        schema.add_index(index_name, table_id, column_idxs.to_vec(), index_type)
     }
 
     pub fn get_index_on_table(&self, schema_id: SchemaId, table_id: TableId) -> Vec<IndexId> {

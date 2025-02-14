@@ -21,6 +21,7 @@ impl<S: Storage> CreateIndexExecutor<S> {
                 &self.index.index_name,
                 self.index.table_id,
                 &self.index.columns,
+                &self.index.index_type,
             )
             .await?;
 

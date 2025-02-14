@@ -1,0 +1,18 @@
+# vector_index
+statement ok
+create table t (a vector(3) not null, b text not null);
+
+statement ok
+insert into t values ('[-1, -2.0, -3]', 'a'), ('[1, 2.0, 3]', 'b');
+
+query RRR
+select * from t order by a <-> '[0, 0, 1]'::VECTOR(3);
+----
+[1,2,3] b
+[-1,-2,-3] a
+
+statement ok
+CREATE INDEX t_ivfflat ON t USING ivfflat (a) WITH (distfn = 'l2', nlists = 3, nprobe = 2);
+
+statement ok
+drop table t
