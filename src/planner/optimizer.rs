@@ -32,26 +32,47 @@ impl Optimizer {
         }
     }
 
-    /// Optimize the given expression.
-    pub fn optimize(&self, mut expr: RecExpr) -> RecExpr {
-        let mut cost = f32::MAX;
+/// Optimize the given expression.
+pub fn optimize(&self, mut expr: RecExpr) -> RecExpr {
+    let mut cost = f32::MAX;
 
-        // define extra rules for some configurations
-        let mut extra_rules = vec![];
-        if self.analysis.config.enable_range_filter_scan {
-            extra_rules.append(&mut rules::range::filter_scan_rule());
-        }
-
-        // 1. pushdown apply
-        self.optimize_stage(&mut expr, &mut cost, STAGE1_RULES.iter(), 2, 6);
-        // 2. pushdown predicate and projection
-        let rules = STAGE2_RULES.iter().chain(&extra_rules);
-        self.optimize_stage(&mut expr, &mut cost, rules, 4, 6);
-        // 3. join reorder and hashjoin
-        self.optimize_stage(&mut expr, &mut cost, STAGE3_RULES.iter(), 3, 8);
-        expr
+    // Define extra rules for some configurations
+    let mut extra_rules = vec![];
+    if self.analysis.config.enable_range_filter_scan {
+        extra_rules.append(&mut rules::range::filter_scan_rule());
     }
 
+    // Print initial expression and cost
+    println!("[Initial] Expression: {:?}", expr);
+    println!("[Initial] Cost: {}", cost);
+    println!("");
+
+    // 1. pushdown apply
+    self.optimize_stage(&mut expr, &mut cost, STAGE1_RULES.iter(), 2, 6);
+    println!("[After Stage 1] Expression: {:?}", expr);
+    println!("[After Stage 1] Cost: {}", cost);
+    println!("");
+
+    // 2. pushdown predicate and projection
+    let rules = STAGE2_RULES.iter().chain(&extra_rules);
+    self.optimize_stage(&mut expr, &mut cost, rules, 4, 6);
+    println!("[After Stage 2] Expression: {:?}", expr);
+    println!("[After Stage 2] Cost: {}", cost);
+    println!("");
+
+    // 3. join reorder and hashjoin
+    self.optimize_stage(&mut expr, &mut cost, STAGE3_RULES.iter(), 3, 8);
+    println!("[After Stage 3] Expression: {:?}", expr);
+    println!("[After Stage 3] Cost: {}", cost);
+    println!("");
+
+    // Print final expression and cost
+    println!("[Final] Expression: {:?}", expr);
+    println!("[Final] Cost: {}", cost);
+    println!("");
+
+    expr
+}
     /// Optimize the expression with the given rules in multiple iterations.
     /// In each iteration, the best expression is selected as the input of the next iteration.
     fn optimize_stage<'a>(
