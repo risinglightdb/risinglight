@@ -447,6 +447,7 @@ impl Binder {
             "first" => Node::First(args[0]),
             "last" => Node::Last(args[0]),
             "replace" => Node::Replace([args[0], args[1], args[2]]),
+            "repeat" => Node::Repeat([args[0], args[1]]),
             "row_number" => Node::RowNumber,
             name => todo!("Unsupported function: {}", name),
         };

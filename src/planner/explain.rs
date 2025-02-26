@@ -176,6 +176,13 @@ impl<'a> Explain<'a> {
                     ("to", self.expr(c).pretty()),
                 ],
             ),
+            Repeat([str, num]) => Pretty::childless_record(
+                "Repeat",
+                vec![
+                    ("str", self.expr(str).pretty()),
+                    ("num", self.expr(num).pretty()),
+                ],
+            ),
             Substring([str, start, len]) => Pretty::childless_record(
                 "Substring",
                 vec![

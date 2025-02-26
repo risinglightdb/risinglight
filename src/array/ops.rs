@@ -635,6 +635,26 @@ impl ArrayImpl {
         Ok(A::new_string(unary_op(a.as_ref(), |s| s.replace(from, to))))
     }
 
+    pub fn repeat(&self, num: &Self) -> Result {
+        let (A::String(a), A::Int32(b)) = (self, num) else {
+            return Err(ConvertError::NoBinaryOp(
+                "repeat".into(),
+                self.type_string(),
+                num.type_string(),
+            ));
+        };
+        Ok(A::new_string(binary_op(
+            a.as_ref(),
+            b.as_ref(),
+            |a, b| {
+                if *b < 0 {
+                    return String::new();
+                }
+                a.repeat(*b as usize)
+            },
+        )))
+    }
+
     pub fn vector_l2_distance(&self, other: &ArrayImpl) -> Result {
         let ArrayImpl::Vector(a) = self else {
             return Err(ConvertError::NoBinaryOp(

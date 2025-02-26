@@ -132,6 +132,11 @@ impl<'a> Evaluator<'a> {
                 };
                 a.replace(from, to)
             }
+            Repeat([str, num]) => {
+                let str = self.next(*str).eval(chunk)?;
+                let num = self.next(*num).eval(chunk)?;
+                str.repeat(&num)
+            }
             VectorL2Distance([a, b]) => {
                 let a = self.next(*a).eval(chunk)?;
                 let b = self.next(*b).eval(chunk)?;

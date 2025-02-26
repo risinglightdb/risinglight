@@ -67,6 +67,7 @@ define_language! {
         "extract" = Extract([Id; 2]),           // (extract field expr)
             Field(DateTimeField),
         "replace" = Replace([Id; 3]),           // (replace expr pattern replacement)
+        "repeat" = Repeat([Id; 2]),             // (repeat expr the specified number of times)
         "substring" = Substring([Id; 3]),       // (substring expr start length)
 
         // vector functions
