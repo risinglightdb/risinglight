@@ -643,16 +643,13 @@ impl ArrayImpl {
                 num.type_string(),
             ));
         };
-        Ok(A::new_string(binary_op(
-            a.as_ref(),
-            b.as_ref(),
-            |a, b| {
-                if *b < 0 {
-                    return String::new();
-                }
-                a.repeat(*b as usize)
-            },
-        )))
+        Ok(A::new_string(binary_op(a.as_ref(), b.as_ref(), |a, b| {
+            let mut res = String::new();
+            for _ in 0..(*b) {
+                res += a;
+            }
+            res
+        })))
     }
 
     pub fn vector_l2_distance(&self, other: &ArrayImpl) -> Result {

@@ -1,0 +1,34 @@
+query I
+select repeat('abc', 3);
+----
+abcabcabc
+
+statement ok
+create table t(v varchar(20));
+
+statement ok
+insert into t values ('test1'), ('test2'), ('test3'), ('test4'), ('test5'), ('test6'), ('test7'), ('test8');
+
+query I
+select repeat(v, 2) from t;
+----
+test1test1
+test2test2
+test3test3
+test4test4
+test5test5
+test6test6
+test7test7
+test8test8
+
+query I
+select repeat(v, -1) from t;
+----
+(empty)
+(empty)
+(empty)
+(empty)
+(empty)
+(empty)
+(empty)
+(empty)
