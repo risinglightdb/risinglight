@@ -132,7 +132,9 @@ pub fn analyze_type(
                     .then_some(DataType::String)
             })
         }
-
+        Repeat([str, num]) => merge(enode, [x(str)?, x(num)?], |[str, num]| {
+            (str == DataType::String && num == DataType::Int32).then_some(DataType::String)
+        }),
         // number agg
         Max(a) | Min(a) => x(a),
         Sum(a) => check(enode, x(a)?, |a| a.is_number()),
