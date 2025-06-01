@@ -149,7 +149,7 @@ fn read_sql(rl: &mut Editor<&Database, DefaultHistory>) -> Result<String, Readli
     let mut sql = String::new();
     loop {
         let prompt = if sql.is_empty() { "> " } else { "? " };
-        let line = rl.readline(prompt)?;
+        let line = rl.readline(prompt)?.trim().to_string();
         if line.is_empty() {
             continue;
         }
