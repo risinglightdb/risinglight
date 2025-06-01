@@ -27,7 +27,7 @@ jobs:
         with:
           profile: minimal
           components: rustfmt, clippy
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry/index/
@@ -50,7 +50,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry/index/
@@ -74,7 +74,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry/index/
