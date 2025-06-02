@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748748134758,
+  "lastUpdate": 1748854775729,
   "repoUrl": "https://github.com/risinglightdb/risinglight",
   "entries": {
     "Rust Benchmark": [
@@ -4007,6 +4007,294 @@ window.BENCHMARK_DATA = {
             "name": "run-q22",
             "value": 191643030,
             "range": "± 6662669",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "105760760+rtadepalli@users.noreply.github.com",
+            "name": "rtadepalli",
+            "username": "rtadepalli"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "303712c3ae0c885fb909823832d5ac5e07cd7907",
+          "message": "fix(query): trim input while reading (#877)\n\nRight now if the query is `create table employees (firstname varchar); `\n(with some spaces at the end) the prompt is going to be `?`. The query\nwill only be processed if another semicolon is added. Trim the response\nsuch that there is no need to add a second semicolon.\n\nSigned-off-by: Ramasai Tadepalli <ramasai.tadepalli+3108@gmail.com>",
+          "timestamp": "2025-06-02T08:32:30Z",
+          "tree_id": "c226bbf064e55acaff06653e2c9fef27b123db92",
+          "url": "https://github.com/risinglightdb/risinglight/commit/303712c3ae0c885fb909823832d5ac5e07cd7907"
+        },
+        "date": 1748854774550,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "explain-q1",
+            "value": 2567211,
+            "range": "± 10469",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q2",
+            "value": 385282003,
+            "range": "± 6538780",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q3",
+            "value": 56201408,
+            "range": "± 308258",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q4",
+            "value": 4387738,
+            "range": "± 24601",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q5",
+            "value": 298069178,
+            "range": "± 3270551",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q6",
+            "value": 24635169,
+            "range": "± 76347",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q7",
+            "value": 232981311,
+            "range": "± 4006793",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q8",
+            "value": 427660584,
+            "range": "± 7409306",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q9",
+            "value": 290945938,
+            "range": "± 2292141",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q10",
+            "value": 185351654,
+            "range": "± 1923797",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q11",
+            "value": 64426900,
+            "range": "± 182910",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q12",
+            "value": 70673897,
+            "range": "± 368205",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q13",
+            "value": 3106352,
+            "range": "± 6873",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q14",
+            "value": 8874432,
+            "range": "± 59041",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q15",
+            "value": 1919546,
+            "range": "± 7196",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q16",
+            "value": 17178144,
+            "range": "± 142903",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q17",
+            "value": 28532931,
+            "range": "± 285396",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q18",
+            "value": 33015344,
+            "range": "± 67035",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q19",
+            "value": 33215151,
+            "range": "± 212455",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q20",
+            "value": 16055980,
+            "range": "± 47488",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q21",
+            "value": 195294516,
+            "range": "± 1876881",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "explain-q22",
+            "value": 9388854,
+            "range": "± 29652",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q1",
+            "value": 3009242592,
+            "range": "± 18194401",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q2",
+            "value": 703937993,
+            "range": "± 6343661",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q3",
+            "value": 703072664,
+            "range": "± 20505529",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q4",
+            "value": 533621948,
+            "range": "± 3785505",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q5",
+            "value": 969543445,
+            "range": "± 9145991",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q6",
+            "value": 286646223,
+            "range": "± 1393850",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q7",
+            "value": 3083122284,
+            "range": "± 79308403",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q8",
+            "value": 4636675302,
+            "range": "± 37288766",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q9",
+            "value": 1301614185,
+            "range": "± 16121680",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q10",
+            "value": 954056344,
+            "range": "± 16009149",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q11",
+            "value": 142342102,
+            "range": "± 848326",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q12",
+            "value": 491388997,
+            "range": "± 6169754",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q13",
+            "value": 890843754,
+            "range": "± 3763172",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q14",
+            "value": 303892434,
+            "range": "± 4021160",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q15",
+            "value": 233529411,
+            "range": "± 4996568",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q16",
+            "value": 187678866,
+            "range": "± 2733244",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q17",
+            "value": 8212402485,
+            "range": "± 318234760",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q18",
+            "value": 4164334655,
+            "range": "± 67043178",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q19",
+            "value": 797946879,
+            "range": "± 3027739",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q20",
+            "value": 2032036915,
+            "range": "± 30705268",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q21",
+            "value": 4046250540,
+            "range": "± 91523977",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "run-q22",
+            "value": 173600544,
+            "range": "± 1392269",
             "unit": "ns/iter"
           }
         ]
