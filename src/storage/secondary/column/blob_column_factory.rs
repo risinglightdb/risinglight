@@ -22,6 +22,7 @@ pub enum BlobBlockIteratorImpl {
     RleNullable(RleBlockIterator<BlobArray, PlainNullableBlobBlockIterator>),
     Dictionary(DictBlockIterator<BlobArray, PlainBlobBlockIterator<BlobRef>>),
     DictNullable(DictBlockIterator<BlobArray, PlainNullableBlobBlockIterator>),
+    #[expect(dead_code)]
     Fake(FakeBlockIterator<BlobArray>),
 }
 

@@ -159,10 +159,10 @@ impl ColumnBuilder<BlobArray> for BlobColumnBuilder {
                         ));
                     }
                 }
-                if let Some(to_be_appended) = iter.peek() {
-                    if self.options.record_first_key {
-                        self.first_key = to_be_appended.map(|x| x.to_byte_slice().to_vec());
-                    }
+                if let Some(to_be_appended) = iter.peek()
+                    && self.options.record_first_key
+                {
+                    self.first_key = to_be_appended.map(|x| x.to_byte_slice().to_vec());
                 }
             }
 

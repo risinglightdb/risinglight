@@ -181,10 +181,10 @@ async fn interactive(db: Database, output_format: Option<String>) -> Result<()> 
         history_path.into_boxed_path()
     });
 
-    if let Some(ref history_path) = history_path {
-        if let Err(err) = rl.load_history(&history_path) {
-            println!("No previous history. {err}");
-        }
+    if let Some(ref history_path) = history_path
+        && let Err(err) = rl.load_history(&history_path)
+    {
+        println!("No previous history. {err}");
     }
 
     let db = Arc::new(db);
@@ -213,10 +213,10 @@ async fn interactive(db: Database, output_format: Option<String>) -> Result<()> 
         }
     }
 
-    if let Some(ref history_path) = history_path {
-        if let Err(err) = rl.save_history(&history_path) {
-            println!("Save history failed, {err}");
-        }
+    if let Some(ref history_path) = history_path
+        && let Err(err) = rl.save_history(&history_path)
+    {
+        println!("Save history failed, {err}");
     }
 
     Ok(())

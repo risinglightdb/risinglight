@@ -26,7 +26,7 @@ fn insert(c: &mut Criterion) {
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
             let sql = std::iter::once("insert into t values ")
-                .chain(std::iter::repeat("(1,10,100),").take(size - 1))
+                .chain(std::iter::repeat_n("(1,10,100),", size - 1))
                 .chain(std::iter::once("(1,10,100)"))
                 .collect::<String>();
             b.to_async(&runtime).iter_batched(
@@ -55,7 +55,7 @@ fn select_add(c: &mut Criterion) {
     for size in [1, 16, 256, 4096, 65536] {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
             let insert_sql = std::iter::once("insert into t values ")
-                .chain(std::iter::repeat("(1,10),").take(size - 1))
+                .chain(std::iter::repeat_n("(1,10),", size - 1))
                 .chain(std::iter::once("(1,10)"))
                 .collect::<String>();
             b.to_async(&runtime).iter_batched(

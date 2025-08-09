@@ -213,8 +213,8 @@ impl SecondaryMemRowsetImpl {
 
     pub fn get_rowset_id(&self) -> u32 {
         match self {
-            Self::BTree( mem) => mem.rowset_id,
-            Self::Column( mem) => mem.rowset_id,
+            Self::BTree(mem) => mem.rowset_id,
+            Self::Column(mem) => mem.rowset_id,
         }
     }
 }

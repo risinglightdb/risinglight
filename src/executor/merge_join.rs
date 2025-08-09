@@ -42,7 +42,7 @@ impl<const T: JoinType> MergeJoinExecutor<T> {
                 }
                 // left join if left key < right key or right is finished
                 (Some((lkey, lchunk)), _)
-                    if right_group.as_ref().map_or(true, |(rkey, _)| lkey < rkey) =>
+                    if right_group.as_ref().is_none_or(|(rkey, _)| lkey < rkey) =>
                 {
                     if T == JoinType::LeftOuter || T == JoinType::FullOuter {
                         for left_row in lchunk {
@@ -57,7 +57,7 @@ impl<const T: JoinType> MergeJoinExecutor<T> {
                 }
                 // right join if left key > right key or left is finished
                 (_, Some((rkey, rchunk)))
-                    if left_group.as_ref().map_or(true, |(lkey, _)| lkey > rkey) =>
+                    if left_group.as_ref().is_none_or(|(lkey, _)| lkey > rkey) =>
                 {
                     if T == JoinType::RightOuter || T == JoinType::FullOuter {
                         for right_row in rchunk {

@@ -229,10 +229,10 @@ impl ColumnBuilder<StringArray> for CharColumnBuilder {
                     }
                 }
 
-                if let Some(to_be_appended) = iter.peek() {
-                    if self.options.record_first_key {
-                        self.first_key = to_be_appended.map(|x| x.as_bytes().to_vec());
-                    }
+                if let Some(to_be_appended) = iter.peek()
+                    && self.options.record_first_key
+                {
+                    self.first_key = to_be_appended.map(|x| x.as_bytes().to_vec());
                 }
             }
 

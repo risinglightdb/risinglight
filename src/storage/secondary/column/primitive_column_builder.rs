@@ -223,14 +223,14 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                     }
                 }
 
-                if let Some(to_be_appended) = iter.peek() {
-                    if self.options.record_first_key {
-                        self.first_key = to_be_appended.map(|x| {
-                            let mut first_key = vec![];
-                            x.encode(&mut first_key);
-                            first_key
-                        });
-                    }
+                if let Some(to_be_appended) = iter.peek()
+                    && self.options.record_first_key
+                {
+                    self.first_key = to_be_appended.map(|x| {
+                        let mut first_key = vec![];
+                        x.encode(&mut first_key);
+                        first_key
+                    });
                 }
             }
 

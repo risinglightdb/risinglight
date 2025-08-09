@@ -39,7 +39,7 @@ impl RowSetIterator {
             _ => todo!(),
         };
 
-        if column_refs.len() == 0 {
+        if column_refs.is_empty() {
             panic!("no column to iterate")
         }
 

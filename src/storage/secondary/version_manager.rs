@@ -84,10 +84,10 @@ impl Snapshot {
     }
 
     pub fn get_dvs_of(&self, table_id: u32, rowset_id: u32) -> Option<&HashSet<u64>> {
-        if let Some(rowset) = self.dvs.get(&table_id) {
-            if let Some(dvs) = rowset.get(&rowset_id) {
-                return Some(dvs);
-            }
+        if let Some(rowset) = self.dvs.get(&table_id)
+            && let Some(dvs) = rowset.get(&rowset_id)
+        {
+            return Some(dvs);
         }
         None
     }

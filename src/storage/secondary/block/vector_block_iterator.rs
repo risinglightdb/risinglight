@@ -68,7 +68,7 @@ impl NonNullableBlockIterator<VectorArray> for PlainVectorBlockIterator {
 
             let from = self.next_row * self.element_size * std::mem::size_of::<f64>();
             let to = from + self.element_size * std::mem::size_of::<f64>();
-            assert!((to - from) % std::mem::size_of::<f64>() == 0);
+            assert!((to - from).is_multiple_of(std::mem::size_of::<f64>()));
             self.vec_buffer.clear();
             self.vec_buffer
                 .reserve(self.element_size * std::mem::size_of::<f64>());

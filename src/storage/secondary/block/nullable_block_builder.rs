@@ -52,7 +52,7 @@ where
     }
 
     fn estimated_size(&self) -> usize {
-        let bitmap_byte_len = (self.bitmap.len() + 7) / 8;
+        let bitmap_byte_len = self.bitmap.len().div_ceil(8);
         self.inner_builder.estimated_size() + bitmap_byte_len
     }
 

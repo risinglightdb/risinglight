@@ -161,7 +161,7 @@ impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
     fn push_n(&mut self, n: usize, value: Option<&T>) {
         self.valid.resize(self.valid.len() + n, value.is_some());
         self.data
-            .extend(std::iter::repeat(value.cloned().unwrap_or_default()).take(n));
+            .extend(std::iter::repeat_n(value.cloned().unwrap_or_default(), n));
     }
 
     fn append(&mut self, other: &PrimitiveArray<T>) {

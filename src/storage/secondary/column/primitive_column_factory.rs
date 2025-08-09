@@ -26,6 +26,7 @@ pub enum PrimitiveBlockIteratorImpl<T: PrimitiveFixedWidthEncode> {
             NullableBlockIterator<T::ArrayType, PlainPrimitiveBlockIterator<T>>,
         >,
     ),
+    #[expect(dead_code)]
     Fake(FakeBlockIterator<T::ArrayType>),
     Dictionary(DictBlockIterator<T::ArrayType, PlainPrimitiveBlockIterator<T>>),
     DictNullable(
@@ -392,7 +393,11 @@ mod tests {
         .await
         .unwrap();
         let mut recv_data = vec![];
-        let size = if cnt % len == 0 { len } else { cnt % len };
+        let size = if cnt.is_multiple_of(len) {
+            len
+        } else {
+            cnt % len
+        };
 
         scanner.skip(cnt);
         if let Some((start_row_id, data)) = scanner.next_batch(Some(size)).await.unwrap() {

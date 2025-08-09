@@ -34,6 +34,7 @@ pub enum CharBlockIteratorImpl {
     DictNullableFixedChar(DictBlockIterator<StringArray, NullableCharBlockIterator>),
     DictVarchar(DictBlockIterator<StringArray, PlainBlobBlockIterator<str>>),
     DictNullableVarchar(DictBlockIterator<StringArray, NullableVarcharBlockIterator>),
+    #[expect(dead_code)]
     Fake(FakeBlockIterator<StringArray>),
 }
 

@@ -201,8 +201,7 @@ impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> ArrayBuilder for BytesArray
                 self.offset.push(self.data.len());
             }
         } else {
-            self.offset
-                .extend(std::iter::repeat(self.data.len()).take(n));
+            self.offset.extend(std::iter::repeat_n(self.data.len(), n));
         }
     }
 

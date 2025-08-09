@@ -82,11 +82,11 @@ impl DeleteVector {
         let mut iter = self.deletes.iter().skip(pos).peekable();
 
         for (row_id, mut bitref) in (offset_row_id as usize..).zip(data.iter_mut()) {
-            if let Some(unset_row_id) = iter.peek() {
-                if **unset_row_id == row_id as u32 {
-                    bitref.set(false);
-                    iter.next();
-                }
+            if let Some(unset_row_id) = iter.peek()
+                && **unset_row_id == row_id as u32
+            {
+                bitref.set(false);
+                iter.next();
             }
         }
     }

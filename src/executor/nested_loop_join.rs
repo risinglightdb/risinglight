@@ -135,10 +135,10 @@ impl NestedLoopSemiJoinExecutor {
                     }
                     tokio::task::consume_budget().await;
                 }
-                if exists ^ self.anti {
-                    if let Some(chunk) = builder.push_row(left_row.values()) {
-                        yield chunk;
-                    }
+                if exists ^ self.anti
+                    && let Some(chunk) = builder.push_row(left_row.values())
+                {
+                    yield chunk;
                 }
             }
         }

@@ -17,6 +17,7 @@ type PlainNullableVectorBlockIterator =
 pub enum VectorBlockIteratorImpl {
     Plain(PlainVectorBlockIterator),
     PlainNullable(PlainNullableVectorBlockIterator),
+    #[expect(dead_code)]
     Fake(FakeBlockIterator<VectorArray>),
 }
 

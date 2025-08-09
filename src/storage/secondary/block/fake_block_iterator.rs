@@ -13,6 +13,7 @@ pub struct FakeBlockIterator<A: Array> {
 }
 
 impl<A: Array> FakeBlockIterator<A> {
+    #[expect(dead_code)]
     pub fn new(row_count: usize) -> Self {
         Self {
             row_count,

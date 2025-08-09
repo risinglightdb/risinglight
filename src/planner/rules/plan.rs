@@ -464,10 +464,10 @@ fn has_vector_index(
             if index.column_idxs() != [col.column_id] {
                 continue;
             }
-            if let IndexType::IvfFlat { distance, .. } = index.index_type() {
-                if distance == vector_op {
-                    return true;
-                }
+            if let IndexType::IvfFlat { distance, .. } = index.index_type()
+                && distance == vector_op
+            {
+                return true;
             }
         }
         false
