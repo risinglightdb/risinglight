@@ -922,15 +922,15 @@ impl BitVecExt for BitVec {
 
     fn from_bool_slice(bools: &[bool]) -> Self {
         // use SIMD to speed up
-        let mut iter = bools.array_chunks::<64>();
+        let (chunks, remainder) = bools.as_chunks::<64>();
         let mut bitvec = Vec::with_capacity((bools.len() + 63) / 64);
-        for chunk in iter.by_ref() {
+        for chunk in chunks {
             let bitmask = std::simd::Mask::<i8, 64>::from_array(*chunk).to_bitmask() as usize;
             bitvec.push(bitmask);
         }
-        if !iter.remainder().is_empty() {
+        if !remainder.is_empty() {
             let mut bitmask = 0;
-            for (i, b) in iter.remainder().iter().enumerate() {
+            for (i, b) in remainder.iter().enumerate() {
                 bitmask |= (*b as usize) << i;
             }
             bitvec.push(bitmask);

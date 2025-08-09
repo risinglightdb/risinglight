@@ -214,10 +214,10 @@ impl<'a> Evaluator<'a> {
     }
 
     /// Consume a list of agg states and return their results.
-    pub fn agg_list_take_result(
+    pub fn agg_list_take_result<T: IntoIterator<Item = AggState>>(
         &self,
-        states: impl IntoIterator<Item = AggState>,
-    ) -> impl Iterator<Item = DataValue> {
+        states: T,
+    ) -> impl Iterator<Item = DataValue> + use<T> {
         states.into_iter().map(|s| s.into_result())
     }
 

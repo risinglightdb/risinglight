@@ -55,7 +55,7 @@ where
         let mut code = DICT_NULL_VALUE_KEY + 1;
         let mut dict = HashMap::new();
         let (rle_num, rle_data, block_data) = super::decode_rle_block(rle_block);
-        for item in items.iter().map(|item| (item.unwrap().to_owned())) {
+        for item in items.iter().map(|item| item.unwrap().to_owned()) {
             dict.insert(code, item);
             code += 1;
         }
