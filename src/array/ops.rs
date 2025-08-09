@@ -6,15 +6,15 @@ use std::borrow::Borrow;
 
 use num_traits::ToPrimitive;
 use regex::Regex;
-use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
+use rust_decimal::prelude::FromStr;
 
 use super::*;
 use crate::for_all_variants;
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{
-    Blob, ConvertError, DataType, DataValue, Date, DateTimeField, Interval, NativeType, Timestamp,
-    TimestampTz, F64,
+    Blob, ConvertError, DataType, DataValue, Date, DateTimeField, F64, Interval, NativeType,
+    Timestamp, TimestampTz,
 };
 
 type A = ArrayImpl;
@@ -296,7 +296,7 @@ impl ArrayImpl {
                     "case".into(),
                     true_array.type_string(),
                     false_array.type_string(),
-                ))
+                ));
             }
         })
     }
@@ -596,7 +596,7 @@ impl ArrayImpl {
                     return Err(ConvertError::NoCast(
                         "TIMESTAMP WITH TIME ZONE",
                         data_type.clone(),
-                    ))
+                    ));
                 }
             },
             Self::Interval(a) => match data_type {

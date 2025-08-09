@@ -4,8 +4,8 @@ use futures::Future;
 
 use super::ColumnIterator;
 use crate::array::{ArrayBuilder, I64Array, I64ArrayBuilder};
-use crate::storage::secondary::SecondaryRowHandler;
 use crate::storage::StorageResult;
+use crate::storage::secondary::SecondaryRowHandler;
 
 pub struct RowHandlerColumnIterator {
     rowset_id: usize,

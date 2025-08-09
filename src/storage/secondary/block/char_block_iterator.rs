@@ -102,8 +102,8 @@ mod tests {
 
     use super::*;
     use crate::array::{ArrayBuilder, ArrayToVecExt, StringArrayBuilder};
-    use crate::storage::secondary::block::{BlockBuilder, PlainCharBlockBuilder};
     use crate::storage::secondary::BlockIterator;
+    use crate::storage::secondary::block::{BlockBuilder, PlainCharBlockBuilder};
 
     #[test]
     fn test_scan_char() {

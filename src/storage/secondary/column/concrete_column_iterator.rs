@@ -1,8 +1,8 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use futures::Future;
-use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
+use risinglight_proto::rowset::block_index::BlockType;
 
 use super::super::{Block, BlockIterator};
 use super::{Column, ColumnIterator, ColumnSeekPosition};

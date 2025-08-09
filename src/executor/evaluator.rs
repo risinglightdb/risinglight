@@ -326,18 +326,10 @@ trait Ext {
 
 impl Ext for DataValue {
     fn add(self, other: Self) -> Self {
-        if self.is_null() {
-            other
-        } else {
-            self + other
-        }
+        if self.is_null() { other } else { self + other }
     }
 
     fn or(self, other: Self) -> Self {
-        if self.is_null() {
-            other
-        } else {
-            self
-        }
+        if self.is_null() { other } else { self }
     }
 }

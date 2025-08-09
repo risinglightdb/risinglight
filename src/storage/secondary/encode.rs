@@ -7,7 +7,7 @@ use ordered_float::OrderedFloat;
 use rust_decimal::Decimal;
 
 use crate::array::*;
-use crate::types::{BlobRef, Date, Interval, Timestamp, TimestampTz, F64};
+use crate::types::{BlobRef, Date, F64, Interval, Timestamp, TimestampTz};
 
 /// Encode a primitive value into fixed-width buffer
 pub trait PrimitiveFixedWidthEncode:

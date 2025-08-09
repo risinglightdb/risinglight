@@ -16,7 +16,6 @@
 #![feature(trusted_len)]
 #![feature(adt_const_params)]
 #![feature(iterator_try_collect)]
-#![feature(let_chains)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(coroutines)]
 #![allow(incomplete_features)]

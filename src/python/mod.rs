@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
-use crate::storage::SecondaryStorageOptions;
 use crate::Database;
+use crate::storage::SecondaryStorageOptions;
 
 #[pyclass]
 pub struct PythonDatabase {

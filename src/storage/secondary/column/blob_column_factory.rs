@@ -1,14 +1,14 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
+use risinglight_proto::rowset::block_index::BlockType;
 
 use super::super::{Block, BlockIterator};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::{ArrayBuilder, BlobArray, BlobArrayBuilder};
 use crate::storage::secondary::block::{
-    decode_dict_block, decode_nullable_block, decode_rle_block, DictBlockIterator,
-    FakeBlockIterator, NullableBlockIterator, PlainBlobBlockIterator, RleBlockIterator,
+    DictBlockIterator, FakeBlockIterator, NullableBlockIterator, PlainBlobBlockIterator,
+    RleBlockIterator, decode_dict_block, decode_nullable_block, decode_rle_block,
 };
 use crate::types::BlobRef;
 

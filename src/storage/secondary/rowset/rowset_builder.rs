@@ -7,8 +7,8 @@ use itertools::Itertools;
 use super::super::{ColumnBuilderImpl, IndexBuilder};
 use crate::array::DataChunk;
 use crate::catalog::ColumnCatalog;
-use crate::storage::secondary::rowset::{EncodedColumn, EncodedRowset};
 use crate::storage::secondary::ColumnBuilderOptions;
+use crate::storage::secondary::rowset::{EncodedColumn, EncodedRowset};
 
 /// Builds a Rowset from [`DataChunk`].
 pub struct RowsetBuilder {

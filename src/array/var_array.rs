@@ -10,7 +10,7 @@ use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
 use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidExt};
-use crate::types::{BlobRef, VectorRef, F64};
+use crate::types::{BlobRef, F64, VectorRef};
 
 // A collection of variable-length values.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

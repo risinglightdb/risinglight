@@ -7,22 +7,22 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use clap::Parser;
 use humantime::format_duration;
 use itertools::Itertools;
-use risinglight::array::{datachunk_to_sqllogictest_string, Chunk};
+use risinglight::Database;
+use risinglight::array::{Chunk, datachunk_to_sqllogictest_string};
 use risinglight::server::run_server;
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::utils::time::RoundingDuration;
-use risinglight::Database;
+use rustyline::Editor;
 use rustyline::error::ReadlineError;
 use rustyline::history::DefaultHistory;
-use rustyline::Editor;
 use sqllogictest::DefaultColumnType;
 use tokio::{select, signal};
-use tracing::{info, warn, Level};
+use tracing::{Level, info, warn};
 use tracing_subscriber::prelude::*;
 
 /// RisingLight: an OLAP database system.

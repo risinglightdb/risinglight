@@ -3,9 +3,9 @@
 use std::path::Path;
 
 use anyhow::{Error, Result};
+use risinglight::Database;
 use risinglight::array::*;
 use risinglight::storage::SecondaryStorageOptions;
-use risinglight::Database;
 use sqlplannertest::ParsedTestCase;
 
 #[tokio::main]

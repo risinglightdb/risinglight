@@ -115,13 +115,13 @@ mod tests {
     };
     use crate::storage::secondary::block::dict_block_builder::DictBlockBuilder;
     use crate::storage::secondary::block::dict_block_iterator::{
-        decode_dict_block, DictBlockIterator,
+        DictBlockIterator, decode_dict_block,
     };
     use crate::storage::secondary::block::{
-        decode_nullable_block, BlockBuilder, BlockIterator, NullableBlockBuilder,
-        NullableBlockIterator, PlainBlobBlockBuilder, PlainBlobBlockIterator,
-        PlainCharBlockBuilder, PlainCharBlockIterator, PlainPrimitiveBlockBuilder,
-        PlainPrimitiveBlockIterator,
+        BlockBuilder, BlockIterator, NullableBlockBuilder, NullableBlockIterator,
+        PlainBlobBlockBuilder, PlainBlobBlockIterator, PlainCharBlockBuilder,
+        PlainCharBlockIterator, PlainPrimitiveBlockBuilder, PlainPrimitiveBlockIterator,
+        decode_nullable_block,
     };
     use crate::types::{Blob, BlobRef};
 

@@ -3,14 +3,14 @@
 use std::sync::{Arc, Mutex};
 
 use futures::TryStreamExt;
-use minitrace::collector::SpanContext;
 use minitrace::Span;
+use minitrace::collector::SpanContext;
 use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 
 use crate::array::Chunk;
 use crate::binder::bind_header;
 use crate::catalog::{RootCatalog, RootCatalogRef, TableRefId};
-use crate::parser::{parse, ParserError};
+use crate::parser::{ParserError, parse};
 use crate::planner::{Expr, RecExpr, Statistics};
 use crate::storage::{
     InMemoryStorage, SecondaryStorage, SecondaryStorageOptions, Storage, StorageColumnRef,
@@ -66,11 +66,13 @@ impl Database {
         Ok(match tokens.as_slice() {
             ["dt"] => "SELECT * FROM pg_catalog.pg_tables".to_string(),
             ["di"] => "SELECT * FROM pg_catalog.pg_indexes".to_string(),
-            ["d", table] => format!(
-                "SELECT * FROM pg_catalog.pg_attribute WHERE table_name = '{table}'",
-            ),
+            ["d", table] => {
+                format!("SELECT * FROM pg_catalog.pg_attribute WHERE table_name = '{table}'",)
+            }
             ["stat"] => "SELECT * FROM pg_catalog.pg_stat".to_string(),
-            ["stat", table] => format!("SELECT * FROM pg_catalog.pg_stat WHERE table_name = '{table}'"),
+            ["stat", table] => {
+                format!("SELECT * FROM pg_catalog.pg_stat WHERE table_name = '{table}'")
+            }
             ["stat", table, column] => format!(
                 "SELECT * FROM pg_catalog.pg_stat WHERE table_name = '{table}' AND column_name = '{column}'",
             ),

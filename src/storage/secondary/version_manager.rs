@@ -11,7 +11,7 @@ use tokio::select;
 use tracing::{info, warn};
 
 use super::manifest::*;
-use super::{DeleteVector, DiskRowset, StorageOptions, StorageResult, MANIFEST_FILE_NAME};
+use super::{DeleteVector, DiskRowset, MANIFEST_FILE_NAME, StorageOptions, StorageResult};
 
 /// The operations sent to the version manager. Compared with manifest entries, operations
 /// like `AddRowSet` needs to be associated with a `DiskRowSet` struct.
@@ -357,7 +357,9 @@ impl VersionManager {
                     Err(_) => panic!("rowset {:?} is still being used", deletion),
                 }
             } else {
-                warn!("duplicated deletion dectected, but we can't solve this issue for now -- see https://github.com/risinglightdb/risinglight/issues/566 for more information.");
+                warn!(
+                    "duplicated deletion dectected, but we can't solve this issue for now -- see https://github.com/risinglightdb/risinglight/issues/566 for more information."
+                );
             }
         }
         Ok(deletions)

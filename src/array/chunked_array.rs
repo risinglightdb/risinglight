@@ -11,7 +11,7 @@ use super::{
     Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidExt, PrimitiveValueType,
     ValueRef,
 };
-use crate::types::{VectorRef, F64};
+use crate::types::{F64, VectorRef};
 
 // A collection of fixed-length values.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

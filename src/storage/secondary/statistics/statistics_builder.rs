@@ -2,8 +2,8 @@
 
 use std::collections::HashSet;
 
-use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use risinglight_proto::rowset::BlockStatistics;
+use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 
 use crate::array::PrimitiveValueType;
 

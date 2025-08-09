@@ -307,7 +307,7 @@ impl SecondaryIteratorImpl for MergeIterator {}
 mod tests {
     use bitvec::prelude::{BitVec, *};
     use itertools::Itertools;
-    use smallvec::{smallvec, SmallVec};
+    use smallvec::{SmallVec, smallvec};
 
     use super::*;
     use crate::array::{ArrayImpl, ArrayToVecExt, I32Array};

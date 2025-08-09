@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use serde::Serialize;
 
-use super::{VectorRef, F64};
+use super::{F64, VectorRef};
 
 /// A vector is a specialized array type for floating point numbers.
 #[derive(PartialOrd, Ord, PartialEq, Eq, Debug, Clone, Default, Hash, Serialize)]

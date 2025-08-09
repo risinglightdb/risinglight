@@ -11,8 +11,8 @@ use pgwire::tokio::process_socket;
 use tokio::net::TcpListener;
 use tracing::info;
 
-use crate::server::processor::Processor;
 use crate::Database;
+use crate::server::processor::Processor;
 
 pub async fn run_server(host: Option<String>, port: Option<u16>, db: Database) {
     let processor = Arc::new(Processor::new(db));

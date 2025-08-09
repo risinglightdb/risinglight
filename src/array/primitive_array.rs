@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use super::ops::BitVecExt;
 use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidExt, BoolArray};
-use crate::types::{NativeType, F32, F64};
+use crate::types::{F32, F64, NativeType};
 
 /// A collection of primitive types, such as `i32`, `F32`.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

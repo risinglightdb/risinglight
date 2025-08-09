@@ -76,7 +76,9 @@ impl StorageOptions {
             target_rowset_size: 256 * (1 << 20), // 256MB
             target_block_size: 16 * (1 << 10),   // 16KB
             io_backend: if cfg!(target_os = "windows") {
-                warn!("RisingLight's storage is running in compatibility mode (NormalRead), which might hurt I/O performance.");
+                warn!(
+                    "RisingLight's storage is running in compatibility mode (NormalRead), which might hurt I/O performance."
+                );
                 IOBackend::NormalRead
             } else {
                 IOBackend::PositionedRead

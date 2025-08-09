@@ -359,7 +359,9 @@ impl<S: Storage> Builder<S> {
             },
 
             Apply(_) => {
-                panic!("Apply is not supported in executor. It should be rewritten to join by optimizer.")
+                panic!(
+                    "Apply is not supported in executor. It should be rewritten to join by optimizer."
+                )
             }
 
             Agg([aggs, child]) => SimpleAggExecutor {

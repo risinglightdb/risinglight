@@ -2,18 +2,18 @@
 
 use std::marker::PhantomData;
 
-use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
+use risinglight_proto::rowset::block_index::BlockType;
 use rust_decimal::Decimal;
 
 use super::super::{Block, BlockIterator, PlainPrimitiveBlockIterator, PrimitiveFixedWidthEncode};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::{Array, ArrayBuilder};
 use crate::storage::secondary::block::{
-    decode_dict_block, decode_nullable_block, decode_rle_block, DictBlockIterator,
-    FakeBlockIterator, NullableBlockIterator, RleBlockIterator,
+    DictBlockIterator, FakeBlockIterator, NullableBlockIterator, RleBlockIterator,
+    decode_dict_block, decode_nullable_block, decode_rle_block,
 };
-use crate::types::{Date, Interval, Timestamp, TimestampTz, F64};
+use crate::types::{Date, F64, Interval, Timestamp, TimestampTz};
 
 /// All supported block iterators for primitive types.
 pub enum PrimitiveBlockIteratorImpl<T: PrimitiveFixedWidthEncode> {

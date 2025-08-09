@@ -195,12 +195,12 @@ mod tests {
         ArrayBuilder, ArrayToVecExt, BlobArray, BlobArrayBuilder, I32Array, I32ArrayBuilder,
         StringArray, StringArrayBuilder,
     };
-    use crate::storage::secondary::block::{
-        decode_nullable_block, decode_rle_block, BlockBuilder, NullableBlockBuilder,
-        NullableBlockIterator, PlainBlobBlockBuilder, PlainBlobBlockIterator,
-        PlainCharBlockIterator, PlainPrimitiveBlockBuilder, PlainPrimitiveBlockIterator,
-    };
     use crate::storage::secondary::BlockIterator;
+    use crate::storage::secondary::block::{
+        BlockBuilder, NullableBlockBuilder, NullableBlockIterator, PlainBlobBlockBuilder,
+        PlainBlobBlockIterator, PlainCharBlockIterator, PlainPrimitiveBlockBuilder,
+        PlainPrimitiveBlockIterator, decode_nullable_block, decode_rle_block,
+    };
     use crate::types::{Blob, BlobRef};
 
     #[test]

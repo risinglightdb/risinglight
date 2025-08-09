@@ -4,7 +4,7 @@ use bytes::Buf;
 
 use super::{Block, BlockIterator, NonNullableBlockIterator};
 use crate::array::{ArrayBuilder, VectorArray, VectorArrayBuilder};
-use crate::types::{VectorRef, F64};
+use crate::types::{F64, VectorRef};
 
 /// Scans one or several arrays from the block content.
 pub struct PlainVectorBlockIterator {
@@ -110,8 +110,8 @@ mod tests {
 
     use super::*;
     use crate::array::{ArrayBuilder, ArrayToVecExt, VectorArrayBuilder};
-    use crate::storage::secondary::block::{BlockBuilder, PlainVectorBlockBuilder};
     use crate::storage::secondary::BlockIterator;
+    use crate::storage::secondary::block::{BlockBuilder, PlainVectorBlockBuilder};
     use crate::types::Vector;
 
     #[test]

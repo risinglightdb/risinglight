@@ -3,8 +3,8 @@
 //! Secondary storage engine for RisingLight
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, AtomicU64};
 
 use block::*;
 pub use checksum::*;
@@ -23,8 +23,8 @@ use parking_lot::RwLock;
 pub use row_handler::*;
 use rowset::*;
 pub use table::*;
-use tokio::sync::oneshot::Sender;
 use tokio::sync::Mutex;
+use tokio::sync::oneshot::Sender;
 use tokio::task::JoinHandle;
 use tracing::info;
 pub use transaction::*;
