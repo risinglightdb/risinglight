@@ -2,18 +2,18 @@
 
 use std::marker::PhantomData;
 
-use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
+use risinglight_proto::rowset::block_index::BlockType;
 use rust_decimal::Decimal;
 
 use super::super::{Block, BlockIterator, PlainPrimitiveBlockIterator, PrimitiveFixedWidthEncode};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::{Array, ArrayBuilder};
 use crate::storage::secondary::block::{
-    decode_dict_block, decode_nullable_block, decode_rle_block, DictBlockIterator,
-    FakeBlockIterator, NullableBlockIterator, RleBlockIterator,
+    DictBlockIterator, FakeBlockIterator, NullableBlockIterator, RleBlockIterator,
+    decode_dict_block, decode_nullable_block, decode_rle_block,
 };
-use crate::types::{Date, Interval, Timestamp, TimestampTz, F64};
+use crate::types::{Date, F64, Interval, Timestamp, TimestampTz};
 
 /// All supported block iterators for primitive types.
 pub enum PrimitiveBlockIteratorImpl<T: PrimitiveFixedWidthEncode> {
@@ -26,6 +26,7 @@ pub enum PrimitiveBlockIteratorImpl<T: PrimitiveFixedWidthEncode> {
             NullableBlockIterator<T::ArrayType, PlainPrimitiveBlockIterator<T>>,
         >,
     ),
+    #[expect(dead_code)]
     Fake(FakeBlockIterator<T::ArrayType>),
     Dictionary(DictBlockIterator<T::ArrayType, PlainPrimitiveBlockIterator<T>>),
     DictNullable(
@@ -392,7 +393,11 @@ mod tests {
         .await
         .unwrap();
         let mut recv_data = vec![];
-        let size = if cnt % len == 0 { len } else { cnt % len };
+        let size = if cnt.is_multiple_of(len) {
+            len
+        } else {
+            cnt % len
+        };
 
         scanner.skip(cnt);
         if let Some((start_row_id, data)) = scanner.next_batch(Some(size)).await.unwrap() {

@@ -4,8 +4,8 @@ use std::collections::HashSet;
 use std::fmt;
 use std::str::FromStr;
 
-use pretty_xmlish::helper::delegate_fmt;
 use pretty_xmlish::Pretty;
+use pretty_xmlish::helper::delegate_fmt;
 use serde::{Deserialize, Serialize};
 
 use super::*;

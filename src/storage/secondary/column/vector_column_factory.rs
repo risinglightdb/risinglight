@@ -1,15 +1,15 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
+use risinglight_proto::rowset::block_index::BlockType;
 
 use super::super::{Block, BlockIterator};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::{VectorArray, VectorArrayBuilder};
-use crate::storage::secondary::block::{
-    decode_nullable_block, FakeBlockIterator, NullableBlockIterator,
-};
 use crate::storage::secondary::PlainVectorBlockIterator;
+use crate::storage::secondary::block::{
+    FakeBlockIterator, NullableBlockIterator, decode_nullable_block,
+};
 
 type PlainNullableVectorBlockIterator =
     NullableBlockIterator<VectorArray, PlainVectorBlockIterator>;
@@ -17,6 +17,7 @@ type PlainNullableVectorBlockIterator =
 pub enum VectorBlockIteratorImpl {
     Plain(PlainVectorBlockIterator),
     PlainNullable(PlainNullableVectorBlockIterator),
+    #[expect(dead_code)]
     Fake(FakeBlockIterator<VectorArray>),
 }
 

@@ -40,7 +40,7 @@ pub use vector_column_builder::*;
 pub use vector_column_factory::*;
 
 use super::block::BLOCK_META_CHECKSUM_SIZE;
-use super::{Block, BlockCacheKey, BlockMeta, ColumnIndex, BLOCK_META_SIZE};
+use super::{BLOCK_META_SIZE, Block, BlockCacheKey, BlockMeta, ColumnIndex};
 use crate::array::Array;
 use crate::storage::secondary::verify_checksum;
 use crate::storage::{StorageResult, TracedStorageError};

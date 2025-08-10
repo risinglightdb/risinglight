@@ -7,12 +7,12 @@ use std::sync::Arc;
 
 use bitvec::vec::BitVec;
 use paste::paste;
-use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
+use rust_decimal::prelude::FromStr;
 
 use crate::types::{
-    Blob, ConvertError, DataType, DataValue, Date, Interval, Timestamp, TimestampTz, Vector, F32,
-    F64,
+    Blob, ConvertError, DataType, DataValue, Date, F32, F64, Interval, Timestamp, TimestampTz,
+    Vector,
 };
 
 mod chunked_array;

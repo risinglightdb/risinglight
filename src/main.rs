@@ -7,22 +7,22 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use clap::Parser;
 use humantime::format_duration;
 use itertools::Itertools;
-use risinglight::array::{datachunk_to_sqllogictest_string, Chunk};
+use risinglight::Database;
+use risinglight::array::{Chunk, datachunk_to_sqllogictest_string};
 use risinglight::server::run_server;
 use risinglight::storage::SecondaryStorageOptions;
 use risinglight::utils::time::RoundingDuration;
-use risinglight::Database;
+use rustyline::Editor;
 use rustyline::error::ReadlineError;
 use rustyline::history::DefaultHistory;
-use rustyline::Editor;
 use sqllogictest::DefaultColumnType;
 use tokio::{select, signal};
-use tracing::{info, warn, Level};
+use tracing::{Level, info, warn};
 use tracing_subscriber::prelude::*;
 
 /// RisingLight: an OLAP database system.
@@ -181,10 +181,10 @@ async fn interactive(db: Database, output_format: Option<String>) -> Result<()> 
         history_path.into_boxed_path()
     });
 
-    if let Some(ref history_path) = history_path {
-        if let Err(err) = rl.load_history(&history_path) {
-            println!("No previous history. {err}");
-        }
+    if let Some(ref history_path) = history_path
+        && let Err(err) = rl.load_history(&history_path)
+    {
+        println!("No previous history. {err}");
     }
 
     let db = Arc::new(db);
@@ -213,10 +213,10 @@ async fn interactive(db: Database, output_format: Option<String>) -> Result<()> 
         }
     }
 
-    if let Some(ref history_path) = history_path {
-        if let Err(err) = rl.save_history(&history_path) {
-            println!("Save history failed, {err}");
-        }
+    if let Some(ref history_path) = history_path
+        && let Err(err) = rl.save_history(&history_path)
+    {
+        println!("Save history failed, {err}");
     }
 
     Ok(())

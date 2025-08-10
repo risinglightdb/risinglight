@@ -33,11 +33,7 @@ impl TransactionManager {
     /// Get a lock for compaction, return immediately
     pub fn try_lock_for_compaction(&self, table: u32) -> Option<OwnedMutexGuard<()>> {
         let mutex = self.get_lock_for_table(table);
-        if let Ok(guard) = mutex.try_lock_owned() {
-            Some(guard)
-        } else {
-            None
-        }
+        mutex.try_lock_owned().ok()
     }
 
     async fn lock(&self, table: u32) -> OwnedMutexGuard<()> {

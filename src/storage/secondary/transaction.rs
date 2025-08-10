@@ -5,8 +5,8 @@ use std::ops::Bound;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use risinglight_proto::rowset::DeleteRecord;
+use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use tokio::sync::OwnedMutexGuard;
 use tracing::{info, warn};
 

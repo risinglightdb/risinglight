@@ -4,11 +4,11 @@ use std::sync::Arc;
 
 use bytes::Buf;
 use prost::Message;
-use risinglight_proto::rowset::block_checksum::ChecksumType;
 use risinglight_proto::rowset::BlockIndex;
+use risinglight_proto::rowset::block_checksum::ChecksumType;
 
 use super::{ColumnSeekPosition, SECONDARY_INDEX_MAGIC};
-use crate::storage::secondary::{verify_checksum, INDEX_FOOTER_SIZE};
+use crate::storage::secondary::{INDEX_FOOTER_SIZE, verify_checksum};
 use crate::storage::{StorageResult, TracedStorageError};
 
 #[derive(Clone)]

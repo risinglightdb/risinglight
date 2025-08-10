@@ -10,7 +10,7 @@ use bitvec::vec::BitVec;
 use serde::{Deserialize, Serialize};
 
 use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidExt};
-use crate::types::{BlobRef, VectorRef, F64};
+use crate::types::{BlobRef, F64, VectorRef};
 
 // A collection of variable-length values.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -201,8 +201,7 @@ impl<T: ValueRef<U> + ?Sized, U: PrimitiveValueType> ArrayBuilder for BytesArray
                 self.offset.push(self.data.len());
             }
         } else {
-            self.offset
-                .extend(std::iter::repeat(self.data.len()).take(n));
+            self.offset.extend(std::iter::repeat_n(self.data.len(), n));
         }
     }
 

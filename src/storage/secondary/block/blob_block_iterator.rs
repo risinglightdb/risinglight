@@ -109,8 +109,8 @@ mod tests {
 
     use super::*;
     use crate::array::{ArrayBuilder, ArrayToVecExt, BlobArrayBuilder, StringArrayBuilder};
-    use crate::storage::secondary::block::{BlockBuilder, PlainBlobBlockBuilder};
     use crate::storage::secondary::BlockIterator;
+    use crate::storage::secondary::block::{BlockBuilder, PlainBlobBlockBuilder};
     use crate::types::{Blob, BlobRef};
 
     #[test]

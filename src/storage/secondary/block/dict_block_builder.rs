@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 use bytes::BufMut;
-use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 use risinglight_proto::rowset::BlockStatistics;
+use risinglight_proto::rowset::block_statistics::BlockStatisticsType;
 
 use super::PlainPrimitiveBlockBuilder;
 use crate::array::{Array, I32Array};

@@ -3,8 +3,8 @@
 use std::fmt;
 
 use egg::Id;
-use pretty_xmlish::helper::delegate_fmt;
 use pretty_xmlish::Pretty;
+use pretty_xmlish::helper::delegate_fmt;
 
 use super::{Expr, RecExpr};
 use crate::catalog::RootCatalog;

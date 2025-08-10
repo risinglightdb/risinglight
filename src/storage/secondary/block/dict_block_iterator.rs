@@ -55,7 +55,7 @@ where
         let mut code = DICT_NULL_VALUE_KEY + 1;
         let mut dict = HashMap::new();
         let (rle_num, rle_data, block_data) = super::decode_rle_block(rle_block);
-        for item in items.iter().map(|item| (item.unwrap().to_owned())) {
+        for item in items.iter().map(|item| item.unwrap().to_owned()) {
             dict.insert(code, item);
             code += 1;
         }
@@ -115,13 +115,13 @@ mod tests {
     };
     use crate::storage::secondary::block::dict_block_builder::DictBlockBuilder;
     use crate::storage::secondary::block::dict_block_iterator::{
-        decode_dict_block, DictBlockIterator,
+        DictBlockIterator, decode_dict_block,
     };
     use crate::storage::secondary::block::{
-        decode_nullable_block, BlockBuilder, BlockIterator, NullableBlockBuilder,
-        NullableBlockIterator, PlainBlobBlockBuilder, PlainBlobBlockIterator,
-        PlainCharBlockBuilder, PlainCharBlockIterator, PlainPrimitiveBlockBuilder,
-        PlainPrimitiveBlockIterator,
+        BlockBuilder, BlockIterator, NullableBlockBuilder, NullableBlockIterator,
+        PlainBlobBlockBuilder, PlainBlobBlockIterator, PlainCharBlockBuilder,
+        PlainCharBlockIterator, PlainPrimitiveBlockBuilder, PlainPrimitiveBlockIterator,
+        decode_nullable_block,
     };
     use crate::types::{Blob, BlobRef};
 

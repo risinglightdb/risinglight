@@ -148,11 +148,7 @@ fn make_valid_bitmap(size: usize) -> BitVec {
     (0..size)
         .map(|i| {
             let i = i % 192;
-            if i < 128 {
-                true
-            } else {
-                i % 2 == 0
-            }
+            if i < 128 { true } else { i % 2 == 0 }
         })
         .collect()
 }

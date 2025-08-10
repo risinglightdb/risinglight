@@ -2,8 +2,8 @@
 
 use bytes::BufMut;
 use prost::Message;
-use risinglight_proto::rowset::block_checksum::ChecksumType;
 use risinglight_proto::rowset::BlockIndex;
+use risinglight_proto::rowset::block_checksum::ChecksumType;
 
 use super::build_checksum;
 

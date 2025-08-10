@@ -1,5 +1,5 @@
 [package]
-edition = "2021"
+edition = "2024"
 name = "risinglight"
 version = "0.2.0"
 description = "An OLAP database system for educational purpose"

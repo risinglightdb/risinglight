@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 
 use criterion::*;
-use risinglight::storage::SecondaryStorageOptions;
 use risinglight::Database;
+use risinglight::storage::SecondaryStorageOptions;
 
 criterion_group! {
     name = benches;

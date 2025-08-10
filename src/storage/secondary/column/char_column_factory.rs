@@ -1,15 +1,15 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
+use risinglight_proto::rowset::block_index::BlockType;
 
 use super::super::{Block, BlockIterator};
 use super::{BlockIteratorFactory, ConcreteColumnIterator};
 use crate::array::{ArrayBuilder, StringArray, StringArrayBuilder};
 use crate::storage::secondary::block::{
-    decode_dict_block, decode_nullable_block, decode_rle_block, DictBlockIterator,
-    FakeBlockIterator, NullableBlockIterator, PlainBlobBlockIterator, PlainCharBlockIterator,
-    RleBlockIterator,
+    DictBlockIterator, FakeBlockIterator, NullableBlockIterator, PlainBlobBlockIterator,
+    PlainCharBlockIterator, RleBlockIterator, decode_dict_block, decode_nullable_block,
+    decode_rle_block,
 };
 
 type NullableCharBlockIterator = NullableBlockIterator<StringArray, PlainCharBlockIterator>;
@@ -34,6 +34,7 @@ pub enum CharBlockIteratorImpl {
     DictNullableFixedChar(DictBlockIterator<StringArray, NullableCharBlockIterator>),
     DictVarchar(DictBlockIterator<StringArray, PlainBlobBlockIterator<str>>),
     DictNullableVarchar(DictBlockIterator<StringArray, NullableVarcharBlockIterator>),
+    #[expect(dead_code)]
     Fake(FakeBlockIterator<StringArray>),
 }
 

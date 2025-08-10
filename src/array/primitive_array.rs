@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use super::ops::BitVecExt;
 use super::{Array, ArrayBuilder, ArrayEstimateExt, ArrayFromDataExt, ArrayValidExt, BoolArray};
-use crate::types::{NativeType, F32, F64};
+use crate::types::{F32, F64, NativeType};
 
 /// A collection of primitive types, such as `i32`, `F32`.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -161,7 +161,7 @@ impl<T: NativeType> ArrayBuilder for PrimitiveArrayBuilder<T> {
     fn push_n(&mut self, n: usize, value: Option<&T>) {
         self.valid.resize(self.valid.len() + n, value.is_some());
         self.data
-            .extend(std::iter::repeat(value.cloned().unwrap_or_default()).take(n));
+            .extend(std::iter::repeat_n(value.cloned().unwrap_or_default(), n));
     }
 
     fn append(&mut self, other: &PrimitiveArray<T>) {

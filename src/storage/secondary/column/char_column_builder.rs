@@ -1,10 +1,10 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
+use risinglight_proto::rowset::block_index::BlockType;
 
 use super::super::{BlockBuilder, BlockIndexBuilder, PlainCharBlockBuilder};
-use super::{append_one_by_one, ColumnBuilder};
+use super::{ColumnBuilder, append_one_by_one};
 use crate::array::{Array, StringArray};
 use crate::storage::secondary::block::{
     DictBlockBuilder, NullableBlockBuilder, PlainBlobBlockBuilder, RleBlockBuilder,
@@ -229,10 +229,10 @@ impl ColumnBuilder<StringArray> for CharColumnBuilder {
                     }
                 }
 
-                if let Some(to_be_appended) = iter.peek() {
-                    if self.options.record_first_key {
-                        self.first_key = to_be_appended.map(|x| x.as_bytes().to_vec());
-                    }
+                if let Some(to_be_appended) = iter.peek()
+                    && self.options.record_first_key
+                {
+                    self.first_key = to_be_appended.map(|x| x.as_bytes().to_vec());
                 }
             }
 

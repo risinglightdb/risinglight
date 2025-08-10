@@ -83,7 +83,7 @@ impl Binder {
         let mut where_ = self.bind_where(select.selection)?;
         let groupby = match select.group_by {
             GroupByExpr::All(_) => {
-                return Err(ErrorKind::Todo("group by all".into()).with_spanned(&select.group_by))
+                return Err(ErrorKind::Todo("group by all".into()).with_spanned(&select.group_by));
             }
             GroupByExpr::Expressions(exprs, _) if exprs.is_empty() => None,
             GroupByExpr::Expressions(exprs, _) => Some(self.bind_groupby(exprs)?),
@@ -154,7 +154,7 @@ impl Binder {
         let id = self.bind_selection(selection)?;
         if !self.aggs(id).is_empty() {
             return Err(ErrorKind::AggInWhere.into()); // TODO: raise error in `bind_selection` to
-                                                      // get the correct span
+            // get the correct span
         }
         if !self.overs(id).is_empty() {
             return Err(ErrorKind::WindowInWhere.into()); // TODO: ditto

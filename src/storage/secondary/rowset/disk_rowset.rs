@@ -6,14 +6,14 @@ use std::sync::{Arc, Mutex};
 use bytes::Bytes;
 use itertools::Itertools;
 use moka::future::Cache;
-use tokio::fs::{read, OpenOptions};
+use tokio::fs::{OpenOptions, read};
 
 use super::super::{Block, BlockCacheKey, Column, ColumnIndex, ColumnSeekPosition, IOBackend};
-use super::{path_of_data_column, path_of_index_column, RowSetIterator};
+use super::{RowSetIterator, path_of_data_column, path_of_index_column};
 use crate::catalog::ColumnCatalog;
+use crate::storage::secondary::DeleteVector;
 use crate::storage::secondary::column::ColumnReadableFile;
 use crate::storage::secondary::encode::PrimitiveFixedWidthEncode;
-use crate::storage::secondary::DeleteVector;
 use crate::storage::{KeyRange, StorageColumnRef, StorageResult};
 use crate::types::DataValue;
 
@@ -175,8 +175,8 @@ pub mod tests {
     use super::*;
     use crate::array::ArrayImpl;
     use crate::catalog::ColumnDesc;
-    use crate::storage::secondary::rowset::rowset_builder::RowsetBuilder;
     use crate::storage::secondary::rowset::RowsetWriter;
+    use crate::storage::secondary::rowset::rowset_builder::RowsetBuilder;
     use crate::storage::secondary::{ColumnBuilderOptions, EncodeType};
     use crate::types::DataType;
 

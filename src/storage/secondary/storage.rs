@@ -1,8 +1,8 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, AtomicU64};
 
 use moka::future::Cache;
 use parking_lot::RwLock;
@@ -123,20 +123,16 @@ impl SecondaryStorage {
             // vacuum unused RowSets
             let mut dir = fs::read_dir(&options.path).await?;
             while let Some(entry) = dir.next_entry().await? {
-                if entry.path().is_dir() {
-                    if let Some((table_id, rowset_id)) =
+                if entry.path().is_dir()
+                    && let Some((table_id, rowset_id)) =
                         entry.file_name().to_str().unwrap().split_once('_')
-                    {
-                        if let (Ok(table_id), Ok(rowset_id)) =
-                            (table_id.parse::<u32>(), rowset_id.parse::<u32>())
-                        {
-                            if !rowsets_to_open.contains_key(&(table_id, rowset_id)) {
-                                fs::remove_dir_all(entry.path())
-                                    .await
-                                    .expect("failed to vacuum unused rowsets");
-                            }
-                        }
-                    }
+                    && let (Ok(table_id), Ok(rowset_id)) =
+                        (table_id.parse::<u32>(), rowset_id.parse::<u32>())
+                    && !rowsets_to_open.contains_key(&(table_id, rowset_id))
+                {
+                    fs::remove_dir_all(entry.path())
+                        .await
+                        .expect("failed to vacuum unused rowsets");
                 }
             }
         }

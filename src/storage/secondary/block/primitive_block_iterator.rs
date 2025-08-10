@@ -93,8 +93,8 @@ mod tests {
 
     use super::PlainPrimitiveBlockIterator;
     use crate::array::{ArrayBuilder, ArrayToVecExt, I32ArrayBuilder};
-    use crate::storage::secondary::block::{BlockBuilder, PlainPrimitiveBlockBuilder};
     use crate::storage::secondary::BlockIterator;
+    use crate::storage::secondary::block::{BlockBuilder, PlainPrimitiveBlockBuilder};
 
     #[test]
     fn test_scan_i32() {

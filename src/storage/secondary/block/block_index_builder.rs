@@ -3,8 +3,8 @@
 use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::{BlockIndex, BlockStatistics};
 
-use super::{BlockMeta, BLOCK_META_NON_CHECKSUM_SIZE, BLOCK_META_SIZE};
-use crate::storage::secondary::{build_checksum, ColumnBuilderOptions};
+use super::{BLOCK_META_NON_CHECKSUM_SIZE, BLOCK_META_SIZE, BlockMeta};
+use crate::storage::secondary::{ColumnBuilderOptions, build_checksum};
 
 /// Builds the block index.
 pub struct BlockIndexBuilder {

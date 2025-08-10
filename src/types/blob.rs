@@ -8,7 +8,7 @@ use std::str::FromStr;
 use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 
-use super::{Vector, F64};
+use super::{F64, Vector};
 
 /// Binary large object.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Serialize, Deserialize, Default)]

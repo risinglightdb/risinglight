@@ -1,6 +1,6 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use egg::{define_language, Id, Symbol};
+use egg::{Id, Symbol, define_language};
 
 use crate::binder::copy::ExtSource;
 use crate::binder::{CreateFunction, CreateIndex, CreateTable};

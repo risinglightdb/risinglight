@@ -39,7 +39,7 @@ impl RowSetIterator {
             _ => todo!(),
         };
 
-        if column_refs.len() == 0 {
+        if column_refs.is_empty() {
             panic!("no column to iterate")
         }
 
@@ -268,10 +268,10 @@ mod tests {
 
     use super::*;
     use crate::array::{Array, ArrayToVecExt};
+    use crate::storage::secondary::SecondaryRowHandler;
     use crate::storage::secondary::rowset::tests::{
         helper_build_rowset, helper_build_rowset_with_first_key_recorded,
     };
-    use crate::storage::secondary::SecondaryRowHandler;
     use crate::types::DataValue;
 
     #[tokio::test]

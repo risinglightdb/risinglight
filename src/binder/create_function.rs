@@ -3,8 +3,8 @@
 use std::fmt;
 use std::str::FromStr;
 
-use pretty_xmlish::helper::delegate_fmt;
 use pretty_xmlish::Pretty;
+use pretty_xmlish::helper::delegate_fmt;
 use serde::{Deserialize, Serialize};
 
 use super::*;
@@ -93,7 +93,7 @@ impl Binder {
                 _ => {
                     return Err(
                         ErrorKind::BindFunctionError("expected string".into()).with_spanned(&expr)
-                    )
+                    );
                 }
             },
             Some(CreateFunctionBody::Return(return_expr)) => {

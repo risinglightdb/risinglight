@@ -76,6 +76,7 @@ pub trait BlockBuilder<A: Array> {
     /// Finish a block and return encoded data.
     fn finish(self) -> Vec<u8>;
 
+    #[expect(dead_code)]
     /// Get target size of block.
     fn get_target_size(&self) -> usize;
 }

@@ -1,10 +1,10 @@
 // Copyright 2024 RisingLight Project Authors. Licensed under Apache-2.0.
 
-use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
+use risinglight_proto::rowset::block_index::BlockType;
 
 use super::super::{BlockBuilder, BlockIndexBuilder};
-use super::{append_one_by_one, ColumnBuilder};
+use super::{ColumnBuilder, append_one_by_one};
 use crate::array::{Array, VectorArray};
 use crate::storage::secondary::block::NullableBlockBuilder;
 use crate::storage::secondary::{ColumnBuilderOptions, PlainVectorBlockBuilder};
@@ -109,16 +109,16 @@ impl ColumnBuilder<VectorArray> for VectorColumnBuilder {
                         ));
                     }
                 }
-                if let Some(to_be_appended) = iter.peek() {
-                    if self.options.record_first_key {
-                        self.first_key = to_be_appended.map(|x| {
-                            let mut key = Vec::new();
-                            for i in x.iter() {
-                                key.extend_from_slice(&i.to_le_bytes());
-                            }
-                            key
-                        });
-                    }
+                if let Some(to_be_appended) = iter.peek()
+                    && self.options.record_first_key
+                {
+                    self.first_key = to_be_appended.map(|x| {
+                        let mut key = Vec::new();
+                        for i in x.iter() {
+                            key.extend_from_slice(&i.to_le_bytes());
+                        }
+                        key
+                    });
                 }
             }
 

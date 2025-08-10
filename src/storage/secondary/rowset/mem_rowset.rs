@@ -9,10 +9,10 @@ use itertools::Itertools;
 
 use super::rowset_builder::RowsetBuilder;
 use crate::array::{ArrayBuilderImpl, DataChunk};
-use crate::catalog::{find_sort_key_id, ColumnCatalog};
+use crate::catalog::{ColumnCatalog, find_sort_key_id};
+use crate::storage::StorageResult;
 use crate::storage::secondary::rowset::RowsetWriter;
 use crate::storage::secondary::{ColumnBuilderOptions, IOBackend};
-use crate::storage::StorageResult;
 use crate::types::{DataValue, Row};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -213,8 +213,8 @@ impl SecondaryMemRowsetImpl {
 
     pub fn get_rowset_id(&self) -> u32 {
         match self {
-            Self::BTree(ref mem) => mem.rowset_id,
-            Self::Column(ref mem) => mem.rowset_id,
+            Self::BTree(mem) => mem.rowset_id,
+            Self::Column(mem) => mem.rowset_id,
         }
     }
 }

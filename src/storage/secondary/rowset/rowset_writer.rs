@@ -7,9 +7,9 @@ use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncWriteExt, BufWriter};
 
 use crate::catalog::ColumnCatalog;
-use crate::storage::secondary::rowset::EncodedRowset;
-use crate::storage::secondary::IOBackend;
 use crate::storage::StorageResult;
+use crate::storage::secondary::IOBackend;
+use crate::storage::secondary::rowset::EncodedRowset;
 
 pub fn path_of_data_column(base: impl AsRef<Path>, column_info: &ColumnCatalog) -> PathBuf {
     path_of_column(base, column_info, ".col")
@@ -125,8 +125,8 @@ mod tests {
     use super::*;
     use crate::array::ArrayImpl;
     use crate::catalog::ColumnDesc;
-    use crate::storage::secondary::rowset::RowsetBuilder;
     use crate::storage::secondary::ColumnBuilderOptions;
+    use crate::storage::secondary::rowset::RowsetBuilder;
     use crate::types::DataType;
 
     #[tokio::test]

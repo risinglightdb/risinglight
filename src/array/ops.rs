@@ -6,15 +6,15 @@ use std::borrow::Borrow;
 
 use num_traits::ToPrimitive;
 use regex::Regex;
-use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
+use rust_decimal::prelude::FromStr;
 
 use super::*;
 use crate::for_all_variants;
 use crate::parser::{BinaryOperator, UnaryOperator};
 use crate::types::{
-    Blob, ConvertError, DataType, DataValue, Date, DateTimeField, Interval, NativeType, Timestamp,
-    TimestampTz, F64,
+    Blob, ConvertError, DataType, DataValue, Date, DateTimeField, F64, Interval, NativeType,
+    Timestamp, TimestampTz,
 };
 
 type A = ArrayImpl;
@@ -296,7 +296,7 @@ impl ArrayImpl {
                     "case".into(),
                     true_array.type_string(),
                     false_array.type_string(),
-                ))
+                ));
             }
         })
     }
@@ -596,7 +596,7 @@ impl ArrayImpl {
                     return Err(ConvertError::NoCast(
                         "TIMESTAMP WITH TIME ZONE",
                         data_type.clone(),
-                    ))
+                    ));
                 }
             },
             Self::Interval(a) => match data_type {
@@ -922,15 +922,15 @@ impl BitVecExt for BitVec {
 
     fn from_bool_slice(bools: &[bool]) -> Self {
         // use SIMD to speed up
-        let mut iter = bools.array_chunks::<64>();
-        let mut bitvec = Vec::with_capacity((bools.len() + 63) / 64);
-        for chunk in iter.by_ref() {
+        let (chunks, remainder) = bools.as_chunks::<64>();
+        let mut bitvec = Vec::with_capacity(bools.len().div_ceil(64));
+        for chunk in chunks {
             let bitmask = std::simd::Mask::<i8, 64>::from_array(*chunk).to_bitmask() as usize;
             bitvec.push(bitmask);
         }
-        if !iter.remainder().is_empty() {
+        if !remainder.is_empty() {
             let mut bitmask = 0;
-            for (i, b) in iter.remainder().iter().enumerate() {
+            for (i, b) in remainder.iter().enumerate() {
                 bitmask |= (*b as usize) << i;
             }
             bitvec.push(bitmask);

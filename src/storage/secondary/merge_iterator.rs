@@ -246,10 +246,10 @@ impl MergeIterator {
         let reference_chunk_buffer = reference_chunk_buffer.unwrap();
 
         loop {
-            if let Some(expected_size) = expected_size {
-                if pick_from.len() >= expected_size {
-                    break;
-                }
+            if let Some(expected_size) = expected_size
+                && pick_from.len() >= expected_size
+            {
+                break;
             }
             let (iter_idx, last_idx) = self.peek_pending_data();
             if let Some(next_idx) = self.next_visible_item(iter_idx, Some(last_idx)) {
@@ -307,7 +307,7 @@ impl SecondaryIteratorImpl for MergeIterator {}
 mod tests {
     use bitvec::prelude::{BitVec, *};
     use itertools::Itertools;
-    use smallvec::{smallvec, SmallVec};
+    use smallvec::{SmallVec, smallvec};
 
     use super::*;
     use crate::array::{ArrayImpl, ArrayToVecExt, I32Array};

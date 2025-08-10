@@ -11,10 +11,10 @@ use super::primitive_column_builder::{
 };
 use super::{BoolColumnBuilder, ColumnBuilder};
 use crate::array::ArrayImpl;
+use crate::storage::secondary::VectorColumnBuilder;
 use crate::storage::secondary::column::{
     IntervalColumnBuilder, TimestampColumnBuilder, TimestampTzColumnBuilder,
 };
-use crate::storage::secondary::VectorColumnBuilder;
 use crate::types::DataType;
 
 /// [`ColumnBuilder`] of all types

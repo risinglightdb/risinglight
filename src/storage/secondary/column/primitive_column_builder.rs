@@ -2,8 +2,8 @@
 
 use std::iter::Peekable;
 
-use risinglight_proto::rowset::block_index::BlockType;
 use risinglight_proto::rowset::BlockIndex;
+use risinglight_proto::rowset::block_index::BlockType;
 use rust_decimal::Decimal;
 
 use super::super::{
@@ -12,9 +12,9 @@ use super::super::{
 };
 use super::ColumnBuilder;
 use crate::array::Array;
-use crate::storage::secondary::block::{DictBlockBuilder, NullableBlockBuilder, RleBlockBuilder};
 use crate::storage::secondary::EncodeType;
-use crate::types::{Date, Interval, Timestamp, TimestampTz, F64};
+use crate::storage::secondary::block::{DictBlockBuilder, NullableBlockBuilder, RleBlockBuilder};
+use crate::types::{Date, F64, Interval, Timestamp, TimestampTz};
 
 /// All supported block builders for primitive types.
 pub(super) enum BlockBuilderImpl<T: PrimitiveFixedWidthEncode> {
@@ -223,14 +223,14 @@ impl<T: PrimitiveFixedWidthEncode> ColumnBuilder<T::ArrayType> for PrimitiveColu
                     }
                 }
 
-                if let Some(to_be_appended) = iter.peek() {
-                    if self.options.record_first_key {
-                        self.first_key = to_be_appended.map(|x| {
-                            let mut first_key = vec![];
-                            x.encode(&mut first_key);
-                            first_key
-                        });
-                    }
+                if let Some(to_be_appended) = iter.peek()
+                    && self.options.record_first_key
+                {
+                    self.first_key = to_be_appended.map(|x| {
+                        let mut first_key = vec![];
+                        x.encode(&mut first_key);
+                        first_key
+                    });
                 }
             }
 
