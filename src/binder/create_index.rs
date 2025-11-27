@@ -6,6 +6,7 @@ use std::str::FromStr;
 use pretty_xmlish::Pretty;
 use pretty_xmlish::helper::delegate_fmt;
 use serde::{Deserialize, Serialize};
+use sqlparser::ast::IndexType as OuterIndexType;
 
 use super::*;
 use crate::catalog::{ColumnId, SchemaId, TableId};
@@ -80,7 +81,11 @@ impl FromStr for Box<CreateIndex> {
 }
 
 impl Binder {
-    fn parse_index_type(&self, using: Option<Ident>, with: Vec<Expr>) -> Result<IndexType> {
+    fn parse_index_type(
+        &self,
+        using: Option<OuterIndexType>,
+        with: Vec<Expr>,
+    ) -> Result<IndexType> {
         let Some(using) = using else {
             return Err(ErrorKind::InvalidIndex("using clause is required".to_string()).into());
         };
@@ -113,7 +118,7 @@ impl Binder {
                             ErrorKind::InvalidIndex("invalid with clause".to_string()).into()
                         );
                     };
-                    let v: DataValue = v.into();
+                    let v: DataValue = v.value.into();
                     match key.as_str() {
                         "distfn" => {
                             let v = v.as_str();
@@ -183,7 +188,7 @@ impl Binder {
         let mut column_ids = Vec::new();
         for column in &columns {
             // Ensure column expr is a column reference
-            let OrderByExpr { expr, .. } = column;
+            let OrderByExpr { expr, .. } = &column.column;
             let Expr::Identifier(column_name) = expr else {
                 return Err(
                     ErrorKind::InvalidColumn("column reference expected".to_string())

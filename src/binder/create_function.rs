@@ -88,8 +88,14 @@ impl Binder {
         let body = match function_body {
             Some(CreateFunctionBody::AsBeforeOptions(expr))
             | Some(CreateFunctionBody::AsAfterOptions(expr)) => match expr {
-                Expr::Value(Value::SingleQuotedString(s)) => s,
-                Expr::Value(Value::DollarQuotedString(s)) => s.value,
+                Expr::Value(vlaue_with_span) => match vlaue_with_span.value {
+                    Value::SingleQuotedString(s) => s,
+                    Value::DollarQuotedString(s) => s.value,
+                    _ => {
+                        return Err(ErrorKind::BindFunctionError("expected string".into())
+                            .with_spanned(&vlaue_with_span));
+                    }
+                },
                 _ => {
                     return Err(
                         ErrorKind::BindFunctionError("expected string".into()).with_spanned(&expr)
@@ -101,7 +107,7 @@ impl Binder {
                 // will NOT involve complex syntax, so just reuse the logic for select definition
                 format!("select {}", &return_expr.to_string())
             }
-            None => {
+            _ => {
                 return Err(ErrorKind::BindFunctionError(
                     "AS or RETURN must be specified".to_string(),
                 )
