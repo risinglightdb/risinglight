@@ -6,7 +6,6 @@ use std::str::FromStr;
 use pretty_xmlish::Pretty;
 use pretty_xmlish::helper::delegate_fmt;
 use serde::{Deserialize, Serialize};
-use sqlparser::ast::IndexType as OuterIndexType;
 
 use super::*;
 use crate::catalog::{ColumnId, SchemaId, TableId};
@@ -83,7 +82,7 @@ impl FromStr for Box<CreateIndex> {
 impl Binder {
     fn parse_index_type(
         &self,
-        using: Option<OuterIndexType>,
+        using: Option<sqlparser::ast::IndexType>,
         with: Vec<Expr>,
     ) -> Result<IndexType> {
         let Some(using) = using else {

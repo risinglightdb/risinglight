@@ -453,25 +453,22 @@ fn lower_case_name(name: &ObjectName) -> ObjectName {
     ObjectName(
         name.0
             .iter()
-            .map(|obj_name_part| {
-                match obj_name_part {
-                    ObjectNamePart::Identifier(ident) => ObjectNamePart::Identifier(Ident {
-                        value: ident.value.to_lowercase(),
-                        quote_style: ident.quote_style,
-                        span: ident.span,
-                    }),
-                    ObjectNamePart::Function(object_name_part_function) => {
-                        ObjectNamePart::Function(ObjectNamePartFunction {
-                            name: Ident {
-                                value: object_name_part_function.name.value.to_lowercase(),
-                                quote_style: object_name_part_function.name.quote_style,
-                                span: object_name_part_function.name.span,
-                            },
-                            args: object_name_part_function.args.clone(),
-                        })
-                    }
+            .map(|obj_name_part| match obj_name_part {
+                ObjectNamePart::Identifier(ident) => ObjectNamePart::Identifier(Ident {
+                    value: ident.value.to_lowercase(),
+                    quote_style: ident.quote_style,
+                    span: ident.span,
+                }),
+                ObjectNamePart::Function(object_name_part_function) => {
+                    ObjectNamePart::Function(ObjectNamePartFunction {
+                        name: Ident {
+                            value: object_name_part_function.name.value.to_lowercase(),
+                            quote_style: object_name_part_function.name.quote_style,
+                            span: object_name_part_function.name.span,
+                        },
+                        args: object_name_part_function.args.clone(),
+                    })
                 }
-                // Ident::with_span(ident.span, ident.value.to_lowercase())
             })
             .collect::<Vec<_>>(),
     )
