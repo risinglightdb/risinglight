@@ -21,13 +21,13 @@ impl Binder {
                 // parameter-like (i.e., `$1`) values at present
                 // TODO: consider formally `bind_parameter` in the future
                 // e.g., lambda function support, etc.
-                if let Value::Placeholder(key) = &v {
+                if let Value::Placeholder(key) = &v.value {
                     self.udf_context
                         .get_expr(key)
                         .cloned()
                         .ok_or_else(|| ErrorKind::InvalidSQL.with_spanned(&v))
                 } else {
-                    Ok(self.egraph.add(Node::Constant(v.into())))
+                    Ok(self.egraph.add(Node::Constant(v.value.into())))
                 }
             }
             Expr::Identifier(ident) => self.bind_ident([ident]),
@@ -44,7 +44,9 @@ impl Binder {
                 let isnull = self.bind_is_null(*expr)?;
                 Ok(self.egraph.add(Node::Not(isnull)))
             }
-            Expr::TypedString { data_type, value } => self.bind_typed_string(data_type, value),
+            Expr::TypedString(typed_string) => {
+                self.bind_typed_string(typed_string.data_type, typed_string.value)
+            }
             Expr::Like {
                 negated,
                 expr,
@@ -68,9 +70,9 @@ impl Binder {
             Expr::Case {
                 operand,
                 conditions,
-                results,
                 else_result,
-            } => self.bind_case(operand, conditions, results, else_result),
+                ..
+            } => self.bind_case(operand, conditions, else_result),
             Expr::InList {
                 expr,
                 list,
@@ -143,8 +145,8 @@ impl Binder {
             Or => Node::Or([l, r]),
             Xor => Node::Xor([l, r]),
             Spaceship => Node::VectorCosineDistance([l, r]),
+            LtDashGt => Node::VectorL2Distance([l, r]),
             Custom(name) => match name.as_str() {
-                "<->" => Node::VectorL2Distance([l, r]),
                 "<#>" => Node::VectorNegtiveInnerProduct([l, r]),
                 op => todo!("bind custom binary op: {:?}", op),
             },
@@ -169,7 +171,7 @@ impl Binder {
         // workaround for 'BLOB'
         if let DataType::Custom(name, _modifiers) = &ty
             && name.0.len() == 1
-            && name.0[0].value.to_lowercase() == "blob"
+            && derive_ident(&name.0[0]).value.to_lowercase() == "blob"
         {
             ty = DataType::Blob(None);
         }
@@ -182,7 +184,11 @@ impl Binder {
         Ok(self.egraph.add(Node::IsNull(expr)))
     }
 
-    fn bind_typed_string(&mut self, data_type: DataType, value: String) -> Result {
+    fn bind_typed_string(&mut self, data_type: DataType, value_with_span: ValueWithSpan) -> Result {
+        let ValueWithSpan { value, span } = value_with_span;
+        let value = value.into_string().ok_or_else(|| {
+            ErrorKind::InvalidExpression("must be string".to_string()).with_span(span)
+        })?;
         match data_type {
             DataType::Date => {
                 let date = value.parse().map_err(|_| {
@@ -234,9 +240,18 @@ impl Binder {
     }
 
     fn bind_interval(&mut self, interval: parser::Interval) -> Result {
-        let Expr::Value(Value::Number(v, _) | Value::SingleQuotedString(v)) = *interval.value
-        else {
-            panic!("interval value must be number or string");
+        let Expr::Value(value_with_span) = *interval.value else {
+            return Err(
+                ErrorKind::InvalidExpression("interval value must be value".to_string()).into(),
+            );
+        };
+
+        let ValueWithSpan { value, .. } = value_with_span;
+
+        let v = match value {
+            Value::Number(n, _) => n,
+            Value::SingleQuotedString(s) => s,
+            _ => panic!("interval value must be number or string"),
         };
         let num = v.parse().expect("interval value is not a number");
         let value = DataValue::Interval(match interval.leading_field {
@@ -257,8 +272,7 @@ impl Binder {
     fn bind_case(
         &mut self,
         operand: Option<Box<Expr>>,
-        conditions: Vec<Expr>,
-        results: Vec<Expr>,
+        whens: Vec<CaseWhen>,
         else_result: Option<Box<Expr>>,
     ) -> Result {
         let operand = operand.map(|expr| self.bind_expr(*expr)).transpose()?;
@@ -266,12 +280,12 @@ impl Binder {
             Some(expr) => self.bind_expr(*expr)?,
             None => self.egraph.add(Node::null()),
         };
-        for (cond, result) in conditions.into_iter().rev().zip(results.into_iter().rev()) {
-            let mut cond = self.bind_expr(cond)?;
+        for CaseWhen { condition, result } in whens.iter().rev() {
+            let mut cond = self.bind_expr(condition.clone())?;
             if let Some(operand) = operand {
                 cond = self.egraph.add(Node::Eq([operand, cond]));
             }
-            let mut result = self.bind_expr(result)?;
+            let mut result = self.bind_expr(result.clone())?;
             (result, case) = self.implicit_type_cast(result, case)?;
             case = self.egraph.add(Node::If([cond, result, case]));
         }

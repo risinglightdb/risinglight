@@ -85,7 +85,7 @@ impl Binder {
             return Err(ErrorKind::NotSupportedTSQL.into());
         }
 
-        let pks_name_from_constraints = Binder::pks_name_from_constraints(&constraints);
+        let pks_name_from_constraints = Binder::pks_name_from_constraints(&constraints)?;
         if has_pk_from_column && !pks_name_from_constraints.is_empty() {
             // can't get primary key both from "primary key(c1, c2...)" syntax and
             // column's option
@@ -157,15 +157,26 @@ impl Binder {
     }
 
     /// get the primary keys' name sorted by declaration order in "primary key(c1, c2..)" syntax.
-    fn pks_name_from_constraints(constraints: &[TableConstraint]) -> &[Ident] {
+    fn pks_name_from_constraints(constraints: &[TableConstraint]) -> Result<&[Ident]> {
         for constraint in constraints {
             match constraint {
-                TableConstraint::PrimaryKey { columns, .. } => return columns,
+                TableConstraint::PrimaryKey { columns, .. } => {
+                    let _ = columns.iter().map(|column_index| {
+                        Ok(match &column_index.column.expr {
+                            Expr::Identifier(ident) => ident,
+                            _ => {
+                                return Err(ErrorKind::InvalidIndex(
+                                    column_index.column.expr.to_string(),
+                                ));
+                            }
+                        })
+                    });
+                }
                 _ => continue,
             }
         }
         // no primary key
-        &[]
+        Ok(&[])
     }
 }
 

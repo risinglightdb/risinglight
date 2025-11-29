@@ -89,17 +89,17 @@ impl Binder {
     fn bind_join_op(&mut self, op: JoinOperator) -> Result<(Id, Id)> {
         use JoinOperator::*;
         match op {
-            Inner(constraint) => {
+            Join(constraint) | Inner(constraint) => {
                 let ty = self.egraph.add(Node::Inner);
                 let condition = self.bind_join_constraint(constraint)?;
                 Ok((ty, condition))
             }
-            LeftOuter(constraint) => {
+            Left(constraint) | LeftOuter(constraint) => {
                 let ty = self.egraph.add(Node::LeftOuter);
                 let condition = self.bind_join_constraint(constraint)?;
                 Ok((ty, condition))
             }
-            RightOuter(constraint) => {
+            Right(constraint) | RightOuter(constraint) => {
                 let ty = self.egraph.add(Node::RightOuter);
                 let condition = self.bind_join_constraint(constraint)?;
                 Ok((ty, condition))
@@ -109,9 +109,9 @@ impl Binder {
                 let condition = self.bind_join_constraint(constraint)?;
                 Ok((ty, condition))
             }
-            CrossJoin => {
+            CrossJoin(constraint) => {
                 let ty = self.egraph.add(Node::Inner);
-                let condition = self.egraph.add(Node::true_());
+                let condition = self.bind_join_constraint(constraint)?;
                 Ok((ty, condition))
             }
             LeftSemi(constraint) => {

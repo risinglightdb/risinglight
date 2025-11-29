@@ -260,9 +260,12 @@ impl Binder {
                 statement, analyze, ..
             } => self.bind_explain(*statement, analyze),
             Statement::Pragma { name, value, .. } => self.bind_pragma(name, value),
-            Statement::SetVariable {
-                variables, value, ..
-            } => self.bind_set(variables.as_ref(), value),
+            Statement::Set(set) => match set {
+                Set::SingleAssignment {
+                    variable, values, ..
+                } => self.bind_set(&[variable], values),
+                _ => Err(ErrorKind::Todo("other set operators".into()).into()),
+            },
             Statement::ShowVariable { .. }
             | Statement::ShowCreate { .. }
             | Statement::ShowColumns { .. } => Err(ErrorKind::NotSupportedTSQL.into()),
@@ -426,10 +429,23 @@ impl Binder {
 /// Split an object name into `(schema name, table name)`.
 fn split_name(name: &ObjectName) -> Result<(&str, &str)> {
     Ok(match name.0.as_slice() {
-        [table] => (RootCatalog::DEFAULT_SCHEMA_NAME, &table.value),
-        [schema, table] => (&schema.value, &table.value),
-        _ => return Err(ErrorKind::InvalidTableName(name.0.clone()).with_spanned(name)),
+        [table] => (RootCatalog::DEFAULT_SCHEMA_NAME, &derive_ident(table).value),
+        [schema, table] => (&derive_ident(schema).value, &derive_ident(table).value),
+        _ => {
+            return Err(ErrorKind::InvalidTableName(
+                name.0.iter().map(|o| derive_ident(o).clone()).collect(),
+            )
+            .with_spanned(name));
+        }
     })
+}
+
+/// deriver Ident from object name part
+fn derive_ident(object: &ObjectNamePart) -> &Ident {
+    match object {
+        ObjectNamePart::Identifier(ident) => ident,
+        ObjectNamePart::Function(table_function) => &table_function.name,
+    }
 }
 
 /// Convert an object name into lower case
@@ -437,7 +453,23 @@ fn lower_case_name(name: &ObjectName) -> ObjectName {
     ObjectName(
         name.0
             .iter()
-            .map(|ident| Ident::with_span(ident.span, ident.value.to_lowercase()))
+            .map(|obj_name_part| match obj_name_part {
+                ObjectNamePart::Identifier(ident) => ObjectNamePart::Identifier(Ident {
+                    value: ident.value.to_lowercase(),
+                    quote_style: ident.quote_style,
+                    span: ident.span,
+                }),
+                ObjectNamePart::Function(object_name_part_function) => {
+                    ObjectNamePart::Function(ObjectNamePartFunction {
+                        name: Ident {
+                            value: object_name_part_function.name.value.to_lowercase(),
+                            quote_style: object_name_part_function.name.quote_style,
+                            span: object_name_part_function.name.span,
+                        },
+                        args: object_name_part_function.args.clone(),
+                    })
+                }
+            })
             .collect::<Vec<_>>(),
     )
 }

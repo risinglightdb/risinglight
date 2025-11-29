@@ -114,7 +114,7 @@ impl From<&crate::parser::DataType> for DataType {
             Char(_) | Varchar(_) | String(_) | Text => Self::String,
             Bytea | Binary(_) | Varbinary(_) | Blob(_) => Self::Blob,
             // Real => Self::Float32,
-            Float(_) | Double => Self::Float64,
+            Float(_) | Double(_) => Self::Float64,
             SmallInt(_) => Self::Int16,
             Int(_) | Integer(_) => Self::Int32,
             BigInt(_) => Self::Int64,
@@ -129,7 +129,7 @@ impl From<&crate::parser::DataType> for DataType {
             Date => Self::Date,
             Timestamp(_, TimezoneInfo::None) => Self::Timestamp,
             Timestamp(_, TimezoneInfo::Tz) => Self::TimestampTz,
-            Interval => Self::Interval,
+            Interval { .. } => Self::Interval,
             Custom(name, items) => {
                 if name.to_string().to_lowercase() == "vector" {
                     if items.len() != 1 {

@@ -35,8 +35,7 @@ pub struct TableRefId {
 
 impl std::fmt::Debug for TableRefId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO: print schema id
-        write!(f, "${}", self.table_id)
+        write!(f, "${}.{}", self.schema_id, self.table_id)
     }
 }
 
@@ -126,8 +125,11 @@ impl ColumnRefId {
 
 impl std::fmt::Debug for ColumnRefId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO: print schema id
-        write!(f, "${}.{}", self.table_id, self.column_id)?;
+        write!(
+            f,
+            "${}.{}.{}",
+            self.schema_id, self.table_id, self.column_id
+        )?;
         if self.table_occurrence != 0 {
             write!(f, "({})", self.table_occurrence)?;
         }

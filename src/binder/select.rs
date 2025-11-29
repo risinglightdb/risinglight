@@ -29,13 +29,31 @@ impl Binder {
             SetExpr::Values(values) => self.bind_values(values)?,
             body => return Err(ErrorKind::Todo("unknown set expr".into()).with_spanned(&body)),
         };
-        let limit = match query.limit {
-            Some(expr) => self.bind_expr(expr)?,
-            None => self.egraph.add(Node::null()),
-        };
-        let offset = match query.offset {
-            Some(offset) => self.bind_expr(offset.value)?,
-            None => self.egraph.add(Node::zero()),
+        let default_limit = self.egraph.add(Node::null());
+        let default_offset = self.egraph.add(Node::zero());
+
+        let (limit, offset) = if let Some(clause) = query.limit_clause {
+            match clause {
+                LimitClause::LimitOffset { limit, offset, .. } => {
+                    let limit_node = limit
+                        .map(|l| self.bind_expr(l))
+                        .transpose()?
+                        .unwrap_or(default_limit);
+
+                    let offset_node = offset
+                        .map(|o| self.bind_expr(o.value))
+                        .transpose()?
+                        .unwrap_or(default_offset);
+
+                    (limit_node, offset_node)
+                }
+
+                LimitClause::OffsetCommaLimit { .. } => {
+                    return Err(ErrorKind::Todo("MySQL Limit syntax".into()).with_spanned(&clause));
+                }
+            }
+        } else {
+            (default_limit, default_offset)
         };
         Ok(self.egraph.add(Node::Limit([limit, offset, child])))
     }
@@ -90,7 +108,12 @@ impl Binder {
         };
         let having = self.bind_having(select.having)?;
         let orderby = match order_by {
-            Some(order_by) => self.bind_orderby(order_by.exprs)?,
+            Some(order_by) => match order_by.kind {
+                OrderByKind::All(_) => {
+                    return Err(ErrorKind::Todo("order by all".into()).with_spanned(&order_by));
+                }
+                OrderByKind::Expressions(exprs) => self.bind_orderby(exprs)?,
+            },
             None => self.egraph.add(Node::List([].into())),
         };
         let distinct = match select.distinct {
@@ -195,7 +218,7 @@ impl Binder {
         let mut orderby = Vec::with_capacity(order_by.len());
         for e in order_by {
             let expr = self.bind_expr(e.expr)?;
-            let key = match e.asc {
+            let key = match e.options.asc {
                 Some(true) | None => expr,
                 Some(false) => self.egraph.add(Node::Desc(expr)),
             };
